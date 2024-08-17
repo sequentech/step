@@ -1,6 +1,5 @@
 use anyhow::Result;
 
-use board_messages::grpc::GetMessagesReply;
 use board_messages::grpc::GrpcB3Message;
 use rusqlite::params;
 use rusqlite::Connection;

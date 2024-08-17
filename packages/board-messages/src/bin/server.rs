@@ -1,5 +1,5 @@
 use tracing::info;
-use tonic::{transport::Server, Request, Response, Status};
+use tonic::transport::Server;
 
 use board_messages::grpc::pgsql::{PgsqlB3Client, PgsqlConnectionParams};
 use board_messages::grpc::server::PgsqlB3Server;
@@ -19,7 +19,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let port = PG_PORT;
     let user = PG_USER;
     let database = PG_DATABASE;
-    let socket = "[::1]:50051";
+    let socket = "http://[::1]:50051";
     
     info!("Starting b3");
     info!("pgsql host: '{host}'");
@@ -46,7 +46,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-use std::{alloc::System, time::{Duration, SystemTime, UNIX_EPOCH}};
 use std::str::FromStr;
 use tracing::Level;
 use tracing_subscriber::filter::LevelFilter;

@@ -25,7 +25,7 @@ use board_messages::braid::protocol_manager::ProtocolManager;
 use board_messages::braid::statement::StatementType;
 
 use board_messages::grpc::pgsql::{self, PgsqlB3Client};
-use board_messages::grpc::pgsql::{PgsqlConnectionParams, PgsqlDbConnectionParams};
+use board_messages::grpc::pgsql::PgsqlConnectionParams;
 use board_messages::grpc::pgsql::B3MessageRow;
 
 use crate::protocol::board::grpc::GrpcB3;

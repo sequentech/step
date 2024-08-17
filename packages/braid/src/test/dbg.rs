@@ -216,7 +216,7 @@ impl<C: Ctx> Status<C> {
             .set_header("batch")
             .set_align(Align::Left);
         let mut data: Vec<Vec<String>> = vec![];
-        for (m, id) in self.remote.messages.iter() {
+        for (m, _id) in self.remote.messages.iter() {
             let sender = self.cfg.get_trustee_position(&m.sender.pk).unwrap();
             data.push(vec![
                 format!("{:?}", m.statement.get_kind()),

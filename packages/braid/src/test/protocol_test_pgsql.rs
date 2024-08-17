@@ -23,12 +23,12 @@ use board_messages::braid::newtypes::MAX_TRUSTEES;
 use board_messages::braid::newtypes::NULL_TRUSTEE;
 use board_messages::braid::protocol_manager::ProtocolManager;
 use board_messages::braid::statement::StatementType;
-use board_messages::grpc::pgsql::{B3MessageRow, PgsqlConnectionParams, PgsqlDbConnectionParams};
-use board_messages::grpc::pgsql::{PgsqlB3Client};
+use board_messages::grpc::pgsql::{B3MessageRow, PgsqlConnectionParams};
+use board_messages::grpc::pgsql::PgsqlB3Client;
 use board_messages::grpc::pgsql;
 
 use crate::protocol::board::pgsql::PgsqlBoard;
-use crate::protocol::board::pgsql::{PgsqlBoardParams};
+use crate::protocol::board::pgsql::PgsqlBoardParams;
 
 use crate::protocol::session::Session;
 use crate::protocol::trustee::Trustee;

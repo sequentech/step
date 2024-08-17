@@ -5,8 +5,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::*;
-use anyhow::anyhow;
-use anyhow::Context;
 use anyhow::Result;
 use rayon::prelude::*;
 use strand::{serialization::StrandVector, zkp::ChaumPedersen};

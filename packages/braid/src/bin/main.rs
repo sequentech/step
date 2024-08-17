@@ -25,8 +25,6 @@ const IMMUDB_USER: &str = "immudb";
 const IMMUDB_PW: &str = "immudb";
 const IMMUDB_URL: &str = "http://immudb:3322";
 
-const B3_URL: &str = "";
-
 #[derive(Parser)]
 struct Cli {
     #[arg(short, long, default_value_t = IMMUDB_URL.to_string())]
@@ -105,7 +103,7 @@ async fn main() -> Result<()> {
         let boards: Vec<String> = match boards_result {
             Ok(boards) => boards,
             Err(error) => {
-                error!("Error listing board names: '{}'", error);
+                error!("Error listing board names: '{}' ({})", error, args.server_url);
                 sleep(Duration::from_millis(1000)).await;
                 continue;
             }

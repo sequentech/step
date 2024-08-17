@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// cargo run --bin verify -- --server-url http://immudb:3322 --board defaultboard
+// cargo run --bin verify -- --server-url http://[::1]:50051 --board testboard
 use anyhow::Result;
 use clap::Parser;
 use tracing::info;

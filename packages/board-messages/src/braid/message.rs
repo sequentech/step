@@ -2,8 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use std::i64::MIN;
-
 use anyhow::{anyhow, Result};
 use borsh::{BorshDeserialize, BorshSerialize};
 use strand::context::Ctx;
@@ -16,7 +14,7 @@ use crate::braid::statement::Statement;
 use crate::braid::statement::StatementType;
 
 use crate::braid::newtypes::*;
-use crate::grpc::pgsql::B3MessageRow;
+
 
 ///////////////////////////////////////////////////////////////////////////
 // Message

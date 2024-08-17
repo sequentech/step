@@ -1,22 +1,22 @@
 use tokio_postgres::{NoTls, Row};
 use anyhow::{anyhow, Result};
 use tracing::instrument;
-use tracing::{info, warn};
 use std::time::SystemTime;
 
 use crate::braid::newtypes::Timestamp;
 use crate::braid::message::Message;
 use strand::serialization::StrandSerialize;
 
-///////////////////////////////////////////////////////////////////////////
-// PostgreSql client
-//
-///////////////////////////////////////////////////////////////////////////
-
 const INDEX_TABLE: &'static str = "BULLETIN_BOARDS";
 const PG_DEFAULT_ENTRIES_TX_LIMIT: usize = 50;
 const PG_DEFAULT_OFFSET: usize = 0;
 const PG_DEFAULT_LIMIT: usize = 2500;
+
+
+///////////////////////////////////////////////////////////////////////////
+// Row structs
+//
+///////////////////////////////////////////////////////////////////////////
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct B3MessageRow {
@@ -96,54 +96,10 @@ impl TryFrom<&Row> for B3IndexRow {
     }
 }
 
-#[derive(Clone)]
-pub struct PgsqlConnectionParams {
-    host: String,
-    port: u32,
-    username: String,
-    password: String,
-}
-impl PgsqlConnectionParams {
-    pub fn new(host: &str, port: u32, username: &str, password: &str) -> PgsqlConnectionParams {
-        PgsqlConnectionParams {
-            host: host.to_string(),
-            port: port,
-            username: username.to_string(),
-            password: password.to_string(),
-        }
-    }
-    pub fn connection_string(&self) -> String {
-        format!(
-            "host={} port={} user={} password={}",
-            self.host, self.port, self.username, self.password
-        )
-    }
-    pub fn with_database(&self, db_name: &str) -> PgsqlDbConnectionParams {
-        PgsqlDbConnectionParams::new(self, db_name)
-    }
-}
-
-#[derive(Clone)]
-pub struct PgsqlDbConnectionParams {
-    connection: PgsqlConnectionParams,
-    db_name: String,
-}
-impl PgsqlDbConnectionParams {
-    pub fn new(connection: &PgsqlConnectionParams, db_name: &str) -> PgsqlDbConnectionParams {
-        PgsqlDbConnectionParams {
-            connection: connection.clone(),
-            db_name: db_name.to_string(),
-        }
-    }
-    pub fn connection_string(&self) -> String {
-        format!(
-            "{} dbname={}",
-            self.connection.connection_string(),
-            self.db_name
-        )
-    }
-}
-
+///////////////////////////////////////////////////////////////////////////
+// PostgreSql client
+//
+///////////////////////////////////////////////////////////////////////////
 
 pub struct PgsqlB3Client {
     client: tokio_postgres::Client,
@@ -241,33 +197,6 @@ impl PgsqlB3Client {
         Ok(())
     }
 
-    /// Gets the requested board from the index.
-    pub async fn get_board(&mut self, board_name: &str) -> Result<B3IndexRow> {
-        let message_sql = format!(
-            r#"
-        SELECT
-            id,
-            board_name,
-            is_archived
-        FROM {}
-        WHERE board_name = $1;
-        "#,
-            INDEX_TABLE
-        );
-
-        let sql_query_response = self.client.query(&message_sql, &[&board_name]).await?;
-        let boards = sql_query_response
-            .iter()
-            .map(B3IndexRow::try_from)
-            .collect::<Result<Vec<B3IndexRow>>>()?;
-
-        if boards.len() > 0 {
-            Ok(boards[0].clone())
-        } else {
-            Err(anyhow!("board name '{}' not found", board_name))
-        }
-    }
-
     /// Get all messages whose id is bigger than `last_id`.
     pub async fn get_messages(
         &mut self,
@@ -330,7 +259,7 @@ impl PgsqlB3Client {
         Ok(messages)
     }
 
-    /// Get all boards in the index
+    /// Get all boards in the index.
     pub async fn get_boards(&mut self) -> Result<Vec<B3IndexRow>> {
         let sql = format!(
             r#"
@@ -352,6 +281,33 @@ impl PgsqlB3Client {
         Ok(boards)
     }
 
+    /// Gets the requested board from the index.
+    pub async fn get_board(&mut self, board_name: &str) -> Result<Option<B3IndexRow>> {
+        let message_sql = format!(
+            r#"
+        SELECT
+            id,
+            board_name,
+            is_archived
+        FROM {}
+        WHERE board_name = $1;
+        "#,
+            INDEX_TABLE
+        );
+
+        let sql_query_response = self.client.query(&message_sql, &[&board_name]).await?;
+        let boards = sql_query_response
+            .iter()
+            .map(B3IndexRow::try_from)
+            .collect::<Result<Vec<B3IndexRow>>>()?;
+
+        if boards.len() > 0 {
+            Ok(Some(boards[0].clone()))
+        } else {
+            Ok(None)
+        }
+    }
+
     /// Inserts messages into the requested board table.
     pub async fn insert_messages(
         &mut self,
@@ -364,6 +320,44 @@ impl PgsqlB3Client {
         }
         Ok(())
     }
+
+        /// Deletes the requested board table and removes it from the index.
+        pub async fn delete_board(&mut self, board_name: &str) -> Result<()> {
+            let transaction = self.client.transaction().await?;
+            let message_sql = format!(
+                r#"
+                DELETE from {} where 
+                board_name = $1
+                AND
+                is_archived = $2;
+            "#,
+                INDEX_TABLE
+            );
+    
+            transaction
+                .execute(&message_sql, &[&board_name, &false])
+                .await?;
+            transaction
+                .execute(&format!("DROP TABLE IF EXISTS {};", board_name), &[])
+                .await?;
+    
+            transaction.commit().await?;
+    
+            Ok(())
+        }
+    
+        /// Clears all data in the database.
+        pub async fn clear_database(&mut self) -> Result<()> {
+            let transaction = self.client.transaction().await?;
+            transaction
+                .execute("drop schema if exists public cascade;", &[])
+                .await?;
+            transaction
+                .execute("create schema if not exists public;", &[])
+                .await?;
+            transaction.commit().await?;
+            Ok(())
+        }
 
     async fn get(
         &mut self,
@@ -480,43 +474,53 @@ impl PgsqlB3Client {
         }
     }
 
-    /// Deletes the requested board table and removes it from the index.
-    #[instrument(skip(self))]
-    pub async fn delete_board(&mut self, board_name: &str) -> Result<()> {
-        let transaction = self.client.transaction().await?;
-        let message_sql = format!(
-            r#"
-            DELETE from {} where 
-            board_name = $1
-            AND
-            is_archived = $2;
-        "#,
-            INDEX_TABLE
-        );
+}
 
-        transaction
-            .execute(&message_sql, &[&board_name, &false])
-            .await?;
-        transaction
-            .execute(&format!("DROP TABLE IF EXISTS {};", board_name), &[])
-            .await?;
-
-        transaction.commit().await?;
-
-        Ok(())
+#[derive(Clone)]
+pub struct PgsqlConnectionParams {
+    host: String,
+    port: u32,
+    username: String,
+    password: String,
+}
+impl PgsqlConnectionParams {
+    pub fn new(host: &str, port: u32, username: &str, password: &str) -> PgsqlConnectionParams {
+        PgsqlConnectionParams {
+            host: host.to_string(),
+            port: port,
+            username: username.to_string(),
+            password: password.to_string(),
+        }
     }
+    pub fn connection_string(&self) -> String {
+        format!(
+            "host={} port={} user={} password={}",
+            self.host, self.port, self.username, self.password
+        )
+    }
+    pub fn with_database(&self, db_name: &str) -> PgsqlDbConnectionParams {
+        PgsqlDbConnectionParams::new(self, db_name)
+    }
+}
 
-    /// Clears all data in the database.
-    pub async fn clear_database(&mut self) -> Result<()> {
-        let transaction = self.client.transaction().await?;
-        transaction
-            .execute("drop schema if exists public cascade;", &[])
-            .await?;
-        transaction
-            .execute("create schema if not exists public;", &[])
-            .await?;
-        transaction.commit().await?;
-        Ok(())
+#[derive(Clone)]
+pub struct PgsqlDbConnectionParams {
+    connection: PgsqlConnectionParams,
+    db_name: String,
+}
+impl PgsqlDbConnectionParams {
+    pub fn new(connection: &PgsqlConnectionParams, db_name: &str) -> PgsqlDbConnectionParams {
+        PgsqlDbConnectionParams {
+            connection: connection.clone(),
+            db_name: db_name.to_string(),
+        }
+    }
+    pub fn connection_string(&self) -> String {
+        format!(
+            "{} dbname={}",
+            self.connection.connection_string(),
+            self.db_name
+        )
     }
 }
 
@@ -595,12 +599,12 @@ pub(crate) mod tests {
         let mut client = set_up().await;
         client.create_board_ine(TEST_BOARD).await.unwrap();
         let board = client.get_board(TEST_BOARD).await.unwrap();
-        assert_eq!(board.board_name, TEST_BOARD);
-        let board = client.get_board("NOT FOUND").await;
-        assert!(board.is_err());
+        assert_eq!(board.unwrap().board_name, TEST_BOARD);
+        let board = client.get_board("NOT FOUND").await.unwrap();
+        assert!(board.is_none());
         client.delete_board(TEST_BOARD).await.unwrap();
-        let board = client.get_board(TEST_BOARD).await;
-        assert!(board.is_err());
+        let board = client.get_board(TEST_BOARD).await.unwrap();
+        assert!(board.is_none());
     }
 
     #[tokio::test]
@@ -610,7 +614,7 @@ pub(crate) mod tests {
         let mut client = set_up().await;
         client.create_board_ine(TEST_BOARD).await.unwrap();
         let board = client.get_board(TEST_BOARD).await.unwrap();
-        assert_eq!(board.board_name, TEST_BOARD);
+        assert_eq!(board.unwrap().board_name, TEST_BOARD);
         let board_message = B3MessageRow {
             id: 1,
             created: crate::timestamp(),

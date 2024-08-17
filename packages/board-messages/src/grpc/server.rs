@@ -1,7 +1,7 @@
 
 use tonic::{Request, Response, Status};
 use anyhow::{anyhow, Result};
-use tracing::{info, warn, error};
+use tracing::{info, error};
 
 use crate::grpc::{GrpcB3Message, GetBoardsRequest, GetBoardsReply, GetMessagesRequest, GetMessagesReply};
 use crate::grpc::{PutMessagesRequest, PutMessagesReply};
@@ -151,8 +151,6 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
     }
 }
 
-// use tonic_mock::
-
 #[cfg(test)]
 pub(crate) mod tests {
     use std::marker::PhantomData;
@@ -193,33 +191,15 @@ pub(crate) mod tests {
         let _ = set_up().await;
 
         let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
-        let b3_impl = PgsqlB3Server::new(c, "protocoldb");
+        let b3_impl = PgsqlB3Server::new(c, PG_DATABASE);
         
         
         let cfg = get_test_configuration::<RistrettoCtx>(3, 2);
         let messages = vec![cfg];
         let request = B3Client::put_messages_request(TEST_BOARD, &messages).unwrap();
-        /*let message = GrpcB3Message{
-            // does not matter when putting messages
-            id: 1,
-            message: cfg.strand_serialize().unwrap(),
-            version: crate::get_schema_version(),
-        };
-        messages.push(message.clone());
-        let request = PutMessagesRequest {
-            messages,
-            board: TEST_BOARD.to_string(),
-        };
-        let request = tonic::Request::new(request);*/
         let put = b3_impl.put_messages(request).await.unwrap();
         let _ = put.get_ref();
         
-        /*let request = GetMessagesRequest {
-            board: TEST_BOARD.to_string(),
-            last_id: -1,
-        };
-        let request = tonic::Request::new(request);
-        let messages_returned = b3_impl.get_messages(request).await.unwrap();*/
         let request = B3Client::get_messages_request(TEST_BOARD, -1);
         let messages_returned = b3_impl.get_messages(request).await.unwrap();
         let messages_returned = messages_returned.get_ref();
@@ -242,7 +222,7 @@ pub(crate) mod tests {
         let _ = set_up().await;
 
         let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
-        let b3_impl = PgsqlB3Server::new(c, "protocoldb");
+        let b3_impl = PgsqlB3Server::new(c, PG_DATABASE);
 
         let request = B3Client::get_boards_request();
         let boards = b3_impl.get_boards(request).await.unwrap();

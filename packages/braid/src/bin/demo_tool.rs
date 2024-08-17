@@ -4,7 +4,6 @@
 use anyhow::{anyhow, Result};
 use board_messages::grpc::pgsql::B3IndexRow;
 use board_messages::grpc::pgsql::B3MessageRow;
-use braid::protocol::board::grpc::GrpcB3;
 use clap::Parser;
 use rayon::prelude::*;
 use std::fs;
@@ -33,10 +32,10 @@ use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strand::symm;
 
-const PG_HOST: &'static str = "postgres";
+const PG_HOST: &'static str = "localhost";
 const PG_DATABASE: &'static str = "protocoldb";
 const PG_USER: &'static str = "postgres";
-const PG_PASSW: &'static str = "postgrespassword";
+const PG_PASSW: &'static str = "postgrespw";
 const PG_PORT: u32 = 5432;
 const TEST_BOARD: &'static str = "testboard";
 const DEMO_DIR: &str = "./demo";
@@ -50,19 +49,19 @@ struct Cli {
     #[arg(long, default_value_t = PG_PORT)]
     port: u32,
 
-    #[arg(long, default_value_t = PG_USER.to_string())]
-    user: String,
+    #[arg(short, long, default_value_t = PG_USER.to_string())]
+    username: String,
 
     #[arg(long, default_value_t = PG_PASSW.to_string())]
     password: String,
 
-    #[arg(short, long, default_value_t = TEST_BOARD.to_string())]
+    #[arg(long, default_value_t = TEST_BOARD.to_string())]
     board_name: String,
 
-    #[arg(short, long, default_value_t = 1)]
+    #[arg(long, default_value_t = 1)]
     count: u32,
 
-    #[arg(short, long, default_value_t = 1)]
+    #[arg(long, default_value_t = 1)]
     batches: u32,
 
     #[arg(value_enum)]
@@ -102,13 +101,13 @@ The sequence of steps to run a demo election are
     3) Launch each of the trustees (each in their own directory)
 
        cd demo/1
-       cargo run --manifest-path ../../Cargo.toml --target-dir ../../rust-local-target --bin main  -- --server-url http://immudb:3322 --board-index demoboardindex --trustee-config trustee1.toml
+       cargo run --manifest-path ../../Cargo.toml --target-dir ../../rust-local-target --bin main  -- --server-url http://[::1]:50051 --board-index demoboardindex --trustee-config trustee1.toml
 
        cd demo/2
-       cargo run --manifest-path ../../Cargo.toml --target-dir ../../rust-local-target --bin main  -- --server-url http://immudb:3322 --board-index demoboardindex --trustee-config trustee2.toml
+       cargo run --manifest-path ../../Cargo.toml --target-dir ../../rust-local-target --bin main  -- --server-url http://[::1]:50051 --board-index demoboardindex --trustee-config trustee2.toml
 
        cd demo/3
-       cargo run --manifest-path ../../Cargo.toml --target-dir ../../rust-local-target --bin main  -- --server-url http://immudb:3322 --board-index demoboardindex --trustee-config trustee3.toml
+       cargo run --manifest-path ../../Cargo.toml --target-dir ../../rust-local-target --bin main  -- --server-url http://[::1]:50051 --board-index demoboardindex --trustee-config trustee3.toml
 
     4) Wait until the distributed key generation process has finished. You can check that this process is complete
        by listing the messages in the protocol board and looking for "PublicKey".
@@ -119,10 +118,14 @@ The sequence of steps to run a demo election are
 
        INFO message: Message{ sender="Self" statement=PublicKey(1715226660, ConfigurationHash(5961c86066), PublicKeyHash(7fa5d0654f), SharesHashes(1045b3c1ae 825b49a0da 8dd943adb4 - - - - - - - - -)
 
-    5) Wait until the protocol execution finishes.  You can check that this process is complete
+    5) Post sample ballots
+    
+        cargo run --bin demo_tool -- post-ballots
+    
+    6) Wait until the protocol execution finishes.  You can check that this process is complete
        by listing the messages in the protocol board and looking for "Plaintexts".
 
-       cargo run --bin demo_tool -- post-ballots
+       cargo run --bin demo_tool -- list-messages
 
        example output with statement=Plaintexts
 
@@ -149,7 +152,7 @@ async fn main() -> Result<()> {
             let configuration = Configuration::<RistrettoCtx>::strand_deserialize(&cfg_bytes)
                 .map_err(|e| anyhow!("Could not deserialize configuration {}", e))?;
 
-            let c = PgsqlConnectionParams::new(&args.host, args.port, &args.user, &args.password);
+            let c = PgsqlConnectionParams::new(&args.host, args.port, &args.username, &args.password);
             pgsql::drop_database(&c, PG_DATABASE).await?;
         
             pgsql::create_database(&c, PG_DATABASE)
@@ -171,7 +174,7 @@ async fn main() -> Result<()> {
             }
         }
         Command::PostBallots => {
-            let mut board = get_client(&args.host, args.port, &args.user, &args.password).await?;
+            let mut board = get_client(&args.host, args.port, &args.username, &args.password).await?;
             for i in 0..args.count {
                 let name = if i == 0 {
                     args.board_name.to_string()
@@ -182,15 +185,15 @@ async fn main() -> Result<()> {
             }
         }
         Command::ListMessages => {
-            let mut client = get_client(&args.host, args.port, &args.user, &args.password).await?;
+            let mut client = get_client(&args.host, args.port, &args.username, &args.password).await?;
             list_messages(&mut client, &args.board_name).await?;
         }
         Command::ListBoards => {
-            let mut client = get_client(&args.host, args.port, &args.user, &args.password).await?;
+            let mut client = get_client(&args.host, args.port, &args.username, &args.password).await?;
             list_boards(&mut client).await?;
         }
         Command::DeleteBoards => {
-            delete_boards(&args.host, args.port, &args.user, &args.password).await?;
+            delete_boards(&args.host, args.port, &args.username, &args.password).await?;
         }
     }
 

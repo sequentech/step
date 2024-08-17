@@ -2,19 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use board_messages::braid::message::Message;
-use board_messages::grpc::pgsql::{B3MessageRow, PgsqlB3Client, PgsqlConnectionParams, PgsqlDbConnectionParams};
+use board_messages::grpc::pgsql::{B3MessageRow, PgsqlB3Client, PgsqlDbConnectionParams};
 use rusqlite::params;
 use rusqlite::Connection;
 use std::path::PathBuf;
-use std::time::{Duration, SystemTime};
-// use tokio_postgres::{NoTls, Row};
-use tracing::instrument;
+
 use tracing::{info, warn};
 
 use strand::serialization::StrandDeserialize;
-use strand::serialization::StrandSerialize;
 
 /// A bulletin board implemented on postgresql
 pub struct PgsqlBoard {

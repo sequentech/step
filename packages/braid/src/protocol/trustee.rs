@@ -161,7 +161,7 @@ impl<C: Ctx> Trustee<C> {
         );
 
         for (message, id) in messages {
-            let verified = message.verify(&configuration).map_err(|e| {
+            let verified = message.verify(&configuration).map_err(|_e| {
                 ProtocolError::VerificationError(format!(
                     "Message failed verification: {:?}, cfg: {:?}",
                     message, &configuration
