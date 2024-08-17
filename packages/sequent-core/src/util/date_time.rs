@@ -52,7 +52,7 @@ mod tests {
 
     #[test]
     fn test_generate_timestamp_default() {
-        let timestamp = generate_timestamp(None, None);
+        let timestamp = generate_timestamp(None, None, None);
         println!("Default timestamp: {}", timestamp);
     }
 
@@ -61,6 +61,7 @@ mod tests {
         let timestamp = generate_timestamp(
             Some(TimeZone::Offset(2)),
             Some(DateFormat::MmDdYyyyHhMm),
+            None,
         );
         println!("Custom timestamp: {}", timestamp);
     }
