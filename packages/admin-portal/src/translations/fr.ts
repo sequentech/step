@@ -139,6 +139,7 @@ const frenchTranslation: TranslationType = {
                     'Bienvenue dans le bureau de vote, cet écran affiche la liste des élections dans lesquelles vous pouvez émettre votre vote. Les élections qui apparaissent dans cette liste peuvent être ouvertes à la votation, programmées ou fermées. Vous ne pourrez accéder à la votation que si la période de votation est ouverte. Dans le cas où une élection est fermée et que son administrateur électoral a publié le résultat, vous verrez un bouton "Résultat électoral" qui vous mènera à la page publique des résultats.',
                 ok: "OK",
             },
+            closedEventError: "L'événement électoral est actuellement fermé",
         },
         areas: {
             common: {
@@ -224,6 +225,7 @@ const frenchTranslation: TranslationType = {
             voteByDay: "Votes par jour",
             votersByChannels: "Votants par canaux",
             voterLoginURL: "URL de connexion des électeurs",
+            voterEnrollURL: "URL d'inscription des électeurs",
         },
         electionEventScreen: {
             common: {
@@ -234,12 +236,30 @@ const frenchTranslation: TranslationType = {
             edit: {
                 general: "Général",
                 dates: "Dates",
+                votingPeriod: "Période de vote",
                 language: "Langues",
                 allowed: "Canaux de Vote Permis",
                 materials: "Matériaux de Support",
                 ballotDesign: "Design du Bulletin",
+                reorder: "Réorganiser les élections",
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importer des Candidats",
+            },
+            localization: {
+                emptyHeader: "Aucune langue n'a été définie pour l'événement",
+                selectLanguage: "Sélectionnez la langue",
+                notify: {
+                    success: "Localisation mise à jour avec succès",
+                    error: "Échec de la mise à jour de la localisation",
+                },
+                common: {
+                    title: "Localisation",
+                    subTitle: "Configuration de la localisation",
+                },
+                labels: {
+                    key: "Clé",
+                    value: "Valeur",
+                },
             },
             field: {
                 name: "Nom",
@@ -273,6 +293,8 @@ const frenchTranslation: TranslationType = {
             error: {
                 endDate: "La date de fin doit être postérieure à la date de début",
                 noResult: "Pas encore d'Événement Électoral",
+                startDate: "La date de début doit être dans le futur",
+                endDateInvalid: "La date de fin doit être dans le futur",
             },
             voters: {
                 title: "Électeurs",
@@ -316,6 +338,7 @@ const frenchTranslation: TranslationType = {
             tabs: {
                 dashboard: "Tableau de Bord",
                 data: "Données",
+                localization: "Localisation",
                 voters: "Électeurs",
                 areas: "Zones",
                 keys: "Clés",
@@ -343,6 +366,8 @@ const frenchTranslation: TranslationType = {
                     noLogs: "Aucun journal disponible",
                 },
                 notify: {
+                    noKeysTally:
+                        "La Cérémonie de Comptage ne peut pas commencer tant que la Cérémonie de Fideicomisario n'a pas été réalisée avec succès.",
                     participateNow:
                         "Vous avez été invité à participer à une Cérémonie de Comptage. Veuillez <1>cliquer ci-dessous sur l'action de clé de la cérémonie</1> pour participer.",
                 },
@@ -395,6 +420,7 @@ const frenchTranslation: TranslationType = {
             edit: {
                 general: "Général",
                 dates: "Dates",
+                votingPeriod: "Période de vote",
                 language: "Langue",
                 allowed: "Canaux de Vote Permis",
                 default: "Par défaut",
@@ -403,6 +429,8 @@ const frenchTranslation: TranslationType = {
                 image: "Image",
                 advanced: "Configuration Avancée",
                 numAllowedVotes: "Nombre de votes permis",
+                reorder: "Réorganiser les concours",
+                castVoteConfirm: "Modal de Confirmation de Vote",
             },
             field: {
                 name: "Nom",
@@ -419,6 +447,8 @@ const frenchTranslation: TranslationType = {
                 endDate: "La date de fin doit être postérieure à la date de début",
                 fileError: "Erreur lors du chargement du fichier",
                 fileLoaded: "Fichier chargé",
+                startDate: "La date de début doit être dans le futur",
+                endDateInvalid: "La date de fin doit être dans le futur",
             },
             createElectionEventSuccess: "Élection créée",
             createElectionEventError: "Erreur lors de la création de l'élection",
@@ -769,6 +799,7 @@ const frenchTranslation: TranslationType = {
                 system: "Système de vote de bulletins",
                 design: "Design du bulletin",
                 reorder: "Réorganiser les candidats",
+                policies: "Politiques",
             },
             field: {
                 name: "Nom",
@@ -793,6 +824,15 @@ const frenchTranslation: TranslationType = {
                 "allow-selecting-candidates": "Seulement Candidats",
                 "allow-selecting-lists": "Seulement Listes",
                 "disabled": "Désactivé",
+            },
+            blankVotePolicy: {
+                "label": "Politique de vote blanc",
+                "allowed": "Autorisé",
+                "warn": "Avertir",
+                "not-allowed": "Non autorisé",
+            },
+            paginationPolicy: {
+                label: "Nom de la page",
             },
             error: {},
             createContestSuccess: "Question créée",
@@ -986,9 +1026,9 @@ const frenchTranslation: TranslationType = {
                 history: "Historique des Changements",
             },
             action: {
-                start: "Commencer élection",
-                stop: "Arrêter élection",
-                pause: "pauser",
+                startVotingPeriod: "Commencer la période de vote",
+                stopVotingPeriod: "Arrêter la période de vote",
+                pauseVotingPeriod: "Mettre en pause la période de vote",
                 generate: "régénérer",
                 publish: "Publier Changements",
                 back: "Arrière",
@@ -1000,6 +1040,12 @@ const frenchTranslation: TranslationType = {
             dialog: {
                 title: "Confirmer Action",
                 info: "Vous avez cliqué sur une action sensible, nous avons donc besoin que vous la confirmiez pour pouvoir continuer.",
+                startInfo:
+                    "Vous êtes sur le point de commencer la période de vote. Êtes-vous sûr de vouloir continuer?",
+                stopInfo:
+                    "Vous êtes sur le point d'arrêter la période de vote. Êtes-vous sûr de vouloir continuer?",
+                pauseInfo:
+                    "Vous êtes sur le point de mettre en pause la période de vote. Êtes-vous sûr de vouloir continuer?",
                 ok: "Confirmer",
                 ko: "Annuler",
                 error: "Erreur lors du chargement des bulletins publiés",

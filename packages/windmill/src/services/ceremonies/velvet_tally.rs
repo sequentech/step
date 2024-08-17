@@ -253,6 +253,7 @@ pub async fn create_election_configs(
     base_tempdir: PathBuf,
     area_contests: &Vec<AreaContestDataType>,
     cast_votes_count: &Vec<ElectionCastVotes>,
+    basic_areas: &Vec<TreeNodeArea>,
 ) -> Result<()> {
     // aggregate all ballot styles for each election
     event!(
@@ -287,8 +288,8 @@ pub async fn create_election_configs(
         .collect();
     let area_contests_r = area_contests.clone();
     let cast_votes_count_r = cast_votes_count.clone();
-    let areas = get_event_areas(&hasura_transaction, tenant_id, election_event_id).await?;
-    let basic_areas: Vec<TreeNodeArea> = areas.iter().map(|area| area.into()).collect();
+
+    let areas_clone = basic_areas.clone();
 
     // Spawn the task
     let handle = tokio::task::spawn_blocking(move || {
@@ -297,7 +298,7 @@ pub async fn create_election_configs(
             &area_contests_r,
             &cast_votes_count_r,
             elections_single_map.clone(),
-            basic_areas.clone(),
+            areas_clone.clone(),
         )
     });
 
@@ -306,8 +307,8 @@ pub async fn create_election_configs(
 }
 
 #[instrument(err)]
-pub fn call_velvet(base_tally_path: PathBuf) -> Result<State> {
-    //// Run Velvet
+pub async fn call_velvet(base_tally_path: PathBuf) -> Result<State> {
+    // Run Velvet
     let cli = CliRun {
         stage: "main".to_string(),
         pipe_id: "decode-ballots".to_string(),
@@ -318,15 +319,44 @@ pub fn call_velvet(base_tally_path: PathBuf) -> Result<State> {
 
     let config = cli.validate()?;
 
-    let mut state = State::new(&cli, &config)?;
+    let mut state_opt = Some(State::new(&cli, &config)?);
 
-    while let Some(next_stage) = state.get_next() {
-        let stage_name = next_stage.to_string();
-        event!(Level::INFO, "Exec {}", stage_name);
-        state.exec_next()?;
+    // Use a loop to handle state processing
+    loop {
+        // Extract the next stage, or return an error if not found
+        let next_stage = {
+            let state_ref = state_opt
+                .as_ref()
+                .ok_or_else(|| anyhow!("State should not be None during processing"))?;
+
+            if let Some(stage) = state_ref.get_next() {
+                stage.to_string()
+            } else {
+                break; // Exit loop if no next stage is found
+            }
+        };
+
+        event!(Level::INFO, "Exec {}", next_stage);
+
+        // Move the state into a block for mutable borrow
+        let handle = tokio::task::spawn_blocking({
+            let mut state = state_opt
+                .take()
+                .ok_or_else(|| anyhow!("Failed to take state for execution"))?;
+
+            move || {
+                let result = state.exec_next();
+                (state, result)
+            }
+        });
+
+        // Await the result and handle JoinError explicitly
+        let (new_state, result) = handle.await.map_err(|err| anyhow!("{}", err))?;
+        result?; // Check the result of exec_next()
+        state_opt = Some(new_state); // Restore state for the next iteration
     }
 
-    Ok(state)
+    state_opt.ok_or_else(|| anyhow!("State unexpectedly None at the end of processing"))
 }
 
 async fn get_public_asset_vote_receipts_template() -> Result<String> {
@@ -413,6 +443,8 @@ pub async fn create_config_file(
     let gen_report_pipe_config = PipeConfigGenerateReports {
         enable_pdfs: false,
         report_content_template,
+        time_zone: None,
+        date_format: None,
     };
 
     let stages_def = {
@@ -481,13 +513,21 @@ pub async fn run_velvet_tally(
     cast_votes_count: &Vec<ElectionCastVotes>,
     tally_sheets: &Vec<TallySheet>,
     report_content_template: Option<String>,
+    areas: &Vec<Area>,
 ) -> Result<State> {
+    let basic_areas: Vec<TreeNodeArea> = areas.into_iter().map(|area| area.into()).collect();
     // map<(area_id,contest_id), tally_sheet>
     let tally_sheet_map = create_tally_sheets_map(tally_sheets);
     for area_contest in area_contests {
         prepare_tally_for_area_contest(base_tally_path.clone(), area_contest, &tally_sheet_map)?;
     }
-    create_election_configs(base_tally_path.clone(), area_contests, cast_votes_count).await?;
+    create_election_configs(
+        base_tally_path.clone(),
+        area_contests,
+        cast_votes_count,
+        &basic_areas,
+    )
+    .await?;
     create_config_file(base_tally_path.clone(), report_content_template).await?;
-    call_velvet(base_tally_path.clone())
+    call_velvet(base_tally_path.clone()).await
 }

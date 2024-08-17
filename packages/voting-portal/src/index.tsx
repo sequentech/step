@@ -13,7 +13,7 @@ import "./services/i18n"
 import reportWebVitals from "./reportWebVitals"
 import {ThemeProvider} from "@mui/material"
 import {theme} from "@sequentech/ui-essentials"
-import SequentCoreLibInit, {set_hooks} from "sequent-core"
+import {initCore} from "@sequentech/ui-core"
 import AuthContextProvider from "./providers/AuthContextProvider"
 import {SettingsContext, SettingsWrapper} from "./providers/SettingsContextProvider"
 import {createBrowserRouter, RouterProvider} from "react-router-dom"
@@ -25,6 +25,7 @@ import Loader from "./components/Loader"
 const TenantEvent = lazy(() => import("./routes/TenantEvent"))
 const ElectionSelectionScreen = lazy(() => import("./routes/ElectionSelectionScreen"))
 const LoginScreen = lazy(() => import("./routes/LoginScreen"))
+const RegisterScreen = lazy(() => import("./routes/RegisterScreen"))
 const StartScreen = lazy(() => import("./routes/StartScreen"))
 const VotingScreen = lazy(() => import("./routes/VotingScreen"))
 const ReviewScreen = lazy(() => import("./routes/ReviewScreen"))
@@ -35,7 +36,7 @@ const SupportMaterialsScreen = lazy(() => import("./routes/SupportMaterialsScree
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
-SequentCoreLibInit().then(set_hooks)
+initCore()
 
 export type TenantEventType = {
     tenantId: string
@@ -90,6 +91,14 @@ const router = createBrowserRouter(
                             element: (
                                 <Suspense fallback={<Loader />}>
                                     <LoginScreen />
+                                </Suspense>
+                            ),
+                        },
+                        {
+                            path: "enroll",
+                            element: (
+                                <Suspense fallback={<Loader />}>
+                                    <RegisterScreen />
                                 </Suspense>
                             ),
                         },

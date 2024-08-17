@@ -14,6 +14,7 @@ use deadpool_postgres::Client as DbClient;
 use encoding_rs::WINDOWS_1252;
 use encoding_rs_io::DecodeReaderBytesBuilder;
 use sequent_core::ballot::ContestPresentation;
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::hasura::core::Candidate;
 use sequent_core::types::hasura::core::Contest;
 use std::fs::File;
@@ -265,8 +266,7 @@ fn get_contest_from_postcode(contests: &Vec<Contest>, postcode: &str) -> Result<
                 }
             }
             if let Some(presentation) = contest.presentation.clone() {
-                let contest_presentation: ContestPresentation =
-                    serde_json::from_value(presentation)?;
+                let contest_presentation: ContestPresentation = deserialize_value(presentation)?;
                 if let Some(i18n) = contest_presentation.i18n.clone() {
                     if let Some(en) = i18n.get("en") {
                         if let Some(en_alias_opt) = en.get("alias").clone() {

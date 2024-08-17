@@ -24,7 +24,7 @@ import {useSearchParams} from "react-router-dom"
 import {useTranslation} from "react-i18next"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
 import {ICountingAlgorithm, IVotingType} from "./constants"
-import {CandidatesOrder, IContestPresentation} from "@sequentech/ui-essentials"
+import {CandidatesOrder, IContestPresentation} from "@sequentech/ui-core"
 import {Sequent_Backend_Contest_Extended} from "./EditContestDataForm"
 import {addDefaultTranslationsToElement} from "@/services/i18n"
 

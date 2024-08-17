@@ -62,29 +62,61 @@ impl Message {
 
     pub fn election_open_message(
         event: EventIdString,
-        election: ElectionIdString,
+        election: Option<ElectionIdString>,
+        election_ids: Option<Vec<String>>,
         sd: &SigningData,
     ) -> Result<Self> {
-        let body = StatementBody::ElectionPeriodOpen(election);
-        Self::from_body(event, body, sd)
+        match election {
+            Some(election) => {
+                let body = StatementBody::ElectionVotingPeriodOpen(election);
+                Self::from_body(event, body, sd)
+            }
+            None => {
+                let body = StatementBody::ElectionEventVotingPeriodOpen(
+                    event.clone(),
+                    ElectionsIdsString(election_ids.clone()),
+                );
+                Self::from_body(event, body, sd)
+            }
+        }
     }
 
     pub fn election_pause_message(
         event: EventIdString,
-        election: ElectionIdString,
+        election: Option<ElectionIdString>,
         sd: &SigningData,
     ) -> Result<Self> {
-        let body = StatementBody::ElectionPeriodPause(election);
-        Self::from_body(event, body, sd)
+        match election {
+            Some(election) => {
+                let body = StatementBody::ElectionVotingPeriodPause(election);
+                Self::from_body(event, body, sd)
+            }
+            None => {
+                let body = StatementBody::ElectionEventVotingPeriodPause(event.clone());
+                Self::from_body(event, body, sd)
+            }
+        }
     }
 
     pub fn election_close_message(
         event: EventIdString,
-        election: ElectionIdString,
+        election: Option<ElectionIdString>,
+        election_ids: Option<Vec<String>>,
         sd: &SigningData,
     ) -> Result<Self> {
-        let body = StatementBody::ElectionPeriodClose(election);
-        Self::from_body(event, body, sd)
+        match election {
+            Some(election) => {
+                let body = StatementBody::ElectionVotingPeriodClose(election);
+                Self::from_body(event, body, sd)
+            }
+            None => {
+                let body = StatementBody::ElectionEventVotingPeriodClose(
+                    event.clone(),
+                    ElectionsIdsString(election_ids.clone()),
+                );
+                Self::from_body(event, body, sd)
+            }
+        }
     }
 
     pub fn keygen_message(event: EventIdString, sd: &SigningData) -> Result<Self> {

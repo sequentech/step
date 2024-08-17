@@ -54,4 +54,3 @@ public class SmartLinkRequest {
   @JsonProperty("mark_email_verified")
   private Boolean markEmailVerified = true;
 }
-

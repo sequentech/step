@@ -27,7 +27,7 @@ import {
 } from "@mui/material"
 import {IAreaContestResults, ICandidateResults, IInvalidVotes} from "@/types/TallySheets"
 import {sortFunction} from "./utils"
-import {EEnableCheckableLists, IContestPresentation} from "@sequentech/ui-essentials"
+import {EEnableCheckableLists, IContestPresentation} from "@sequentech/ui-core"
 import {filterCandidateByCheckableLists} from "@/services/CandidatesFilter"
 
 const votingChannels = [

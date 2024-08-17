@@ -16,7 +16,6 @@ import {
     Sequent_Backend_Tally_Sheet_Insert_Input,
 } from "@/gql/graphql"
 import {FieldValues, SubmitHandler} from "react-hook-form"
-import {GET_CONTESTS_EXTENDED} from "@/queries/GetContestsExtended"
 import {
     Autocomplete,
     AutocompleteChangeDetails,
@@ -36,9 +35,10 @@ import {
     EEnableCheckableLists,
     ICandidatePresentation,
     IContestPresentation,
-} from "@sequentech/ui-essentials"
+} from "@sequentech/ui-core"
 import {filterCandidateByCheckableLists} from "@/services/CandidatesFilter"
 import {uniq} from "lodash"
+import {createTree, getContestMatches} from "@/services/AreaService"
 
 const votingChannels = [
     {id: "PAPER", name: "PAPER"},
@@ -92,11 +92,22 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                 contest_id: contest.id,
             },
             pagination: {
-                perPage: 1000, // Setting initial larger records size of areas
+                perPage: 10000, // Setting initial larger records size of areas
                 page: 1,
             },
         }
     )
+
+    const {data: allAreas} = useGetList<Sequent_Backend_Area>("sequent_backend_area", {
+        filter: {
+            tenant_id: contest.tenant_id,
+            election_event_id: contest.election_event_id,
+        },
+        pagination: {
+            perPage: 10000, // Setting initial larger records size of areas
+            page: 1,
+        },
+    })
 
     const {data: areas, refetch} = useGetList<Sequent_Backend_Area>("sequent_backend_area", {
         filter: {
@@ -113,7 +124,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
             },*/
         },
         pagination: {
-            perPage: 1000, // Setting initial larger records size of areas
+            perPage: 10000, // Setting initial larger records size of areas
             page: 1,
         },
     })
@@ -131,10 +142,42 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         return presentation?.enable_checkable_lists ?? EEnableCheckableLists.CANDIDATES_AND_LISTS
     }, [contest.presentation])
 
+    const uniqueElements = (arr: string[]): string[] => {
+        const uniqueObj: {[key: string]: boolean} = {}
+        const uniqueArr: string[] = []
+
+        for (const item of arr) {
+            if (!uniqueObj[item]) {
+                uniqueObj[item] = true
+                uniqueArr.push(item)
+            }
+        }
+
+        return uniqueArr
+    }
+
     useEffect(() => {
-        let newAreaIds = uniq(areaContests?.map((ac) => ac.area_id as string))
-        setAreaIds(newAreaIds)
-    }, [areaIds, setAreaIds, areaContests])
+        const treeNodeAreas = (allAreas ?? []).map((area) => ({
+            id: area.id,
+            tenant_id: area.tenant_id,
+            election_event_id: area.election_event_id,
+            parent_id: area.parent_id,
+        }))
+
+        const treeAreaContests = (areaContests ?? []).map((areaContest) => ({
+            id: areaContest.id,
+            area_id: areaContest.area_id,
+            contest_id: areaContest.contest_id,
+        }))
+
+        const tree = createTree(treeNodeAreas, treeAreaContests)
+
+        const matchedAreaContests = getContestMatches(tree, contest.id)
+        const matchedAreas = matchedAreaContests.map((area) => area.area_id)
+        const uniqueAreas: Array<string> = uniqueElements(matchedAreas)
+
+        setAreaIds(uniqueAreas)
+    }, [areaContests, allAreas])
 
     useEffect(() => {
         const tallySaved: string | null = localStorage.getItem("tallySheetData")

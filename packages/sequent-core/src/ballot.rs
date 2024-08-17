@@ -360,7 +360,99 @@ pub enum CandidatesOrder {
     #[serde(rename = "alphabetical")]
     Alphabetical,
 }
+impl Default for CandidatesOrder {
+    fn default() -> Self {
+        CandidatesOrder::Alphabetical
+    }
+}
 
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+)]
+pub enum ContestsOrder {
+    #[strum(serialize = "random")]
+    #[serde(rename = "random")]
+    Random,
+    #[strum(serialize = "custom")]
+    #[serde(rename = "custom")]
+    Custom,
+    #[strum(serialize = "alphabetical")]
+    #[serde(rename = "alphabetical")]
+    Alphabetical,
+}
+impl Default for ContestsOrder {
+    fn default() -> Self {
+        ContestsOrder::Alphabetical
+    }
+}
+
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+)]
+pub enum ElectionsOrder {
+    #[strum(serialize = "random")]
+    #[serde(rename = "random")]
+    Random,
+    #[strum(serialize = "custom")]
+    #[serde(rename = "custom")]
+    Custom,
+    #[strum(serialize = "alphabetical")]
+    #[serde(rename = "alphabetical")]
+    Alphabetical,
+}
+impl Default for ElectionsOrder {
+    fn default() -> Self {
+        ElectionsOrder::Alphabetical
+    }
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+)]
+pub struct Election {
+    pub id: String,
+    pub election_event_id: String,
+    pub tenant_id: String,
+    pub name: Option<String>,
+    pub name_i18n: Option<I18nContent>,
+    pub description: Option<String>,
+    pub description_i18n: Option<I18nContent>,
+    pub alias: Option<String>,
+    pub alias_i18n: Option<I18nContent>,
+    pub image_document_id: Option<String>,
+    pub contests: Vec<Contest>,
+    pub presentation: Option<ElectionPresentation>,
+}
+
+#[allow(non_camel_case_types)]
 #[derive(
     Debug,
     BorshSerialize,
@@ -472,6 +564,7 @@ pub struct ElectionEventPresentation {
     pub hide_audit: Option<bool>,
     pub skip_election_list: Option<bool>,
     pub show_user_profile: Option<bool>, // default is true
+    pub elections_order: Option<ElectionsOrder>,
     pub voting_portal_countdown_policy: Option<VotingPortalCountdownPolicy>,
 }
 
@@ -488,6 +581,25 @@ pub struct ElectionEventPresentation {
     Default,
 )]
 pub struct ElectionDates {
+    pub start_date: Option<String>,
+    pub end_date: Option<String>,
+    pub scheduled_closing: Option<bool>,
+    pub scheduled_opening: Option<bool>,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Default,
+)]
+pub struct ElectionEventDates {
     pub start_date: Option<String>,
     pub end_date: Option<String>,
     pub scheduled_closing: Option<bool>,
@@ -532,6 +644,39 @@ pub enum ECountdownPolicy {
     COUNTDOWN_WITH_ALERT,
 }
 
+#[allow(non_camel_case_types)]
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Copy,
+    Clone,
+    EnumString,
+    Display,
+)]
+pub enum EBlankVotePolicy {
+    #[strum(serialize = "allowed")]
+    #[serde(rename = "allowed")]
+    ALLOWED,
+    #[strum(serialize = "warn")]
+    #[serde(rename = "warn")]
+    WARN,
+    #[strum(serialize = "not-allowed")]
+    #[serde(rename = "not-allowed")]
+    NOT_ALLOWED,
+}
+
+impl Default for EBlankVotePolicy {
+    fn default() -> Self {
+        EBlankVotePolicy::ALLOWED
+    }
+}
+
 #[derive(
     BorshSerialize,
     BorshDeserialize,
@@ -548,6 +693,9 @@ pub struct ElectionPresentation {
     pub i18n: Option<I18nContent<I18nContent<Option<String>>>>,
     pub dates: Option<ElectionDates>,
     pub language_conf: Option<ElectionEventLanguageConf>,
+    pub contests_order: Option<ContestsOrder>,
+    pub sort_order: Option<i64>,
+    pub cast_vote_confirm: Option<bool>,
 }
 
 #[derive(
@@ -604,6 +752,8 @@ pub struct ContestPresentation {
     pub allow_writeins: Option<bool>,
     pub base32_writeins: Option<bool>,
     pub invalid_vote_policy: Option<InvalidVotePolicy>, /* allowed|warn|warn-invalid-implicit-and-explicit */
+    pub blank_vote_policy: Option<EBlankVotePolicy>,
+    pub pagination_policy: Option<String>,
     pub cumulative_number_of_checkboxes: Option<u64>,
     pub shuffle_categories: Option<bool>,
     pub shuffle_category_list: Option<Vec<String>>,
@@ -613,6 +763,7 @@ pub struct ContestPresentation {
     pub candidates_selection_policy: Option<CandidatesSelectionPolicy>,
     pub max_selections_per_type: Option<u64>,
     pub types_presentation: Option<HashMap<String, Option<TypePresentation>>>,
+    pub sort_order: Option<i64>,
     pub under_vote_alert: Option<bool>,
 }
 
@@ -623,6 +774,8 @@ impl ContestPresentation {
             allow_writeins: Some(true),
             base32_writeins: Some(true),
             invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
+            blank_vote_policy: Some(EBlankVotePolicy::ALLOWED),
+            pagination_policy: Some("".to_owned()),
             cumulative_number_of_checkboxes: None,
             shuffle_categories: Some(false),
             shuffle_category_list: None,
@@ -632,6 +785,7 @@ impl ContestPresentation {
             candidates_selection_policy: None,
             max_selections_per_type: None,
             types_presentation: None,
+            sort_order: None,
             under_vote_alert: Some(false),
         }
     }
@@ -889,4 +1043,5 @@ pub struct BallotStyle {
     pub contests: Vec<Contest>,
     pub election_event_presentation: Option<ElectionEventPresentation>,
     pub election_presentation: Option<ElectionPresentation>,
+    pub election_dates: Option<ElectionDates>,
 }

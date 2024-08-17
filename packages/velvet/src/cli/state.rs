@@ -12,7 +12,7 @@ use crate::pipes::PipeManager;
 use crate::{config::Config, pipes::pipe_name::PipeName};
 use tracing::instrument;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct State {
     pub cli: CliRun,
     pub stages: Vec<Stage>,

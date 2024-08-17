@@ -4,41 +4,35 @@
 
 package sequent.keycloak.dummy;
 
-import sequent.keycloak.dummy.DummyEmailSenderProvider;
-import org.keycloak.email.EmailSenderProviderFactory;
-import org.keycloak.email.EmailSenderProvider;
+import com.google.auto.service.AutoService;
 import org.keycloak.Config;
+import org.keycloak.email.EmailSenderProvider;
+import org.keycloak.email.EmailSenderProviderFactory;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
-import com.google.auto.service.AutoService;
- 
- /**
-  * @author <a href="mailto:edu@sequentech.io">Eduardo Robles</a>
-  */
+
+/**
+ * @author <a href="mailto:edu@sequentech.io">Eduardo Robles</a>
+ */
 @AutoService(EmailSenderProviderFactory.class)
-public class DummyEmailSenderProviderFactory
-    implements EmailSenderProviderFactory
-{
- 
-    @Override
-    public EmailSenderProvider create(KeycloakSession session) {
-        return new DummyEmailSenderProvider();
-    }
+public class DummyEmailSenderProviderFactory implements EmailSenderProviderFactory {
 
-    @Override
-    public void init(Config.Scope config) {
-    }
+  @Override
+  public EmailSenderProvider create(KeycloakSession session) {
+    return new DummyEmailSenderProvider();
+  }
 
-    @Override
-    public void postInit(KeycloakSessionFactory factory) {
-    }
+  @Override
+  public void init(Config.Scope config) {}
 
-    @Override
-    public void close() {
-    }
+  @Override
+  public void postInit(KeycloakSessionFactory factory) {}
 
-    @Override
-    public String getId() {
-        return "dummy";
-    }
+  @Override
+  public void close() {}
+
+  @Override
+  public String getId() {
+    return "dummy";
+  }
 }

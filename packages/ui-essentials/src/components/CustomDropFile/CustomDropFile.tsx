@@ -5,7 +5,7 @@ import React, {PropsWithChildren, useState, DragEventHandler, ChangeEventHandler
 import styledEmotion from "@emotion/styled"
 import {styled} from "@mui/material/styles"
 import Box from "@mui/material/Box"
-import {useForwardedRef} from "../../utils/ref"
+import {useForwardedRef} from "@sequentech/ui-core"
 import {Typography} from "@mui/material"
 import theme from "../../services/theme"
 

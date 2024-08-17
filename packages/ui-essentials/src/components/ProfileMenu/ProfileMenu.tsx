@@ -18,7 +18,7 @@ import AccountCircle from "@mui/icons-material/AccountCircle"
 import LogoutIcon from "@mui/icons-material/Logout"
 import styled from "@emotion/styled"
 import theme from "../../services/theme"
-import {EVotingPortalCountdownPolicy} from "../../types/CoreTypes"
+import {EVotingPortalCountdownPolicy} from "@sequentech/ui-core"
 
 const Span = styled.span`
     font-size: 14px;

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {createSlice, PayloadAction} from "@reduxjs/toolkit"
 import {RootState} from "../store"
-import {isUndefined} from "@sequentech/ui-essentials"
+import {isUndefined} from "@sequentech/ui-core"
 
 export interface ICastVote {
     id: string

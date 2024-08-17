@@ -10,7 +10,7 @@ import {useTranslation} from "react-i18next"
 import {useEditController} from "react-admin"
 
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {ILanguageConf, ITenantSettings, getLanguages} from "@sequentech/ui-essentials"
+import {ILanguageConf, ITenantSettings, getLanguages} from "@sequentech/ui-core"
 
 const SettingsLanguagesStyles = {
     Wrapper: styled.div`

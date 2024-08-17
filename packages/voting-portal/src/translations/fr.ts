@@ -76,6 +76,44 @@ const frenchTranslation: TranslationType = {
                 ok: "Oui, je veux INVALIDER mon bulletin pour l'AUDITER",
                 cancel: "Annuler",
             },
+            confirmCastVoteDialog: {
+                title: "Êtes-vous sûr de vouloir voter?",
+                content: "Votre vote ne sera plus modifiable une fois confirmé.",
+                ok: "Oui, je veux VOTER",
+                cancel: "Annuler",
+            },
+            error: {
+                NETWORK_ERROR:
+                    "Un problème de réseau est survenu. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                UNABLE_TO_FETCH_DATA:
+                    "Un problème est survenu lors de la récupération des données. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                LOAD_ELECTION_EVENT:
+                    "Impossible de charger l'événement électoral. Veuillez réessayer plus tard.",
+                CAST_VOTE:
+                    "Une erreur avec GraphQL s'est produite lors du vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                NO_BALLOT_SELECTION:
+                    "L'état de sélection pour cette élection est introuvable. Veuillez vous assurer que vous avez sélectionné vos choix correctement ou contactez le support.",
+                NO_BALLOT_STYLE:
+                    "Le style du bulletin de vote n'est pas disponible. Veuillez contacter le support.",
+                NO_AUDITABLE_BALLOT:
+                    "Aucun bulletin de vote vérifiable n'est disponible. Veuillez contacter le support.",
+                INCONSISTENT_HASH:
+                    "Une erreur liée au processus de hachage du bulletin de vote est survenue. Le BallotId: {{ballotId}} n'est pas cohérent avec le Hash du bulletin vérifiable: {{auditableBallotHash}}. Veuillez signaler ce problème au support.",
+                ELECTION_EVENT_NOT_OPEN:
+                    "L'événement électoral est fermé. Veuillez contacter le support.",
+                PARSE_ERROR:
+                    "Une erreur est survenue lors de l'analyse du bulletin de vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                DESERIALIZE_AUDITABLE_ERROR:
+                    "Une erreur est survenue lors de la désérialisation du bulletin vérifiable. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                DESERIALIZE_HASHABLE_ERROR:
+                    "Une erreur est survenue lors de la désérialisation du bulletin haché. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                CONVERT_ERROR:
+                    "Une erreur est survenue lors de la conversion du bulletin de vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                SERIALIZE_ERROR:
+                    "Une erreur est survenue lors de la sérialisation du bulletin de vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                UNKNOWN_ERROR:
+                    "Une erreur est survenue. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+            },
         },
         confirmationScreen: {
             title: "Votre vote a été émis",
@@ -93,10 +131,26 @@ const frenchTranslation: TranslationType = {
                     "Cet écran montre que votre vote a été émis correctement. Les informations fournies sur cette page vous permettent de vérifier que le bulletin a été stocké dans l'urne, ce processus peut être exécuté à tout moment pendant la période de vote et après que l'élection a été clôturée.",
                 ok: "OK",
             },
+            demoPrintDialog: {
+                title: "Impression du bulletin de vote",
+                content: "L'impression est désactivée en mode démo",
+                ok: "OK",
+            },
+            demoBallotUrlDialog: {
+                title: "Suivi du Bulletin",
+                content: "Impossible d'utiliser le code, désactivé en mode démo.",
+                ok: "OK",
+            },
             ballotIdHelpDialog: {
                 title: "Information : Localisateur de votre Bulletin",
                 content:
                     "Le Localisateur de Bulletin est un code qui vous permet de retrouver votre bulletin dans l'urne, ce Localisateur est unique et ne contient aucune information sur vos sélections.",
+                ok: "OK",
+            },
+            ballotIdDemoHelpDialog: {
+                title: "Information : Identifiant de bulletin de vote",
+                content:
+                    "<p>L'identifiant de bulletin de vote est un code qui vous permet de retrouver votre bulletin dans l'urne. Cet identifiant est unique et ne contient aucune information sur vos choix.</p><p><b>Avis :</b> Ce bureau de vote est uniquement à des fins de démonstration. Votre vote n'a PAS été émis.</p>",
                 ok: "OK",
             },
             errorDialogPrintVoteReceipt: {
@@ -104,6 +158,7 @@ const frenchTranslation: TranslationType = {
                 content: "Une erreur s'est produite, veuillez réessayer",
                 ok: "Accepter",
             },
+            demoQRText: "Le suivi des bulletins est désactivé en mode démo",
         },
         auditScreen: {
             printButton: "Imprimer",
@@ -148,8 +203,26 @@ const frenchTranslation: TranslationType = {
                     "Vous entrez dans un bureau de vote de démonstration. <strong>Votre vote ne sera PAS compté.</strong> Ce bureau de vote est uniquement destiné à des fins de démonstration.",
                 ok: "J'accepte que mon vote ne sera pas compté",
             },
-            noVotingAreaError:
-                "Zone de vote non attribuée à l'électeur. Veuillez contacter votre administrateur pour obtenir de l'aide.",
+            errors: {
+                noVotingArea:
+                    "Zone de vote non assignée à l'électeur. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                networkError:
+                    "Il y a eu un problème de réseau. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                unableToFetchData:
+                    "Il y a eu un problème pour récupérer les données. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                noElectionEvent:
+                    "L'événement électoral n'existe pas. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                ballotStylesEmlError:
+                    "Il y a eu une erreur avec la publication du style de bulletin. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                obtainingElectionFromID:
+                    "Il y a eu une erreur pour obtenir les élections associées aux identifiants d'élection suivants : {{electionIds}}. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+            },
+            alerts: {
+                noElections:
+                    "Il n'y a pas d'élections pour lesquelles vous pouvez voter. Cela pourrait être parce que la zone n'a aucun concours associé. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                electionEventNotPublished:
+                    "L'événement électoral n'a pas encore été publié. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+            },
         },
         errors: {
             encoding: {
@@ -171,6 +244,7 @@ const frenchTranslation: TranslationType = {
                     "Le nombre d'options sélectionnées {{numSelected}} pour la liste {{type}} est supérieur au maximum {{max}}",
                 underVote:
                     "Sous-vote: Le nombre de choix sélectionnés {{numSelected}} est inférieur au maximum autorisé de {{max}}",
+                blankVote: "Vote Blanc: 0 options sélectionnées",
             },
             explicit: {
                 notAllowed:

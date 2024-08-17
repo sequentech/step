@@ -76,14 +76,6 @@ use tokio::time::Duration as ChronoDuration;
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 
-/*type AreaContestDataType = (
-    Vec<<RistrettoCtx as Ctx>::P>,
-    GetLastTallySessionExecutionSequentBackendTallySessionContest,
-    Contest,
-    BallotStyle,
-    u64,
-);*/
-
 #[instrument(skip_all, err)]
 fn get_ballot_styles(tally_session_data: &ResponseData) -> Result<Vec<BallotStyle>> {
     // get ballot styles, from where we'll get the Contest(s)
@@ -875,7 +867,7 @@ pub async fn execute_tally_session_wrapped(
     };
     let configuration: Option<TallySessionConfiguration> = tally_session
         .configuration
-        .map(|value| serde_json::from_value(value))
+        .map(|value| deserialize_value(value))
         .transpose()?;
     let report_content_template_id: Option<String> = configuration
         .map(|value| value.report_content_template_id)
@@ -888,7 +880,7 @@ pub async fn execute_tally_session_wrapped(
         let document: Option<String> = template
             .map(|value| {
                 let body: std::result::Result<SendCommunicationBody, _> =
-                    serde_json::from_value(value.template);
+                    deserialize_value(value.template);
                 body.map(|res| res.document)
             })
             .transpose()?
@@ -931,6 +923,9 @@ pub async fn execute_tally_session_wrapped(
     // base temp folder
     let base_tempdir = tempdir()?;
 
+    let areas: Vec<Area> =
+        get_event_areas(&hasura_transaction, &tenant_id, &election_event_id).await?;
+
     let status = if plaintexts_data.len() > 0 {
         Some(
             run_velvet_tally(
@@ -939,6 +934,7 @@ pub async fn execute_tally_session_wrapped(
                 &cast_votes_count,
                 &tally_sheets,
                 report_content_template,
+                &areas,
             )
             .await?,
         )
@@ -954,6 +950,7 @@ pub async fn execute_tally_session_wrapped(
         &election_event_id,
         session_ids.clone(),
         tally_session_execution.clone(),
+        &areas,
     )
     .await?;
     // map_plaintext_data also calls this but at this point the credentials

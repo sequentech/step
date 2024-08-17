@@ -137,6 +137,7 @@ const englishTranslation = {
                     'Welcome to the Voting Booth, this screen shows the list of elections you can cast a ballot. Elections displayed in this list can be open to voting, scheduled, or closed. You will be able to access the ballot only if the voting period is open. In the case an election is closed and your election administrator has published the result you will see an "Election Result" button that will take you to the public result page.',
                 ok: "OK",
             },
+            closedEventError: "Election event is currently closed",
         },
         areas: {
             common: {
@@ -222,6 +223,7 @@ const englishTranslation = {
             voteByDay: "Votes by day",
             votersByChannels: "Voters by channel",
             voterLoginURL: "Voter Login URL",
+            voterEnrollURL: "Voter Enroll URL",
         },
         electionEventScreen: {
             common: {
@@ -232,12 +234,30 @@ const englishTranslation = {
             edit: {
                 general: "General",
                 dates: "Dates",
+                votingPeriod: "Voting Period",
                 language: "Language",
                 allowed: "Voting Channels Allowed",
                 materials: "Support Materials",
                 ballotDesign: "Ballot Design",
+                reorder: "Reorder elections",
                 advancedConfigurations: "Advanced Configurations",
                 importCandidates: "Import Candidates",
+            },
+            localization: {
+                emptyHeader: "No languages were set for the event",
+                selectLanguage: "Select Language",
+                notify: {
+                    success: "Localization updated Successfully",
+                    error: "Localization update failed",
+                },
+                common: {
+                    title: "Localization",
+                    subTitle: "Localization configuration",
+                },
+                labels: {
+                    key: "Key",
+                    value: "Value",
+                },
             },
             field: {
                 name: "Name",
@@ -268,7 +288,9 @@ const englishTranslation = {
             },
             error: {
                 endDate: "End date must be after start date",
+                startDate: "Start date must be in the future",
                 noResult: "No Election Event yet",
+                endDateInvalid: "End date must be in the future",
             },
             voters: {
                 title: "Voters",
@@ -312,6 +334,7 @@ const englishTranslation = {
             tabs: {
                 dashboard: "Dashboard",
                 data: "Data",
+                localization: "Localization",
                 voters: "Voters",
                 areas: "Areas",
                 keys: "Keys",
@@ -339,6 +362,8 @@ const englishTranslation = {
                     noLogs: "No logs available",
                 },
                 notify: {
+                    noKeysTally:
+                        "The Tally Ceremony cannot start until the Key Ceremony has been successfully completed.",
                     participateNow:
                         "You have been invited to participate in a Tally ceremony. Please <1>click on the ceremony's Key Action</1> to participate.",
                 },
@@ -389,6 +414,7 @@ const englishTranslation = {
             edit: {
                 general: "General",
                 dates: "Dates",
+                votingPeriod: "Voting Period",
                 language: "Language",
                 allowed: "Voting Channels Allowed",
                 default: "Default",
@@ -397,6 +423,8 @@ const englishTranslation = {
                 image: "Image",
                 advanced: "Advanced Configuration",
                 numAllowedVotes: "Number of allowed votes",
+                reorder: "Reorder contests",
+                castVoteConfirm: "Cast Vote Confirmation Modal",
             },
             field: {
                 name: "Name",
@@ -410,9 +438,11 @@ const englishTranslation = {
                 description: "Description",
             },
             error: {
-                endDate: "End date must be after start date",
                 fileError: "Error uploading file",
                 fileLoaded: "File loaded",
+                endDate: "End date must be after start date",
+                startDate: "Start date must be in the future",
+                endDateInvalid: "End date must be in the future",
             },
             createElectionEventSuccess: "Election Event created",
             createElectionEventError: "Error creating election event",
@@ -762,6 +792,7 @@ const englishTranslation = {
                 system: "Ballot Voting System",
                 design: "Ballot Design",
                 reorder: "Reorder candidates",
+                policies: "Policies",
             },
             field: {
                 name: "Name",
@@ -786,6 +817,15 @@ const englishTranslation = {
                 "allow-selecting-candidates": "Candidates Only",
                 "allow-selecting-lists": "Lists Only",
                 "disabled": "Disabled",
+            },
+            blankVotePolicy: {
+                "label": "Blank Vote Policy",
+                "allowed": "Allowed",
+                "warn": "Warn",
+                "not-allowed": "Not Allowed",
+            },
+            paginationPolicy: {
+                label: "Page Name",
             },
             error: {},
             createContestSuccess: "Contest created",
@@ -977,9 +1017,9 @@ const englishTranslation = {
                 history: "Publish History",
             },
             action: {
-                start: "Start Election",
-                stop: "Stop Election",
-                pause: "Pause",
+                startVotingPeriod: "Start Voting",
+                stopVotingPeriod: "Stop Voting",
+                pauseVotingPeriod: "Pause Voting",
                 generate: "Regenerate",
                 publish: "Publish Changes",
                 back: "Back",
@@ -997,6 +1037,11 @@ const englishTranslation = {
             dialog: {
                 title: "Confirm Action",
                 info: "You have clicked on a sensitive action, so we need you to confirm in order to continue",
+                startInfo:
+                    "You are about to start voting period. Are you sure you want to continue?",
+                stopInfo: "You are about to stop voting period. Are you sure you want to continue?",
+                pauseInfo:
+                    "You are about to pause voting period. Are you sure you want to continue?",
                 ok: "Confirm",
                 ko: "Cancel",
                 error: "Error loading ballot publication",

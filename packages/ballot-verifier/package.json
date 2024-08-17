@@ -25,6 +25,7 @@
     "react-scripts": "5.0.1",
     "sequent-core": "file:./rust/sequent-core-0.1.0.tgz",
     "@sequentech/ui-essentials": "*",
+    "@sequentech/ui-core": "*",
     "web-vitals": "^2.1.0"
   },
   "scripts": {
