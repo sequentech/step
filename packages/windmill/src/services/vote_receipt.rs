@@ -105,7 +105,8 @@ pub async fn get_template(
     };
 
     let communication_template_value: CommunicationTemplateValue =
-        deserialize_value(communication_template.template)?;
+        deserialize_value(communication_template.template)
+            .with_context(|| "Error parsing the communication template")?;
 
     Ok(Some(communication_template_value.document))
 }
