@@ -451,6 +451,9 @@ export const ContestDataForm: React.FC = () => {
             newContest.presentation.over_vote_policy =
                 newContest.presentation.over_vote_policy || EOverVotePolicy.ALLOWED
 
+            newContest.presentation.pagination_policy =
+                newContest.presentation.pagination_policy || ""
+
             return newContest
         },
         [languageConf, electionEvent, candidates]
@@ -737,6 +740,11 @@ export const ContestDataForm: React.FC = () => {
                                     label={t(`contestScreen.overVotePolicy.label`)}
                                     defaultValue={EOverVotePolicy.ALLOWED}
                                     validate={required()}
+                                />
+
+                                <TextInput
+                                    source={`presentation.pagination_policy`}
+                                    label={t(`contestScreen.paginationPolicy.label`)}
                                 />
                             </AccordionDetails>
                         </Accordion>
