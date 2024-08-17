@@ -8,10 +8,7 @@ import styled from "@emotion/styled"
 import {theme} from "@sequentech/ui-essentials"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {useAtomValue} from "jotai"
-import {
-    Sequent_Backend_Results_Area_Contest,
-    Sequent_Backend_Area,
-} from "@/gql/graphql"
+import {Sequent_Backend_Results_Area_Contest, Sequent_Backend_Area} from "@/gql/graphql"
 import {uniq} from "lodash"
 
 export const ExportButton = styled.div`

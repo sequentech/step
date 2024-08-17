@@ -18,6 +18,7 @@ import {IResultDocuments} from "@/types/results"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {MiruExport} from "@/components/MiruExport"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 interface TallyResultsProps {
     tally: Sequent_Backend_Tally_Session | undefined
@@ -28,6 +29,7 @@ interface TallyResultsProps {
 const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> = memo(
     (props: TallyResultsProps): React.JSX.Element => {
         const {tally, resultsEventId, onCreateTransmissionPackage} = props
+        const {globalSettings} = useContext(SettingsContext)
 
         const {t} = useTranslation()
         const [value, setValue] = React.useState<number | null>(0)
@@ -147,10 +149,12 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                             itemName={resultsElection?.[0]?.name ?? "election"}
                         />
                     ) : null}
-                    <MiruExport
-                        electionId={electionId}
-                        onCreateTransmissionPackage={onCreateTransmissionPackage}
-                    />
+                    {globalSettings?.ACTIVATE_MIRU_EXPORT ? (
+                        <MiruExport
+                            electionId={electionId}
+                            onCreateTransmissionPackage={onCreateTransmissionPackage}
+                        />
+                    ) : null}
                 </Box>
                 {electionsData?.map((election, index) => (
                     <CustomTabPanel key={index} index={index} value={value}>

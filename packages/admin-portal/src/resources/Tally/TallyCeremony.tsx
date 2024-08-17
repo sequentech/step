@@ -396,14 +396,6 @@ export const TallyCeremony: React.FC = () => {
     }
 
     const handleSendTransmissionPackage = async () => {
-        //create component for wizard √
-        //find tally session data for specific election and area √
-        //get document name and extension when downloading √
-        ///////hasura schema update √
-        //fix rerenders √
-        //implement eduardo requirements and suggestions
-        //cleanup and setup translations √
-
         try {
             setTransmissionLoading(true)
 
@@ -501,7 +493,7 @@ export const TallyCeremony: React.FC = () => {
             }
 
             if (found) {
-                notify("Already exists: transmission package", {type: "success"}) //should we really notify if already exists?
+                notify("Already exists: transmission package", {type: "success"})
                 handleMiruExportSuccess?.({existingPackage: found})
 
                 return
