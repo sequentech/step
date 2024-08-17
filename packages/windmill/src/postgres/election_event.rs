@@ -178,19 +178,20 @@ pub async fn update_elections_status_by_election_event(
     tenant_id: &str,
     election_event_id: &str,
     status: Value,
-) -> Result<()> {
+) -> Result<Vec<String>> {
     let statement = hasura_transaction
         .prepare(
             r#"
                 UPDATE sequent_backend.election
                 SET
                 status = $1
-                WHERE tenant_id = $2 AND election_event_id = $3;
+                WHERE tenant_id = $2 AND election_event_id = $3
+                RETURNING id;
             "#,
         )
         .await?;
 
-    let _rows: Vec<Row> = hasura_transaction
+    let rows: Vec<Row> = hasura_transaction
         .query(
             &statement,
             &[
@@ -204,7 +205,18 @@ pub async fn update_elections_status_by_election_event(
             anyhow!("Error running the update_elections_status_by_election_event query: {err}")
         })?;
 
-    Ok(())
+    //retrieve all the election ids to log them when a status is changed in the election event level.
+    let ids: Vec<String> = rows
+        .iter()
+        .map(|row| {
+            let election_id: Uuid = row
+                .try_get("id")
+                .with_context(|| "Error getting id from row")?;
+            Ok(election_id.to_string())
+        })
+        .collect::<Result<Vec<String>>>()?;
+
+    Ok(ids)
 }
 
 #[instrument(skip(hasura_transaction), err)]

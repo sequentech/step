@@ -139,6 +139,7 @@ const spanishTranslation: TranslationType = {
                     'Bienvenido a la cabina de votación, esta pantalla muestra la lista de elecciones en las que puede emitir su voto. Las elecciones que aparecen en esta lista pueden estar abiertas a votación, programadas o cerradas. Sólo podrá acceder a la votación si el periodo de votación está abierto. En el caso de que una elección esté cerrada y su administrador electoral haya publicado el resultado, verá un botón "Resultado electoral" que le llevará a la página pública de resultados.',
                 ok: "OK",
             },
+            closedEventError: "El evento electoral está actualmente cerrado",
         },
         areas: {
             common: {
@@ -235,6 +236,7 @@ const spanishTranslation: TranslationType = {
             edit: {
                 general: "General",
                 dates: "Fechas",
+                votingPeriod: "Período de votación",
                 language: "Idiomas",
                 allowed: "Canales de Voto Permitidos",
                 materials: "Materiales de Soporte",
@@ -292,6 +294,7 @@ const spanishTranslation: TranslationType = {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
                 noResult: "No Election Event yet",
                 startDate: "La fecha de inicio debe ser en el futuro",
+                endDateInvalid: "La fecha de finalización debe estar en el futuro",
             },
             voters: {
                 title: "Votantes",
@@ -363,6 +366,8 @@ const spanishTranslation: TranslationType = {
                     noLogs: "No hay registros disponibles",
                 },
                 notify: {
+                    noKeysTally:
+                        "La Ceremonia de Recuento no puede comenzar hasta que la Ceremonia de Claves se haya completado con éxito.",
                     participateNow:
                         "Ha sido invitado a participar a una Ceremonia de Recuento. Por favor <1>haz clic abajo en la acción de llave de la ceremonia</1> para participar.",
                 },
@@ -413,6 +418,7 @@ const spanishTranslation: TranslationType = {
             edit: {
                 general: "General",
                 dates: "Fechas",
+                votingPeriod: "Período de votación",
                 language: "Idioma",
                 allowed: "Canales de Voto Permitidos",
                 default: "Por defecto",
@@ -439,6 +445,8 @@ const spanishTranslation: TranslationType = {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
                 fileError: "Error al cargar el archivo",
                 fileLoaded: "Archivo cargado",
+                startDate: "La fecha de inicio debe ser en el futuro",
+                endDateInvalid: "La fecha de finalización debe estar en el futuro",
             },
             createElectionEventSuccess: "Creada la elección",
             createElectionEventError: "Error Creando la elección",
@@ -820,6 +828,9 @@ const spanishTranslation: TranslationType = {
                 "warn": "Advertir",
                 "not-allowed": "No permitido",
             },
+            paginationPolicy: {
+                label: "Nombre de la página",
+            },
             error: {},
             createContestSuccess: "Pregunta creado",
             createContestError: "Error creando pregunta",
@@ -1029,9 +1040,9 @@ const spanishTranslation: TranslationType = {
                 history: "Historico de Cambios",
             },
             action: {
-                start: "Empezar elección",
-                stop: "Parar eleccion",
-                pause: "pausar",
+                startVotingPeriod: "Comenzar el período de votación",
+                stopVotingPeriod: "Detener el período de votación",
+                pauseVotingPeriod: "Pausar el período de votación",
                 generate: "regenerar",
                 publish: "Publicar Cambios",
                 back: "Atrás",
@@ -1043,6 +1054,12 @@ const spanishTranslation: TranslationType = {
             dialog: {
                 title: "Confirmar Acción",
                 info: "Has hecho clic en una acción sensible, por lo que necesitamos que la confirmes para poder continuar.",
+                startInfo:
+                    "Está a punto de comenzar el período de votación. ¿Está seguro de que desea continuar?",
+                stopInfo:
+                    "Está a punto de detener el período de votación. ¿Está seguro de que desea continuar?",
+                pauseInfo:
+                    "Está a punto de pausar el período de votación. ¿Está seguro de que desea continuar?",
                 ok: "Confirmar",
                 ko: "Cancelar",
                 error: "Error al cargar las papeletas publicadas",
