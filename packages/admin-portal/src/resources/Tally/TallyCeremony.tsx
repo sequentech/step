@@ -232,6 +232,10 @@ export const TallyCeremony: React.FC = () => {
         }
     }, [tallySessionData, selectedTallySessionData])
 
+    useEffect(() => {
+        notify(`page: ${page}`, {type: "success"})
+    }, [page])
+
     const {data: resultsEvent, refetch} = useGetList<Sequent_Backend_Results_Event>(
         "sequent_backend_results_event",
         {
@@ -261,20 +265,30 @@ export const TallyCeremony: React.FC = () => {
 
     useEffect(() => {
         if (data) {
-            setPage(
-                !tallyId && data.execution_status !== ITallyExecutionStatus.CANCELLED
-                    ? WizardSteps.Start
-                    : data.execution_status === ITallyExecutionStatus.STARTED ||
-                      data.execution_status === ITallyExecutionStatus.CONNECTED ||
-                      data.execution_status === ITallyExecutionStatus.CANCELLED
-                    ? WizardSteps.Ceremony
-                    : data.execution_status === ITallyExecutionStatus.IN_PROGRESS
-                    ? WizardSteps.Tally
-                    : data.execution_status === ITallyExecutionStatus.SUCCESS
-                    ? WizardSteps.Results
-                    : WizardSteps.Start
-            )
             setTally(data)
+            if (!tallyId && data.execution_status !== ITallyExecutionStatus.CANCELLED) {
+                setPage(WizardSteps.Start)
+                return
+            }
+            if (
+                data.execution_status === ITallyExecutionStatus.STARTED ||
+                data.execution_status === ITallyExecutionStatus.CONNECTED ||
+                data.execution_status === ITallyExecutionStatus.CANCELLED
+            ) {
+                setPage(WizardSteps.Ceremony)
+                return
+            }
+            if (data.execution_status === ITallyExecutionStatus.IN_PROGRESS) {
+                setPage(WizardSteps.Tally)
+                return
+            }
+            if (data.execution_status === ITallyExecutionStatus.SUCCESS) {
+                if (page !== WizardSteps.Export) {
+                    setPage(WizardSteps.Results)
+                }
+                return
+            }
+            setPage(WizardSteps.Start)
         }
     }, [data])
 
@@ -415,7 +429,7 @@ export const TallyCeremony: React.FC = () => {
         }
     }
 
-    const handleSendTransmissionPackage = async () => {
+    const handleSendTransmissionPackage = useCallback(async () => {
         try {
             setTransmissionLoading(true)
 
@@ -442,7 +456,14 @@ export const TallyCeremony: React.FC = () => {
             console.log(`Caught error: ${error}`)
             notify(t("miruExport.send.error"), {type: "error"})
         }
-    }
+    }, [
+        setTransmissionLoading,
+        selectedTallySessionData?.election_id,
+        tallyId,
+        selectedTallySessionData?.area_id,
+        t,
+        notify,
+    ])
 
     const [uploading, setUploading] = useState<boolean>(false)
     const [errors, setErrors] = useState<String | null>(null)

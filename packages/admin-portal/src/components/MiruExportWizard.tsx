@@ -124,7 +124,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({
                                 aria-haspopup="true"
                                 onClick={handleSendTransmissionPackage}
                             >
-                                <span title={"Upload"}>{"Upload"}</span>
+                                <span title={"Send"}>{"Send"}</span>
                             </ExportButton>
                         )}
                     </TallyStyles.StyledSpacing>
