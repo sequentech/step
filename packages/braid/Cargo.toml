@@ -4,7 +4,7 @@
 
 [package]
 name = "braid"
-version = "0.1.0"
+version = "0.2.0"
 authors = [
   "David Ruescas <david@sequentech.io>",
   "Eduardo Robles <edu@sequentech.io>"

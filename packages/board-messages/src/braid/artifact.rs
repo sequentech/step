@@ -138,18 +138,6 @@ impl<C: Ctx> Ballots<C> {
     }
 }
 
-#[derive(Debug, BorshSerialize, BorshDeserialize)]
-pub struct BallotsWide<C: Ctx> {
-    pub ciphertexts: StrandRectangle<Ciphertext<C>>,
-}
-impl<C: Ctx> BallotsWide<C> {
-    pub fn new(ciphertexts: StrandRectangle<Ciphertext<C>>) -> BallotsWide<C> {
-        BallotsWide {
-            ciphertexts,
-        }
-    }
-}
-
 #[derive(BorshSerialize, BorshDeserialize, Clone)]
 pub struct Mix<C: Ctx> {
     pub ciphertexts: StrandVector<Ciphertext<C>>,
@@ -193,6 +181,68 @@ impl<C: Ctx> DecryptionFactors<C> {
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct Plaintexts<C: Ctx>(pub StrandVector<C::P>);
+
+///////////////////////////////////////////////////////////////////////////
+// Wide artifacts
+///////////////////////////////////////////////////////////////////////////
+
+#[derive(Debug, BorshSerialize, BorshDeserialize)]
+pub struct BallotsWide<C: Ctx> {
+    pub ciphertexts: StrandRectangle<Ciphertext<C>>,
+}
+impl<C: Ctx> BallotsWide<C> {
+    pub fn new(ciphertexts: StrandRectangle<Ciphertext<C>>) -> BallotsWide<C> {
+        BallotsWide {
+            ciphertexts,
+        }
+    }
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Clone)]
+pub struct MixWide<C: Ctx> {
+    pub ciphertexts: StrandRectangle<Ciphertext<C>>,
+    pub proof: Option<ShuffleProof<C>>,
+    pub mix_number: MixNumber,
+}
+impl<C: Ctx> MixWide<C> {
+    pub fn new(
+        ciphertexts: StrandRectangle<Ciphertext<C>>,
+        proof: ShuffleProof<C>,
+        mix_number: MixNumber,
+    ) -> MixWide<C> {
+        MixWide {
+            ciphertexts,
+            proof: Some(proof),
+            mix_number,
+        }
+    }
+    pub fn null(mix_number: MixNumber) -> MixWide<C> {
+        let c = StrandRectangle::new(vec![vec![]]).expect("impossible");
+        
+        MixWide {
+            ciphertexts: c,
+            proof: None,
+            mix_number,
+        }
+    }
+}
+
+#[derive(Debug, BorshSerialize, BorshDeserialize)]
+pub struct DecryptionFactorsWide<C: Ctx> {
+    pub factors: StrandRectangle<C::E>,
+    pub proofs: StrandRectangle<ChaumPedersen<C>>,
+}
+impl<C: Ctx> DecryptionFactorsWide<C> {
+    pub fn new(factors: StrandRectangle<C::E>, proofs: StrandRectangle<ChaumPedersen<C>>) -> DecryptionFactorsWide<C> {
+        DecryptionFactorsWide {
+            factors,
+            proofs,
+        }
+    }
+}
+
+#[derive(Debug, BorshSerialize, BorshDeserialize)]
+pub struct PlaintextsWide<C: Ctx>(pub StrandRectangle<C::P>);
 
 ///////////////////////////////////////////////////////////////////////////
 // Debug
