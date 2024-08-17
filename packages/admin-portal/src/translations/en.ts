@@ -907,11 +907,11 @@ const englishTranslation = {
         },
         miruExport: {
             create: {
-                success: "Transmission Package Created",
+                success: "Creating Transmission Package...",
                 error: "Error creating Transmission Package ",
             },
             send: {
-                success: "Transmission Package Sent",
+                success: "Sending Transmission Package...",
                 error: "Error sending Transmission Package ",
             },
         },

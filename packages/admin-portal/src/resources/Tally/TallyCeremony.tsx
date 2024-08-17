@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
+import React, {useCallback, useContext, useEffect, useMemo, useRef, useState} from "react"
 import {
     BreadCrumbSteps,
     BreadCrumbStepsVariant,
@@ -200,17 +200,23 @@ export const TallyCeremony: React.FC = () => {
     const [selectedTallySessionData, setSelectedTallySessionData] =
         useState<IMiruTransmissionPackageData | null>(null)
 
-    const tallySessionData: IMiruTallySessionData = useMemo(() => {
+    const tallySessionData = useMemo(() => {
         try {
-            let strData = tally?.annotations?.[MIRU_TALLY_SESSION_ANNOTATION_KEY]
+            let strData = data?.annotations?.[MIRU_TALLY_SESSION_ANNOTATION_KEY]
             if (!strData) {
                 return []
             }
-            return JSON.parse(strData) as IMiruTallySessionData
+            let parsed = JSON.parse(strData) as IMiruTallySessionData
+            return parsed
         } catch (e) {
             return []
         }
-    }, [tally?.annotations?.[MIRU_TALLY_SESSION_ANNOTATION_KEY]])
+    }, [data?.annotations?.[MIRU_TALLY_SESSION_ANNOTATION_KEY]])
+    const tallySessionDataRef = useRef(tallySessionData)
+
+    useEffect(() => {
+        tallySessionDataRef.current = tallySessionData
+    }, [tallySessionData])
 
     useEffect(() => {
         if (!selectedTallySessionData || !tallySessionData) {
@@ -375,7 +381,6 @@ export const TallyCeremony: React.FC = () => {
         area_id?: string
         existingPackage?: IMiruTransmissionPackageData
     }) => {
-        console.log("FF handleMiruExportSuccess")
         //check for task completion and fetch data
         //set new page status(navigate to miru wizard)
 
@@ -388,22 +393,22 @@ export const TallyCeremony: React.FC = () => {
 
             let intervalId = setInterval(() => {
                 if (!!packageData || retry >= 5) {
-                    notify("Error getting transmission package data", {type: "error"})
+                    notify(t("miruExport.create.error"), {type: "error"})
                     clearInterval(intervalId)
                     return
                 }
                 const found =
-                    tallySessionData.find(
+                    tallySessionDataRef.current?.find(
                         (datum) =>
                             datum.area_id === e.area_id && datum.election_id === e.election_id
                     ) ?? null
 
                 if (found) {
-                    setSelectedTallySessionData(packageData)
                     packageData = found
                     clearInterval(intervalId)
+                    setSelectedTallySessionData(packageData)
+                    setPage(WizardSteps.Export)
                 } else {
-                    notify(`FF Retried ${retry}`, {type: "error"})
                     retry = retry + 1
                 }
             }, globalSettings.QUERY_POLL_INTERVAL_MS)
@@ -430,12 +435,12 @@ export const TallyCeremony: React.FC = () => {
 
             if (nextStatus) {
                 setTransmissionLoading(false)
-                notify("miruExport.send.success", {type: "success"})
+                notify(t("miruExport.send.success"), {type: "success"})
                 // onSuccess?.()
             }
         } catch (error) {
             console.log(`Caught error: ${error}`)
-            notify("miruExport.send.error", {type: "error"})
+            notify(t("miruExport.send.error"), {type: "error"})
         }
     }
 
