@@ -905,6 +905,16 @@ const englishTranslation = {
                 downloaded: "Encrypted Private Key generated successfully.",
             },
         },
+        miruExport: {
+            create: {
+                success: "Transmission Package Created",
+                error: "Error creating Transmission Package ",
+            },
+            send: {
+                success: "Transmission Package Sent",
+                error: "Error sending Transmission Package ",
+            },
+        },
         tally: {
             errorUploadingSignature: "There was an error uploading signature",
             downloadTransmissionPackage: "Download Package",

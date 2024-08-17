@@ -914,6 +914,16 @@ const frenchTranslation: TranslationType = {
                 downloaded: "Clé Privée Cryptée générée avec succès.",
             },
         },
+        miruExport: {
+            create: {
+                success: "",
+                error: "",
+            },
+            send: {
+                success: "",
+                error: "",
+            },
+        },
         tally: {
             errorUploadingSignature:
                 "Une erreur s'est produite lors du téléchargement de la signature",
