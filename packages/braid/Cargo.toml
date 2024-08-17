@@ -20,14 +20,14 @@ strand = { path="../strand", features=["rayon"] }
 board-messages = { path="../board-messages" }
 borsh = "0.9.3"
 crepe = "0.1.5"
-# immu-board = { path="../immu-board" }
-# immudb-rs = { path="../immudb-rs" }
-tokio-postgres = "0.7.10"
 strum = { version = "0.24.1", features = ["derive"] }
 rayon = { version = "1.5" }
-rusqlite = { version = "0.31.0", features = ["bundled"] }
+
 anyhow = "1.0"
 thiserror = "1.0.50"
+
+# trustee local store
+rusqlite = { version = "0.31.0", features = ["bundled"] }
 
 # only needed for verifier
 serde_json = "1.0.105"
@@ -63,8 +63,6 @@ tracing-wasm = {version="0.2.1", optional = true}
 reedline-repl-rs = { version = "1.0.7" }
 ascii_table = { version = "4.0.2" }
 async-trait = "0.1.73"
-
-sequent-core = { path="../sequent-core", features = ["log"] }
 
 [dev-dependencies]
 criterion = {version = "0.4", features=["html_reports"]}

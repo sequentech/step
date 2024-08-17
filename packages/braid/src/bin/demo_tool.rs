@@ -14,9 +14,6 @@ use std::marker::PhantomData;
 use std::path::Path;
 use tracing::{info, instrument};
 
-// use immu_board::{Board, BoardClient, BoardMessage};
-use sequent_core::util::init_log::init_log;
-
 use board_messages::grpc::pgsql::PgsqlB3Client;
 use board_messages::grpc::pgsql;
 use board_messages::grpc::pgsql::PgsqlConnectionParams;
@@ -137,7 +134,7 @@ The sequence of steps to run a demo election are
 #[instrument]
 async fn main() -> Result<()> {
     let ctx = RistrettoCtx;
-    init_log(true);
+    braid::util::init_log(true);
     let args = Cli::parse();
 
     match &args.command {

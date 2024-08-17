@@ -11,7 +11,7 @@ use tracing::instrument;
 use braid::protocol::board::grpc::GrpcB3;
 use braid::protocol::trustee::Trustee;
 use braid::verify::verifier::Verifier;
-use sequent_core::util::init_log::init_log;
+
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;
 
@@ -34,11 +34,12 @@ struct Cli {
 #[tokio::main]
 #[instrument]
 async fn main() -> Result<()> {
+    braid::util::init_log(true);
+    
     // generate dummy values, these are not important
     let dummy_sk = StrandSignatureSk::gen().unwrap();
     let dummy_encryption_key = strand::symm::gen_key();
 
-    init_log(true);
     let args = Cli::parse();
 
     let _store_root = std::env::current_dir().unwrap().join("message_store");

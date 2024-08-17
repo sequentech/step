@@ -29,7 +29,7 @@ impl<C: Ctx, B: Board> Session<C, B> {
 
     // Takes ownership of self to allow spawning threads in parallel
     // See https://stackoverflow.com/questions/63434977/how-can-i-spawn-asynchronous-methods-in-a-loop
-    // See also protocol_test_immudb::run_protocol_test_immudb
+    // See also protocol_test_grpc::run_protocol_test
     pub async fn step(mut self) -> (Self, Result<(), ProtocolError>) {
         let board = self
             .board

@@ -9,7 +9,7 @@ use rusqlite::params;
 use rusqlite::Connection;
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
-use tokio_postgres::{NoTls, Row};
+// use tokio_postgres::{NoTls, Row};
 use tracing::instrument;
 use tracing::{info, warn};
 
@@ -84,14 +84,7 @@ impl PgsqlBoard {
         let messages = self
             .get_remote_messages(external_last_id.unwrap_or(-1))
             .await?;
-
-        // One by one implementation
-        // When retrieving messages one at a time from immudb we use 0 as default value since
-        // immudb ids start at 1 (this requests uses the = comparator in sql)
-        /* let messages = self
-        .get_remote_messages_consecutively(external_last_id.unwrap_or(0))
-        .await?;*/
-
+        
         info!(
             "Retrieved {} messages remotely, storing locally",
             messages.len()

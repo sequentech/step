@@ -12,14 +12,11 @@ use tokio::time::{sleep, Duration};
 use tracing::instrument;
 use tracing::{error, info};
 
-// use braid::protocol::board::immudb::ImmudbBoardIndex;
-// use braid::protocol::board::immudb::{ImmudbBoard, ImmudbBoardParams};
 use braid::protocol::board::BoardFactory;
 use braid::protocol::session::Session;
 use braid::protocol::trustee::Trustee;
 use braid::protocol::trustee::TrusteeConfig;
 use braid::util::assert_folder;
-use sequent_core::util::init_log::init_log;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;
 use strand::symm;
@@ -27,6 +24,8 @@ use strand::symm;
 const IMMUDB_USER: &str = "immudb";
 const IMMUDB_PW: &str = "immudb";
 const IMMUDB_URL: &str = "http://immudb:3322";
+
+const B3_URL: &str = "";
 
 #[derive(Parser)]
 struct Cli {
@@ -75,7 +74,7 @@ command line option is set to true.
 #[tokio::main]
 #[instrument]
 async fn main() -> Result<()> {
-    init_log(true);
+    braid::util::init_log(true);
     let args = Cli::parse();
 
     let contents = fs::read_to_string(args.trustee_config)
