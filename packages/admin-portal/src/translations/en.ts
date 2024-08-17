@@ -916,7 +916,24 @@ const englishTranslation = {
                 downloaded: "Encrypted Private Key generated successfully.",
             },
         },
+        miruExport: {
+            create: {
+                success: "Creating Transmission Package...",
+                error: "Error creating Transmission Package ",
+            },
+            send: {
+                success: "Sending Transmission Package...",
+                error: "Error sending Transmission Package ",
+            },
+        },
         tally: {
+            errorUploadingSignature: "There was an error uploading signature",
+            downloadTransmissionPackage: "Download Package",
+            TransmissionPackageServers: "Servers",
+            sendToTransmissionPackageServers: "Send Transmission Package for area '{{name}}'",
+            transmissionPackageSignatures: "Signatures",
+            uploadTransmissionPackage: "Upload",
+            exportElectionArea: "Send Transmission Package for area '{{name}}'",
             templateTitle: "Results Template",
             templateSubTitle: "Optionally overwrite the results template.",
             ceremonyTitle: "Elections to Tally",

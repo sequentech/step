@@ -122,6 +122,7 @@ pub fn get_contest_plurality(
         voting_type: Some("first-past-the-post".into()),
         counting_algorithm: Some("plurality-at-large".into()),
         is_encrypted: true,
+        annotations: None,
         candidates: vec![
             Candidate {
                 id: "0".into(),
@@ -137,6 +138,7 @@ pub fn get_contest_plurality(
                 description: None,
                 description_i18n: None,
                 candidate_type: None,
+                annotations: None,
                 presentation: Some(CandidatePresentation {
                     i18n: None,
                     is_explicit_invalid: Some(false),
@@ -164,6 +166,7 @@ pub fn get_contest_plurality(
                 description: None,
                 description_i18n: None,
                 candidate_type: None,
+                annotations: None,
                 presentation: Some(CandidatePresentation {
                     i18n: None,
                     is_explicit_invalid: Some(false),
@@ -191,6 +194,7 @@ pub fn get_contest_plurality(
                 description: None,
                 description_i18n: None,
                 candidate_type: None,
+                annotations: None,
                 presentation: Some(CandidatePresentation {
                     i18n: None,
                     is_explicit_invalid: Some(false),
@@ -218,6 +222,7 @@ pub fn get_contest_plurality(
                 description: None,
                 description_i18n: None,
                 candidate_type: None,
+                annotations: None,
                 presentation: Some(CandidatePresentation {
                     i18n: None,
                     is_explicit_invalid: Some(false),
@@ -245,6 +250,7 @@ pub fn get_contest_plurality(
                 description: None,
                 description_i18n: None,
                 candidate_type: None,
+                annotations: None,
                 presentation: Some(CandidatePresentation {
                     i18n: None,
                     is_explicit_invalid: Some(false),

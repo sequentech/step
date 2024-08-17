@@ -8,6 +8,7 @@ use super::{CandidateResult, ContestResult, InvalidVotes};
 use crate::pipes::error::Error as PipesError;
 use crate::pipes::pipe_name::PipeName;
 use crate::utils::parse_file;
+use sequent_core::ballot::ContestPresentation;
 use sequent_core::types::hasura::core::TallySheet;
 use sequent_core::{ballot::Contest, plaintext::DecodedVoteContest};
 use std::cmp;
@@ -138,6 +139,7 @@ pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resul
         percentage_invalid_votes_implicit: 0.0,
         invalid_votes: count_invalid_votes,
         candidate_result: candidate_results,
+        extended_metrics: None,
     };
     Ok(contest_result.calculate_percentages())
 }

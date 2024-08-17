@@ -345,7 +345,7 @@ pub async fn create_vote_receipt(
             ),
             title: vote_receipt_title.to_string(),
             ballot_tracker_url: ballot_tracker_url.to_string(),
-            timestamp: generate_timestamp(time_zone, date_format),
+            timestamp: generate_timestamp(time_zone, date_format, None),
         },
     }
     .to_map()?;

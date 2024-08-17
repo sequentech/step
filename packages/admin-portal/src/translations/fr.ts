@@ -925,7 +925,26 @@ const frenchTranslation: TranslationType = {
                 downloaded: "Clé Privée Cryptée générée avec succès.",
             },
         },
+        miruExport: {
+            create: {
+                success: "",
+                error: "",
+            },
+            send: {
+                success: "",
+                error: "",
+            },
+        },
         tally: {
+            errorUploadingSignature:
+                "Une erreur s'est produite lors du téléchargement de la signature",
+            downloadTransmissionPackage: "Télécharger le paquet",
+            TransmissionPackageServers: "Serveurs",
+            sendToTransmissionPackageServers:
+                "Envoyer le paquet de transmission pour la zone '{{name}}'",
+            transmissionPackageSignatures: "Signatures",
+            uploadTransmissionPackage: "Télécharger",
+            exportElectionArea: "Envoyer le paquet de transmission pour la zone '{{name}}'",
             templateTitle: "Modèle de Résultats",
             templateSubTitle: "Éventuellement écraser le modèle de résultats.",
             ceremonyTitle: "Élections pour le Comptage",
