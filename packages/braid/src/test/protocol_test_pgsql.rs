@@ -23,10 +23,13 @@ use board_messages::braid::newtypes::MAX_TRUSTEES;
 use board_messages::braid::newtypes::NULL_TRUSTEE;
 use board_messages::braid::protocol_manager::ProtocolManager;
 use board_messages::braid::statement::StatementType;
+use board_messages::grpc::pgsql::{B3MessageRow, PgsqlConnectionParams, PgsqlDbConnectionParams};
+use board_messages::grpc::pgsql::{PgsqlB3Client};
+use board_messages::grpc::pgsql;
 
-use crate::protocol::board::pgsql;
-use crate::protocol::board::pgsql::{BoardClient, BoardMessage, PgsqlBoard, PgsqlBoardParams};
-use crate::protocol::board::pgsql::{PgsqlConnectionParams, PgsqlDbConnectionParams};
+use crate::protocol::board::pgsql::PgsqlBoard;
+use crate::protocol::board::pgsql::{PgsqlBoardParams};
+
 use crate::protocol::session::Session;
 use crate::protocol::trustee::Trustee;
 
@@ -103,9 +106,9 @@ async fn run_protocol_test_pgsql<C: Ctx + 'static>(
         sessions.push(session);
     }
 
-    let mut b = BoardClient::new(&c).await.unwrap();
+    let mut b = PgsqlB3Client::new(&c).await.unwrap();
 
-    let mut dkg_pk_message: Vec<BoardMessage> = vec![];
+    let mut dkg_pk_message: Vec<B3MessageRow> = vec![];
     let count = ciphertexts;
 
     let mut selected_trustees = [NULL_TRUSTEE; MAX_TRUSTEES];
@@ -181,7 +184,7 @@ async fn run_protocol_test_pgsql<C: Ctx + 'static>(
         b.insert_messages(TEST_BOARD, &messages).await.unwrap();
     }
 
-    let mut plaintexts_out: Vec<BoardMessage> = vec![];
+    let mut plaintexts_out: Vec<B3MessageRow> = vec![];
     for i in 0..150 {
         info!("Cycle {}", i);
 
@@ -249,7 +252,6 @@ pub async fn create_protocol_test_pgsql<C: Ctx>(
     let (trustees, trustee_pks): (Vec<Trustee<C>>, Vec<StrandSignaturePk>) = (0..n_trustees)
         .map(|i| {
             let sk = StrandSignatureSk::gen().unwrap();
-            // let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
             let encryption_key = strand::symm::gen_key();
             let pk = StrandSignaturePk::from_sk(&sk).unwrap();
             (Trustee::new(i.to_string(), sk, encryption_key), pk)
@@ -267,13 +269,17 @@ pub async fn create_protocol_test_pgsql<C: Ctx>(
     let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
     pgsql::drop_database(&c, PG_DATABASE).await.unwrap();
 
-    let mut b = pgsql::create_database_and_index(&c, PG_DATABASE)
+    pgsql::create_database(&c, PG_DATABASE)
         .await
         .unwrap();
+
+    let c = c.with_database(PG_DATABASE);
+    let mut b = PgsqlB3Client::new(&c).await?;
+    b.create_index_ine().await.unwrap();
     b.create_board_ine(TEST_BOARD).await.unwrap();
 
     let message = Message::bootstrap_msg(&cfg, &pm)?;
-    let bm: Result<BoardMessage> = message.try_into();
+    let bm: Result<B3MessageRow> = message.try_into();
     let messages = vec![bm.unwrap()];
     b.insert_messages(TEST_BOARD, &messages).await.unwrap();
 
