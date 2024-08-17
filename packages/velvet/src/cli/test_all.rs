@@ -1398,12 +1398,14 @@ mod tests {
 
     #[test]
     fn test_hierarchical_area_aggregation() -> Result<()> {
-        // Step 1: Creating Election event, election, contest, 2 areas wi parent-child relation
-        // Conect contest to parent area
+        // Step 1: Creating Election event, election, contest, 2 areas with
+        // parent-child relation and connect contest to parent area
         let fixture = TestFixture::new()?;
 
         let election_event_id = Uuid::new_v4();
-        let area_ids: Vec<Uuid> = (0..2).map(|_| Uuid::new_v4()).collect();
+        let parent_area_id = Uuid::new_v4();
+        let child_area_id = Uuid::new_v4();
+        let area_ids: Vec<Uuid> = vec![parent_area_id.clone(), child_area_id.clone()];
 
         let mut election = fixture.create_election_config(&election_event_id, area_ids.clone())?;
         election.ballot_styles.clear();
@@ -1411,120 +1413,118 @@ mod tests {
         let contest =
             fixture.create_contest_config(&election.tenant_id, &election_event_id, &election.id)?;
 
-        // Create hierarchical area structure and associate parent area with the contest
-        let areas_config = area_ids
-            .iter()
-            .enumerate()
-            .map(|(i, area_id)| {
-                let parent_id = if i == 0 { None } else { Some(area_ids[i - 1]) }; // TODO:
-                fixture
-                    .create_area_config(
-                        &election.tenant_id,
-                        &election_event_id,
-                        &election.id,
-                        &Uuid::from_str(&contest.id).unwrap(), // TODO: to do it only for the first area
-                        100,
-                        0,
-                        parent_id,
-                        Some((*area_id).to_string()),
-                    )
-                    .unwrap()
-            })
-            .collect::<Vec<_>>();
+        // Create hierarchical area structure and associate parent area with the
+        // contest
+        let parent_area_config = fixture
+            .create_area_config(
+                &election.tenant_id,
+                &election_event_id,
+                &election.id,
+                &Uuid::from_str(&contest.id).unwrap(),
+                100,
+                0,
+                None,
+                Some(parent_area_id.to_string()),
+            )
+            .unwrap();
+        let child_area_config = fixture
+            .create_area_config(
+                &election.tenant_id,
+                &election_event_id,
+                &election.id,
+                &Uuid::from_str(&contest.id).unwrap(),
+                100,
+                0,
+                Some(parent_area_id.clone()),
+                Some(child_area_id.to_string()),
+            )
+            .unwrap();
+        let areas_config = vec![parent_area_config.clone(), child_area_config.clone()];
 
         // Assign each contest to the corresponding area
-        // TODO: understand if this affects the connection between parent areas-contests
-        // for (i, area) in areas_config.iter().enumerate() {
+        //
+        // TODO: understand if this affects the connection between parent
+        // areas-contests
         election.ballot_styles.push(generate_ballot_style(
             &election.tenant_id,
             &election.election_event_id,
             &election.id,
-            &areas_config[0].id,
+            &parent_area_config.id,
             vec![contest.clone()],
         ));
-        // }
+        election.ballot_styles.push(generate_ballot_style(
+            &election.tenant_id,
+            &election.election_event_id,
+            &election.id,
+            &child_area_config.id,
+            vec![contest.clone()],
+        ));
 
-        // Step 2: Create ballot to vote from parent area and another one for child area
-        // Generate ballots for the voter associated with area 3 for all contests
-        for i in 0..2 {
+        // Step 2: Create 10 votes for each area
+        for i in 0..1 {
             println!(
                 " ----- i {} Area {} Contest {}",
                 i, areas_config[i].id, contest.id
             );
-            let ballot_file = fixture
+            let ballots_path = fixture
                 .input_dir_ballots
                 .join(format!("election__{}", &election.id))
                 .join(format!("contest__{}", contest.id))
                 .join(format!("area__{}", areas_config[i].id));
 
-            let mut file = fs::OpenOptions::new()
+            let mut ballots_csv_file = fs::OpenOptions::new()
                 .write(true)
                 .append(true)
                 .create(true)
-                .open(ballot_file.join("ballots.csv"))?;
+                .open(ballots_path.join("ballots.csv"))?;
 
-            (0..10).try_for_each(|j| {
-                let mut choices = vec![
+            (0..10).try_for_each(|ballot_num| {
+                let choices = vec![
                     DecodedVoteChoice {
                         id: "0".to_owned(),
-                        selected: -1,
+                        selected: if ballot_num % 5 == 0 { 0 } else { -1 },
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
                         id: "1".to_owned(),
-                        selected: -1,
+                        selected: if ballot_num % 5 == 1 { 0 } else { -1 },
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
                         id: "2".to_owned(),
-                        selected: -1,
+                        selected: if ballot_num % 5 == 2 { 0 } else { -1 },
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
                         id: "3".to_owned(),
-                        selected: -1,
+                        selected: if ballot_num % 5 == 3 { 0 } else { -1 },
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
                         id: "4".to_owned(),
-                        selected: -1,
+                        selected: if ballot_num % 5 == 4 { 0 } else { -1 },
                         write_in_text: None,
                     },
                 ];
 
-                let mut plaintext_prepare = DecodedVoteContest {
-                    contest_id: contests[i].id.clone(),
+                let plaintext_prepare = DecodedVoteContest {
+                    contest_id: contest.id.clone(),
                     is_explicit_invalid: false,
                     invalid_errors: vec![],
                     invalid_alerts: vec![],
-                    choices: vec![],
+                    choices: choices,
                 };
-
-                // For each contest: assigns selections to the choices
-                // TODO: make the votes different for each contest
-                // TODO: decide if i need to vote for every contest or just the grandpa one
-                match j {
-                    1 => choices[0].selected = 0,
-                    2 => choices[1].selected = 0,
-                    3 => choices[2].selected = 0,
-                    4 => choices[3].selected = 0,
-                    5 => choices[4].selected = 0,
-                    6 => (),
-                    _ => choices[1].selected = 0,
-                }
-
-                plaintext_prepare.choices = choices;
 
                 let plaintext = contest
                     .encode_plaintext_contest_bigint(&plaintext_prepare)
                     .unwrap();
-                writeln!(file, "{}", plaintext)?;
+                writeln!(ballots_csv_file, "{}", plaintext)?;
 
                 Ok::<(), Error>(())
             })?;
         }
 
-        // Step 3: Generate tallys and test expected results
+        // Step 3: Generate tallies and test expected results
         // Set up CLI configuration
         let cli = CliRun {
             stage: "main".to_string(),
@@ -1550,7 +1550,7 @@ mod tests {
             let mut path = cli.output_dir.clone();
             path.push("velvet-generate-reports");
             path.push(format!("{}{}", PREFIX_ELECTION, &election.id));
-            path.push(format!("{}{}", PREFIX_CONTEST, &contests[i].id));
+            path.push(format!("{}{}", PREFIX_CONTEST, &contest.id));
             path.push(format!("{}{}", PREFIX_AREA, &areas_config[i].id));
             path.push("report.json");
 
@@ -1563,20 +1563,18 @@ mod tests {
 
         // Verify aggregated results
         // TODO: find "aggregate" folder
-        for contest in &contests {
-            let mut path = cli.output_dir.clone();
-            path.push("velvet-generate-reports");
-            path.push(format!("{}{}", PREFIX_ELECTION, &election.id));
-            path.push(format!("{}{}", PREFIX_CONTEST, &contest.id));
-            path.push("aggregate");
-            path.push("report.json");
+        let mut path = cli.output_dir.clone();
+        path.push("velvet-generate-reports");
+        path.push(format!("{}{}", PREFIX_ELECTION, &election.id));
+        path.push(format!("{}{}", PREFIX_CONTEST, &contest.id));
+        path.push("aggregate");
+        path.push("report.json");
 
-            let f = fs::File::open(&path)?;
-            let reports: Vec<ReportDataComputed> = serde_json::from_reader(f)?;
-            let report = &reports[0];
+        let f = fs::File::open(&path)?;
+        let reports: Vec<ReportDataComputed> = serde_json::from_reader(f)?;
+        let report = &reports[0];
 
-            assert_eq!(report.contest_result.total_votes, 10);
-        }
+        assert_eq!(report.contest_result.total_votes, 10);
 
         Ok(())
     }
