@@ -18,7 +18,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let host = PG_HOST;
     let port = PG_PORT;
     let user = PG_USER;
-    let database = &PG_DATABASE;
+    let database = PG_DATABASE;
     let socket = "[::1]:50051";
     
     info!("Starting b3");
