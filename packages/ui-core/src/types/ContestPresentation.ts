@@ -46,6 +46,7 @@ export interface IContestPresentation {
     base32_writeins?: boolean
     invalid_vote_policy?: EInvalidVotePolicy
     blank_vote_policy?: EBlankVotePolicy
+    pagination_policy?: String
     cumulative_number_of_checkboxes?: number
     shuffle_categories?: boolean
     shuffle_category_list?: Array<string>

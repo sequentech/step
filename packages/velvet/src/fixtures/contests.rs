@@ -44,6 +44,7 @@ pub fn get_contest_1(tenant_id: &Uuid, election_event_id: &Uuid, election_id: &U
             base32_writeins: Some(true),
             invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
             blank_vote_policy: None,
+            pagination_policy: None,
             cumulative_number_of_checkboxes: None,
             shuffle_categories: Some(true),
             shuffle_category_list: None,
@@ -56,6 +57,7 @@ pub fn get_contest_1(tenant_id: &Uuid, election_event_id: &Uuid, election_id: &U
             sort_order: None,
             under_vote_alert: Some(false),
         }),
+        annotations: None,
     }
 }
 
@@ -101,6 +103,7 @@ pub fn get_contest_min_max_votes(
             base32_writeins: Some(true),
             invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
             blank_vote_policy: None,
+            pagination_policy: None,
             cumulative_number_of_checkboxes: None,
             shuffle_categories: Some(true),
             shuffle_category_list: None,
@@ -113,5 +116,6 @@ pub fn get_contest_min_max_votes(
             sort_order: None,
             under_vote_alert: Some(false),
         }),
+        annotations: None,
     }
 }

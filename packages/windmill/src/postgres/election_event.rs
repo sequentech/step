@@ -178,19 +178,20 @@ pub async fn update_elections_status_by_election_event(
     tenant_id: &str,
     election_event_id: &str,
     status: Value,
-) -> Result<()> {
+) -> Result<Vec<String>> {
     let statement = hasura_transaction
         .prepare(
             r#"
                 UPDATE sequent_backend.election
                 SET
                 status = $1
-                WHERE tenant_id = $2 AND election_event_id = $3;
+                WHERE tenant_id = $2 AND election_event_id = $3
+                RETURNING id;
             "#,
         )
         .await?;
 
-    let _rows: Vec<Row> = hasura_transaction
+    let rows: Vec<Row> = hasura_transaction
         .query(
             &statement,
             &[
@@ -204,7 +205,18 @@ pub async fn update_elections_status_by_election_event(
             anyhow!("Error running the update_elections_status_by_election_event query: {err}")
         })?;
 
-    Ok(())
+    //retrieve all the election ids to log them when a status is changed in the election event level.
+    let ids: Vec<String> = rows
+        .iter()
+        .map(|row| {
+            let election_id: Uuid = row
+                .try_get("id")
+                .with_context(|| "Error getting id from row")?;
+            Ok(election_id.to_string())
+        })
+        .collect::<Result<Vec<String>>>()?;
+
+    Ok(ids)
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -237,4 +249,61 @@ pub async fn update_election_event_status(
         .map_err(|err| anyhow!("Error running the update_election_event_staut query: {err}"))?;
 
     Ok(())
+}
+
+#[instrument(err, skip_all)]
+pub async fn get_election_event_by_election_area(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_id: &str,
+    area_id: &str,
+) -> Result<ElectionEventData> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    election_event.*
+                FROM
+                    sequent_backend.area_contest AS area_contest
+                INNER JOIN
+                    sequent_backend.contest AS contest
+                ON
+                    contest.id = area_contest.contest_id
+                INNER JOIN
+                    sequent_backend.election_event AS election_event
+                ON
+                    election_event.id = area_contest.election_event_id
+                WHERE
+                    area_contest.tenant_id = $1 AND
+                    area_contest.area_id =$3 AND
+                    contest.tenant_id = $1 AND
+                    contest.election_id = $2 AND
+                    election_event.tenant_id = $1;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_id)?,
+                &Uuid::parse_str(area_id)?,
+            ],
+        )
+        .await?;
+
+    let election_events: Vec<ElectionEventData> = rows
+        .into_iter()
+        .map(|row| -> Result<ElectionEventData> {
+            row.try_into()
+                .map(|res: ElectionEventWrapper| -> ElectionEventData { res.0 })
+        })
+        .collect::<Result<Vec<ElectionEventData>>>()?;
+
+    election_events
+        .get(0)
+        .map(|election_event| election_event.clone())
+        .ok_or(anyhow!("Election event not found"))
 }

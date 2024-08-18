@@ -21,6 +21,7 @@ use board_messages::braid::newtypes::TrusteeSet;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::{ElectionPresentation, HashableBallot};
+use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::keycloak::get_event_realm;
 use std::collections::HashMap;
@@ -131,7 +132,7 @@ pub async fn insert_ballots_messages(
                     .content
                     .clone()
                     .map(|ballot_str| -> Result<Option<Ciphertext<RistrettoCtx>>> {
-                        let hashable_ballot: HashableBallot = serde_json::from_str(&ballot_str)?;
+                        let hashable_ballot: HashableBallot = deserialize_str(&ballot_str)?;
                         let contests = hashable_ballot
                             .deserialize_contests()
                             .map_err(|err| anyhow!("{:?}", err))?;
@@ -192,7 +193,7 @@ pub async fn get_elections_end_dates(
         let election_presentation: ElectionPresentation = election
             .presentation
             .clone()
-            .map(|presentation| serde_json::from_value(presentation))
+            .map(|presentation| deserialize_value(presentation))
             .transpose()
             .map_err(|err| anyhow!("Error parsing election presentation {:?}", err))?
             .unwrap_or(Default::default());

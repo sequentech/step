@@ -119,7 +119,7 @@ pub async fn get_tally_session_executions(
                     tenant_id = $1 AND
                     election_event_id = $2 AND
                     tally_session_id = $3
-                ORDER BY created_at ASC;
+                ORDER BY created_at DESC;
             "#,
         )
         .await?;
