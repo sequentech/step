@@ -484,7 +484,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 const {data: exportUsersData, errors} = await exportTenantUsers({
                     variables: {tenantId},
                 })
-console.log(exportUsersData);
 
                 if (errors || !exportUsersData) {
                     setExporting(false)
