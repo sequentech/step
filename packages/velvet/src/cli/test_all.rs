@@ -1255,7 +1255,13 @@ mod tests {
         let child_area_id = Uuid::new_v4();
         let area_ids: Vec<Uuid> = vec![parent_area_id.clone(), child_area_id.clone()];
 
-        let mut election = fixture.create_election_config(&election_event_id, area_ids.clone())?;
+        let mut election = fixture.create_election_config_2(
+            &election_event_id,
+            vec![
+                (child_area_id, Some(parent_area_id)),
+                (parent_area_id, None),
+            ],
+        )?;
         election.ballot_styles.clear();
 
         let contest =
@@ -1269,7 +1275,7 @@ mod tests {
                 &election_event_id,
                 &election.id,
                 &Uuid::from_str(&contest.id).unwrap(),
-                100,
+                150,
                 0,
                 None,
                 Some(parent_area_id.to_string()),
@@ -1289,7 +1295,7 @@ mod tests {
             .unwrap();
         let areas_config = vec![parent_area_config.clone(), child_area_config.clone()];
 
-        // Assign each contest to the corresponding area
+        // TODO: what's the use of this?
         election.ballot_styles.push(generate_ballot_style(
             &election.tenant_id,
             &election.election_event_id,
@@ -1411,21 +1417,22 @@ mod tests {
                 "testing 10 votes expected in the contest for the area"
             );
 
-            // TODO only this doesn't work
-            // check total_votes in aggregated report
-            //    let aggregate_report_path = area_path
-            //        .join("aggregate")
-            //        .join("report.json");
-            //    println!("aggregate_report_path = {aggregate_report_path:?}");
-            //    let f = fs::File::open(&aggregate_report_path)?;
-            //    let reports: Vec<ReportDataComputed> = serde_json::from_reader(f)?;
-            //    let report = &reports[0];
-            //    assert_eq!(
-            //        report.contest_result.total_votes,
-            //        // in parent, aggregate is 20, in child in 10
-            //        if index == 0 { 20 } else { 10 },
-            //        "testing total_votes in aggregate result"
-            //    );
+            // the parent area config has no parent, but should have an
+            // aggregate report
+            if area_config.parent_id.is_none() {
+                let aggregate_report_path = area_path.join("aggregate").join("report.json");
+                println!("aggregate_report_path = {aggregate_report_path:?}");
+                let f = fs::File::open(&aggregate_report_path)?;
+                let reports: Vec<ReportDataComputed> = serde_json::from_reader(f)?;
+                let report = &reports[0];
+                assert_eq!(
+                    report.contest_result.total_votes,
+                    // in parent, aggregate is 20: 10 from the children + 10
+                    // itself
+                    20,
+                    "testing total_votes in aggregate result"
+                );
+            }
         }
         Ok(())
     }
