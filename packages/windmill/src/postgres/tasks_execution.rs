@@ -46,9 +46,10 @@ impl TryFrom<Row> for TasksExecutionWrapper {
 }
 
 
-#[instrument(skip(hasura_transaction), err)]
+
+#[instrument(skip(transaction), err)]
 pub async fn insert_tasks_execution(
-    hasura_transaction: &Transaction<'_>,
+    transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     name: &str,
@@ -58,8 +59,19 @@ pub async fn insert_tasks_execution(
     labels: Option<Value>,
     logs: Option<Value>,
     executed_by_user_id: &str,
-) -> Result<TasksExecution> {
-    let statement = hasura_transaction
+) -> Result<()> {
+
+    let tenant_uuid = Uuid::parse_str(tenant_id)
+        .map_err(|err| anyhow!("Error parsing tenant UUID: {}", err))?;
+
+    let election_event_uuid = Uuid::parse_str(election_event_id)
+        .map_err(|err| anyhow!("Error parsing election event UUID: {}", err))?;
+
+    let executed_by_user_uuid = Uuid::parse_str(executed_by_user_id)
+        .map_err(|err| anyhow!("Error parsing executed by user UUID: {}", err))?;
+
+
+    let statement = transaction
         .prepare(
             r#"
                 INSERT INTO
@@ -74,37 +86,30 @@ pub async fn insert_tasks_execution(
         )
         .await?;
 
-    // Execute the query
-    let rows: Vec<Row> = hasura_transaction
-        .query(
+    // Execute the query and expect a single row
+    let row = transaction
+        .query_one(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &tenant_uuid,
+                &election_event_uuid,
                 &name,
                 &task_type,
                 &execution_status.to_string(),
                 &annotations,
                 &labels,
                 &logs,
-                &Uuid::parse_str(executed_by_user_id)?,
+                &executed_by_user_uuid,
             ],
         )
         .await
         .map_err(|err| anyhow!("Error inserting task execution: {}", err))?;
 
-    // Convert the resulting row(s) into `TasksExecution`
-    let values: Vec<TasksExecution> = rows
-        .into_iter()
-        .map(|row| -> Result<TasksExecution> {
-            row.try_into()
-                .map(|res: TasksExecutionWrapper| res.0)
-        })
-        .collect::<Result<Vec<TasksExecution>>>()?;
+    // Convert the resulting row into `TasksExecution`
+    // let task_execution: TasksExecution = row
+    //     .try_into()
+    //     .map(|wrapper: TasksExecutionWrapper| wrapper.0)
+    //     .context("Error converting database row to TasksExecution")?;
 
-    // Return the first value or an error if no rows were inserted
-    let Some(value) = values.first() else {
-        return Err(anyhow!("Error inserting row: no rows returned"));
-    };
-    Ok(value.clone())
+    Ok(())
 }

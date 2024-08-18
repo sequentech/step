@@ -24,7 +24,6 @@ export const EditElectionEventTasks: React.FC = () => {
         setTab(newValue)
     }
 
-
     return (
         <>
             <ElectionHeader title={t("tasksScreen.title")} subtitle="tasksScreen.subtitle" />
