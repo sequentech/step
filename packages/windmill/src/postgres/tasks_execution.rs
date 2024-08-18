@@ -3,10 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
-use sequent_core::types::{
-    hasura::extra::{TasksExecutionStatus},
-    hasura::core::{TasksExecution},
-};
+use sequent_core::types::{hasura::core::TasksExecution, hasura::extra::TasksExecutionStatus};
 use serde_json::value::Value;
 use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
@@ -45,8 +42,6 @@ impl TryFrom<Row> for TasksExecutionWrapper {
     }
 }
 
-
-
 #[instrument(skip(transaction), err)]
 pub async fn insert_tasks_execution(
     transaction: &Transaction<'_>,
@@ -60,16 +55,14 @@ pub async fn insert_tasks_execution(
     logs: Option<Value>,
     executed_by_user_id: &str,
 ) -> Result<()> {
-
-    let tenant_uuid = Uuid::parse_str(tenant_id)
-        .map_err(|err| anyhow!("Error parsing tenant UUID: {}", err))?;
+    let tenant_uuid =
+        Uuid::parse_str(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {}", err))?;
 
     let election_event_uuid = Uuid::parse_str(election_event_id)
         .map_err(|err| anyhow!("Error parsing election event UUID: {}", err))?;
 
     let executed_by_user_uuid = Uuid::parse_str(executed_by_user_id)
         .map_err(|err| anyhow!("Error parsing executed by user UUID: {}", err))?;
-
 
     let statement = transaction
         .prepare(

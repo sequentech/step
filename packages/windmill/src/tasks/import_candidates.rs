@@ -17,7 +17,7 @@ use sequent_core::ballot::ContestPresentation;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::hasura::core::Candidate;
 use sequent_core::types::hasura::core::Contest;
-use sequent_core::types::hasura::extra::{TasksExecutionStatus};
+use sequent_core::types::hasura::extra::TasksExecutionStatus;
 use std::fs::File;
 use std::io::BufReader;
 use std::io::Seek;
@@ -372,14 +372,14 @@ pub async fn import_candidates_task(
         &tenant_id,
         &election_event_id,
         "Import Candidates",
-        "ImportCandidates", 
+        "ImportCandidates",
         TasksExecutionStatus::IN_PROGRESS,
-        None, 
-        None, 
+        None,
+        None,
         None,
         "1111", // Replace with the actual user ID or dynamically obtain it
     )
-    .await?;    
+    .await?;
 
     let _commit = hasura_transaction
         .commit()
