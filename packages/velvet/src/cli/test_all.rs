@@ -1394,7 +1394,8 @@ mod tests {
         // Verify results for the contest
         // Results would be just of voters that were directly assigned the area
         for (index, area_config) in areas_config.into_iter().enumerate() {
-            let area_path = cli.output_dir
+            let area_path = cli
+                .output_dir
                 .join("velvet-generate-reports")
                 .join(format!("{}{}", PREFIX_ELECTION, &election.id))
                 .join(format!("{}{}", PREFIX_CONTEST, &contest.id))
@@ -1406,11 +1407,11 @@ mod tests {
             let reports: Vec<ReportDataComputed> = serde_json::from_reader(f)?;
             let report = &reports[0];
             assert_eq!(
-                report.contest_result.total_votes,
-                10,
+                report.contest_result.total_votes, 10,
                 "testing 10 votes expected in the contest for the area"
             );
 
+            // TODO only this doesn't work
             // check total_votes in aggregated report
             //    let aggregate_report_path = area_path
             //        .join("aggregate")
