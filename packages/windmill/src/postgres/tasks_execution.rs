@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::database::get_hasura_pool;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::types::{hasura::core::TasksExecution, hasura::extra::TasksExecutionStatus};
@@ -42,9 +43,8 @@ impl TryFrom<Row> for TasksExecutionWrapper {
     }
 }
 
-#[instrument(skip(transaction), err)]
+#[instrument(skip(annotations, labels, logs), err)]
 pub async fn insert_tasks_execution(
-    transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     name: &str,
@@ -55,6 +55,12 @@ pub async fn insert_tasks_execution(
     logs: Option<Value>,
     executed_by_user_id: &str,
 ) -> Result<()> {
+    let db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|err| anyhow!("Error getting hasura db pool: {err}"))?;
+
     let tenant_uuid =
         Uuid::parse_str(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {}", err))?;
 
@@ -64,7 +70,7 @@ pub async fn insert_tasks_execution(
     let executed_by_user_uuid = Uuid::parse_str(executed_by_user_id)
         .map_err(|err| anyhow!("Error parsing executed by user UUID: {}", err))?;
 
-    let statement = transaction
+    let statement = db_client
         .prepare(
             r#"
                 INSERT INTO
@@ -80,7 +86,7 @@ pub async fn insert_tasks_execution(
         .await?;
 
     // Execute the query and expect a single row
-    let row = transaction
+    let row = db_client
         .query_one(
             &statement,
             &[
@@ -103,6 +109,40 @@ pub async fn insert_tasks_execution(
     //     .try_into()
     //     .map(|wrapper: TasksExecutionWrapper| wrapper.0)
     //     .context("Error converting database row to TasksExecution")?;
+
+    Ok(())
+}
+
+pub async fn update_task_execution_status(
+    task_execution_id: &str,
+    new_status: TasksExecutionStatus,
+) -> Result<()> {
+    // Get a database client from the pool
+    let db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .context("Failed to get database client from pool")?;
+
+    let task_execution_uuid =
+        Uuid::parse_str(task_execution_id).context("Failed to parse task_execution_id as UUID")?;
+
+    let statement = db_client
+        .prepare(
+            r#"
+            UPDATE sequent_backend.tasks_execution
+            SET execution_status = $1
+            WHERE id = $2;
+            "#,
+        )
+        .await
+        .context("Failed to prepare SQL statement")?;
+
+    // Execute the update statement
+    db_client
+        .execute(&statement, &[&new_status.to_string(), &task_execution_uuid])
+        .await
+        .context("Failed to execute update task execution status query")?;
 
     Ok(())
 }
