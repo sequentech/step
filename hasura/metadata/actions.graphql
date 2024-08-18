@@ -105,12 +105,6 @@ type Mutation {
 }
 
 type Mutation {
-  export_all_users (
-    tenant_id: String!
-  ): ExportAllUsersOutput
-}
-
-type Mutation {
   export_election_event (
     election_event_id: String
   ): ExportUsersOutput
@@ -120,6 +114,12 @@ type Mutation {
   export_election_event_logs (
     election_event_id: String
   ): ExportLogsOutput
+}
+
+type Mutation {
+  export_tenant_users (
+    tenant_id: String!
+  ): ExportTenantUsersOutput
 }
 
 type Mutation {
@@ -858,6 +858,11 @@ type ExportLogsOutput {
 }
 
 type ExportAllUsersOutput {
+  task_id : String!
+  document_id : String!
+}
+
+type ExportTenantUsersOutput {
   task_id : String!
   document_id : String!
 }

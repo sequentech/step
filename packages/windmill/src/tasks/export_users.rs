@@ -32,7 +32,7 @@ pub struct ExportUsersBody {
     pub election_id: Option<String>,
 }
 #[derive(Deserialize, Debug, Clone, Serialize)]
-pub struct ExportAllUsersBody {
+pub struct ExportTenantUsersBody {
     pub tenant_id: String,
 }
 
@@ -49,7 +49,7 @@ pub enum ExportBody {
         election_event_id: Option<String>,
         election_id: Option<String>,
     },
-    AllUsers {
+    TenantUsers {
         tenant_id: String,
     },
 }
@@ -137,7 +137,7 @@ pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
             election_event_id,
             ..
         } => get_event_realm(tenant_id, election_event_id.as_deref().unwrap_or("")),
-        ExportBody::AllUsers { tenant_id } => get_tenant_realm(tenant_id),
+        ExportBody::TenantUsers { tenant_id } => get_tenant_realm(tenant_id),
     };
 
     let mut hasura_db_client = get_hasura_pool()
@@ -190,7 +190,7 @@ pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
 
             (elections, areas_by_id)
         }
-        ExportBody::AllUsers { .. } => (None, None),
+        ExportBody::TenantUsers { .. } => (None, None),
     };
     let headers = get_headers(&elections);
 
@@ -212,17 +212,17 @@ pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
         let filter = ListUsersFilter {
             tenant_id: match &body {
                 ExportBody::Users { tenant_id, .. } => tenant_id.to_string(),
-                ExportBody::AllUsers { tenant_id } => tenant_id.to_string(),
+                ExportBody::TenantUsers { tenant_id } => tenant_id.to_string(),
             },
             election_event_id: match &body {
                 ExportBody::Users {
                     election_event_id, ..
                 } => election_event_id.clone(),
-                ExportBody::AllUsers { .. } => None,
+                ExportBody::TenantUsers { .. } => None,
             },
             election_id: match &body {
                 ExportBody::Users { election_id, .. } => election_id.clone(),
-                ExportBody::AllUsers { .. } => None,
+                ExportBody::TenantUsers { .. } => None,
             },
             area_id: None,
             realm: realm.clone(),
@@ -277,7 +277,7 @@ pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
     let name = format!("users-export-{timestamp}.csv");
 
     let tenant_id = match &body {
-        ExportBody::AllUsers { tenant_id } => tenant_id.to_string(),
+        ExportBody::TenantUsers { tenant_id } => tenant_id.to_string(),
         ExportBody::Users { tenant_id, .. } => tenant_id.to_string(),
     };
 
@@ -285,7 +285,7 @@ pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
         ExportBody::Users {
             election_event_id, ..
         } => election_event_id.clone().unwrap_or_else(|| "".to_string()),
-        ExportBody::AllUsers { .. } => "".to_string(),
+        ExportBody::TenantUsers { .. } => "".to_string(),
     };
 
     let key = s3::get_document_key(&tenant_id, Some(&election_event_id), &document_id, &name);
@@ -327,7 +327,7 @@ pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
             ExportBody::Users {
                 election_event_id, ..
             } => election_event_id.clone(),
-            ExportBody::AllUsers { .. } => None,
+            ExportBody::TenantUsers { .. } => None,
         },
         name.clone(),
         media_type.clone(),

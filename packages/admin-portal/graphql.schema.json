@@ -1594,7 +1594,7 @@
       },
       {
         "kind": "OBJECT",
-        "name": "ExportAllUsersOutput",
+        "name": "ExportLogsOutput",
         "description": null,
         "fields": [
           {
@@ -1637,7 +1637,7 @@
       },
       {
         "kind": "OBJECT",
-        "name": "ExportLogsOutput",
+        "name": "ExportTenantUsersOutput",
         "description": null,
         "fields": [
           {
@@ -9387,35 +9387,6 @@
             "deprecationReason": null
           },
           {
-            "name": "export_all_users",
-            "description": null,
-            "args": [
-              {
-                "name": "tenant_id",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              }
-            ],
-            "type": {
-              "kind": "OBJECT",
-              "name": "ExportAllUsersOutput",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "export_election_event",
             "description": null,
             "args": [
@@ -9460,6 +9431,35 @@
             "type": {
               "kind": "OBJECT",
               "name": "ExportLogsOutput",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "export_tenant_users",
+            "description": null,
+            "args": [
+              {
+                "name": "tenant_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "OBJECT",
+              "name": "ExportTenantUsersOutput",
               "ofType": null
             },
             "isDeprecated": false,

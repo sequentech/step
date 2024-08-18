@@ -37,7 +37,7 @@ import {CreateUser} from "./CreateUser"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {
     DeleteUserMutation,
-    ExportAllUsersMutation,
+    ExportTenantUsersMutation,
     ExportUsersMutation,
     GetDocumentQuery,
     ImportUsersMutation,
@@ -55,7 +55,7 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {EXPORT_USERS} from "@/queries/ExportUsers"
-import {EXPORT_ALL_USERS} from "@/queries/ExportAllUsers"
+import {EXPORT_TENANT_USERS} from "@/queries/ExportTenantUsers"
 import {DownloadDocument} from "./DownloadDocument"
 import {IMPORT_USERS} from "@/queries/ImportUsers"
 
@@ -125,7 +125,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [getManualVerificationPdf] = useMutation<ManualVerificationMutation>(MANUAL_VERIFICATION)
     const [deleteUsers] = useMutation<DeleteUserMutation>(DELETE_USER)
     const [exportUsers] = useMutation<ExportUsersMutation>(EXPORT_USERS)
-    const [exportAllUsers] = useMutation<ExportAllUsersMutation>(EXPORT_ALL_USERS, {
+    const [exportTenantUsers] = useMutation<ExportTenantUsersMutation>(EXPORT_TENANT_USERS, {
         context: {
             headers: {
                 "x-hasura-role": IPermissions.USER_READ,
@@ -481,9 +481,10 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 let documentId = exportUsersData.export_users?.document_id
                 setExportDocumentId(documentId)
             } else {
-                const {data: exportUsersData, errors} = await exportAllUsers({
+                const {data: exportUsersData, errors} = await exportTenantUsers({
                     variables: {tenantId},
                 })
+console.log(exportUsersData);
 
                 if (errors || !exportUsersData) {
                     setExporting(false)
@@ -493,7 +494,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     })
                     return
                 }
-                let documentId = exportUsersData.export_all_users?.document_id
+                let documentId = exportUsersData.export_tenant_users?.document_id
                 setExportDocumentId(documentId)
             }
         } catch (err) {

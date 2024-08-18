@@ -34,7 +34,7 @@ pub struct DeleteUserBody {
     user_id: String,
 }
 #[derive(Deserialize, Debug)]
-pub struct ExportAllUsersBody {
+pub struct ExportTenantUsersBody {
     tenant_id: String,
 }
 
@@ -510,10 +510,10 @@ pub async fn export_users_f(
 }
 
 #[instrument(skip(claims))]
-#[post("/export-all-users", format = "json", data = "<input>")]
-pub async fn export_all_users_f(
+#[post("/export-tenant-users", format = "json", data = "<input>")]
+pub async fn export_tenant_users_f(
     claims: jwt::JwtClaims,
-    input: Json<ExportAllUsersBody>,
+    input: Json<ExportTenantUsersBody>,
 ) -> Result<Json<export_users::ExportUsersOutput>, (Status, String)> {
     let body = input.into_inner();
     let required_perm = Permissions::USER_READ;
@@ -529,7 +529,7 @@ pub async fn export_all_users_f(
     let celery_app = get_celery_app().await;
     let task = celery_app
         .send_task(export_users::export_users::new(
-            export_users::ExportBody::AllUsers {
+            export_users::ExportBody::TenantUsers {
                 tenant_id: body.tenant_id,
             },
             document_id.clone(),
@@ -538,14 +538,14 @@ pub async fn export_all_users_f(
         .map_err(|error| {
             (
                 Status::InternalServerError,
-                format!("Error sending export_all_users task: {error:?}"),
+                format!("Error sending export_tenant_users task: {error:?}"),
             )
         })?;
     let output = export_users::ExportUsersOutput {
         document_id: document_id,
         task_id: task.task_id.clone(),
     };
-    info!("Sent EXPORT_ALL_USERS task {}", task.task_id);
+    info!("Sent EXPORT_TENANT_USERS task {}", task.task_id);
 
     Ok(Json(output))
 }
