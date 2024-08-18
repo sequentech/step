@@ -163,13 +163,7 @@ impl<C: Ctx> Verifier<C> {
             &dbg_hash(&cfg_h),
         );
 
-        // Verify message signatures
-
-        info!("Verifying signatures for {} messages..", messages.len());
-        let vmessages: Result<Vec<VerifiedMessage>> =
-            messages.iter().map(|m| m.0.verify(&cfg)).collect();
-        let vmessages = vmessages?;
-        vr.add_result(Check::MESSAGE_SIGNATURES_VALID, true, &vmessages.len());
+        // Ensure that all messages refer to the correct configuration
 
         let correct_cfg = messages
             .iter()
@@ -180,6 +174,15 @@ impl<C: Ctx> Verifier<C> {
             correct_cfg == messages.len(),
             &dbg_hash(&cfg_h),
         );
+        
+        // Verify message signatures
+
+        info!("Verifying signatures for {} messages..", messages.len());
+
+        let vmessages: Result<Vec<VerifiedMessage>> =
+            messages.iter().map(|m| m.0.verify(&cfg)).collect();
+        let vmessages = vmessages?;
+        vr.add_result(Check::MESSAGE_SIGNATURES_VALID, true, &vmessages.len());
 
         // Derive per-batch verification targets
 
@@ -203,9 +206,10 @@ impl<C: Ctx> Verifier<C> {
         // Run verifying actions
 
         info!("{}", "Running verifying actions..".blue());
-        let messages = self.trustee.verify(messages)?;
+        // Trustee running in verifier mode
+        let output_messages = self.trustee.verify(messages)?;
         info!("{}", "Verifying actions complete".blue());
-        for message in messages {
+        for message in output_messages {
             let predicate =
                 Predicate::from_statement::<C>(&message.statement, VERIFIER_INDEX, &cfg)?;
             info!("Verifying action yields predicate [{}]", predicate);

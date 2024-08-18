@@ -340,6 +340,9 @@ impl Message {
             return Ok(VerifiedMessage::new(trustee, self.statement.clone(), None));
         }
         let artifact = self.artifact.as_ref().expect("impossible");
+        // Use this to move the bytes out of self to avoid copying below (artifact.clone())
+        // This will require taking ownership of self in the method signature
+        // let artifact = self.artifact.take().unwrap();
 
         // Artifact present
 
@@ -352,6 +355,7 @@ impl Message {
             }
 
             // FIXME remove this potentially expensive clone
+            // See above line: let artifact = self.artifact.take().unwrap();
             Ok(VerifiedMessage::new(
                 trustee,
                 self.statement.clone(),
@@ -369,6 +373,7 @@ impl Message {
 
             let _ = verify_artifact(&configuration, &kind, &artifact)?;
             // FIXME remove this potentially expensive clone
+            // See above line: let artifact = self.artifact.take().unwrap();
             Ok(VerifiedMessage::new(
                 trustee,
                 self.statement.clone(),
@@ -410,26 +415,6 @@ fn verify_artifact<C: Ctx>(
 
     Ok(())
 }
-
-/*use immu_board::BoardMessage;
-// Immudb uses timestamps with microsecond precision
-const MICROSECOND_FACTOR: u64 = 1000000;
-
-impl TryFrom<Message> for BoardMessage {
-    type Error = anyhow::Error;
-
-    fn try_from(message: Message) -> Result<BoardMessage> {
-        Ok(BoardMessage {
-            id: 0,
-            created: (crate::timestamp() * MICROSECOND_FACTOR) as i64,
-            statement_timestamp: (message.statement.get_timestamp() * MICROSECOND_FACTOR) as i64,
-            statement_kind: message.statement.get_kind().to_string(),
-            message: message.strand_serialize()?,
-            sender_pk: message.sender.pk.to_der_b64_string()?,
-            version: crate::get_schema_version(),
-        })
-    }
-}*/
 
 ///////////////////////////////////////////////////////////////////////////
 // VerifiedMessage

@@ -19,7 +19,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let port = PG_PORT;
     let user = PG_USER;
     let database = PG_DATABASE;
-    let socket = "http://[::1]:50051";
+    let socket = "[::1]:50051";
     
     info!("Starting b3");
     info!("pgsql host: '{host}'");

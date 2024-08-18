@@ -160,11 +160,12 @@ impl<C: Ctx> Trustee<C> {
             id
         );
 
-        for (message, id) in messages {
+        for (message, id) in messages.into_iter() {
+            let statement_info = message.statement.to_string();
             let verified = message.verify(&configuration).map_err(|_e| {
                 ProtocolError::VerificationError(format!(
                     "Message failed verification: {:?}, cfg: {:?}",
-                    message, &configuration
+                    statement_info, &configuration
                 ))
             })?;
 
@@ -192,7 +193,8 @@ impl<C: Ctx> Trustee<C> {
     // There is no configuration. We retrieve message zero, check that it's the
     // configuration and add it to the local board.
     //
-    // Takes a vector of (message, message_id) pairs as input, returns a pair of (updated messages count, last message id added)
+    // Takes a vector of (message, message_id) pairs as input, returns a pair 
+    // of (updated messages count, last message id added)
     ///////////////////////////////////////////////////////////////////////////
     fn update_bootstrap(
         &mut self,
