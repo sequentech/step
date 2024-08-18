@@ -80,6 +80,23 @@ const frenchTranslation: TranslationType = {
                 title: "Journal de la Base de Données IAM",
             },
         },
+
+        tasksScreen: {
+            noPermissions: "Vous n'avez pas la permission d'accéder aux journaux.",
+            title: "Exécution des tâches",
+            subtitle: "Informations sur les tâches exécutées",
+            column: {
+                id: "Index",
+                name: "Nom de la tâche",
+                execution_status: "Statut",
+                start_at: "Heure de début",
+                end_at: "Heure de fin",
+                executed_by_user_id: "Exécutant",
+                annotations: "Annotations",
+                labels: "Étiquettes",
+                logs: "Journaux",
+            },
+        },
         confirmationScreen: {
             title: "Votre vote a été émis",
             description:

@@ -80,6 +80,22 @@ const spanishTranslation: TranslationType = {
                 title: "Bitácora de Base de Datos de IAM",
             },
         },
+        tasksScreen: {
+            noPermissions: "No tienes permiso para acceder a los registros.",
+            title: "Ejecución de tareas",
+            subtitle: "Información sobre tareas ejecutadas",
+            column: {
+                id: "Índice",
+                name: "Nombre de la tarea",
+                execution_status: "Estado",
+                start_at: "Hora de inicio",
+                end_at: "Hora de finalización",
+                executed_by_user_id: "Ejecutor",
+                annotations: "Anotaciones",
+                labels: "Etiquetas",
+                logs: "Registros",
+            },
+        },
         confirmationScreen: {
             title: "Su voto ha sido emitido",
             description:

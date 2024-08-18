@@ -5,7 +5,7 @@
 use crate::postgres::candidate::insert_candidates;
 use crate::postgres::contest::export_contests;
 use crate::{
-    postgres::{document::get_document, tasks_execution::insert_tasks_execution},
+    postgres::document::get_document,
     services::{database::get_hasura_pool, documents::get_document_as_temp_file},
 };
 use anyhow::{anyhow, Context, Result};
@@ -17,7 +17,6 @@ use sequent_core::ballot::ContestPresentation;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::hasura::core::Candidate;
 use sequent_core::types::hasura::core::Contest;
-use sequent_core::types::hasura::extra::TasksExecutionStatus;
 use std::fs::File;
 use std::io::BufReader;
 use std::io::Seek;
@@ -363,21 +362,6 @@ pub async fn import_candidates_task(
         &tenant_id,
         &election_event_id,
         &candidates,
-    )
-    .await?;
-
-    // Insert the task execution record
-    let task_execution = insert_tasks_execution(
-        &hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        "Import Candidates",
-        "ImportCandidates",
-        TasksExecutionStatus::IN_PROGRESS,
-        None,
-        None,
-        None,
-        "1111", // Replace with the actual user ID or dynamically obtain it
     )
     .await?;
 
