@@ -18,6 +18,8 @@ pub const TYPES_VERSION: u32 = 1;
 
 pub type I18nContent<T = Option<String>> = HashMap<String, T>;
 
+pub type Annotations = HashMap<String, String>;
+
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
 pub struct ReplicationChoice<C: Ctx> {
     pub ciphertext: Ciphertext<C>,
@@ -293,6 +295,7 @@ pub struct Candidate {
     pub alias_i18n: Option<I18nContent>,
     pub candidate_type: Option<String>,
     pub presentation: Option<CandidatePresentation>,
+    pub annotations: Option<Annotations>,
 }
 
 impl Candidate {
@@ -450,6 +453,7 @@ pub struct Election {
     pub image_document_id: Option<String>,
     pub contests: Vec<Contest>,
     pub presentation: Option<ElectionPresentation>,
+    pub annotations: Option<Annotations>,
 }
 
 #[allow(non_camel_case_types)]
@@ -828,6 +832,7 @@ pub struct Contest {
     pub candidates: Vec<Candidate>,
     pub presentation: Option<ContestPresentation>,
     pub created_at: Option<String>,
+    pub annotations: Option<Annotations>,
 }
 
 impl Contest {

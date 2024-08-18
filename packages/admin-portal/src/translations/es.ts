@@ -922,7 +922,25 @@ const spanishTranslation: TranslationType = {
                 downloaded: "Clave Encriptada Privada generada exitosamente.",
             },
         },
+        miruExport: {
+            create: {
+                success: "Paquete de Transmisión Creado",
+                error: "Error al crear el Paquete de Transmisión",
+            },
+            send: {
+                success: "Paquete de Transmisión Enviado",
+                error: "Error al enviar el Paquete de Transmisión",
+            },
+        },
         tally: {
+            errorUploadingSignature: "Hubo un error al subir la firma",
+            downloadTransmissionPackage: "Descargar paquete",
+            TransmissionPackageServers: "Servidores",
+            sendToTransmissionPackageServers:
+                "Enviar paquete de transmisión para el área '{{name}}'",
+            transmissionPackageSignatures: "Firmas",
+            uploadTransmissionPackage: "Subir",
+            exportElectionArea: "Enviar paquete de transmisión para el área '{{name}}'",
             templateTitle: "Plantilla de Resultados",
             templateSubTitle: "Opcionalmente sobrescribir la plantilla de resultados.",
             ceremonyTitle: "Elecciones para el Recuento",
