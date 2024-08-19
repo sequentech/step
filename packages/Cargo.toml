@@ -15,4 +15,5 @@ members = [
     "velvet",
     "windmill",
     "wrap-map-err",
+    "step-cli"
 ]
