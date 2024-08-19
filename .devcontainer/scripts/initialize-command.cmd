@@ -1,0 +1,1 @@
+powershell -noprofile -windowstyle hidden -executionpolicy bypass -file .devcontainer/scripts/initialize-command.ps1

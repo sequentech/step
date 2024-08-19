@@ -28,7 +28,7 @@
 	],
 	// Fixes usage of LOCAL_WORKSPACE_FOLDER. See:
 	// https://github.com/microsoft/vscode-remote-release/issues/6844#issuecomment-1252288457
-	"initializeCommand": "powershell -noprofile -windowstyle hidden -executionpolicy bypass -file .devcontainer/scripts/initialize-command.ps1",
+	"initializeCommand": [".devcontainer/scripts/initialize-command"],
 	// Use this environment variable if you need to bind mount your local source
 	// code into a new container
 	"remoteEnv": {
