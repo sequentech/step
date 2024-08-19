@@ -37,6 +37,7 @@ import {CreateUser} from "./CreateUser"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {
     DeleteUserMutation,
+    ExportTenantUsersMutation,
     ExportUsersMutation,
     GetDocumentQuery,
     ImportUsersMutation,
@@ -54,9 +55,9 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {EXPORT_USERS} from "@/queries/ExportUsers"
+import {EXPORT_TENANT_USERS} from "@/queries/ExportTenantUsers"
 import {DownloadDocument} from "./DownloadDocument"
 import {IMPORT_USERS} from "@/queries/ImportUsers"
-import {useParams} from "react-router-dom"
 
 const OMIT_FIELDS: Array<string> = ["id", "email_verified"]
 
@@ -124,6 +125,14 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [getManualVerificationPdf] = useMutation<ManualVerificationMutation>(MANUAL_VERIFICATION)
     const [deleteUsers] = useMutation<DeleteUserMutation>(DELETE_USER)
     const [exportUsers] = useMutation<ExportUsersMutation>(EXPORT_USERS)
+    const [exportTenantUsers] = useMutation<ExportTenantUsersMutation>(EXPORT_TENANT_USERS, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.USER_READ,
+            },
+        },
+    })
+
     const notify = useNotify()
     const {data: rolesList} = useGetList<IRole & {id: string}>("role", {
         pagination: {page: 1, perPage: 9999},
@@ -453,31 +462,43 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     }
 
     const confirmExportAction = async () => {
-        setExportDocumentId(undefined)
-        setExporting(true)
-        const {data: exportUsersData, errors} = await exportUsers({
-            variables: {
-                tenantId: tenantId,
-                electionEventId: electionEventId,
-                electionId: electionId,
-            },
-        })
-        if (errors || !exportUsersData) {
-            setExporting(false)
-            setOpenExport(false)
-            notify(
-                t(
-                    `usersAndRolesScreen.${
-                        electionEventId ? "voters" : "users"
-                    }.notifications.exportError`
-                ),
-                {type: "error"}
-            )
-            console.log(`Error exporting users: ${errors}`)
-            return
+        try {
+            setExportDocumentId(undefined)
+            setExporting(true)
+
+            if (electionEventId) {
+                const {data: exportUsersData, errors} = await exportUsers({
+                    variables: {tenantId, electionEventId, electionId},
+                })
+                if (errors || !exportUsersData) {
+                    setExporting(false)
+                    setOpenExport(false)
+                    notify(t(`usersAndRolesScreen.${"voters"}.notifications.exportError`), {
+                        type: "error",
+                    })
+                    return
+                }
+                let documentId = exportUsersData.export_users?.document_id
+                setExportDocumentId(documentId)
+            } else {
+                const {data: exportUsersData, errors} = await exportTenantUsers({
+                    variables: {tenantId},
+                })
+
+                if (errors || !exportUsersData) {
+                    setExporting(false)
+                    setOpenExport(false)
+                    notify(t(`usersAndRolesScreen.${"users"}.notifications.exportError`), {
+                        type: "error",
+                    })
+                    return
+                }
+                let documentId = exportUsersData.export_tenant_users?.document_id
+                setExportDocumentId(documentId)
+            }
+        } catch (err) {
+            console.log(err)
         }
-        let documentId = exportUsersData.export_users?.document_id
-        setExportDocumentId(documentId)
     }
 
     const Empty = () => (
