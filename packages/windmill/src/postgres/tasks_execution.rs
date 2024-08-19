@@ -21,24 +21,16 @@ impl TryFrom<Row> for TasksExecutionWrapper {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
             tenant_id: item.try_get::<_, Uuid>("tenant_id")?.to_string(),
             election_event_id: item.try_get::<_, Uuid>("election_event_id")?.to_string(),
-            name: item
-                .try_get::<_, Option<Uuid>>("name")?
-                .map(|val| val.to_string()),
-            task_type: item
-                .try_get::<_, Option<Uuid>>("type")?
-                .map(|val| val.to_string()),
-            execution_status: item
-                .try_get::<_, Option<Uuid>>("execution_status")?
-                .map(|val| val.to_string()),
+            name: item.try_get::<_, String>("name")?.to_string(),
+            task_type: item.try_get::<_, String>("type")?.to_string(),
+            execution_status: item.try_get::<_, String>("execution_status")?.to_string(),
             created_at: item.get("created_at"),
             start_at: item.get("start_at"),
             end_at: item.get("end_at"),
             annotations: item.try_get("annotations")?,
             labels: item.try_get("labels")?,
             logs: item.try_get("logs")?,
-            executed_by_user_id: item
-                .try_get::<_, Option<Uuid>>("executed_by_user_id")?
-                .map(|val| val.to_string()),
+            executed_by_user_id: item.try_get::<_, Uuid>("executed_by_user_id")?.to_string(),
         }))
     }
 }
@@ -54,7 +46,7 @@ pub async fn insert_tasks_execution(
     labels: Option<Value>,
     logs: Option<Value>,
     executed_by_user_id: &str,
-) -> Result<()> {
+) -> Result<TasksExecution> {
     let db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -105,12 +97,12 @@ pub async fn insert_tasks_execution(
         .map_err(|err| anyhow!("Error inserting task execution: {}", err))?;
 
     // Convert the resulting row into `TasksExecution`
-    // let task_execution: TasksExecution = row
-    //     .try_into()
-    //     .map(|wrapper: TasksExecutionWrapper| wrapper.0)
-    //     .context("Error converting database row to TasksExecution")?;
+    let task_execution: TasksExecution = row
+        .try_into()
+        .map(|wrapper: TasksExecutionWrapper| wrapper.0)
+        .context("Error converting database row to TasksExecution")?;
 
-    Ok(())
+    Ok(task_execution)
 }
 
 pub async fn update_task_execution_status(

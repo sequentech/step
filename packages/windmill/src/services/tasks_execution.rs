@@ -8,6 +8,7 @@ use crate::services::protocol_manager::get_protocol_manager;
 use crate::services::protocol_manager::{create_named_param, get_board_client, get_immudb_client};
 use crate::types::resources::{Aggregate, DataList, OrderDirection, TotalAggregate};
 use anyhow::{anyhow, Context, Result};
+use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
 use serde::{Deserialize, Serialize};
 
@@ -15,7 +16,7 @@ pub async fn post(
     tenant_id: &str,
     election_event_id: &str,
     task_type: &str,
-) -> Result<(), anyhow::Error> {
+) -> Result<TasksExecution, anyhow::Error> {
     let task = insert_tasks_execution(
         tenant_id,
         election_event_id,
@@ -30,7 +31,7 @@ pub async fn post(
     .await
     .context("Failed to insert task execution record")?;
 
-    Ok(())
+    Ok(task)
 }
 
 pub async fn update(task_id: &str, status: TasksExecutionStatus) -> Result<(), anyhow::Error> {

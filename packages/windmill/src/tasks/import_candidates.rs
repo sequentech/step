@@ -17,7 +17,7 @@ use sequent_core::ballot::ContestPresentation;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::hasura::core::Candidate;
 use sequent_core::types::hasura::core::Contest;
-use sequent_core::types::hasura::extra::{TasksExecutionStatus};
+use sequent_core::types::hasura::extra::TasksExecutionStatus;
 use std::fs::File;
 use std::io::BufReader;
 use std::io::Seek;

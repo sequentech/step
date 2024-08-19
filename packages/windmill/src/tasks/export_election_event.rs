@@ -45,8 +45,8 @@ pub async fn export_election_event(
         .await
         .context("Failed to insert task execution record")?;
 
-    // update(&task.id, TasksExecutionStatus::COMPLETED)
-    //     .await
-    //     .context("Failed to update task execution status to COMPLETED")?;
+    update(&task.id, TasksExecutionStatus::COMPLETED)
+        .await
+        .context("Failed to update task execution status to COMPLETED")?;
     Ok(())
 }
