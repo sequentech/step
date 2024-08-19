@@ -5,14 +5,16 @@
 name: Local images Prebuild and Push
 
 on:
-  pull_request:
+  push:
+    branches: [ 'main' ]
     paths: 
       - '.devcontainer/postgresql/**'
       - '.devcontainer/minio/**'
       - '.devcontainer/vault/**'
       - 'vendor/immudb-log-audit/**'
-  push:
-    branches: [ 'main' ]
+      - 'packages/Dockerfile.immudb'
+      - 'packages/Dockerfile.cargo-packages'
+      - 'packages/Dockerfile.keycloak'
   workflow_dispatch:
 
 jobs:
