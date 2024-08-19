@@ -77,6 +77,7 @@ import {tallyQueryData} from "@/atoms/tally-candidates"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import { MiruPackageDownload } from "@/components/MiruPackageDownload"
 import { ExportButton } from "@/components/MiruExport"
+import { AuthContext } from "@/providers/AuthContextProvider"
 
 const WizardSteps = {
     Start: 0,
@@ -109,7 +110,8 @@ export const TallyCeremony: React.FC = () => {
     const [isTallyElectionListDisabled, setIsTallyElectionListDisabled] = useState<boolean>(false)
     const [localTallyId, setLocalTallyId] = useState<string | null>(null)
     const [tenantId] = useTenantStore()
-
+	const authContext = useContext(AuthContext)
+	const isTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_CEREMONY)	
     const [selectedElections, setSelectedElections] = useState<string[]>([])
     const [selectedTrustees, setSelectedTrustees] = useState<boolean>(false)
 
@@ -906,6 +908,7 @@ export const TallyCeremony: React.FC = () => {
                         documents={documents}
                         errors={errors}
                         handleUploadSignature={handleUploadSignature}
+						isTrustee={isTrustee}
                     />
                 )}
 

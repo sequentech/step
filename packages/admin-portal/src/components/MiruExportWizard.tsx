@@ -29,6 +29,7 @@ interface IMiruExportWizardProps {
     handleSendTransmissionPackage: () => void
     selectedTallySessionData: IMiruTransmissionPackageData | null
     uploading: boolean
+	isTrustee: boolean,
     area: Sequent_Backend_Area | null
     errors: String | null
     handleUploadSignature: (files: FileList | null) => Promise<void>
@@ -45,13 +46,14 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({
     documents,
     errors,
     area,
+	isTrustee,
     handleUploadSignature,
 }) => {
     const {t, i18n} = useTranslation()
 
     return (
         <>
-			<Accordion
+			{isTrustee && <Accordion
 				sx={{ width: "100%" }}
 				expanded={expandedExports["tally-miru-upload"]}
 				onChange={() =>
@@ -82,7 +84,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({
 						) : null}
 					</WizardStyles.StatusBox>
 				</WizardStyles.AccordionDetails>
-			</Accordion>
+			</Accordion>}
 			<Accordion
 				sx={{ width: "100%" }}
 				expanded={expandedExports["tally-miru-signatures"]}
