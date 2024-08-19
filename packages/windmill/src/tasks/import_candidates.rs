@@ -366,21 +366,6 @@ pub async fn import_candidates_task(
     )
     .await?;
 
-    // Insert the task execution record
-    let task_execution = insert_tasks_execution(
-        &hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        "Import Candidates",
-        "ImportCandidates", 
-        TasksExecutionStatus::IN_PROGRESS,
-        None, 
-        None, 
-        None,
-        "1111", // Replace with the actual user ID or dynamically obtain it
-    )
-    .await?;    
-
     let _commit = hasura_transaction
         .commit()
         .await

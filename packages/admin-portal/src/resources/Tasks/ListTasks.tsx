@@ -1,166 +1,135 @@
 // SPDX-FileCopyrightText: 2024 Félix Robles <dev@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement} from "react"
-import {
-    DatagridConfigurable,
-    List,
-    TextField,
-    FunctionField,
-    TextInput,
-    NumberField,
-    useRecordContext,
-    useNotify,
-} from "react-admin"
-import {useTenantStore} from "@/providers/TenantContextProvider"
-import {ListActions} from "@/components/ListActions"
+import React, {ReactElement, useState} from "react"
+import {List, TextInput, useRecordContext, useListContext} from "react-admin"
 import {useTranslation} from "react-i18next"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
-import {Dialog} from "@sequentech/ui-essentials"
-import {EXPORT_ELECTION_EVENT_TASKS} from "@/queries/ExportElectionEventTasks"
-import {useMutation} from "@apollo/client"
-import {IPermissions} from "@/types/keycloak"
-import {ElectionStyles} from "@/components/styles/ElectionStyles"
-import {FormStyles} from "@/components/styles/FormStyles"
-import {DownloadDocument} from "../User/DownloadDocument"
+import {Accordion, AccordionDetails, AccordionSummary, Box, Typography} from "@mui/material"
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
+import {ITaskExecuted} from "@sequentech/ui-core"
 
-interface ExportWrapperProps {
-    electionEventId: string
-    openExport: boolean
-    setOpenExport: (val: boolean) => void
+interface TaskAccordionProps {
+    index: number
+    record: ITaskExecuted
+    expanded: string | false
+    handleChange: (id: string) => void
 }
-const ExportWrapper: React.FC<ExportWrapperProps> = ({
-    electionEventId,
-    openExport,
-    setOpenExport,
-}) => {
-    const [exportDocumentId, setExportDocumentId] = React.useState<string | undefined>()
-    const [exportElectionEvent] = useMutation(EXPORT_ELECTION_EVENT_TASKS, {
-        context: {
-            headers: {
-                "x-hasura-role": IPermissions.TASKS_READ,
-            },
-        },
-    })
-    const notify = useNotify()
+const TaskAccordion: React.FC<TaskAccordionProps> = ({index, record, expanded, handleChange}) => {
     const {t} = useTranslation()
+    console.log({record})
 
-    const confirmExportAction = async () => {
-        try {
-            const {data: exportElectionEventData, errors} = await exportElectionEvent({
-                variables: {
-                    electionEventId,
-                },
-            })
-            //TODO: - search export_election_event_logs and copy
-            let documentId = exportElectionEventData?.export_election_event_tasks?.document_id
-            if (errors || !documentId) {
-                setOpenExport(false)
-                notify(t(`electionEventScreen.exportError`), {type: "error"})
-                console.log(`Error exporting: ${errors}`)
-                return
-            }
-            setExportDocumentId(documentId)
-        } catch (error) {
-            notify(t(`electionEventScreen.exportError`), {type: "error"})
-            setOpenExport(false)
-        }
+    const formatDateToRFC1123 = (date: Date): string => {
+        return date.toUTCString()
     }
 
     return (
-        <Dialog
-            variant="info"
-            open={openExport}
-            ok={t("common.label.export")}
-            cancel={t("common.label.cancel")}
-            title={t("common.label.export")}
-            handleClose={(result: boolean) => {
-                if (result) {
-                    confirmExportAction()
-                } else {
-                    setOpenExport(false)
-                    setExportDocumentId(undefined)
-                }
-            }}
-        >
-            <ElectionStyles.Container>
-                {t("common.export")}
-                {exportDocumentId ? (
-                    <>
-                        <FormStyles.ShowProgress sx={{alignSelf: "center"}} />
-                        <DownloadDocument
-                            documentId={exportDocumentId}
-                            electionEventId={electionEventId ?? ""}
-                            fileName={`election-event-tasks-${electionEventId}-export.csv`}
-                            onDownload={() => {
-                                console.log("onDownload called")
-                                setExportDocumentId(undefined)
-                                setOpenExport(false)
-                            }}
-                        />
-                    </>
-                ) : null}
-            </ElectionStyles.Container>
-        </Dialog>
+        <Accordion expanded={expanded === record.id} onChange={() => handleChange(record.id)}>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography variant="subtitle1">
+                    <p>
+                        <strong>{t("tasksScreen.column.id")}</strong> {index}
+                    </p>
+                    <p>
+                        <strong>{t("tasksScreen.column.start_at")}</strong>{" "}
+                        {formatDateToRFC1123(new Date(record.start_at))}
+                    </p>
+                    <p>
+                        <strong>{t("tasksScreen.column.name")}</strong> {record.name}
+                    </p>
+                </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+                <Box>
+                    <Typography>
+                        <strong>{t("tasksScreen.column.execution_status")}</strong>{" "}
+                        {record.execution_status}
+                    </Typography>
+                    {record.logs && (
+                        <Typography>
+                            <strong>{t("tasksScreen.column.logs")}</strong>{" "}
+                            <pre>{JSON.stringify(record.logs, null, 2)}</pre>
+                        </Typography>
+                    )}
+                    {record.end_at && (
+                        <Typography>
+                            <strong>{t("tasksScreen.column.end_at")}</strong>{" "}
+                            {new Date(record.end_at).toUTCString()}
+                        </Typography>
+                    )}
+                    <Typography>
+                        <strong>{t("tasksScreen.column.executed_by_user_id")}</strong>{" "}
+                        {record.executed_by_user_id}
+                    </Typography>
+                </Box>
+            </AccordionDetails>
+        </Accordion>
+    )
+}
+
+interface TaskAccordionListProps {
+    expanded: string | false
+    handleAccordionChange: (id: string) => void
+}
+
+const TaskAccordionList: React.FC<TaskAccordionListProps> = ({expanded, handleAccordionChange}) => {
+    const {data, isLoading} = useListContext<ITaskExecuted>()
+
+    if (isLoading) {
+        return <Typography>Loading...</Typography>
+    }
+
+    if (!data || data.length === 0) {
+        //TODO: use logs design for empty list
+        return <Typography>No tasks found.</Typography>
+    }
+
+    return (
+        <Box>
+            {data.map((record, index) => (
+                <TaskAccordion
+                    index={index + 1}
+                    key={record.id}
+                    record={record}
+                    expanded={expanded}
+                    handleChange={handleAccordionChange}
+                />
+            ))}
+        </Box>
     )
 }
 
 export interface ListTasksProps {
     aside?: ReactElement
 }
-
 export const ListTasks: React.FC<ListTasksProps> = ({aside}) => {
-    const [tenantId] = useTenantStore()
-    const record = useRecordContext<Sequent_Backend_Election_Event>()
     const {t} = useTranslation()
-    const filters: Array<ReactElement> = [
-        <TextInput source="id" key={0} />,
-        <TextInput source="statement_kind" key={1} />,
-    ]
-    const [openExport, setOpenExport] = React.useState(false)
+    const [expanded, setExpanded] = useState<string | false>(false)
+    const electionEventRecord = useRecordContext<Sequent_Backend_Election_Event>()
 
-    const handleExport = () => {
-        console.log("EXPORT")
-        setOpenExport(true)
+    const filters: Array<ReactElement> = [
+        <TextInput source="id" key="id_filter" label={t("filters.id")} />,
+        <TextInput
+            source="statement_kind"
+            key="statement_kind_filter"
+            label={t("filters.statementKind")}
+        />,
+    ]
+
+    const handleAccordionChange = (taskId: string) => {
+        setExpanded((prevExpanded) => (prevExpanded === taskId ? false : taskId))
     }
 
     return (
-        <>
-            <List
-                resource="sequent_backend_tasks_execution"
-                actions={<ListActions withImport={false} doExport={handleExport} />}
-                filters={filters}
-                filter={{
-                    election_event_id: record?.id || undefined,
-                }}
-                sort={{
-                    field: "id",
-                    order: "DESC",
-                }}
-                aside={aside}
-            >
-                <DatagridConfigurable bulkActionButtons={<></>}>
-                    <NumberField source="id" />
-                    <FunctionField
-                        source="created"
-                        render={(record: any) => new Date(record.created * 1000).toUTCString()}
-                    />
-                    <FunctionField
-                        source="statement_timestamp"
-                        render={(record: any) =>
-                            new Date(record.statement_timestamp * 1000).toUTCString()
-                        }
-                    />
-                    <TextField source="statement_kind" />
-                    <TextField source="message" sx={{wordBreak: "break-word"}} />
-                </DatagridConfigurable>
-            </List>
-
-            <ExportWrapper
-                electionEventId={record.id}
-                openExport={openExport}
-                setOpenExport={setOpenExport}
-            />
-        </>
+        <List
+            resource="sequent_backend_tasks_execution"
+            filters={filters}
+            filter={{election_event_id: electionEventRecord?.id || undefined}}
+            sort={{field: "id", order: "DESC"}}
+            aside={aside}
+            perPage={10}
+        >
+            <TaskAccordionList expanded={expanded} handleAccordionChange={handleAccordionChange} />
+        </List>
     )
 }

@@ -78,6 +78,22 @@ const englishTranslation = {
                 title: "IAM Database Logs",
             },
         },
+        tasksScreen: {
+            noPermissions: "You don't have permission to access logs.",
+            title: "Tasks Execution",
+            subtitle: "Executed tasks informtion",
+            column: {
+                id: "Index",
+                name: "Task name",
+                execution_status: "Status",
+                start_at: "Start time",
+                end_at: "End time",
+                executed_by_user_id: "Executer",
+                annotations: "Annotations",
+                labels: "Labels",
+                logs: "Logs",
+            },
+        },
         confirmationScreen: {
             title: "Your vote has been cast",
             description:

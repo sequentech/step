@@ -80,6 +80,22 @@ const catalanTranslation: TranslationType = {
                 title: "Bitàcola de Base de Dades de IAM",
             },
         },
+        tasksScreen: {
+            noPermissions: "No tens permís per accedir als registres.",
+            title: "Execució de tasques",
+            subtitle: "Informació sobre les tasques executades",
+            column: {
+                id: "Índex",
+                name: "Nom de la tasca",
+                execution_status: "Estat",
+                start_at: "Hora d'inici",
+                end_at: "Hora de finalització",
+                executed_by_user_id: "Executor",
+                annotations: "Annotations",
+                labels: "Etiquetes",
+                logs: "Registres",
+            },
+        },
         confirmationScreen: {
             title: "El seu vot ha estat emès",
             description:
