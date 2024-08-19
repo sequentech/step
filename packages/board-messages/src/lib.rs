@@ -4,6 +4,7 @@
 
 pub mod braid;
 pub mod electoral_log;
+pub mod tasks_execution;
 
 use std::time::{SystemTime, UNIX_EPOCH};
 

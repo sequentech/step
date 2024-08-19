@@ -1,0 +1,60 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+use borsh::{BorshDeserialize, BorshSerialize};
+use serde::{Deserialize, Serialize};
+use strand::hash::{Hash, HashWrapper};
+
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct TenantIdString(pub String);
+
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct ElectionEventIdString(pub String);
+
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct TaskExecutionType(pub String);
+// #[derive(
+//     BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+// )]
+// pub struct ElectionIdString(pub Option<String>);
+
+// #[derive(
+//     BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+// )]
+// pub struct ContestIdString(pub String);
+
+// #[derive(
+//     BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+// )]
+// pub struct TrusteeNameString(pub String);
+
+// #[derive(
+//     BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+// )]
+// pub struct BallotPublicationIdString(pub String);
+
+// #[derive(
+//     BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+// )]
+// pub struct CastVoteErrorString(pub String);
+
+// #[derive(
+//     BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+// )]
+// pub struct PseudonymHash(pub HashWrapper);
+
+// impl PseudonymHash {
+//     // Provide methods to work with HashWrapper as needed
+//     pub fn new(hash: Hash) -> Self {
+//         PseudonymHash(HashWrapper::new(hash))
+//     }
+// }
+
+pub type Timestamp = u64;
