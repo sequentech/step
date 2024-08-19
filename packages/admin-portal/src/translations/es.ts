@@ -941,6 +941,7 @@ const spanishTranslation: TranslationType = {
                 "Enviar paquete de transmisión para el área '{{name}}'",
             transmissionPackageSignatures: "Firmas",
             uploadTransmissionPackage: "Subir",
+			uploadTransmissionPackageDesc: "Sube tu firma para firmar el paquete de Resultados Electorales. Esta operación es opcional.",
             exportElectionArea: "Enviar paquete de transmisión para el área '{{name}}'",
             templateTitle: "Plantilla de Resultados",
             templateSubTitle: "Opcionalmente sobrescribir la plantilla de resultados.",

@@ -159,7 +159,7 @@ export const TallyCeremony: React.FC = () => {
     })
 
     const [expandedExports, setExpandedDataExports] = useState<IExpanded>({
-        "tally-miru-upload": false,
+        "tally-miru-upload": true,
         "tally-miru-signatures": false,
         "tally-download-package": false,
         "tally-miru-servers": false,

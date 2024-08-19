@@ -942,6 +942,7 @@ const catalanTranslation: TranslationType = {
                 "Enviar paquet de transmissió per a l'àrea '{{name}}'",
             transmissionPackageSignatures: "Signatures",
             uploadTransmissionPackage: "Carregar",
+			  uploadTransmissionPackageDesc: "Carrega la teva signatura per signar el paquet de Resultats Electorals. Aquesta operació és opcional.",
             exportElectionArea: "Envia paquet de transmissió per a l'àrea '{{name}}'",
             templateTitle: "Plantilla de Resultats",
             templateSubTitle: "Opcionalment sobreescriure la plantilla de resultats.",

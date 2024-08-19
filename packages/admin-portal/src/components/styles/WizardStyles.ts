@@ -61,6 +61,15 @@ export const WizardStyles = {
     AccordionTitle: styled(ElectionHeaderStyles.Title)`
         margin-bottom: 0 !important;
     `,
+	AccordionSubTitle: styled.div`
+        color: rgba(0, 0, 0, 0.6);
+        font-size: 14px;
+        font-family: Roboto;
+        font-weight: 400;
+        line-height: 20.02px;
+        letter-spacing: 0.17px;
+        word-wrap: break-word;
+    `,
 
     AccordionDetails: styled(AccordionDetails)`
         padding-top: 0;

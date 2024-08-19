@@ -946,6 +946,7 @@ const frenchTranslation: TranslationType = {
                 "Envoyer le paquet de transmission pour la zone '{{name}}'",
             transmissionPackageSignatures: "Signatures",
             uploadTransmissionPackage: "Télécharger",
+  uploadTransmissionPackageDesc: "Téléchargez votre signature pour signer le paquet des Résultats Électoraux. Cette opération est optionnelle.",
             exportElectionArea: "Envoyer le paquet de transmission pour la zone '{{name}}'",
             templateTitle: "Modèle de Résultats",
             templateSubTitle: "Éventuellement écraser le modèle de résultats.",
