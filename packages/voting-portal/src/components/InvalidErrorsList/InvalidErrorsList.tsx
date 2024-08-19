@@ -56,6 +56,25 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
         [selectionState]
     )
 
+    const filterUnderVote = (state: IDecodedVoteContest | undefined) => {
+        if (!state) return undefined
+        return {
+            ...state,
+            invalid_errors:
+                state?.invalid_errors.filter(
+                    (error) =>
+                        error.message !== "errors.implicit.selectedMin" &&
+                        error.message !== "errors.implicit.blankVote"
+                ) || [],
+            invalid_alerts:
+                state?.invalid_alerts.filter(
+                    (error) =>
+                        error.message !== "errors.implicit.underVote" &&
+                        error.message !== "errors.implicit.blankVote"
+                ) || [],
+        }
+    }
+
     useEffect(() => {
         if (isTouched || !contestSelection) {
             return
@@ -67,33 +86,20 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     }, [contestSelection, isTouched])
 
     useEffect(() => {
-        const state =
+        let state =
             contestSelection && interpretContestSelection(contestSelection, ballotStyle.ballot_eml)
         setDecodedContestSelection(state)
+        // Filter min selection error in case user is not on review screen
+        if (!isReview) {
+            state = filterUnderVote(state)
+        }
         setFilteredSelection(state)
     }, [contestSelection])
 
     useEffect(() => {
         if (!isReview && !isTouched && !isVotedState) {
             // Filter min selection error in case where no user interaction was yet made
-            setFilteredSelection((prev) => {
-                if (!prev) return undefined
-                return {
-                    ...prev,
-                    invalid_errors:
-                        prev?.invalid_errors.filter(
-                            (error) =>
-                                error.message !== "errors.implicit.selectedMin" &&
-                                error.message !== "errors.implicit.blankVote"
-                        ) || [],
-                    invalid_alerts:
-                        prev?.invalid_alerts.filter(
-                            (error) =>
-                                error.message !== "errors.implicit.underVote" &&
-                                error.message !== "errors.implicit.blankVote"
-                        ) || [],
-                }
-            })
+            setFilteredSelection((prev) => filterUnderVote(prev))
         }
     }, [isReview, isTouched])
 
