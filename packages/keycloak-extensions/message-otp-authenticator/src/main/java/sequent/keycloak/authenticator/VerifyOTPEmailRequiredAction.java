@@ -24,7 +24,7 @@ import org.keycloak.sessions.AuthenticationSessionModel;
 @JBossLog
 public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, RequiredActionProvider {
   public static final String PROVIDER_ID = "verify-email-otp-ra";
-  private static final String TPL_CODE = "login-message-otp.ftl";
+  private static final String TPL_CODE = "message-otp.login.ftl";
 
   @Override
   public InitiatedActionSupport initiatedActionSupport() {
@@ -107,7 +107,7 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
         context.challenge(
             context
                 .form()
-                .setError("messageOtpAuthCodeExpired")
+                .setError("messageOtp.auth.codeExpired")
                 .createErrorPage(Response.Status.BAD_REQUEST));
       } else {
         // valid
@@ -122,7 +122,7 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
           context
               .form()
               .setAttribute("realm", context.getRealm())
-              .setError("messageOtpAuthCodeInvalid")
+              .setError("messageOtp.auth.codeInvalid")
               .createForm(TPL_CODE));
     }
   }
