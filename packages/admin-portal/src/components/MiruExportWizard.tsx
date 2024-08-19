@@ -150,9 +150,9 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({
                         ) : null}
                     </TallyStyles.StyledSpacing>
                 </AccordionSummary>
-            </Accordion>
+            </Accordion> */}
             
-            <Accordion
+            {/* <Accordion
                 sx={{width: "100%"}}
                 expanded={expandedExports["tally-download-package"]}
                 onChange={() =>
