@@ -7,7 +7,7 @@ import React, {useContext, useEffect} from "react"
 import {FetchDocumentQuery} from "@/gql/graphql"
 import {useQuery} from "@apollo/client"
 import {FETCH_DOCUMENT} from "@/queries/FetchDocument"
-import {downloadUrl} from "@sequentech/ui-essentials"
+import {downloadUrl} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 export interface DownloadDocumentProps {
@@ -34,7 +34,6 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
     })
 
     useEffect(() => {
-        console.log(`use effect called filename=${fileName}`)
         if (!error && data?.fetchDocument?.url && !downloaded) {
             setDownloaded(true)
             downloadUrl(data.fetchDocument.url, fileName).then(() => onDownload())

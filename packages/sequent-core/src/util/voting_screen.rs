@@ -1,0 +1,317 @@
+// SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+use crate::ballot::*;
+use crate::plaintext::*;
+use std::collections::HashMap;
+
+extern crate console_error_panic_hook;
+
+pub fn check_voting_not_allowed_next_util(
+    contests: Vec<Contest>,
+    decoded_contests: HashMap<String, DecodedVoteContest>,
+) -> bool {
+    let voting_not_allowed = contests.iter().any(|contest| {
+        let default_vote_policy = InvalidVotePolicy::default();
+        let vote_policy = contest
+            .presentation
+            .as_ref()
+            .and_then(|p| p.invalid_vote_policy.as_ref())
+            .unwrap_or(&default_vote_policy);
+
+        let default_blank_policy = EBlankVotePolicy::default();
+        let blank_policy = contest
+            .presentation
+            .as_ref()
+            .and_then(|p| p.blank_vote_policy.as_ref())
+            .unwrap_or(&default_blank_policy);
+
+        if let Some(decoded_contest) = decoded_contests.get(&contest.id) {
+            let choices_selected = decoded_contest
+                .choices
+                .iter()
+                .any(|choice| choice.selected == 0);
+            let invalid_errors: Vec<InvalidPlaintextError> =
+                decoded_contest.invalid_errors.clone();
+            invalid_errors.iter().any(|error| {
+                matches!(
+                    error.error_type,
+                    InvalidPlaintextErrorType::Explicit
+                        | InvalidPlaintextErrorType::EncodingError
+                )
+            }) || (invalid_errors.len() > 0
+                && *vote_policy == InvalidVotePolicy::NOT_ALLOWED)
+                || (!choices_selected
+                    && *blank_policy == EBlankVotePolicy::NOT_ALLOWED)
+        } else {
+            false
+        }
+    });
+
+    voting_not_allowed
+}
+
+pub fn check_voting_error_dialog_util(
+    contests: Vec<Contest>,
+    decoded_contests: HashMap<String, DecodedVoteContest>,
+) -> bool {
+    let show_voting_alert = contests.iter().any(|contest| {
+        let default_vote_policy = InvalidVotePolicy::default();
+        let vote_policy = contest
+            .presentation
+            .as_ref()
+            .and_then(|p| p.invalid_vote_policy.as_ref())
+            .unwrap_or(&default_vote_policy);
+
+        let default_blank_policy = EBlankVotePolicy::default();
+        let blank_policy = contest
+            .presentation
+            .as_ref()
+            .and_then(|p| p.blank_vote_policy.as_ref())
+            .unwrap_or(&default_blank_policy);
+
+        if let Some(decoded_contest) = decoded_contests.get(&contest.id) {
+            let choices_selected = decoded_contest
+                .choices
+                .iter()
+                .any(|choice| choice.selected == 0);
+            let invalid_errors: Vec<InvalidPlaintextError> =
+                decoded_contest.invalid_errors.clone();
+            let explicit_invalid = decoded_contest.is_explicit_invalid;
+            (invalid_errors.len() > 0
+                && *vote_policy != InvalidVotePolicy::ALLOWED)
+                || (*vote_policy
+                    == InvalidVotePolicy::WARN_INVALID_IMPLICIT_AND_EXPLICIT
+                    && explicit_invalid)
+                || (*blank_policy == EBlankVotePolicy::WARN
+                    && !choices_selected)
+        } else {
+            false
+        }
+    });
+
+    show_voting_alert
+}
+
+pub fn get_contest_plurality(
+    blank_vote_policy: EBlankVotePolicy,
+    invalid_vote_policy: InvalidVotePolicy,
+    min_votes: Option<i64>,
+) -> Contest {
+    let min_votes = min_votes.unwrap_or(1);
+
+    Contest {
+        created_at: None,
+        id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+        tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+        election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+        election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+        name: Some("Secretario General".into()),
+        name_i18n: None,
+        alias: None,
+        alias_i18n: None,
+        winning_candidates_num: 1,
+        description: Some(
+            "Elige quien quieres que sea tu Secretario General en tu municipio"
+                .into(),
+        ),
+        description_i18n: None,
+        max_votes: 3,
+        min_votes,
+        voting_type: Some("first-past-the-post".into()),
+        counting_algorithm: Some("plurality-at-large".into()),
+        is_encrypted: true,
+        annotations: None,
+        candidates: vec![
+            Candidate {
+                id: "0".into(),
+                tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46"
+                    .into(),
+                election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                name: Some("José Rabano Pimiento".into()),
+                name_i18n: None,
+                alias: None,
+                alias_i18n: None,
+                description: None,
+                description_i18n: None,
+                candidate_type: None,
+                annotations: None,
+                presentation: Some(CandidatePresentation {
+                    i18n: None,
+                    is_explicit_invalid: Some(false),
+                    is_explicit_blank: Some(false),
+                    is_disabled: Some(false),
+                    is_write_in: Some(false),
+                    sort_order: Some(0),
+                    urls: None,
+                    invalid_vote_position: None,
+                    is_category_list: Some(false),
+                    subtype: None,
+                }),
+            },
+            Candidate {
+                id: "1".into(),
+                tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46"
+                    .into(),
+                election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                name: Some("Miguel Pimentel Inventado".into()),
+                name_i18n: None,
+                alias: None,
+                alias_i18n: None,
+                description: None,
+                description_i18n: None,
+                candidate_type: None,
+                annotations: None,
+                presentation: Some(CandidatePresentation {
+                    i18n: None,
+                    is_explicit_invalid: Some(false),
+                    is_explicit_blank: Some(false),
+                    is_disabled: Some(false),
+                    is_write_in: Some(false),
+                    sort_order: Some(1),
+                    urls: None,
+                    invalid_vote_position: None,
+                    is_category_list: Some(false),
+                    subtype: None,
+                }),
+            },
+            Candidate {
+                id: "2".into(),
+                tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46"
+                    .into(),
+                election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                name: Some("Juan Iglesias Torquemada".into()),
+                name_i18n: None,
+                alias: None,
+                alias_i18n: None,
+                description: None,
+                description_i18n: None,
+                candidate_type: None,
+                annotations: None,
+                presentation: Some(CandidatePresentation {
+                    i18n: None,
+                    is_explicit_invalid: Some(false),
+                    is_explicit_blank: Some(false),
+                    is_disabled: Some(false),
+                    is_write_in: Some(false),
+                    sort_order: Some(2),
+                    urls: None,
+                    invalid_vote_position: None,
+                    is_category_list: Some(false),
+                    subtype: None,
+                }),
+            },
+            Candidate {
+                id: "3".into(),
+                tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46"
+                    .into(),
+                election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                name: Some("Mari Pili Hernández Ordoñez".into()),
+                name_i18n: None,
+                alias: None,
+                alias_i18n: None,
+                description: None,
+                description_i18n: None,
+                candidate_type: None,
+                annotations: None,
+                presentation: Some(CandidatePresentation {
+                    i18n: None,
+                    is_explicit_invalid: Some(false),
+                    is_explicit_blank: Some(false),
+                    is_disabled: Some(false),
+                    is_write_in: Some(false),
+                    sort_order: Some(3),
+                    urls: None,
+                    invalid_vote_position: None,
+                    is_category_list: Some(false),
+                    subtype: None,
+                }),
+            },
+            Candidate {
+                id: "4".into(),
+                tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46"
+                    .into(),
+                election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                name: Some("Juan Y Medio".into()),
+                name_i18n: None,
+                alias: None,
+                alias_i18n: None,
+                description: None,
+                description_i18n: None,
+                candidate_type: None,
+                annotations: None,
+                presentation: Some(CandidatePresentation {
+                    i18n: None,
+                    is_explicit_invalid: Some(false),
+                    is_explicit_blank: Some(false),
+                    is_disabled: Some(false),
+                    is_write_in: Some(false),
+                    sort_order: Some(4),
+                    urls: None,
+                    invalid_vote_position: None,
+                    is_category_list: Some(false),
+                    subtype: None,
+                }),
+            },
+        ],
+        presentation: Some(ContestPresentation {
+            i18n: None,
+            allow_writeins: Some(false),
+            base32_writeins: Some(true),
+            cumulative_number_of_checkboxes: None,
+            shuffle_categories: Some(true),
+            shuffle_category_list: None,
+            show_points: Some(false),
+            enable_checkable_lists: None,
+            candidates_order: None,
+            candidates_selection_policy: None,
+            max_selections_per_type: None,
+            types_presentation: None,
+            sort_order: None,
+            under_vote_alert: Some(false),
+            invalid_vote_policy: Some(invalid_vote_policy),
+            blank_vote_policy: Some(blank_vote_policy),
+            pagination_policy: None,
+        }),
+    }
+}
+
+pub fn get_decoded_contest_plurality(contest: &Contest) -> DecodedVoteContest {
+    let message_map = [
+        ("max".to_string(), "1".to_string()),
+        ("min".to_string(), "0".to_string()),
+        ("numSelected".to_string(), "0".to_string()),
+        ("type".to_string(), "alert".to_string()),
+    ]
+    .iter()
+    .cloned()
+    .collect();
+
+    DecodedVoteContest {
+        contest_id: contest.id.clone(),
+        is_explicit_invalid: true,
+        invalid_alerts: vec![InvalidPlaintextError {
+            error_type: InvalidPlaintextErrorType::Explicit,
+            candidate_id: None,
+            message: Some("errors.implicit.underVote".to_string()),
+            message_map,
+        }],
+        invalid_errors: vec![],
+        choices: vec![DecodedVoteChoice {
+            id: "b11b19c6-7157-4f26-b2e9-b5e353f252c2".into(),
+            selected: -1,
+            write_in_text: None,
+        }],
+    }
+}

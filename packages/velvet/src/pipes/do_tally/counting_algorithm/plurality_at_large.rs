@@ -3,7 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::{CountingAlgorithm, Error};
-use crate::pipes::do_tally::{tally::Tally, CandidateResult, ContestResult, InvalidVotes};
+use crate::pipes::do_tally::{
+    tally::Tally, CandidateResult, ContestResult, ExtendedMetricsContest, InvalidVotes,
+};
+use sequent_core::ballot::Contest;
+use sequent_core::plaintext::{DecodedVoteContest, InvalidPlaintextErrorType};
 use std::cmp;
 use std::collections::HashMap;
 use tracing::{event, instrument, Level};
@@ -21,6 +25,51 @@ impl PluralityAtLarge {
     }
 }
 
+pub fn update_extended_metrics(
+    vote: &DecodedVoteContest,
+    current_metrics: &ExtendedMetricsContest,
+    contest: &Contest,
+) -> ExtendedMetricsContest {
+    let mut metrics = current_metrics.clone();
+    let is_overvote = vote
+        .invalid_errors
+        .clone()
+        .into_iter()
+        .find(|err| {
+            err.error_type == InvalidPlaintextErrorType::Implicit
+                && err.message == Some("errors.implicit.selectedMax".into())
+        })
+        .is_some();
+    if is_overvote {
+        metrics.over_votes += 1;
+    }
+    let is_undervote = vote
+        .invalid_errors
+        .clone()
+        .into_iter()
+        .find(|err| {
+            err.error_type == InvalidPlaintextErrorType::Implicit
+                && err.message == Some("errors.implicit.selectedMin".into())
+        })
+        .is_some();
+    if is_undervote {
+        metrics.under_votes += 1;
+    }
+    let marks_count: u64 =
+        vote.choices
+            .iter()
+            .fold(0u64, |acc, e| if e.selected > -1 { acc + 1 } else { acc });
+    metrics.votes_actually += marks_count;
+    if is_overvote {
+        metrics.expected_votes += contest.max_votes as u64;
+    } else if is_undervote {
+        metrics.expected_votes += contest.min_votes as u64;
+    } else {
+        metrics.expected_votes += marks_count;
+    }
+    metrics
+}
+
 impl CountingAlgorithm for PluralityAtLarge {
     #[instrument(skip_all)]
     fn tally(&self) -> Result<ContestResult> {
@@ -36,7 +85,10 @@ impl CountingAlgorithm for PluralityAtLarge {
         let mut count_invalid: u64 = 0;
         let mut count_blank: u64 = 0;
 
+        let mut extended_metrics = ExtendedMetricsContest::default();
+
         for vote in votes {
+            extended_metrics = update_extended_metrics(vote, &extended_metrics, &contest);
             if vote.is_invalid() {
                 if vote.is_explicit_invalid {
                     count_invalid_votes.explicit += 1;
@@ -107,6 +159,7 @@ impl CountingAlgorithm for PluralityAtLarge {
         let total_votes_base = cmp::max(1, total_votes) as f64;
 
         let census_base = cmp::max(1, self.tally.census) as f64;
+        let percentage_auditable_votes = (self.tally.auditable_votes as f64) * 100.0 / census_base;
         let percentage_total_votes = (total_votes as f64) * 100.0 / census_base;
         let percentage_total_valid_votes = (count_valid as f64 * 100.0) / total_votes_base;
         let percentage_total_invalid_votes = (count_invalid as f64 * 100.0) / total_votes_base;
@@ -120,6 +173,8 @@ impl CountingAlgorithm for PluralityAtLarge {
             contest: self.tally.contest.clone(),
             census: self.tally.census,
             percentage_census: 100.0,
+            auditable_votes: self.tally.auditable_votes,
+            percentage_auditable_votes: percentage_auditable_votes.clamp(0.0, 100.0),
             total_votes: total_votes,
             percentage_total_votes: percentage_total_votes.clamp(0.0, 100.0),
             total_valid_votes: count_valid,
@@ -132,6 +187,7 @@ impl CountingAlgorithm for PluralityAtLarge {
             percentage_invalid_votes_implicit: percentage_invalid_votes_implicit.clamp(0.0, 100.0),
             invalid_votes: count_invalid_votes,
             candidate_result: result,
+            extended_metrics: Some(extended_metrics),
         };
 
         let aggregate = self

@@ -77,6 +77,44 @@ const catalanTranslation: TranslationType = {
                 ok: "Sí, vull INVALIDAR la meva papereta per AUDITAR-LA",
                 cancel: "Cancel·lar",
             },
+            confirmCastVoteDialog: {
+                title: "Esteu segur que voleu emetre el vostre vot?",
+                content: "El vostre vot ja no es podrà editar un cop confirmat.",
+                ok: "Sí, vull EMETRE el meu vot",
+                cancel: "Cancel·lar",
+            },
+            error: {
+                NETWORK_ERROR:
+                    "Hi ha hagut un problema de xarxa. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
+                UNABLE_TO_FETCH_DATA:
+                    "Hi ha hagut un problema en recuperar les dades. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
+                LOAD_ELECTION_EVENT:
+                    "No es pot carregar l'esdeveniment electoral. Si us plau, torna-ho a intentar més tard.",
+                CAST_VOTE:
+                    "Hi ha hagut un error amb GraphQL durant l'emissió del vot. Si us plau, torni-ho a intentar més tard o contacti amb el suport per obtenir ajuda.",
+                NO_BALLOT_SELECTION:
+                    "No es troba l'estat de selecció per aquesta elecció. Si us plau, assegura't d'haver seleccionat les teves opcions correctament o contacta amb el servei d'assistència.",
+                NO_BALLOT_STYLE:
+                    "L'estil de la papereta no està disponible. Si us plau, contacta amb el servei d'assistència.",
+                NO_AUDITABLE_BALLOT:
+                    "No hi ha cap papereta auditable disponible. Si us plau, contacta amb el servei d'assistència.",
+                INCONSISTENT_HASH:
+                    "Hi ha hagut un error relacionat amb el procés de hashing de la papereta. El BallotId: {{ballotId}} no és consistent amb el Hash de la Papereta Auditable: {{auditableBallotHash}}. Si us plau, informa d'aquest problema al servei d'assistència.",
+                ELECTION_EVENT_NOT_OPEN:
+                    "L'esdeveniment electoral està tancat. Si us plau, contacta amb el servei d'assistència.",
+                PARSE_ERROR:
+                    "Hi ha hagut un error en analitzar la papereta. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
+                DESERIALIZE_AUDITABLE_ERROR:
+                    "Hi ha hagut un error en deserialitzar la papereta auditable. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
+                DESERIALIZE_HASHABLE_ERROR:
+                    "Hi ha hagut un error en deserialitzar la papereta hashable. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
+                CONVERT_ERROR:
+                    "Hi ha hagut un error en convertir la papereta. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
+                SERIALIZE_ERROR:
+                    "Hi ha hagut un error en serialitzar la papereta. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
+                UNKNOWN_ERROR:
+                    "Hi ha hagut un error. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
+            },
         },
         confirmationScreen: {
             title: "El seu vot ha estat emès",
@@ -94,10 +132,26 @@ const catalanTranslation: TranslationType = {
                     "Aquesta pantalla mostra que el seu vot s'ha emès correctament. La informació proporcionada en aquesta pàgina li permet verificar que la papereta ha estat emmagatzemada en l'urna, aquest procés pot ser executat en qualsevol moment durant el període de votació i després que l'elecció hagi estat tancada.",
                 ok: "D'acord",
             },
+            demoPrintDialog: {
+                title: "Impressió de la papereta de vot",
+                content: "Impressió desactivada en mode de demostració",
+                ok: "D'acord",
+            },
+            demoBallotUrlDialog: {
+                title: "Seguiment de la Butlleta",
+                content: "No es pot utilitzar el codi, desactivat en mode de demostració.",
+                ok: "D'acord",
+            },
             ballotIdHelpDialog: {
                 title: "Informació: Localitzador del Vot",
                 content:
                     "El Localitzador del Vot de papereta és un codi que li permet trobar la seva papereta en l'urna, aquest Localitzador és únic i no conté informació sobre les seves seleccions.",
+                ok: "D'acord",
+            },
+            ballotIdDemoHelpDialog: {
+                title: "Informació: Identificador de papereta de vot",
+                content:
+                    "<p>L'identificador de papereta de vot és un codi que us permet trobar la vostra papereta a l'urna. Aquest identificador és únic i no conté informació sobre les vostres seleccions.</p><p><b>Avis:</b> Aquesta cabina de votació és només per a fins de demostració. El vostre vot NO ha estat emès.</p>",
                 ok: "D'acord",
             },
             errorDialogPrintVoteReceipt: {
@@ -105,6 +159,7 @@ const catalanTranslation: TranslationType = {
                 content: "Ha ocorregut un error, si us plau intenti de nou",
                 ok: "Acceptar",
             },
+            demoQRText: "El rastrejador de butlletes està deshabilitat en mode de demostració",
         },
         auditScreen: {
             printButton: "Imprimir",
@@ -149,8 +204,26 @@ const catalanTranslation: TranslationType = {
                     "Està entrant en una cabina de votació de demostració. <strong>El seu vot NO serà comptabilitzat.</strong> Aquesta cabina de votació és només per a finalitats de demostració.",
                 ok: "Accepto que el meu vot NO serà comptabilitzat",
             },
-            noVotingAreaError:
-                "L'àrea de votació no s'ha assignat a l'elector. Si us plau, contacti amb el seu administrador per obtenir assistència.",
+            errors: {
+                noVotingArea:
+                    "Àrea de votació no assignada al votant. Si us plau, torneu-ho a intentar més tard o contacteu amb suport per obtenir ajuda.",
+                networkError:
+                    "Hi ha hagut un problema de xarxa. Si us plau, torneu-ho a intentar més tard o contacteu amb suport per obtenir ajuda.",
+                unableToFetchData:
+                    "Hi ha hagut un problema a l'obtenció de les dades. Si us plau, torneu-ho a intentar més tard o contacteu amb suport per obtenir ajuda.",
+                noElectionEvent:
+                    "L'esdeveniment electoral no existeix. Si us plau, torneu-ho a intentar més tard o contacteu amb suport per obtenir ajuda.",
+                ballotStylesEmlError:
+                    "Hi ha hagut un error amb la publicació de l'estil de la papereta. Si us plau, torneu-ho a intentar més tard o contacteu amb suport per obtenir ajuda.",
+                obtainingElectionFromID:
+                    "Hi ha hagut un error a l'obtenció de les eleccions associades amb les següents IDs d'eleccions: {{electionIds}}. Si us plau, torneu-ho a intentar més tard o contacteu amb suport per obtenir ajuda.",
+            },
+            alerts: {
+                noElections:
+                    "No hi ha eleccions en les quals pugueu votar. Això podria ser perquè l'àrea no té cap concurs associat. Si us plau, torneu-ho a intentar més tard o contacteu amb suport per obtenir ajuda.",
+                electionEventNotPublished:
+                    "L'esdeveniment electoral encara no ha estat publicat. Si us plau, torneu-ho a intentar més tard o contacteu amb suport per obtenir ajuda.",
+            },
         },
         errors: {
             encoding: {
@@ -172,6 +245,7 @@ const catalanTranslation: TranslationType = {
                     "El nombre d'opcions seleccionades {{numSelected}} per a la llista {{type}} és major que el màxim {{max}}",
                 underVote:
                     "Subvot: El nombre d'opcions seleccionades {{numSelected}} és inferior al màxim permès de {{max}}",
+                blankVote: "Vot en Blanc: 0 opcions seleccionades",
             },
             explicit: {
                 notAllowed: "Vot marcat explícitament com a invàlid però la pregunta no ho permet",

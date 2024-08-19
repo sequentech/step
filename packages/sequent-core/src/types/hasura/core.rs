@@ -263,6 +263,11 @@ pub struct KeysCeremony {
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct TallySessionConfiguration {
+    pub report_content_template_id: Option<String>,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct TallySession {
     pub id: String,
     pub tenant_id: String,
@@ -277,6 +282,7 @@ pub struct TallySession {
     pub keys_ceremony_id: String,
     pub execution_status: Option<String>,
     pub threshold: i64,
+    pub configuration: Option<TallySessionConfiguration>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -309,4 +315,16 @@ pub struct TallySessionExecution {
     pub session_ids: Option<Vec<i32>>,
     pub status: Option<Value>,
     pub results_event_id: Option<String>,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct Trustee {
+    pub id: String,
+    pub public_key: Option<String>,
+    pub name: Option<String>,
+    pub created_at: Option<DateTime<Local>>,
+    pub last_updated_at: Option<DateTime<Local>>,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+    pub tenant_id: String,
 }

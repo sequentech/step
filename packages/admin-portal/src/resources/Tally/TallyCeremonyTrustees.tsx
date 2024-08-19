@@ -16,7 +16,12 @@ import {useGetList, useGetOne, useRecordContext} from "react-admin"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {RESTORE_PRIVATE_KEY} from "@/queries/RestorePrivateKey"
 import {useMutation} from "@apollo/client"
-import {ICeremonyStatus, ITallyTrusteeStatus, ITrusteeStatus} from "@/types/ceremonies"
+import {
+    ICeremonyStatus,
+    ITallyExecutionStatus,
+    ITallyTrusteeStatus,
+    ITrusteeStatus,
+} from "@/types/ceremonies"
 import {Box} from "@mui/material"
 import {
     RestorePrivateKeyMutation,
@@ -100,9 +105,10 @@ export const TallyCeremonyTrustees: React.FC = () => {
 
     useEffect(() => {
         setPage(
-            !trusteeStatus
+            !trusteeStatus && tally?.execution_status !== ITallyExecutionStatus.CANCELLED
                 ? WizardSteps.Start
-                : trusteeStatus === ITrusteeStatus.WAITING
+                : trusteeStatus === ITrusteeStatus.WAITING &&
+                  tally?.execution_status !== ITallyExecutionStatus.CANCELLED
                 ? WizardSteps.Start
                 : WizardSteps.Status
         )

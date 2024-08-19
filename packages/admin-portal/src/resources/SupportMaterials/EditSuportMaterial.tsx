@@ -21,7 +21,8 @@ import {
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
 import {Tabs} from "@/components/Tabs"
-import {DropFile, IElectionEventPresentation} from "@sequentech/ui-essentials"
+import {DropFile} from "@sequentech/ui-essentials"
+import {IElectionEventPresentation} from "@sequentech/ui-core"
 import {Box, TextField} from "@mui/material"
 import {useMutation} from "@apollo/client"
 import {

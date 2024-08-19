@@ -9,7 +9,6 @@ import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ILog, ITallyCeremonyStatus} from "@/types/ceremonies"
 import {Logs} from "@/components/Logs"
-import {sleep} from "@sequentech/ui-essentials"
 
 interface TallyLogsProps {
     tallySessionExecution?: Sequent_Backend_Tally_Session_Execution

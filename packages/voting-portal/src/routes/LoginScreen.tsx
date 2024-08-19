@@ -17,7 +17,7 @@ const LoginScreen: React.FC = () => {
 
     useEffect(() => {
         if (!isAuthenticated && tenantId && eventId) {
-            setTenantEvent(tenantId, eventId)
+            setTenantEvent(tenantId, eventId, "login")
         } else if (authContext.isAuthenticated) {
             navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser${location.search}`)
         }

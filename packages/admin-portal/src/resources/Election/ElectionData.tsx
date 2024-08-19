@@ -3,13 +3,42 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
-import {EditBase, Identifier, RaRecord} from "react-admin"
+import {EditBase, Identifier, RaRecord, useUpdate} from "react-admin"
 import {ElectionDataForm} from "./ElectionDataForm"
 import {Sequent_Backend_Election_Extended} from "./ElectionDataForm"
 import {ICommunicationMethod, IRECEIPTS} from "@/types/communications"
+import {Sequent_Backend_Contest} from "@/gql/graphql"
+import {ContestsOrder, IContestPresentation, IElectionPresentation} from "@sequentech/ui-core"
 
 export const EditElectionData: React.FC = () => {
+    const [update] = useUpdate()
+
+    function updateContestsOrder(data: Sequent_Backend_Election_Extended) {
+        data.contestsOrder?.map((contest: Sequent_Backend_Contest, index: number) => {
+            let electionPresentation = data.presentation as IElectionPresentation | undefined
+            if (electionPresentation?.contests_order === ContestsOrder.CUSTOM) {
+                let contestPresentation = (contest.presentation ?? {}) as IContestPresentation
+                return update("sequent_backend_contest", {
+                    id: contest.id,
+                    data: {
+                        presentation: {
+                            ...contestPresentation,
+                            sort_order: index,
+                        },
+                    },
+                    previousData: contest,
+                })
+            }
+            return null
+        })
+    }
+
     const transform = (data: Sequent_Backend_Election_Extended): RaRecord<Identifier> => {
+        // update contests
+        updateContestsOrder(data)
+
+        delete data.contestsOrder
+
         // save receipts object
         const receipts: IRECEIPTS = {}
         for (const value in Object.values(ICommunicationMethod) as ICommunicationMethod[]) {

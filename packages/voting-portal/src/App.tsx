@@ -3,10 +3,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useEffect, useContext} from "react"
+import React, {useEffect, useContext, useMemo} from "react"
 import {Outlet, ScrollRestoration, useLocation, useParams} from "react-router-dom"
 import {styled} from "@mui/material/styles"
-import {Footer, Header, IElectionEventPresentation, PageBanner} from "@sequentech/ui-essentials"
+import {Footer, Header, PageBanner} from "@sequentech/ui-essentials"
+import {EVotingPortalCountdownPolicy, IElectionEventPresentation} from "@sequentech/ui-core"
 import Stack from "@mui/material/Stack"
 import {useNavigate} from "react-router-dom"
 import {AuthContext} from "./providers/AuthContextProvider"
@@ -39,6 +40,9 @@ const HeaderWithContext: React.FC = () => {
 
     let languagesList = presentation?.language_conf?.enabled_language_codes ?? ["en"]
     let showUserProfile = presentation?.show_user_profile ?? true
+    const countdownPolicy = useMemo(() => {
+        return ballotStyle?.ballot_eml.election_event_presentation?.voting_portal_countdown_policy
+    }, [ballotStyle])
 
     return (
         <Header
@@ -51,6 +55,13 @@ const HeaderWithContext: React.FC = () => {
             languagesList={languagesList}
             logoutFn={authContext.isAuthenticated ? authContext.logout : undefined}
             logoUrl={presentation?.logo_url}
+            expiry={{
+                alertAt: countdownPolicy?.countdown_alert_anticipation_secs,
+                countdown: countdownPolicy?.policy ?? EVotingPortalCountdownPolicy.NO_COUNTDOWN,
+                countdownAt: countdownPolicy?.countdown_anticipation_secs,
+                endTime: authContext.getExpiry(),
+                duration: countdownPolicy?.countdown_anticipation_secs,
+            }}
         />
     )
 }
@@ -64,6 +75,7 @@ const App = () => {
 
     const electionIds = useAppSelector(selectElectionIds)
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionIds[0])))
+
     useEffect(() => {
         if (globalSettings.DISABLE_AUTH) {
             navigate(
@@ -84,7 +96,11 @@ const App = () => {
 
     useEffect(() => {
         if (!isAuthenticated && !!tenantId && !!eventId) {
-            setTenantEvent(tenantId, eventId)
+            setTenantEvent(
+                tenantId,
+                eventId,
+                location.pathname.includes("/enroll") ? "register" : "login"
+            )
         }
     }, [tenantId, eventId, isAuthenticated, setTenantEvent])
 

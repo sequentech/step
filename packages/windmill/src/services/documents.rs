@@ -60,7 +60,7 @@ pub async fn upload_and_return_document(
         }
         false => {
             let document_s3_key =
-                s3::get_document_key(&tenant_id, &election_event_id, &document.id, &name);
+                s3::get_document_key(&tenant_id, Some(&election_event_id), &document.id, &name);
             let bucket = s3::get_private_bucket()?;
 
             (document_s3_key, bucket)
@@ -132,7 +132,7 @@ pub async fn upload_and_return_document_postgres(
         }
         false => {
             let document_s3_key =
-                s3::get_document_key(tenant_id, election_event_id, &document.id, name);
+                s3::get_document_key(tenant_id, Some(election_event_id), &document.id, name);
             let bucket = s3::get_private_bucket()?;
 
             (document_s3_key, bucket)
@@ -182,7 +182,12 @@ pub async fn get_upload_url(
 
     let path = match is_public {
         true => s3::get_public_document_key(&tenant_id, &document.id, &name),
-        false => s3::get_document_key(&tenant_id.to_string(), "", &document.id, &name.to_string()),
+        false => s3::get_document_key(
+            &tenant_id.to_string(),
+            None,
+            &document.id,
+            &name.to_string(),
+        ),
     };
     let url = s3::get_upload_url(path.to_string(), is_public).await?;
 
@@ -227,18 +232,20 @@ pub async fn get_document_url(
         return Ok(None);
     };
 
-    let document_s3_key = match document.is_public.unwrap_or(false) {
-        true => s3::get_public_document_key(
-            &tenant_id,
-            &document_id,
-            &document.name.unwrap_or_default(),
-        ),
-        false => s3::get_document_key(
-            &&tenant_id,
-            &election_event_id.unwrap_or(Default::default()),
-            &document_id,
+    let document_s3_key = if document.is_public.unwrap_or(false) {
+        s3::get_public_document_key(
+            tenant_id,
+            document_id,
             &document.name.clone().unwrap_or_default(),
-        ),
+        )
+    } else {
+        let election_id = election_event_id.unwrap_or("");
+        s3::get_document_key(
+            tenant_id,
+            Some(election_id),
+            document_id,
+            &document.name.clone().unwrap_or_default(),
+        )
     };
 
     let bucket = if document.is_public.unwrap_or(false) {
@@ -259,16 +266,15 @@ pub async fn get_document_as_temp_file(
 ) -> anyhow::Result<NamedTempFile> {
     let s3_bucket = s3::get_private_bucket()?;
     let document_name = document.name.clone().unwrap_or_default();
+    let election_event_id = document.election_event_id.clone().unwrap_or_default();
 
-    // Obtain the key for the document in S3
-    let document_s3_key = s3::get_document_key(tenant_id, "", &document.id, &document_name);
+    let document_s3_key = s3::get_document_key(tenant_id, None, &document.id, &document_name);
 
-    // Retrieve the S3 object and save it to a temporary file
     let file = s3::get_object_into_temp_file(
         s3_bucket.as_str(),
         document_s3_key.as_str(),
-        "import-election-event",
-        ".json",
+        &document_name,
+        ".tmp",
     )
     .await
     .with_context(|| "Failed to get S3 object into temporary file")?;

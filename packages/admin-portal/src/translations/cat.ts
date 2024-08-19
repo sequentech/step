@@ -139,6 +139,7 @@ const catalanTranslation: TranslationType = {
                     'Benvingut a la cabina de votació, aquesta pantalla mostra la llista d\'eleccions en les quals pot emetre el seu vot. Les eleccions que apareixen en aquesta llista poden estar obertes a votació, programades o tancades. Només podrà accedir a la votació si el període de votació està obert. En el cas que una elecció estigui tancada i el seu administrador electoral hagi publicat el resultat, veurà un botó "Resultat electoral" que el portarà a la pàgina pública de resultats.',
                 ok: "D'acord",
             },
+            closedEventError: "L'esdeveniment electoral està actualment tancat",
         },
         areas: {
             common: {
@@ -223,18 +224,42 @@ const catalanTranslation: TranslationType = {
         dashboard: {
             voteByDay: "Vots per dia",
             votersByChannels: "Votants per canals",
+            voterLoginURL: "URL d'inici de sessió dels votants",
+            voterEnrollURL: "URL d'inscripció de votants",
         },
         electionEventScreen: {
             common: {
                 subtitle: "Configuració de l'Esdeveniment Electoral.",
+                showMore: "Mostra'n més",
+                showLess: "Mostra'n menys",
             },
             edit: {
                 general: "General",
                 dates: "Dates",
                 language: "Idiomes",
+                votingPeriod: "Període de votació",
                 allowed: "Canals de Vot Permesos",
                 materials: "Materials de Suport",
                 ballotDesign: "Disseny de la Papereta",
+                reorder: "Reordenar eleccions",
+                advancedConfigurations: "Voting Portal Countdown Policy",
+                importCandidates: "Importar Candidats",
+            },
+            localization: {
+                emptyHeader: "No s'han establert idiomes per a l'esdeveniment",
+                selectLanguage: "Selecciona idioma",
+                notify: {
+                    success: "La localització s'ha actualitzat correctament",
+                    error: "La actualització de la localització ha fallat",
+                },
+                common: {
+                    title: "Localització",
+                    subTitle: "Configuració de la localització",
+                },
+                labels: {
+                    key: "Clau",
+                    value: "Valor",
+                },
             },
             field: {
                 name: "Nom",
@@ -253,10 +278,23 @@ const catalanTranslation: TranslationType = {
                 css: "CSS personalitzat",
                 skipElectionList: "Saltar pantalla per escollir elecció",
                 showUserProfile: "Mostra el perfil de l'usuari",
+                countDownPolicyOptions: {
+                    NO_COUNTDOWN: "Sense compte enrere",
+                    COUNTDOWN: "Compte enrere",
+                    COUNTDOWN_WITH_ALERT: "Compte enrere amb avís",
+                    sectionTitle: "Portal de votació",
+                    policyLabel: "Política de compte enrere del portal de votació",
+                    coundownSecondsLabel:
+                        "temps en segons abans de la caducitat per mostrar el compte enrere",
+                    alertSecondsLabel:
+                        "temps en segons abans de la caducitat per mostrar l'avís de tancament de sessió",
+                },
             },
             error: {
                 endDate: "La data de finalització ha de ser posterior a la data d'inici",
+                startDate: "La data d'inici ha de ser en el futur",
                 noResult: "Encara no hi ha Esdeveniment Electoral",
+                endDateInvalid: "La data de finalització ha de ser en el futur",
             },
             voters: {
                 title: "Votants",
@@ -300,6 +338,7 @@ const catalanTranslation: TranslationType = {
             tabs: {
                 dashboard: "Tauler de Control",
                 data: "Dades",
+                localization: "Localització",
                 voters: "Votants",
                 areas: "Àrees",
                 keys: "Claus",
@@ -327,6 +366,8 @@ const catalanTranslation: TranslationType = {
                     noLogs: "No hi ha registres disponibles",
                 },
                 notify: {
+                    noKeysTally:
+                        "La Cerimònia del Compte no pot començar fins que la Cerimònia de Fideïcomissari no s'hagi completat amb èxit.",
                     participateNow:
                         "Ha estat convidat a participar a una Cerimònia de Recompte. Si us plau <1>feu clic a continuació en l'acció de recompte de la cerimònia</1> per participar.",
                 },
@@ -378,6 +419,7 @@ const catalanTranslation: TranslationType = {
             edit: {
                 general: "General",
                 dates: "Dates",
+                votingPeriod: "Període de votació",
                 language: "Idioma",
                 allowed: "Canals de Vot Permesos",
                 default: "Per defecte",
@@ -386,6 +428,8 @@ const catalanTranslation: TranslationType = {
                 image: "Imatge",
                 advanced: "Configuració Avançada",
                 numAllowedVotes: "Número de vots permesos",
+                reorder: "Reordenar concursos",
+                castVoteConfirm: "Modal de Confirmació de Vot",
             },
             field: {
                 name: "Nom",
@@ -399,9 +443,11 @@ const catalanTranslation: TranslationType = {
                 description: "Descripció",
             },
             error: {
-                endDate: "La data de finalització ha de ser posterior a la data d'inici",
                 fileError: "Error al carregar el fitxer",
                 fileLoaded: "Fitxer carregat",
+                endDate: "La data de finalització ha de ser posterior a la data d'inici",
+                startDate: "La data d'inici ha de ser en el futur",
+                endDateInvalid: "La data de finalització ha de ser en el futur",
             },
             createElectionEventSuccess: "Creada l'elecció",
             createElectionEventError: "Error Creant l'elecció",
@@ -717,6 +763,7 @@ const catalanTranslation: TranslationType = {
                 image: "Imatge",
                 isDisabled: "Deshabilitat",
                 isExplicitInvalid: "Vot Invàlid",
+                isExplicitBlank: "Vot en Blanc",
                 isCategoryList: "Llista",
                 isWriteIn: "Vot per escrit",
             },
@@ -750,6 +797,7 @@ const catalanTranslation: TranslationType = {
                 system: "Sistema de votació de paperetes",
                 design: "Disseny de la papereta",
                 reorder: "Reordenar candidats",
+                policies: "Polítiques",
             },
             field: {
                 name: "Nom",
@@ -774,6 +822,15 @@ const catalanTranslation: TranslationType = {
                 "allow-selecting-candidates": "Només Candidats",
                 "allow-selecting-lists": "Només Llistes",
                 "disabled": "Deshabilitat",
+            },
+            blankVotePolicy: {
+                "label": "Política de vot en blanc",
+                "allowed": "Permès",
+                "warn": "Advertir",
+                "not-allowed": "No permès",
+            },
+            paginationPolicy: {
+                label: "Nom de la pàgina",
             },
             error: {},
             createContestSuccess: "Pregunta creada",
@@ -865,7 +922,27 @@ const catalanTranslation: TranslationType = {
                 downloaded: "Clau Encriptada Privada generada amb èxit.",
             },
         },
+        miruExport: {
+            create: {
+                success: "Paquet de Transmissió Creat",
+                error: "Error en crear el Paquet de Transmissió",
+            },
+            send: {
+                success: "Paquet de Transmissió Enviat",
+                error: "Error en enviar el Paquet de Transmissió",
+            },
+        },
         tally: {
+            errorUploadingSignature: "S'ha produït un error en carregar la signatura",
+            downloadTransmissionPackage: "Descarregar paquet",
+            TransmissionPackageServers: "Servidors",
+            sendToTransmissionPackageServers:
+                "Enviar paquet de transmissió per a l'àrea '{{name}}'",
+            transmissionPackageSignatures: "Signatures",
+            uploadTransmissionPackage: "Carregar",
+            exportElectionArea: "Envia paquet de transmissió per a l'àrea '{{name}}'",
+            templateTitle: "Plantilla de Resultats",
+            templateSubTitle: "Opcionalment sobreescriure la plantilla de resultats.",
             ceremonyTitle: "Eleccions per al Recompte",
             ceremonySubTitle: "Seleccioneu les eleccions per al recompte",
             tallyTitle: "Progrés del Recompte d'Eleccions",
@@ -941,6 +1018,8 @@ const catalanTranslation: TranslationType = {
                 cast_votes_percent: "Percentatges de Vots",
                 total_votes: "Total de votants",
                 total_votes_percent: "Participació",
+                total_votes_counted: "Total de Vots Comptats",
+                total_auditable_votes: "Total de Vots Auditables",
                 total_valid_votes: "Total de vots vàlids",
                 total_valid_votes_percent: "Percentatge de vots vàlids",
                 total_invalid_votes: "Total de vots invàlids",
@@ -962,9 +1041,9 @@ const catalanTranslation: TranslationType = {
                 history: "Històric de Canvis",
             },
             action: {
-                start: "Començar elecció",
-                stop: "Aturar elecció",
-                pause: "Pausar",
+                startVotingPeriod: "Començar el període de votació",
+                stopVotingPeriod: "Detenir el període de votació",
+                pauseVotingPeriod: "Pausar el període de votació",
                 generate: "Regenerar",
                 publish: "Publicar Canvis",
                 back: "Enrere",
@@ -976,11 +1055,18 @@ const catalanTranslation: TranslationType = {
             dialog: {
                 title: "Confirmar Acció",
                 info: "Has fet clic en una acció sensible, per la qual cosa necessitem que la confirmis per poder continuar.",
+                startInfo:
+                    "Està a punt de començar el període de votació. Està segur que vol continuar?",
+                stopInfo:
+                    "Està a punt de detenir el període de votació. Està segur que vol continuar?",
+                pauseInfo:
+                    "Està a punt de pausar el període de votació. Està segur que vol continuar?",
                 ok: "Confirmar",
                 ko: "Cancel·lar",
                 error: "Error carregant les paperetes publicades",
                 error_publish: "Error publicant la papereta",
                 error_status: "Error canviant l'estat de la publicació",
+                diff: "Renderitzar tots els canvis podria fer que la pàgina no respongui. Esteu segur que voleu continuar?",
             },
             label: {
                 current: "Actual",
@@ -1039,6 +1125,7 @@ const catalanTranslation: TranslationType = {
                 PARTICIPATION_REPORT: "Informe de Participació",
                 ELECTORAL_RESULTS: "Resultats Electorals",
                 OTP: "OTP",
+                TALLY_REPORT: "Informe de recompte",
             },
             email: {
                 subject: "Assumpte",
@@ -1147,6 +1234,7 @@ const catalanTranslation: TranslationType = {
                 participation_report: "Informe de Participació",
                 electoral_results: "Resultats Electorals",
                 otp: "OTP",
+                tally_report: "Informe de recompte",
             },
             method: {
                 email: "Email",

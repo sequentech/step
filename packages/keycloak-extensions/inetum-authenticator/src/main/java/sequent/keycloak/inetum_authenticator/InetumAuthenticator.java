@@ -4,14 +4,27 @@
 
 package sequent.keycloak.inetum_authenticator;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.auto.service.AutoService;
+import jakarta.ws.rs.core.Response;
+import java.io.IOException;
+import java.text.Collator;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import lombok.extern.jbosslog.JBossLog;
-import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.Config;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.Authenticator;
 import org.keycloak.authentication.AuthenticatorFactory;
+import org.keycloak.broker.provider.util.SimpleHttp;
 import org.keycloak.forms.login.LoginFormsProvider;
+import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
@@ -19,597 +32,556 @@ import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.sessions.AuthenticationSessionModel;
-import org.keycloak.broker.provider.util.SimpleHttp;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-
-import com.google.auto.service.AutoService;
-import jakarta.ws.rs.core.Response;
-
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 @JBossLog
 @AutoService(AuthenticatorFactory.class)
-public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
-{
-    public static final String PROVIDER_ID = "inetum-authenticator";
-	private static final InetumAuthenticator SINGLETON = 
-        new InetumAuthenticator();
+public class InetumAuthenticator implements Authenticator, AuthenticatorFactory {
+  public static final String PROVIDER_ID = "inetum-authenticator";
+  private static final InetumAuthenticator SINGLETON = new InetumAuthenticator();
 
-    @Override
-    public void authenticate(AuthenticationFlowContext context)
-    {
-        // Authentication is successful if the user already has the user's 
-        // validation status attribute set to true, otherwise initiate a new 
-        // flow and show form
-        log.info("authenticate()");
+  @Override
+  public void authenticate(AuthenticationFlowContext context) {
+    // Authentication is successful if the user already has the user's
+    // validation status attribute set to true, otherwise initiate a new
+    // flow and show form
+    log.info("authenticate()");
 
-        AuthenticatorConfigModel config = context.getAuthenticatorConfig();
-        Map<String, String> configMap = config.getConfig();
-        UserModel user = context.getUser();
+    AuthenticatorConfigModel config = context.getAuthenticatorConfig();
+    Map<String, String> configMap = config.getConfig();
+    UserModel user = context.getUser();
 
-        if (user != null)
-        {
-            String statusAttributeName = configMap.get(Utils.USER_STATUS_ATTRIBUTE);
-            String statusAttributeValue = user.getFirstAttribute(statusAttributeName);
-            log.info("checking statusAttributeValue=" + statusAttributeValue);
-            boolean validated = (
-                statusAttributeValue != null && statusAttributeValue.equals("TRUE")
-            );
+    if (user != null) {
+      String statusAttributeName = configMap.get(Utils.USER_STATUS_ATTRIBUTE);
+      String statusAttributeValue = user.getFirstAttribute(statusAttributeName);
+      log.info("checking statusAttributeValue=" + statusAttributeValue);
+      boolean validated = (statusAttributeValue != null && statusAttributeValue.equals("TRUE"));
 
-            log.info("validated=" + validated);
-            if (validated)
-            {
-                log.info("validated IS TRUE, pass");
-                context.success();
-                return;
-            }
+      log.info("validated=" + validated);
+      if (validated) {
+        log.info("validated IS TRUE, pass");
+        context.success();
+        return;
+      }
+    }
+
+    log.info("validated is NOT TRUE, rendering the form");
+    try {
+      Map<String, String> transactionData = newTransaction(configMap, context);
+
+      // Save the transaction data into the auth session
+      AuthenticationSessionModel sessionModel = context.getAuthenticationSession();
+      sessionModel.setAuthNote(Utils.FTL_TOKEN_DOB, transactionData.get(Utils.FTL_TOKEN_DOB));
+      sessionModel.setAuthNote(Utils.FTL_USER_ID, transactionData.get(Utils.FTL_USER_ID));
+
+      Response challenge =
+          getBaseForm(context)
+              .setAttribute(Utils.FTL_USER_ID, transactionData.get(Utils.FTL_USER_ID))
+              .setAttribute(Utils.FTL_TOKEN_DOB, transactionData.get(Utils.FTL_TOKEN_DOB))
+              .createForm(Utils.INETUM_FORM);
+      context.challenge(challenge);
+    } catch (IOException error) {
+      context.failure(AuthenticationFlowError.INTERNAL_ERROR);
+      context.attempted();
+      Response challenge =
+          getBaseForm(context)
+              .setAttribute(Utils.FTL_ERROR, Utils.FTL_ERROR_INTERNAL)
+              .createForm(Utils.INETUM_ERROR);
+      context.challenge(challenge);
+    }
+  }
+
+  /** Send a POST to Inetum API */
+  protected SimpleHttp.Response doPost(
+      Map<String, String> configMap,
+      AuthenticationFlowContext context,
+      Object payload,
+      String uriPath)
+      throws IOException {
+    String url = configMap.get(Utils.BASE_URL_ATTRIBUTE) + uriPath;
+    String authorization = "Bearer " + configMap.get(Utils.API_KEY_ATTRIBUTE);
+    log.info("doPost: url=" + url + ", payload =" + payload.toString());
+
+    SimpleHttp.Response response =
+        SimpleHttp.doPost(url, context.getSession())
+            .header("Content-Type", "application/json")
+            .header("Authorization", authorization)
+            .json(payload)
+            .asResponse();
+    return response;
+  }
+
+  /** Send a GET to Inetum API */
+  protected SimpleHttp.Response doGet(
+      Map<String, String> configMap, AuthenticationFlowContext context, String uriPath)
+      throws IOException {
+    String url = configMap.get(Utils.BASE_URL_ATTRIBUTE) + uriPath;
+    String authorization = "Bearer " + configMap.get(Utils.API_KEY_ATTRIBUTE);
+    log.info("doGet: url=" + url);
+
+    SimpleHttp.Response response =
+        SimpleHttp.doGet(url, context.getSession())
+            .header("Content-Type", "application/json")
+            .header("Authorization", authorization)
+            .asResponse();
+    return response;
+  }
+
+  protected Map<String, String> getTemplateMap(Map<String, String> configMap) {
+    Map<String, String> attributes = new HashMap<String, String>();
+    attributes.put(Utils.FTL_API_KEY, configMap.get(Utils.API_KEY_ATTRIBUTE));
+    attributes.put(Utils.FTL_APP_ID, configMap.get(Utils.APP_ID_ATTRIBUTE));
+    attributes.put(Utils.FTL_CLIENT_ID, configMap.get(Utils.CLIENT_ID_ATTRIBUTE));
+    attributes.put(Utils.FTL_BASE_URL, configMap.get(Utils.BASE_URL_ATTRIBUTE));
+    attributes.put(Utils.FTL_ENV_CONFIG, configMap.get(Utils.ENV_CONFIG_ATTRIBUTE));
+    attributes.put(Utils.FTL_DOC_ID, configMap.get(Utils.DOC_ID_ATTRIBUTE));
+    return attributes;
+  }
+
+  protected JsonNode renderJsonTemplate(
+      String sourceCode, Map<String, String> configMap, Map<String, String> extraAttributes)
+      throws Exception {
+    ObjectMapper mapper = new ObjectMapper();
+    Map<String, String> attributes = getTemplateMap(configMap);
+    if (extraAttributes != null) {
+      attributes.putAll(extraAttributes);
+    }
+    String stringPayload =
+        Utils.processStringTemplate(attributes, configMap.get(Utils.TRANSACTION_NEW_ATTRIBUTE));
+    JsonNode jsonPayload = mapper.readValue(stringPayload, JsonNode.class);
+    return jsonPayload;
+  }
+
+  private Map<String, String> getAuthNotesMap(
+      Map<String, String> configMap, AuthenticationFlowContext context) {
+    AuthenticationSessionModel sessionModel = context.getAuthenticationSession();
+    Map<String, String> map = new HashMap<String, String>();
+
+    String docIdAttributeName = configMap.get(Utils.DOC_ID_ATTRIBUTE);
+    map.put(Utils.FTL_DOC_ID, sessionModel.getAuthNote(docIdAttributeName));
+    String docIdTypeAttributeName = configMap.get(Utils.DOC_ID_TYPE_ATTRIBUTE);
+    map.put(Utils.FTL_DOC_ID_TYPE, sessionModel.getAuthNote(docIdTypeAttributeName));
+
+    return map;
+  }
+
+  /** Start a new Inetum transaction */
+  protected Map<String, String> newTransaction(
+      Map<String, String> configMap, AuthenticationFlowContext context) throws IOException {
+    JsonNode jsonPayload = null;
+    Map<String, String> authNotesMap = getAuthNotesMap(configMap, context);
+
+    try {
+      jsonPayload =
+          renderJsonTemplate(
+              configMap.get(Utils.TRANSACTION_NEW_ATTRIBUTE), configMap, authNotesMap);
+    } catch (Exception error) {
+      log.error("newTransaction: Error rendering template", error);
+      throw new IOException(error);
+    }
+
+    try {
+      SimpleHttp.Response response =
+          doPost(configMap, context, jsonPayload, Utils.API_TRANSACTION_NEW);
+
+      if (response.getStatus() != 200) {
+        log.error(
+            "newTransaction: Error calling transaction/new, status = " + response.getStatus());
+        log.error(
+            "newTransaction: Error calling transaction/new, response.asString() = "
+                + response.asString());
+        throw new IOException("Error calling transaction/new, status = " + response.getStatus());
+      }
+
+      JsonNode responseContent = response.asJson().get("response");
+      Map<String, String> output = new HashMap<String, String>();
+      output.put(Utils.FTL_TOKEN_DOB, responseContent.get("tokenDob").asText());
+      output.put(Utils.FTL_USER_ID, responseContent.get("userID").asText());
+      return output;
+    } catch (IOException error) {
+      log.error("Error calling transaction/new", error);
+      throw error;
+    }
+  }
+
+  @Override
+  public void action(AuthenticationFlowContext context) {
+    log.info("action()");
+    boolean validated = verifyResults(context);
+    if (!validated) {
+      // invalid
+      AuthenticationExecutionModel execution = context.getExecution();
+      if (execution.isRequired()) {
+        // context.failureChallenge(
+        // AuthenticationFlowError.INVALID_CREDENTIALS,
+        // getBaseForm(context)
+        // .setError(Utils.FTL_ERROR_AUTH_INVALID)
+        // .createForm(Utils.INETUM_ERROR)
+        // );
+        context.failure(AuthenticationFlowError.INVALID_CREDENTIALS);
+        context.attempted();
+        Response challenge =
+            getBaseForm(context)
+                .setAttribute(Utils.FTL_ERROR, Utils.FTL_ERROR_AUTH_INVALID)
+                .createForm(Utils.INETUM_ERROR);
+        context.challenge(challenge);
+      } else if (execution.isConditional() || execution.isAlternative()) {
+        context.attempted();
+      }
+    } else {
+      // valid
+      context.success();
+    }
+  }
+
+  /*
+   * Calls Inetum API results/get and verify results
+   */
+  protected boolean verifyResults(AuthenticationFlowContext context) {
+    log.info("verifyResults: start");
+
+    // Get the transaction data from the auth session
+    AuthenticationSessionModel sessionModel = context.getAuthenticationSession();
+    String tokenDob = sessionModel.getAuthNote(Utils.FTL_TOKEN_DOB);
+    String userId = sessionModel.getAuthNote(Utils.FTL_USER_ID);
+    if (tokenDob == null || userId == null) {
+      log.info("verifyResults: TRUE; tokenDob == null || userId == null");
+      return false;
+    }
+    AuthenticatorConfigModel config = context.getAuthenticatorConfig();
+    Map<String, String> configMap = config.getConfig();
+
+    try {
+      String uriPath = "/transaction/" + userId + "/status?t=" + tokenDob;
+      SimpleHttp.Response response = doGet(configMap, context, uriPath);
+
+      if (response.getStatus() != 200) {
+        log.error(
+            "verifyResults: Error calling transaction/status, status = " + response.getStatus());
+        log.error(
+            "verifyResults: Error calling transaction/status, response.asString() = "
+                + response.asString());
+        return false;
+      }
+
+      int code = response.asJson().get("code").asInt();
+      if (code != 0) {
+        log.error("verifyResults: Error calling transaction/status, code = " + code);
+        return false;
+      }
+      String idStatus = response.asJson().get("response").get("idStatus").asText();
+      log.info("verifyResults: transaction/status, idStatus = " + idStatus);
+      // TODO: I don't know why I'm getting "processing" instead of
+      // "verificationOk"
+      // if (!idStatus.equals("verificationOk") && !idStatus.equals("processing")) {
+      // log.error("verifyResults: Error calling transaction/status, idStatus = " +
+      // idStatus);
+      // return false;
+      // }
+
+      // The status is verification OK. Now we need to retrieve the
+      // information
+      uriPath = "/transaction/" + userId + "/results";
+      response = doGet(configMap, context, uriPath);
+
+      if (response.getStatus() != 200) {
+        log.error(
+            "verifyResults: Error calling transaction/results, status = " + response.getStatus());
+        log.error(
+            "verifyResults: Error calling transaction/results, response.asString() = "
+                + response.asString());
+        return false;
+      }
+
+      code = response.asJson().get("code").asInt();
+      if (code != 0) {
+        log.error("verifyResults: Error calling transaction/results, code = " + code);
+        return false;
+      }
+      String responseStr = response.asString();
+      log.info("verifyResults: response Str = " + responseStr);
+
+      String attributesToValidate = configMap.get(Utils.ATTRIBUTES_TO_VALIDATE);
+      List<String> attributesToCheck = new ArrayList<>();
+
+      if (attributesToValidate != null) {
+        attributesToCheck = Arrays.asList(attributesToValidate.split(Utils.MULTIVALUE_SEPARATOR));
+      }
+
+      for (String attributeToCheck : attributesToCheck) {
+        String[] split = attributeToCheck.split(Utils.ATTRIBUTE_TO_VALIDATE_SEPARATOR);
+
+        if (split.length != 2) {
+          log.warnv("verifyResults: Invalid attribute to check {0}, ignoring", attributeToCheck);
+          continue;
         }
 
-        log.info("validated is NOT TRUE, rendering the form");
-		try {
-			Map<String, String> transactionData = newTransaction(configMap, context);
-			
-			// Save the transaction data into the auth session
-        	AuthenticationSessionModel sessionModel = context.getAuthenticationSession();
-			sessionModel.setAuthNote(
-				Utils.FTL_TOKEN_DOB, transactionData.get(Utils.FTL_TOKEN_DOB)
-			);
-			sessionModel.setAuthNote(
-				Utils.FTL_USER_ID, transactionData.get(Utils.FTL_USER_ID)
-			);
+        String attribute = split[0];
+        String inetumField = split[1];
 
-			Response challenge = getBaseForm(context)
-				.setAttribute(Utils.FTL_USER_ID, transactionData.get(Utils.FTL_USER_ID))
-				.setAttribute(Utils.FTL_TOKEN_DOB, transactionData.get(Utils.FTL_TOKEN_DOB))
-				.createForm(Utils.INETUM_FORM);
-			context.challenge(challenge);
-		} catch (IOException error) {
-			context.failure(AuthenticationFlowError.INTERNAL_ERROR);
-			context.attempted();
-			Response challenge = getBaseForm(context)
-				.setAttribute(Utils.FTL_ERROR, Utils.FTL_ERROR_INTERNAL)
-				.createForm(Utils.INETUM_ERROR);
-			context.challenge(challenge);
-		}
-    }
+        // Get attribute from authentication notes
+        String attributeValue = context.getAuthenticationSession().getAuthNote(attribute);
 
-	/**
-	 * Send a POST to Inetum API
-	 */
-	protected SimpleHttp.Response doPost(
-		Map<String, String> configMap,
-		AuthenticationFlowContext context,
-		Object payload,
-		String uriPath
-	) throws IOException {
-		String url = configMap.get(Utils.BASE_URL_ATTRIBUTE) + uriPath;
-		String authorization = "Bearer " + configMap.get(Utils.API_KEY_ATTRIBUTE);
-		log.info("doPost: url=" + url + ", payload =" + payload.toString());
-
-		SimpleHttp.Response response = SimpleHttp
-			.doPost(url, context.getSession())
-			.header("Content-Type", "application/json")
-			.header("Authorization", authorization)
-			.json(payload)
-			.asResponse();
-		return response;
-	}
-
-	/**
-	 * Send a GET to Inetum API
-	 */
-	protected SimpleHttp.Response doGet(
-		Map<String, String> configMap,
-		AuthenticationFlowContext context,
-		String uriPath
-	) throws IOException {
-		String url = configMap.get(Utils.BASE_URL_ATTRIBUTE) + uriPath;
-		String authorization = "Bearer " + configMap.get(Utils.API_KEY_ATTRIBUTE);
-		log.info("doGet: url=" + url);
-
-		SimpleHttp.Response response = SimpleHttp
-			.doGet(url, context.getSession())
-			.header("Content-Type", "application/json")
-			.header("Authorization", authorization)
-			.asResponse();
-		return response;
-	}
-
-	protected Map<String, String> getTemplateMap(Map<String, String> configMap)
-	{
-		Map<String, String> attributes = new HashMap<String, String>();
-		attributes.put(Utils.FTL_API_KEY, configMap.get(Utils.API_KEY_ATTRIBUTE));
-		attributes.put(Utils.FTL_APP_ID, configMap.get(Utils.APP_ID_ATTRIBUTE));
-		attributes.put(Utils.FTL_CLIENT_ID, configMap.get(Utils.CLIENT_ID_ATTRIBUTE));
-		attributes.put(Utils.FTL_BASE_URL, configMap.get(Utils.BASE_URL_ATTRIBUTE));
-		attributes.put(Utils.FTL_ENV_CONFIG, configMap.get(Utils.ENV_CONFIG_ATTRIBUTE));
-		attributes.put(Utils.FTL_DOC_ID, configMap.get(Utils.DOC_ID_ATTRIBUTE));
-		return attributes;
-	}
-
-	protected JsonNode renderJsonTemplate(
-		String sourceCode,
-		Map<String, String> configMap,
-		Map<String, String> extraAttributes
-	) throws Exception {
-		ObjectMapper mapper = new ObjectMapper();
-		Map<String, String> attributes = getTemplateMap(configMap);
-		if (extraAttributes != null) {
-			attributes.putAll(extraAttributes);
-		}
-		String stringPayload = Utils.processStringTemplate(
-			attributes,
-			configMap.get(Utils.TRANSACTION_NEW_ATTRIBUTE)
-		);
-		JsonNode jsonPayload = mapper
-			.readValue(stringPayload, JsonNode.class);
-		return jsonPayload;
-	}
-
-	private Map<String, String> getAuthNotesMap(
-		Map<String, String> configMap,
-		AuthenticationFlowContext context
-	) {
-		AuthenticationSessionModel sessionModel = context
-			.getAuthenticationSession();
-		Map<String, String> map = new HashMap<String, String>();
-	
-		String docIdAttributeName = configMap.get(Utils.DOC_ID_ATTRIBUTE);
-		map.put(
-			Utils.FTL_DOC_ID, sessionModel.getAuthNote(docIdAttributeName)
-		);
-		String docIdTypeAttributeName = configMap.get(Utils.DOC_ID_TYPE_ATTRIBUTE);
-		map.put(
-			Utils.FTL_DOC_ID_TYPE, sessionModel.getAuthNote(docIdTypeAttributeName)
-		);
-
-		return map;
-	}
-
-	/**
-	 * Start a new Inetum transaction
-	 */
-	protected Map<String, String> newTransaction(
-		Map<String, String> configMap,
-		AuthenticationFlowContext context
-	) throws IOException
-	{
-		JsonNode jsonPayload = null;
-		Map<String, String> authNotesMap = getAuthNotesMap(configMap, context);
-
-		try {
-			jsonPayload = renderJsonTemplate(
-				configMap.get(Utils.TRANSACTION_NEW_ATTRIBUTE),
-				configMap,
-				authNotesMap
-			);
-		} catch (Exception error) {
-			log.error("newTransaction: Error rendering template", error);
-			throw new IOException(error);
-		}
-
-		try {
-			SimpleHttp.Response response = doPost(
-				configMap,
-				context,
-				jsonPayload,
-				Utils.API_TRANSACTION_NEW
-			);
-
-			if (response.getStatus() != 200) {
-				log.error("newTransaction: Error calling transaction/new, status = " + response.getStatus());
-				log.error("newTransaction: Error calling transaction/new, response.asString() = " + response.asString());
-				throw new IOException(
-					"Error calling transaction/new, status = " + response.getStatus()
-				);
-			}
-
-			JsonNode responseContent = response.asJson().get("response");
-			Map<String, String> output = new HashMap<String, String>();
-			output.put(Utils.FTL_TOKEN_DOB, responseContent.get("tokenDob").asText());
-			output.put(Utils.FTL_USER_ID, responseContent.get("userID").asText());
-			return output;
-		} catch (IOException error) {
-			log.error("Error calling transaction/new", error);
-			throw error;
-		}
-	}
-
-    @Override
-    public void action(AuthenticationFlowContext context)
-    {
-        log.info("action()");
-        boolean validated = verifyResults(context);
-        if (!validated)
-        {
-			// invalid
-			AuthenticationExecutionModel execution = context.getExecution();
-			if (execution.isRequired())
-            {
-				//context.failureChallenge(
-				//	AuthenticationFlowError.INVALID_CREDENTIALS,
-				//	getBaseForm(context)
-				//		.setError(Utils.FTL_ERROR_AUTH_INVALID)
-				//		.createForm(Utils.INETUM_ERROR)
-				//);
-				context.failure(AuthenticationFlowError.INVALID_CREDENTIALS);
-				context.attempted();
-				Response challenge = getBaseForm(context)
-					.setAttribute(Utils.FTL_ERROR, Utils.FTL_ERROR_AUTH_INVALID)
-					.createForm(Utils.INETUM_ERROR);
-				context.challenge(challenge);
-			} else if (execution.isConditional() || execution.isAlternative())
-            {
-				context.attempted();
-			}
-        } else {
-            // valid
-            context.success();
+        if (attributeValue == null) {
+          log.errorv("verifyResults: could not find value in auth notes {0}", attribute);
+          return false;
         }
+
+        // Get inetum value from response
+        String inetumValue = getValueFromInetumResponse(response, inetumField);
+
+        if (inetumValue == null) {
+          log.errorv("verifyResults: could not find value in inetum response {0}", inetumField);
+          return false;
+        }
+
+        // Compare and return false if different
+        Collator collator = Collator.getInstance();
+        collator.setDecomposition(2);
+        collator.setStrength(0);
+
+        if (collator.compare(attributeValue.trim(), inetumValue.trim()) != 0) {
+          log.errorv(
+              "verifyResults: FALSE; attribute: {0}, inetumField: {1}, attributeValue: {2}, inetumValue: {3}",
+              attribute, inetumField, attributeValue, inetumValue);
+          return false;
+        }
+      }
+
+      log.info("verifyResults: TRUE");
+
+      sessionModel.setAuthNote(
+          configMap.get(Utils.USER_STATUS_ATTRIBUTE), Utils.USER_STATUS_VERIFIED);
+
+      return true;
+    } catch (IOException error) {
+      log.error("verifyResults(): FALSE; Exception: " + error.toString());
+      return false;
+    }
+  }
+
+  private String getValueFromInetumResponse(SimpleHttp.Response response, String inetumField) {
+    String inetumValue = null;
+    try {
+      inetumValue = response.asJson().get("response").get("mrz").get(inetumField).asText();
+      log.infov("getValueFromInetumResponse: {0} = {1}", inetumField, inetumValue);
+    } catch (Exception error) {
+      // ignore, we'll try the ocr
+    }
+    if (inetumValue == null) {
+      // try ocr
+      log.infov("getValueFromInetumResponse: {0} is null, trying ocr", inetumField);
+
+      try {
+        inetumValue = response.asJson().get("response").get("ocr").get(inetumField).asText();
+      } catch (Exception error) {
+        log.error("getValueFromInetumResponse: ocr is also null, return false");
+        return null;
+      }
+
+      if (inetumValue == null) {
+        log.error("getValueFromInetumResponse: ocr is also null, return false");
+        return null;
+      }
     }
 
+    log.infov("getValueFromInetumResponse: {0}: {1}", inetumField, inetumValue);
+    return inetumValue;
+  }
 
-	/*
-	 * Calls Inetum API results/get and verify results
-	 */
-    protected boolean verifyResults(AuthenticationFlowContext context)
-    {
-		log.info("verifyResults: start");
+  protected LoginFormsProvider getBaseForm(AuthenticationFlowContext context) {
+    AuthenticatorConfigModel config = context.getAuthenticatorConfig();
+    Map<String, String> configMap = config.getConfig();
+    Map<String, String> authNotesMap = getAuthNotesMap(configMap, context);
+    return context
+        .form()
+        .setAttribute(Utils.FTL_REALM, context.getRealm())
+        .setAttribute(Utils.FTL_API_KEY, configMap.get(Utils.API_KEY_ATTRIBUTE))
+        .setAttribute(Utils.FTL_APP_ID, configMap.get(Utils.APP_ID_ATTRIBUTE))
+        .setAttribute(Utils.FTL_CLIENT_ID, configMap.get(Utils.CLIENT_ID_ATTRIBUTE))
+        .setAttribute(Utils.FTL_BASE_URL, configMap.get(Utils.BASE_URL_ATTRIBUTE))
+        .setAttribute(Utils.FTL_ENV_CONFIG, configMap.get(Utils.ENV_CONFIG_ATTRIBUTE))
+        .setAttribute(Utils.FTL_DOC_ID, authNotesMap.get(Utils.FTL_DOC_ID))
+        .setAttribute(Utils.FTL_DOC_ID_TYPE, authNotesMap.get(Utils.FTL_DOC_ID_TYPE));
+  }
 
-		// Get the transaction data from the auth session
-		AuthenticationSessionModel sessionModel = context.getAuthenticationSession();
-		String tokenDob = sessionModel.getAuthNote(Utils.FTL_TOKEN_DOB);
-		String userId = sessionModel.getAuthNote(Utils.FTL_USER_ID);
-		if (tokenDob == null || userId == null) {
-			log.info("verifyResults: TRUE; tokenDob == null || userId == null");
-			return false;
-		}
-		AuthenticatorConfigModel config = context.getAuthenticatorConfig();
-		Map<String, String> configMap = config.getConfig();
+  @Override
+  public boolean requiresUser() {
+    return false;
+  }
 
-		try {
-			String uriPath = "/transaction/" + userId + "/status?t=" + tokenDob;
-			SimpleHttp.Response response = 
-				doGet(configMap, context, uriPath);
+  @Override
+  public boolean configuredFor(KeycloakSession session, RealmModel realm, UserModel user) {
+    return false;
+  }
 
-			if (response.getStatus() != 200) {
-				log.error("verifyResults: Error calling transaction/status, status = " + response.getStatus());
-				log.error("verifyResults: Error calling transaction/status, response.asString() = " + response.asString());
-				return false;
-			}
+  @Override
+  public void setRequiredActions(KeycloakSession session, RealmModel realm, UserModel user) {}
 
-			int code = response.asJson().get("code").asInt();
-			if (code != 0) {
-				log.error("verifyResults: Error calling transaction/status, code = " + code);
-				return false;
-			}
-			String idStatus = response.asJson().get("response").get("idStatus").asText();
-			log.info("verifyResults: transaction/status, idStatus = " + idStatus);
-			// TODO: I don't know why I'm getting "processing" instead of
-			// "verificationOk"
-			// if (!idStatus.equals("verificationOk") && !idStatus.equals("processing")) {
-			// 	log.error("verifyResults: Error calling transaction/status, idStatus = " + idStatus);
-			// 	return false;
-			// }
+  @Override
+  public String getId() {
+    return PROVIDER_ID;
+  }
 
-			// The status is verification OK. Now we need to retrieve the
-			// information
-			uriPath = "/transaction/" + userId + "/results";
-			response = doGet(configMap, context, uriPath);
+  @Override
+  public String getDisplayType() {
+    return "Inetum Authentication";
+  }
 
-			if (response.getStatus() != 200) {
-				log.error("verifyResults: Error calling transaction/results, status = " + response.getStatus());
-				log.error("verifyResults: Error calling transaction/results, response.asString() = " + response.asString());
-				return false;
-			}
+  @Override
+  public String getHelpText() {
+    return "Validates the User using Inetum Platform.";
+  }
 
-			code = response.asJson().get("code").asInt();
-			if (code != 0) {
-				log.error("verifyResults: Error calling transaction/results, code = " + code);
-				return false;
-			}
-			String responseStr = response.asString();
-			log.info("verifyResults: response Str = " + responseStr);
-			String personalNumber = null;
-			try {
-				personalNumber = response
-					.asJson()
-					.get("response")
-					.get("mrz")
-					.get("personal_number")
-					.asText();
-				log.info("verifyResults: personalNumber = " + personalNumber);
-			} catch (Exception error) {
-				// ignore, we'll try the ocr
-			}
-			if (personalNumber == null) {
-				// try ocr
-				log.info("verifyResults: personalNumber is null, trying ocr");
+  @Override
+  public String getReferenceCategory() {
+    return "External Authenticator";
+  }
 
-				try {
-					personalNumber = response
-						.asJson()
-						.get("response")
-						.get("ocr")
-						.get("personal_number")
-						.asText();
-				} catch (Exception error) {
-					log.error("verifyResults: ocr is also null, return false");
-					return false;
-				}
+  @Override
+  public boolean isConfigurable() {
+    return true;
+  }
 
-				if (personalNumber == null) {
-					log.error("verifyResults: ocr is also null, return false");
-					return false;
-				}
-			}
-			log.info("verifyResults: TRUE, personalNumber = " + personalNumber);
+  @Override
+  public boolean isUserSetupAllowed() {
+    return true;
+  }
 
-			sessionModel.setAuthNote(
-				configMap.get(Utils.DOC_ID_ATTRIBUTE),
-				personalNumber
-			);
-			sessionModel.setAuthNote(
-				configMap.get(Utils.USER_STATUS_ATTRIBUTE),
-				Utils.USER_STATUS_VERIFIED
-			);
+  private static AuthenticationExecutionModel.Requirement[] REQUIREMENT_CHOICES = {
+    AuthenticationExecutionModel.Requirement.REQUIRED,
+    AuthenticationExecutionModel.Requirement.ALTERNATIVE,
+    AuthenticationExecutionModel.Requirement.DISABLED
+  };
 
-			return true;
-		} catch(IOException error) {
-			log.error("verifyResults(): FALSE; Exception: " + error.toString());
-			return false;
-		}
-    }
+  @Override
+  public AuthenticationExecutionModel.Requirement[] getRequirementChoices() {
+    return REQUIREMENT_CHOICES;
+  }
 
-    protected LoginFormsProvider getBaseForm(AuthenticationFlowContext context)
-    {
-        AuthenticatorConfigModel config = context.getAuthenticatorConfig();
-        Map<String, String> configMap = config.getConfig();
-		Map<String, String> authNotesMap = getAuthNotesMap(configMap, context);
-        return context
-            .form()
-            .setAttribute(Utils.FTL_REALM, context.getRealm())
-            .setAttribute(Utils.FTL_API_KEY, configMap.get(Utils.API_KEY_ATTRIBUTE))
-            .setAttribute(Utils.FTL_APP_ID, configMap.get(Utils.APP_ID_ATTRIBUTE))
-            .setAttribute(Utils.FTL_CLIENT_ID, configMap.get(Utils.CLIENT_ID_ATTRIBUTE))
-            .setAttribute(Utils.FTL_BASE_URL, configMap.get(Utils.BASE_URL_ATTRIBUTE))
-            .setAttribute(Utils.FTL_ENV_CONFIG, configMap.get(Utils.ENV_CONFIG_ATTRIBUTE))
-            .setAttribute(
-				Utils.FTL_DOC_ID,
-				authNotesMap.get(Utils.FTL_DOC_ID)
-			)
-            .setAttribute(
-				Utils.FTL_DOC_ID_TYPE,
-				authNotesMap.get(Utils.FTL_DOC_ID_TYPE)
-			);
-    }
- 
-    @Override
-    public boolean requiresUser() {
-        return false;
-    }
- 
-     @Override
-     public boolean configuredFor(
-        KeycloakSession session,
-        RealmModel realm,
-        UserModel user
-    ) {
-        return false;
-    }
- 
-     @Override
-     public void setRequiredActions(
-        KeycloakSession session,
-        RealmModel realm,
-        UserModel user
-    ) {
-    }
+  @Override
+  public List<ProviderConfigProperty> getConfigProperties() {
+    return List.of(
+        new ProviderConfigProperty(
+            Utils.API_KEY_ATTRIBUTE, "API KEY", "-", ProviderConfigProperty.STRING_TYPE, ""),
+        new ProviderConfigProperty(
+            Utils.APP_ID_ATTRIBUTE, "APP ID", "-", ProviderConfigProperty.STRING_TYPE, ""),
+        new ProviderConfigProperty(
+            Utils.CLIENT_ID_ATTRIBUTE, "CLIENT ID", "-", ProviderConfigProperty.STRING_TYPE, ""),
+        new ProviderConfigProperty(
+            Utils.DOC_ID_ATTRIBUTE,
+            "User Data Attribute",
+            "The name of the user data attribute to check against, and name of the auth note to be set.",
+            ProviderConfigProperty.STRING_TYPE,
+            "sequent.read-only.id-card-number"),
+        new ProviderConfigProperty(
+            Utils.DOC_ID_TYPE_ATTRIBUTE,
+            "User Data Type Attribute",
+            "The name of the user data attribute to check against for data type, and name of the auth note to be set.",
+            ProviderConfigProperty.STRING_TYPE,
+            "sequent.read-only.id-card-type"),
+        new ProviderConfigProperty(
+            Utils.USER_STATUS_ATTRIBUTE,
+            "User Status Attribute",
+            "The name of the user validation status attribute.",
+            ProviderConfigProperty.STRING_TYPE,
+            "sequent.read-only.id-card-number-validated"),
+        new ProviderConfigProperty(
+            Utils.ATTRIBUTES_TO_VALIDATE,
+            "Attributes to validate using inetum data",
+            "A list of attributes to be validated against inetum data. Every entry must 2 values separated by the separator '"
+                + Utils.ATTRIBUTE_TO_VALIDATE_SEPARATOR
+                + "', where the first value is the user profile attribute and the second the inetum data field. For example firstName"
+                + Utils.ATTRIBUTE_TO_VALIDATE_SEPARATOR
+                + "given_names",
+            ProviderConfigProperty.MULTIVALUED_STRING_TYPE,
+            Collections.unmodifiableCollection(
+                Arrays.asList(
+                    "sequent.read-only.id-card-number"
+                        + Utils.ATTRIBUTE_TO_VALIDATE_SEPARATOR
+                        + "personal_number"))),
+        new ProviderConfigProperty(
+            Utils.SDK_ATTRIBUTE,
+            "Configuration for the SDK",
+            "-",
+            ProviderConfigProperty.TEXT_TYPE,
+            "{}"),
+        new ProviderConfigProperty(
+            Utils.ENV_CONFIG_ATTRIBUTE,
+            "Configuration for the env_config",
+            "Uses FreeMarker template, see example",
+            ProviderConfigProperty.TEXT_TYPE,
+            """
+                {
+                	environment: 0,
+                	customTextsConfig: myStrings,
+                	baseAssetsUrl: "../../../",
+                	uploadAndCheckIdentifiers: ["ESP"],
+                	showLogs: false,
+                	logTypes: ['ERROR', 'INFO'],
+                	design: design,
+                	bamEnabled: true,
+                	ocrCountdown: false,
+                	videoSelfieShowDNI: true,
+                	cancelProcessButton: true,
+                	showPermissionsHelp: true,
+                	qrEnabled: false,
+                	voiceEnabled: true,
+                	voiceLanguage: VoiceLanguage.spanishSpain,
+                	customIOSBrowsersConfig: [IOSBrowser.safari],
+                	otpEmailAddress: 'xxxxxxx@inetum.com',
+                	otpPhoneNumber: 'xxxxxxxx',
+                	countryCode: CountryCode.españa,
+                	applicationId: window.DOB_APP_ID,
+                	broadcast: new LocalBroadcastManager()
+                }
+                				"""),
+        new ProviderConfigProperty(
+            Utils.BASE_URL_ATTRIBUTE,
+            "Base URL for Inetum API",
+            "-",
+            ProviderConfigProperty.STRING_TYPE,
+            "https://des.digitalonboarding.es/dob-api/2.0.0"),
+        new ProviderConfigProperty(
+            Utils.TRANSACTION_NEW_ATTRIBUTE,
+            "transaction/new template",
+            "Uses FreeMarker template, see example",
+            ProviderConfigProperty.TEXT_TYPE,
+            """
+                {
+                	"wFtype_Facial": true,
+                	"wFtype_OCR": true,
+                	"wFtype_Video": false,
+                	"wFtype_Anti_Spoofing": false,
+                	"wFtype_Sign": false,
+                	"wFtype_VerifAvan": false,
+                	"wFtype_UECertificate": false,
+                	"docID": "${doc_id}",
+                	"name": "",
+                	"lastname1": "",
+                	"lastname2": "",
+                	"country": "",
+                	"mobilePhone": "",
+                	"eMail": "",
+                	"priority": 3,
+                	"maxRetries": 3,
+                	"maxProcessTime": 30,
+                	"application": "sequent-keycloak",
+                	"clienteID": "${client_id}"
+                }
+                				"""));
+  }
 
-	@Override
-	public String getId() {
-		return PROVIDER_ID;
-	}
+  @Override
+  public Authenticator create(KeycloakSession session) {
+    return SINGLETON;
+  }
 
-	@Override
-	public String getDisplayType() {
-		return "Inetum Authentication";
-	}
+  @Override
+  public void init(Config.Scope config) {}
 
-	@Override
-	public String getHelpText() {
-		return "Validates the User using Inetum Platform.";
-	}
+  @Override
+  public void postInit(KeycloakSessionFactory factory) {}
 
-	@Override
-	public String getReferenceCategory() {
-		return "External Authenticator";
-	}
-
-	@Override
-	public boolean isConfigurable() {
-		return true;
-	}
-
-	@Override
-	public boolean isUserSetupAllowed() {
-		return true;
-	}
-
-    private static AuthenticationExecutionModel.Requirement[] REQUIREMENT_CHOICES = {
-		AuthenticationExecutionModel.Requirement.REQUIRED,
-		AuthenticationExecutionModel.Requirement.ALTERNATIVE,
-		AuthenticationExecutionModel.Requirement.DISABLED
-	};
-
-	@Override
-	public AuthenticationExecutionModel.Requirement[] getRequirementChoices() {
-		return REQUIREMENT_CHOICES;
-	}
-
-	@Override
-	public List<ProviderConfigProperty> getConfigProperties() {
-		return List.of(
-			new ProviderConfigProperty(
-				Utils.API_KEY_ATTRIBUTE,
-				"API KEY",
-				"-",
-				ProviderConfigProperty.STRING_TYPE,
-				""
-			),
-			new ProviderConfigProperty(
-				Utils.APP_ID_ATTRIBUTE,
-				"APP ID",
-				"-",
-				ProviderConfigProperty.STRING_TYPE,
-				""
-			),
-			new ProviderConfigProperty(
-				Utils.CLIENT_ID_ATTRIBUTE,
-				"CLIENT ID",
-				"-",
-				ProviderConfigProperty.STRING_TYPE,
-				""
-			),
-			new ProviderConfigProperty(
-				Utils.DOC_ID_ATTRIBUTE,
-				"User Data Attribute",
-				"The name of the user data attribute to check against, and name of the auth note to be set.",
-				ProviderConfigProperty.STRING_TYPE,
-				"sequent.read-only.id-card-number"
-			),
-			new ProviderConfigProperty(
-				Utils.DOC_ID_TYPE_ATTRIBUTE,
-				"User Data Type Attribute",
-				"The name of the user data attribute to check against for data type, and name of the auth note to be set.",
-				ProviderConfigProperty.STRING_TYPE,
-				"sequent.read-only.id-card-type"
-			),
-			new ProviderConfigProperty(
-				Utils.USER_STATUS_ATTRIBUTE,
-				"User Status Attribute",
-				"The name of the user validation status attribute.",
-				ProviderConfigProperty.STRING_TYPE,
-				"sequent.read-only.id-card-number-validated"
-			),
-			new ProviderConfigProperty(
-				Utils.SDK_ATTRIBUTE,
-				"Configuration for the SDK",
-				"-",
-				ProviderConfigProperty.TEXT_TYPE,
-				"{}"
-			),
-			new ProviderConfigProperty(
-				Utils.ENV_CONFIG_ATTRIBUTE,
-				"Configuration for the env_config",
-				"Uses FreeMarker template, see example",
-				ProviderConfigProperty.TEXT_TYPE,
-				"""
-{
-	environment: 0,
-	customTextsConfig: myStrings,
-	baseAssetsUrl: "../../../",
-	uploadAndCheckIdentifiers: ["ESP"],
-	showLogs: false,
-	logTypes: ['ERROR', 'INFO'],
-	design: design,
-	bamEnabled: true,
-	ocrCountdown: false,
-	videoSelfieShowDNI: true,
-	cancelProcessButton: true,
-	showPermissionsHelp: true,
-	qrEnabled: false,
-	voiceEnabled: true,
-	voiceLanguage: VoiceLanguage.spanishSpain,
-	customIOSBrowsersConfig: [IOSBrowser.safari],
-	otpEmailAddress: 'xxxxxxx@inetum.com',
-	otpPhoneNumber: 'xxxxxxxx',
-	countryCode: CountryCode.españa,
-	applicationId: window.DOB_APP_ID,
-	broadcast: new LocalBroadcastManager()
+  @Override
+  public void close() {}
 }
-				"""
-			),
-			new ProviderConfigProperty(
-				Utils.BASE_URL_ATTRIBUTE,
-				"Base URL for Inetum API",
-				"-",
-				ProviderConfigProperty.STRING_TYPE,
-				"https://des.digitalonboarding.es/dob-api/2.0.0"
-			),
-			new ProviderConfigProperty(
-				Utils.TRANSACTION_NEW_ATTRIBUTE,
-				"transaction/new template",
-				"Uses FreeMarker template, see example",
-				ProviderConfigProperty.TEXT_TYPE,
-				"""
-{
-	"wFtype_Facial": true,
-	"wFtype_OCR": true,
-	"wFtype_Video": false,
-	"wFtype_Anti_Spoofing": false,
-	"wFtype_Sign": false,
-	"wFtype_VerifAvan": false,
-	"wFtype_UECertificate": false,
-	"docID": "${doc_id}",
-	"name": "",
-	"lastname1": "",
-	"lastname2": "",
-	"country": "",
-	"mobilePhone": "",
-	"eMail": "",
-	"priority": 3,
-	"maxRetries": 3,
-	"maxProcessTime": 30,
-	"application": "sequent-keycloak",
-	"clienteID": "${client_id}"
-}
-				"""
-			)
-		);
-	}
-
-	@Override
-	public Authenticator create(KeycloakSession session) {
-		return SINGLETON;
-	}
-
-	@Override
-	public void init(Config.Scope config) {
-	}
-
-	@Override
-	public void postInit(KeycloakSessionFactory factory) {
-	}
-
-	@Override
-	public void close() {
-	}
-}
- 

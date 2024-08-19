@@ -5,15 +5,37 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::str::FromStr;
 use strum_macros::{Display, EnumString};
 
 #[derive(
-    Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    Hash,
 )]
 pub enum VotingChannel {
     PAPER,
     POSTAL,
     IN_PERSON,
+}
+
+impl Default for VotingChannel {
+    fn default() -> Self {
+        VotingChannel::PAPER
+    }
+}
+
+impl From<Option<String>> for VotingChannel {
+    fn from(opt: Option<String>) -> Self {
+        opt.and_then(|s| VotingChannel::from_str(&s).ok())
+            .unwrap_or_else(|| VotingChannel::default())
+    }
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Debug, Clone, Default)]

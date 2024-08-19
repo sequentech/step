@@ -88,7 +88,7 @@
                 "bash",
                 "--",
                 "-c",
-                "cd packages && yarn && yarn build:ui-essentials && yarn start:admin-portal",
+                "cd packages && yarn && yarn build:ui-core && yarn build:ui-essentials && yarn start:admin-portal",
             ],
             "presentation": {
                 "echo": true,
@@ -505,6 +505,7 @@
             "args": [
                 "shell",
                 "bash",
+                "--",
                 "-c",
                 "./.devcontainer/scripts/fix-vscode-settings-nix.sh",
             ],
@@ -528,6 +529,7 @@
             "args": [
                 "shell",
                 "bash",
+                "--",
                 "-c",
                 "./.devcontainer/scripts/update-graphql.sh",
             ],
@@ -553,7 +555,7 @@
                 "bash",
                 "--",
                 "-c",
-                "cd packages/ && cargo fmt && yarn lint:fix && yarn prettify:fix",
+                "cd packages/ && cargo fmt && yarn lint:fix && yarn prettify:fix && cd ./keycloak-extensions && mvn clean install && mvn invoker:run@run-spotless-apply",
             ],
             "presentation": {
                 "echo": true,

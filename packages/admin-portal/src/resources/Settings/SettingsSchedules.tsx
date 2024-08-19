@@ -30,8 +30,8 @@ import {
     useNotify,
 } from "react-admin"
 
-import {Dialog, ITenantScheduledEvent, ITenantSettings} from "@sequentech/ui-essentials"
-import {IconButton} from "@sequentech/ui-essentials"
+import {ITenantScheduledEvent, ITenantSettings} from "@sequentech/ui-core"
+import {Dialog, IconButton} from "@sequentech/ui-essentials"
 import {ListActions} from "@/components/ListActions"
 import {ActionsColumn} from "@/components/ActionButons"
 import {useTenantStore} from "@/providers/TenantContextProvider"

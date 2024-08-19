@@ -6,6 +6,7 @@ use crate::ballot::{
     self, CandidatePresentation, ContestPresentation, ElectionDates,
     ElectionEventPresentation, ElectionPresentation, I18nContent,
 };
+use crate::serialization::deserialize_with_path::deserialize_value;
 use crate::types::hasura::core as hasura_types;
 use anyhow::{anyhow, Context, Result};
 use std::env;
@@ -71,7 +72,6 @@ pub fn create_ballot_style(
             anyhow!("Error parsing election presentation {:?}", err)
         })?
         .unwrap_or(Default::default());
-    election_presentation.dates = Some(election_dates);
 
     let contests: Vec<ballot::Contest> = sorted_contests
         .into_iter()
@@ -109,6 +109,7 @@ pub fn create_ballot_style(
         contests,
         election_event_presentation: Some(election_event_presentation.clone()),
         election_presentation: Some(election_presentation),
+        election_dates: Some(election_dates),
     })
 }
 
@@ -150,10 +151,10 @@ fn create_contest(
 
             Ok(ballot::Candidate {
                 id: candidate.id.clone(),
-                tenant_id: candidate.tenant_id.clone(),
-                election_event_id: candidate.election_event_id.clone(),
-                election_id: contest.election_id.clone(),
-                contest_id: contest.id.clone(),
+                tenant_id: (candidate.tenant_id.clone()),
+                election_event_id: (candidate.election_event_id.clone()),
+                election_id: (contest.election_id.clone()),
+                contest_id: (contest.id.clone()),
                 name: candidate.name.clone(),
                 name_i18n,
                 description: candidate.description.clone(),
@@ -162,29 +163,39 @@ fn create_contest(
                 alias_i18n: alias_i18n,
                 candidate_type: candidate.r#type.clone(),
                 presentation: Some(candidate_presentation),
+                annotations: candidate
+                    .annotations
+                    .clone()
+                    .map(|value| deserialize_value(value))
+                    .transpose()?,
             })
         })
         .collect::<Result<Vec<ballot::Candidate>>>()?;
 
     Ok(ballot::Contest {
         id: contest.id.clone(),
-        tenant_id: contest.tenant_id,
-        election_event_id: contest.election_event_id,
-        election_id: contest.election_id.clone(),
+        tenant_id: (contest.tenant_id),
+        election_event_id: (contest.election_event_id),
+        election_id: (contest.election_id.clone()),
         name: contest.name,
         name_i18n,
         description: contest.description,
         description_i18n,
         alias: contest.alias.clone(),
         alias_i18n,
-        max_votes: contest.max_votes.unwrap_or(0),
-        min_votes: contest.min_votes.unwrap_or(0),
+        max_votes: (contest.max_votes.unwrap_or(0)),
+        min_votes: (contest.min_votes.unwrap_or(0)),
         winning_candidates_num: contest.winning_candidates_num.unwrap_or(1),
         voting_type: contest.voting_type,
         counting_algorithm: contest.counting_algorithm,
-        is_encrypted: contest.is_encrypted.unwrap_or(false),
+        is_encrypted: (contest.is_encrypted.unwrap_or(false)),
         candidates,
         presentation: Some(contest_presentation),
         created_at: contest.created_at.map(|date| date.to_rfc3339()),
+        annotations: contest
+            .annotations
+            .clone()
+            .map(|value| deserialize_value(value))
+            .transpose()?,
     })
 }

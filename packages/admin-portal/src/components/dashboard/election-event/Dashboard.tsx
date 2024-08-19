@@ -3,12 +3,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useEffect, useState} from "react"
+import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
 import {Box, CircularProgress} from "@mui/material"
 import {useQuery} from "@apollo/client"
 import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials"
 import styled from "@emotion/styled"
 import {Stats} from "./Stats"
+import {useTranslation} from "react-i18next"
 import {daysBefore, formatDate, getToday} from "../charts/Charts"
 import {VotesPerDay} from "../charts/VotesPerDay"
 import {VotingChanel, VotersByChannel} from "../charts/VotersByChannel"
@@ -19,13 +20,10 @@ import {
     Sequent_Backend_Election_Event,
 } from "@/gql/graphql"
 import {useRecordContext} from "react-admin"
-import {
-    EVotingStatus,
-    IElectionEventStatistics,
-    IElectionEventStatus,
-} from "@sequentech/ui-essentials"
+import {EVotingStatus, IElectionEventStatistics, IElectionEventStatus} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {GET_ELECTION_EVENT_STATS} from "@/queries/GetElectionEventStats"
+import {getAuthUrl} from "@/services/UrlGeneration"
 
 const Container = styled(Box)`
     display: flex;
@@ -49,6 +47,7 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
     const cardHeight = 300
     const endDate = getToday()
     const startDate = daysBefore(endDate, 6)
+    const {t} = useTranslation()
 
     const {
         loading,
@@ -102,6 +101,24 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
         }
         setSelected(Math.max(...data))
     }, [record?.status])
+
+    const loginUrl = useMemo(() => {
+        return getAuthUrl(
+            globalSettings.VOTING_PORTAL_URL,
+            tenantId ?? "",
+            record?.id ?? "",
+            "login"
+        )
+    }, [globalSettings.VOTING_PORTAL_URL, tenantId, record?.id])
+
+    const enrollUrl = useMemo(() => {
+        return getAuthUrl(
+            globalSettings.VOTING_PORTAL_URL,
+            tenantId ?? "",
+            record?.id ?? "",
+            "enroll"
+        )
+    }, [globalSettings.VOTING_PORTAL_URL, tenantId, record?.id])
 
     if (loading) {
         return <CircularProgress />
@@ -165,6 +182,22 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
                             height={cardHeight}
                         />
                     </Container>
+                </Box>
+                <Box
+                    sx={{
+                        display: "flex",
+                        justifyContent: "center",
+                        gap: "20px",
+                        paddingTop: "10px",
+                    }}
+                >
+                    <a href={loginUrl ?? ""} target="_blank">
+                        {t("dashboard.voterLoginURL")}
+                    </a>
+                    <p>|</p>
+                    <a href={enrollUrl ?? ""} target="_blank">
+                        {t("dashboard.voterEnrollURL")}
+                    </a>
                 </Box>
             </Box>
         </>
