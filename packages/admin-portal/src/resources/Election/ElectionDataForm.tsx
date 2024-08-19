@@ -307,6 +307,14 @@ export const ElectionDataForm: React.FC = () => {
         [data, tenantData?.voting_channels]
     )
 
+    const formValidator = (values: any): any => {
+        const errors: any = {dates: {}}
+        if (values?.dates?.start_date && values?.dates?.end_date <= values?.dates?.start_date) {
+            errors.dates.end_date = t("electionScreen.error.endDate")
+        }
+        return errors
+    }
+
     const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
         setValue(newValue)
     }
@@ -495,6 +503,7 @@ export const ElectionDataForm: React.FC = () => {
                     <SimpleForm
                         defaultValues={{contestsOrder: sortedContests}}
                         record={parsedValue}
+                        validate={formValidator}
                         toolbar={
                             <Toolbar>
                                 <SaveButton
@@ -542,6 +551,17 @@ export const ElectionDataForm: React.FC = () => {
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
+                                <Typography
+                                    variant="body1"
+                                    component="span"
+                                    sx={{
+                                        fontWeight: "bold",
+                                        margin: 0,
+                                        display: {xs: "none", sm: "block"},
+                                    }}
+                                >
+                                    {t("electionScreen.edit.votingPeriod")}
+                                </Typography>
                                 <Grid container spacing={4}>
                                     <Grid item xs={12} md={6}>
                                         <DateTimeInput
@@ -783,7 +803,6 @@ export const ElectionDataForm: React.FC = () => {
                                     label={t("electionScreen.edit.numAllowedVotes")}
                                     min={0}
                                 />
-
                                 <FileJsonInput
                                     parsedValue={parsedValue}
                                     fileSource="configuration"

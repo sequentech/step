@@ -83,6 +83,5 @@ async fn main() -> Result<()> {
             celery_app.close().await?;
         }
     };
-
     Ok(())
 }
