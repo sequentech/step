@@ -28,8 +28,9 @@ const documents = {
     "\n    mutation EditUser($body: EditUsersInput!) {\n        edit_user(body: $body) {\n            attributes\n            email\n            email_verified\n            enabled\n            first_name\n            groups\n            id\n            last_name\n            username\n        }\n    }\n": types.EditUserDocument,
     "\n    mutation ExportElectionEvent($electionEventId: String) {\n        export_election_event(election_event_id: $electionEventId) {\n            document_id\n            task_id\n        }\n    }\n": types.ExportElectionEventDocument,
     "\n    mutation ExportElectionEventLogs($electionEventId: String) {\n        export_election_event_logs(election_event_id: $electionEventId) {\n            document_id\n            task_id\n        }\n    }\n": types.ExportElectionEventLogsDocument,
+    "\n    mutation ExportTenantUsers($tenantId: String!) {\n        export_tenant_users(tenant_id: $tenantId) {\n            document_id\n            task_id\n        }\n    }\n": types.ExportTenantUsersDocument,
     "\n    mutation ExportUsers($tenantId: String!, $electionEventId: String, $electionId: String) {\n        export_users(\n            tenant_id: $tenantId\n            election_event_id: $electionEventId\n            election_id: $electionId\n        ) {\n            document_id\n            task_id\n        }\n    }\n": types.ExportUsersDocument,
-    "\n    query FetchDocument($electionEventId: String!, $documentId: String!) {\n        fetchDocument(election_event_id: $electionEventId, document_id: $documentId) {\n            url\n        }\n    }\n": types.FetchDocumentDocument,
+    "\n    query FetchDocument($electionEventId: String, $documentId: String!) {\n        fetchDocument(election_event_id: $electionEventId, document_id: $documentId) {\n            url\n        }\n    }\n": types.FetchDocumentDocument,
     "\n    mutation GenerateBallotPublication($electionEventId: uuid!, $electionId: uuid) {\n        generate_ballot_publication(election_event_id: $electionEventId, election_id: $electionId) {\n            ballot_publication_id\n        }\n    }\n": types.GenerateBallotPublicationDocument,
     "\n    query get_area_with_area_contests($areaId: uuid!, $electionEventId: uuid!) {\n        sequent_backend_area_contest(\n            where: {_and: {area_id: {_eq: $areaId}, election_event_id: {_eq: $electionEventId}}}\n        ) {\n            contest {\n                name\n            }\n            id\n        }\n    }\n": types.Get_Area_With_Area_ContestsDocument,
     "\n    query sequent_backend_area_extended($electionEventId: uuid!, $areaId: uuid!) {\n        sequent_backend_area_contest(\n            where: {_and: {election_event_id: {_eq: $electionEventId}, area_id: {_eq: $areaId}}}\n        ) {\n            contest {\n                id\n                name\n            }\n        }\n    }\n": types.Sequent_Backend_Area_ExtendedDocument,
@@ -157,11 +158,15 @@ export function graphql(source: "\n    mutation ExportElectionEventLogs($electio
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
+export function graphql(source: "\n    mutation ExportTenantUsers($tenantId: String!) {\n        export_tenant_users(tenant_id: $tenantId) {\n            document_id\n            task_id\n        }\n    }\n"): (typeof documents)["\n    mutation ExportTenantUsers($tenantId: String!) {\n        export_tenant_users(tenant_id: $tenantId) {\n            document_id\n            task_id\n        }\n    }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
 export function graphql(source: "\n    mutation ExportUsers($tenantId: String!, $electionEventId: String, $electionId: String) {\n        export_users(\n            tenant_id: $tenantId\n            election_event_id: $electionEventId\n            election_id: $electionId\n        ) {\n            document_id\n            task_id\n        }\n    }\n"): (typeof documents)["\n    mutation ExportUsers($tenantId: String!, $electionEventId: String, $electionId: String) {\n        export_users(\n            tenant_id: $tenantId\n            election_event_id: $electionEventId\n            election_id: $electionId\n        ) {\n            document_id\n            task_id\n        }\n    }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n    query FetchDocument($electionEventId: String!, $documentId: String!) {\n        fetchDocument(election_event_id: $electionEventId, document_id: $documentId) {\n            url\n        }\n    }\n"): (typeof documents)["\n    query FetchDocument($electionEventId: String!, $documentId: String!) {\n        fetchDocument(election_event_id: $electionEventId, document_id: $documentId) {\n            url\n        }\n    }\n"];
+export function graphql(source: "\n    query FetchDocument($electionEventId: String, $documentId: String!) {\n        fetchDocument(election_event_id: $electionEventId, document_id: $documentId) {\n            url\n        }\n    }\n"): (typeof documents)["\n    query FetchDocument($electionEventId: String, $documentId: String!) {\n        fetchDocument(election_event_id: $electionEventId, document_id: $documentId) {\n            url\n        }\n    }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
