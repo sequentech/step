@@ -43,6 +43,7 @@ import {
     CreateTallyCeremonyMutation,
     CreateTransmissionPackageMutation,
     SendTransmissionPackageMutation,
+    Sequent_Backend_Area,
     Sequent_Backend_Communication_Template,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Keys_Ceremony,
@@ -70,6 +71,9 @@ import {IPermissions} from "@/types/keycloak"
 import {UPLOAD_SIGNATURE} from "@/queries/UploadSignature"
 import {MiruExportWizard} from "@/components/MiruExportWizard"
 import {CREATE_TRANSMISSION_PACKAGE} from "@/queries/CreateTransmissionPackage"
+import {useAtomValue} from "jotai"
+import {tallyQueryData} from "@/atoms/tally-candidates"
+import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 
 const WizardSteps = {
     Start: 0,
@@ -90,6 +94,8 @@ export const TallyCeremony: React.FC = () => {
     const notify = useNotify()
     const {globalSettings} = useContext(SettingsContext)
 
+    const [selectedTallySessionData, setSelectedTallySessionData] =
+        useState<IMiruTransmissionPackageData | null>(null)
     const [openModal, setOpenModal] = useState(false)
     const [openCeremonyModal, setOpenCeremonyModal] = useState(false)
     const [transmissionLoading, setTransmissionLoading] = useState<boolean>(false)
@@ -127,6 +133,16 @@ export const TallyCeremony: React.FC = () => {
             },
         },
     })
+
+    const tallyData = useAtomValue(tallyQueryData)
+
+    const area: Sequent_Backend_Area | null = useMemo(
+        () =>
+            tallyData?.sequent_backend_area?.find(
+                (area) => selectedTallySessionData?.area_id === area.id
+            ) ?? null,
+        [selectedTallySessionData?.area_id, tallyData?.sequent_backend_area]
+    )
 
     const [expandedData, setExpandedData] = useState<IExpanded>({
         "tally-data-progress": true,
@@ -196,9 +212,6 @@ export const TallyCeremony: React.FC = () => {
     )
 
     let resultsEventId = tallySessionExecutions?.[0]?.results_event_id ?? null
-
-    const [selectedTallySessionData, setSelectedTallySessionData] =
-        useState<IMiruTransmissionPackageData | null>(null)
 
     const tallySessionData = useMemo(() => {
         try {
@@ -571,17 +584,30 @@ export const TallyCeremony: React.FC = () => {
         <>
             <WizardStyles.WizardWrapper>
                 <TallyStyles.StyledHeader>
-                    <BreadCrumbSteps
-                        labels={[
-                            "tally.breadcrumbSteps.start",
-                            "tally.breadcrumbSteps.ceremony",
-                            "tally.breadcrumbSteps.tally",
-                            "tally.breadcrumbSteps.results",
-                        ]}
-                        selected={page}
-                        variant={BreadCrumbStepsVariant.Circle}
-                        colorPreviousSteps={true}
-                    />
+                    {page === WizardSteps.Export ? (
+                        <ElectionHeaderStyles.Wrapper>
+                            <ElectionHeaderStyles.Title>
+                                {t("tally.transmissionPackageServers", {
+                                    name: area?.name,
+                                })}
+                            </ElectionHeaderStyles.Title>
+                            <ElectionHeaderStyles.SubTitle>
+								{t("tally.transmissionPackageServersDescription")}
+                            </ElectionHeaderStyles.SubTitle>
+                        </ElectionHeaderStyles.Wrapper>
+                    ) : (
+                        <BreadCrumbSteps
+                            labels={[
+                                "tally.breadcrumbSteps.start",
+                                "tally.breadcrumbSteps.ceremony",
+                                "tally.breadcrumbSteps.tally",
+                                "tally.breadcrumbSteps.results",
+                            ]}
+                            selected={page}
+                            variant={BreadCrumbStepsVariant.Circle}
+                            colorPreviousSteps={true}
+                        />
+                    )}
                 </TallyStyles.StyledHeader>
 
                 {resultsEventId && record?.id ? (
@@ -846,6 +872,7 @@ export const TallyCeremony: React.FC = () => {
                         handleSendTransmissionPackage={handleSendTransmissionPackage}
                         selectedTallySessionData={selectedTallySessionData}
                         uploading={uploading}
+                        area={area}
                         documents={documents}
                         errors={errors}
                         handleUploadSignature={handleUploadSignature}

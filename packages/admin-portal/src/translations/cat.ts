@@ -936,6 +936,8 @@ const catalanTranslation: TranslationType = {
             errorUploadingSignature: "S'ha produït un error en carregar la signatura",
             downloadTransmissionPackage: "Descarregar paquet",
             TransmissionPackageServers: "Servidors",
+			transmissionPackageServers: "Paquet de transmissió per a l'àrea '{{name}}'",
+			transmissionPackageServersDescription: "Exportar paquet de transmissió a Miru o descarregar-los",
             sendToTransmissionPackageServers:
                 "Enviar paquet de transmissió per a l'àrea '{{name}}'",
             transmissionPackageSignatures: "Signatures",

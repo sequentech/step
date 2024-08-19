@@ -930,6 +930,8 @@ const englishTranslation = {
             errorUploadingSignature: "There was an error uploading signature",
             downloadTransmissionPackage: "Download Package",
             TransmissionPackageServers: "Servers",
+            transmissionPackageServers: "Transmission Package for area '{{name}}'",
+            transmissionPackageServersDescription: "Export transmission package to miru or download them",
             sendToTransmissionPackageServers: "Send Transmission Package for area '{{name}}'",
             transmissionPackageSignatures: "Signatures",
             uploadTransmissionPackage: "Upload",

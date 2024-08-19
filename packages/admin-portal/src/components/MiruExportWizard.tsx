@@ -29,6 +29,7 @@ interface IMiruExportWizardProps {
     handleSendTransmissionPackage: () => void
     selectedTallySessionData: IMiruTransmissionPackageData | null
     uploading: boolean
+    area: Sequent_Backend_Area | null
     errors: String | null
     handleUploadSignature: (files: FileList | null) => Promise<void>
 }
@@ -43,18 +44,10 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({
     uploading,
     documents,
     errors,
+    area,
     handleUploadSignature,
 }) => {
     const {t, i18n} = useTranslation()
-    const tallyData = useAtomValue(tallyQueryData)
-
-    const area: Sequent_Backend_Area | null = useMemo(
-        () =>
-            tallyData?.sequent_backend_area?.find(
-                (area) => selectedTallySessionData?.area_id === area.id
-            ) ?? null,
-        [selectedTallySessionData?.area_id, tallyData?.sequent_backend_area]
-    )
 
     return (
         <>

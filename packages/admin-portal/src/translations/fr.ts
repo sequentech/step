@@ -940,6 +940,8 @@ const frenchTranslation: TranslationType = {
                 "Une erreur s'est produite lors du téléchargement de la signature",
             downloadTransmissionPackage: "Télécharger le paquet",
             TransmissionPackageServers: "Serveurs",
+			transmissionPackageServers: "Paquet de transmission pour la zone '{{name}}'",
+			transmissionPackageServersDescription: "Exporter le paquet de transmission vers Miru ou les télécharger",
             sendToTransmissionPackageServers:
                 "Envoyer le paquet de transmission pour la zone '{{name}}'",
             transmissionPackageSignatures: "Signatures",

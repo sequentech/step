@@ -935,6 +935,8 @@ const spanishTranslation: TranslationType = {
             errorUploadingSignature: "Hubo un error al subir la firma",
             downloadTransmissionPackage: "Descargar paquete",
             TransmissionPackageServers: "Servidores",
+			transmissionPackageServers: "Paquete de transmisión para el área '{{name}}'",
+			transmissionPackageServersDescription: "Exportar paquete de transmisión a Miru o descargarlos",
             sendToTransmissionPackageServers:
                 "Enviar paquete de transmisión para el área '{{name}}'",
             transmissionPackageSignatures: "Firmas",
