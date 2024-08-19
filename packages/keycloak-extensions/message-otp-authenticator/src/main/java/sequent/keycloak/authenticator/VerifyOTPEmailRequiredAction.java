@@ -67,7 +67,8 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
           user,
           authSession,
           Utils.MessageCourier.EMAIL,
-          /* deferred user */ false);
+          /* deferred user */ false,
+          /* isOtl */ false);
       context.challenge(
           context.form().setAttribute("realm", context.getRealm()).createForm(TPL_CODE));
     } catch (Exception error) {

@@ -83,6 +83,12 @@ public class MessageOTPAuthenticatorFactory
             Utils.MessageCourier.EMAIL.name()));
     return List.of(
         new ProviderConfigProperty(
+            Utils.ONE_TIME_LINK,
+            "Use OTL instead of OTP",
+            "Send One Time Link instead of One Time Password.",
+            ProviderConfigProperty.BOOLEAN_TYPE,
+            false),
+        new ProviderConfigProperty(
             Utils.CODE_LENGTH,
             "Code length",
             "The number of digits of the generated code.",

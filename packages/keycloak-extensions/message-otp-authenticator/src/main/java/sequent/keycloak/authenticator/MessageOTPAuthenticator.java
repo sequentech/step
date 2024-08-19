@@ -50,14 +50,24 @@ public class MessageOTPAuthenticator
     Utils.MessageCourier messageCourier =
         Utils.MessageCourier.fromString(config.getConfig().get(Utils.MESSAGE_COURIER_ATTRIBUTE));
     boolean deferredUser = config.getConfig().get(Utils.DEFERRED_USER_ATTRIBUTE).equals("true");
+
+    // handle OTL
+    boolean isOtl = config.getConfig().get(Utils.ONE_TIME_LINK).equals("true");
+    String otlVisited = authSession.getAuthNote(Utils.OTL_VISITED);
+    if (isOtl && otlVisited.equals("true")) {
+      context.success();
+      return;
+    }
+
     try {
       UserModel user = context.getUser();
-      Utils.sendCode(config, session, user, authSession, messageCourier, deferredUser);
+      Utils.sendCode(config, session, user, authSession, messageCourier, deferredUser, isOtl);
       context.challenge(
           context
               .form()
               .setAttribute("realm", context.getRealm())
               .setAttribute("courier", messageCourier)
+              .setAttribute("isOtl", isOtl)
               .createForm(TPL_CODE));
     } catch (Exception error) {
       log.infov("there was an error {0}", error);
@@ -73,9 +83,11 @@ public class MessageOTPAuthenticator
   @Override
   public void action(AuthenticationFlowContext context) {
     log.info("action() called");
-    String enteredCode = context.getHttpRequest().getDecodedFormParameters().getFirst(Utils.CODE);
 
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
+    AuthenticatorConfigModel config = context.getAuthenticatorConfig();
+    boolean isOtl = config.getConfig().get(Utils.ONE_TIME_LINK).equals("true");
+
     String code = authSession.getAuthNote(Utils.CODE);
     String ttl = authSession.getAuthNote(Utils.CODE_TTL);
 
@@ -86,6 +98,23 @@ public class MessageOTPAuthenticator
       return;
     }
 
+    // If it's an OTL, the user should never execute an action
+    if (isOtl) {
+      AuthenticationExecutionModel execution = context.getExecution();
+      if (execution.isRequired()) {
+        context.failureChallenge(
+            AuthenticationFlowError.ACCESS_DENIED,
+            context
+                .form()
+                .setError("messageOtpCodeWithOtl")
+                .createErrorPage(Response.Status.BAD_REQUEST));
+        return;
+      } else if (execution.isConditional() || execution.isAlternative()) {
+        context.attempted();
+      }
+    }
+
+    String enteredCode = context.getHttpRequest().getDecodedFormParameters().getFirst(Utils.CODE);
     boolean isValid = Utils.constantTimeIsEqual(enteredCode.getBytes(), code.getBytes());
     if (isValid) {
       context.getAuthenticationSession().removeAuthNote(Utils.CODE);

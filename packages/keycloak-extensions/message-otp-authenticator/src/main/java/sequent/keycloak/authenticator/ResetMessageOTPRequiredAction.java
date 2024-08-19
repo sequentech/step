@@ -116,7 +116,14 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
     UserModel user = context.getUser();
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
     try {
-      Utils.sendCode(config.get(), session, user, authSession, Utils.MessageCourier.BOTH, false);
+      Utils.sendCode(
+          config.get(),
+          session,
+          user,
+          authSession,
+          Utils.MessageCourier.BOTH,
+          /* deferredUser */ false,
+          /* isOtl */ false);
     } catch (Exception error) {
       StringWriter sw = new StringWriter();
       error.printStackTrace(new PrintWriter(sw));
