@@ -22,7 +22,7 @@ import {
     FormControl,
     Button,
     Box,
-	CircularProgress,
+    CircularProgress,
 } from "@mui/material"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import {ListActions} from "@/components/ListActions"
@@ -75,9 +75,9 @@ import {CREATE_TRANSMISSION_PACKAGE} from "@/queries/CreateTransmissionPackage"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
-import { MiruPackageDownload } from "@/components/MiruPackageDownload"
-import { ExportButton } from "@/components/MiruExport"
-import { AuthContext } from "@/providers/AuthContextProvider"
+import {MiruPackageDownload} from "@/components/MiruPackageDownload"
+import {ExportButton} from "@/components/MiruExport"
+import {AuthContext} from "@/providers/AuthContextProvider"
 
 const WizardSteps = {
     Start: 0,
@@ -110,8 +110,8 @@ export const TallyCeremony: React.FC = () => {
     const [isTallyElectionListDisabled, setIsTallyElectionListDisabled] = useState<boolean>(false)
     const [localTallyId, setLocalTallyId] = useState<string | null>(null)
     const [tenantId] = useTenantStore()
-	const authContext = useContext(AuthContext)
-	const isTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_CEREMONY)	
+    const authContext = useContext(AuthContext)
+    const isTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_CEREMONY)
     const [selectedElections, setSelectedElections] = useState<string[]>([])
     const [selectedTrustees, setSelectedTrustees] = useState<boolean>(false)
 
@@ -249,10 +249,6 @@ export const TallyCeremony: React.FC = () => {
             setSelectedTallySessionData(found ?? null)
         }
     }, [tallySessionData, selectedTallySessionData])
-
-    useEffect(() => {
-        notify(`page: ${page}`, {type: "success"})
-    }, [page])
 
     const {data: resultsEvent, refetch} = useGetList<Sequent_Backend_Results_Event>(
         "sequent_backend_results_event",
@@ -590,43 +586,54 @@ export const TallyCeremony: React.FC = () => {
             <WizardStyles.WizardWrapper>
                 <TallyStyles.StyledHeader>
                     {page === WizardSteps.Export ? (
-						<Box style={{width: '100%', display: 'flex', flexDirection: 'row', justifyContent: "space-between"}}>	
-                        <ElectionHeaderStyles.Wrapper>
-                            <ElectionHeaderStyles.Title>
-                                {t("tally.transmissionPackageServers", {
-									name: area?.name,
-                                })}
-                            </ElectionHeaderStyles.Title>
-                            <ElectionHeaderStyles.SubTitle>
-								{t("tally.transmissionPackageServersDescription")}
-                            </ElectionHeaderStyles.SubTitle>
-                        </ElectionHeaderStyles.Wrapper>
+                        <Box
+                            style={{
+                                width: "100%",
+                                display: "flex",
+                                flexDirection: "row",
+                                justifyContent: "space-between",
+                            }}
+                        >
+                            <ElectionHeaderStyles.Wrapper>
+                                <ElectionHeaderStyles.Title>
+                                    {t("tally.transmissionPackageServers", {
+                                        name: area?.name,
+                                    })}
+                                </ElectionHeaderStyles.Title>
+                                <ElectionHeaderStyles.SubTitle>
+                                    {t("tally.transmissionPackageServersDescription")}
+                                </ElectionHeaderStyles.SubTitle>
+                            </ElectionHeaderStyles.Wrapper>
 
-						<Box style={{
-							display: 'flex', flexDirection: 'row', gap: 5
-						}}>
-								{resultsEvent?.[0] && documents ? (
-									<MiruPackageDownload
-										documents={selectedTallySessionData?.documents ?? []}
-										electionEventId={resultsEvent?.[0].election_event_id}
-									/>
-								) : null}
-								<TallyStyles.StyledSpacing>
-									{transmissionLoading ? (
-										<CircularProgress />
-									) : (
-										<ExportButton
-											aria-label="export election data"
-											aria-controls="export-menu"
-											aria-haspopup="true"
-											onClick={handleSendTransmissionPackage}
-										>
-											<span title={"Send"}>{"Send"}</span>
-										</ExportButton>
-									)}
-								</TallyStyles.StyledSpacing>
-						</Box>
-								</Box>
+                            <Box
+                                style={{
+                                    display: "flex",
+                                    flexDirection: "row",
+                                    gap: 5,
+                                }}
+                            >
+                                {resultsEvent?.[0] && documents ? (
+                                    <MiruPackageDownload
+                                        documents={selectedTallySessionData?.documents ?? []}
+                                        electionEventId={resultsEvent?.[0].election_event_id}
+                                    />
+                                ) : null}
+                                <TallyStyles.StyledSpacing>
+                                    {transmissionLoading ? (
+                                        <CircularProgress />
+                                    ) : (
+                                        <ExportButton
+                                            aria-label="export election data"
+                                            aria-controls="export-menu"
+                                            aria-haspopup="true"
+                                            onClick={handleSendTransmissionPackage}
+                                        >
+                                            <span title={"Send"}>{"Send"}</span>
+                                        </ExportButton>
+                                    )}
+                                </TallyStyles.StyledSpacing>
+                            </Box>
+                        </Box>
                     ) : (
                         <BreadCrumbSteps
                             labels={[
@@ -908,7 +915,7 @@ export const TallyCeremony: React.FC = () => {
                         documents={documents}
                         errors={errors}
                         handleUploadSignature={handleUploadSignature}
-						isTrustee={isTrustee}
+                        isTrustee={isTrustee}
                     />
                 )}
 

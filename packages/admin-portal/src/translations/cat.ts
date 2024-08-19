@@ -936,13 +936,15 @@ const catalanTranslation: TranslationType = {
             errorUploadingSignature: "S'ha produït un error en carregar la signatura",
             downloadTransmissionPackage: "Descarregar paquet",
             TransmissionPackageServers: "Servidors",
-			transmissionPackageServers: "Paquet de transmissió per a l'àrea '{{name}}'",
-			transmissionPackageServersDescription: "Exportar paquet de transmissió a Miru o descarregar-los",
+            transmissionPackageServers: "Paquet de transmissió per a l'àrea '{{name}}'",
+            transmissionPackageServersDescription:
+                "Exportar paquet de transmissió a Miru o descarregar-los",
             sendToTransmissionPackageServers:
                 "Enviar paquet de transmissió per a l'àrea '{{name}}'",
             transmissionPackageSignatures: "Signatures",
             uploadTransmissionPackage: "Carregar",
-			  uploadTransmissionPackageDesc: "Carrega la teva signatura per signar el paquet de Resultats Electorals. Aquesta operació és opcional.",
+            uploadTransmissionPackageDesc:
+                "Carrega la teva signatura per signar el paquet de Resultats Electorals. Aquesta operació és opcional.",
             exportElectionArea: "Envia paquet de transmissió per a l'àrea '{{name}}'",
             templateTitle: "Plantilla de Resultats",
             templateSubTitle: "Opcionalment sobreescriure la plantilla de resultats.",

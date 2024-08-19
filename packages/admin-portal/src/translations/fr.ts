@@ -940,13 +940,15 @@ const frenchTranslation: TranslationType = {
                 "Une erreur s'est produite lors du téléchargement de la signature",
             downloadTransmissionPackage: "Télécharger le paquet",
             TransmissionPackageServers: "Serveurs",
-			transmissionPackageServers: "Paquet de transmission pour la zone '{{name}}'",
-			transmissionPackageServersDescription: "Exporter le paquet de transmission vers Miru ou les télécharger",
+            transmissionPackageServers: "Paquet de transmission pour la zone '{{name}}'",
+            transmissionPackageServersDescription:
+                "Exporter le paquet de transmission vers Miru ou les télécharger",
             sendToTransmissionPackageServers:
                 "Envoyer le paquet de transmission pour la zone '{{name}}'",
             transmissionPackageSignatures: "Signatures",
             uploadTransmissionPackage: "Télécharger",
-  uploadTransmissionPackageDesc: "Téléchargez votre signature pour signer le paquet des Résultats Électoraux. Cette opération est optionnelle.",
+            uploadTransmissionPackageDesc:
+                "Téléchargez votre signature pour signer le paquet des Résultats Électoraux. Cette opération est optionnelle.",
             exportElectionArea: "Envoyer le paquet de transmission pour la zone '{{name}}'",
             templateTitle: "Modèle de Résultats",
             templateSubTitle: "Éventuellement écraser le modèle de résultats.",

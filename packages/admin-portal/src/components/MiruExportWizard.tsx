@@ -29,7 +29,7 @@ interface IMiruExportWizardProps {
     handleSendTransmissionPackage: () => void
     selectedTallySessionData: IMiruTransmissionPackageData | null
     uploading: boolean
-	isTrustee: boolean,
+    isTrustee: boolean
     area: Sequent_Backend_Area | null
     errors: String | null
     handleUploadSignature: (files: FileList | null) => Promise<void>
@@ -46,89 +46,91 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({
     documents,
     errors,
     area,
-	isTrustee,
+    isTrustee,
     handleUploadSignature,
 }) => {
     const {t, i18n} = useTranslation()
 
     return (
         <>
-			{isTrustee && <Accordion
-				sx={{ width: "100%" }}
-				expanded={expandedExports["tally-miru-upload"]}
-				onChange={() =>
-					setExpandedDataExports((prev: IExpanded) => ({
-						...prev,
-						"tally-miru-upload": !prev["tally-miru-upload"],
-					}))
-				}
-			>
-				<AccordionSummary>
-					<Box className="flex flex-col items-start">
-					<WizardStyles.AccordionTitle>
-						{t("tally.uploadTransmissionPackage")}
-					</WizardStyles.AccordionTitle>
-					<WizardStyles.AccordionSubTitle>
-						{t("tally.uploadTransmissionPackageDesc")}
-					</WizardStyles.AccordionSubTitle>
-					</Box>
-				</AccordionSummary>
-				<WizardStyles.AccordionDetails style={{ zIndex: 100 }}>
-					<DropFile handleFiles={handleUploadSignature} />
-					<WizardStyles.StatusBox>
-						{uploading ? <WizardStyles.DownloadProgress /> : null}
-						{errors ? (
-							<WizardStyles.ErrorMessage variant="body2">
-								{errors}
-							</WizardStyles.ErrorMessage>
-						) : null}
-					</WizardStyles.StatusBox>
-				</WizardStyles.AccordionDetails>
-			</Accordion>}
-			<Accordion
-				sx={{ width: "100%" }}
-				expanded={expandedExports["tally-miru-signatures"]}
-				onChange={() =>
-					setExpandedDataExports((prev: IExpanded) => ({
-						...prev,
-						"tally-miru-signatures": !prev["tally-miru-signatures"],
-					}))
-				}
-			>
-				<AccordionSummary expandIcon={<ExpandMoreIcon id="tally-miru-signatures" />}>
-					<WizardStyles.AccordionTitle>
-						{t("tally.transmissionPackageSignatures")}
-					</WizardStyles.AccordionTitle>
-				</AccordionSummary>
-				<WizardStyles.AccordionDetails style={{ zIndex: 100 }}>
-					<MiruSignatures
-						signatures={
-							selectedTallySessionData?.documents[
-								selectedTallySessionData?.documents.length - 1
-							].signatures ?? []
-						}
-					/>
-				</WizardStyles.AccordionDetails>
-			</Accordion>
-			<Accordion
-				sx={{ width: "100%" }}
-				expanded={expandedExports["tally-miru-servers"]}
-				onChange={() =>
-					setExpandedDataExports((prev: IExpanded) => ({
-						...prev,
-						"tally-miru-servers": !prev["tally-miru-servers"],
-					}))
-				}
-			>
-				<AccordionSummary expandIcon={<ExpandMoreIcon id="tally-miru-servers" />}>
-					<WizardStyles.AccordionTitle>
-						{t("tally.TransmissionPackageServers")}
-					</WizardStyles.AccordionTitle>
-				</AccordionSummary>
-				<WizardStyles.AccordionDetails style={{ zIndex: 100 }}>
-					<MiruServers servers={selectedTallySessionData?.servers ?? []} />
-				</WizardStyles.AccordionDetails>
-			</Accordion>
+            {isTrustee && (
+                <Accordion
+                    sx={{width: "100%"}}
+                    expanded={expandedExports["tally-miru-upload"]}
+                    onChange={() =>
+                        setExpandedDataExports((prev: IExpanded) => ({
+                            ...prev,
+                            "tally-miru-upload": !prev["tally-miru-upload"],
+                        }))
+                    }
+                >
+                    <AccordionSummary>
+                        <Box className="flex flex-col items-start">
+                            <WizardStyles.AccordionTitle>
+                                {t("tally.uploadTransmissionPackage")}
+                            </WizardStyles.AccordionTitle>
+                            <WizardStyles.AccordionSubTitle>
+                                {t("tally.uploadTransmissionPackageDesc")}
+                            </WizardStyles.AccordionSubTitle>
+                        </Box>
+                    </AccordionSummary>
+                    <WizardStyles.AccordionDetails style={{zIndex: 100}}>
+                        <DropFile handleFiles={handleUploadSignature} />
+                        <WizardStyles.StatusBox>
+                            {uploading ? <WizardStyles.DownloadProgress /> : null}
+                            {errors ? (
+                                <WizardStyles.ErrorMessage variant="body2">
+                                    {errors}
+                                </WizardStyles.ErrorMessage>
+                            ) : null}
+                        </WizardStyles.StatusBox>
+                    </WizardStyles.AccordionDetails>
+                </Accordion>
+            )}
+            <Accordion
+                sx={{width: "100%"}}
+                expanded={expandedExports["tally-miru-signatures"]}
+                onChange={() =>
+                    setExpandedDataExports((prev: IExpanded) => ({
+                        ...prev,
+                        "tally-miru-signatures": !prev["tally-miru-signatures"],
+                    }))
+                }
+            >
+                <AccordionSummary expandIcon={<ExpandMoreIcon id="tally-miru-signatures" />}>
+                    <WizardStyles.AccordionTitle>
+                        {t("tally.transmissionPackageSignatures")}
+                    </WizardStyles.AccordionTitle>
+                </AccordionSummary>
+                <WizardStyles.AccordionDetails style={{zIndex: 100}}>
+                    <MiruSignatures
+                        signatures={
+                            selectedTallySessionData?.documents[
+                                selectedTallySessionData?.documents.length - 1
+                            ].signatures ?? []
+                        }
+                    />
+                </WizardStyles.AccordionDetails>
+            </Accordion>
+            <Accordion
+                sx={{width: "100%"}}
+                expanded={expandedExports["tally-miru-servers"]}
+                onChange={() =>
+                    setExpandedDataExports((prev: IExpanded) => ({
+                        ...prev,
+                        "tally-miru-servers": !prev["tally-miru-servers"],
+                    }))
+                }
+            >
+                <AccordionSummary expandIcon={<ExpandMoreIcon id="tally-miru-servers" />}>
+                    <WizardStyles.AccordionTitle>
+                        {t("tally.TransmissionPackageServers")}
+                    </WizardStyles.AccordionTitle>
+                </AccordionSummary>
+                <WizardStyles.AccordionDetails style={{zIndex: 100}}>
+                    <MiruServers servers={selectedTallySessionData?.servers ?? []} />
+                </WizardStyles.AccordionDetails>
+            </Accordion>
             {/* <Accordion
                 sx={{width: "100%"}}
                 expanded={expandedExports["tally-download-package"]}
@@ -153,7 +155,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({
                     </TallyStyles.StyledSpacing>
                 </AccordionSummary>
             </Accordion> */}
-            
+
             {/* <Accordion
                 sx={{width: "100%"}}
                 expanded={expandedExports["tally-download-package"]}
@@ -186,7 +188,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({
                     </TallyStyles.StyledSpacing>
                 </AccordionSummary>
             </Accordion> */}
-            
+
             <Logs logs={selectedTallySessionData?.logs} />
         </>
     )

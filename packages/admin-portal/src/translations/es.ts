@@ -935,13 +935,15 @@ const spanishTranslation: TranslationType = {
             errorUploadingSignature: "Hubo un error al subir la firma",
             downloadTransmissionPackage: "Descargar paquete",
             TransmissionPackageServers: "Servidores",
-			transmissionPackageServers: "Paquete de transmisión para el área '{{name}}'",
-			transmissionPackageServersDescription: "Exportar paquete de transmisión a Miru o descargarlos",
+            transmissionPackageServers: "Paquete de transmisión para el área '{{name}}'",
+            transmissionPackageServersDescription:
+                "Exportar paquete de transmisión a Miru o descargarlos",
             sendToTransmissionPackageServers:
                 "Enviar paquete de transmisión para el área '{{name}}'",
             transmissionPackageSignatures: "Firmas",
             uploadTransmissionPackage: "Subir",
-			uploadTransmissionPackageDesc: "Sube tu firma para firmar el paquete de Resultados Electorales. Esta operación es opcional.",
+            uploadTransmissionPackageDesc:
+                "Sube tu firma para firmar el paquete de Resultados Electorales. Esta operación es opcional.",
             exportElectionArea: "Enviar paquete de transmisión para el área '{{name}}'",
             templateTitle: "Plantilla de Resultados",
             templateSubTitle: "Opcionalmente sobrescribir la plantilla de resultados.",
