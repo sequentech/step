@@ -232,10 +232,6 @@ export const TallyCeremony: React.FC = () => {
         }
     }, [tallySessionData, selectedTallySessionData])
 
-    useEffect(() => {
-        notify(`page: ${page}`, {type: "success"})
-    }, [page])
-
     const {data: resultsEvent, refetch} = useGetList<Sequent_Backend_Results_Event>(
         "sequent_backend_results_event",
         {
