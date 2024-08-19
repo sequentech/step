@@ -94,7 +94,7 @@ public class MessageOTPAuthenticator
             AuthenticationFlowError.EXPIRED_CODE,
             context
                 .form()
-                .setError("messageOtpAuthCodeExpired")
+                .setError("messageOtp.auth.codeExpired")
                 .createErrorPage(Response.Status.BAD_REQUEST));
       } else {
         // Set email as verified in the auth note only if we actually verified
@@ -124,7 +124,7 @@ public class MessageOTPAuthenticator
             context
                 .form()
                 .setAttribute("realm", context.getRealm())
-                .setError("messageOtpAuthCodeInvalid")
+                .setError("messageOtp.auth.codeInvalid")
                 .setAttribute("courier", messageCourier)
                 .setAttribute("isOtl", isOtl)
                 .setAttribute("codeJustSent", false)

@@ -83,7 +83,7 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
             createForm(
                 context,
                 form ->
-                    form.setError("messageOtpAuthCodeExpired")
+                    form.setError("messageOtp.auth.codeExpired")
                         .createErrorPage(Response.Status.BAD_REQUEST)));
         return;
       }
@@ -93,7 +93,7 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
           createForm(
               context,
               form ->
-                  form.setError("messageOtpAuthCodeInvalid")
+                  form.setError("messageOtp.auth.codeInvalid")
                       .createErrorPage(Response.Status.BAD_REQUEST)));
       return;
     }

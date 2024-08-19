@@ -11,18 +11,18 @@ SPDX-License-Identifier: AGPL-3.0-only
     <div>
      <#if address??>
      <div>
-		${msg("messageOtpAuthTitleAddress")}
+		${msg("messageOtp.auth.address")}
      </div>
      <div>
         ${address}
      </div>
         <#else>
-        ${msg("messageOtpAuthTitle")}
+            ${msg("messageOtp.auth.title")}
         </#if>
     </div>
     </div>
     <#elseif section = "show-username">
-        <h1>${msg("messageOtpAuthTitle", realm.displayName)}</h1>
+        <h1>${msg("messageOtp.auth.title", realm.displayName)}</h1>
 	<#elseif section = "form">
 		<form
 			id="kc-message-code-login-form"
@@ -36,7 +36,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						for="code"
 						class="${properties.kcLabelClass!}"
 					>
-						${msg("messageOtpAuthLabel")}
+						${msg("messageOtp.auth.label")}
 					</label>
 				</div>
 				<div class="${properties.kcInputWrapperClass!}">
@@ -74,9 +74,9 @@ SPDX-License-Identifier: AGPL-3.0-only
             </div>
 
 <script>
-    let resendTimerI18n = "${msg("resendOtpTimer")}"
+    let resendTimerI18n = "${msg("messageOtp.auth.resend.timer")}"
     let resendTimerTimeout = ${(resendTimer)};
-    let resendButtonI18n = "${msg("resendOtpButton")}"
+    let resendButtonI18n = "${msg("messageOtp.auth.resend.button")}"
     let codeJustSent = "${(codeJustSent?string('true', 'false'))}"
     <#noparse>
     function resendOtp(resendTimerTimeout) {
@@ -141,11 +141,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<#elseif section = "info" >
 		<#if courier??>
 			<#if courier = "SMS">
-				${msg("messageOtpAuthInstructionSms")}
+				${msg("messageOtp.auth.instructionSms")}
 			<#elseif courier = "EMAIL" >
-				${msg("messageOtpAuthInstructionEmail")}
+				${msg("messageOtp.auth.instructionEmail")}
 			<#elseif courier = "BOTH" >
-				${msg("messageOtpAuthInstruction")}
+				${msg("messageOtp.auth.instruction")}
 			</#if>
 		</#if>
         <#if ttl??>
@@ -154,7 +154,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                 <#assign ttlMinutes = ttlSeconds / 60>
                 <#assign roundedMinutes = (ttlMinutes)?round>
                     <span>
-                        ${msg("messageOtpAuthTTLTime",roundedMinutes)}
+                        ${msg("messageOtp.auth.ttlTime",roundedMinutes)}
                     </span>
             </div>
         </#if>
