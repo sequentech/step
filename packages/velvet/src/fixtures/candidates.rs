@@ -37,6 +37,7 @@ pub fn get_candidate_0(
             is_category_list: Some(false),
             subtype: None,
         }),
+        annotations: None,
     }
 }
 
@@ -72,6 +73,7 @@ pub fn get_candidate_1(
             is_category_list: Some(false),
             subtype: None,
         }),
+        annotations: None,
     }
 }
 
@@ -107,6 +109,7 @@ pub fn get_candidate_2(
             is_category_list: Some(false),
             subtype: None,
         }),
+        annotations: None,
     }
 }
 
@@ -142,6 +145,7 @@ pub fn get_candidate_3(
             is_category_list: Some(false),
             subtype: None,
         }),
+        annotations: None,
     }
 }
 
@@ -177,6 +181,7 @@ pub fn get_candidate_4(
             is_category_list: Some(false),
             subtype: None,
         }),
+        annotations: None,
     }
 }
 
@@ -212,5 +217,6 @@ pub fn get_candidate_5(
             is_category_list: Some(false),
             subtype: None,
         }),
+        annotations: None,
     }
 }
