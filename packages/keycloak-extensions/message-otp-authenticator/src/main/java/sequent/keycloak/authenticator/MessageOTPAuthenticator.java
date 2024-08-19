@@ -46,13 +46,16 @@ public class MessageOTPAuthenticator
   @Override
   public void action(AuthenticationFlowContext context) {
     log.info("action() called");
-    String enteredCode = context.getHttpRequest().getDecodedFormParameters().getFirst(Utils.CODE);
     String resend = context.getHttpRequest().getDecodedFormParameters().getFirst("resend");
     if (resend != null && resend.equals("true")) {
       intiateForm(context, /*resend*/ true);
       return;
     }
+
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
+    AuthenticatorConfigModel config = context.getAuthenticatorConfig();
+    boolean isOtl = config.getConfig().get(Utils.ONE_TIME_LINK).equals("true");
+
     String code = authSession.getAuthNote(Utils.CODE);
     String ttl = authSession.getAuthNote(Utils.CODE_TTL);
 
@@ -63,7 +66,26 @@ public class MessageOTPAuthenticator
       return;
     }
 
+    // If it's an OTL, the user should never execute an action
+    if (isOtl) {
+      AuthenticationExecutionModel execution = context.getExecution();
+      if (execution.isRequired()) {
+        context.failureChallenge(
+            AuthenticationFlowError.ACCESS_DENIED,
+            context
+                .form()
+                .setError("messageOtpCodeWithOtl")
+                .createErrorPage(Response.Status.BAD_REQUEST));
+        return;
+      } else if (execution.isConditional() || execution.isAlternative()) {
+        context.attempted();
+      }
+    }
+
+    String enteredCode = context.getHttpRequest().getDecodedFormParameters().getFirst(Utils.CODE);
     boolean isValid = Utils.constantTimeIsEqual(enteredCode.getBytes(), code.getBytes());
+    Utils.MessageCourier messageCourier =
+        Utils.MessageCourier.fromString(config.getConfig().get(Utils.MESSAGE_COURIER_ATTRIBUTE));
     if (isValid) {
       context.getAuthenticationSession().removeAuthNote(Utils.CODE);
       if (Long.parseLong(ttl) < System.currentTimeMillis()) {
@@ -75,16 +97,20 @@ public class MessageOTPAuthenticator
                 .setError("messageOtpAuthCodeExpired")
                 .createErrorPage(Response.Status.BAD_REQUEST));
       } else {
-        authSession.setAuthNote(EMAIL_VERIFIED, "true");
+        // Set email as verified in the auth note only if we actually verified
+        // the email or email and/or sms
+        if (
+          messageCourier == Utils.MessageCourier.BOTH
+          || messageCourier == Utils.MessageCourier.EMAIL)
+        {
+          authSession.setAuthNote(EMAIL_VERIFIED, "true");
+        }
+
         // valid
         context.success();
       }
     } else {
       // invalid
-      AuthenticatorConfigModel config = context.getAuthenticatorConfig();
-
-      Utils.MessageCourier messageCourier =
-          Utils.MessageCourier.fromString(config.getConfig().get(Utils.MESSAGE_COURIER_ATTRIBUTE));
       boolean deferredUser = config.getConfig().get(Utils.DEFERRED_USER_ATTRIBUTE).equals("true");
       AuthenticationExecutionModel execution = context.getExecution();
       UserModel user = context.getUser();
@@ -100,6 +126,7 @@ public class MessageOTPAuthenticator
                 .setAttribute("realm", context.getRealm())
                 .setError("messageOtpAuthCodeInvalid")
                 .setAttribute("courier", messageCourier)
+                .setAttribute("isOtl", isOtl)
                 .setAttribute("codeJustSent", false)
                 .setAttribute(
                     "address",
@@ -122,6 +149,14 @@ public class MessageOTPAuthenticator
     boolean deferredUser = config.getConfig().get(Utils.DEFERRED_USER_ATTRIBUTE).equals("true");
     boolean codeJustSent = false;
 
+    // handle OTL
+    boolean isOtl = config.getConfig().get(Utils.ONE_TIME_LINK).equals("true");
+    String otlVisited = authSession.getAuthNote(Utils.OTL_VISITED);
+    if (!resend && isOtl && otlVisited.equals("true")) {
+      context.success();
+      return;
+    }
+
     try {
       UserModel user = context.getUser();
 
@@ -141,6 +176,8 @@ public class MessageOTPAuthenticator
               + configTtl
               + ", resendTimer="
               + resendTimer
+              + ", isOtl="
+              + isOtl
               + ", currentTime="
               + currentTime);
       boolean allowResend = false;
@@ -155,7 +192,15 @@ public class MessageOTPAuthenticator
       }
 
       if ((!resend && (code == null || ttl == null)) || (resend && allowResend)) {
-        Utils.sendCode(config, session, user, authSession, messageCourier, deferredUser);
+        Utils.sendCode(
+          config,
+          session,
+          user,
+          authSession,
+          messageCourier,
+          deferredUser,
+          /* isOTl */ isOtl
+        );
         codeJustSent = true;
         // after sending the code, we have a new ttl
         ttl = authSession.getAuthNote(Utils.CODE_TTL);
@@ -169,6 +214,7 @@ public class MessageOTPAuthenticator
               .form()
               .setAttribute("realm", context.getRealm())
               .setAttribute("courier", messageCourier)
+              .setAttribute("isOtl", isOtl)
               .setAttribute("codeJustSent", codeJustSent)
               .setAttribute(
                   "address",

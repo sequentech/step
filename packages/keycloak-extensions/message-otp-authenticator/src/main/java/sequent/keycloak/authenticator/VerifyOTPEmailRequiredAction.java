@@ -111,15 +111,24 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
     form.setAttribute("user", context.getUser());
 
     AuthenticatorConfigModel config = Utils.getConfig(authSession.getRealm()).get();
-    String resendTimer = System.getenv("KC_OTP_RESEND_INTERVAL");
+    String resendTimer = config.getConfig().get(Utils.RESEND_ACTIVATION_TIMER);
+    boolean isOtl = config.getConfig().get(Utils.ONE_TIME_LINK).equals("true");
 
     try {
       UserModel user = context.getUser();
-      Utils.sendCode(config, session, user, authSession, Utils.MessageCourier.EMAIL, false);
+      Utils.sendCode(
+          config,
+          session,
+          user,
+          authSession,
+          Utils.MessageCourier.EMAIL,
+          /* deferred user */ false,
+          isOtl);
       context.challenge(
           context
               .form()
               .setAttribute("realm", context.getRealm())
+              .setAttribute("isOtl", isOtl)
               .setAttribute(
                   "address",
                   Utils.getOtpAddress(Utils.MessageCourier.EMAIL, false, config, authSession, user))

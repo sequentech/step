@@ -41,13 +41,20 @@ public class Utils {
   public final String CODE_LENGTH = "length";
   public final String CODE_TTL = "ttl";
   public final String SENDER_ID = "senderId";
+  public final String ONE_TIME_LINK = "one-time-link";
+  public final String OTL_VISITED = "one-time-link.visited";
   public final String TEL_USER_ATTRIBUTE = "telUserAttribute";
   public final String MESSAGE_COURIER_ATTRIBUTE = "messageCourierAttribute";
   public final String DEFERRED_USER_ATTRIBUTE = "deferredUserAttribute";
+
   public final String SEND_CODE_SMS_I18N_KEY = "messageOtp.sendCode.sms.text";
   public final String SEND_CODE_EMAIL_SUBJECT = "messageOtp.sendCode.email.subject";
   public final String SEND_CODE_EMAIL_FTL = "send-code-email.ftl";
   public final String RESEND_ACTIVATION_TIMER = "resendCoudActivationTimer";
+
+  public final String SEND_LINK_SMS_I18N_KEY = "messageOtp.sendLink.sms.text";
+  public final String SEND_LINK_EMAIL_SUBJECT = "messageOtp.sendLink.email.subject";
+  public final String SEND_LINK_EMAIL_FTL = "send-link-email.ftl";
 
   public enum MessageCourier {
     SMS,
@@ -74,12 +81,15 @@ public class Utils {
       UserModel user,
       AuthenticationSessionModel authSession,
       MessageCourier messageCourier,
-      boolean deferredUser)
+      boolean deferredUser,
+      boolean isOtl)
       throws IOException, EmailException {
     log.info("sendCode(): start");
     String mobileNumber = null;
     String emailAddress = null;
+    String code = null;
 
+    // Handle deferred user
     if (deferredUser) {
       String mobileNumberAttribute = config.getConfig().get(Utils.TEL_USER_ATTRIBUTE);
       mobileNumber = authSession.getAuthNote(mobileNumberAttribute);
@@ -93,11 +103,18 @@ public class Utils {
 
     int length = Integer.parseInt(config.getConfig().get(Utils.CODE_LENGTH));
     int ttl = Integer.parseInt(config.getConfig().get(Utils.CODE_TTL));
-
-    String code = SecretGenerator.getInstance().randomString(length, SecretGenerator.DIGITS);
-    authSession.setAuthNote(Utils.CODE, code);
     authSession.setAuthNote(
         Utils.CODE_TTL, Long.toString(System.currentTimeMillis() + (ttl * 1000L)));
+
+    // Handle OTL/OTP
+    if (isOtl) {
+      code = "LINK HERE";
+      authSession.setAuthNote(Utils.OTL_VISITED, "false");
+    } else {
+      code = SecretGenerator.getInstance().randomString(length, SecretGenerator.DIGITS);
+      authSession.setAuthNote(Utils.CODE, code);
+    }
+
     RealmModel realm = authSession.getRealm();
     String realmName = getRealmName(realm);
 
@@ -107,6 +124,7 @@ public class Utils {
     }
     log.infov("sendCode(): messageCourier=`{0}`", messageCourier);
 
+    // Sending via SMS
     if (mobileNumber != null
         && mobileNumber.trim().length() > 0
         && (messageCourier == MessageCourier.SMS || messageCourier == MessageCourier.BOTH)) {
@@ -115,12 +133,14 @@ public class Utils {
       List<String> smsAttributes =
           ImmutableList.of(realmName, code, String.valueOf(Math.floorDiv(ttl, 60)));
 
+      String smsTemplateKey = (isOtl) ? Utils.SEND_LINK_SMS_I18N_KEY : Utils.SEND_CODE_SMS_I18N_KEY;
       smsSenderProvider.send(
-          mobileNumber.trim(), Utils.SEND_CODE_SMS_I18N_KEY, smsAttributes, realm, user, session);
+          mobileNumber.trim(), smsTemplateKey, smsAttributes, realm, user, session);
     } else {
       log.infov("sendCode(): NOT Sending SMS to=`{0}`", mobileNumber);
     }
 
+    // Sending via Email
     if (emailAddress != null
         && emailAddress.trim().length() > 0
         && (messageCourier == MessageCourier.EMAIL || messageCourier == MessageCourier.BOTH)) {
@@ -137,14 +157,16 @@ public class Utils {
       log.infov("sendCode(): Sending email: prepared messageAttributes");
 
       try {
+        String subjectKey = (isOtl) ? Utils.SEND_LINK_EMAIL_SUBJECT : Utils.SEND_CODE_EMAIL_SUBJECT;
+        String ftlKey = (isOtl) ? Utils.SEND_LINK_EMAIL_FTL : Utils.SEND_CODE_EMAIL_FTL;
         if (deferredUser) {
           sendEmail(
               session,
               realm,
               user,
-              Utils.SEND_CODE_EMAIL_SUBJECT,
+              subjectKey,
               subjAttr,
-              Utils.SEND_CODE_EMAIL_FTL,
+              ftlKey,
               messageAttributes,
               emailAddress.trim());
         } else {
@@ -152,11 +174,7 @@ public class Utils {
               .setRealm(realm)
               .setUser(user)
               .setAttribute("realmName", realmName)
-              .send(
-                  Utils.SEND_CODE_EMAIL_SUBJECT,
-                  subjAttr,
-                  Utils.SEND_CODE_EMAIL_FTL,
-                  messageAttributes);
+              .send(subjectKey, subjAttr, ftlKey, messageAttributes);
         }
       } catch (EmailException error) {
         log.debug("sendCode(): Exception sending email", error);

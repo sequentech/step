@@ -123,7 +123,14 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
     String resendTimer = config.get().getConfig().get(Utils.RESEND_ACTIVATION_TIMER);
     try {
-      Utils.sendCode(config.get(), session, user, authSession, Utils.MessageCourier.BOTH, false);
+      Utils.sendCode(
+          config.get(),
+          session,
+          user,
+          authSession,
+          Utils.MessageCourier.BOTH,
+          /* deferredUser */ false,
+          /* isOtl */ false);
     } catch (Exception error) {
       StringWriter sw = new StringWriter();
       error.printStackTrace(new PrintWriter(sw));
@@ -138,6 +145,7 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
             Utils.getOtpAddress(Utils.MessageCourier.BOTH, false, config.get(), authSession, user))
         .setAttribute("ttl", config.get().getConfig().get(Utils.CODE_TTL))
         .setAttribute("codeJustSent", true)
+        .setAttribute("isOtl", false)
         .setAttribute("resendTimer", resendTimer);
 
     if (formConsumer != null) {
