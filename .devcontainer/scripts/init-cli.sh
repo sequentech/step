@@ -7,7 +7,8 @@ set -ex -o pipefail
 
 source .devcontainer/.env
 
-cd packages/step-cli
+pushd packages/step-cli
 cargo build --release
+popd
 
 source .devcontainer/scripts/config-cli.sh
