@@ -544,23 +544,19 @@ pub async fn send_communication(
 
         let mut filtered_users = users.clone();
 
-        if let AudienceSelection::NOT_VOTED = audience_selection {
-            filtered_users.retain(|user| {
+        match audience_selection {
+            AudienceSelection::NOT_VOTED => filtered_users.retain(|user| {
                 user.votes_info
                     .as_ref()
                     .map_or(false, |vote_info| vote_info.is_empty())
-            });
-            event!(Level::INFO, "after list_users_with_vote_info");
-        } else if let AudienceSelection::VOTED = audience_selection {
-            filtered_users.retain(|user| {
+            }),
+            AudienceSelection::VOTED => filtered_users.retain(|user| {
                 user.votes_info
                     .as_ref()
                     .map_or(false, |vote_info| !vote_info.is_empty())
-            });
-            event!(Level::INFO, "after list_users_with_vote_info");
-        } else {
-            event!(Level::INFO, "after list_users");
-        }
+            }),
+            _ => {}
+        };
 
         let email_sender = EmailSender::new().await?;
         let sms_sender = SmsSender::new().await?;
