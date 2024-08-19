@@ -1,0 +1,10 @@
+query GetTrustees(
+    $tenantId: uuid!
+) {
+  sequent_backend_trustee(where: {
+                tenant_id: {_eq: $tenantId}
+            })
+    {
+    name
+  }
+}
