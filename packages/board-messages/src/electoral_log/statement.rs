@@ -32,9 +32,18 @@ impl StatementHead {
             StatementBody::CastVote(_, _, _) => StatementType::CastVote,
             StatementBody::CastVoteError(_, _, _) => StatementType::CastVoteError,
             StatementBody::ElectionPublish(_, _) => StatementType::ElectionPublish,
-            StatementBody::ElectionPeriodOpen(_) => StatementType::ElectionPeriodOpen,
-            StatementBody::ElectionPeriodPause(_) => StatementType::ElectionPeriodPause,
-            StatementBody::ElectionPeriodClose(_) => StatementType::ElectionPeriodClose,
+            StatementBody::ElectionVotingPeriodOpen(_) => StatementType::ElectionVotingPeriodOpen,
+            StatementBody::ElectionVotingPeriodPause(_) => StatementType::ElectionVotingPeriodPause,
+            StatementBody::ElectionVotingPeriodClose(_) => StatementType::ElectionVotingPeriodClose,
+            StatementBody::ElectionEventVotingPeriodOpen(_, _) => {
+                StatementType::ElectionEventVotingPeriodOpen
+            }
+            StatementBody::ElectionEventVotingPeriodPause(_) => {
+                StatementType::ElectionEventVotingPeriodPause
+            }
+            StatementBody::ElectionEventVotingPeriodClose(_, _) => {
+                StatementType::ElectionEventVotingPeriodClose
+            }
             StatementBody::KeyGeneration => StatementType::KeyGeneration,
             StatementBody::KeyInsertionStart => StatementType::KeyInsertionStart,
             StatementBody::KeyInsertionCeremony(_) => StatementType::KeyInsertionCeremony,
@@ -70,9 +79,12 @@ pub enum StatementBody {
     //    routes::voting_status::update_election_status,
     //
     // "Publicación, apertura y cierre de las elecciones"
-    ElectionPeriodOpen(ElectionIdString),
-    ElectionPeriodPause(ElectionIdString),
-    ElectionPeriodClose(ElectionIdString),
+    ElectionVotingPeriodOpen(ElectionIdString),
+    ElectionVotingPeriodPause(ElectionIdString),
+    ElectionVotingPeriodClose(ElectionIdString),
+    ElectionEventVotingPeriodOpen(EventIdString, ElectionsIdsString),
+    ElectionEventVotingPeriodPause(EventIdString),
+    ElectionEventVotingPeriodClose(EventIdString, ElectionsIdsString),
     // /workspaces/step/packages/windmill/src/celery_app.rs
     // create_keys
     //
@@ -103,9 +115,12 @@ pub enum StatementType {
     CastVote,
     CastVoteError,
     ElectionPublish,
-    ElectionPeriodOpen,
-    ElectionPeriodClose,
-    ElectionPeriodPause,
+    ElectionVotingPeriodOpen,
+    ElectionVotingPeriodClose,
+    ElectionVotingPeriodPause,
+    ElectionEventVotingPeriodOpen,
+    ElectionEventVotingPeriodClose,
+    ElectionEventVotingPeriodPause,
     KeyGeneration,
     KeyInsertionStart,
     KeyInsertionCeremony,

@@ -7,6 +7,7 @@ use serde::{
     de, de::SeqAccess, de::Visitor, Deserialize, Deserializer, Serialize,
     Serializer,
 };
+use sha2::Sha256;
 use sha2::Sha512;
 use sha3::Shake256;
 
@@ -93,6 +94,13 @@ pub fn hash(bytes: &[u8]) -> Result<Vec<u8>, StrandError> {
     curve25519_dalek::digest::Update::update(&mut hasher, bytes);
     Ok(hasher.finalize().to_vec())
 }
+
+pub fn hash_sha256(bytes: &[u8]) -> Result<Vec<u8>, StrandError> {
+    let mut hasher = Sha256::new();
+    curve25519_dalek::digest::Update::update(&mut hasher, bytes);
+    Ok(hasher.finalize().to_vec())
+}
+
 /// Single entry point for all hashing, returns an array.
 pub fn hash_to_array(bytes: &[u8]) -> Result<Hash, StrandError> {
     let mut hasher = hasher();

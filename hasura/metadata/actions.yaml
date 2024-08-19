@@ -224,6 +224,19 @@ actions:
   permissions:
   - role: election-event-read
   - role: logs-read
+- name: export_tenant_users
+  definition:
+    kind: synchronous
+    handler: http://{{HARVEST_DOMAIN}}/export-tenant-users
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: user-read
 - name: export_users
   definition:
     kind: synchronous
@@ -728,47 +741,47 @@ actions:
   comment: upsert_areas
 custom_types:
   enums:
-  - name: OrderDirection
-    values:
-    - description: null
-      is_deprecated: null
-      value: asc
-    - description: null
-      is_deprecated: null
-      value: desc
-  - name: PgAuditTable
-    values:
-    - description: null
-      is_deprecated: null
-      value: pgaudit_hasura
-    - description: null
-      is_deprecated: null
-      value: pgaudit_keycloak
+    - name: OrderDirection
+      values:
+        - description: null
+          is_deprecated: null
+          value: asc
+        - description: null
+          is_deprecated: null
+          value: desc
+    - name: PgAuditTable
+      values:
+        - description: null
+          is_deprecated: null
+          value: pgaudit_hasura
+        - description: null
+          is_deprecated: null
+          value: pgaudit_keycloak
   input_objects:
-  - name: TemplateInput
-  - name: PgAuditFilter
-  - name: PgAuditOrderBy
-  - name: ElectoralLogFilter
-  - name: ElectoralLogOrderBy
-  - name: SampleInput
-  - name: CreateElectionEventInput
-  - name: GetUsersInput
-  - name: CreateKeysCeremonyInput
-  - name: ElectionEventStatsInput
-  - name: ElectionStatsInput
-  - name: GetPrivateKeyInput
-  - name: CheckPrivateKeyInput
-  - name: GetPermissionsInput
-  - name: GetRolesInput
-  - name: EditUsersInput
-  - name: DeleteUserInput
-  - name: KeycloakUser2
-  - name: CreateUserInput
-  - name: KeycloakPermission2
-  - name: CreatePermissionInput
-  - name: GetManualVerificationInput
-  - name: KeycloakRole2
-  - name: RestorePrivateKeyInput
+    - name: TemplateInput
+    - name: PgAuditFilter
+    - name: PgAuditOrderBy
+    - name: ElectoralLogFilter
+    - name: ElectoralLogOrderBy
+    - name: SampleInput
+    - name: CreateElectionEventInput
+    - name: GetUsersInput
+    - name: CreateKeysCeremonyInput
+    - name: ElectionEventStatsInput
+    - name: ElectionStatsInput
+    - name: GetPrivateKeyInput
+    - name: CheckPrivateKeyInput
+    - name: GetPermissionsInput
+    - name: GetRolesInput
+    - name: EditUsersInput
+    - name: DeleteUserInput
+    - name: KeycloakUser2
+    - name: CreateUserInput
+    - name: KeycloakPermission2
+    - name: CreatePermissionInput
+    - name: GetManualVerificationInput
+    - name: KeycloakRole2
+    - name: RestorePrivateKeyInput
   objects:
   - name: GetManualVerificationOutput
   - name: CreateKeysCeremonyOutput
@@ -820,4 +833,6 @@ custom_types:
   - name: OptionalImportEvent
   - name: ManageElectionDatesOutput
   - name: ExportLogsOutput
+  - name: ExportAllUsersOutput
+  - name: ExportTenantUsersOutput
   scalars: []

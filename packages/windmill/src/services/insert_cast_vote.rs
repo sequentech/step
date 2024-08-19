@@ -22,6 +22,7 @@ use deadpool_postgres::Transaction;
 use rocket::futures::TryFutureExt;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::ElectionPresentation;
+use sequent_core::ballot::ElectionStatus;
 use sequent_core::ballot::VotingStatus;
 use sequent_core::ballot::{HashableBallot, HashableBallotContest};
 use sequent_core::encrypt::hash_ballot_sha512;
@@ -79,7 +80,7 @@ pub async fn try_insert_cast_vote(
     };
     let election_event_id = area.election_event_id.as_str();
 
-    let hashable_ballot: HashableBallot = serde_json::from_str(&input.content)
+    let hashable_ballot: HashableBallot = deserialize_str(&input.content)
         .map_err(|err| anyhow!("Error deserializing ballot content: {}", err))?;
 
     let pseudonym_h =
@@ -249,16 +250,6 @@ async fn check_status(
         return Err(anyhow!("Election event is archived"));
     }
 
-    let status = election_event
-        .status
-        .clone()
-        .ok_or(anyhow!("Could not retrieve election event status"))?;
-    let status: ElectionEventStatus =
-        deserialize_value(status).context("Failed to deserialize election event status")?;
-    if status.voting_status != VotingStatus::OPEN {
-        return Err(anyhow!("Election event voting status is not open"));
-    }
-
     let hasura_response = hasura::election::get_election(
         auth_headers.clone(),
         tenant_id.to_string(),
@@ -277,7 +268,7 @@ async fn check_status(
     let election_presentation: ElectionPresentation = election
         .presentation
         .clone()
-        .map(|value| serde_json::from_value(value).ok())
+        .map(|value| deserialize_value(value).ok())
         .flatten()
         .unwrap_or(Default::default());
 
@@ -294,15 +285,17 @@ async fn check_status(
             return Err(anyhow!("Election is closed"));
         }
     };
-    /*let status = election
+
+    let election_status: ElectionStatus = election
         .status
         .clone()
-        .ok_or(anyhow!("Could not retrieve election status"))?;
-    let status: ElectionStatus =
-        serde_json::from_value(status).context("Failed to deserialize election status")?;
-    if status.voting_status != VotingStatus::OPEN {
+        .map(|value| deserialize_value(value).context("Failed to deserialize election status"))
+        .transpose()
+        .map(|value| value.unwrap_or(Default::default()))?;
+
+    if election_status.voting_status != VotingStatus::OPEN {
         return Err(anyhow!("Election voting status is not open"));
-    }*/
+    }
 
     Ok(())
 }

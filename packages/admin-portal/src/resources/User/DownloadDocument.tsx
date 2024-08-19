@@ -34,7 +34,6 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
     })
 
     useEffect(() => {
-        console.log(`use effect called filename=${fileName}`)
         if (!error && data?.fetchDocument?.url && !downloaded) {
             setDownloaded(true)
             downloadUrl(data.fetchDocument.url, fileName).then(() => onDownload())
