@@ -500,6 +500,30 @@
             "problemMatcher": []
         },
         {
+            "label": "init.cli",
+            "command": "devenv",
+            "args": [
+                "shell",
+                "bash",
+                "--",
+                "-c",
+                "cd /workspaces/step/packages/step-cli && cargo build --release && /workspaces/step/.devcontainer/scripts/config-cli.sh"
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
             "label": "update.vscode.settings",
             "command": "devenv",
             "args": [

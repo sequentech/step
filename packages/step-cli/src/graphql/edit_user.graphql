@@ -1,0 +1,13 @@
+mutation EditUser($body: EditUsersInput!) {
+        edit_user(body: $body) {
+            attributes
+            email
+            email_verified
+            enabled
+            first_name
+            groups
+            id
+            last_name
+            username
+        }
+    }
