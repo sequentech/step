@@ -466,7 +466,7 @@ of packages/ directory:
   version "0.1.0"
   resolved "file:./admin-portal/rust/sequent-core-0.1.0.tgz#01a1bb936433ef529b9132c783437534db75f67d"
 
-"sequent-core@file:./ballot-verifier/rust/pkg/sequent-core-0.1.0.tgz":
+"sequent-core@file:./ballot-verifier/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
   resolved "file:./ballot-verifier/rust/pkg/sequent-core-0.1.0.tgz#01a1bb936433ef529b9132c783437534db75f67d"
 
@@ -505,7 +505,7 @@ docker compose up -d --no-deps harvest && \   # brings up the contaner
 docker compose logs -f --tail 100 harvest     # tails the logs of the container
 ```
 
-1. Run the vault:
+2. Run the vault:
 
 ```bash
 cd /workspaces/step/.devcontainer
