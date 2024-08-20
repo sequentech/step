@@ -85,7 +85,7 @@ const VotedContainer = styled(Box)<{hasvoted: string}>`
     align-items: center;
     gap: 4px;
     color: ${({hasvoted, theme}) =>
-        "true" === hasvoted ? theme.palette.brandSuccess : theme.palette.errorColor};
+        "true" === hasvoted ? theme.palette.errorColor : theme.palette.brandSuccess};
 `
 
 const StatusBanner = styled(Box)<{isopen: string}>`
@@ -213,18 +213,15 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                     </StyledLink>
                 </Box>
                 {hasVoted ? (
-                    <VotedContainer hasvoted={String(!!hasVoted)} color={theme.palette.errorColor}>
-                        <FontAwesomeIcon icon={faCheck} size="sm" />
+                    <VotedContainer hasvoted={String(!!hasVoted)}>
+                        <FontAwesomeIcon icon={faTimes} size="sm" />
                         <Typography fontSize="14px" margin={0}>
                             {t("selectElection.voted")}
                         </Typography>
                     </VotedContainer>
                 ) : (
-                    <VotedContainer
-                        hasvoted={String(!!hasVoted)}
-                        color={theme.palette.brandSuccess}
-                    >
-                        <FontAwesomeIcon icon={faTimes} size="sm" />
+                    <VotedContainer hasvoted={String(!!hasVoted)}>
+                        <FontAwesomeIcon icon={faCheck} size="sm" />
                         <Typography fontSize="14px" margin={0}>
                             {t("selectElection.notVoted")}
                         </Typography>
