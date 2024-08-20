@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use braid::protocol::board::grpc::{GrpcB3, GrpcB3BoardParams, GrpcB3Index};
 use clap::Parser;
 use std::collections::HashMap;
@@ -20,6 +20,16 @@ use braid::util::assert_folder;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;
 use strand::symm;
+
+cfg_if::cfg_if! {
+    if #[cfg(feature = "jemalloc")] {
+        use tikv_jemallocator::Jemalloc;
+        use tikv_jemalloc_ctl::{stats, epoch};
+
+        #[global_allocator]
+        static ALLOC: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+    }
+}
 
 const IMMUDB_USER: &str = "immudb";
 const IMMUDB_PW: &str = "immudb";
@@ -73,6 +83,15 @@ command line option is set to true.
 #[instrument]
 async fn main() -> Result<()> {
     braid::util::init_log(true);
+
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "jemalloc")] {
+            let e = epoch::mib().unwrap();
+            let allocated = stats::allocated::mib().unwrap();
+            let resident = stats::resident::mib().unwrap();
+        }
+    }
+
     let args = Cli::parse();
 
     let contents = fs::read_to_string(args.trustee_config)
@@ -103,21 +122,25 @@ async fn main() -> Result<()> {
         let boards: Vec<String> = match boards_result {
             Ok(boards) => boards,
             Err(error) => {
-                error!("Error listing board names: '{}' ({})", error, args.server_url);
+                error!(
+                    "Error listing board names: '{}' ({})",
+                    error, args.server_url
+                );
                 sleep(Duration::from_millis(1000)).await;
                 continue;
             }
         };
+
+        if loop_count % args.session_reset_period == 0 {
+            info!("* Session memory reset");
+            session_map = HashMap::new();
+        }
 
         let mut step_error = false;
         for board_name in boards {
             if ignored_boards.contains(&board_name) {
                 info!("Ignoring board '{}'..", board_name);
                 continue;
-            }
-            if loop_count % args.session_reset_period == 0 {
-                info!("Session memory reset");
-                session_map = HashMap::new();
             }
             if session_map.contains_key(&board_name) {
                 continue;
@@ -130,11 +153,8 @@ async fn main() -> Result<()> {
                 sk.clone(),
                 ek.clone(),
             );
-            let board = GrpcB3BoardParams::new(
-                &args.server_url,
-                &board_name,
-                Some(store_root.clone()),
-            );
+            let board =
+                GrpcB3BoardParams::new(&args.server_url, &board_name, Some(store_root.clone()));
 
             // Try to connect to detect errors early
             let board_result = board.get_board().await;
@@ -157,7 +177,7 @@ async fn main() -> Result<()> {
         let mut session_map_next = HashMap::new();
         for s in session_map.into_values() {
             let board_name = s.name.clone();
-            info!("Running trustee for board '{}'..", board_name);
+            info!("* Running trustee for board '{}'..", board_name);
             let (session, result) = s.step().await;
             match result {
                 Ok(_) => (),
@@ -184,6 +204,21 @@ async fn main() -> Result<()> {
             break;
         }
         loop_count += 1;
+
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "jemalloc")] {
+                // Many statistics are cached and only updated
+                // when the epoch is advanced:
+                let e_ = e.advance();
+                let alloc = allocated.read();
+                let res = resident.read();
+
+                if let(Ok(_), Ok(alloc), Ok(res)) = (e_, alloc, res) {
+                    info!("{} bytes allocated/{} bytes resident", alloc, res);
+                }
+            }
+        }
+
         sleep(Duration::from_millis(1000)).await;
     }
 

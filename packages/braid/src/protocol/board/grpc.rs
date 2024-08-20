@@ -6,11 +6,10 @@ use rusqlite::Connection;
 use std::path::PathBuf;
 use tracing::{info, warn};
 
-use board_messages::grpc::client::B3Client;
 use board_messages::braid::message::Message;
+use board_messages::grpc::client::B3Client;
 
 use strand::serialization::StrandDeserialize;
-
 
 impl super::Board for GrpcB3 {
     type Factory = GrpcB3BoardParams;
@@ -38,13 +37,13 @@ impl super::Board for GrpcB3 {
 
     async fn insert_messages(&mut self, messages: Vec<Message>) -> Result<()> {
         if messages.len() > 0 {
-            self.client.put_messages(&self.board_name, &messages).await?;
-        } 
-        
-        Ok(())
-        
-    }
+            self.client
+                .put_messages(&self.board_name, &messages)
+                .await?;
+        }
 
+        Ok(())
+    }
 }
 
 pub struct GrpcB3Index {
@@ -54,9 +53,7 @@ impl GrpcB3Index {
     pub fn new(url: &str) -> GrpcB3Index {
         let client = B3Client::new(url);
 
-        GrpcB3Index {
-            client,
-        }
+        GrpcB3Index { client }
     }
 
     pub async fn get_boards(&self) -> Result<Vec<String>> {
@@ -82,7 +79,7 @@ impl GrpcB3 {
             store_root,
         }
     }
-    
+
     fn get_store(&self) -> Result<Connection> {
         let db_path = self
             .store_root
@@ -116,14 +113,14 @@ impl GrpcB3 {
             );
         }
 
+        let external_last_id = external_last_id.unwrap_or(-1);
         // When querying for all messages we use -1 as default lower limit (this requests uses the > comparator in sql)
-        let messages = self
-            .get_remote_messages(external_last_id.unwrap_or(-1))
-            .await?;
+        let messages = self.get_remote_messages(external_last_id).await?;
 
         info!(
-            "Retrieved {} messages remotely, storing locally",
-            messages.len()
+            "Retrieved {} messages remotely ({})",
+            messages.len(),
+            external_last_id
         );
 
         // FIXME verify message signatures before inserting in local store
@@ -145,7 +142,7 @@ impl GrpcB3 {
             })
         })?;
 
-        info!("Deserializing rows into Message structs..");
+        info!("Deserializing rows..");
         let messages: Result<Vec<(Message, i64)>> = rows
             .map(|mr| {
                 let row = mr?;
@@ -160,17 +157,13 @@ impl GrpcB3 {
 
     // Returns all messages whose id > last_id.
     async fn get_remote_messages(&mut self, last_id: i64) -> Result<Vec<GrpcB3Message>> {
-        let messages = self
-            .client
-            .get_messages(&self.board_name, last_id)
-            .await?;
+        let messages = self.client.get_messages(&self.board_name, last_id).await?;
 
         let messages = messages.into_inner();
 
         Ok(messages.messages)
     }
 }
-
 
 pub struct GrpcB3BoardParams {
     url: String,
@@ -180,14 +173,20 @@ pub struct GrpcB3BoardParams {
 impl GrpcB3BoardParams {
     pub fn new(url: &str, board_name: &str, store_root: Option<PathBuf>) -> GrpcB3BoardParams {
         GrpcB3BoardParams {
-            url: url.to_string(), board_name: board_name.to_string(), store_root
+            url: url.to_string(),
+            board_name: board_name.to_string(),
+            store_root,
         }
     }
 }
 
 impl super::BoardFactory<GrpcB3> for GrpcB3BoardParams {
     async fn get_board(&self) -> Result<GrpcB3> {
-        Ok(GrpcB3::new(&self.url, &self.board_name, self.store_root.clone()))
+        Ok(GrpcB3::new(
+            &self.url,
+            &self.board_name,
+            self.store_root.clone(),
+        ))
     }
 }
 

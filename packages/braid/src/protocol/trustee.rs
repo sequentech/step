@@ -193,7 +193,7 @@ impl<C: Ctx> Trustee<C> {
     // There is no configuration. We retrieve message zero, check that it's the
     // configuration and add it to the local board.
     //
-    // Takes a vector of (message, message_id) pairs as input, returns a pair 
+    // Takes a vector of (message, message_id) pairs as input, returns a pair
     // of (updated messages count, last message id added)
     ///////////////////////////////////////////////////////////////////////////
     fn update_bootstrap(
@@ -481,7 +481,7 @@ impl<C: Ctx> Trustee<C> {
     }
 
     cfg_if::cfg_if! {
-        if #[cfg(any(feature = "fips", feature = "fips_core"))] {
+        if #[cfg(any(feature = "fips_full", feature = "fips_core"))] {
             pub(crate) fn encrypt_share_sk(&self, sk: &PrivateKey<C>, cfg: &Configuration<C>) -> Result<EncryptionData, ProtocolError> {
                 let identifier: String = self.get_pk()?.to_der_b64_string()?;
                 // 0 is a dummy batch value

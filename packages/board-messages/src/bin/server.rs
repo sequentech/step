@@ -19,7 +19,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let port = PG_PORT;
     let user = PG_USER;
     let database = PG_DATABASE;
-    let socket = "[::1]:50051";
+    let socket = "192.168.1.37:50051";
     
     info!("Starting b3");
     info!("pgsql host: '{host}'");
@@ -37,9 +37,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     let addr = socket.parse()?;
     let b3_impl = PgsqlB3Server::new(c, database);
+    let service = B3Server::new(b3_impl);
+    
+    let limit_mb = 100 * 1024 * 1024;
+    let service = service.max_decoding_message_size(limit_mb);
+    let service = service.max_encoding_message_size(limit_mb);
 
     Server::builder()
-        .add_service(B3Server::new(b3_impl))
+        .add_service(service)
         .serve(addr)
         .await?;
 

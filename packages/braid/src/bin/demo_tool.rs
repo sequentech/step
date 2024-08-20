@@ -13,15 +13,15 @@ use std::marker::PhantomData;
 use std::path::Path;
 use tracing::{info, instrument};
 
-use board_messages::grpc::pgsql::PgsqlB3Client;
-use board_messages::grpc::pgsql;
-use board_messages::grpc::pgsql::PgsqlConnectionParams;
 use board_messages::braid::artifact::Configuration;
 use board_messages::braid::artifact::DkgPublicKey;
 use board_messages::braid::message::Message;
 use board_messages::braid::newtypes::PublicKeyHash;
 use board_messages::braid::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
 use board_messages::braid::statement::StatementType;
+use board_messages::grpc::pgsql;
+use board_messages::grpc::pgsql::PgsqlB3Client;
+use board_messages::grpc::pgsql::PgsqlConnectionParams;
 use braid::protocol::trustee::Trustee;
 use braid::protocol::trustee::TrusteeConfig;
 use strand::backend::ristretto::RistrettoCtx;
@@ -59,7 +59,10 @@ struct Cli {
     board_name: String,
 
     #[arg(long, default_value_t = 1)]
-    count: u32,
+    board_count: u32,
+
+    #[arg(long, default_value_t = 100)]
+    ciphertexts: usize,
 
     #[arg(long, default_value_t = 1)]
     batches: u32,
@@ -84,7 +87,6 @@ The demo tool can be used to run a demo election with a fixed set of parameters
 Backend         Ristretto
 Trustees        3
 Threshold       2
-Cast ballots    100
 
 currently these cannot be changed, but it would be easy to add cli options for them.
 
@@ -101,13 +103,13 @@ The sequence of steps to run a demo election are
     3) Launch each of the trustees (each in their own directory)
 
        cd demo/1
-       cargo run --manifest-path ../../Cargo.toml --target-dir ../../rust-local-target --bin main  -- --server-url http://[::1]:50051 --board-index demoboardindex --trustee-config trustee1.toml
+       cargo run --manifest-path ../../Cargo.toml --target-dir ../../rust-local-target --release --bin main  -- --server-url http://[::1]:50051 --trustee-config trustee1.toml
 
        cd demo/2
-       cargo run --manifest-path ../../Cargo.toml --target-dir ../../rust-local-target --bin main  -- --server-url http://[::1]:50051 --board-index demoboardindex --trustee-config trustee2.toml
+       cargo run --manifest-path ../../Cargo.toml --target-dir ../../rust-local-target --release --bin main  -- --server-url http://[::1]:50051 --trustee-config trustee2.toml
 
        cd demo/3
-       cargo run --manifest-path ../../Cargo.toml --target-dir ../../rust-local-target --bin main  -- --server-url http://[::1]:50051 --board-index demoboardindex --trustee-config trustee3.toml
+       cargo run --manifest-path ../../Cargo.toml --target-dir ../../rust-local-target --release --bin main  -- --server-url http://[::1]:50051 --trustee-config trustee3.toml
 
     4) Wait until the distributed key generation process has finished. You can check that this process is complete
        by listing the messages in the protocol board and looking for "PublicKey".
@@ -119,9 +121,9 @@ The sequence of steps to run a demo election are
        INFO message: Message{ sender="Self" statement=PublicKey(1715226660, ConfigurationHash(5961c86066), PublicKeyHash(7fa5d0654f), SharesHashes(1045b3c1ae 825b49a0da 8dd943adb4 - - - - - - - - -)
 
     5) Post sample ballots
-    
+
         cargo run --bin demo_tool -- post-ballots
-    
+
     6) Wait until the protocol execution finishes.  You can check that this process is complete
        by listing the messages in the protocol board and looking for "Plaintexts".
 
@@ -152,18 +154,18 @@ async fn main() -> Result<()> {
             let configuration = Configuration::<RistrettoCtx>::strand_deserialize(&cfg_bytes)
                 .map_err(|e| anyhow!("Could not deserialize configuration {}", e))?;
 
-            let c = PgsqlConnectionParams::new(&args.host, args.port, &args.username, &args.password);
+            let c =
+                PgsqlConnectionParams::new(&args.host, args.port, &args.username, &args.password);
+            info!("Using connection string '{}'", c.connection_string());
             pgsql::drop_database(&c, PG_DATABASE).await?;
-        
-            pgsql::create_database(&c, PG_DATABASE)
-                .await?;
-        
+
+            pgsql::create_database(&c, PG_DATABASE).await?;
+
             let c = c.with_database(PG_DATABASE);
             let mut client = PgsqlB3Client::new(&c).await?;
             client.create_index_ine().await?;
-            
 
-            for i in 0..args.count {
+            for i in 0..args.board_count {
                 let name = if i == 0 {
                     &args.board_name
                 } else {
@@ -174,22 +176,25 @@ async fn main() -> Result<()> {
             }
         }
         Command::PostBallots => {
-            let mut board = get_client(&args.host, args.port, &args.username, &args.password).await?;
-            for i in 0..args.count {
+            let mut board =
+                get_client(&args.host, args.port, &args.username, &args.password).await?;
+            for i in 0..args.board_count {
                 let name = if i == 0 {
                     args.board_name.to_string()
                 } else {
                     format!("{}_{}", &args.board_name, i + 1)
                 };
-                post_ballots(&mut board, &name, args.batches, &ctx).await?;
+                post_ballots(&mut board, &name, args.ciphertexts, args.batches, &ctx).await?;
             }
         }
         Command::ListMessages => {
-            let mut client = get_client(&args.host, args.port, &args.username, &args.password).await?;
+            let mut client =
+                get_client(&args.host, args.port, &args.username, &args.password).await?;
             list_messages(&mut client, &args.board_name).await?;
         }
         Command::ListBoards => {
-            let mut client = get_client(&args.host, args.port, &args.username, &args.password).await?;
+            let mut client =
+                get_client(&args.host, args.port, &args.username, &args.password).await?;
             list_boards(&mut client).await?;
         }
         Command::DeleteBoards => {
@@ -308,18 +313,15 @@ are randomly generated.
 async fn post_ballots<C: Ctx>(
     client: &mut PgsqlB3Client,
     board_name: &str,
+    ciphertexts: usize,
     batches: u32,
     ctx: &C,
 ) -> Result<()> {
-    let pm = get_pm(PhantomData::<RistrettoCtx>)?;
+    let pm = get_pm(PhantomData::<C>)?;
     let sender_pk = StrandSignaturePk::from_sk(&pm.signing_key)?;
     let sender_pk = sender_pk.to_der_b64_string()?;
     let ballots = client
-        .get_with_kind(
-            &board_name,
-            &StatementType::Ballots.to_string(),
-            &sender_pk,
-        )
+        .get_with_kind(&board_name, &StatementType::Ballots.to_string(), &sender_pk)
         .await?;
     if ballots.len() > 0 {
         return Err(anyhow!("Ballots already present"));
@@ -352,7 +354,7 @@ async fn post_ballots<C: Ctx>(
         let pk_element = dkgpk.pk;
         let pk = strand::elgamal::PublicKey::from_element(&pk_element, ctx);
 
-        let ps: Vec<C::P> = (0..100).map(|_| ctx.rnd_plaintext(&mut rng)).collect();
+        /*let ps: Vec<C::P> = (0..100).map(|_| ctx.rnd_plaintext(&mut rng)).collect();
         let ballots: Vec<Ciphertext<C>> = ps
             .par_iter()
             .map(|p| {
@@ -360,6 +362,8 @@ async fn post_ballots<C: Ctx>(
                 pk.encrypt(&encoded)
             })
             .collect();
+        */
+        let ballots = strand::util::random_ciphertexts(ciphertexts, &C::default());
 
         info!("Generated {} ballots", ballots.len());
 
@@ -443,12 +447,7 @@ fn get_pm<C: Ctx>(ctxp: PhantomData<C>) -> Result<ProtocolManager<C>> {
 }
 
 #[instrument()]
-async fn delete_boards(
-    host: &str,
-    port: u32,
-    username: &str,
-    password: &str,
-) -> Result<()> {
+async fn delete_boards(host: &str, port: u32, username: &str, password: &str) -> Result<()> {
     let c = get_connection(host, port, username, password);
     pgsql::drop_database(&c, PG_DATABASE).await?;
 
@@ -458,8 +457,14 @@ async fn delete_boards(
 fn get_connection(host: &str, port: u32, username: &str, password: &str) -> PgsqlConnectionParams {
     PgsqlConnectionParams::new(host, port, username, password)
 }
-async fn get_client(host: &str, port: u32, username: &str, password: &str) -> Result<PgsqlB3Client> {
+async fn get_client(
+    host: &str,
+    port: u32,
+    username: &str,
+    password: &str,
+) -> Result<PgsqlB3Client> {
     let c = get_connection(host, port, username, password);
     let c = c.with_database(PG_DATABASE);
+    info!("Using connection string '{}'", c.connection_string());
     PgsqlB3Client::new(&c).await
 }
