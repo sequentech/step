@@ -812,6 +812,7 @@ const catalanTranslation: TranslationType = {
                 "alphabetical": "Alfabètic",
             },
             invalidVotePolicy: {
+                "label": "Política de vot invàlid",
                 "allowed": "Permesa",
                 "warn": "Advertència",
                 "warn-invalid-implicit-and-explicit": "Advertir Invàlids Implícits i Explícits",

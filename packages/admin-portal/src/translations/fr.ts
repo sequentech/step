@@ -814,6 +814,7 @@ const frenchTranslation: TranslationType = {
                 "alphabetical": "Alphabétique",
             },
             invalidVotePolicy: {
+                "label": "Politique de vote invalide",
                 "allowed": "Permis",
                 "warn": "Avertissement",
                 "warn-invalid-implicit-and-explicit": "Avertir Inválidos Implicites et Explicites",

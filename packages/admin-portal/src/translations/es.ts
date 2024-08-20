@@ -811,6 +811,7 @@ const spanishTranslation: TranslationType = {
                 "alphabetical": "Alfabético",
             },
             invalidVotePolicy: {
+                "label": "Política de Voto Inválido",
                 "allowed": "Permitido",
                 "warn": "Advertencia",
                 "warn-invalid-implicit-and-explicit": "Advertir Inválidos Implícitos y Explícitos",

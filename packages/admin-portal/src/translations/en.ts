@@ -807,6 +807,7 @@ const englishTranslation = {
                 "alphabetical": "Alphabetical",
             },
             invalidVotePolicy: {
+                "label": "Invalid Vote Policy",
                 "allowed": "Allowed",
                 "warn": "Warn",
                 "warn-invalid-implicit-and-explicit": "Warn Invalid Implicit And Explicit",

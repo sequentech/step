@@ -723,6 +723,7 @@ export const ContestDataForm: React.FC = () => {
                                 <SelectInput
                                     source="presentation.invalid_vote_policy"
                                     choices={invalidVotePolicyChoices()}
+                                    label={t(`contestScreen.invalidVotePolicy.label`)}
                                     validate={required()}
                                 />
 
