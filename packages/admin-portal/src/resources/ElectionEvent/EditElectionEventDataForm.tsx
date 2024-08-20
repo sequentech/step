@@ -76,7 +76,7 @@ import {convertToNumber} from "@/lib/helpers"
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {SET_CUSTOM_URL} from "@/queries/SetCustomUrl"
-import {getLoginUrl} from "@/services/UrlGeneration"
+import {getAuthUrl} from "@/services/UrlGeneration"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -379,9 +379,11 @@ export const EditElectionEventDataForm: React.FC = () => {
 
     const formValidator = (values: any): any => {
         const errors: any = {dates: {}}
-        if (values?.dates?.start_date && values?.dates?.end_date <= values?.dates?.start_date) {
-            errors.dates.end_date = t("electionScreen.error.endDate")
-        }
+        /*if (values?.dates?.start_date && values?.dates?.end_date <= values?.dates?.start_date) {
+            errors.dates.end_date = t("electionEventScreen.error.endDate")
+        } else if (new Date(values?.dates?.start_date) <= new Date(Date.now())) {
+            errors.dates.start_date = t("electionEventScreen.error.startDate")
+        }*/
         return errors
     }
 
@@ -557,19 +559,21 @@ export const EditElectionEventDataForm: React.FC = () => {
                 {
                     key: "login",
                     origin: customUrls.login,
-                    redirect_to: getLoginUrl(
+                    redirect_to: getAuthUrl(
                         globalSettings.VOTING_PORTAL_URL,
                         tenantId ?? "",
-                        recordId
+                        recordId,
+                        "login"
                     ),
                 },
                 {
                     key: "enrollment",
                     origin: customUrls.enrollment,
-                    redirect_to: getLoginUrl(
+                    redirect_to: getAuthUrl(
                         globalSettings.VOTING_PORTAL_URL,
                         tenantId ?? "",
-                        recordId
+                        recordId,
+                        "enroll"
                     ),
                 },
             ]
@@ -705,17 +709,6 @@ export const EditElectionEventDataForm: React.FC = () => {
                                     </ElectionHeaderStyles.Wrapper>
                                 </AccordionSummary>
                                 <AccordionDetails>
-                                    <Typography
-                                        variant="body1"
-                                        component="span"
-                                        sx={{
-                                            fontWeight: "bold",
-                                            margin: 0,
-                                            display: {xs: "none", sm: "block"},
-                                        }}
-                                    >
-                                        {t("electionEventScreen.edit.votingPeriod")}
-                                    </Typography>
                                     <Grid container spacing={4}>
                                         <Grid item xs={12} md={6}>
                                             <DateTimeInput
