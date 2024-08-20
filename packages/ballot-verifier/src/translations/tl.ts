@@ -89,7 +89,8 @@ const tagalogTranslation = {
                     "Bilang ng mga napiling pagpipilian {{numSelected}} ay mas mababa sa minimum {{min}}",
             },
             explicit: {
-                notAllowed: "Ang balota ay minarkahan nang tahasan bilang hindi wasto ngunit hindi ito pinapayagan ng tanong",
+                notAllowed:
+                    "Ang balota ay minarkahan nang tahasan bilang hindi wasto ngunit hindi ito pinapayagan ng tanong",
             },
         },
     },

@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import i18n, { i18n as I18N, InitOptions, Resource } from "i18next"
-import { deepmerge } from "@mui/utils"
+import i18n, {i18n as I18N, InitOptions, Resource} from "i18next"
+import {deepmerge} from "@mui/utils"
 import LanguageDetector from "i18next-browser-languagedetector"
-import { initReactI18next } from "react-i18next"
+import {initReactI18next} from "react-i18next"
 import englishTranslation from "../translations/en"
 import spanishTranslation from "../translations/es"
 import catalanTranslation from "../translations/cat"

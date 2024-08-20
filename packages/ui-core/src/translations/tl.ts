@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import { TranslationType } from "./en"
+import {TranslationType} from "./en"
 
 const tagalogTranslation: TranslationType = {
     translations: {
@@ -81,7 +81,8 @@ const tagalogTranslation: TranslationType = {
                     "Ang bilang ng mga piniling pagpipilian {{numSelected}} ay mas mababa kaysa sa minimum {{min}}",
             },
             explicit: {
-                notAllowed: "Ang balota ay tahasang minarkahan na invalid ngunit hindi ito pinapayagan ng tanong",
+                notAllowed:
+                    "Ang balota ay tahasang minarkahan na invalid ngunit hindi ito pinapayagan ng tanong",
             },
         },
         ballotHash: "Ang Iyong Ballot ID: {{ballotId}}",
@@ -92,7 +93,8 @@ const tagalogTranslation: TranslationType = {
             buttonText: "Mag-logout",
             modal: {
                 title: "Sigurado ka bang gusto mong mag-logout?",
-                content: "Ikaw ay malapit nang isara ang application na ito. Ang aksyong ito ay hindi maibabalik.",
+                content:
+                    "Ikaw ay malapit nang isara ang application na ito. Ang aksyong ito ay hindi maibabalik.",
                 ok: "OK",
                 close: "Isara",
             },
@@ -124,4 +126,3 @@ const tagalogTranslation: TranslationType = {
 }
 
 export default tagalogTranslation
-
