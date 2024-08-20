@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use braid::protocol::board::grpc::{GrpcB3, GrpcB3BoardParams, GrpcB3Index};
 use clap::Parser;
 use std::collections::HashMap;
@@ -23,7 +23,6 @@ use strand::symm;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "jemalloc")] {
-        use tikv_jemallocator::Jemalloc;
         use tikv_jemalloc_ctl::{stats, epoch};
 
         #[global_allocator]
@@ -137,12 +136,12 @@ async fn main() -> Result<()> {
         }
 
         let mut step_error = false;
-        for board_name in boards {
+        for board_name in &boards {
             if ignored_boards.contains(&board_name) {
                 info!("Ignoring board '{}'..", board_name);
                 continue;
             }
-            if session_map.contains_key(&board_name) {
+            if session_map.contains_key(board_name) {
                 continue;
             }
 
@@ -175,6 +174,8 @@ async fn main() -> Result<()> {
         }
 
         let mut session_map_next = HashMap::new();
+        // This code is currently sequential, see protocol_test_grpc for an example of
+        // handling sessions in parallel by spawning threads.
         for s in session_map.into_values() {
             let board_name = s.name.clone();
             info!("* Running trustee for board '{}'..", board_name);
@@ -196,6 +197,7 @@ async fn main() -> Result<()> {
                     }
                 }
             };
+            info!("");
             session_map_next.insert(session.name.clone(), session);
         }
         session_map = session_map_next;
@@ -212,9 +214,10 @@ async fn main() -> Result<()> {
                 let e_ = e.advance();
                 let alloc = allocated.read();
                 let res = resident.read();
+                let mb = 1024 * 1024;
 
                 if let(Ok(_), Ok(alloc), Ok(res)) = (e_, alloc, res) {
-                    info!("{} bytes allocated/{} bytes resident", alloc, res);
+                    info!("{} MB allocated / {} MB resident ({} boards)", (alloc / mb), (res / mb), boards.len());
                 }
             }
         }

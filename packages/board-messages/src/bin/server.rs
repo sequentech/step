@@ -1,5 +1,5 @@
-use tracing::info;
 use tonic::transport::Server;
+use tracing::info;
 
 use board_messages::grpc::pgsql::{PgsqlB3Client, PgsqlConnectionParams};
 use board_messages::grpc::server::PgsqlB3Server;
@@ -20,7 +20,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let user = PG_USER;
     let database = PG_DATABASE;
     let socket = "192.168.1.37:50051";
-    
+
     info!("Starting b3");
     info!("pgsql host: '{host}'");
     info!("pgsql port: '{port}'");
@@ -30,23 +30,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
     let c_db = c.with_database(database);
-    let test = PgsqlB3Client::new(&c_db).await?;
-    drop(test);
-
+    let mut client = PgsqlB3Client::new(&c_db).await?;
     info!("pgsql connection ok");
-    
+    let boards = client.get_boards().await?;
+    info!("there are {} boards in the index", boards.len());
+    drop(client);
+
     let addr = socket.parse()?;
     let b3_impl = PgsqlB3Server::new(c, database);
     let service = B3Server::new(b3_impl);
-    
+
     let limit_mb = 100 * 1024 * 1024;
     let service = service.max_decoding_message_size(limit_mb);
     let service = service.max_encoding_message_size(limit_mb);
 
-    Server::builder()
-        .add_service(service)
-        .serve(addr)
-        .await?;
+    Server::builder().add_service(service).serve(addr).await?;
 
     Ok(())
 }

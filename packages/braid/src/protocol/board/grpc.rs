@@ -118,7 +118,7 @@ impl GrpcB3 {
         let messages = self.get_remote_messages(external_last_id).await?;
 
         info!(
-            "Retrieved {} messages remotely ({})",
+            "Retrieved {} messages remotely (last_id = {})",
             messages.len(),
             external_last_id
         );

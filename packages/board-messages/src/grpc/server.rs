@@ -1,26 +1,31 @@
-
-use tonic::{Request, Response, Status};
 use anyhow::{anyhow, Result};
-use tracing::{info, error};
+use tonic::{Request, Response, Status};
+use tracing::{error, info};
 
-use crate::grpc::{GrpcB3Message, GetBoardsRequest, GetBoardsReply, GetMessagesRequest, GetMessagesReply};
-use crate::grpc::{PutMessagesRequest, PutMessagesReply};
+use crate::grpc::{
+    GetBoardsReply, GetBoardsRequest, GetMessagesReply, GetMessagesRequest, GrpcB3Message,
+};
+use crate::grpc::{PutMessagesReply, PutMessagesRequest};
 
-use crate::braid::message::Message;
-use crate::grpc::pgsql::PgsqlB3Client;
-use crate::grpc::pgsql::B3MessageRow;
-use crate::grpc::pgsql::PgsqlConnectionParams;
-use strand::serialization::{StrandSerialize, StrandDeserialize};
 use super::validate_board_name;
+use crate::braid::message::Message;
+use crate::grpc::pgsql::B3MessageRow;
+use crate::grpc::pgsql::PgsqlB3Client;
+use crate::grpc::pgsql::PgsqlConnectionParams;
+use strand::serialization::{StrandDeserialize, StrandSerialize};
 
 impl TryFrom<&GrpcB3Message> for B3MessageRow {
     type Error = anyhow::Error;
 
     fn try_from(message: &GrpcB3Message) -> Result<Self, Self::Error> {
         if message.version != crate::get_schema_version() {
-            return Err(anyhow!("Mismatched schema version: {} != {}", message.version, crate::get_schema_version()));
+            return Err(anyhow!(
+                "Mismatched schema version: {} != {}",
+                message.version,
+                crate::get_schema_version()
+            ));
         }
-        
+
         let message = Message::strand_deserialize(&message.message)?;
         let created = crate::timestamp();
 
@@ -33,7 +38,6 @@ impl TryFrom<&GrpcB3Message> for B3MessageRow {
             sender_pk: message.sender.pk.to_der_b64_string()?,
             version: crate::get_schema_version(),
         })
-            
     }
 }
 
@@ -45,23 +49,21 @@ impl PgsqlB3Server {
     pub fn new(params: PgsqlConnectionParams, dbname: &str) -> PgsqlB3Server {
         PgsqlB3Server {
             params,
-            dbname: dbname.to_string()
+            dbname: dbname.to_string(),
         }
     }
 }
 
 #[tonic::async_trait]
 impl super::proto::b3_server::B3 for PgsqlB3Server {
-    
     async fn get_messages(
         &self,
         request: Request<GetMessagesRequest>,
     ) -> Result<Response<GetMessagesReply>, Status> {
-
         let r = request.get_ref();
-        info!("get_messages: getting messages with id > {} for board '{}'", r.last_id, r.board);
-        
-        validate_board_name(&r.board).map_err(|e| Status::invalid_argument(format!("Invalid board: {e}")))?;
+
+        validate_board_name(&r.board)
+            .map_err(|e| Status::invalid_argument(format!("Invalid board: {e}")))?;
 
         let c = self.params.with_database(&self.dbname);
         let c = PgsqlB3Client::new(&c).await;
@@ -69,23 +71,34 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
             error!("Pgsql connection failed: {:?}", c.err());
             return Err(Status::internal(format!("Pgsql connection failed")));
         };
-        let messages =  c.get_messages(&r.board, r.last_id).await;
+        let messages = c.get_messages(&r.board, r.last_id).await;
         let Ok(messages) = messages else {
-            error!("Failed to retrieve messages from database: {:?}", messages.err());
-            return Err(Status::internal(format!("Failed to retrieve messages from database")));
+            error!(
+                "Failed to retrieve messages from database: {:?}",
+                messages.err()
+            );
+            return Err(Status::internal(format!(
+                "Failed to retrieve messages from database"
+            )));
         };
-            
-        let messages: Vec<GrpcB3Message> = messages.into_iter().map(|m| {
-            GrpcB3Message {
+
+        let messages: Vec<GrpcB3Message> = messages
+            .into_iter()
+            .map(|m| GrpcB3Message {
                 id: m.id,
                 message: m.message,
                 version: m.version,
-            }
-        }).collect();
+            })
+            .collect();
 
-        let reply = GetMessagesReply {
-            messages: messages,
-        };
+        info!(
+            "get_messages: returning {} messages with id > {} for board '{}'",
+            messages.len(),
+            r.last_id,
+            r.board
+        );
+
+        let reply = GetMessagesReply { messages: messages };
         Ok(Response::new(reply))
     }
 
@@ -93,11 +106,15 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
         &self,
         request: Request<PutMessagesRequest>,
     ) -> Result<Response<PutMessagesReply>, Status> {
-        
         let r = request.get_ref();
-        info!("put_messages: inserting {} messages into board '{}'", r.messages.len(), r.board);
-        
-        validate_board_name(&r.board).map_err(|e| Status::invalid_argument(format!("Invalid board: {e}")))?;
+        info!(
+            "put_messages: inserting {} messages into board '{}'",
+            r.messages.len(),
+            r.board
+        );
+
+        validate_board_name(&r.board)
+            .map_err(|e| Status::invalid_argument(format!("Invalid board: {e}")))?;
 
         let c = self.params.with_database(&self.dbname);
         let c = PgsqlB3Client::new(&c).await;
@@ -105,8 +122,10 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
             error!("Pgsql connection failed: {:?}", c.err());
             return Err(Status::internal(format!("Pgsql connection failed")));
         };
-        
-        let messages = r.messages.iter()
+
+        let messages = r
+            .messages
+            .iter()
             .map(|m| B3MessageRow::try_from(m))
             .collect::<Result<Vec<B3MessageRow>>>()
             .map_err(|e| Status::internal(format!("Failed to parse grpc messages: {e}")))?;
@@ -114,11 +133,12 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
         let reply = c.insert_messages(&r.board, &messages).await;
         let Ok(_) = reply else {
             error!("Failed to insert messages in database: {:?}", reply.err());
-            return Err(Status::internal(format!("Failed to insert messages in database")));
+            return Err(Status::internal(format!(
+                "Failed to insert messages in database"
+            )));
         };
-        
-        let reply = PutMessagesReply {
-        };
+
+        let reply = PutMessagesReply {};
         Ok(Response::new(reply))
     }
 
@@ -126,27 +146,29 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
         &self,
         _request: Request<GetBoardsRequest>,
     ) -> Result<Response<GetBoardsReply>, Status> {
-
         info!("get_boards");
-        
+
         let c = self.params.with_database(&self.dbname);
         let c = PgsqlB3Client::new(&c).await;
         let Ok(mut c) = c else {
             error!("Pgsql connection failed: {:?}", c.err());
             return Err(Status::internal(format!("Pgsql connection failed")));
         };
-        
+
         let boards = c.get_boards().await;
         let Ok(boards) = boards else {
-            error!("Failed to retrieve boards from database: {:?}", boards.err());
-            return Err(Status::internal(format!("Failed to retrieve boards from database")));
+            error!(
+                "Failed to retrieve boards from database: {:?}",
+                boards.err()
+            );
+            return Err(Status::internal(format!(
+                "Failed to retrieve boards from database"
+            )));
         };
-        
+
         let boards = boards.into_iter().map(|b| b.board_name).collect();
 
-        let reply = GetBoardsReply {
-            boards
-        };
+        let reply = GetBoardsReply { boards };
         Ok(Response::new(reply))
     }
 }
@@ -156,10 +178,20 @@ pub(crate) mod tests {
     use std::marker::PhantomData;
 
     use super::*;
-    use crate::{braid::{artifact::Configuration, newtypes::PROTOCOL_MANAGER_INDEX, protocol_manager::ProtocolManager}, grpc::{client::B3Client, proto::b3_server::B3}};
+    use crate::{
+        braid::{
+            artifact::Configuration, newtypes::PROTOCOL_MANAGER_INDEX,
+            protocol_manager::ProtocolManager,
+        },
+        grpc::{client::B3Client, proto::b3_server::B3},
+    };
     use serial_test::serial;
-    use strand::{backend::ristretto::RistrettoCtx, context::Ctx, signature::{StrandSignaturePk, StrandSignatureSk}};
-    
+    use strand::{
+        backend::ristretto::RistrettoCtx,
+        context::Ctx,
+        signature::{StrandSignaturePk, StrandSignatureSk},
+    };
+
     use crate::grpc::pgsql::{create_database, drop_database};
 
     const PG_DATABASE: &'static str = "protocoldb";
@@ -168,7 +200,7 @@ pub(crate) mod tests {
     const PG_PASSW: &'static str = "postgrespw";
     const PG_PORT: u32 = 49153;
     const TEST_BOARD: &'static str = "testboard";
-    
+
     async fn set_up() -> PgsqlB3Client {
         let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
         drop_database(&c, PG_DATABASE).await.unwrap();
@@ -187,19 +219,17 @@ pub(crate) mod tests {
     #[ignore]
     #[serial]
     async fn test_put_get_messages() {
-        
         let _ = set_up().await;
 
         let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
         let b3_impl = PgsqlB3Server::new(c, PG_DATABASE);
-        
-        
+
         let cfg = get_test_configuration::<RistrettoCtx>(3, 2);
         let messages = vec![cfg];
         let request = B3Client::put_messages_request(TEST_BOARD, &messages).unwrap();
         let put = b3_impl.put_messages(request).await.unwrap();
         let _ = put.get_ref();
-        
+
         let request = B3Client::get_messages_request(TEST_BOARD, -1);
         let messages_returned = b3_impl.get_messages(request).await.unwrap();
         let messages_returned = messages_returned.get_ref();
@@ -212,7 +242,6 @@ pub(crate) mod tests {
 
         let verified = cfg_msg.verify(&cfg_artifact).unwrap();
         assert_eq!(verified.signer_position, PROTOCOL_MANAGER_INDEX);
-
     }
 
     #[tokio::test]

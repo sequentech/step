@@ -174,6 +174,11 @@ async fn main() -> Result<()> {
                 client.create_board_ine(name).await?;
                 init(&mut client, &name, configuration.clone()).await?;
             }
+
+            info!(
+                "Initialized {} boards, don't forget to clear trustee message stores",
+                args.board_count
+            )
         }
         Command::PostBallots => {
             let mut board =
@@ -354,7 +359,9 @@ async fn post_ballots<C: Ctx>(
         let pk_element = dkgpk.pk;
         let pk = strand::elgamal::PublicKey::from_element(&pk_element, ctx);
 
-        /*let ps: Vec<C::P> = (0..100).map(|_| ctx.rnd_plaintext(&mut rng)).collect();
+        /* let ps: Vec<C::P> = (0..ciphertexts)
+            .map(|_| ctx.rnd_plaintext(&mut rng))
+            .collect();
         let ballots: Vec<Ciphertext<C>> = ps
             .par_iter()
             .map(|p| {
