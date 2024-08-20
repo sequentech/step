@@ -40,6 +40,7 @@ import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
 import {CREATE_TALLY_CEREMONY} from "@/queries/CreateTallyCeremony"
 import {useMutation} from "@apollo/client"
 import {ITallyExecutionStatus} from "@/types/ceremonies"
+import UploadIcon from "@mui/icons-material/Upload"
 import {
     CreateTallyCeremonyMutation,
     CreateTransmissionPackageMutation,
@@ -616,13 +617,16 @@ export const TallyCeremony: React.FC = () => {
                                     {transmissionLoading ? (
                                         <CircularProgress />
                                     ) : (
-                                        <span
-                                            title={t(
-                                                "tally.transmissionPackage.actions.send.title"
-                                            )}
-                                        >
-                                            {t("tally.transmissionPackage.actions.send.title")}
-                                        </span>
+                                        <>
+                                            <UploadIcon />
+                                            <span
+                                                title={t(
+                                                    "tally.transmissionPackage.actions.send.title"
+                                                )}
+                                            >
+                                                {t("tally.transmissionPackage.actions.send.title")}
+                                            </span>
+                                        </>
                                     )}
                                 </TallyStyles.MiruToolbarButton>
                             </TallyStyles.MiruToolbar>

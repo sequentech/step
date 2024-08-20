@@ -13,6 +13,7 @@ import {useQuery} from "@apollo/client"
 import {FETCH_DOCUMENT} from "@/queries/FetchDocument"
 import {IMiruDocument} from "@/types/miru"
 import {TallyStyles} from "@/components/styles/TallyStyles"
+import DownloadIcon from "@mui/icons-material/Download"
 
 interface PerformDownloadProps {
     onDownload: () => void
@@ -98,6 +99,7 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) =
                 aria-haspopup="true"
                 onClick={handleMenu}
             >
+                <DownloadIcon />
                 <span title={t("tally.transmissionPackage.actions.download.title")}>
                     {t("tally.transmissionPackage.actions.download.title")}
                 </span>
