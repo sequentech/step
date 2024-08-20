@@ -934,10 +934,28 @@ const spanishTranslation: TranslationType = {
         tally: {
             errorUploadingSignature: "Hubo un error al subir la firma",
             downloadTransmissionPackage: "Descargar paquete",
-            TransmissionPackageServers: "Servidores",
-            transmissionPackageServers: "Paquete de transmisión para el área '{{name}}'",
-            transmissionPackageServersDescription:
-                "Exportar paquete de transmisión a Miru o descargarlos",
+            transmissionPackage: {
+                title: "Paquete de Transmisión para el Área '{{name}}'",
+                description: "Te permite exportar un Paquete de Transmisión a los Servidores de Destino o descargarlo.",
+                actions: {
+                    send: {
+                        title: "Enviar",
+                    },
+                    download: {
+                        title: "Descargar",
+                        itemTitle: "Descargar el Paquete de Transmisión",
+                        dialog: {
+                            title: "¿Quieres descargar el Paquete de Transmisión?",
+                            description: "Por favor, confirma que deseas descargar el Paquete de Transmisión para el Área '{{name}}.'",
+                            confirm: "Descargar Paquete de Transmisión",
+                            cancel: "Cerrar",
+                        },
+                    },
+                },
+                destinationServers: {
+                    title: "Servidores de Destino",
+                },
+            },
             sendToTransmissionPackageServers:
                 "Enviar paquete de transmisión para el área '{{name}}'",
             transmissionPackageSignatures: "Firmas",

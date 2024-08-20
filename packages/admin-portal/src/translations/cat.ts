@@ -935,10 +935,28 @@ const catalanTranslation: TranslationType = {
         tally: {
             errorUploadingSignature: "S'ha produït un error en carregar la signatura",
             downloadTransmissionPackage: "Descarregar paquet",
-            TransmissionPackageServers: "Servidors",
-            transmissionPackageServers: "Paquet de transmissió per a l'àrea '{{name}}'",
-            transmissionPackageServersDescription:
-                "Exportar paquet de transmissió a Miru o descarregar-los",
+            transmissionPackage: {
+                title: "Paquet de Transmissió per a l'Àrea '{{name}}'",
+                description: "Et permet exportar un Paquet de Transmissió als Servidors de Destinació o descarregar-lo.",
+                actions: {
+                    send: {
+                        title: "Enviar",
+                    },
+                    download: {
+                        title: "Descarregar",
+                        itemTitle: "Descarregar el Paquet de Transmissió",
+                        dialog: {
+                            title: "Vols descarregar el Paquet de Transmissió?",
+                            description: "Si us plau, confirma que vols descarregar el Paquet de Transmissió per a l'Àrea '{{name}}.'",
+                            confirm: "Descarregar Paquet de Transmissió",
+                            cancel: "Tancar",
+                        },
+                    },
+                },
+                destinationServers: {
+                    title: "Servidors de Destinació",
+                },
+            },
             sendToTransmissionPackageServers:
                 "Enviar paquet de transmissió per a l'àrea '{{name}}'",
             transmissionPackageSignatures: "Signatures",

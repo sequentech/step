@@ -586,54 +586,42 @@ export const TallyCeremony: React.FC = () => {
             <WizardStyles.WizardWrapper>
                 <TallyStyles.StyledHeader>
                     {page === WizardSteps.Export ? (
-                        <Box
-                            style={{
-                                width: "100%",
-                                display: "flex",
-                                flexDirection: "row",
-                                justifyContent: "space-between",
-                            }}
-                        >
-                            <ElectionHeaderStyles.Wrapper>
+                        <TallyStyles.MiruHeader>
+                            <ElectionHeaderStyles.ThinWrapper>
                                 <ElectionHeaderStyles.Title>
-                                    {t("tally.transmissionPackageServers", {
+                                    {t("tally.transmissionPackage.title", {
                                         name: area?.name,
                                     })}
                                 </ElectionHeaderStyles.Title>
                                 <ElectionHeaderStyles.SubTitle>
-                                    {t("tally.transmissionPackageServersDescription")}
+                                    {t("tally.transmissionPackage.description")}
                                 </ElectionHeaderStyles.SubTitle>
-                            </ElectionHeaderStyles.Wrapper>
+                            </ElectionHeaderStyles.ThinWrapper>
 
-                            <Box
-                                style={{
-                                    display: "flex",
-                                    flexDirection: "row",
-                                    gap: 5,
-                                }}
-                            >
+                            <TallyStyles.MiruToolbar>
                                 {resultsEvent?.[0] && documents ? (
                                     <MiruPackageDownload
+                                        areaName={area?.name}
                                         documents={selectedTallySessionData?.documents ?? []}
                                         electionEventId={resultsEvent?.[0].election_event_id}
                                     />
                                 ) : null}
-                                <TallyStyles.StyledSpacing>
+                                <TallyStyles.MiruToolbarButton
+                                    aria-label="export election data"
+                                    aria-controls="export-menu"
+                                    aria-haspopup="true"
+                                    onClick={handleSendTransmissionPackage}
+                                >
                                     {transmissionLoading ? (
                                         <CircularProgress />
                                     ) : (
-                                        <ExportButton
-                                            aria-label="export election data"
-                                            aria-controls="export-menu"
-                                            aria-haspopup="true"
-                                            onClick={handleSendTransmissionPackage}
-                                        >
-                                            <span title={"Send"}>{"Send"}</span>
-                                        </ExportButton>
+                                        <span title={t("tally.transmissionPackage.actions.send.title")}>
+                                            {t("tally.transmissionPackage.actions.send.title")}
+                                        </span>
                                     )}
-                                </TallyStyles.StyledSpacing>
-                            </Box>
-                        </Box>
+                                </TallyStyles.MiruToolbarButton>
+                            </TallyStyles.MiruToolbar>
+                        </TallyStyles.MiruHeader>
                     ) : (
                         <BreadCrumbSteps
                             labels={[

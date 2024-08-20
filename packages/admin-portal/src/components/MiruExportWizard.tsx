@@ -124,70 +124,13 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({
             >
                 <AccordionSummary expandIcon={<ExpandMoreIcon id="tally-miru-servers" />}>
                     <WizardStyles.AccordionTitle>
-                        {t("tally.TransmissionPackageServers")}
+                        {t("tally.transmissionPackage.destinationServers.title")}
                     </WizardStyles.AccordionTitle>
                 </AccordionSummary>
                 <WizardStyles.AccordionDetails style={{zIndex: 100}}>
                     <MiruServers servers={selectedTallySessionData?.servers ?? []} />
                 </WizardStyles.AccordionDetails>
             </Accordion>
-            {/* <Accordion
-                sx={{width: "100%"}}
-                expanded={expandedExports["tally-download-package"]}
-                onChange={() =>
-                    setExpandedDataExports((prev: IExpanded) => ({
-                        ...prev,
-                        "tally-download-package": !prev["tally-download-package"],
-                    }))
-                }
-            >
-                <AccordionSummary>
-                    <WizardStyles.AccordionTitle>
-                        {t("tally.downloadTransmissionPackage")}
-                    </WizardStyles.AccordionTitle>
-                    <TallyStyles.StyledSpacing>
-                        {resultsEvent?.[0] && documents ? (
-                            <MiruPackageDownload
-                                documents={selectedTallySessionData?.documents ?? []}
-                                electionEventId={resultsEvent?.[0].election_event_id}
-                            />
-                        ) : null}
-                    </TallyStyles.StyledSpacing>
-                </AccordionSummary>
-            </Accordion> */}
-
-            {/* <Accordion
-                sx={{width: "100%"}}
-                expanded={expandedExports["tally-download-package"]}
-                onChange={() =>
-                    setExpandedDataExports((prev: IExpanded) => ({
-                        ...prev,
-                        "tally-download-package": !prev["tally-download-package"],
-                    }))
-                }
-            >
-                <AccordionSummary>
-                    <WizardStyles.AccordionTitle>
-                        {t("tally.sendToTransmissionPackageServers", {
-                            name: area?.name,
-                        })}
-                    </WizardStyles.AccordionTitle>
-                    <TallyStyles.StyledSpacing>
-                        {transmissionLoading ? (
-                            <CircularProgress />
-                        ) : (
-                            <ExportButton
-                                aria-label="export election data"
-                                aria-controls="export-menu"
-                                aria-haspopup="true"
-                                onClick={handleSendTransmissionPackage}
-                            >
-                                <span title={"Send"}>{"Send"}</span>
-                            </ExportButton>
-                        )}
-                    </TallyStyles.StyledSpacing>
-                </AccordionSummary>
-            </Accordion> */}
 
             <Logs logs={selectedTallySessionData?.logs} />
         </>

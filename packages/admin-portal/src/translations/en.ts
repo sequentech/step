@@ -929,10 +929,29 @@ const englishTranslation = {
         tally: {
             errorUploadingSignature: "There was an error uploading signature",
             downloadTransmissionPackage: "Download Transmission Package",
-            TransmissionPackageServers: "Destination Servers",
-            transmissionPackageServers: "Transmission Package for Area '{{name}}'",
-            transmissionPackageServersDescription:
-                "Allows you to export a Transmission Package to Destination Servers or download it.",
+            transmissionPackage: {
+                title: "Transmission Package for Area '{{name}}'",
+                description:
+                    "Allows you to export a Transmission Package to Destination Servers or download it.",
+                actions: {
+                    send: {
+                        title: "Send",
+                    },
+                    download: {
+                        title: "Download",
+                        itemTitle: "Download Transmission Package",
+                        dialog: {
+                            title: "Do you want to Download the Transmission Package?",
+                            description: "Please confirm you want to Download the Transmission Package for Area `{{name}}.`",
+                            confirm: "Download Transmission Package",
+                            cancel: "Close",
+                        },
+                    },
+                },
+                destinationServers: {
+                    title: "Destination Servers",
+                },
+            },
             sendToTransmissionPackageServers: "Send Transmission Package for Area '{{name}}'",
             transmissionPackageSignatures: "SBEI Signatures",
             uploadTransmissionPackage: "Sign Transmission Package",

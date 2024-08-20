@@ -939,10 +939,28 @@ const frenchTranslation: TranslationType = {
             errorUploadingSignature:
                 "Une erreur s'est produite lors du téléchargement de la signature",
             downloadTransmissionPackage: "Télécharger le paquet",
-            TransmissionPackageServers: "Serveurs",
-            transmissionPackageServers: "Paquet de transmission pour la zone '{{name}}'",
-            transmissionPackageServersDescription:
-                "Exporter le paquet de transmission vers Miru ou les télécharger",
+            transmissionPackage: {
+                title: "Paquet de Transmission pour la Zone '{{name}}'",
+                description: "Vous permet d'exporter un Paquet de Transmission vers des Serveurs de Destination ou de le télécharger.",
+                actions: {
+                    send: {
+                        title: "Envoyer",
+                    },
+                    download: {
+                        title: "Télécharger",
+                        itemTitle: "Télécharger le Paquet de Transmission",
+                        dialog: {
+                            title: "Voulez-vous télécharger le Paquet de Transmission?",
+                            description: "Veuillez confirmer que vous souhaitez télécharger le Paquet de Transmission pour la Zone '{{name}}.'",
+                            confirm: "Télécharger le Paquet de Transmission",
+                            cancel: "Fermer",
+                        },
+                    },
+                },
+                destinationServers: {
+                    title: "Serveurs de Destination",
+                },
+            },
             sendToTransmissionPackageServers:
                 "Envoyer le paquet de transmission pour la zone '{{name}}'",
             transmissionPackageSignatures: "Signatures",
