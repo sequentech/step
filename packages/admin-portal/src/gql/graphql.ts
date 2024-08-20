@@ -418,6 +418,11 @@ export type KeycloakUserArea = {
   name?: Maybe<Scalars['String']['output']>;
 };
 
+export type LogEventOutput = {
+  __typename?: 'LogEventOutput';
+  id?: Maybe<Scalars['String']['output']>;
+};
+
 export type ManageElectionDatesOutput = {
   __typename?: 'ManageElectionDatesOutput';
   something?: Maybe<Scalars['String']['output']>;
@@ -907,6 +912,8 @@ export type Mutation_Root = {
   insert_sequent_backend_trustee?: Maybe<Sequent_Backend_Trustee_Mutation_Response>;
   /** insert a single row into the table: "sequent_backend.trustee" */
   insert_sequent_backend_trustee_one?: Maybe<Sequent_Backend_Trustee>;
+  /** log a message to the event log */
+  log_event?: Maybe<LogEventOutput>;
   manage_election_dates?: Maybe<ManageElectionDatesOutput>;
   publish_ballot?: Maybe<PublishBallotOutput>;
   /** publish_tally_sheet */
@@ -2145,6 +2152,13 @@ export type Mutation_RootInsert_Sequent_Backend_TrusteeArgs = {
 export type Mutation_RootInsert_Sequent_Backend_Trustee_OneArgs = {
   object: Sequent_Backend_Trustee_Insert_Input;
   on_conflict?: InputMaybe<Sequent_Backend_Trustee_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootLog_EventArgs = {
+  election_event_id: Scalars['String']['input'];
+  message_type: Scalars['String']['input'];
 };
 
 

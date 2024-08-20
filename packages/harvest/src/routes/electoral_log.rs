@@ -9,11 +9,22 @@ use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use windmill::services::electoral_log::{
-    list_electoral_log as get_logs, ElectoralLogRow, GetElectoralLogBody,
+    list_electoral_log as get_logs, ElectoralLogRow, GetElectoralLogBody
 };
 use windmill::types::resources::DataList;
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct LogEventInput {
+    election_event_id: String,
+    message_type: String,
+}
+#[derive(Serialize, Deserialize, Debug)]
+pub struct LogEventOutput {
+    id: String,
+}
 
 #[instrument]
 #[post("/immudb/electoral-log", format = "json", data = "<body>")]
@@ -33,4 +44,23 @@ pub async fn list_electoral_log(
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     Ok(Json(ret_val))
+}
+
+#[instrument]
+#[post("/immudb/log-event", format = "json", data = "<body>")]
+pub fn create_electoral_log(
+    body: Json<LogEventInput>,
+    claims: JwtClaims,
+) -> Result<Json<LogEventOutput>, (Status, String)> {
+    let input = body.into_inner();
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::SERVICE_ACCOUNT],
+    )?;
+
+    Ok(Json(LogEventOutput {
+        id: input.election_event_id.clone(),
+    }))
 }

@@ -11,6 +11,9 @@ import org.keycloak.events.Event;
 import org.keycloak.events.EventListenerProvider;
 import org.keycloak.events.admin.AdminEvent;
 import org.keycloak.models.KeycloakSession;
+import org.keycloak.util.JsonSerialization;
+
+import com.fasterxml.jackson.databind.util.JSONPObject;
 import com.google.gson.Gson;
 import lombok.extern.jbosslog.JBossLog;
 import sequent.keycloak.inetum_authenticator.types.AuthToken;
@@ -23,25 +26,22 @@ public class CustomEventListereProvider implements EventListenerProvider {
     private String tenantId = System.getenv("SUPER_ADMIN_TENANT_ID");
     private String clientId = System.getenv("KEYCLOAK_CLIENT_ID");
     private String clientSecret = System.getenv("KEYCLOAK_CLIENT_SECRET");
+    private String access_token; 
     public CustomEventListereProvider(KeycloakSession session) {
         this.session = session;
-        // realmName = session.getContext().getRealm().getName();
+        authenticate();
     }
     @Override
-    public void close() {
-        // TODO Auto-generated method stub
-    }
+    public void close() {}
 
     @Override
     public void onEvent(Event event) {
-        log.info("an event was fired ");
-        authenticate();
+
     }
 
     public void authenticate() {
             HttpClient client = HttpClient.newHttpClient();
-            String url = "http://keycloak:8090/realms/"+ getTenantRealmName(this.tenantId) + "/protocol/openid-connect/token";
-    
+            String url = this.keycloakUrl + "/realms/"+ getTenantRealmName(this.tenantId) + "/protocol/openid-connect/token";
             Map<Object, Object> data = new HashMap<>();
             data.put("client_id", this.clientId);
             data.put("scope", "openid");
@@ -64,29 +64,26 @@ public class CustomEventListereProvider implements EventListenerProvider {
             try {
                 response = client.send(request, HttpResponse.BodyHandlers.ofString());
                 String responseBody = response.body();
-                Gson gson = new Gson();
-                AuthToken authToken = gson.fromJson(responseBody, AuthToken.class);
-                log.info("access_token: " + authToken.getAccess_token());
+                Object access_token = JsonSerialization.readValue(responseBody, Map.class).get("access_token");
+                this.access_token = access_token.toString();
             } catch (IOException e) {
                 log.info("IOException: " + e.getMessage());
             } catch (InterruptedException e) {
-                // TODO Auto-generated catch block
                 log.info("IOException: " + e.getMessage());
             }
-    
-            // Assuming the response is in JSON format and contains the access_token
-            // Extract the JWT (access_token) from the response JSON
-            // You can use a JSON parsing library like Jackson or Gson to extract the token
         }
 
     @Override
     public void onEvent(AdminEvent event, boolean includeRepresentation) {
-        // TODO Auto-generated method stub
         log.info("an admin event was fired, realmName: ");
     }
 
     private String getTenantRealmName(String realmName) {
         return  "tenant-" + tenantId;
     }
-    
+
+    private void logEvent() {
+        
+    }
+     
 } 
