@@ -75,6 +75,26 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({
         return trustees.length
     }
 
+    const serversStatusColor: () => string = () => {
+        let sentTo = serverSentToCount()
+        let servers = serversTotalCount()
+
+        return sentTo < servers ? theme.palette.info.main : theme.palette.brandSuccess
+    }
+
+    const serverSentToCount: () => number = () => {
+        let sentTo =
+            selectedTallySessionData?.documents[selectedTallySessionData?.documents.length - 1]
+                .servers_sent_to ?? []
+
+        return sentTo.length
+    }
+
+    const serversTotalCount: () => number = () => {
+        let servers = selectedTallySessionData?.servers ?? []
+        return servers.length
+    }
+
     return (
         <>
             {isTrustee && (
@@ -165,9 +185,30 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({
                     <WizardStyles.AccordionTitle>
                         {t("tally.transmissionPackage.destinationServers.title")}
                     </WizardStyles.AccordionTitle>
+                    <WizardStyles.CeremonyStatus
+                        sx={{
+                            backgroundColor: serversStatusColor(),
+                            color: theme.palette.background.default,
+                            textTransform: "uppercase",
+                        }}
+                        label={t("tally.transmissionPackage.destinationServers.status", {
+                            signed: serverSentToCount(),
+                            total: serversTotalCount(),
+                        })}
+                    />
                 </AccordionSummary>
                 <WizardStyles.AccordionDetails style={{zIndex: 100}}>
-                    <MiruServers servers={selectedTallySessionData?.servers ?? []} />
+                    <WizardStyles.AccordionSubTitle>
+                        {t("tally.transmissionPackage.destinationServers.description")}
+                    </WizardStyles.AccordionSubTitle>
+                    <MiruServers
+                        servers={selectedTallySessionData?.servers ?? []}
+                        serversSentTo={
+                            selectedTallySessionData?.documents[
+                                selectedTallySessionData?.documents.length - 1
+                            ].servers_sent_to ?? []
+                        }
+                    />
                 </WizardStyles.AccordionDetails>
             </Accordion>
 

@@ -958,6 +958,13 @@ const englishTranslation = {
                 },
                 destinationServers: {
                     title: "Destination Servers",
+                    description:
+                        "The table below shows the sending status of each of the Destination Servers.",
+                    status: "Sent to {{signed}} out of {{total}}",
+                    table: {
+                        serverName: "Server Name",
+                        sendStatus: "Sending Status",
+                    },
                 },
                 signatures: {
                     title: "SBEI Signatures",

@@ -968,6 +968,13 @@ const frenchTranslation: TranslationType = {
                 },
                 destinationServers: {
                     title: "Serveurs de Destination",
+                    description:
+                        "Le tableau ci-dessous montre l'état d'envoi de chacun des Serveurs de Destination.",
+                    status: "Envoyé à {{signed}} sur {{total}}",
+                    table: {
+                        serverName: "Nom du Serveur",
+                        sendStatus: "État de l'Envoi",
+                    },
                 },
                 signatures: {
                     title: "Signatures SBEI",

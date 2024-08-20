@@ -964,6 +964,13 @@ const catalanTranslation: TranslationType = {
                 },
                 destinationServers: {
                     title: "Servidors de Destinació",
+                    description:
+                        "La taula a continuació mostra l'estat d'enviament de cadascun dels Servidors de Destinació.",
+                    status: "Enviat a {{signed}} de {{total}}",
+                    table: {
+                        serverName: "Nom del Servidor",
+                        sendStatus: "Estat d'Enviament",
+                    },
                 },
                 signatures: {
                     title: "Signatures SBEI",

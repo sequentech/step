@@ -963,6 +963,13 @@ const spanishTranslation: TranslationType = {
                 },
                 destinationServers: {
                     title: "Servidores de Destino",
+                    description:
+                        "La tabla a continuación muestra el estado de envío de cada uno de los Servidores de Destino.",
+                    status: "Enviado a {{signed}} de {{total}}",
+                    table: {
+                        serverName: "Nombre del Servidor",
+                        sendStatus: "Estado de Envío",
+                    },
                 },
                 signatures: {
                     title: "Firmas SBEI",

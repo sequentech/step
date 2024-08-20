@@ -83,7 +83,7 @@ export const MiruExport: React.FC<MiruExportProps> = ({
                 aria-haspopup="true"
                 onClick={handleMenu}
             >
-                <span title={t("common.label.export")}>{t("common.label.export")}</span>
+                <span title={t("common.label.actions")}>{t("common.label.actions")}</span>
             </ExportButton>
 
             <Menu
