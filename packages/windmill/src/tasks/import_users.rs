@@ -34,6 +34,7 @@ use tempfile::NamedTempFile;
 use tokio_postgres::binary_copy::BinaryCopyInWriter;
 use tokio_postgres::types::{ToSql, Type};
 use tracing::{debug, info, instrument};
+use uuid::Uuid;
 
 lazy_static! {
     static ref HEADER_RE: Regex = Regex::new(r"^[a-zA-Z0-9._-]+$").unwrap();
@@ -41,6 +42,7 @@ lazy_static! {
     static ref SALT_COL_NAME: String = String::from("password_salt");
     static ref HASHED_PASSWORD_COL_NAME: String = String::from("hashed_password");
     static ref PASSWORD_COL_NAME: String = String::from("password");
+    static ref USERNAME_COL_NAME: String = String::from("username");
     static ref GROUP_COL_NAME: String = String::from("group_name");
     static ref AREA_NAME_COL_NAME: String = String::from("area_name");
     static ref RESERVED_COL_NAMES: Vec<String> = vec![
@@ -179,6 +181,12 @@ impl ImportUsersBody {
             } else {
                 Vec::new().into_iter()
             })
+            // note that in this case, username is at the end
+            .chain(if !headers_vec.contains(&USERNAME_COL_NAME) {
+                vec![USERNAME_COL_NAME.clone()].into_iter()
+            } else {
+                Vec::new().into_iter()
+            })
             .collect::<Vec<String>>();
 
         // Create the table creation query
@@ -235,11 +243,33 @@ impl ImportUsersBody {
         let select_columns: Vec<String> = user_entity_columns
             .iter()
             .map(|&column| {
+                let col_name = column.to_string();
                 match column {
-                    // Cast enabled to boolean
-                    "enabled" => "enabled::boolean".to_string(),
                     "id" => "gen_random_uuid()".to_string(),
-                    _ => column.to_string(),
+                    // Cast enabled to boolean, with TRUE as default
+                    "enabled" => {
+                        if voters_table_columns.contains(&col_name) {
+                            "enabled::boolean".to_string()
+                        } else {
+                            "'TRUE'::boolean".to_string()
+                        }
+                    }
+                    // empty as default, lowercase required in keycloak
+                    "email" => {
+                        if voters_table_columns.contains(&col_name) {
+                            "LOWER(email)".to_string()
+                        } else {
+                            "''".to_string()
+                        }
+                    }
+                    // empty as default
+                    _ => {
+                        if voters_table_columns.contains(&col_name) {
+                            col_name
+                        } else {
+                            "''".to_string()
+                        }
+                    }
                 }
             })
             .collect();
@@ -598,6 +628,12 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
             info!("password data: salt={password_salt:?}, hashed_password={hashed_password:?}");
             owned_data.push(password_salt.ok_or_else(|| anyhow!("password salt empty"))?);
             owned_data.push(hashed_password.ok_or_else(|| anyhow!("hashed password empty"))?);
+        }
+
+        if !voters_table_input_columns_names.contains(&*USERNAME_COL_NAME) {
+            let username = Uuid::new_v4().to_string();
+            info!("user data: random username={username:?}");
+            owned_data.push(username);
         }
 
         let row: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = owned_data

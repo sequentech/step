@@ -21,6 +21,7 @@ pub mod insert_election_event;
 pub mod insert_tenant;
 pub mod keys_ceremony;
 pub mod manual_verification_pdf;
+pub mod miru_plugin;
 pub mod permissions;
 pub mod roles;
 pub mod scheduled_event;

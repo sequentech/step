@@ -18,6 +18,8 @@ pub const TYPES_VERSION: u32 = 1;
 
 pub type I18nContent<T = Option<String>> = HashMap<String, T>;
 
+pub type Annotations = HashMap<String, String>;
+
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
 pub struct ReplicationChoice<C: Ctx> {
     pub ciphertext: Ciphertext<C>,
@@ -293,6 +295,7 @@ pub struct Candidate {
     pub alias_i18n: Option<I18nContent>,
     pub candidate_type: Option<String>,
     pub presentation: Option<CandidatePresentation>,
+    pub annotations: Option<Annotations>,
 }
 
 impl Candidate {
@@ -450,6 +453,7 @@ pub struct Election {
     pub image_document_id: Option<String>,
     pub contests: Vec<Contest>,
     pub presentation: Option<ElectionPresentation>,
+    pub annotations: Option<Annotations>,
 }
 
 #[allow(non_camel_case_types)]
@@ -754,6 +758,7 @@ pub struct ContestPresentation {
     pub base32_writeins: Option<bool>,
     pub invalid_vote_policy: Option<InvalidVotePolicy>, /* allowed|warn|warn-invalid-implicit-and-explicit */
     pub blank_vote_policy: Option<EBlankVotePolicy>,
+    pub pagination_policy: Option<String>,
     pub cumulative_number_of_checkboxes: Option<u64>,
     pub shuffle_categories: Option<bool>,
     pub shuffle_category_list: Option<Vec<String>>,
@@ -775,6 +780,7 @@ impl ContestPresentation {
             base32_writeins: Some(true),
             invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
             blank_vote_policy: Some(EBlankVotePolicy::ALLOWED),
+            pagination_policy: Some("".to_owned()),
             cumulative_number_of_checkboxes: None,
             shuffle_categories: Some(false),
             shuffle_category_list: None,
@@ -827,6 +833,7 @@ pub struct Contest {
     pub candidates: Vec<Candidate>,
     pub presentation: Option<ContestPresentation>,
     pub created_at: Option<String>,
+    pub annotations: Option<Annotations>,
 }
 
 impl Contest {

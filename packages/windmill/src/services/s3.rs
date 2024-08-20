@@ -212,3 +212,33 @@ pub fn get_minio_url() -> Result<String> {
 
     Ok(format!("{}/{}", minio_private_uri, bucket))
 }
+
+pub fn get_public_asset_file_path(filename: &str) -> Result<String> {
+    let minio_endpoint_base = get_minio_url().with_context(|| "Error fetching get_minio_url")?;
+    let public_asset_path = env::var("PUBLIC_ASSETS_PATH")
+        .with_context(|| "Error fetching PUBLIC_ASSETS_PATH env var")?;
+
+    Ok(format!(
+        "{}/{}/{}",
+        minio_endpoint_base, public_asset_path, filename
+    ))
+}
+
+#[instrument(err)]
+pub async fn download_s3_file_to_string(file_url: &str) -> Result<String> {
+    let client = reqwest::Client::new();
+
+    info!("Requesting HTTP GET {:?}", file_url);
+    let response = client.get(file_url).send().await?;
+
+    let unwrapped_response = if response.status() != reqwest::StatusCode::OK {
+        return Err(anyhow!(
+            "Error during download_s3_file_to_string: {:?}",
+            response
+        ));
+    } else {
+        response
+    };
+    let bytes = unwrapped_response.bytes().await?;
+    Ok(String::from_utf8(bytes.to_vec())?)
+}
