@@ -2,73 +2,70 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import {useTranslation} from "react-i18next"
-import {NoItem} from "@/components/NoItem"
-import {Box} from "@mui/material"
-import {formatPercentOne, isNumber} from "@sequentech/ui-core"
-import {IMiruCcsServer} from "@/types/miru"
+import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty"
+import Table from "@mui/material/Table"
+import TableBody from "@mui/material/TableBody"
+import TableCell from "@mui/material/TableCell"
+import TableContainer from "@mui/material/TableContainer"
+import TableHead from "@mui/material/TableHead"
+import TableRow from "@mui/material/TableRow"
+import Paper from "@mui/material/Paper"
+import {WizardStyles} from "@/components/styles/WizardStyles"
+import {IMiruCcsServer, IMiruServersSentTo} from "@/types/miru"
 
 interface MiruServersProps {
     servers: IMiruCcsServer[]
+    serversSentTo: Array<IMiruServersSentTo>
 }
 
 export const MiruServers: React.FC<MiruServersProps> = (props) => {
-    const {servers} = props
+    const {servers, serversSentTo} = props
     const {t} = useTranslation() //translations to be applied
 
-    const columns: GridColDef[] = [
-        {
-            field: "name",
-            headerName: "Name",
-            flex: 1,
-            editable: false,
-            align: "left",
-        },
-        {
-            field: "address",
-            headerName: "Address",
-            flex: 1,
-            editable: false,
-            renderCell: (props: GridRenderCellParams<any, string>) => props["value"] ?? "-",
-            align: "right",
-            headerAlign: "right",
-        },
-        {
-            field: "public_key_pem",
-            headerName: "Public Key",
-            flex: 1,
-            editable: false,
-            renderCell: (props: GridRenderCellParams<any, string>) =>
-                isNumber(props["value"]) ? formatPercentOne(props["value"]) : "-",
-            align: "right",
-            headerAlign: "right",
-        },
-    ]
+    const isSentTo = (serverName: string) => {
+        return !!serversSentTo.find((server) => server.name === serverName)
+    }
 
     return (
-        <Box sx={{width: "100%"}}>
-            {servers.length ? (
-                <DataGrid
-                    getRowId={(r) => r.address}
-                    rows={servers}
-                    columns={columns}
-                    initialState={{
-                        pagination: {
-                            paginationModel: {
-                                pageSize: 20,
-                            },
-                        },
-                        sorting: {
-                            sortModel: [{field: "name", sort: "asc"}],
-                        },
-                    }}
-                    pageSizeOptions={[10, 20, 50, 100]}
-                    disableRowSelectionOnClick
-                />
-            ) : (
-                <NoItem />
-            )}
-        </Box>
+        <>
+            <TableContainer sx={{marginTop: 3}} component={Paper}>
+                <Table sx={{minWidth: 650}} aria-label="simple table">
+                    <TableHead>
+                        <TableRow>
+                            <TableCell sx={{width: "25%"}}>
+                                {t("tally.transmissionPackage.destinationServers.table.serverName")}
+                            </TableCell>
+                            <TableCell align="center">
+                                {t("tally.transmissionPackage.destinationServers.table.sendStatus")}
+                            </TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {servers.map((server: any) => {
+                            return (
+                                <TableRow
+                                    key={server.name as any}
+                                    sx={{
+                                        "&:last-child td, &:last-child th": {border: 0},
+                                    }}
+                                >
+                                    <TableCell sx={{width: "25%"}} component="th" scope="row">
+                                        {server.name}
+                                    </TableCell>
+                                    <TableCell align="center">
+                                        {isSentTo(server.name) ? (
+                                            <WizardStyles.DoneIcon />
+                                        ) : (
+                                            <HourglassEmptyIcon />
+                                        )}
+                                    </TableCell>
+                                </TableRow>
+                            )
+                        }) ?? null}
+                    </TableBody>
+                </Table>
+            </TableContainer>
+        </>
     )
 }

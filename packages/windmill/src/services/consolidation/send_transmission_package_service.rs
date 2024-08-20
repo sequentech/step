@@ -214,9 +214,6 @@ pub async fn send_transmission_package_service(
         .collect();
 
     for ccs_server in &transmission_area_election.servers {
-        if servers_sent_to.contains(&ccs_server.name) {
-            continue;
-        };
         let transmission_package = create_transmission_package(
             time_zone.clone(),
             now_utc.clone(),

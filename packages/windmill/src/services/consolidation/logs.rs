@@ -37,7 +37,7 @@ pub fn send_transmission_package_to_ccs_log(
     Log {
         created_date: ISO8601::to_string(datetime),
         log_text: format!(
-            "Sent transmission package xml for election '{}' ({}) and area '{}' ({}) to server '{}' ({}), signed by {}",
+            "Sent transmission package xml for election '{}' ({}) and area '{}' ({}) to server '{}' ({}), signed by [{}].",
             election_id, election_name, area_id, area_name, server_name, server_address,
             trustees.join(", ")
         ),
