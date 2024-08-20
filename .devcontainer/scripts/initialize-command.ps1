@@ -16,7 +16,4 @@ if (-Not $localWorkspaceFolder) {
     Add-Content -Path .devcontainer\.env -Value "`nLOCAL_WORKSPACE_FOLDER=$SCRIPT_DIR\..\"
 }
 
-# Configure global safe directories for Git
-git config --global --add safe.directory *
-
 Write-Host "$(Get-Location)/.devcontainer/.env file initialized successfully"

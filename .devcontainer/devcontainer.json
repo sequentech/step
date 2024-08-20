@@ -38,9 +38,9 @@
 	"userEnvProbe": "loginShell",
 	"updateRemoteUserUID": true,
 
-	"onCreateCommand": "direnv allow && devenv shell bash -- -c './.devcontainer/scripts/fix-vscode-settings-nix.sh'",
-	"updateContentCommand": "direnv allow && devenv shell bash -- -c './.devcontainer/scripts/fix-vscode-settings-nix.sh'",
-	"postCreateCommand":"direnv allow && devenv shell bash -- -c './.devcontainer/scripts/init-cli.sh'",
+	"onCreateCommand": "git config --global --add safe.directory '*' && direnv allow && devenv shell bash -- -c './.devcontainer/scripts/fix-vscode-settings-nix.sh'",
+	"updateContentCommand": "git config --global --add safe.directory '*' && direnv allow && devenv shell bash -- -c './.devcontainer/scripts/fix-vscode-settings-nix.sh'",
+	"postCreateCommand":"git config --global --add safe.directory '*' && direnv allow && devenv shell bash -- -c './.devcontainer/scripts/init-cli.sh'",
 
 	// Adding host requirements so that there is no need to manually select the
 	// machine to run on all the time
