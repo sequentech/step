@@ -25,6 +25,9 @@ import org.keycloak.authentication.ValidationContext;
 import org.keycloak.authentication.forms.RegistrationPage;
 import org.keycloak.events.Details;
 import org.keycloak.events.Errors;
+import org.keycloak.events.Event;
+import org.keycloak.events.EventListenerProvider;
+import org.keycloak.events.admin.AdminEvent;
 import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.AuthenticatorConfigModel;
@@ -179,7 +182,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         errors.add(new FormMessage(RegistrationPage.FIELD_EMAIL, Messages.INVALID_EMAIL));
         context.validationError(formData, errors);
         return;
-      }
+      } 
     } catch (ValidationException pve) {
       log.info("validate: ValidationException pve = " + pve.toString());
 

@@ -285,6 +285,13 @@ type Query {
 }
 
 type Mutation {
+  log_event (
+    election_event_id: String!
+    message_type: String!
+  ): LogEventOutput
+}
+
+type Mutation {
   manage_election_dates (
     election_event_id: String!
     election_id: String
@@ -849,5 +856,9 @@ type ManageElectionDatesOutput {
 type ExportLogsOutput {
   task_id : String!
   document_id : String!
+}
+
+type LogEventOutput {
+  id : String
 }
 

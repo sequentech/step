@@ -246,9 +246,17 @@ services:
       KC_DB_URL_DATABASE: ${KC_DB_URL_DATABASE}
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      IMMUDB_USER: ${IMMUDB_USER}
+      IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
+      IMMUDB_SERVER_URL: ${IMMUDB_SERVER_URL}
+      KEYCLOAK_URL: ${KEYCLOAK_URL}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
+      SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
     volumes:
       # https://www.keycloak.org/server/containers#_importing_a_realm_on_startup
       - ./keycloak/import:/opt/keycloak/data/import
+      - ./custom-event-listener/target/custom-event-listener-0.0.1-SNAPSHOT.jar://opt/jboss/keycloak/standalone/deployments/custom-event-listener-0.0.1-SNAPSHOT.jar
     # Below we're using the dummy email email sender provider but that's just for
     # development, in production we should still use the default SMTP email provider
     #
