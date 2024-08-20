@@ -101,6 +101,7 @@ export const TallyCeremony: React.FC = () => {
     const [selectedTallySessionData, setSelectedTallySessionData] =
         useState<IMiruTransmissionPackageData | null>(null)
     const [openModal, setOpenModal] = useState(false)
+    const [confirmSendMiruModal, setConfirmSendMiruModal] = useState(false)
     const [openCeremonyModal, setOpenCeremonyModal] = useState(false)
     const [transmissionLoading, setTransmissionLoading] = useState<boolean>(false)
     const [page, setPage] = useState<number>(WizardSteps.Start)
@@ -610,12 +611,16 @@ export const TallyCeremony: React.FC = () => {
                                     aria-label="export election data"
                                     aria-controls="export-menu"
                                     aria-haspopup="true"
-                                    onClick={handleSendTransmissionPackage}
+                                    onClick={() => setConfirmSendMiruModal(true)}
                                 >
                                     {transmissionLoading ? (
                                         <CircularProgress />
                                     ) : (
-                                        <span title={t("tally.transmissionPackage.actions.send.title")}>
+                                        <span
+                                            title={t(
+                                                "tally.transmissionPackage.actions.send.title"
+                                            )}
+                                        >
                                             {t("tally.transmissionPackage.actions.send.title")}
                                         </span>
                                     )}
@@ -978,6 +983,24 @@ export const TallyCeremony: React.FC = () => {
                 }}
             >
                 {t("tally.common.dialog.ceremony")}
+            </Dialog>
+
+            <Dialog
+                variant="info"
+                open={confirmSendMiruModal}
+                ok={t("tally.transmissionPackage.actions.send.dialog.confirm")}
+                cancel={t("tally.transmissionPackage.actions.send.dialog.cancel")}
+                title={t("tally.transmissionPackage.actions.send.dialog.title")}
+                handleClose={(result: boolean) => {
+                    setConfirmSendMiruModal(false)
+                    if (result) {
+                        handleSendTransmissionPackage()
+                    }
+                }}
+            >
+                {t("tally.transmissionPackage.actions.send.dialog.description", {
+                    name: area?.name,
+                })}
             </Dialog>
         </>
     )

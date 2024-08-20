@@ -936,17 +936,26 @@ const spanishTranslation: TranslationType = {
             downloadTransmissionPackage: "Descargar paquete",
             transmissionPackage: {
                 title: "Paquete de Transmisión para el Área '{{name}}'",
-                description: "Te permite exportar un Paquete de Transmisión a los Servidores de Destino o descargarlo.",
+                description:
+                    "Te permite exportar un Paquete de Transmisión a los Servidores de Destino o descargarlo.",
                 actions: {
                     send: {
                         title: "Enviar",
+                        dialog: {
+                            title: "¿Quieres enviar el Paquete de Transmisión?",
+                            description:
+                                "Por favor, confirma que deseas enviar el Paquete de Transmisión para el Área '{{name}}' a los Servidores de Destino.",
+                            confirm: "Enviar Paquete de Transmisión",
+                            cancel: "Cerrar",
+                        },
                     },
                     download: {
                         title: "Descargar",
                         itemTitle: "Descargar el Paquete de Transmisión",
                         dialog: {
                             title: "¿Quieres descargar el Paquete de Transmisión?",
-                            description: "Por favor, confirma que deseas descargar el Paquete de Transmisión para el Área '{{name}}.'",
+                            description:
+                                "Por favor, confirma que deseas descargar el Paquete de Transmisión para el Área '{{name}}.'",
                             confirm: "Descargar Paquete de Transmisión",
                             cancel: "Cerrar",
                         },

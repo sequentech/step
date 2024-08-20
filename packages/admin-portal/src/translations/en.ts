@@ -936,13 +936,21 @@ const englishTranslation = {
                 actions: {
                     send: {
                         title: "Send",
+                        dialog: {
+                            title: "Do you want to Send the Transmission Package?",
+                            description:
+                                "Please confirm you want to Send the Transmission Package for Area `{{name}}` to the Destination Servers.",
+                            confirm: "Send Transmission Package",
+                            cancel: "Close",
+                        },
                     },
                     download: {
                         title: "Download",
                         itemTitle: "Download Transmission Package",
                         dialog: {
                             title: "Do you want to Download the Transmission Package?",
-                            description: "Please confirm you want to Download the Transmission Package for Area `{{name}}.`",
+                            description:
+                                "Please confirm you want to Download the Transmission Package for Area `{{name}}.`",
                             confirm: "Download Transmission Package",
                             cancel: "Close",
                         },

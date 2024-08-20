@@ -937,17 +937,26 @@ const catalanTranslation: TranslationType = {
             downloadTransmissionPackage: "Descarregar paquet",
             transmissionPackage: {
                 title: "Paquet de Transmissió per a l'Àrea '{{name}}'",
-                description: "Et permet exportar un Paquet de Transmissió als Servidors de Destinació o descarregar-lo.",
+                description:
+                    "Et permet exportar un Paquet de Transmissió als Servidors de Destinació o descarregar-lo.",
                 actions: {
                     send: {
                         title: "Enviar",
+                        dialog: {
+                            title: "Vols enviar el Paquet de Transmissió?",
+                            description:
+                                "Si us plau, confirma que vols enviar el Paquet de Transmissió per a l'Àrea '{{name}}' als Servidors de Destinació.",
+                            confirm: "Enviar Paquet de Transmissió",
+                            cancel: "Tancar",
+                        },
                     },
                     download: {
                         title: "Descarregar",
                         itemTitle: "Descarregar el Paquet de Transmissió",
                         dialog: {
                             title: "Vols descarregar el Paquet de Transmissió?",
-                            description: "Si us plau, confirma que vols descarregar el Paquet de Transmissió per a l'Àrea '{{name}}.'",
+                            description:
+                                "Si us plau, confirma que vols descarregar el Paquet de Transmissió per a l'Àrea '{{name}}.'",
                             confirm: "Descarregar Paquet de Transmissió",
                             cancel: "Tancar",
                         },

@@ -174,12 +174,10 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) =
                     setOpenModal(false)
                 }}
             >
-                {t(
-                    "tally.transmissionPackage.actions.download.dialog.description",
-                    {name: areaName}
-                )}
+                {t("tally.transmissionPackage.actions.download.dialog.description", {
+                    name: areaName,
+                })}
             </Dialog>
-
         </div>
     )
 }

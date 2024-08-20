@@ -941,17 +941,26 @@ const frenchTranslation: TranslationType = {
             downloadTransmissionPackage: "Télécharger le paquet",
             transmissionPackage: {
                 title: "Paquet de Transmission pour la Zone '{{name}}'",
-                description: "Vous permet d'exporter un Paquet de Transmission vers des Serveurs de Destination ou de le télécharger.",
+                description:
+                    "Vous permet d'exporter un Paquet de Transmission vers des Serveurs de Destination ou de le télécharger.",
                 actions: {
                     send: {
                         title: "Envoyer",
+                        dialog: {
+                            title: "Voulez-vous envoyer le Paquet de Transmission?",
+                            description:
+                                "Veuillez confirmer que vous souhaitez envoyer le Paquet de Transmission pour la Zone '{{name}}' aux Serveurs de Destination.",
+                            confirm: "Envoyer le Paquet de Transmission",
+                            cancel: "Fermer",
+                        },
                     },
                     download: {
                         title: "Télécharger",
                         itemTitle: "Télécharger le Paquet de Transmission",
                         dialog: {
                             title: "Voulez-vous télécharger le Paquet de Transmission?",
-                            description: "Veuillez confirmer que vous souhaitez télécharger le Paquet de Transmission pour la Zone '{{name}}.'",
+                            description:
+                                "Veuillez confirmer que vous souhaitez télécharger le Paquet de Transmission pour la Zone '{{name}}.'",
                             confirm: "Télécharger le Paquet de Transmission",
                             cancel: "Fermer",
                         },
