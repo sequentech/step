@@ -1,26 +1,29 @@
 // SPDX-FileCopyrightText: 2024 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Accordion, AccordionSummary, CircularProgress} from "@mui/material"
+import {Accordion, AccordionSummary, Box, CircularProgress} from "@mui/material"
 import React, {useMemo} from "react"
 import {WizardStyles} from "./styles/WizardStyles"
 import {TallyStyles} from "./styles/TallyStyles"
 import {MiruServers} from "./MiruServers"
 import {ExportButton} from "./MiruExport"
 import {MiruSignatures} from "./MiruSignatures"
-import {DropFile} from "@sequentech/ui-essentials"
+import {theme, DropFile} from "@sequentech/ui-essentials"
 import {Logs} from "./Logs"
 import {MiruPackageDownload} from "./MiruPackageDownload"
 import {IExpanded} from "@/resources/Tally/TallyCeremony"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
-import {Sequent_Backend_Area, Sequent_Backend_Results_Event} from "@/gql/graphql"
+import {
+    Sequent_Backend_Area,
+    Sequent_Backend_Results_Event,
+    Sequent_Backend_Tally_Session_Execution,
+} from "@/gql/graphql"
 import {IMiruTransmissionPackageData} from "@/types/miru"
 import {IResultDocuments} from "@/types/results"
 import {useTranslation} from "react-i18next"
-import {useAtomValue} from "jotai"
-import {tallyQueryData} from "@/atoms/tally-candidates"
 
 interface IMiruExportWizardProps {
+    tallySessionExecution?: Sequent_Backend_Tally_Session_Execution
     expandedExports: IExpanded
     resultsEvent: Sequent_Backend_Results_Event[] | undefined
     setExpandedDataExports: React.Dispatch<React.SetStateAction<IExpanded>>
@@ -29,11 +32,14 @@ interface IMiruExportWizardProps {
     handleSendTransmissionPackage: () => void
     selectedTallySessionData: IMiruTransmissionPackageData | null
     uploading: boolean
+    isTrustee: boolean
+    area: Sequent_Backend_Area | null
     errors: String | null
     handleUploadSignature: (files: FileList | null) => Promise<void>
 }
 
 export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({
+    tallySessionExecution,
     expandedExports,
     resultsEvent,
     setExpandedDataExports,
@@ -43,44 +49,127 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({
     uploading,
     documents,
     errors,
+    area,
+    isTrustee,
     handleUploadSignature,
 }) => {
     const {t, i18n} = useTranslation()
-    const tallyData = useAtomValue(tallyQueryData)
 
-    const area: Sequent_Backend_Area | null = useMemo(
-        () =>
-            tallyData?.sequent_backend_area?.find(
-                (area) => selectedTallySessionData?.area_id === area.id
-            ) ?? null,
-        [selectedTallySessionData?.area_id, tallyData?.sequent_backend_area]
-    )
+    const signaturesStatusColor: () => string = () => {
+        let signed = signedCount()
+        let trustees = trusteeCount()
+
+        return signed < trustees ? theme.palette.info.main : theme.palette.brandSuccess
+    }
+
+    const signedCount: () => number = () => {
+        let signatures =
+            selectedTallySessionData?.documents[selectedTallySessionData?.documents.length - 1]
+                .signatures ?? []
+
+        return signatures.filter((signature) => !signature.signature || !signature.pub_key).length
+    }
+
+    const trusteeCount: () => number = () => {
+        let trustees = tallySessionExecution?.status?.trustees ?? []
+        return trustees.length
+    }
+
+    const serversStatusColor: () => string = () => {
+        let sentTo = serverSentToCount()
+        let servers = serversTotalCount()
+
+        return sentTo < servers ? theme.palette.info.main : theme.palette.brandSuccess
+    }
+
+    const serverSentToCount: () => number = () => {
+        let sentTo =
+            selectedTallySessionData?.documents[selectedTallySessionData?.documents.length - 1]
+                .servers_sent_to ?? []
+
+        return sentTo.length
+    }
+
+    const serversTotalCount: () => number = () => {
+        let servers = selectedTallySessionData?.servers ?? []
+        return servers.length
+    }
 
     return (
         <>
+            {isTrustee && (
+                <Accordion
+                    sx={{width: "100%"}}
+                    expanded={expandedExports["tally-miru-upload"]}
+                    onChange={() =>
+                        setExpandedDataExports((prev: IExpanded) => ({
+                            ...prev,
+                            "tally-miru-upload": !prev["tally-miru-upload"],
+                        }))
+                    }
+                >
+                    <AccordionSummary>
+                        <Box className="flex flex-col items-start">
+                            <WizardStyles.AccordionTitle>
+                                {t("tally.uploadTransmissionPackage")}
+                            </WizardStyles.AccordionTitle>
+                            <WizardStyles.AccordionSubTitle>
+                                {t("tally.uploadTransmissionPackageDesc")}
+                            </WizardStyles.AccordionSubTitle>
+                        </Box>
+                    </AccordionSummary>
+                    <WizardStyles.AccordionDetails style={{zIndex: 100}}>
+                        <DropFile handleFiles={handleUploadSignature} />
+                        <WizardStyles.StatusBox>
+                            {uploading ? <WizardStyles.DownloadProgress /> : null}
+                            {errors ? (
+                                <WizardStyles.ErrorMessage variant="body2">
+                                    {errors}
+                                </WizardStyles.ErrorMessage>
+                            ) : null}
+                        </WizardStyles.StatusBox>
+                    </WizardStyles.AccordionDetails>
+                </Accordion>
+            )}
             <Accordion
                 sx={{width: "100%"}}
-                expanded={expandedExports["tally-download-package"]}
+                expanded={expandedExports["tally-miru-signatures"]}
                 onChange={() =>
                     setExpandedDataExports((prev: IExpanded) => ({
                         ...prev,
-                        "tally-download-package": !prev["tally-download-package"],
+                        "tally-miru-signatures": !prev["tally-miru-signatures"],
                     }))
                 }
             >
-                <AccordionSummary>
+                <AccordionSummary expandIcon={<ExpandMoreIcon id="tally-miru-signatures" />}>
                     <WizardStyles.AccordionTitle>
-                        {t("tally.downloadTransmissionPackage")}
+                        {t("tally.transmissionPackage.signatures.title")}
                     </WizardStyles.AccordionTitle>
-                    <TallyStyles.StyledSpacing>
-                        {resultsEvent?.[0] && documents ? (
-                            <MiruPackageDownload
-                                documents={selectedTallySessionData?.documents ?? []}
-                                electionEventId={resultsEvent?.[0].election_event_id}
-                            />
-                        ) : null}
-                    </TallyStyles.StyledSpacing>
+                    <WizardStyles.CeremonyStatus
+                        sx={{
+                            backgroundColor: signaturesStatusColor(),
+                            color: theme.palette.background.default,
+                            textTransform: "uppercase",
+                        }}
+                        label={t("tally.transmissionPackage.signatures.status", {
+                            signed: signedCount(),
+                            total: trusteeCount(),
+                        })}
+                    />
                 </AccordionSummary>
+                <WizardStyles.AccordionDetails style={{zIndex: 100}}>
+                    <WizardStyles.AccordionSubTitle>
+                        {t("tally.transmissionPackage.signatures.description")}
+                    </WizardStyles.AccordionSubTitle>
+                    <MiruSignatures
+                        signatures={
+                            selectedTallySessionData?.documents[
+                                selectedTallySessionData?.documents.length - 1
+                            ].signatures ?? []
+                        }
+                        tallySessionExecution={tallySessionExecution}
+                    />
+                </WizardStyles.AccordionDetails>
             </Accordion>
             <Accordion
                 sx={{width: "100%"}}
@@ -94,97 +183,35 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({
             >
                 <AccordionSummary expandIcon={<ExpandMoreIcon id="tally-miru-servers" />}>
                     <WizardStyles.AccordionTitle>
-                        {t("tally.TransmissionPackageServers")}
+                        {t("tally.transmissionPackage.destinationServers.title")}
                     </WizardStyles.AccordionTitle>
-                </AccordionSummary>
-                <WizardStyles.AccordionDetails style={{zIndex: 100}}>
-                    <MiruServers servers={selectedTallySessionData?.servers ?? []} />
-                </WizardStyles.AccordionDetails>
-            </Accordion>
-            <Accordion
-                sx={{width: "100%"}}
-                expanded={expandedExports["tally-download-package"]}
-                onChange={() =>
-                    setExpandedDataExports((prev: IExpanded) => ({
-                        ...prev,
-                        "tally-download-package": !prev["tally-download-package"],
-                    }))
-                }
-            >
-                <AccordionSummary>
-                    <WizardStyles.AccordionTitle>
-                        {t("tally.sendToTransmissionPackageServers", {
-                            name: area?.name,
+                    <WizardStyles.CeremonyStatus
+                        sx={{
+                            backgroundColor: serversStatusColor(),
+                            color: theme.palette.background.default,
+                            textTransform: "uppercase",
+                        }}
+                        label={t("tally.transmissionPackage.destinationServers.status", {
+                            signed: serverSentToCount(),
+                            total: serversTotalCount(),
                         })}
-                    </WizardStyles.AccordionTitle>
-                    <TallyStyles.StyledSpacing>
-                        {transmissionLoading ? (
-                            <CircularProgress />
-                        ) : (
-                            <ExportButton
-                                aria-label="export election data"
-                                aria-controls="export-menu"
-                                aria-haspopup="true"
-                                onClick={handleSendTransmissionPackage}
-                            >
-                                <span title={"Send"}>{"Send"}</span>
-                            </ExportButton>
-                        )}
-                    </TallyStyles.StyledSpacing>
-                </AccordionSummary>
-            </Accordion>
-            <Accordion
-                sx={{width: "100%"}}
-                expanded={expandedExports["tally-miru-signatures"]}
-                onChange={() =>
-                    setExpandedDataExports((prev: IExpanded) => ({
-                        ...prev,
-                        "tally-miru-signatures": !prev["tally-miru-signatures"],
-                    }))
-                }
-            >
-                <AccordionSummary expandIcon={<ExpandMoreIcon id="tally-miru-signatures" />}>
-                    <WizardStyles.AccordionTitle>
-                        {t("tally.transmissionPackageSignatures")}
-                    </WizardStyles.AccordionTitle>
+                    />
                 </AccordionSummary>
                 <WizardStyles.AccordionDetails style={{zIndex: 100}}>
-                    <MiruSignatures
-                        signatures={
+                    <WizardStyles.AccordionSubTitle>
+                        {t("tally.transmissionPackage.destinationServers.description")}
+                    </WizardStyles.AccordionSubTitle>
+                    <MiruServers
+                        servers={selectedTallySessionData?.servers ?? []}
+                        serversSentTo={
                             selectedTallySessionData?.documents[
                                 selectedTallySessionData?.documents.length - 1
-                            ].signatures ?? []
+                            ].servers_sent_to ?? []
                         }
                     />
                 </WizardStyles.AccordionDetails>
             </Accordion>
-            <Accordion
-                sx={{width: "100%"}}
-                expanded={expandedExports["tally-miru-upload"]}
-                onChange={() =>
-                    setExpandedDataExports((prev: IExpanded) => ({
-                        ...prev,
-                        "tally-miru-upload": !prev["tally-miru-upload"],
-                    }))
-                }
-            >
-                <AccordionSummary>
-                    <WizardStyles.AccordionTitle>
-                        {t("tally.uploadTransmissionPackage")}
-                    </WizardStyles.AccordionTitle>
-                </AccordionSummary>
-                <WizardStyles.AccordionDetails style={{zIndex: 100}}>
-                    <DropFile handleFiles={handleUploadSignature} />
-                    <WizardStyles.StatusBox>
-                        {uploading ? <WizardStyles.DownloadProgress /> : null}
-                        {errors ? (
-                            <WizardStyles.ErrorMessage variant="body2">
-                                {errors}
-                            </WizardStyles.ErrorMessage>
-                        ) : null}
-                    </WizardStyles.StatusBox>
-                </WizardStyles.AccordionDetails>
-            </Accordion>
+
             <Logs logs={selectedTallySessionData?.logs} />
         </>
     )

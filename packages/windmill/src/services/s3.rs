@@ -76,11 +76,18 @@ pub async fn get_s3_client(config: s3::Config) -> Result<s3::Client> {
 #[instrument]
 pub fn get_document_key(
     tenant_id: &str,
-    election_event_id: &str,
+    election_event_id: Option<&str>,
     document_id: &str,
     name: &str,
 ) -> String {
-    format!("tenant-{tenant_id}/event-{election_event_id}/document-{document_id}/{name}")
+    match election_event_id {
+        Some(event_id) => {
+            format!("tenant-{tenant_id}/event-{event_id}/document-{document_id}/{name}")
+        }
+        None => {
+            format!("tenant-{tenant_id}/document-{document_id}/{name}")
+        }
+    }
 }
 
 #[instrument]
@@ -107,14 +114,14 @@ pub async fn get_document_url(key: String, s3_bucket: String) -> Result<String> 
 }
 
 #[instrument(err, ret)]
-pub async fn get_upload_url(key: String, is_public: bool) -> Result<String> {
+pub async fn get_upload_url(key: String, is_public: bool, is_local: bool) -> Result<String> {
     let s3_bucket = match is_public {
         true => get_public_bucket()?,
         false => get_private_bucket()?,
     };
     // We always use the public aws config since we are generating a client-side
     // upload url. is_public is only used to define the upload bucket
-    let config = get_s3_aws_config(/* private = */ false).await?;
+    let config = get_s3_aws_config(/* private = */ is_local).await?;
     let client = get_s3_client(config.clone()).await?;
 
     let presigning_config =

@@ -157,8 +157,8 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                 aria-haspopup="true"
                 onClick={handleMenu}
             >
-                <span title={buttonTitle ?? t("common.label.export")}>
-                    {buttonTitle ?? t("common.label.export")}
+                <span title={buttonTitle ?? t("common.label.actions")}>
+                    {buttonTitle ?? t("common.label.actions")}
                 </span>
                 {performDownload ? (
                     <PerformDownload
