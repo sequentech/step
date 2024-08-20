@@ -7,7 +7,6 @@ use crate::types::error::Result;
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction};
-use sequent_core::types::hasura::extra::TasksExecutionStatus;
 use tracing::{event, instrument, Level};
 
 #[instrument(err)]

@@ -132,7 +132,7 @@ impl Candidate {
 pub enum TasksExecutionStatus {
     #[default]
     IN_PROGRESS,
-    COMPLETED,
+    SUCCESS,
     FAILED,
     CANCELLED,
 }

@@ -4,30 +4,33 @@
 
 import {Typography} from "@mui/material"
 import React, {useContext, useState} from "react"
-import {AuthContext} from "@/providers/AuthContextProvider"
-import {useTenantStore} from "@/providers/TenantContextProvider"
-import {CustomTabPanel} from "@/components/CustomTabPanel"
 import ElectionHeader from "@/components/ElectionHeader"
 import {useTranslation} from "react-i18next"
-import {IPermissions} from "@/types/keycloak"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {ListTasks} from "../Tasks/ListTasks"
+import {Identifier} from "react-admin"
+
+enum ViewMode {
+    View,
+    List,
+}
 
 export const EditElectionEventTasks: React.FC = () => {
-    const authContext = useContext(AuthContext)
-    const [tenantId] = useTenantStore()
-    const [tab, setTab] = useState(0)
+    const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.List)
+    const [taskExecutionId, setTaskExecutionId] = useState<string | Identifier | null>(null)
     const {t} = useTranslation()
 
-    // const logsRead = authContext.isAuthorized(true, tenantId, IPermissions.TASKS_READ)
-    const handleChange = (event: React.SyntheticEvent, newValue: number) => {
-        setTab(newValue)
+    const onViewTask = (id: Identifier) => {
+        setViewMode(ViewMode.View)
+        setTaskExecutionId(id)
     }
 
     return (
         <>
             <ElectionHeader title={t("tasksScreen.title")} subtitle="tasksScreen.subtitle" />
-            <ListTasks />
+            {viewMode === ViewMode.List ? <ListTasks onViewTask={onViewTask} /> : <>
+            
+            </>}
         </>
     )
 }

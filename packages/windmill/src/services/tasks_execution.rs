@@ -47,7 +47,7 @@ pub async fn update(
 
 pub async fn update_complete(task: &TasksExecution) -> Result<(), anyhow::Error> {
     let task_id = &task.id;
-    let new_status = TasksExecutionStatus::COMPLETED;
+    let new_status = TasksExecutionStatus::SUCCESS;
     let logs = task.logs.clone();
     let new_msg = "Task completed successfully";
     let new_logs = serde_json::to_value(append_general_log(&logs, new_msg))?;
@@ -58,11 +58,15 @@ pub async fn update_complete(task: &TasksExecution) -> Result<(), anyhow::Error>
     Ok(())
 }
 
-// pub async fn update_fail(task_id: &str, status: TasksExecutionStatus, message: &str) -> Result<(), anyhow::Error> {
-//     update_task_execution_status(task_id, status)
-//         .await
-//         .context("Failed to update task execution record")?;
-//     Ok(())
-// }
+pub async fn update_fail(task: &TasksExecution, err_message: &str) -> Result<(), anyhow::Error> {
+    let task_id = &task.id;
+    let new_status = TasksExecutionStatus::FAILED;
+    let logs = task.logs.clone();
+    let new_logs = serde_json::to_value(append_general_log(&logs, err_message))?;
 
-//TODO: function that return the correct log according to action type
+    update_task_execution_status(task_id, new_status, Some(new_logs))
+        .await
+        .context("Failed to update task execution record with failure status")?;
+
+    Ok(())
+}

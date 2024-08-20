@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::database::get_hasura_pool;
+use crate::services::date::ISO8601;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::types::{
@@ -80,7 +81,6 @@ pub async fn insert_tasks_execution(
         )
         .await?;
 
-    // Execute the query and expect a single row
     let row = db_client
         .query_one(
             &statement,
@@ -99,7 +99,7 @@ pub async fn insert_tasks_execution(
         .await
         .map_err(|err| anyhow!("Error inserting task execution: {}", err))?;
 
-    // Convert the resulting row into `TasksExecution`
+    // Convert the resulting row into `TasksExecution` struct
     let task_execution: TasksExecution = row
         .try_into()
         .map(|wrapper: TasksExecutionWrapper| wrapper.0)
@@ -113,7 +113,6 @@ pub async fn update_task_execution_status(
     new_status: TasksExecutionStatus,
     new_logs: Option<Value>,
 ) -> Result<()> {
-    // Get a database client from the pool
     let db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -123,15 +122,17 @@ pub async fn update_task_execution_status(
     let task_execution_uuid =
         Uuid::parse_str(task_execution_id).context("Failed to parse task_execution_id as UUID")?;
 
-    // let new_logs_json = new_logs
-    //     .map(|logs| serde_json::to_value(logs).context("Failed to serialize logs"))
-    //     .transpose()?;
-
     let statement = db_client
         .prepare(
             r#"
             UPDATE sequent_backend.tasks_execution
-            SET execution_status = $1, logs = $2
+            SET 
+                execution_status = $1,
+                logs = $2,
+                end_at = CASE
+                    WHEN $1 = 'SUCCESS' THEN now()
+                    ELSE end_at
+                END
             WHERE id = $3;
             "#,
         )
