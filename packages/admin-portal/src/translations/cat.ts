@@ -965,10 +965,18 @@ const catalanTranslation: TranslationType = {
                 destinationServers: {
                     title: "Servidors de Destinació",
                 },
+                signatures: {
+                    title: "Signatures SBEI",
+                    description: "Els SBEIs poden signar el Paquet de Transmissió. La taula a continuació mostra l'estat de signatura de cada un dels membres del SBEI.",
+                    table: {
+                        trusteeName: "Nom del Fiduciari",
+                        signed: "Ha Signat",
+                    },
+                    status: "{{signed}} de {{total}} Han Signat",
+                },
             },
             sendToTransmissionPackageServers:
                 "Enviar paquet de transmissió per a l'àrea '{{name}}'",
-            transmissionPackageSignatures: "Signatures",
             uploadTransmissionPackage: "Carregar",
             uploadTransmissionPackageDesc:
                 "Carrega la teva signatura per signar el paquet de Resultats Electorals. Aquesta operació és opcional.",

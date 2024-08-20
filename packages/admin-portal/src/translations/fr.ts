@@ -969,10 +969,18 @@ const frenchTranslation: TranslationType = {
                 destinationServers: {
                     title: "Serveurs de Destination",
                 },
+                signatures: {
+                    title: "Signatures SBEI",
+                    description: "Les SBEI peuvent signer le Paquet de Transmission. Le tableau ci-dessous montre l'état de signature de chacun des membres du SBEI.",
+                    table: {
+                        trusteeName: "Nom du Fiduciaire",
+                        signed: "A Signé",
+                    },                    
+                    status: "{{signed}} sur {{total}} Ont Signé",
+                },
             },
             sendToTransmissionPackageServers:
                 "Envoyer le paquet de transmission pour la zone '{{name}}'",
-            transmissionPackageSignatures: "Signatures",
             uploadTransmissionPackage: "Télécharger",
             uploadTransmissionPackageDesc:
                 "Téléchargez votre signature pour signer le paquet des Résultats Électoraux. Cette opération est optionnelle.",

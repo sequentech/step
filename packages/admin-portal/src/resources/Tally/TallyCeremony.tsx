@@ -25,6 +25,7 @@ import {
     CircularProgress,
 } from "@mui/material"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
+import CellTowerIcon from "@mui/icons-material/CellTower"
 import {ListActions} from "@/components/ListActions"
 import {TallyElectionsList} from "./TallyElectionsList"
 import {TallyTrusteesList} from "./TallyTrusteesList"
@@ -40,7 +41,7 @@ import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
 import {CREATE_TALLY_CEREMONY} from "@/queries/CreateTallyCeremony"
 import {useMutation} from "@apollo/client"
 import {ITallyExecutionStatus} from "@/types/ceremonies"
-import UploadIcon from "@mui/icons-material/Upload"
+
 import {
     CreateTallyCeremonyMutation,
     CreateTransmissionPackageMutation,
@@ -618,7 +619,7 @@ export const TallyCeremony: React.FC = () => {
                                         <CircularProgress />
                                     ) : (
                                         <>
-                                            <UploadIcon />
+                                            <CellTowerIcon />
                                             <span
                                                 title={t(
                                                     "tally.transmissionPackage.actions.send.title"
@@ -901,6 +902,7 @@ export const TallyCeremony: React.FC = () => {
 
                 {page === WizardSteps.Export && (
                     <MiruExportWizard
+                        tallySessionExecution={tallySessionExecutions?.[0]}
                         expandedExports={expandedExports}
                         resultsEvent={resultsEvent}
                         setExpandedDataExports={setExpandedDataExports}

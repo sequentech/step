@@ -964,10 +964,18 @@ const spanishTranslation: TranslationType = {
                 destinationServers: {
                     title: "Servidores de Destino",
                 },
+                signatures: {
+                    title: "Firmas SBEI",
+                    description: "Los SBEIs pueden firmar el Paquete de Transmisión. La tabla a continuación muestra el estado de la firma de cada uno de los miembros del SBEI.",
+                    table: {
+                        trusteeName: "Nombre del Fideicomisario",
+                        signed: "Ha Firmado",
+                    },
+                    status: "{{signed}} de {{total}} Han Firmado",
+                },
             },
             sendToTransmissionPackageServers:
                 "Enviar paquete de transmisión para el área '{{name}}'",
-            transmissionPackageSignatures: "Firmas",
             uploadTransmissionPackage: "Subir",
             uploadTransmissionPackageDesc:
                 "Sube tu firma para firmar el paquete de Resultados Electorales. Esta operación es opcional.",

@@ -959,9 +959,17 @@ const englishTranslation = {
                 destinationServers: {
                     title: "Destination Servers",
                 },
+                signatures: {
+                    title: "SBEI Signatures",
+                    description: "SBEIs can sign the Transmission Package. The table below shows the signing status of each of the SBEI members.",
+                    status: "{{signed}} out of {{total}} Signed",
+                    table: {
+                        trusteeName: "Trustee Name",
+                        signed: "Has Signed",
+                    },
+                }
             },
             sendToTransmissionPackageServers: "Send Transmission Package for Area '{{name}}'",
-            transmissionPackageSignatures: "SBEI Signatures",
             uploadTransmissionPackage: "Sign Transmission Package",
             uploadTransmissionPackageDesc:
                 "Upload your Signature to sign the Transmission Package. This is an optional operation.",
