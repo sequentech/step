@@ -125,13 +125,13 @@ type Mutation {
 }
 
 type Mutation {
-  export_tenant_users (
+  export_tenant_users(
     tenant_id: String!
   ): ExportTenantUsersOutput
 }
 
 type Mutation {
-  export_users (
+  export_users(
     tenant_id: String!
     election_event_id: String
     election_id: String
@@ -139,7 +139,7 @@ type Mutation {
 }
 
 type Query {
-  fetchDocument (
+  fetchDocument(
     election_event_id: String
     document_id: String!
   ): FetchDocumentOutput
@@ -884,12 +884,12 @@ type ExportLogsOutput {
 }
 
 type ExportAllUsersOutput {
-  task_id : String!
-  document_id : String!
+  task_id: String!
+  document_id: String!
 }
 
 type ExportTenantUsersOutput {
-  task_id : String!
-  document_id : String!
+  task_id: String!
+  document_id: String!
 }
 
