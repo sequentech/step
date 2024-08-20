@@ -961,13 +961,14 @@ const englishTranslation = {
                 },
                 signatures: {
                     title: "SBEI Signatures",
-                    description: "SBEIs can sign the Transmission Package. The table below shows the signing status of each of the SBEI members.",
+                    description:
+                        "SBEIs can sign the Transmission Package. The table below shows the signing status of each of the SBEI members.",
                     status: "{{signed}} out of {{total}} Signed",
                     table: {
                         trusteeName: "Trustee Name",
                         signed: "Has Signed",
                     },
-                }
+                },
             },
             sendToTransmissionPackageServers: "Send Transmission Package for Area '{{name}}'",
             uploadTransmissionPackage: "Sign Transmission Package",

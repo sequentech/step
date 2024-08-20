@@ -966,7 +966,8 @@ const spanishTranslation: TranslationType = {
                 },
                 signatures: {
                     title: "Firmas SBEI",
-                    description: "Los SBEIs pueden firmar el Paquete de Transmisión. La tabla a continuación muestra el estado de la firma de cada uno de los miembros del SBEI.",
+                    description:
+                        "Los SBEIs pueden firmar el Paquete de Transmisión. La tabla a continuación muestra el estado de la firma de cada uno de los miembros del SBEI.",
                     table: {
                         trusteeName: "Nombre del Fideicomisario",
                         signed: "Ha Firmado",

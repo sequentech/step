@@ -971,11 +971,12 @@ const frenchTranslation: TranslationType = {
                 },
                 signatures: {
                     title: "Signatures SBEI",
-                    description: "Les SBEI peuvent signer le Paquet de Transmission. Le tableau ci-dessous montre l'état de signature de chacun des membres du SBEI.",
+                    description:
+                        "Les SBEI peuvent signer le Paquet de Transmission. Le tableau ci-dessous montre l'état de signature de chacun des membres du SBEI.",
                     table: {
                         trusteeName: "Nom du Fiduciaire",
                         signed: "A Signé",
-                    },                    
+                    },
                     status: "{{signed}} sur {{total}} Ont Signé",
                 },
             },

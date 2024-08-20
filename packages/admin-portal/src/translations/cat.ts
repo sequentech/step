@@ -967,7 +967,8 @@ const catalanTranslation: TranslationType = {
                 },
                 signatures: {
                     title: "Signatures SBEI",
-                    description: "Els SBEIs poden signar el Paquet de Transmissió. La taula a continuació mostra l'estat de signatura de cada un dels membres del SBEI.",
+                    description:
+                        "Els SBEIs poden signar el Paquet de Transmissió. La taula a continuació mostra l'estat de signatura de cada un dels membres del SBEI.",
                     table: {
                         trusteeName: "Nom del Fiduciari",
                         signed: "Ha Signat",

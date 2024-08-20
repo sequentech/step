@@ -16,7 +16,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import {
     Sequent_Backend_Area,
     Sequent_Backend_Results_Event,
-    Sequent_Backend_Tally_Session_Execution
+    Sequent_Backend_Tally_Session_Execution,
 } from "@/gql/graphql"
 import {IMiruTransmissionPackageData} from "@/types/miru"
 import {IResultDocuments} from "@/types/results"
@@ -58,17 +58,16 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({
     const signaturesStatusColor: () => string = () => {
         let signed = signedCount()
         let trustees = trusteeCount()
-        
-        return (signed < trustees) ? theme.palette.info.main : theme.palette.brandSuccess
+
+        return signed < trustees ? theme.palette.info.main : theme.palette.brandSuccess
     }
 
     const signedCount: () => number = () => {
-        let signatures = selectedTallySessionData?.documents[
-            selectedTallySessionData?.documents.length - 1
-        ].signatures ?? []
+        let signatures =
+            selectedTallySessionData?.documents[selectedTallySessionData?.documents.length - 1]
+                .signatures ?? []
 
-        return signatures
-            .filter(signature => !signature.signature || !signature.pub_key).length
+        return signatures.filter((signature) => !signature.signature || !signature.pub_key).length
     }
 
     const trusteeCount: () => number = () => {
@@ -130,7 +129,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({
                         sx={{
                             backgroundColor: signaturesStatusColor(),
                             color: theme.palette.background.default,
-                            textTransform: "uppercase"
+                            textTransform: "uppercase",
                         }}
                         label={t("tally.transmissionPackage.signatures.status", {
                             signed: signedCount(),
