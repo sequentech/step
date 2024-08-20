@@ -45,11 +45,17 @@ const TaskAccordion: React.FC<TaskAccordionProps> = ({index, record, expanded, h
                         <strong>{t("tasksScreen.column.execution_status")}</strong>{" "}
                         {record.execution_status}
                     </Typography>
-                    {record.logs && (
-                        <Typography>
-                            <strong>{t("tasksScreen.column.logs")}</strong>{" "}
-                            <pre>{JSON.stringify(record.logs, null, 2)}</pre>
-                        </Typography>
+                    {record.logs && Array.isArray(record.logs) && (
+                        <Box>
+                            <strong>{t("tasksScreen.column.logs")}</strong>
+                            {record.logs.map((log, index) => (
+                                <Typography key={index}>
+                                    <strong>Date:</strong>{" "}
+                                    {new Date(log.created_date).toUTCString()}
+                                    <strong>Text:</strong> {log.log_text}
+                                </Typography>
+                            ))}
+                        </Box>
                     )}
                     {record.end_at && (
                         <Typography>
@@ -77,11 +83,6 @@ const TaskAccordionList: React.FC<TaskAccordionListProps> = ({expanded, handleAc
 
     if (isLoading) {
         return <Typography>Loading...</Typography>
-    }
-
-    if (!data || data.length === 0) {
-        //TODO: use logs design for empty list
-        return <Typography>No tasks found.</Typography>
     }
 
     return (

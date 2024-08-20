@@ -41,9 +41,6 @@ impl Message {
         let head = StatementHead::from_body(event, &body);
         let statement = Statement::new(head, body);
 
-        Ok(Message {
-            statement,
-        })
-
+        Ok(Message { statement })
     }
 }

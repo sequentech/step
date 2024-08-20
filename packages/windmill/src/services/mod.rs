@@ -32,6 +32,7 @@ pub mod probe;
 pub mod protocol_manager;
 pub mod public_keys;
 pub mod s3;
+pub mod serialize_tasks_logs;
 pub mod tally_sheets;
 pub mod tasks_execution;
 pub mod temp_path;

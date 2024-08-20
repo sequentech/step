@@ -4,7 +4,10 @@
 use crate::services::database::get_hasura_pool;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
-use sequent_core::types::{hasura::core::TasksExecution, hasura::extra::TasksExecutionStatus};
+use sequent_core::types::{
+    ceremonies::Log,
+    hasura::{core::TasksExecution, extra::TasksExecutionStatus},
+};
 use serde_json::value::Value;
 use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
@@ -108,6 +111,7 @@ pub async fn insert_tasks_execution(
 pub async fn update_task_execution_status(
     task_execution_id: &str,
     new_status: TasksExecutionStatus,
+    new_logs: Option<Value>,
 ) -> Result<()> {
     // Get a database client from the pool
     let db_client: DbClient = get_hasura_pool()
@@ -119,12 +123,16 @@ pub async fn update_task_execution_status(
     let task_execution_uuid =
         Uuid::parse_str(task_execution_id).context("Failed to parse task_execution_id as UUID")?;
 
+    // let new_logs_json = new_logs
+    //     .map(|logs| serde_json::to_value(logs).context("Failed to serialize logs"))
+    //     .transpose()?;
+
     let statement = db_client
         .prepare(
             r#"
             UPDATE sequent_backend.tasks_execution
-            SET execution_status = $1
-            WHERE id = $2;
+            SET execution_status = $1, logs = $2
+            WHERE id = $3;
             "#,
         )
         .await
@@ -132,7 +140,10 @@ pub async fn update_task_execution_status(
 
     // Execute the update statement
     db_client
-        .execute(&statement, &[&new_status.to_string(), &task_execution_uuid])
+        .execute(
+            &statement,
+            &[&new_status.to_string(), &new_logs, &task_execution_uuid],
+        )
         .await
         .context("Failed to execute update task execution status query")?;
 

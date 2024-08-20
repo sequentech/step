@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::tasks_execution::{post, update};
+use crate::services::tasks_execution::*;
 use crate::services::{database::get_hasura_pool, export_election_event::process_export};
 use crate::types::error::Result;
 use anyhow::{anyhow, Context};
@@ -45,7 +45,7 @@ pub async fn export_election_event(
         .await
         .context("Failed to insert task execution record")?;
 
-    update(&task.id, TasksExecutionStatus::COMPLETED)
+    update_complete(&task)
         .await
         .context("Failed to update task execution status to COMPLETED")?;
     Ok(())

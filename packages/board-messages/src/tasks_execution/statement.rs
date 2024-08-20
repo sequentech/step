@@ -2,11 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::electoral_log::newtypes::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use strum::Display;
-use crate::electoral_log::newtypes::*;
 
 use super::newtypes::{ElectionEventIdString, TaskExecutionType, TenantIdString};
 
