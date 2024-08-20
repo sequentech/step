@@ -18,6 +18,7 @@ import {
     useNotify,
     useRefresh,
 } from "react-admin"
+import CellTowerIcon from "@mui/icons-material/CellTower"
 import {ListActions} from "../../components/ListActions"
 import {Alert, Button, Drawer, Typography} from "@mui/material"
 import {
@@ -45,6 +46,7 @@ import styled from "@emotion/styled"
 import {IExecutionStatus, ITallyCeremonyStatus, ITallyExecutionStatus} from "@/types/ceremonies"
 import {useMutation} from "@apollo/client"
 import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
+import { IPermissions } from "@/types/keycloak"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -85,6 +87,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
 
     const [tenantId] = useTenantStore()
     const {setTallyId, setCreatingFlag} = useElectionEventTallyStore()
+	const isTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_CEREMONY)
 
     const [openCancelTally, openCancelTallySet] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
@@ -180,7 +183,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
 
     const actions = (record: RaRecord) => [
         {
-            icon: <DescriptionIcon />,
+			icon: isTrustee ? <CellTowerIcon /> : <DescriptionIcon />,
             action: viewAdminTally,
             showAction: (id: Identifier) => canAdminCeremony,
         },
