@@ -20,6 +20,7 @@ COPY ./sequent-core ./sequent-core
 COPY ./windmill ./windmill
 COPY ./wrap-map-err ./wrap-map-err
 COPY ./velvet ./velvet
+COPY ./Cargo.lock ./Cargo.lock
 
 WORKDIR /app/windmill
 RUN cargo build --release
