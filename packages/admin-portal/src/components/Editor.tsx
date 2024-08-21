@@ -9,10 +9,10 @@ type Props = {
     initialValue?: string
     value?: string
     editorRef: any
-    onEditorChange?: () => void
+    onEditorChange?: (value?: string) => void
 }
 
-export default function MyEditor({value, initialValue, editorRef, onEditorChange}: Props) {
+export default function MyEditor({initialValue, value, editorRef, onEditorChange}: Props) {
     return (
         <>
             <Editor
