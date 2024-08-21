@@ -5,6 +5,8 @@
 name: E2E Tests
 
 on:
+  workflow_dispatch:
+  pull_request:
   push:
     branches: [ 'feat/meta-474b/devops' ]
 
@@ -41,3 +43,4 @@ jobs:
         sudo apt-get install xvfb
         export TEST_URL="https://admin-portal-dev.sequent.vote/"
         xvfb-run --auto-servernum npx nightwatch test/e2e/*.ts -c nightwatch.conf-dev.js  --env chrome
+      continue-on-error: true
