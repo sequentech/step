@@ -946,7 +946,8 @@ const englishTranslation = {
                     },
                     download: {
                         title: "Download",
-                        itemTitle: "Download Transmission Package",
+                        itemTitleER: "Download Election Results",
+                        itemTitleTR: "Download Transmission Package for {{server}}",
                         dialog: {
                             title: "Do you want to Download the Transmission Package?",
                             description:

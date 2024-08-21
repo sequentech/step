@@ -212,6 +212,7 @@ pub async fn send_transmission_package_service(
         .iter()
         .map(|value| value.name.clone())
         .collect();
+    let mut new_servers_sent_to: Vec<MiruServerDocument> = vec![];
 
     for ccs_server in &transmission_area_election.servers {
         let transmission_package = create_transmission_package(
@@ -223,27 +224,27 @@ pub async fn send_transmission_package_service(
             &ccs_server.public_key_pem,
         )
         .await?;
+        let name = format!("er_{}.zip", miru_document.transaction_id);
+
+        let temp_path = transmission_package.into_temp_path();
+        let temp_path_string = temp_path.to_string_lossy().to_string();
+        let file_size = get_file_size(temp_path_string.as_str())
+            .with_context(|| "Error obtaining file size")?;
+
+        let document = upload_and_return_document_postgres(
+            &hasura_transaction,
+            &temp_path_string,
+            file_size,
+            "applization/zip",
+            tenant_id,
+            &election_event.id,
+            &name,
+            None,
+            false,
+        )
+        .await?;
         match send_package_to_ccs_server(transmission_package, ccs_server).await {
             Ok(tmp_file_zip) => {
-                let name = format!("er_{}.zip", miru_document.transaction_id);
-
-                let temp_path = tmp_file_zip.into_temp_path();
-                let temp_path_string = temp_path.to_string_lossy().to_string();
-                let file_size = get_file_size(temp_path_string.as_str())
-                    .with_context(|| "Error obtaining file size")?;
-
-                let document = upload_and_return_document_postgres(
-                    &hasura_transaction,
-                    &temp_path_string,
-                    file_size,
-                    "applization/zip",
-                    tenant_id,
-                    &election_event.id,
-                    &name,
-                    None,
-                    false,
-                )
-                .await?;
                 new_transmission_area_election
                     .logs
                     .push(send_transmission_package_to_ccs_log(
@@ -261,10 +262,10 @@ pub async fn send_transmission_package_service(
                             .map(|signature| signature.trustee_name.clone())
                             .collect(),
                     ));
-                new_miru_document.servers_sent_to.push(MiruServerDocument {
+                new_servers_sent_to.push(MiruServerDocument {
                     name: ccs_server.name.clone(),
-                    document_id: document.id.clone(),
-                    sent_at: ISO8601::to_string(&Local::now()),
+                    document_id: Some(document.id.clone()),
+                    sent_at: Some(ISO8601::to_string(&Local::now())),
                 });
             }
             Err(err) => {
@@ -287,9 +288,16 @@ pub async fn send_transmission_package_service(
                         &error_str,
                     ),
                 );
+
+                new_servers_sent_to.push(MiruServerDocument {
+                    name: ccs_server.name.clone(),
+                    document_id: Some(document.id.clone()),
+                    sent_at: None,
+                });
             }
         }
     }
+    new_miru_document.servers_sent_to = new_servers_sent_to;
 
     new_transmission_area_election.documents = new_transmission_area_election
         .documents

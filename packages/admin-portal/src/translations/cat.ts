@@ -952,7 +952,8 @@ const catalanTranslation: TranslationType = {
                     },
                     download: {
                         title: "Descarregar",
-                        itemTitle: "Descarregar el Paquet de Transmissió",
+                        itemTitleER: "Download Election Results",
+                        itemTitleTR: "Download Transmission Package for {{server}}",
                         dialog: {
                             title: "Vols descarregar el Paquet de Transmissió?",
                             description:

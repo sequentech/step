@@ -12,8 +12,8 @@ export interface IMiruSignature {
 
 export interface IMiruServersSentTo {
     name: string
-    document_id: string
-    sent_at: string
+    document_id?: string
+    sent_at?: string
 }
 
 // MiruDocument interface

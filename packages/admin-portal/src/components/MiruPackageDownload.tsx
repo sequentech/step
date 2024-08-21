@@ -2,13 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {Box, Button, CircularProgress, Menu, MenuItem} from "@mui/material"
+import {Box, CircularProgress, Menu, MenuItem} from "@mui/material"
 import React, {useState} from "react"
 import {useTranslation} from "react-i18next"
 import {FetchDocumentQuery} from "@/gql/graphql"
 import {Dialog} from "@sequentech/ui-essentials"
 import {downloadUrl} from "@sequentech/ui-core"
-import {EExportFormat, IResultDocuments} from "@/types/results"
+import {EExportFormat} from "@/types/results"
 import {useQuery} from "@apollo/client"
 import {FETCH_DOCUMENT} from "@/queries/FetchDocument"
 import {IMiruDocument} from "@/types/miru"
@@ -72,7 +72,7 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) =
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
     const [openModal, setOpenModal] = useState(false)
     const [performDownload, setPerformDownload] = useState<IDocumentData | null>(null)
-    const [documentToDownload, setDocumentToDownload] = useState<IMiruDocument | null>(null)
+    const [documentToDownload, setDocumentToDownload] = useState<IDocumentData | null>(null)
     const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
         event.preventDefault()
         event.stopPropagation()
@@ -83,15 +83,16 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) =
         setAnchorEl(null)
     }
 
-    const handleDownload = (doc: IMiruDocument) => {
-        setPerformDownload({
+    const handleDownload = (doc: IDocumentData) => {
+        setPerformDownload(doc)
+        /*{
             id: doc.document_id,
             kind: EExportFormat.JSON, //need to adjust this to right format because document is currently not readable
             name: `MiruDocument.json`,
-        })
+        })*/
     }
     return (
-        <div>
+        <Box>
             <TallyStyles.MiruToolbarButton
                 variant="outlined"
                 aria-label="export election data"
@@ -133,29 +134,71 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) =
                 open={Boolean(anchorEl)}
                 onClose={handleClose}
             >
-                {documents!.map((doc) => (
-                    <MenuItem
-                        key={doc.document_id}
-                        onClick={(e: React.MouseEvent<HTMLElement>) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            handleClose()
-                            setDocumentToDownload(doc)
-                            setOpenModal(true)
-                        }}
-                    >
-                        <Box
-                            sx={{
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                                overflow: "hidden",
+                {documents?.map((doc) => (
+                    <>
+                        <MenuItem
+                            key={doc.document_id}
+                            onClick={(e: React.MouseEvent<HTMLElement>) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                handleClose()
+                                setDocumentToDownload({
+                                    id: doc.document_id,
+                                    kind: EExportFormat.JSON, //need to adjust this to right format because document is currently not readable
+                                    name: `er_15363610.xz`,
+                                })
+                                setOpenModal(true)
                             }}
                         >
-                            <span title={t("tally.transmissionPackage.actions.download.itemTitle")}>
-                                {t("tally.transmissionPackage.actions.download.itemTitle")}
-                            </span>
-                        </Box>
-                    </MenuItem>
+                            <Box
+                                sx={{
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                    overflow: "hidden",
+                                }}
+                            >
+                                <span title={t("tally.transmissionPackage.actions.download.itemTitleER")}>
+                                    {t("tally.transmissionPackage.actions.download.itemTitleER")}
+                                </span>
+                            </Box>
+                        </MenuItem>
+                        {
+                            doc?.servers_sent_to
+                                .filter(server => !!server.document_id)
+                                .map(server =>
+                                <MenuItem
+                                    key={server.document_id}
+                                    onClick={(e: React.MouseEvent<HTMLElement>) => {
+                                        e.preventDefault()
+                                        e.stopPropagation()
+                                        handleClose()
+                                        setDocumentToDownload({
+                                            id: server.document_id!,
+                                            kind: EExportFormat.JSON, //need to adjust this to right format because document is currently not readable
+                                            name: `er_15363610.zip`,
+                                        })
+                                        setOpenModal(true)
+                                    }}
+                                >
+                                    <Box
+                                        sx={{
+                                            textOverflow: "ellipsis",
+                                            whiteSpace: "nowrap",
+                                            overflow: "hidden",
+                                        }}
+                                    >
+                                        <span title={t("tally.transmissionPackage.actions.download.itemTitleTR", {
+                                            server: server.name,
+                                        })}>
+                                            {t("tally.transmissionPackage.actions.download.itemTitleTR", {
+                                                server: server.name,
+                                            })}
+                                        </span>
+                                    </Box>
+                                </MenuItem>
+                            )
+                        }
+                    </>
                 ))}
             </Menu>
             <Dialog
@@ -180,6 +223,6 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) =
                     name: areaName,
                 })}
             </Dialog>
-        </div>
+        </Box>
     )
 }

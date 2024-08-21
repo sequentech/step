@@ -956,7 +956,8 @@ const frenchTranslation: TranslationType = {
                     },
                     download: {
                         title: "Télécharger",
-                        itemTitle: "Télécharger le Paquet de Transmission",
+                        itemTitleER: "Download Election Results",
+                        itemTitleTR: "Download Transmission Package for {{server}}",
                         dialog: {
                             title: "Voulez-vous télécharger le Paquet de Transmission?",
                             description:
