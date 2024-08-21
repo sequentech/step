@@ -59,7 +59,7 @@ public class ECIESEncryptionTool {
                     return;
                 }
                 String encryptedText = encryptText(args[1], args[2]);
-                System.out.println("Encrypted text: " + encryptedText);
+                System.out.println(encryptedText);
                 break;
 
             case "decrypt":
@@ -68,7 +68,7 @@ public class ECIESEncryptionTool {
                     return;
                 }
                 String decryptedText = decryptText(args[1], args[2]);
-                System.out.println("Decrypted text: " + decryptedText);
+                System.out.println(decryptedText);
                 break;
 
             default:
