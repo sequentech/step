@@ -13,6 +13,12 @@ export const ElectionHeaderStyles = {
         padding: var(--2, 16px);
         align-items: left;
     `,
+    ThinWrapper: styled.div`
+        display: flex;
+        flex-direction: column;
+        padding: var(--2, 0);
+        align-items: left;
+    `,
     Title: styled.div`
         color: rgba(0, 0, 0, 0.87);
         font-size: 24px;

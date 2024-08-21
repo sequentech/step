@@ -82,6 +82,38 @@ const frenchTranslation: TranslationType = {
                 ok: "Oui, je veux VOTER",
                 cancel: "Annuler",
             },
+            error: {
+                NETWORK_ERROR:
+                    "Un problème de réseau est survenu. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                UNABLE_TO_FETCH_DATA:
+                    "Un problème est survenu lors de la récupération des données. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                LOAD_ELECTION_EVENT:
+                    "Impossible de charger l'événement électoral. Veuillez réessayer plus tard.",
+                CAST_VOTE:
+                    "Une erreur avec GraphQL s'est produite lors du vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                NO_BALLOT_SELECTION:
+                    "L'état de sélection pour cette élection est introuvable. Veuillez vous assurer que vous avez sélectionné vos choix correctement ou contactez le support.",
+                NO_BALLOT_STYLE:
+                    "Le style du bulletin de vote n'est pas disponible. Veuillez contacter le support.",
+                NO_AUDITABLE_BALLOT:
+                    "Aucun bulletin de vote vérifiable n'est disponible. Veuillez contacter le support.",
+                INCONSISTENT_HASH:
+                    "Une erreur liée au processus de hachage du bulletin de vote est survenue. Le BallotId: {{ballotId}} n'est pas cohérent avec le Hash du bulletin vérifiable: {{auditableBallotHash}}. Veuillez signaler ce problème au support.",
+                ELECTION_EVENT_NOT_OPEN:
+                    "L'événement électoral est fermé. Veuillez contacter le support.",
+                PARSE_ERROR:
+                    "Une erreur est survenue lors de l'analyse du bulletin de vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                DESERIALIZE_AUDITABLE_ERROR:
+                    "Une erreur est survenue lors de la désérialisation du bulletin vérifiable. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                DESERIALIZE_HASHABLE_ERROR:
+                    "Une erreur est survenue lors de la désérialisation du bulletin haché. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                CONVERT_ERROR:
+                    "Une erreur est survenue lors de la conversion du bulletin de vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                SERIALIZE_ERROR:
+                    "Une erreur est survenue lors de la sérialisation du bulletin de vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                UNKNOWN_ERROR:
+                    "Une erreur est survenue. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+            },
         },
         confirmationScreen: {
             title: "Votre vote a été émis",

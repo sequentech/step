@@ -3,23 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {Box, CircularProgress, Menu, MenuItem} from "@mui/material"
-import Button from "@mui/material/Button"
-import React, {useContext, useEffect, useState} from "react"
+import React, {useState} from "react"
 import {useTranslation} from "react-i18next"
 import {EXPORT_FORMATS} from "./constants"
-import {
-    FetchDocumentQuery,
-    Sequent_Backend_Area_Contest,
-    Sequent_Backend_Contest,
-    Sequent_Backend_Election,
-    Sequent_Backend_Results_Election,
-    Sequent_Backend_Tally_Session,
-} from "@/gql/graphql"
+import {FetchDocumentQuery} from "@/gql/graphql"
 import styled from "@emotion/styled"
 import {theme} from "@sequentech/ui-essentials"
-import {downloadUrl, isNull} from "@sequentech/ui-core"
-import {useGetList} from "react-admin"
-import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {downloadUrl} from "@sequentech/ui-core"
 import {EExportFormat, IResultDocuments} from "@/types/results"
 import {useQuery} from "@apollo/client"
 import {FETCH_DOCUMENT} from "@/queries/FetchDocument"
@@ -84,13 +74,14 @@ interface IDocumentData {
 }
 
 interface ExportElectionMenuProps {
+    buttonTitle?: string
     documents: IResultDocuments | null
     electionEventId: string
     itemName: string
 }
 
 export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => {
-    const {itemName, documents, electionEventId} = props
+    const {itemName, documents, electionEventId, buttonTitle} = props
     const {t} = useTranslation()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
     const [performDownload, setPerformDownload] = useState<IDocumentData | null>(null)
@@ -166,7 +157,9 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                 aria-haspopup="true"
                 onClick={handleMenu}
             >
-                <span title={t("common.label.export")}>{t("common.label.export")}</span>
+                <span title={buttonTitle ?? t("common.label.actions")}>
+                    {buttonTitle ?? t("common.label.actions")}
+                </span>
                 {performDownload ? (
                     <PerformDownload
                         onDownload={() => {
@@ -181,7 +174,7 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
             </ExportButton>
 
             <Menu
-                id="menu-appbar"
+                id="menu-export-election"
                 anchorEl={anchorEl}
                 anchorOrigin={{
                     vertical: "bottom",

@@ -867,7 +867,7 @@ pub async fn execute_tally_session_wrapped(
     };
     let configuration: Option<TallySessionConfiguration> = tally_session
         .configuration
-        .map(|value| serde_json::from_value(value))
+        .map(|value| deserialize_value(value))
         .transpose()?;
     let report_content_template_id: Option<String> = configuration
         .map(|value| value.report_content_template_id)
@@ -880,7 +880,7 @@ pub async fn execute_tally_session_wrapped(
         let document: Option<String> = template
             .map(|value| {
                 let body: std::result::Result<SendCommunicationBody, _> =
-                    serde_json::from_value(value.template);
+                    deserialize_value(value.template);
                 body.map(|res| res.document)
             })
             .transpose()?

@@ -316,3 +316,15 @@ pub struct TallySessionExecution {
     pub status: Option<Value>,
     pub results_event_id: Option<String>,
 }
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct Trustee {
+    pub id: String,
+    pub public_key: Option<String>,
+    pub name: Option<String>,
+    pub created_at: Option<DateTime<Local>>,
+    pub last_updated_at: Option<DateTime<Local>>,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+    pub tenant_id: String,
+}

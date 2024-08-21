@@ -1,0 +1,20 @@
+mutation InsertArea(
+  $tenant_id: uuid!,
+  $election_event_id: uuid!,
+  $name: String!,
+  $description: String,
+  $parent_id: uuid,
+ ) {
+  insert_sequent_backend_area(objects: {
+        tenant_id: $tenant_id,
+        election_event_id: $election_event_id,
+        name: $name,
+        description: $description,
+        parent_id: $parent_id
+    }) {
+    affected_rows
+        returning {
+			  id
+        }
+  }
+}

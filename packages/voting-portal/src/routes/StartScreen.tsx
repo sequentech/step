@@ -50,7 +50,7 @@ const StyledLink = styled(RouterLink)`
 `
 
 const StyledButton = styled(Button)`
-    display flex;
+    display: flex;
     padding: 5px;
 
     span {
