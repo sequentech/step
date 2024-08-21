@@ -37,7 +37,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     drop(client);
 
     let addr = socket.parse()?;
-    let b3_impl = PgsqlB3Server::new(c, database);
+    let b3_impl = PgsqlB3Server::new(c_db).await?;
     let service = B3Server::new(b3_impl);
 
     let limit_mb = 100 * 1024 * 1024;

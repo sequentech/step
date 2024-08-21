@@ -1,4 +1,9 @@
+use std::str::FromStr;
+
 use anyhow::{anyhow, Result};
+use bb8_postgres::bb8::Pool;
+use bb8_postgres::PostgresConnectionManager;
+use tokio_postgres::{config::Config, NoTls};
 use tonic::{Request, Response, Status};
 use tracing::{error, info};
 
@@ -11,46 +16,19 @@ use super::validate_board_name;
 use crate::braid::message::Message;
 use crate::grpc::pgsql::B3MessageRow;
 use crate::grpc::pgsql::PgsqlB3Client;
-use crate::grpc::pgsql::PgsqlConnectionParams;
+use crate::grpc::pgsql::PgsqlDbConnectionParams;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 
-impl TryFrom<&GrpcB3Message> for B3MessageRow {
-    type Error = anyhow::Error;
-
-    fn try_from(message: &GrpcB3Message) -> Result<Self, Self::Error> {
-        if message.version != crate::get_schema_version() {
-            return Err(anyhow!(
-                "Mismatched schema version: {} != {}",
-                message.version,
-                crate::get_schema_version()
-            ));
-        }
-
-        let message = Message::strand_deserialize(&message.message)?;
-        let created = crate::timestamp();
-
-        Ok(B3MessageRow {
-            id: 0,
-            created: created,
-            statement_timestamp: message.statement.get_timestamp(),
-            statement_kind: message.statement.get_kind().to_string(),
-            message: message.strand_serialize()?,
-            sender_pk: message.sender.pk.to_der_b64_string()?,
-            version: crate::get_schema_version(),
-        })
-    }
-}
-
 pub struct PgsqlB3Server {
-    params: PgsqlConnectionParams,
-    dbname: String,
+    // params: PgsqlDbConnectionParams,
+    pool: Pool<PostgresConnectionManager<NoTls>>,
 }
 impl PgsqlB3Server {
-    pub fn new(params: PgsqlConnectionParams, dbname: &str) -> PgsqlB3Server {
-        PgsqlB3Server {
-            params,
-            dbname: dbname.to_string(),
-        }
+    pub async fn new(connection: PgsqlDbConnectionParams) -> Result<PgsqlB3Server> {
+        let config = Config::from_str(&connection.connection_string())?;
+        let manager = PostgresConnectionManager::new(config, NoTls);
+        let pool = Pool::builder().build(manager).await?;
+        Ok(PgsqlB3Server { pool })
     }
 }
 
@@ -65,12 +43,17 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
         validate_board_name(&r.board)
             .map_err(|e| Status::invalid_argument(format!("Invalid board: {e}")))?;
 
-        let c = self.params.with_database(&self.dbname);
-        let c = PgsqlB3Client::new(&c).await;
-        let Ok(mut c) = c else {
+        let c = self.pool.get().await;
+        let Ok(c) = c else {
             error!("Pgsql connection failed: {:?}", c.err());
             return Err(Status::internal(format!("Pgsql connection failed")));
         };
+        let mut c = PgsqlB3Client::from_pooled(c);
+
+        /* let Ok(mut c) = c else {
+            error!("Pgsql connection failed: {:?}", c.err());
+            return Err(Status::internal(format!("Pgsql connection failed")));
+        };*/
         let messages = c.get_messages(&r.board, r.last_id).await;
         let Ok(messages) = messages else {
             error!(
@@ -98,7 +81,7 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
             r.board
         );
 
-        let reply = GetMessagesReply { messages: messages };
+        let reply = GetMessagesReply { messages };
         Ok(Response::new(reply))
     }
 
@@ -116,12 +99,12 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
         validate_board_name(&r.board)
             .map_err(|e| Status::invalid_argument(format!("Invalid board: {e}")))?;
 
-        let c = self.params.with_database(&self.dbname);
-        let c = PgsqlB3Client::new(&c).await;
-        let Ok(mut c) = c else {
+        let c = self.pool.get().await;
+        let Ok(c) = c else {
             error!("Pgsql connection failed: {:?}", c.err());
             return Err(Status::internal(format!("Pgsql connection failed")));
         };
+        let mut c = PgsqlB3Client::from_pooled(c);
 
         let messages = r
             .messages
@@ -148,12 +131,12 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
     ) -> Result<Response<GetBoardsReply>, Status> {
         info!("get_boards");
 
-        let c = self.params.with_database(&self.dbname);
-        let c = PgsqlB3Client::new(&c).await;
-        let Ok(mut c) = c else {
+        let c = self.pool.get().await;
+        let Ok(c) = c else {
             error!("Pgsql connection failed: {:?}", c.err());
             return Err(Status::internal(format!("Pgsql connection failed")));
         };
+        let mut c = PgsqlB3Client::from_pooled(c);
 
         let boards = c.get_boards().await;
         let Ok(boards) = boards else {
@@ -173,11 +156,39 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
     }
 }
 
+impl TryFrom<&GrpcB3Message> for B3MessageRow {
+    type Error = anyhow::Error;
+
+    fn try_from(message: &GrpcB3Message) -> Result<Self, Self::Error> {
+        if message.version != crate::get_schema_version() {
+            return Err(anyhow!(
+                "Mismatched schema version: {} != {}",
+                message.version,
+                crate::get_schema_version()
+            ));
+        }
+
+        let message = Message::strand_deserialize(&message.message)?;
+        let created = crate::timestamp();
+
+        Ok(B3MessageRow {
+            id: 0,
+            created,
+            statement_timestamp: message.statement.get_timestamp(),
+            statement_kind: message.statement.get_kind().to_string(),
+            message: message.strand_serialize()?,
+            sender_pk: message.sender.pk.to_der_b64_string()?,
+            version: crate::get_schema_version(),
+        })
+    }
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use std::marker::PhantomData;
 
     use super::*;
+    use crate::grpc::pgsql::PgsqlConnectionParams;
     use crate::{
         braid::{
             artifact::Configuration, newtypes::PROTOCOL_MANAGER_INDEX,
@@ -201,7 +212,7 @@ pub(crate) mod tests {
     const PG_PORT: u32 = 49153;
     const TEST_BOARD: &'static str = "testboard";
 
-    async fn set_up() -> PgsqlB3Client {
+    async fn set_up<'a>() -> PgsqlB3Client<'a> {
         let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
         drop_database(&c, PG_DATABASE).await.unwrap();
         create_database(&c, PG_DATABASE).await.unwrap();
@@ -222,7 +233,8 @@ pub(crate) mod tests {
         let _ = set_up().await;
 
         let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
-        let b3_impl = PgsqlB3Server::new(c, PG_DATABASE);
+        let c = c.with_database(PG_DATABASE);
+        let b3_impl = PgsqlB3Server::new(c).await.unwrap();
 
         let cfg = get_test_configuration::<RistrettoCtx>(3, 2);
         let messages = vec![cfg];
@@ -251,7 +263,8 @@ pub(crate) mod tests {
         let _ = set_up().await;
 
         let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
-        let b3_impl = PgsqlB3Server::new(c, PG_DATABASE);
+        let c = c.with_database(PG_DATABASE);
+        let b3_impl = PgsqlB3Server::new(c).await.unwrap();
 
         let request = B3Client::get_boards_request();
         let boards = b3_impl.get_boards(request).await.unwrap();

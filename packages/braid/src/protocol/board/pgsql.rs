@@ -4,7 +4,7 @@
 
 use anyhow::Result;
 use board_messages::braid::message::Message;
-use board_messages::grpc::pgsql::{B3MessageRow, PgsqlB3Client, PgsqlDbConnectionParams};
+use board_messages::grpc::pgsql::{B3MessageRow, PgsqlDbConnectionParams, PgsqlPooledB3Client};
 use rusqlite::params;
 use rusqlite::Connection;
 use std::path::PathBuf;
@@ -15,7 +15,7 @@ use strand::serialization::StrandDeserialize;
 
 /// A bulletin board implemented on postgresql
 pub struct PgsqlBoard {
-    pub(crate) board_client: PgsqlB3Client,
+    pub(crate) board_client: PgsqlPooledB3Client,
     pub(crate) board_name: String,
     pub(crate) store_root: Option<PathBuf>,
 }
@@ -26,9 +26,9 @@ impl PgsqlBoard {
         board_name: String,
         store_root: Option<PathBuf>,
     ) -> Result<PgsqlBoard> {
-        let board_client = PgsqlB3Client::new(&connection).await?;
+        let board_client = PgsqlPooledB3Client::from_params(connection).await?;
         Ok(PgsqlBoard {
-            board_client: board_client,
+            board_client,
             board_name: board_name.to_string(),
             store_root,
         })
@@ -81,7 +81,7 @@ impl PgsqlBoard {
         let messages = self
             .get_remote_messages(external_last_id.unwrap_or(-1))
             .await?;
-        
+
         info!(
             "Retrieved {} messages remotely, storing locally",
             messages.len()
@@ -193,4 +193,3 @@ struct MessageRow {
     id: i64,
     message: Vec<u8>,
 }
-

@@ -5,7 +5,7 @@ use anyhow::{anyhow, Result};
 use board_messages::grpc::pgsql::B3IndexRow;
 use board_messages::grpc::pgsql::B3MessageRow;
 use clap::Parser;
-use rayon::prelude::*;
+// use rayon::prelude::*;
 use std::fs;
 use std::fs::File;
 use std::io::Write;
@@ -26,7 +26,7 @@ use braid::protocol::trustee::Trustee;
 use braid::protocol::trustee::TrusteeConfig;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
-use strand::elgamal::Ciphertext;
+// use strand::elgamal::Ciphertext;
 use strand::serialization::StrandDeserialize;
 use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
@@ -295,8 +295,8 @@ tables will be created (and removed if they already existed). These are
 */
 
 #[instrument(skip(client))]
-async fn init<C: Ctx>(
-    client: &mut PgsqlB3Client,
+async fn init<'a, C: Ctx>(
+    client: &mut PgsqlB3Client<'a>,
     board_name: &str,
     configuration: Configuration<C>,
 ) -> Result<()> {
@@ -315,8 +315,8 @@ public key is present on the board and can be downloaded to allow the encryption
 are randomly generated.
 */
 #[instrument(skip(client))]
-async fn post_ballots<C: Ctx>(
-    client: &mut PgsqlB3Client,
+async fn post_ballots<'a, C: Ctx>(
+    client: &mut PgsqlB3Client<'a>,
     board_name: &str,
     ciphertexts: usize,
     batches: u32,
@@ -349,7 +349,7 @@ async fn post_ballots<C: Ctx>(
         )
         .await?;
 
-    let mut rng = ctx.get_rng();
+    // let mut rng = ctx.get_rng();
     if let Some(pk) = pk.get(0) {
         let message = Message::strand_deserialize(&pk.message)?;
         let bytes = message.artifact.unwrap();
@@ -357,7 +357,7 @@ async fn post_ballots<C: Ctx>(
         let pk_bytes = dkgpk.strand_serialize()?;
         let pk_h = strand::hash::hash_to_array(&pk_bytes)?;
         let pk_element = dkgpk.pk;
-        let pk = strand::elgamal::PublicKey::from_element(&pk_element, ctx);
+        let _pk = strand::elgamal::PublicKey::from_element(&pk_element, ctx);
 
         /* let ps: Vec<C::P> = (0..ciphertexts)
             .map(|_| ctx.rnd_plaintext(&mut rng))
@@ -406,7 +406,7 @@ async fn post_ballots<C: Ctx>(
 }
 
 #[instrument(skip(board))]
-async fn list_messages(board: &mut PgsqlB3Client, board_name: &str) -> Result<()> {
+async fn list_messages<'a>(board: &mut PgsqlB3Client<'a>, board_name: &str) -> Result<()> {
     let messages: Result<Vec<Message>> = board
         .get_messages(board_name, 0)
         .await?
@@ -423,7 +423,7 @@ async fn list_messages(board: &mut PgsqlB3Client, board_name: &str) -> Result<()
 }
 
 #[instrument(skip(board))]
-async fn list_boards(board: &mut PgsqlB3Client) -> Result<()> {
+async fn list_boards<'a>(board: &mut PgsqlB3Client<'a>) -> Result<()> {
     let boards: Result<Vec<String>> = board
         .get_boards()
         .await?
@@ -464,12 +464,12 @@ async fn delete_boards(host: &str, port: u32, username: &str, password: &str) ->
 fn get_connection(host: &str, port: u32, username: &str, password: &str) -> PgsqlConnectionParams {
     PgsqlConnectionParams::new(host, port, username, password)
 }
-async fn get_client(
+async fn get_client<'a>(
     host: &str,
     port: u32,
     username: &str,
     password: &str,
-) -> Result<PgsqlB3Client> {
+) -> Result<PgsqlB3Client<'a>> {
     let c = get_connection(host, port, username, password);
     let c = c.with_database(PG_DATABASE);
     info!("Using connection string '{}'", c.connection_string());

@@ -52,8 +52,8 @@ impl<C: Ctx, B: Board> Session<C, B> {
         }
         let messages = messages.expect("impossible");
 
-        if 0 == messages.len() {
-            info!("No new messages retrieved, no action taken");
+        if messages.len() == 0 {
+            info!("No new messages retrieved, session step finished");
             return (self, Ok(()));
         }
 

@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::braid::message::Message;
 
 use strand::serialization::StrandSerialize;
@@ -13,15 +15,20 @@ use tonic::Request;
 use tonic::{transport::Channel, Response};
 
 pub struct B3Client {
+    // grpc url
     url: String,
-    limit_mb: usize,
+    // grpc max message size
+    limit_bytes: usize,
+    // grpc message timeout
+    timeout_secs: u64,
 }
 
 impl B3Client {
     pub fn new(url: &str) -> B3Client {
         B3Client {
             url: url.to_string(),
-            limit_mb: 100 * 1024 * 1024,
+            limit_bytes: 100 * 1024 * 1024,
+            timeout_secs: 5,
         }
     }
 
@@ -98,9 +105,10 @@ impl B3Client {
 
     pub(crate) async fn get_grpc_client(&self) -> Result<B3ClientInner<Channel>> {
         let endpoint = Endpoint::from_shared(self.url.clone())?;
+        let endpoint = endpoint.timeout(Duration::from_secs(self.timeout_secs));
         let client = B3ClientInner::connect(endpoint).await?;
-        let client = client.max_decoding_message_size(self.limit_mb);
-        let client = client.max_encoding_message_size(self.limit_mb);
+        let client = client.max_decoding_message_size(self.limit_bytes);
+        let client = client.max_encoding_message_size(self.limit_bytes);
 
         Ok(client)
     }
