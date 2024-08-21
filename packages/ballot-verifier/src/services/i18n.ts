@@ -13,4 +13,5 @@ initializeLanguages({
     es: spanishTranslation,
     cat: catalanTranslation,
     fr: frenchTranslation,
+    tl: tagalogTranslation,
 })

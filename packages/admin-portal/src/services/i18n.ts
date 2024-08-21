@@ -16,7 +16,7 @@ initializeLanguages({
     tl: tagalogTranslation,
 })
 
-export const getAllLangs = (): Array<string> => ["en", "es", "cat", "fr"]
+export const getAllLangs = (): Array<string> => ["en", "es", "cat", "fr", "tl"]
 
 export const addDefaultTranslationsToElement = (data: {
     name?: string | null
