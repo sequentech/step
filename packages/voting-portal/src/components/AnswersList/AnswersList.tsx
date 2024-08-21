@@ -64,7 +64,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
     contest,
     selectedCoicesSum,
     setSelectedCoicesSum,
-    disableSelect
+    disableSelect,
 }) => {
     const categoryAnswerId = category.header?.id || ""
     const selectionState = useAppSelector(

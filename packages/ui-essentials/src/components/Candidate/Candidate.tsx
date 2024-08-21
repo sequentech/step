@@ -11,6 +11,7 @@ import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 import emotionStyled from "@emotion/styled"
 import {useTranslation} from "react-i18next"
 import {isString} from "@sequentech/ui-core"
+import {faXmark} from "@fortawesome/free-solid-svg-icons" // Import the correct icon
 
 const BorderBox = styled(Box)<{isactive: string; hascategory: string; isinvalidvote: string}>`
     border: 2px solid
@@ -114,7 +115,7 @@ const Candidate: React.FC<CandidateProps> = ({
     const {t} = useTranslation()
     const onClick: React.MouseEventHandler<HTMLDivElement> = (event) => {
         event.stopPropagation()
-        if (setChecked) {
+        if (!shouldDisable && setChecked) {
             setChecked(!checked)
         }
     }
@@ -132,6 +133,8 @@ const Candidate: React.FC<CandidateProps> = ({
     const handleWriteInClick: React.MouseEventHandler<HTMLDivElement> = (event) => {
         event.stopPropagation()
     }
+
+    console.log("shouldDisable: ", shouldDisable)
 
     return (
         <BorderBox
@@ -190,14 +193,27 @@ const Candidate: React.FC<CandidateProps> = ({
                 </StyledLink>
             ) : null}
             {isActive ? (
-                <Checkbox
-                    inputProps={{
-                        "className": "candidate-input",
-                        "aria-label": isString(title) ? title : "",
-                    }}
-                    checked={checked}
-                    onChange={handleChange}
-                />
+                shouldDisable ? (
+                    // <Checkbox
+                    //     inputProps={{
+                    //         "className": "candidate-input",
+                    //         "aria-label": isString(title) ? title : "",
+                    //     }}
+                    //     checked={false}
+                    //     // onChange={handleChange}
+                    //     color="secondary"
+                    //     disabled={true}
+                    <FontAwesomeIcon icon={faXmark} size="lg" /> // Use the FontAwesomeIcon component
+                ) : (
+                    <Checkbox
+                        inputProps={{
+                            "className": "candidate-input",
+                            "aria-label": isString(title) ? title : "",
+                        }}
+                        checked={checked}
+                        onChange={handleChange}
+                    />
+                )
             ) : null}
         </BorderBox>
     )

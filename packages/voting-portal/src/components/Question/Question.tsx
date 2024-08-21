@@ -116,13 +116,19 @@ export const Question: React.FC<IQuestionProps> = ({
             choice.selected === 0 && selectedChoicesCount++
         })
         setSelectedCoicesSum(selectedChoicesCount)
-    }, [contestState])
+    }, [])
 
     const maxVotesNum = question.max_votes
     const overVoteDisbleMode =
         question.presentation?.over_vote_policy === EOverVotePolicy.NOT_ALLOWED_WITH_MSG_AND_DISABLE
 
     useEffect(() => {
+        console.log("Number of choices with selected: ", {
+            selectedCoicesSum,
+            overVoteDisbleMode,
+            maxVotesNum,
+        })
+
         if (overVoteDisbleMode) {
             if (selectedCoicesSum >= maxVotesNum) {
                 setDisableSelect(true)
@@ -130,14 +136,7 @@ export const Question: React.FC<IQuestionProps> = ({
                 setDisableSelect(false)
             }
         }
-    }, [])
-
-    // console.log("Number of choices with selected = 0:", {
-    //     selectedCoicesSum,
-    //     overVoteDisbleMode,
-    //     disableSelect,
-    //     maxVotesNum,
-    // })
+    }, [contestState])
 
     // do the shuffling
     const candidatesOrderType = question.presentation?.candidates_order
