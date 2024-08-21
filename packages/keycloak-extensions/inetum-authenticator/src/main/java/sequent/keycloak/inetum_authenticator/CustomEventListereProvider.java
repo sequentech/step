@@ -26,17 +26,17 @@ public class CustomEventListereProvider implements EventListenerProvider {
     private String tenantId = System.getenv("SUPER_ADMIN_TENANT_ID");
     private String clientId = System.getenv("KEYCLOAK_CLIENT_ID");
     private String clientSecret = System.getenv("KEYCLOAK_CLIENT_SECRET");
-    private String access_token; 
+    private String access_token;
     public CustomEventListereProvider(KeycloakSession session) {
         this.session = session;
         authenticate();
+
     }
     @Override
     public void close() {}
 
     @Override
     public void onEvent(Event event) {
-
     }
 
     public void authenticate() {
@@ -66,6 +66,7 @@ public class CustomEventListereProvider implements EventListenerProvider {
                 String responseBody = response.body();
                 Object access_token = JsonSerialization.readValue(responseBody, Map.class).get("access_token");
                 this.access_token = access_token.toString();
+                log.info(access_token);
             } catch (IOException e) {
                 log.info("IOException: " + e.getMessage());
             } catch (InterruptedException e) {

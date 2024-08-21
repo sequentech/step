@@ -4,13 +4,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
-use anyhow::Result;
+use anyhow::{Context, Result};
+use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
+use windmill::postgres::election_event::get_election_event_by_id;
+use windmill::services::database::get_hasura_pool;
+use windmill::services::election_event_board::get_election_event_board;
 use windmill::services::electoral_log::{
     list_electoral_log as get_logs, ElectoralLogRow, GetElectoralLogBody
 };
@@ -48,7 +52,7 @@ pub async fn list_electoral_log(
 
 #[instrument]
 #[post("/immudb/log-event", format = "json", data = "<body>")]
-pub fn create_electoral_log(
+pub async fn create_electoral_log(
     body: Json<LogEventInput>,
     claims: JwtClaims,
 ) -> Result<Json<LogEventOutput>, (Status, String)> {
@@ -59,6 +63,23 @@ pub fn create_electoral_log(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::SERVICE_ACCOUNT],
     )?;
+
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+    .await
+    .get()
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    let hasura_transaction = hasura_db_client
+    .transaction()
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    let election_event = get_election_event_by_id(&hasura_transaction, &claims.hasura_claims.tenant_id, &input.election_event_id).await.map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
+        .with_context(|| "error getting election event")
+        .map_err(|e| (rocket::http::Status::InternalServerError, format!("{:?}", e)))?;
+    
 
     Ok(Json(LogEventOutput {
         id: input.election_event_id.clone(),
