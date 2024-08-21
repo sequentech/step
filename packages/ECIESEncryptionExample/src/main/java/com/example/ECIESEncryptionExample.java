@@ -20,6 +20,10 @@ import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.ECGenParameterSpec;
 import java.util.Base64;
+import java.io.StringWriter;
+import java.io.PrintWriter;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
 
 public class ECIESEncryptionExample {
 
@@ -30,6 +34,13 @@ public class ECIESEncryptionExample {
         KeyPairGenerator keyGen = KeyPairGenerator.getInstance("EC", "BC");
         keyGen.initialize(new ECGenParameterSpec("secp256r1"), new SecureRandom());
         KeyPair keyPair = keyGen.generateKeyPair();
+
+        // Print the PEM version of the keys
+        String publicKeyPEM = getPublicKeyPEM(keyPair.getPublic());
+        String privateKeyPEM = getPrivateKeyPEM(keyPair.getPrivate());
+
+        System.out.println("Public Key (PEM):\n" + publicKeyPEM);
+        System.out.println("Private Key (PEM):\n" + privateKeyPEM);
 
         // Get the curve parameters
         ECParameterSpec ecSpec = ECNamedCurveTable.getParameterSpec("P-256");
@@ -80,5 +91,27 @@ public class ECIESEncryptionExample {
         byte[] decryptedText = iesEngine.processBlock(ciphertext, 0, ciphertext.length);
 
         System.out.println("Decrypted text: " + new String(decryptedText));
+    }
+
+    // Method to convert PublicKey to PEM format
+    private static String getPublicKeyPEM(PublicKey publicKey) throws Exception {
+        X509EncodedKeySpec x509EncodedKeySpec = new X509EncodedKeySpec(publicKey.getEncoded());
+        StringWriter stringWriter = new StringWriter();
+        PrintWriter writer = new PrintWriter(stringWriter);
+        writer.println("-----BEGIN PUBLIC KEY-----");
+        writer.println(Base64.getMimeEncoder(64, new byte[]{'\n'}).encodeToString(x509EncodedKeySpec.getEncoded()));
+        writer.println("-----END PUBLIC KEY-----");
+        return stringWriter.toString();
+    }
+
+    // Method to convert PrivateKey to PEM format
+    private static String getPrivateKeyPEM(PrivateKey privateKey) throws Exception {
+        PKCS8EncodedKeySpec pkcs8EncodedKeySpec = new PKCS8EncodedKeySpec(privateKey.getEncoded());
+        StringWriter stringWriter = new StringWriter();
+        PrintWriter writer = new PrintWriter(stringWriter);
+        writer.println("-----BEGIN PRIVATE KEY-----");
+        writer.println(Base64.getMimeEncoder(64, new byte[]{'\n'}).encodeToString(pkcs8EncodedKeySpec.getEncoded()));
+        writer.println("-----END PRIVATE KEY-----");
+        return stringWriter.toString();
     }
 }
