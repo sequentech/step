@@ -84,6 +84,7 @@ const catalanTranslation: TranslationType = {
             noPermissions: "No tens permís per accedir als registres.",
             title: "Execució de tasques",
             subtitle: "Informació sobre les tasques executades",
+            status: "estat: {{status}}",
             column: {
                 id: "Índex",
                 name: "Nom de la tasca",

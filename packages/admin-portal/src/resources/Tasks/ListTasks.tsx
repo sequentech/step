@@ -1,11 +1,10 @@
 // SPDX-FileCopyrightText: 2024 Félix Robles <dev@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement, useState} from "react"
+import React, {ReactElement} from "react"
 import {
     List,
     TextInput,
-    useRecordContext,
     DateField,
     FunctionField,
     TextField,
@@ -27,96 +26,6 @@ import {IPermissions} from "@/types/keycloak"
 import {useMutation} from "@apollo/client"
 import {EXPORT_ELECTION_EVENT_LOGS} from "@/queries/ExportElectionEventLogs"
 
-// interface TaskAccordionProps {
-//     index: number
-//     record: ITaskExecuted
-//     expanded: string | false
-//     handleChange: (id: string) => void
-// }
-// const TaskAccordion: React.FC<TaskAccordionProps> = ({index, record, expanded, handleChange}) => {
-//     const {t} = useTranslation()
-//     console.log({record})
-
-//     const formatDateToRFC1123 = (date: Date): string => {
-//         return date.toUTCString()
-//     }
-
-//     return (
-//         <Accordion expanded={expanded === record.id} onChange={() => handleChange(record.id)}>
-//             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-//                 <Typography variant="subtitle1">
-//                     <p>
-//                         <strong>{t("tasksScreen.column.id")}</strong> {index}
-//                     </p>
-//                     <p>
-//                         <strong>{t("tasksScreen.column.start_at")}</strong>{" "}
-//                         {formatDateToRFC1123(new Date(record.start_at))}
-//                     </p>
-//                     <p>
-//                         <strong>{t("tasksScreen.column.name")}</strong> {record.name}
-//                     </p>
-//                 </Typography>
-//             </AccordionSummary>
-//             <AccordionDetails>
-//                 <Box>
-//                     <Typography>
-//                         <strong>{t("tasksScreen.column.execution_status")}</strong>{" "}
-//                         {record.execution_status}
-//                     </Typography>
-//                     {record.logs && Array.isArray(record.logs) && (
-//                         <Box>
-//                             <strong>{t("tasksScreen.column.logs")}:</strong>
-//                             {record.logs.map((log, index) => (
-//                                 <Typography key={index}>
-//                                     <strong>Date:</strong>{" "}
-//                                     {new Date(log.created_date).toUTCString()}
-//                                     <strong>Text:</strong> {log.log_text}
-//                                 </Typography>
-//                             ))}
-//                         </Box>
-//                     )}
-//                     {record.end_at && (
-//                         <Typography>
-//                             <strong>{t("tasksScreen.column.end_at")}</strong>{" "}
-//                             {new Date(record.end_at).toUTCString()}
-//                         </Typography>
-//                     )}
-//                     <Typography>
-//                         <strong>{t("tasksScreen.column.executed_by_user_id")}</strong>{" "}
-//                         {record.executed_by_user_id}
-//                     </Typography>
-//                 </Box>
-//             </AccordionDetails>
-//         </Accordion>
-//     )
-// }
-
-// interface TaskAccordionListProps {
-//     expanded: string | false
-//     handleAccordionChange: (id: string) => void
-// }
-
-// const TaskAccordionList: React.FC<TaskAccordionListProps> = ({expanded, handleAccordionChange}) => {
-//     const {data, isLoading} = useListContext<ITaskExecuted>()
-
-//     if (isLoading) {
-//         return <Typography>Loading...</Typography>
-//     }
-
-//     return (
-//         <Box>
-//             {data.map((record, index) => (
-//                 <TaskAccordion
-//                     index={index + 1}
-//                     key={record.id}
-//                     record={record}
-//                     expanded={expanded}
-//                     handleChange={handleAccordionChange}
-//                 />
-//             ))}
-//         </Box>
-//     )
-// }
 interface ExportWrapperProps {
     electionEventId: string
     openExport: boolean
@@ -129,7 +38,6 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
 }) => {
     const [exportDocumentId, setExportDocumentId] = React.useState<string | undefined>()
     const [exportElectionEvent] = useMutation(EXPORT_ELECTION_EVENT_LOGS, {
-        //TODO: fix
         context: {
             headers: {
                 "x-hasura-role": IPermissions.TASKS_READ,
@@ -200,13 +108,12 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
 
 export interface ListTasksProps {
     onViewTask: (id: Identifier) => void
+    electionEventRecord: Sequent_Backend_Election_Event
     aside?: ReactElement
 }
-export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, aside}) => {
+export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRecord, aside}) => {
     const {t} = useTranslation()
     const [openExport, setOpenExport] = React.useState(false)
-    const electionEventRecord = useRecordContext<Sequent_Backend_Election_Event>()
-
     const OMIT_FIELDS: string[] = []
 
     const filters: Array<ReactElement> = [
@@ -230,10 +137,6 @@ export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, aside}) => {
         setOpenExport(true)
     }
 
-    // const handleAccordionChange = (taskId: string) => {
-    //     setExpanded((prevExpanded) => (prevExpanded === taskId ? false : taskId))
-    // }
-
     return (
         <>
             <List
@@ -245,7 +148,6 @@ export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, aside}) => {
                 // aside={aside}
                 perPage={10}
             >
-                {/* <TaskAccordionList expanded={expanded} handleAccordionChange={handleAccordionChange} /> */}
                 <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
                     <TextField source="id" />
                     <TextField source="type" />

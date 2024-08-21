@@ -84,6 +84,7 @@ const frenchTranslation: TranslationType = {
             noPermissions: "Vous n'avez pas la permission d'accéder aux journaux.",
             title: "Exécution des tâches",
             subtitle: "Informations sur les tâches exécutées",
+            status: "statut : {{status}}",
             column: {
                 id: "Index",
                 name: "Nom de la tâche",
