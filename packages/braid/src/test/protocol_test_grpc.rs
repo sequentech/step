@@ -24,9 +24,9 @@ use board_messages::braid::newtypes::NULL_TRUSTEE;
 use board_messages::braid::protocol_manager::ProtocolManager;
 use board_messages::braid::statement::StatementType;
 
-use board_messages::grpc::pgsql::{self, PgsqlB3Client};
-use board_messages::grpc::pgsql::PgsqlConnectionParams;
 use board_messages::grpc::pgsql::B3MessageRow;
+use board_messages::grpc::pgsql::PgsqlConnectionParams;
+use board_messages::grpc::pgsql::{self, XPgsqlB3Client};
 
 use crate::protocol::board::grpc::GrpcB3;
 use crate::protocol::board::grpc::GrpcB3BoardParams;
@@ -107,7 +107,7 @@ async fn run_protocol_test_grpc<C: Ctx + 'static>(
 
     let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
     let c = c.with_database(PG_DATABASE);
-    let mut b = PgsqlB3Client::new(&c).await?;
+    let mut b = XPgsqlB3Client::new(&c).await?;
 
     let mut dkg_pk_message: Vec<B3MessageRow> = vec![];
     let count = ciphertexts;
@@ -271,12 +271,10 @@ pub async fn create_protocol_test<C: Ctx>(
     let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
     pgsql::drop_database(&c, PG_DATABASE).await.unwrap();
 
-    pgsql::create_database(&c, PG_DATABASE)
-        .await
-        .unwrap();
+    pgsql::create_database(&c, PG_DATABASE).await.unwrap();
 
     let c = c.with_database(PG_DATABASE);
-    let mut b = PgsqlB3Client::new(&c).await?;
+    let mut b = XPgsqlB3Client::new(&c).await?;
     b.create_index_ine().await.unwrap();
     b.create_board_ine(TEST_BOARD).await.unwrap();
 
