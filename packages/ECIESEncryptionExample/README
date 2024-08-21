@@ -37,3 +37,17 @@ Note: `||` is a concat operator
 - Ephemeral Public Key: The public key generated during encryption for ECDH.
 - Ciphertext: The result of encrypting the plaintext with the symmetric key derived from ECDH.
 - MAC: Message Authentication Code, to ensure the integrity of the ciphertext.  
+
+# Example
+
+
+```
+cd /workspaces/step/packages/ECIESEncryptionExample
+mvn clean package
+java -jar target/ECIESEncryptionExample-1.0-SNAPSHOT.jar create-keys public.pem private.pem
+plaintext="test data"
+echo $plaintext
+cyphertext=$(java -jar target/ECIESEncryptionExample-1.0-SNAPSHOT.jar encrypt public.pem "$plaintext")
+echo $cyphertext
+java -jar target/ECIESEncryptionExample-1.0-SNAPSHOT.jar decrypt private.pem $cyphertext
+```
