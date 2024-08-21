@@ -9,7 +9,7 @@ import org.bouncycastle.crypto.generators.KDF2BytesGenerator;
 import org.bouncycastle.crypto.macs.HMac;
 import org.bouncycastle.crypto.engines.AESEngine;
 import org.bouncycastle.crypto.modes.CBCBlockCipher;
-import org.bouncycastle.crypto.BufferedBlockCipher;
+import org.bouncycastle.crypto.paddings.PaddedBufferedBlockCipher;
 import org.bouncycastle.crypto.agreement.ECDHBasicAgreement;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.math.ec.ECPoint;
@@ -52,19 +52,19 @@ public class ECIESEncryptionExample {
         BigInteger privateKeyValue = javaPrivateKey.getS();
         ECPrivateKeyParameters privateKeyParams = new ECPrivateKeyParameters(privateKeyValue, domainParams);
 
-        // Set up IESEngine with ECDH, KDF2 (SHA-1), and AES-128-CBC
+        // Set up IESEngine with ECDH, KDF2 (SHA-1), and AES-128-CBC with padding
         IESEngine iesEngine = new IESEngine(
                 new ECDHBasicAgreement(),
                 new KDF2BytesGenerator(new SHA1Digest()),
                 new HMac(new SHA1Digest()),
-                new BufferedBlockCipher(new CBCBlockCipher(new AESEngine()))
+                new PaddedBufferedBlockCipher(new CBCBlockCipher(new AESEngine()))
         );
 
         // Encryption parameters (128-bit AES key, 128-bit MAC key)
         IESWithCipherParameters params = new IESWithCipherParameters(null, null, 128, 128);
 
-        // Initialize the engine for encryption
-        iesEngine.init(true, publicKeyParams, privateKeyParams, params);
+        // Initialize the engine for encryption (sender's private key and recipient's public key)
+        iesEngine.init(true, privateKeyParams, publicKeyParams, params);
 
         // Plaintext to be encrypted
         byte[] plaintext = "Hello, ECIES!".getBytes();
@@ -75,7 +75,7 @@ public class ECIESEncryptionExample {
 
         System.out.println("Encrypted text (Base64): " + encryptedBase64);
 
-        // Decrypt (using the same engine initialized for decryption)
+        // Initialize the engine for decryption (recipient's private key and sender's public key)
         iesEngine.init(false, privateKeyParams, publicKeyParams, params);
         byte[] decryptedText = iesEngine.processBlock(ciphertext, 0, ciphertext.length);
 
