@@ -3,84 +3,82 @@ package com.example;
 import org.bouncycastle.jce.ECNamedCurveTable;
 import org.bouncycastle.jce.spec.ECParameterSpec;
 import org.bouncycastle.crypto.engines.IESEngine;
-import org.bouncycastle.crypto.params.ECDomainParameters;
-import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
-import org.bouncycastle.crypto.params.ECPublicKeyParameters;
-import org.bouncycastle.crypto.params.IESWithCipherParameters;
-import org.bouncycastle.crypto.digests.SHA256Digest;
+import org.bouncycastle.crypto.params.*;
+import org.bouncycastle.crypto.digests.SHA1Digest;
+import org.bouncycastle.crypto.generators.KDF2BytesGenerator;
 import org.bouncycastle.crypto.macs.HMac;
+import org.bouncycastle.crypto.engines.AESEngine;
+import org.bouncycastle.crypto.modes.CBCBlockCipher;
+import org.bouncycastle.crypto.BufferedBlockCipher;
+import org.bouncycastle.crypto.agreement.ECDHBasicAgreement;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.math.ec.ECPoint;
 
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.security.KeyFactory;
-import java.security.PublicKey;
-import java.security.Security;
-import java.security.spec.X509EncodedKeySpec;
+import java.math.BigInteger;
+import java.security.*;
+import java.security.interfaces.ECPrivateKey;
+import java.security.interfaces.ECPublicKey;
+import java.security.spec.ECGenParameterSpec;
 import java.util.Base64;
 
 public class ECIESEncryptionExample {
 
     public static void main(String[] args) throws Exception {
-        if (args.length < 2) {
-            System.out.println("Usage: java ECIESEncryptionExample <public_key.pem> <text_to_encrypt>");
-            return;
-        }
+        Security.addProvider(new BouncyCastleProvider());
 
-        String publicKeyPath = args[0];
-        String textToEncrypt = args[1];
+        // Generate EC key pair (P-256 curve)
+        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("EC", "BC");
+        keyGen.initialize(new ECGenParameterSpec("secp256r1"), new SecureRandom());
+        KeyPair keyPair = keyGen.generateKeyPair();
 
-        Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
-
-        // Read the public key from the PEM file
-        PublicKey publicKey = loadPublicKey(publicKeyPath);
-
-        // Encrypt the provided text
-        byte[] plaintext = textToEncrypt.getBytes();
-        byte[] ciphertext = encrypt(publicKey, plaintext);
-
-        // Print the ciphertext in Base64 format
-        System.out.println("Ciphertext: " + Base64.getEncoder().encodeToString(ciphertext));
-    }
-
-    public static PublicKey loadPublicKey(String filepath) throws Exception {
-        byte[] keyBytes = Files.readAllBytes(Paths.get(filepath));
-        String publicKeyPEM = new String(keyBytes)
-                .replace("-----BEGIN PUBLIC KEY-----", "")
-                .replace("-----END PUBLIC KEY-----", "")
-                .replaceAll("\\s", "");
-
-        byte[] decoded = Base64.getDecoder().decode(publicKeyPEM);
-        X509EncodedKeySpec spec = new X509EncodedKeySpec(decoded);
-        KeyFactory keyFactory = KeyFactory.getInstance("EC", "BC");
-        return keyFactory.generatePublic(spec);
-    }
-
-    public static byte[] encrypt(PublicKey publicKey, byte[] plaintext) throws Exception {
+        // Get the curve parameters
         ECParameterSpec ecSpec = ECNamedCurveTable.getParameterSpec("P-256");
-        ECDomainParameters ecDomain = new ECDomainParameters(
-                ecSpec.getCurve(),
-                ecSpec.getG(),
-                ecSpec.getN(),
-                ecSpec.getH()
+        ECDomainParameters domainParams = new ECDomainParameters(
+            ecSpec.getCurve(),
+            ecSpec.getG(),
+            ecSpec.getN(),
+            ecSpec.getH()
         );
 
-        // Extract the EC point from the public key
-        byte[] encodedPoint = publicKey.getEncoded();
-        ECPoint point = ecSpec.getCurve().decodePoint(encodedPoint);
-
-        ECPublicKeyParameters publicKeyParameters = new ECPublicKeyParameters(
-                point, ecDomain
+        // Convert to BouncyCastle compatible parameters
+        ECPublicKey javaPublicKey = (ECPublicKey) keyPair.getPublic();
+        ECPoint bcPublicPoint = ecSpec.getCurve().createPoint(
+            new BigInteger(1, javaPublicKey.getW().getAffineX().toByteArray()),
+            new BigInteger(1, javaPublicKey.getW().getAffineY().toByteArray())
         );
+        ECPublicKeyParameters publicKeyParams = new ECPublicKeyParameters(bcPublicPoint, domainParams);
 
+        ECPrivateKey javaPrivateKey = (ECPrivateKey) keyPair.getPrivate();
+        BigInteger privateKeyValue = javaPrivateKey.getS();
+        ECPrivateKeyParameters privateKeyParams = new ECPrivateKeyParameters(privateKeyValue, domainParams);
+
+        // Set up IESEngine with ECDH, KDF2 (SHA-1), and AES-128-CBC
         IESEngine iesEngine = new IESEngine(
-                new org.bouncycastle.crypto.agreement.ECDHBasicAgreement(),
-                new org.bouncycastle.crypto.generators.KDF2BytesGenerator(new SHA256Digest()),
-                new HMac(new SHA256Digest())
+                new ECDHBasicAgreement(),
+                new KDF2BytesGenerator(new SHA1Digest()),
+                new HMac(new SHA1Digest()),
+                new BufferedBlockCipher(new CBCBlockCipher(new AESEngine()))
         );
 
-        iesEngine.init(true, publicKeyParameters, null, new IESWithCipherParameters(null, null, 128, 128));
+        // Encryption parameters (128-bit AES key, 128-bit MAC key)
+        IESWithCipherParameters params = new IESWithCipherParameters(null, null, 128, 128);
 
-        return iesEngine.processBlock(plaintext, 0, plaintext.length);
+        // Initialize the engine for encryption
+        iesEngine.init(true, publicKeyParams, privateKeyParams, params);
+
+        // Plaintext to be encrypted
+        byte[] plaintext = "Hello, ECIES!".getBytes();
+
+        // Encrypt
+        byte[] ciphertext = iesEngine.processBlock(plaintext, 0, plaintext.length);
+        String encryptedBase64 = Base64.getEncoder().encodeToString(ciphertext);
+
+        System.out.println("Encrypted text (Base64): " + encryptedBase64);
+
+        // Decrypt (using the same engine initialized for decryption)
+        iesEngine.init(false, privateKeyParams, publicKeyParams, params);
+        byte[] decryptedText = iesEngine.processBlock(ciphertext, 0, ciphertext.length);
+
+        System.out.println("Decrypted text: " + new String(decryptedText));
     }
 }
