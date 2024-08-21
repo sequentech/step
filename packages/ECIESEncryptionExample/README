@@ -1,0 +1,39 @@
+# ECIES Encryption Tool
+
+This is a command line tool to encryp/decrypt using the Elliptic Curve Integrated Encryption Scheme (ECIES) Scheme.
+
+The basic usage is:
+
+```
+java -jar target/ECIESEncryptionExample-1.0-SNAPSHOT.jar
+Usage:
+  create-keys <public-key-file> <private-key-file>
+  encrypt <public-key-file> <plaintext>
+  decrypt <private-key-file> <encrypted-text>
+```
+
+## Implementation details.
+
+This tool creates and uses public/private key pairs with the curve type P-256 (also known as secp256r1 or prime256v1).
+The main cryptography library used for implementing ECIES is Java's Bouncy Castle.
+
+- Key Agreement: Bouncy Castle typically uses ECDH (Elliptic Curve Diffie-Hellman) for key agreement within ECIES.
+- Key Derivation Function (KDF): Bouncy Castle uses a specific KDF called KDF2, which is based on the ISO18033-2 
+  standard and typically uses th hash function SHA-1  to derive keys from the shared secret.
+- Symmetric Encryption: For the symmetric encryption part of ECIES, Bouncy Castle often uses AES (Advanced
+  Encryption Standard) in the block cipher mode CBC (Cipher Block Chaining).
+- MAC: A MAC (Message Authentication Code) is used to ensure the integrity of the encrypted data. The MAC is
+  generated using a key derived alongside the encryption key. The hash algorithm used is SHA-1.
+
+## Cyphertext output generation
+
+The final output of the Ecies encryption tool combines the IV, ephemeral public key point, ciphertext, and MAC. Format:
+
+[IV || Ephemeral Public Key || Ciphertext || MAC]
+
+Note: `||` is a concat operator
+
+- IV: Initialization Vector, usually 16 bytes for AES.
+- Ephemeral Public Key: The public key generated during encryption for ECDH.
+- Ciphertext: The result of encrypting the plaintext with the symmetric key derived from ECDH.
+- MAC: Message Authentication Code, to ensure the integrity of the ciphertext.  
