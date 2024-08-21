@@ -44,7 +44,7 @@ module.exports = {
     test_settings: {
         default: {
             disable_error_log: false,
-            launch_url: "https://admin-portal-dev.sequent.vote/",
+            launch_url: "{TEST_URL}",
 
             screenshots: {
                 enabled: false,
@@ -105,8 +105,8 @@ module.exports = {
     '@nightwatch/browserstack': {
         test_observability: {
             enabled: true,
-            user: 'eduardorobles_wOBrsX' || process.env.BROWSERSTACK_USERNAME,
-            key: 'tTctpoyoeA7XBGLwNwx3' || process.env.BROWSERSTACK_ACCESS_KEY,
+            user: process.env.BROWSERSTACK_USERNAME,
+            key: process.env.BROWSERSTACK_ACCESS_KEY,
             projectName: "Sequent Admin Portal",
             buildName: "Sequent Admin Portal",
             buildTag: ["nightwatch","admin-portal"]

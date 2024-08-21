@@ -17,6 +17,11 @@ on:
 jobs:
   e2e:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - browser: chrome
+      fail-fast: false
     steps:
     - uses: actions/checkout@v3
     - name: Use Node.js
@@ -37,5 +42,4 @@ jobs:
         cd ..
         sudo apt-get install xvfb
         export TEST_URL="${{ github.event.inputs.urlTest }}"
-        xvfb-run --auto-servernum npx nightwatch test/e2e/*.ts -c nightwatch.conf-dev.js  --env chrome
-      continue-on-error: true
+        xvfb-run --auto-servernum npx nightwatch test/e2e/*.ts -c nightwatch.conf-ghaction.js  --env ${{ matrix.browser }}
