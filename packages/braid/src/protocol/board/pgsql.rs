@@ -4,7 +4,7 @@
 
 use anyhow::Result;
 use board_messages::braid::message::Message;
-use board_messages::grpc::pgsql::{B3MessageRow, PgsqlDbConnectionParams, PgsqlPooledB3Client};
+use board_messages::grpc::pgsql::{B3MessageRow, PgsqlDbConnectionParams, XPgsqlB3Client};
 use rusqlite::params;
 use rusqlite::Connection;
 use std::path::PathBuf;
@@ -15,7 +15,7 @@ use strand::serialization::StrandDeserialize;
 
 /// A bulletin board implemented on postgresql
 pub struct PgsqlBoard {
-    pub(crate) board_client: PgsqlPooledB3Client,
+    pub(crate) board_client: XPgsqlB3Client,
     pub(crate) board_name: String,
     pub(crate) store_root: Option<PathBuf>,
 }
@@ -26,7 +26,7 @@ impl PgsqlBoard {
         board_name: String,
         store_root: Option<PathBuf>,
     ) -> Result<PgsqlBoard> {
-        let board_client = PgsqlPooledB3Client::from_params(connection).await?;
+        let board_client = XPgsqlB3Client::new(connection).await?;
         Ok(PgsqlBoard {
             board_client,
             board_name: board_name.to_string(),

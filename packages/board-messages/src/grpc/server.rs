@@ -15,8 +15,8 @@ use crate::grpc::{PutMessagesReply, PutMessagesRequest};
 use super::validate_board_name;
 use crate::braid::message::Message;
 use crate::grpc::pgsql::B3MessageRow;
-use crate::grpc::pgsql::PgsqlB3Client;
 use crate::grpc::pgsql::PgsqlDbConnectionParams;
+use crate::grpc::pgsql::ZPgsqlB3Client;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 
 pub struct PgsqlB3Server {
@@ -48,7 +48,7 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
             error!("Pgsql connection failed: {:?}", c.err());
             return Err(Status::internal(format!("Pgsql connection failed")));
         };
-        let mut c = PgsqlB3Client::from_pooled(c);
+        let c = ZPgsqlB3Client::new(c);
 
         /* let Ok(mut c) = c else {
             error!("Pgsql connection failed: {:?}", c.err());
@@ -104,7 +104,7 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
             error!("Pgsql connection failed: {:?}", c.err());
             return Err(Status::internal(format!("Pgsql connection failed")));
         };
-        let mut c = PgsqlB3Client::from_pooled(c);
+        let mut c = ZPgsqlB3Client::new(c);
 
         let messages = r
             .messages
@@ -136,7 +136,7 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
             error!("Pgsql connection failed: {:?}", c.err());
             return Err(Status::internal(format!("Pgsql connection failed")));
         };
-        let mut c = PgsqlB3Client::from_pooled(c);
+        let c = ZPgsqlB3Client::new(c);
 
         let boards = c.get_boards().await;
         let Ok(boards) = boards else {
@@ -189,6 +189,7 @@ pub(crate) mod tests {
 
     use super::*;
     use crate::grpc::pgsql::PgsqlConnectionParams;
+    use crate::grpc::pgsql::XPgsqlB3Client;
     use crate::{
         braid::{
             artifact::Configuration, newtypes::PROTOCOL_MANAGER_INDEX,
@@ -212,12 +213,12 @@ pub(crate) mod tests {
     const PG_PORT: u32 = 49153;
     const TEST_BOARD: &'static str = "testboard";
 
-    async fn set_up<'a>() -> PgsqlB3Client<'a> {
+    async fn set_up() -> XPgsqlB3Client {
         let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
         drop_database(&c, PG_DATABASE).await.unwrap();
         create_database(&c, PG_DATABASE).await.unwrap();
 
-        let mut client = PgsqlB3Client::new(&c.with_database(PG_DATABASE))
+        let mut client = XPgsqlB3Client::new(&c.with_database(PG_DATABASE))
             .await
             .unwrap();
         client.create_index_ine().await.unwrap();
