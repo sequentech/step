@@ -35,12 +35,14 @@
 		"LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"
 	},
 	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+	// disable command overriding and updating remote user ID
 	"userEnvProbe": "loginShell",
-	"updateRemoteUserUID": true,
+	"updateRemoteUserUID": false,
+	"overrideCommand": false,
 
-	"onCreateCommand": "git config --global --add safe.directory '*' && direnv allow && devenv shell bash -- -c './.devcontainer/scripts/fix-vscode-settings-nix.sh'",
-	"updateContentCommand": "git config --global --add safe.directory '*' && direnv allow && devenv shell bash -- -c './.devcontainer/scripts/fix-vscode-settings-nix.sh'",
-	"postCreateCommand":"git config --global --add safe.directory '*' && direnv allow && devenv shell bash -- -c './.devcontainer/scripts/init-cli.sh'",
+	"onCreateCommand": "git config --global --add safe.directory '*' && direnv allow && OUTPUT=$(cat .devcontainer/scripts/fix-vscode-settings-nix.sh) && devenv shell bash -- -c $OUTPUT",
+	"updateContentCommand": "git config --global --add safe.directory '*' && direnv allow && OUTPUT=$(cat .devcontainer/scripts/fix-vscode-settings-nix.sh) && devenv shell bash -- -c $OUTPUT",
+	"postCreateCommand":"git config --global --add safe.directory '*' && direnv allow && OUTPUT=$(cat .devcontainer/scripts/init-cli.sh) && devenv shell bash -- -c $OUTPUT",
 
 	// Adding host requirements so that there is no need to manually select the
 	// machine to run on all the time
