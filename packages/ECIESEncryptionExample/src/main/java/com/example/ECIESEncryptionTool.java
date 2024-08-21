@@ -22,7 +22,7 @@ import java.nio.file.Paths;
 import java.security.*;
 import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
-import java.security.spec.ECGenParameterSpec;  // <-- Add this import
+import java.security.spec.ECGenParameterSpec;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
@@ -143,10 +143,24 @@ public class ECIESEncryptionTool {
         );
         byte[] ephemeralPublicKeyEncoded = bcEphemeralPoint.getEncoded(false);
     
-        // Combine the ephemeral public key point with the ciphertext
-        byte[] finalCiphertext = new byte[ephemeralPublicKeyEncoded.length + ciphertext.length];
+        // Generate MAC using shared secret
+        ECDHBasicAgreement agreement = new ECDHBasicAgreement();
+        agreement.init(privateKeyParams);
+        BigInteger sharedSecret = agreement.calculateAgreement(publicKeyParams);
+        byte[] sharedSecretBytes = sharedSecret.toByteArray();
+    
+        KDF2BytesGenerator kdf = new KDF2BytesGenerator(new SHA1Digest());
+        byte[] macKey = new byte[20];  // 160-bit MAC key for SHA-1
+        kdf.init(new KDFParameters(sharedSecretBytes, null));
+        kdf.generateBytes(macKey, 0, macKey.length);
+    
+        byte[] mac = computeMac(macKey, ciphertext);
+    
+        // Combine the ephemeral public key point, ciphertext, and MAC
+        byte[] finalCiphertext = new byte[ephemeralPublicKeyEncoded.length + ciphertext.length + mac.length];
         System.arraycopy(ephemeralPublicKeyEncoded, 0, finalCiphertext, 0, ephemeralPublicKeyEncoded.length);
         System.arraycopy(ciphertext, 0, finalCiphertext, ephemeralPublicKeyEncoded.length, ciphertext.length);
+        System.arraycopy(mac, 0, finalCiphertext, ephemeralPublicKeyEncoded.length + ciphertext.length, mac.length);
     
         return Base64.getEncoder().encodeToString(finalCiphertext);
     }
@@ -163,21 +177,24 @@ public class ECIESEncryptionTool {
             ecSpec.getN(),
             ecSpec.getH()
         );
-        
+    
         ECPrivateKey javaPrivateKey = (ECPrivateKey) privateKey;
         ECPrivateKeyParameters privateKeyParams = new ECPrivateKeyParameters(javaPrivateKey.getS(), domainParams);
     
-        // Decode the full ciphertext (which includes the ephemeral public key)
+        // Decode the full ciphertext (which includes the ephemeral public key and MAC)
         byte[] decodedText = Base64.getDecoder().decode(encryptedText);
     
-        // Determine the length of the ephemeral public key (this should be done correctly)
+        // Determine the length of the ephemeral public key
         int ephemeralKeyLength = ecSpec.getCurve().getFieldSize() / 8 * 2 + 1;
         byte[] ephemeralPublicKeyBytes = new byte[ephemeralKeyLength];
         System.arraycopy(decodedText, 0, ephemeralPublicKeyBytes, 0, ephemeralKeyLength);
     
-        // Extract the actual ciphertext (after the ephemeral key)
-        byte[] ciphertextOnly = new byte[decodedText.length - ephemeralKeyLength];
+        // Extract the ciphertext and MAC
+        int macLength = 20; // 160-bit MAC for SHA-1
+        byte[] ciphertextOnly = new byte[decodedText.length - ephemeralKeyLength - macLength];
+        byte[] mac = new byte[macLength];
         System.arraycopy(decodedText, ephemeralKeyLength, ciphertextOnly, 0, ciphertextOnly.length);
+        System.arraycopy(decodedText, ephemeralKeyLength + ciphertextOnly.length, mac, 0, mac.length);
     
         // Decode the ephemeral public key
         org.bouncycastle.math.ec.ECPoint bcEphemeralPoint = ecSpec.getCurve().decodePoint(ephemeralPublicKeyBytes);
@@ -194,9 +211,35 @@ public class ECIESEncryptionTool {
         IESWithCipherParameters params = new IESWithCipherParameters(null, null, 128, 128);
         iesEngine.init(false, privateKeyParams, ephemeralPublicKeyParams, params);
     
+        // Derive the shared secret and generate MAC key
+        ECDHBasicAgreement agreement = new ECDHBasicAgreement();
+        agreement.init(privateKeyParams);
+        BigInteger sharedSecret = agreement.calculateAgreement(ephemeralPublicKeyParams);
+        byte[] sharedSecretBytes = sharedSecret.toByteArray();
+    
+        KDF2BytesGenerator kdf = new KDF2BytesGenerator(new SHA1Digest());
+        byte[] macKey = new byte[20];  // 160-bit MAC key for SHA-1
+        kdf.init(new KDFParameters(sharedSecretBytes, null));
+        kdf.generateBytes(macKey, 0, macKey.length);
+    
+        // Validate MAC
+        byte[] calculatedMac = computeMac(macKey, ciphertextOnly);
+        if (!MessageDigest.isEqual(mac, calculatedMac)) {
+            throw new SecurityException("Invalid MAC: Data may have been tampered with.");
+        }
+    
         // Decrypt the ciphertext
         byte[] decryptedText = iesEngine.processBlock(ciphertextOnly, 0, ciphertextOnly.length);
         return new String(decryptedText);
+    }
+
+    private static byte[] computeMac(byte[] macKey, byte[] data) throws Exception {
+        HMac hmac = new HMac(new SHA1Digest());
+        hmac.init(new KeyParameter(macKey));
+        hmac.update(data, 0, data.length);
+        byte[] mac = new byte[hmac.getMacSize()];
+        hmac.doFinal(mac, 0);
+        return mac;
     }
 
     private static void writeFile(String path, String content) throws IOException {
