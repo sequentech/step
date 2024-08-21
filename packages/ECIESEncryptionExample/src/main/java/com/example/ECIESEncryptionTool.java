@@ -121,6 +121,11 @@ public class ECIESEncryptionTool {
         ECPrivateKey javaPrivateKey = (ECPrivateKey) ephemeralKeyPair.getPrivate();
         ECPrivateKeyParameters privateKeyParams = new ECPrivateKeyParameters(javaPrivateKey.getS(), domainParams);
     
+        // Generate a random IV
+        SecureRandom random = new SecureRandom();
+        byte[] iv = new byte[16]; // 16 bytes for AES-128
+        random.nextBytes(iv);
+    
         // Set up IESEngine with ECDH, KDF2 (SHA-1), and AES-128-CBC with padding
         IESEngine iesEngine = new IESEngine(
                 new ECDHBasicAgreement(),
@@ -156,11 +161,18 @@ public class ECIESEncryptionTool {
     
         byte[] mac = computeMac(macKey, ciphertext);
     
-        // Combine the ephemeral public key point, ciphertext, and MAC
-        byte[] finalCiphertext = new byte[ephemeralPublicKeyEncoded.length + ciphertext.length + mac.length];
-        System.arraycopy(ephemeralPublicKeyEncoded, 0, finalCiphertext, 0, ephemeralPublicKeyEncoded.length);
-        System.arraycopy(ciphertext, 0, finalCiphertext, ephemeralPublicKeyEncoded.length, ciphertext.length);
-        System.arraycopy(mac, 0, finalCiphertext, ephemeralPublicKeyEncoded.length + ciphertext.length, mac.length);
+        // Combine the IV, ephemeral public key point, ciphertext, and MAC
+        // Format: [IV || Ephemeral Public Key || Ciphertext || MAC]
+        // Note: || is a concat operator
+        // IV: Initialization Vector, usually 16 bytes for AES.
+        // Ephemeral Public Key: The public key generated during encryption for ECDH.
+        // Ciphertext: The result of encrypting the plaintext with the symmetric key derived from ECDH.
+        // MAC: Message Authentication Code, to ensure the integrity of the ciphertext.    
+        byte[] finalCiphertext = new byte[iv.length + ephemeralPublicKeyEncoded.length + ciphertext.length + mac.length];
+        System.arraycopy(iv, 0, finalCiphertext, 0, iv.length);
+        System.arraycopy(ephemeralPublicKeyEncoded, 0, finalCiphertext, iv.length, ephemeralPublicKeyEncoded.length);
+        System.arraycopy(ciphertext, 0, finalCiphertext, iv.length + ephemeralPublicKeyEncoded.length, ciphertext.length);
+        System.arraycopy(mac, 0, finalCiphertext, iv.length + ephemeralPublicKeyEncoded.length + ciphertext.length, mac.length);
     
         return Base64.getEncoder().encodeToString(finalCiphertext);
     }
@@ -181,20 +193,24 @@ public class ECIESEncryptionTool {
         ECPrivateKey javaPrivateKey = (ECPrivateKey) privateKey;
         ECPrivateKeyParameters privateKeyParams = new ECPrivateKeyParameters(javaPrivateKey.getS(), domainParams);
     
-        // Decode the full ciphertext (which includes the ephemeral public key and MAC)
+        // Decode the full ciphertext (which includes the IV, ephemeral public key, and MAC)
         byte[] decodedText = Base64.getDecoder().decode(encryptedText);
+    
+        // Extract the IV
+        byte[] iv = new byte[16]; // 16 bytes for AES-128
+        System.arraycopy(decodedText, 0, iv, 0, iv.length);
     
         // Determine the length of the ephemeral public key
         int ephemeralKeyLength = ecSpec.getCurve().getFieldSize() / 8 * 2 + 1;
         byte[] ephemeralPublicKeyBytes = new byte[ephemeralKeyLength];
-        System.arraycopy(decodedText, 0, ephemeralPublicKeyBytes, 0, ephemeralKeyLength);
+        System.arraycopy(decodedText, iv.length, ephemeralPublicKeyBytes, 0, ephemeralKeyLength);
     
         // Extract the ciphertext and MAC
         int macLength = 20; // 160-bit MAC for SHA-1
-        byte[] ciphertextOnly = new byte[decodedText.length - ephemeralKeyLength - macLength];
+        byte[] ciphertextOnly = new byte[decodedText.length - iv.length - ephemeralKeyLength - macLength];
         byte[] mac = new byte[macLength];
-        System.arraycopy(decodedText, ephemeralKeyLength, ciphertextOnly, 0, ciphertextOnly.length);
-        System.arraycopy(decodedText, ephemeralKeyLength + ciphertextOnly.length, mac, 0, mac.length);
+        System.arraycopy(decodedText, iv.length + ephemeralKeyLength, ciphertextOnly, 0, ciphertextOnly.length);
+        System.arraycopy(decodedText, iv.length + ephemeralKeyLength + ciphertextOnly.length, mac, 0, mac.length);
     
         // Decode the ephemeral public key
         org.bouncycastle.math.ec.ECPoint bcEphemeralPoint = ecSpec.getCurve().decodePoint(ephemeralPublicKeyBytes);
@@ -231,7 +247,7 @@ public class ECIESEncryptionTool {
         // Decrypt the ciphertext
         byte[] decryptedText = iesEngine.processBlock(ciphertextOnly, 0, ciphertextOnly.length);
         return new String(decryptedText);
-    }
+    }    
 
     private static byte[] computeMac(byte[] macKey, byte[] data) throws Exception {
         HMac hmac = new HMac(new SHA1Digest());
