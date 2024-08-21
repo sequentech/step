@@ -12,6 +12,16 @@ on:
         required: true
         type: string
         default: 'https://admin-portal-dev.sequent.vote/'
+      adminUser:
+        description: 'admin user of env'
+        required: true
+        type: string
+        default: 'admin'
+      adminPassword:
+        description: 'admin password of env'
+        required: true
+        type: string
+        default: 'admin'
   #pull_request:
 
 jobs:
@@ -40,6 +50,7 @@ jobs:
         cp -r ../../node_modules/@nightwatch .
         cp -r ../../node_modules/nightwatch .
         cd ..
-        sudo apt-get install xvfb
         export TEST_URL="${{ github.event.inputs.urlTest }}"
+        export ADMIN_PORTAL_TEST_USERNAME="${{ github.event.inputs.adminUser }}"
+        export ADMIN_PORTAL_TEST_PASSWORD="${{ github.event.inputs.adminPassword }}"
         xvfb-run --auto-servernum npx nightwatch test/e2e/*.ts -c nightwatch.conf-ghaction.js  --env ${{ matrix.browser }}

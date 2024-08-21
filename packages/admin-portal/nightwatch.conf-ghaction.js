@@ -105,8 +105,8 @@ module.exports = {
     '@nightwatch/browserstack': {
         test_observability: {
             enabled: true,
-            user: '${BROWSERSTACK_USERNAME}',
-            key: '${BROWSERSTACK_ACCESS_KEY}',
+            user: rocess.env.BROWSERSTACK_USERNAME,
+            key: process.env.BROWSERSTACK_ACCESS_KEY,
             projectName: "Sequent Admin Portal",
             buildName: "Sequent Admin Portal",
             buildTag: ["nightwatch","admin-portal"]
