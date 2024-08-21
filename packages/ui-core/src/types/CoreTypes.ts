@@ -143,6 +143,13 @@ export enum EVotingPortalCountdownPolicy {
     COUNTDOWN_WITH_ALERT = "COUNTDOWN_WITH_ALERT",
 }
 
+export enum ETaskExecutionStatus {
+    STARTED = "STARTED",
+    IN_PROGRESS = "IN_PROGRESS",
+    SUCCESS = "SUCCESS",
+    CANCELLED = "CANCELLED",
+}
+
 export interface ITaskExecuted {
     id: string
     created_at: string
