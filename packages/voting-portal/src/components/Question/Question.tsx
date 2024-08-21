@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useState} from "react"
+import React, {useEffect, useState} from "react"
 import {Box} from "@mui/material"
 import {
     stringToHtml,
@@ -10,6 +10,7 @@ import {
     translate,
     IContest,
     CandidatesOrder,
+    EOverVotePolicy,
 } from "@sequentech/ui-core"
 import {theme, BlankAnswer} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
@@ -87,11 +88,13 @@ export const Question: React.FC<IQuestionProps> = ({
     setDisableNext,
     setDecodedContests,
 }) => {
+    // THIS IS A CONTEST COMPONENT
     const {i18n} = useTranslation()
-
     let [candidatesOrder, setCandidatesOrder] = useState<Array<string> | null>(null)
     let [categoriesMapOrder, setCategoriesMapOrder] = useState<CategoriesMap | null>(null)
     let [isInvalidWriteIns, setIsInvalidWriteIns] = useState(false)
+    let [selectedCoicesSum, setSelectedCoicesSum] = useState(0)
+    let [disableSelect, setDisableSelect] = useState(false)
     let {invalidOrBlankCandidates, noCategoryCandidates, categoriesMap} =
         categorizeCandidates(question)
     let hasBlankCandidate = invalidOrBlankCandidates.some((candidate) =>
@@ -105,6 +108,36 @@ export const Question: React.FC<IQuestionProps> = ({
         invalidOrBlankCandidates,
         checkPositionIsTop
     )
+
+    useEffect(() => {
+        // Calculating the number of selected candidates
+        let selectedChoicesCount = 0
+        contestState?.choices.forEach((choice) => {
+            choice.selected === 0 && selectedChoicesCount++
+        })
+        setSelectedCoicesSum(selectedChoicesCount)
+    }, [contestState])
+
+    const maxVotesNum = question.max_votes
+    const overVoteDisbleMode =
+        question.presentation?.over_vote_policy === EOverVotePolicy.NOT_ALLOWED_WITH_MSG_AND_DISABLE
+
+    useEffect(() => {
+        if (overVoteDisbleMode) {
+            if (selectedCoicesSum >= maxVotesNum) {
+                setDisableSelect(true)
+            } else {
+                setDisableSelect(false)
+            }
+        }
+    }, [])
+
+    // console.log("Number of choices with selected = 0:", {
+    //     selectedCoicesSum,
+    //     overVoteDisbleMode,
+    //     disableSelect,
+    //     maxVotesNum,
+    // })
 
     // do the shuffling
     const candidatesOrderType = question.presentation?.candidates_order
@@ -175,6 +208,9 @@ export const Question: React.FC<IQuestionProps> = ({
                         isExplicitBlankVote={checkIsExplicitBlankVote(answer)}
                         isRadioSelection={isRadioSelection}
                         contest={question}
+                        selectedCoicesSum={selectedCoicesSum}
+                        setSelectedCoicesSum={setSelectedCoicesSum}
+                        disableSelect={disableSelect}
                     />
                 ))}
                 <CandidateListsWrapper className="candidates-lists-container">
@@ -194,6 +230,10 @@ export const Question: React.FC<IQuestionProps> = ({
                                     isInvalidWriteIns={isInvalidWriteIns}
                                     isRadioSelection={isRadioSelection}
                                     contest={question}
+                                    selectedCoicesSum={selectedCoicesSum}
+                                    setSelectedCoicesSum={setSelectedCoicesSum}
+                                    disableSelect={disableSelect}
+                                    //
                                 />
                             )
                         )}
@@ -213,6 +253,9 @@ export const Question: React.FC<IQuestionProps> = ({
                                 isReview={isReview}
                                 isRadioSelection={isRadioSelection}
                                 contest={question}
+                                selectedCoicesSum={selectedCoicesSum}
+                                setSelectedCoicesSum={setSelectedCoicesSum}
+                                disableSelect={disableSelect}
                             />
                         ))}
                 </CandidatesSingleWrapper>
@@ -230,6 +273,9 @@ export const Question: React.FC<IQuestionProps> = ({
                         isInvalidWriteIns={false}
                         isRadioSelection={isRadioSelection}
                         contest={question}
+                        selectedCoicesSum={selectedCoicesSum}
+                        setSelectedCoicesSum={setSelectedCoicesSum}
+                        disableSelect={disableSelect}
                     />
                 ))}
             </CandidatesWrapper>

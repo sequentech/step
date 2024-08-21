@@ -91,6 +91,7 @@ export interface CandidateProps extends PropsWithChildren {
     setWriteInText?: (value: string) => void
     isInvalidWriteIn?: boolean
     index?: number
+    shouldDisable: boolean
 }
 
 const Candidate: React.FC<CandidateProps> = ({
@@ -108,6 +109,7 @@ const Candidate: React.FC<CandidateProps> = ({
     isInvalidWriteIn,
     children,
     index,
+    shouldDisable,
 }) => {
     const {t} = useTranslation()
     const onClick: React.MouseEventHandler<HTMLDivElement> = (event) => {
