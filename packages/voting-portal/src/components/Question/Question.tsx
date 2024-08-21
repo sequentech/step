@@ -123,12 +123,6 @@ export const Question: React.FC<IQuestionProps> = ({
         question.presentation?.over_vote_policy === EOverVotePolicy.NOT_ALLOWED_WITH_MSG_AND_DISABLE
 
     useEffect(() => {
-        console.log("Number of choices with selected: ", {
-            selectedCoicesSum,
-            overVoteDisbleMode,
-            maxVotesNum,
-        })
-
         if (overVoteDisbleMode) {
             if (selectedCoicesSum >= maxVotesNum) {
                 setDisableSelect(true)

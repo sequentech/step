@@ -6,7 +6,7 @@ import React, {PropsWithChildren, ReactNode} from "react"
 import {styled} from "@mui/material/styles"
 import {theme} from "../../services/theme"
 import {Checkbox} from "@mui/material"
-import {faInfoCircle} from "@fortawesome/free-solid-svg-icons"
+import {faBan, faInfoCircle} from "@fortawesome/free-solid-svg-icons"
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 import emotionStyled from "@emotion/styled"
 import {useTranslation} from "react-i18next"
@@ -134,8 +134,6 @@ const Candidate: React.FC<CandidateProps> = ({
         event.stopPropagation()
     }
 
-    console.log("shouldDisable: ", shouldDisable)
-
     return (
         <BorderBox
             isactive={String(!!isActive)}
@@ -194,16 +192,9 @@ const Candidate: React.FC<CandidateProps> = ({
             ) : null}
             {isActive ? (
                 shouldDisable ? (
-                    // <Checkbox
-                    //     inputProps={{
-                    //         "className": "candidate-input",
-                    //         "aria-label": isString(title) ? title : "",
-                    //     }}
-                    //     checked={false}
-                    //     // onChange={handleChange}
-                    //     color="secondary"
-                    //     disabled={true}
-                    <FontAwesomeIcon icon={faXmark} size="lg" /> // Use the FontAwesomeIcon component
+                    <Box sx={{padding: "10px", width: "23px", height: "23px"}} color={"gray"}>
+                        <FontAwesomeIcon icon={faBan} />
+                    </Box>
                 ) : (
                     <Checkbox
                         inputProps={{
