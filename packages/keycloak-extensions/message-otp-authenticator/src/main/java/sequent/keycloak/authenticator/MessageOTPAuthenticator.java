@@ -74,7 +74,13 @@ public class MessageOTPAuthenticator
   public void action(AuthenticationFlowContext context) {
     log.info("action() called");
     String enteredCode = context.getHttpRequest().getDecodedFormParameters().getFirst(Utils.CODE);
-
+    String resend = context.getHttpRequest().getDecodedFormParameters().getFirst("resend");
+    log.info("resend -> "+ resend);
+    if(resend != null && resend.equals("true")) {
+      log.info("resend was activated");
+      sendOtpCode(context);
+      return;
+    }
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
     String code = authSession.getAuthNote(Utils.CODE);
     String ttl = authSession.getAuthNote(Utils.CODE_TTL);
@@ -117,6 +123,36 @@ public class MessageOTPAuthenticator
       }
     }
   }
+
+  private void sendOtpCode(AuthenticationFlowContext context) {
+    log.info("resendOtp() called");
+    AuthenticatorConfigModel config = context.getAuthenticatorConfig();
+    KeycloakSession session = context.getSession();
+    AuthenticationSessionModel authSession = context.getAuthenticationSession();
+
+    Utils.MessageCourier messageCourier =
+        Utils.MessageCourier.fromString(config.getConfig().get(Utils.MESSAGE_COURIER_ATTRIBUTE));
+    boolean deferredUser = config.getConfig().get(Utils.DEFERRED_USER_ATTRIBUTE).equals("true");
+
+    try {
+        UserModel user = context.getUser();
+        Utils.sendCode(config, session, user, authSession, messageCourier, deferredUser);
+        log.info("OTP resent successfully");
+        context.challenge(
+          context
+              .form()
+              .setAttribute("realm", context.getRealm())
+              .setAttribute("courier", messageCourier)
+              .createForm(TPL_CODE));
+    } catch (Exception error) {
+        log.error("Error resending OTP", error);
+        context.failureChallenge(
+            AuthenticationFlowError.INTERNAL_ERROR,
+            context.form()
+                .setError("messageNotSent", error.getMessage())
+                .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+    }
+}
 
   @Override
   public boolean requiresUser() {

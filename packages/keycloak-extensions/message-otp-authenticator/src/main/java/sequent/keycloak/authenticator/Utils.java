@@ -47,6 +47,7 @@ public class Utils {
   public final String SEND_CODE_SMS_I18N_KEY = "messageOtp.sendCode.sms.text";
   public final String SEND_CODE_EMAIL_SUBJECT = "messageOtp.sendCode.email.subject";
   public final String SEND_CODE_EMAIL_FTL = "send-code-email.ftl";
+  public final String RESEND_ACTIVATION_TIMER = "resendCoudActivationTimer";
 
   public enum MessageCourier {
     SMS,
