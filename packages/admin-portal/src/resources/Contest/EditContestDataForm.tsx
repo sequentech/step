@@ -734,7 +734,7 @@ export const ContestDataForm: React.FC = () => {
                                     defaultValue={EBlankVotePolicy.ALLOWED}
                                     validate={required()}
                                 />
-                                
+
                                 <SelectInput
                                     source={`presentation.over_vote_policy`}
                                     choices={overVotePolicyChoices()}

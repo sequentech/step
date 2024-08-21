@@ -835,7 +835,8 @@ const spanishTranslation: TranslationType = {
                 "allowed-with-msg": "Permitido con un mensaje de warning",
                 "allowed-with-msg-and-alert": "Permitido con un mensaje de warning y alerta",
                 "not-allowed-with-msg-and-alert": "No permitido con un mensaje de warning y alerta",
-                "not-allowed-with-msg-and-disable": "No permitido con un mensaje de warning y dehabilitar selecciones adicionales",
+                "not-allowed-with-msg-and-disable":
+                    "No permitido con un mensaje de warning y dehabilitar selecciones adicionales",
             },
             paginationPolicy: {
                 label: "Nombre de la página",

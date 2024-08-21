@@ -836,7 +836,8 @@ const catalanTranslation: TranslationType = {
                 "allowed-with-msg": "Permès amb missatge d'avís",
                 "allowed-with-msg-and-alert": "Permès amb missatge d'avís i alerta",
                 "not-allowed-with-msg-and-alert": "No es permet amb missatge d'avís i alerta",
-                "not-allowed-with-msg-and-disable": "No es permet amb missatge d'avís i desactiva més seleccions",
+                "not-allowed-with-msg-and-disable":
+                    "No es permet amb missatge d'avís i desactiva més seleccions",
             },
             paginationPolicy: {
                 label: "Nom de la pàgina",

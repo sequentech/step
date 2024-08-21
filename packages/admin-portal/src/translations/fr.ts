@@ -836,9 +836,12 @@ const frenchTranslation: TranslationType = {
                 "label": "Politique de vote excessive",
                 "allowed": "Autorisé",
                 "allowed-with-msg": "Autorisé avec un message d'avertissement",
-                "allowed-with-msg-and-alert": "Autorisé avec un message d'avertissement et d'alerte",
-                "not-allowed-with-msg-and-alert": "Non autorisé avec un message d'avertissement et d'alerte",
-                "not-allowed-with-msg-and-disable": "Non autorisé avec un message d'avertissement et désactiver d'autres sélections",
+                "allowed-with-msg-and-alert":
+                    "Autorisé avec un message d'avertissement et d'alerte",
+                "not-allowed-with-msg-and-alert":
+                    "Non autorisé avec un message d'avertissement et d'alerte",
+                "not-allowed-with-msg-and-disable":
+                    "Non autorisé avec un message d'avertissement et désactiver d'autres sélections",
             },
             paginationPolicy: {
                 label: "Nom de la page",
