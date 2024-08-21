@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {TranslationType} from "./en"
+import { TranslationType } from "./en"
 
 const tagalogTranslation: TranslationType = {
     translations: {
@@ -121,6 +121,12 @@ const tagalogTranslation: TranslationType = {
         },
         header: {
             profile: "Profile",
+            session: {
+                title: "Malapit nang mag-expire ang iyong session.",
+                timeLeft: "May natitira kang {{time}} para bumoto.",
+                timeLeftMinutesAndSeconds: "{{timeLeftInMinutes}} minuto at {{time}} segundo",
+                timeLeftSeconds: "{{timeLeft}} segundo",
+            },
         },
     },
 }
