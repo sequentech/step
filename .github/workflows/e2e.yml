@@ -6,9 +6,15 @@ name: E2E Tests
 
 on:
   workflow_dispatch:
+    inputs:
+      urlTest:
+        description: 'URL from env where launch the tests, by default is dev env'
+        required: true
+        type: string
+        default: 'https://admin-portal-dev.sequent.vote/'
   pull_request:
-  push:
-    branches: [ 'feat/meta-474b/devops' ]
+  #push:
+  #  branches: [ 'feat/meta-474b/devops' ]
 
 jobs:
   e2e:
@@ -36,11 +42,16 @@ jobs:
         npm install @nightwatch/browserstack
     - name: Run admin-portal tests
       run: |
+        if [ "$beyondRepositoryLocation" == "" ]; then
+          log error "Specify a valid beyondRepositoryLocation"
+          help
+          exit 1
+        fi
         cd packages/admin-portal/node_modules
         cp -r ../../node_modules/@nightwatch .
         cp -r ../../node_modules/nightwatch .
         cd ..
         sudo apt-get install xvfb
-        export TEST_URL="https://admin-portal-dev.sequent.vote/"
+        export TEST_URL="${{ github.event.inputs.urlTest }}"
         xvfb-run --auto-servernum npx nightwatch test/e2e/*.ts -c nightwatch.conf-dev.js  --env chrome
       continue-on-error: true
