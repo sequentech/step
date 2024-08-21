@@ -42,8 +42,8 @@ pub fn check_voting_not_allowed_next_util(
                 .filter(|choice| choice.selected == 0)
                 .count();
 
-            let invalid_errors: Vec<InvalidPlaintextError> =
-                decoded_contest.invalid_errors.clone();
+            let invalid_errors: &Vec<InvalidPlaintextError> =
+                &decoded_contest.invalid_errors;
 
             invalid_errors.iter().any(|error| {
                 matches!(
@@ -103,8 +103,8 @@ pub fn check_voting_error_dialog_util(
                 .iter()
                 .filter(|choice| choice.selected == 0)
                 .count();
-            let invalid_errors: Vec<InvalidPlaintextError> =
-                decoded_contest.invalid_errors.clone();
+            let invalid_errors: &Vec<InvalidPlaintextError> =
+                &decoded_contest.invalid_errors;
             let explicit_invalid = decoded_contest.is_explicit_invalid;
             (!invalid_errors.is_empty()
                 && *vote_policy != InvalidVotePolicy::ALLOWED)
