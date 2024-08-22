@@ -367,7 +367,7 @@ const frenchTranslation: TranslationType = {
                 },
                 notify: {
                     noKeysTally:
-                        "La Cérémonie de Comptage ne peut pas commencer tant que la Cérémonie de Fideicomisario n'a pas été réalisée avec succès.",
+                        "La Cérémonie de Comptage ne peut pas commencer tant que la Cérémonie de Fideicomisarios n'a pas été réalisée avec succès.",
                     noPublication:
                         "La Cérémonie de Dépouillement ne peut pas commencer tant que vous n'avez pas créé une publication dans l'onglet Publier.",
                     participateNow:

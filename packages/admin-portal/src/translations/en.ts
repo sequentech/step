@@ -363,7 +363,7 @@ const englishTranslation = {
                 },
                 notify: {
                     noKeysTally:
-                        "The Tally Ceremony cannot start until the Key Ceremony has been successfully completed.",
+                        "The Tally Ceremony cannot start until the Keys Ceremony has been successfully completed.",
                     noPublication:
                         "The Tally Ceremony cannot start until you create one publication in the Publish tab.",
                     participateNow:
