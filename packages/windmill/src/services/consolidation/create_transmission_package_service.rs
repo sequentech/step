@@ -153,11 +153,11 @@ pub async fn generate_all_servers_document(
     let temp_dir_path = temp_dir.path();
 
     for ccs_server in ccs_servers {
-        let server_path = temp_dir_path.join(&ccs_server.address);
+        let server_path = temp_dir_path.join("test-server"); //&ccs_server.address);
         std::fs::create_dir(server_path.clone())
             .with_context(|| format!("Error generating directory {:?}", server_path.clone()))?;
         let zip_file_path = server_path.join(format!("er_{}.zip", area_station_id));
-        let transmission_package = create_transmission_package(
+        create_transmission_package(
             time_zone.clone(),
             now_utc.clone(),
             election_event_annotations,

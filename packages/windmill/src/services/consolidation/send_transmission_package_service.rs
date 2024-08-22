@@ -10,6 +10,7 @@ use super::{
     },
     logs::{error_sending_transmission_package_to_ccs_log, send_transmission_package_to_ccs_log},
     transmission_package::create_transmission_package,
+    zip::unzip_file,
 };
 use crate::{
     postgres::{
@@ -37,24 +38,20 @@ use sequent_core::{
     types::hasura::core::{ElectionEvent, TallySession},
     util::date_time::get_system_timezone,
 };
-use std::cmp::Ordering;
 use std::io::{Read, Seek};
-use tempfile::NamedTempFile;
+use std::{cmp::Ordering, path::Path};
+use tempfile::{tempdir, NamedTempFile};
 use tracing::{info, instrument};
 
 const SEND_ELECTION_RESULTS_API_PATH: &str = "/api/receiver/v1/acm/election-results";
 
-#[instrument(skip(transmission_package), err)]
+#[instrument(err)]
 async fn send_package_to_ccs_server(
-    mut transmission_package: NamedTempFile,
+    transmission_package_path: &Path,
     ccs_server: &MiruCcsServer,
-) -> Result<NamedTempFile> {
-    // transmission_package the file to the beginning so it can be read
-    transmission_package.rewind()?;
-
+) -> Result<()> {
     // Read the file contents into a Vec<u8>
-    let mut transmission_package_bytes = Vec::new();
-    transmission_package.read_to_end(&mut transmission_package_bytes)?;
+    let mut transmission_package_bytes = std::fs::read(transmission_package_path)?;
 
     let uri = format!("{}{}", ccs_server.address, SEND_ELECTION_RESULTS_API_PATH);
     let client = reqwest::Client::builder()
@@ -88,7 +85,7 @@ async fn send_package_to_ccs_server(
             response_str
         ));
     }
-    Ok(transmission_package)
+    Ok(())
 }
 
 #[instrument(err)]
@@ -198,18 +195,15 @@ pub async fn send_transmission_package_service(
         &hasura_transaction,
         tenant_id,
         Some(election_event.id.clone()),
-        &miru_document.document_ids.xz,
+        &miru_document.document_ids.all_servers,
     )
     .await?
     .ok_or_else(|| anyhow!("Can't find document {}", miru_document.document_ids.xz))?;
 
-    let mut compressed_xml = get_document_as_temp_file(tenant_id, &document).await?;
-    // Rewind the file to the beginning so it can be read
-    compressed_xml.rewind()?;
+    let mut compressed_zip = get_document_as_temp_file(tenant_id, &document).await?;
 
-    // Read the file contents into a Vec<u8>
-    let mut compressed_xml_bytes = Vec::new();
-    compressed_xml.read_to_end(&mut compressed_xml_bytes)?;
+    let zip_output_temp_dir = tempdir().with_context(|| "Error generating temp directory")?;
+    unzip_file(compressed_zip.path(), zip_output_temp_dir.path())?;
 
     let acm_key_pair = generate_ecies_key_pair()?;
     let mut new_miru_document = miru_document.clone();
@@ -230,39 +224,10 @@ pub async fn send_transmission_package_service(
             );
             continue;
         }
-        let dst_file = generate_temp_file(format!("er_{}", area_station_id).as_str(), ".zip")?;
-        create_transmission_package(
-            time_zone.clone(),
-            now_utc.clone(),
-            &election_event_annotations,
-            compressed_xml_bytes.clone(),
-            &acm_key_pair,
-            &ccs_server.public_key_pem,
-            &area_station_id,
-            dst_file.path(),
-        )
-        .await?;
-        match send_package_to_ccs_server(dst_file, ccs_server).await {
+        let second_zip_folder_path = zip_output_temp_dir.path().join("test-server");
+        let second_zip_path = second_zip_folder_path.join(format!("er_{}.zip", area_station_id));
+        match send_package_to_ccs_server(&second_zip_path, ccs_server).await {
             Ok(_) => {
-                /*let name = format!("er_{}.zip", miru_document.transaction_id);
-
-                let temp_path = tmp_file_zip.into_temp_path();
-                let temp_path_string = temp_path.to_string_lossy().to_string();
-                let file_size = get_file_size(temp_path_string.as_str())
-                    .with_context(|| "Error obtaining file size")?;
-
-                let document = upload_and_return_document_postgres(
-                    &hasura_transaction,
-                    &temp_path_string,
-                    file_size,
-                    "applization/zip",
-                    tenant_id,
-                    &election_event.id,
-                    &name,
-                    None,
-                    false,
-                )
-                .await?;*/
                 new_transmission_area_election
                     .logs
                     .push(send_transmission_package_to_ccs_log(
