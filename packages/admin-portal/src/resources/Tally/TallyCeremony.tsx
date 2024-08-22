@@ -96,7 +96,9 @@ export interface IExpanded {
 export const TallyCeremony: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const {t, i18n} = useTranslation()
-    const {tallyId, setTallyId, setCreatingFlag} = useElectionEventTallyStore()
+	const { tallyId, setTallyId, setCreatingFlag,
+		setMiruElectionId,
+		setMiruAreaId } = useElectionEventTallyStore()
     const notify = useNotify()
     const {globalSettings} = useContext(SettingsContext)
 
@@ -299,12 +301,6 @@ export const TallyCeremony: React.FC = () => {
                 setPage(WizardSteps.Tally)
                 return
             }
-            if (data.execution_status === ITallyExecutionStatus.SUCCESS) {
-                if (page !== WizardSteps.Export) {
-                    setPage(WizardSteps.Results)
-                }
-                return
-            }
             setPage(WizardSteps.Start)
         }
     }, [data])
@@ -414,10 +410,10 @@ export const TallyCeremony: React.FC = () => {
     }) => {
         //check for task completion and fetch data
         //set new page status(navigate to miru wizard)
-
         if (e.existingPackage) {
             setSelectedTallySessionData(e.existingPackage)
-            setPage(WizardSteps.Export)
+			setMiruElectionId(e.existingPackage.election_id)
+			setMiruAreaId(e.existingPackage.area_id)
         } else {
             let packageData: IMiruTransmissionPackageData | null = null
             let retry = 0
@@ -437,8 +433,9 @@ export const TallyCeremony: React.FC = () => {
                 if (found) {
                     packageData = found
                     clearInterval(intervalId)
-                    setSelectedTallySessionData(packageData)
-                    setPage(WizardSteps.Export)
+                    // setSelectedTallySessionData(packageData)
+					setMiruElectionId(packageData.election_id)
+					setMiruAreaId(packageData.area_id)
                 } else {
                     retry = retry + 1
                 }
@@ -446,88 +443,6 @@ export const TallyCeremony: React.FC = () => {
         }
     }
 
-    const handleSendTransmissionPackage = useCallback(async () => {
-        try {
-            setTransmissionLoading(true)
-
-            const {data: nextStatus, errors} = await SendTransmissionPackage({
-                variables: {
-                    electionId: selectedTallySessionData?.election_id,
-                    tallySessionId: tallyId,
-                    areaId: selectedTallySessionData?.area_id,
-                },
-            })
-
-            if (errors) {
-                setTransmissionLoading(false)
-                notify(t("miruExport.send.error"), {type: "error"})
-                return
-            }
-
-            if (nextStatus) {
-                setTransmissionLoading(false)
-                notify(t("miruExport.send.success"), {type: "success"})
-                // onSuccess?.()
-            }
-        } catch (error) {
-            console.log(`Caught error: ${error}`)
-            notify(t("miruExport.send.error"), {type: "error"})
-        }
-    }, [
-        setTransmissionLoading,
-        selectedTallySessionData?.election_id,
-        tallyId,
-        selectedTallySessionData?.area_id,
-        t,
-        notify,
-    ])
-
-    const [uploading, setUploading] = useState<boolean>(false)
-    const [errors, setErrors] = useState<String | null>(null)
-
-    const handleUploadSignature = async (files: FileList | null) => {
-        setErrors(null)
-        setUploading(false)
-        if (!files || files.length === 0) {
-            setErrors("No file selected")
-            return
-        }
-        const firstFile = files[0]
-        const readFileContent = (file: File) => {
-            return new Promise<string>((resolve, reject) => {
-                const fileReader = new FileReader()
-                fileReader.onload = () => resolve(fileReader.result as string)
-                fileReader.onerror = (error) => reject(error)
-                // Read the file as a data URL (base64 encoded string)
-                fileReader.readAsText(file)
-            })
-        }
-        try {
-            const fileContent = await readFileContent(firstFile)
-            console.log(`uploadPrivateKey(): fileContent: ${fileContent}`)
-            if (fileContent == null) {
-                setErrors(t("Error uploading signature"))
-                return
-            }
-            setUploading(true)
-            const {data, errors} = await uploadSignature({
-                variables: {
-                    electionId: selectedTallySessionData?.election_id,
-                    tallySessionId: tally?.id,
-                    areaId: selectedTallySessionData?.area_id,
-                    signature: fileContent,
-                },
-            })
-            setUploading(false)
-            if (errors) {
-                setErrors(t("tally.errorUploadingSignature", {error: errors.toString()}))
-                return
-            }
-        } catch (exception: any) {
-            setUploading(false)
-            setErrors(t("keysGeneration.checkStep.errorUploading", {error: exception.toString()}))
-        }
-    }
 
     const [CreateTransmissionPackage] = useMutation<CreateTransmissionPackageMutation>(
         CREATE_TRANSMISSION_PACKAGE,
@@ -588,63 +503,17 @@ export const TallyCeremony: React.FC = () => {
         <>
             <WizardStyles.WizardWrapper>
                 <TallyStyles.StyledHeader>
-                    {page === WizardSteps.Export ? (
-                        <TallyStyles.MiruHeader>
-                            <ElectionHeaderStyles.ThinWrapper>
-                                <ElectionHeaderStyles.Title>
-                                    {t("tally.transmissionPackage.title", {
-                                        name: area?.name,
-                                    })}
-                                </ElectionHeaderStyles.Title>
-                                <ElectionHeaderStyles.SubTitle>
-                                    {t("tally.transmissionPackage.description")}
-                                </ElectionHeaderStyles.SubTitle>
-                            </ElectionHeaderStyles.ThinWrapper>
-
-                            <TallyStyles.MiruToolbar>
-                                {resultsEvent?.[0] && documents ? (
-                                    <MiruPackageDownload
-                                        areaName={area?.name}
-                                        documents={selectedTallySessionData?.documents ?? []}
-                                        electionEventId={resultsEvent?.[0].election_event_id}
-                                    />
-                                ) : null}
-                                <TallyStyles.MiruToolbarButton
-                                    aria-label="export election data"
-                                    aria-controls="export-menu"
-                                    aria-haspopup="true"
-                                    onClick={() => setConfirmSendMiruModal(true)}
-                                >
-                                    {transmissionLoading ? (
-                                        <CircularProgress />
-                                    ) : (
-                                        <>
-                                            <CellTowerIcon />
-                                            <span
-                                                title={t(
-                                                    "tally.transmissionPackage.actions.send.title"
-                                                )}
-                                            >
-                                                {t("tally.transmissionPackage.actions.send.title")}
-                                            </span>
-                                        </>
-                                    )}
-                                </TallyStyles.MiruToolbarButton>
-                            </TallyStyles.MiruToolbar>
-                        </TallyStyles.MiruHeader>
-                    ) : (
-                        <BreadCrumbSteps
-                            labels={[
-                                "tally.breadcrumbSteps.start",
-                                "tally.breadcrumbSteps.ceremony",
-                                "tally.breadcrumbSteps.tally",
-                                "tally.breadcrumbSteps.results",
-                            ]}
-                            selected={page}
-                            variant={BreadCrumbStepsVariant.Circle}
-                            colorPreviousSteps={true}
-                        />
-                    )}
+					<BreadCrumbSteps
+						labels={[
+							"tally.breadcrumbSteps.start",
+							"tally.breadcrumbSteps.ceremony",
+							"tally.breadcrumbSteps.tally",
+							"tally.breadcrumbSteps.results",
+						]}
+						selected={page}
+						variant={BreadCrumbStepsVariant.Circle}
+						colorPreviousSteps={true}
+					/>
                 </TallyStyles.StyledHeader>
 
                 {resultsEventId && record?.id ? (
@@ -900,23 +769,6 @@ export const TallyCeremony: React.FC = () => {
                     </>
                 )}
 
-                {page === WizardSteps.Export && (
-                    <MiruExportWizard
-                        tallySessionExecution={tallySessionExecutions?.[0]}
-                        expandedExports={expandedExports}
-                        resultsEvent={resultsEvent}
-                        setExpandedDataExports={setExpandedDataExports}
-                        transmissionLoading={transmissionLoading}
-                        handleSendTransmissionPackage={handleSendTransmissionPackage}
-                        selectedTallySessionData={selectedTallySessionData}
-                        uploading={uploading}
-                        area={area}
-                        documents={documents}
-                        errors={errors}
-                        handleUploadSignature={handleUploadSignature}
-                        isTrustee={isTrustee}
-                    />
-                )}
 
                 <TallyStyles.StyledFooter>
                     {page < WizardSteps.Results && (
@@ -989,24 +841,6 @@ export const TallyCeremony: React.FC = () => {
                 }}
             >
                 {t("tally.common.dialog.ceremony")}
-            </Dialog>
-
-            <Dialog
-                variant="info"
-                open={confirmSendMiruModal}
-                ok={t("tally.transmissionPackage.actions.send.dialog.confirm")}
-                cancel={t("tally.transmissionPackage.actions.send.dialog.cancel")}
-                title={t("tally.transmissionPackage.actions.send.dialog.title")}
-                handleClose={(result: boolean) => {
-                    setConfirmSendMiruModal(false)
-                    if (result) {
-                        handleSendTransmissionPackage()
-                    }
-                }}
-            >
-                {t("tally.transmissionPackage.actions.send.dialog.description", {
-                    name: area?.name,
-                })}
             </Dialog>
         </>
     )

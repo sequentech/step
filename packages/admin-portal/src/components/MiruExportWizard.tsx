@@ -2,58 +2,257 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Accordion, AccordionSummary, Box, CircularProgress} from "@mui/material"
-import React, {useMemo} from "react"
+import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
 import {WizardStyles} from "./styles/WizardStyles"
 import {TallyStyles} from "./styles/TallyStyles"
 import {MiruServers} from "./MiruServers"
 import {ExportButton} from "./MiruExport"
 import {MiruSignatures} from "./MiruSignatures"
-import {theme, DropFile} from "@sequentech/ui-essentials"
+import { theme, DropFile, Dialog } from "@sequentech/ui-essentials"
 import {Logs} from "./Logs"
 import {MiruPackageDownload} from "./MiruPackageDownload"
 import {IExpanded} from "@/resources/Tally/TallyCeremony"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
+import CellTowerIcon from "@mui/icons-material/CellTower"
 import {
+	SendTransmissionPackageMutation,
     Sequent_Backend_Area,
+    Sequent_Backend_Election_Event,
     Sequent_Backend_Results_Event,
+    Sequent_Backend_Tally_Session,
     Sequent_Backend_Tally_Session_Execution,
+	UploadSignatureMutation,
 } from "@/gql/graphql"
-import {IMiruTransmissionPackageData} from "@/types/miru"
+import {IMiruTallySessionData, IMiruTransmissionPackageData, MIRU_TALLY_SESSION_ANNOTATION_KEY} from "@/types/miru"
 import {IResultDocuments} from "@/types/results"
 import {useTranslation} from "react-i18next"
+import { useGetList, useGetOne, useNotify, useRecordContext } from "react-admin"
+import { SettingsContext } from "@/providers/SettingsContextProvider"
+import { useElectionEventTallyStore } from "@/providers/ElectionEventTallyProvider"
+import { useTenantStore } from "@/providers/TenantContextProvider"
+import { IPermissions } from "@/types/keycloak"
+import { useMutation } from "@apollo/client"
+import { SEND_TRANSMISSION_PACKAGE } from "@/queries/SendTransmissionPackage"
+import { UPLOAD_SIGNATURE } from "@/queries/UploadSignature"
+import { ITallyExecutionStatus } from "@/types/ceremonies"
+import { AuthContext } from "@/providers/AuthContextProvider"
+import { ElectionHeaderStyles } from "./styles/ElectionHeaderStyles"
+import { useAtomValue } from "jotai"
+import { tallyQueryData } from "@/atoms/tally-candidates"
 
 interface IMiruExportWizardProps {
-    tallySessionExecution?: Sequent_Backend_Tally_Session_Execution
-    expandedExports: IExpanded
-    resultsEvent: Sequent_Backend_Results_Event[] | undefined
-    setExpandedDataExports: React.Dispatch<React.SetStateAction<IExpanded>>
-    transmissionLoading: boolean
-    documents: IResultDocuments | null
-    handleSendTransmissionPackage: () => void
-    selectedTallySessionData: IMiruTransmissionPackageData | null
-    uploading: boolean
-    isTrustee: boolean
-    area: Sequent_Backend_Area | null
-    errors: String | null
-    handleUploadSignature: (files: FileList | null) => Promise<void>
 }
 
-export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({
-    tallySessionExecution,
-    expandedExports,
-    resultsEvent,
-    setExpandedDataExports,
-    transmissionLoading,
-    handleSendTransmissionPackage,
-    selectedTallySessionData,
-    uploading,
-    documents,
-    errors,
-    area,
-    isTrustee,
-    handleUploadSignature,
-}) => {
+export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
+	const record = useRecordContext<Sequent_Backend_Election_Event>()
+	const { globalSettings } = useContext(SettingsContext)
+	const { tallyId, setTallyId, setCreatingFlag, miruElectionId, miruAreaId } = useElectionEventTallyStore()
+	const [tenantId] = useTenantStore()
+	const notify = useNotify()
+	const [transmissionLoading, setTransmissionLoading] = useState<boolean>(false)
+	const [selectedTallySessionData, setSelectedTallySessionData] =
+		useState<IMiruTransmissionPackageData | null>(null)
+	const [uploading, setUploading] = useState<boolean>(false)
+	const [errors, setErrors] = useState<String | null>(null)
+	const [tally, setTally] = useState<Sequent_Backend_Tally_Session>()
+	const authContext = useContext(AuthContext)
+	console.log({authContext})
+	const isTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_CEREMONY)
+
+
+	const [uploadSignature] = useMutation<UploadSignatureMutation>(UPLOAD_SIGNATURE, {
+		context: {
+			headers: {
+				"x-hasura-role": IPermissions.TALLY_WRITE,
+			},
+		},
+	})
+
+	const handleUploadSignature = async (files: FileList | null) => {
+		setErrors(null)
+		setUploading(false)
+		if (!files || files.length === 0) {
+			setErrors("No file selected")
+			return
+		}
+		const firstFile = files[0]
+		const readFileContent = (file: File) => {
+			return new Promise<string>((resolve, reject) => {
+				const fileReader = new FileReader()
+				fileReader.onload = () => resolve(fileReader.result as string)
+				fileReader.onerror = (error) => reject(error)
+				// Read the file as a data URL (base64 encoded string)
+				fileReader.readAsText(file)
+			})
+		}
+		try {
+			const fileContent = await readFileContent(firstFile)
+			console.log(`uploadPrivateKey(): fileContent: ${fileContent}`)
+			if (fileContent == null) {
+				setErrors(t("Error uploading signature"))
+				return
+			}
+			setUploading(true)
+			const { data, errors } = await uploadSignature({
+				variables: {
+					electionId: selectedTallySessionData?.election_id,
+					tallySessionId: tally?.id,
+					areaId: selectedTallySessionData?.area_id,
+					signature: fileContent,
+				},
+			})
+			setUploading(false)
+			if (errors) {
+				setErrors(t("tally.errorUploadingSignature", { error: errors.toString() }))
+				return
+			}
+		} catch (exception: any) {
+			setUploading(false)
+			setErrors(t("keysGeneration.checkStep.errorUploading", { error: exception.toString() }))
+		}
+	}
+
+
+	const [expandedExports, setExpandedDataExports] = useState<IExpanded>({
+		"tally-miru-upload": true,
+		"tally-miru-signatures": false,
+		"tally-download-package": false,
+		"tally-miru-servers": false,
+	})
+
     const {t, i18n} = useTranslation()
+
+	const { data } = useGetOne<Sequent_Backend_Tally_Session>(
+		"sequent_backend_tally_session",
+		{
+			id: tallyId,
+		},
+		{
+			refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+			refetchIntervalInBackground: true,
+			refetchOnWindowFocus: false,
+			refetchOnReconnect: false,
+			refetchOnMount: false,
+		}
+	)
+
+	const tallySessionData = useMemo(() => {
+		try {
+			let strData = data?.annotations?.[MIRU_TALLY_SESSION_ANNOTATION_KEY]
+			if (!strData) {
+				return []
+			}
+			let parsed = JSON.parse(strData) as IMiruTallySessionData
+			return parsed
+		} catch (e) {
+			return []
+		}
+	}, [data?.annotations?.[MIRU_TALLY_SESSION_ANNOTATION_KEY]])
+
+	useEffect(() => {
+		if (data) {
+			setTally(data)
+		}
+	}, [data])
+
+	useEffect(() => {
+		if (!selectedTallySessionData || !tallySessionData) {
+			return
+		}
+		let found = tallySessionData.find(
+			(el) =>
+				el.area_id === selectedTallySessionData.area_id &&
+				el.election_id === selectedTallySessionData.election_id
+		)
+		if (found && JSON.stringify(found) !== JSON.stringify(selectedTallySessionData)) {
+			setSelectedTallySessionData(found ?? null)
+		}
+	}, [tallySessionData, selectedTallySessionData])
+
+	const { data: tallySessionExecutions } = useGetList<Sequent_Backend_Tally_Session_Execution>(
+		"sequent_backend_tally_session_execution",
+		{
+			pagination: { page: 1, perPage: 1 },
+			sort: { field: "created_at", order: "DESC" },
+			filter: {
+				tally_session_id: tallyId,
+				tenant_id: tenantId,
+			},
+		},
+		{
+			refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+			refetchOnWindowFocus: false,
+			refetchOnReconnect: false,
+			refetchOnMount: false,
+		}
+	)
+
+	const [SendTransmissionPackage] = useMutation<SendTransmissionPackageMutation>(
+		SEND_TRANSMISSION_PACKAGE,
+		{
+			context: {
+				headers: {
+					"x-hasura-role": IPermissions.TALLY_WRITE,
+				},
+			},
+		}
+	)
+
+	const handleSendTransmissionPackage = useCallback(async () => {
+		try {
+			setTransmissionLoading(true)
+
+			const { data: nextStatus, errors } = await SendTransmissionPackage({
+				variables: {
+					electionId: selectedTallySessionData?.election_id,
+					tallySessionId: tallyId,
+					areaId: selectedTallySessionData?.area_id,
+				},
+			})
+
+			if (errors) {
+				setTransmissionLoading(false)
+				notify(t("miruExport.send.error"), { type: "error" })
+				return
+			}
+
+			if (nextStatus) {
+				setTransmissionLoading(false)
+				notify(t("miruExport.send.success"), { type: "success" })
+				// onSuccess?.()
+			}
+		} catch (error) {
+			console.log(`Caught error: ${error}`)
+			notify(t("miruExport.send.error"), { type: "error" })
+		}
+	}, [
+		setTransmissionLoading,
+		selectedTallySessionData?.election_id,
+		tallyId,
+		selectedTallySessionData?.area_id,
+		t,
+		notify,
+	])
+
+	let tallySessionExecution = tallySessionExecutions?.[0] ?? null
+	let resultsEventId = tallySessionExecution?.results_event_id ?? null
+
+	const { data: resultsEvent, refetch } = useGetList<Sequent_Backend_Results_Event>(
+		"sequent_backend_results_event",
+		{
+			pagination: { page: 1, perPage: 1 },
+			filter: {
+				tenant_id: tenantId,
+				election_event_id: record?.id,
+				id: resultsEventId,
+			},
+		},
+		{
+			refetchOnWindowFocus: false,
+			refetchOnReconnect: false,
+			refetchOnMount: false,
+		}
+	)
 
     const signaturesStatusColor: () => string = () => {
         let signed = signedCount()
@@ -95,8 +294,74 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({
         return servers.length
     }
 
+
+	let documents: IResultDocuments | null = useMemo(
+		() =>
+			(!!resultsEventId &&
+				!!resultsEvent &&
+				resultsEvent?.[0]?.id === resultsEventId &&
+				(resultsEvent[0]?.documents as IResultDocuments | null)) ||
+			null,
+		[resultsEventId, resultsEvent, resultsEvent?.[0]?.id]
+	)
+
+	const [confirmSendMiruModal, setConfirmSendMiruModal] = useState(false)
+
+	const tallyData = useAtomValue(tallyQueryData)
+
+	const area: Sequent_Backend_Area | null = useMemo(
+		() =>
+			tallyData?.sequent_backend_area?.find(
+				(area) => selectedTallySessionData?.area_id === area.id
+			) ?? null,
+		[selectedTallySessionData?.area_id, tallyData?.sequent_backend_area]
+	)
+
     return (
         <>
+			<TallyStyles.MiruHeader>
+				<ElectionHeaderStyles.ThinWrapper>
+					<ElectionHeaderStyles.Title>
+						{t("tally.transmissionPackage.title", {
+							name: area?.name,
+						})}
+					</ElectionHeaderStyles.Title>
+					<ElectionHeaderStyles.SubTitle>
+						{t("tally.transmissionPackage.description")}
+					</ElectionHeaderStyles.SubTitle>
+				</ElectionHeaderStyles.ThinWrapper>
+
+				<TallyStyles.MiruToolbar>
+					{resultsEvent?.[0] && documents ? (
+						<MiruPackageDownload
+							areaName={area?.name}
+							documents={selectedTallySessionData?.documents ?? []}
+							electionEventId={resultsEvent?.[0].election_event_id}
+						/>
+					) : null}
+					<TallyStyles.MiruToolbarButton
+						aria-label="export election data"
+						aria-controls="export-menu"
+						aria-haspopup="true"
+						onClick={() => setConfirmSendMiruModal(true)}
+					>
+						{transmissionLoading ? (
+							<CircularProgress />
+						) : (
+							<>
+								<CellTowerIcon />
+								<span
+									title={t(
+										"tally.transmissionPackage.actions.send.title"
+									)}
+								>
+									{t("tally.transmissionPackage.actions.send.title")}
+								</span>
+							</>
+						)}
+					</TallyStyles.MiruToolbarButton>
+				</TallyStyles.MiruToolbar>
+			</TallyStyles.MiruHeader>
             {isTrustee && (
                 <Accordion
                     sx={{width: "100%"}}
@@ -213,6 +478,23 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({
             </Accordion>
 
             <Logs logs={selectedTallySessionData?.logs} />
+			<Dialog
+				variant="info"
+				open={confirmSendMiruModal}
+				ok={t("tally.transmissionPackage.actions.send.dialog.confirm")}
+				cancel={t("tally.transmissionPackage.actions.send.dialog.cancel")}
+				title={t("tally.transmissionPackage.actions.send.dialog.title")}
+				handleClose={(result: boolean) => {
+					setConfirmSendMiruModal(false)
+					if (result) {
+						handleSendTransmissionPackage()
+					}
+				}}
+			>
+				{t("tally.transmissionPackage.actions.send.dialog.description", {
+					name: area?.name,
+				})}
+			</Dialog>
         </>
     )
 }
