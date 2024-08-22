@@ -301,8 +301,11 @@ export const TallyCeremony: React.FC = () => {
                 setPage(WizardSteps.Tally)
                 return
             }
-            setPage(WizardSteps.Start)
-        }
+			if (data.execution_status === ITallyExecutionStatus.SUCCESS) {
+					setPage(WizardSteps.Results)
+				return
+			}
+			setPage(WizardSteps.Start)        }
     }, [data])
 
     useEffect(() => {
