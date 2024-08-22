@@ -14,16 +14,16 @@ use std::io::{self, Read, Seek, Write};
 use strand::hash::hash_sha256;
 use tracing::{info, instrument};
 
+const ECIES_TOOL_PATH: &str = "/usr/local/bin/ecies-tool.jar";
 #[derive(Debug, Clone)]
 pub struct EciesKeyPair {
     pub private_key_pem: String,
     pub public_key_pem: String,
 }
 
-#[instrument(skip(password, acm_key_pair), err)]
+#[instrument(skip(password), err)]
 pub fn ecies_encrypt_string(
     public_key_pem: &str,
-    acm_key_pair: &EciesKeyPair,
     password: &[u8],
 ) -> Result<String> {
     let temp_pem_file = generate_temp_file("public_key", ".pem")?;
@@ -42,8 +42,8 @@ pub fn ecies_encrypt_string(
     info!("plaintext b64: '{}'", plaintext_b64);
 
     let command = format!(
-        "java -jar /app/windmill/external-bin/ecies-tool.jar encrypt {} {}",
-        temp_pem_file_string, plaintext_b64
+        "java -jar {} encrypt {} {}",
+        ECIES_TOOL_PATH, temp_pem_file_string, plaintext_b64
     );
 
     let result = run_shell_command(&command)?.replace("\n", "");
@@ -64,8 +64,8 @@ pub fn generate_ecies_key_pair() -> Result<EciesKeyPair> {
     let temp_public_pem_file_string = temp_public_pem_file_path.to_string_lossy().to_string();
 
     let command = format!(
-        "java -jar /app/windmill/external-bin/ecies-tool.jar create-keys {} {}",
-        temp_public_pem_file_string, temp_private_pem_file_string
+        "java -jar {} create-keys {} {}",
+        ECIES_TOOL_PATH, temp_public_pem_file_string, temp_private_pem_file_string
     );
     run_shell_command(&command)?;
 
@@ -105,8 +105,8 @@ pub fn ecies_sign_data(acm_key_pair: &EciesKeyPair, data: &[u8]) -> Result<(Stri
     }
 
     let command = format!(
-        "java -jar /app/windmill/external-bin/ecies-tool.jar sign {} {}",
-        temp_pem_file_string, temp_data_file_string
+        "java -jar {} sign {} {}",
+        ECIES_TOOL_PATH, temp_pem_file_string, temp_data_file_string
     );
 
     let encrypted_base64 = run_shell_command(&command)?.replace("\n", "");
