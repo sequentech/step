@@ -8,11 +8,16 @@
     <version>1.0-SNAPSHOT</version>
 
     <dependencies>
-        <!-- Bouncy Castle Provider -->
+        <!-- SpongyCastle Provider -->
         <dependency>
-            <groupId>org.bouncycastle</groupId>
-            <artifactId>bcprov-jdk15on</artifactId>
-            <version>1.70</version>
+            <groupId>com.madgag.spongycastle</groupId>
+            <artifactId>core</artifactId>
+            <version>1.58.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.madgag.spongycastle</groupId>
+            <artifactId>prov</artifactId>
+            <version>1.58.0.0</version>
         </dependency>
     </dependencies>
 

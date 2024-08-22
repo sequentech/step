@@ -1,19 +1,21 @@
 package com.example;
 
-import org.bouncycastle.jce.ECNamedCurveTable;
-import org.bouncycastle.jce.spec.ECParameterSpec;
-import org.bouncycastle.crypto.engines.IESEngine;
-import org.bouncycastle.crypto.params.*;
-import org.bouncycastle.crypto.digests.SHA1Digest;
-import org.bouncycastle.crypto.generators.KDF2BytesGenerator;
-import org.bouncycastle.crypto.macs.HMac;
-import org.bouncycastle.crypto.engines.AESEngine;
-import org.bouncycastle.crypto.modes.CBCBlockCipher;
-import org.bouncycastle.crypto.paddings.PaddedBufferedBlockCipher;
-import org.bouncycastle.crypto.agreement.ECDHBasicAgreement;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.bouncycastle.math.ec.ECPoint;
+import org.spongycastle.jce.ECNamedCurveTable;
+import org.spongycastle.jce.spec.ECParameterSpec;
+import org.spongycastle.crypto.engines.IESEngine;
+import org.spongycastle.crypto.params.*;
+import org.spongycastle.crypto.digests.SHA1Digest;
+import org.spongycastle.crypto.generators.KDF2BytesGenerator;
+import org.spongycastle.crypto.macs.HMac;
+import org.spongycastle.crypto.engines.AESEngine;
+import org.spongycastle.crypto.modes.CBCBlockCipher;
+import org.spongycastle.crypto.paddings.PaddedBufferedBlockCipher;
+import org.spongycastle.crypto.agreement.ECDHBasicAgreement;
+import org.spongycastle.jce.provider.BouncyCastleProvider;
+import org.spongycastle.math.ec.ECPoint;
+import org.spongycastle.jce.spec.IESParameterSpec;
 
+import javax.crypto.Cipher;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -78,7 +80,7 @@ public class ECIESEncryptionTool {
     }
 
     private static void createKeys(String publicKeyFile, String privateKeyFile) throws Exception {
-        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("EC", "BC");
+        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("EC", "SC");
         keyGen.initialize(new ECGenParameterSpec("secp256r1"), new SecureRandom());
         KeyPair keyPair = keyGen.generateKeyPair();
 
@@ -95,167 +97,54 @@ public class ECIESEncryptionTool {
 
     private static String encryptText(String publicKeyFile, String plaintext) throws Exception {
         PublicKey publicKey = loadPublicKeyFromPEM(readFile(publicKeyFile));
-    
+
         // Generate an ephemeral key pair for the sender
-        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("EC", "BC");
+        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("EC", "SC");
         keyGen.initialize(new ECGenParameterSpec("secp256r1"), new SecureRandom());
         KeyPair ephemeralKeyPair = keyGen.generateKeyPair();
-    
-        ECParameterSpec ecSpec = ECNamedCurveTable.getParameterSpec("P-256");
-        ECDomainParameters domainParams = new ECDomainParameters(
-            ecSpec.getCurve(),
-            ecSpec.getG(),
-            ecSpec.getN(),
-            ecSpec.getH()
+
+        // Set up IESParameterSpec with the specified parameters
+        IESParameterSpec iesParams = new IESParameterSpec(
+            null,           // derivation
+            null,           // encoding
+            256,            // macKeySize in bits
+            256,            // cipherKeySize in bits
+            null,           // nonce
+            false           // usePointCompression
         );
-    
-        // Convert the recipient's public key to BouncyCastle compatible parameters
-        ECPublicKey javaPublicKey = (ECPublicKey) publicKey;
-        org.bouncycastle.math.ec.ECPoint bcPublicPoint = ecSpec.getCurve().createPoint(
-            javaPublicKey.getW().getAffineX(),
-            javaPublicKey.getW().getAffineY()
-        );
-        ECPublicKeyParameters publicKeyParams = new ECPublicKeyParameters(bcPublicPoint, domainParams);
-    
-        // Convert the sender's ephemeral private key to BouncyCastle compatible parameters
-        ECPrivateKey javaPrivateKey = (ECPrivateKey) ephemeralKeyPair.getPrivate();
-        ECPrivateKeyParameters privateKeyParams = new ECPrivateKeyParameters(javaPrivateKey.getS(), domainParams);
-    
-        // Generate a random IV
-        SecureRandom random = new SecureRandom();
-        byte[] iv = new byte[16]; // 16 bytes for AES-128
-        random.nextBytes(iv);
-    
-        // Set up IESEngine with ECDH, KDF2 (SHA-1), and AES-128-CBC with padding
-        IESEngine iesEngine = new IESEngine(
-                new ECDHBasicAgreement(),
-                new KDF2BytesGenerator(new SHA1Digest()),
-                new HMac(new SHA1Digest()),
-                new PaddedBufferedBlockCipher(new CBCBlockCipher(new AESEngine()))
-        );
-    
-        IESWithCipherParameters params = new IESWithCipherParameters(null, null, 128, 128);
-        iesEngine.init(true, privateKeyParams, publicKeyParams, params);
-    
+
+        // Initialize the Cipher for encryption
+        Cipher iesCipher = Cipher.getInstance("ECIES", "SC");
+        iesCipher.init(Cipher.ENCRYPT_MODE, publicKey, iesParams, new SecureRandom());
+
         // Encrypt the plaintext
-        byte[] ciphertext = iesEngine.processBlock(plaintext.getBytes(), 0, plaintext.getBytes().length);
-    
-        // Get the raw ephemeral public key point (as a Bouncy Castle ECPoint)
-        ECPublicKey ephemeralPublicKey = (ECPublicKey) ephemeralKeyPair.getPublic();
-        org.bouncycastle.math.ec.ECPoint bcEphemeralPoint = ecSpec.getCurve().createPoint(
-            ephemeralPublicKey.getW().getAffineX(),
-            ephemeralPublicKey.getW().getAffineY()
-        );
-        byte[] ephemeralPublicKeyEncoded = bcEphemeralPoint.getEncoded(false);
-    
-        // Generate MAC using shared secret
-        ECDHBasicAgreement agreement = new ECDHBasicAgreement();
-        agreement.init(privateKeyParams);
-        BigInteger sharedSecret = agreement.calculateAgreement(publicKeyParams);
-        byte[] sharedSecretBytes = sharedSecret.toByteArray();
-    
-        KDF2BytesGenerator kdf = new KDF2BytesGenerator(new SHA1Digest());
-        byte[] macKey = new byte[20];  // 160-bit MAC key for SHA-1
-        kdf.init(new KDFParameters(sharedSecretBytes, null));
-        kdf.generateBytes(macKey, 0, macKey.length);
-    
-        byte[] mac = computeMac(macKey, ciphertext);
-    
-        // Combine the IV, ephemeral public key point, ciphertext, and MAC
-        // Format: [IV || Ephemeral Public Key || Ciphertext || MAC]
-        // Note: || is a concat operator
-        // IV: Initialization Vector, usually 16 bytes for AES.
-        // Ephemeral Public Key: The public key generated during encryption for ECDH.
-        // Ciphertext: The result of encrypting the plaintext with the symmetric key derived from ECDH.
-        // MAC: Message Authentication Code, to ensure the integrity of the ciphertext.    
-        byte[] finalCiphertext = new byte[iv.length + ephemeralPublicKeyEncoded.length + ciphertext.length + mac.length];
-        System.arraycopy(iv, 0, finalCiphertext, 0, iv.length);
-        System.arraycopy(ephemeralPublicKeyEncoded, 0, finalCiphertext, iv.length, ephemeralPublicKeyEncoded.length);
-        System.arraycopy(ciphertext, 0, finalCiphertext, iv.length + ephemeralPublicKeyEncoded.length, ciphertext.length);
-        System.arraycopy(mac, 0, finalCiphertext, iv.length + ephemeralPublicKeyEncoded.length + ciphertext.length, mac.length);
-    
-        return Base64.getEncoder().encodeToString(finalCiphertext);
+        byte[] ciphertext = iesCipher.doFinal(plaintext.getBytes());
+
+        return Base64.getEncoder().encodeToString(ciphertext);
     }
 
     private static String decryptText(String privateKeyFile, String encryptedText) throws Exception {
-        // Load the recipient's private key from the PEM file
         PrivateKey privateKey = loadPrivateKeyFromPEM(readFile(privateKeyFile));
-    
-        // Convert the recipient's private key to BouncyCastle compatible parameters
-        ECParameterSpec ecSpec = ECNamedCurveTable.getParameterSpec("P-256");
-        ECDomainParameters domainParams = new ECDomainParameters(
-            ecSpec.getCurve(),
-            ecSpec.getG(),
-            ecSpec.getN(),
-            ecSpec.getH()
-        );
-    
-        ECPrivateKey javaPrivateKey = (ECPrivateKey) privateKey;
-        ECPrivateKeyParameters privateKeyParams = new ECPrivateKeyParameters(javaPrivateKey.getS(), domainParams);
-    
-        // Decode the full ciphertext (which includes the IV, ephemeral public key, and MAC)
-        byte[] decodedText = Base64.getDecoder().decode(encryptedText);
-    
-        // Extract the IV
-        byte[] iv = new byte[16]; // 16 bytes for AES-128
-        System.arraycopy(decodedText, 0, iv, 0, iv.length);
-    
-        // Determine the length of the ephemeral public key
-        int ephemeralKeyLength = ecSpec.getCurve().getFieldSize() / 8 * 2 + 1;
-        byte[] ephemeralPublicKeyBytes = new byte[ephemeralKeyLength];
-        System.arraycopy(decodedText, iv.length, ephemeralPublicKeyBytes, 0, ephemeralKeyLength);
-    
-        // Extract the ciphertext and MAC
-        int macLength = 20; // 160-bit MAC for SHA-1
-        byte[] ciphertextOnly = new byte[decodedText.length - iv.length - ephemeralKeyLength - macLength];
-        byte[] mac = new byte[macLength];
-        System.arraycopy(decodedText, iv.length + ephemeralKeyLength, ciphertextOnly, 0, ciphertextOnly.length);
-        System.arraycopy(decodedText, iv.length + ephemeralKeyLength + ciphertextOnly.length, mac, 0, mac.length);
-    
-        // Decode the ephemeral public key
-        org.bouncycastle.math.ec.ECPoint bcEphemeralPoint = ecSpec.getCurve().decodePoint(ephemeralPublicKeyBytes);
-        ECPublicKeyParameters ephemeralPublicKeyParams = new ECPublicKeyParameters(bcEphemeralPoint, domainParams);
-    
-        // Initialize the IESEngine for decryption
-        IESEngine iesEngine = new IESEngine(
-                new ECDHBasicAgreement(),
-                new KDF2BytesGenerator(new SHA1Digest()),
-                new HMac(new SHA1Digest()),
-                new PaddedBufferedBlockCipher(new CBCBlockCipher(new AESEngine()))
-        );
-    
-        IESWithCipherParameters params = new IESWithCipherParameters(null, null, 128, 128);
-        iesEngine.init(false, privateKeyParams, ephemeralPublicKeyParams, params);
-    
-        // Derive the shared secret and generate MAC key
-        ECDHBasicAgreement agreement = new ECDHBasicAgreement();
-        agreement.init(privateKeyParams);
-        BigInteger sharedSecret = agreement.calculateAgreement(ephemeralPublicKeyParams);
-        byte[] sharedSecretBytes = sharedSecret.toByteArray();
-    
-        KDF2BytesGenerator kdf = new KDF2BytesGenerator(new SHA1Digest());
-        byte[] macKey = new byte[20];  // 160-bit MAC key for SHA-1
-        kdf.init(new KDFParameters(sharedSecretBytes, null));
-        kdf.generateBytes(macKey, 0, macKey.length);
-    
-        // Validate MAC
-        byte[] calculatedMac = computeMac(macKey, ciphertextOnly);
-        if (!MessageDigest.isEqual(mac, calculatedMac)) {
-            throw new SecurityException("Invalid MAC: Data may have been tampered with.");
-        }
-    
-        // Decrypt the ciphertext
-        byte[] decryptedText = iesEngine.processBlock(ciphertextOnly, 0, ciphertextOnly.length);
-        return new String(decryptedText);
-    }    
 
-    private static byte[] computeMac(byte[] macKey, byte[] data) throws Exception {
-        HMac hmac = new HMac(new SHA1Digest());
-        hmac.init(new KeyParameter(macKey));
-        hmac.update(data, 0, data.length);
-        byte[] mac = new byte[hmac.getMacSize()];
-        hmac.doFinal(mac, 0);
-        return mac;
+        // Set up IESParameterSpec with the specified parameters
+        IESParameterSpec iesParams = new IESParameterSpec(
+            null,           // derivation
+            null,           // encoding
+            256,            // macKeySize in bits
+            256,            // cipherKeySize in bits
+            null,           // nonce
+            false           // usePointCompression
+        );
+
+        // Initialize the Cipher for decryption
+        Cipher iesCipher = Cipher.getInstance("ECIES", "SC");
+        iesCipher.init(Cipher.DECRYPT_MODE, privateKey, iesParams);
+
+        // Decode and decrypt the ciphertext
+        byte[] decodedText = Base64.getDecoder().decode(encryptedText);
+        byte[] decryptedText = iesCipher.doFinal(decodedText);
+
+        return new String(decryptedText);
     }
 
     private static void writeFile(String path, String content) throws IOException {
@@ -268,7 +157,6 @@ public class ECIESEncryptionTool {
         return new String(Files.readAllBytes(Paths.get(path)));
     }
 
-    // Method to convert PublicKey to PEM format
     private static String getPublicKeyPEM(PublicKey publicKey) throws Exception {
         X509EncodedKeySpec x509EncodedKeySpec = new X509EncodedKeySpec(publicKey.getEncoded());
         StringWriter stringWriter = new StringWriter();
@@ -280,7 +168,6 @@ public class ECIESEncryptionTool {
         return stringWriter.toString();
     }
 
-    // Method to convert PrivateKey to PEM format
     private static String getPrivateKeyPEM(PrivateKey privateKey) throws Exception {
         PKCS8EncodedKeySpec pkcs8EncodedKeySpec = new PKCS8EncodedKeySpec(privateKey.getEncoded());
         StringWriter stringWriter = new StringWriter();
@@ -292,25 +179,23 @@ public class ECIESEncryptionTool {
         return stringWriter.toString();
     }
 
-    // Method to load a PublicKey from a PEM string
     private static PublicKey loadPublicKeyFromPEM(String pem) throws Exception {
         String publicKeyPEM = pem.replace("-----BEGIN PUBLIC KEY-----", "")
                                  .replace("-----END PUBLIC KEY-----", "")
                                  .replaceAll("\\s", "");
         byte[] decoded = Base64.getDecoder().decode(publicKeyPEM);
         X509EncodedKeySpec spec = new X509EncodedKeySpec(decoded);
-        KeyFactory keyFactory = KeyFactory.getInstance("EC", "BC");
+        KeyFactory keyFactory = KeyFactory.getInstance("EC", "SC");
         return keyFactory.generatePublic(spec);
     }
 
-    // Method to load a PrivateKey from a PEM string
     private static PrivateKey loadPrivateKeyFromPEM(String pem) throws Exception {
         String privateKeyPEM = pem.replace("-----BEGIN PRIVATE KEY-----", "")
                                   .replace("-----END PRIVATE KEY-----", "")
                                   .replaceAll("\\s", "");
         byte[] decoded = Base64.getDecoder().decode(privateKeyPEM);
         PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(decoded);
-        KeyFactory keyFactory = KeyFactory.getInstance("EC", "BC");
+        KeyFactory keyFactory = KeyFactory.getInstance("EC", "SC");
         return keyFactory.generatePrivate(spec);
     }
 }
