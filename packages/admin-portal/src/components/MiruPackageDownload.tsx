@@ -45,7 +45,7 @@ const PerformDownload: React.FC<PerformDownloadProps> = ({
             fileName ??
             (() => {
                 // data.sequent_backend_document.name + getDocumentExtension(data.sequent_backend_document.mediaType)//to be enabled after generating updated hasura types
-                return "document" + ".xml"
+                return "transmission_package" + ".zip"
             })()
 
         downloadUrl(data.fetchDocument.url, documentName).then(() => onDownload())
