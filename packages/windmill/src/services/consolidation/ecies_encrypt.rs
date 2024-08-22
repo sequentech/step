@@ -42,6 +42,7 @@ pub fn ecies_encrypt_string(public_key_pem: &str, password: &[u8]) -> Result<Str
         "java -jar {} encrypt {} {}",
         ECIES_TOOL_PATH, temp_pem_file_string, plaintext_b64
     );
+    info!("command: '{}'", command);
 
     let result = run_shell_command(&command)?.replace("\n", "");
 

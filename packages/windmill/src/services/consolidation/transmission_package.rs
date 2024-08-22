@@ -103,19 +103,23 @@ fn generate_er_final_zip(
     let temp_dir_path = temp_dir.path();
 
     let exz_xml_path = temp_dir_path.join(format!("er_{}.exz", MIRU_STATION_ID).as_str());
-    let mut exz_xml_file = File::create(&exz_xml_path)
-        .with_context(|| format!("Failed to create or open file: {:?}", exz_xml_path))?;
-    exz_xml_file
-        .write_all(&exz_temp_file_bytes)
-        .with_context(|| format!("Failed to write data to file: {:?}", exz_xml_path))?;
+    {
+        let mut exz_xml_file = File::create(&exz_xml_path)
+            .with_context(|| format!("Failed to create or open file: {:?}", exz_xml_path))?;
+        exz_xml_file
+            .write_all(&exz_temp_file_bytes)
+            .with_context(|| format!("Failed to write data to file: {:?}", exz_xml_path))?;
+    }
 
     let acm_json_stringified = serde_json::to_string_pretty(&acm_json)?;
     let exz_json_path = temp_dir_path.join(format!("er_{}.json", MIRU_STATION_ID).as_str());
-    let mut exz_json_file = File::create(&exz_json_path)
-        .with_context(|| format!("Failed to create or open file: {:?}", exz_json_path))?;
-    exz_json_file
-        .write_all(acm_json_stringified.as_bytes())
-        .with_context(|| format!("Failed to write data to file: {:?}", exz_xml_path))?;
+    {
+        let mut exz_json_file = File::create(&exz_json_path)
+            .with_context(|| format!("Failed to create or open file: {:?}", exz_json_path))?;
+        exz_json_file
+            .write_all(acm_json_stringified.as_bytes())
+            .with_context(|| format!("Failed to write data to file: {:?}", exz_xml_path))?;
+    }
 
     compress_folder_to_zip(temp_dir_path, output_file_path)?;
     Ok(())
