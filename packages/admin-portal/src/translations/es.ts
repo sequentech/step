@@ -931,7 +931,73 @@ const spanishTranslation: TranslationType = {
                 downloaded: "Clave Encriptada Privada generada exitosamente.",
             },
         },
+        miruExport: {
+            create: {
+                success: "Paquete de Transmisión Creado",
+                error: "Error al crear el Paquete de Transmisión",
+            },
+            send: {
+                success: "Paquete de Transmisión Enviado",
+                error: "Error al enviar el Paquete de Transmisión",
+            },
+        },
         tally: {
+            errorUploadingSignature: "Hubo un error al subir la firma",
+            downloadTransmissionPackage: "Descargar paquete",
+            transmissionPackage: {
+                title: "Paquete de Transmisión para el Área '{{name}}'",
+                description:
+                    "Te permite exportar un Paquete de Transmisión a los Servidores de Destino o descargarlo.",
+                actions: {
+                    send: {
+                        title: "Enviar",
+                        dialog: {
+                            title: "¿Quieres enviar el Paquete de Transmisión?",
+                            description:
+                                "Por favor, confirma que deseas enviar el Paquete de Transmisión para el Área '{{name}}' a los Servidores de Destino.",
+                            confirm: "Enviar Paquete de Transmisión",
+                            cancel: "Cerrar",
+                        },
+                    },
+                    download: {
+                        title: "Descargar",
+                        itemTitle: "Descargar el Paquete de Transmisión",
+                        dialog: {
+                            title: "¿Quieres descargar el Paquete de Transmisión?",
+                            description:
+                                "Por favor, confirma que deseas descargar el Paquete de Transmisión para el Área '{{name}}.'",
+                            confirm: "Descargar Paquete de Transmisión",
+                            cancel: "Cerrar",
+                        },
+                    },
+                },
+                destinationServers: {
+                    title: "Servidores de Destino",
+                    description:
+                        "La tabla a continuación muestra el estado de envío de cada uno de los Servidores de Destino.",
+                    status: "Enviado a {{signed}} de {{total}}",
+                    table: {
+                        serverName: "Nombre del Servidor",
+                        sendStatus: "Estado de Envío",
+                    },
+                },
+                signatures: {
+                    title: "Firmas SBEI",
+                    description:
+                        "Los SBEIs pueden firmar el Paquete de Transmisión. La tabla a continuación muestra el estado de la firma de cada uno de los miembros del SBEI.",
+                    table: {
+                        trusteeName: "Nombre del Fideicomisario",
+                        signed: "Ha Firmado",
+                    },
+                    status: "{{signed}} de {{total}} Han Firmado",
+                },
+            },
+            sendToTransmissionPackageServers:
+                "Enviar paquete de transmisión para el área '{{name}}'",
+            uploadTransmissionPackage: "Subir",
+            uploadTransmissionPackageDesc:
+                "Sube tu firma para firmar el paquete de Resultados Electorales. Esta operación es opcional.",
+            exportElectionArea: "Enviar paquete de transmisión para el área '{{name}}'",
             templateTitle: "Plantilla de Resultados",
             templateSubTitle: "Opcionalmente sobrescribir la plantilla de resultados.",
             ceremonyTitle: "Elecciones para el Recuento",

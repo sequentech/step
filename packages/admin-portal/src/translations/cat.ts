@@ -932,7 +932,73 @@ const catalanTranslation: TranslationType = {
                 downloaded: "Clau Encriptada Privada generada amb èxit.",
             },
         },
+        miruExport: {
+            create: {
+                success: "Paquet de Transmissió Creat",
+                error: "Error en crear el Paquet de Transmissió",
+            },
+            send: {
+                success: "Paquet de Transmissió Enviat",
+                error: "Error en enviar el Paquet de Transmissió",
+            },
+        },
         tally: {
+            errorUploadingSignature: "S'ha produït un error en carregar la signatura",
+            downloadTransmissionPackage: "Descarregar paquet",
+            transmissionPackage: {
+                title: "Paquet de Transmissió per a l'Àrea '{{name}}'",
+                description:
+                    "Et permet exportar un Paquet de Transmissió als Servidors de Destinació o descarregar-lo.",
+                actions: {
+                    send: {
+                        title: "Enviar",
+                        dialog: {
+                            title: "Vols enviar el Paquet de Transmissió?",
+                            description:
+                                "Si us plau, confirma que vols enviar el Paquet de Transmissió per a l'Àrea '{{name}}' als Servidors de Destinació.",
+                            confirm: "Enviar Paquet de Transmissió",
+                            cancel: "Tancar",
+                        },
+                    },
+                    download: {
+                        title: "Descarregar",
+                        itemTitle: "Descarregar el Paquet de Transmissió",
+                        dialog: {
+                            title: "Vols descarregar el Paquet de Transmissió?",
+                            description:
+                                "Si us plau, confirma que vols descarregar el Paquet de Transmissió per a l'Àrea '{{name}}.'",
+                            confirm: "Descarregar Paquet de Transmissió",
+                            cancel: "Tancar",
+                        },
+                    },
+                },
+                destinationServers: {
+                    title: "Servidors de Destinació",
+                    description:
+                        "La taula a continuació mostra l'estat d'enviament de cadascun dels Servidors de Destinació.",
+                    status: "Enviat a {{signed}} de {{total}}",
+                    table: {
+                        serverName: "Nom del Servidor",
+                        sendStatus: "Estat d'Enviament",
+                    },
+                },
+                signatures: {
+                    title: "Signatures SBEI",
+                    description:
+                        "Els SBEIs poden signar el Paquet de Transmissió. La taula a continuació mostra l'estat de signatura de cada un dels membres del SBEI.",
+                    table: {
+                        trusteeName: "Nom del Fiduciari",
+                        signed: "Ha Signat",
+                    },
+                    status: "{{signed}} de {{total}} Han Signat",
+                },
+            },
+            sendToTransmissionPackageServers:
+                "Enviar paquet de transmissió per a l'àrea '{{name}}'",
+            uploadTransmissionPackage: "Carregar",
+            uploadTransmissionPackageDesc:
+                "Carrega la teva signatura per signar el paquet de Resultats Electorals. Aquesta operació és opcional.",
+            exportElectionArea: "Envia paquet de transmissió per a l'àrea '{{name}}'",
             templateTitle: "Plantilla de Resultats",
             templateSubTitle: "Opcionalment sobreescriure la plantilla de resultats.",
             ceremonyTitle: "Eleccions per al Recompte",

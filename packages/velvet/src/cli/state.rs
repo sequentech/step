@@ -120,12 +120,12 @@ impl State {
         Ok(())
     }
 
-    #[instrument(skip_all)]
-    pub fn get_results(&self) -> Result<Vec<ElectionReportDataComputed>> {
+    #[instrument(skip_all, err)]
+    pub fn get_results(&self, force: bool) -> Result<Vec<ElectionReportDataComputed>> {
         let next_pipename = self.get_next();
 
         // not all pipelines have been executed, bail out
-        if next_pipename.is_some() {
+        if next_pipename.is_some() && !force {
             return Err(Error::PipeNotFound);
         }
 

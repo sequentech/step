@@ -47,6 +47,7 @@ fn get_contest_plurality() -> Contest {
         voting_type: Some("first-past-the-post".into()),
         counting_algorithm: Some("plurality-at-large".into()), /* plurality-at-large|borda-nauru|borda|borda-mas-madrid|desborda3|desborda2|desborda|cumulative */
         is_encrypted: (true),
+        annotations: None,
         candidates: vec![
             Candidate {
                 id: "0".into(),
@@ -74,6 +75,7 @@ fn get_contest_plurality() -> Contest {
                     is_category_list: Some(false),
                     subtype: None,
                 }),
+                annotations: None,
             },
             Candidate {
                 id: "1".into(),
@@ -101,6 +103,7 @@ fn get_contest_plurality() -> Contest {
                     is_category_list: Some(false),
                     subtype: None,
                 }),
+                annotations: None,
             },
             Candidate {
                 id: "2".into(),
@@ -128,6 +131,7 @@ fn get_contest_plurality() -> Contest {
                     is_category_list: Some(false),
                     subtype: None,
                 }),
+                annotations: None,
             },
             Candidate {
                 id: "3".into(),
@@ -156,6 +160,7 @@ fn get_contest_plurality() -> Contest {
                     is_category_list: Some(false),
                     subtype: None,
                 }),
+                annotations: None,
             },
             Candidate {
                 id: "4".into(),
@@ -183,6 +188,7 @@ fn get_contest_plurality() -> Contest {
                     is_category_list: Some(false),
                     subtype: None,
                 }),
+                annotations: None,
             },
         ],
         presentation: Some(ContestPresentation {
@@ -275,6 +281,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
             voting_type: Some("first-past-the-post".into()),
             counting_algorithm: Some("plurality-at-large".into()),
             is_encrypted: (true),
+            annotations: None,
             candidates: vec![
                 Candidate {
                     id: "f257cd3a-d1cf-4b97-91f8-2dfe156b015c".into(),
@@ -306,6 +313,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                         is_category_list: Some(false),
                         subtype: None,
                     }),
+                    annotations: None,
                 },
                 Candidate {
                     id: "17325099-f5ab-4c48-a142-6d7ed721e9bb".into(),
@@ -350,6 +358,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                         ]),
                         subtype: None,
                     }),
+                    annotations: None,
                 },
                 Candidate {
                     id: "61320aac-0d78-4001-845e-a2f2bd8e800b".into(),
@@ -378,6 +387,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                         is_category_list: Some(false),
                         subtype: None,
                     }),
+                    annotations: None,
                 },
                 Candidate {
                     id: "e9ad3ed1-4fd5-4498-a0e7-3a3c22ef57d5".into(),
@@ -406,6 +416,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                         is_category_list: Some(false),
                         subtype: None,
                     }),
+                    annotations: None,
                 },
             ],
             presentation: Some(ContestPresentation {
@@ -525,6 +536,7 @@ pub fn get_test_contest() -> Contest {
         voting_type: Some("first-past-the-post".into()),
         counting_algorithm: Some("plurality-at-large".into()),
         is_encrypted: (true),
+        annotations: None,
         candidates: vec![
             Candidate {
                 id: "38df9caf-2dc8-472c-87f2-f003241e9510".into(),
@@ -557,6 +569,7 @@ pub fn get_test_contest() -> Contest {
                     ]),
                     subtype: None,
                 }),
+                annotations: None,
             },
             Candidate {
                 id: "97ac7d0a-e0f5-4e51-a1ee-6614c0836fec".into(),
@@ -595,6 +608,7 @@ pub fn get_test_contest() -> Contest {
                     ]),
                     subtype: None,
                 }),
+                annotations: None,
             },
             Candidate {
                 id: "94c9eafa-ebc6-4594-a176-24788f761ced".into(),
@@ -620,6 +634,7 @@ pub fn get_test_contest() -> Contest {
                     is_category_list: Some(false),
                     subtype: None,
                 }),
+                annotations: None,
             }
         ],
         presentation: Some(ContestPresentation {
@@ -674,6 +689,7 @@ pub(crate) fn get_configurable_contest(
         voting_type: Some("first-past-the-post".into()),
         counting_algorithm: Some("plurality-at-large".into()),
         is_encrypted: (true),
+        annotations: None,
         candidates: vec![
             Candidate {
                 id: "0".into(),
@@ -701,6 +717,7 @@ pub(crate) fn get_configurable_contest(
                     is_category_list: Some(false),
                     subtype: None,
                 }),
+                annotations: None,
             },
             Candidate {
                 id: "1".into(),
@@ -728,6 +745,7 @@ pub(crate) fn get_configurable_contest(
                     is_category_list: Some(false),
                     subtype: None,
                 }),
+                annotations: None,
             },
             Candidate {
                 id: "2".into(),
@@ -755,6 +773,7 @@ pub(crate) fn get_configurable_contest(
                     is_category_list: Some(false),
                     subtype: None,
                 }),
+                annotations: None,
             },
             Candidate {
                 id: "3".into(),
@@ -782,6 +801,7 @@ pub(crate) fn get_configurable_contest(
                     is_category_list: Some(false),
                     subtype: None,
                 }),
+                annotations: None,
             },
             Candidate {
                 id: "4".into(),
@@ -809,6 +829,7 @@ pub(crate) fn get_configurable_contest(
                     is_category_list: Some(false),
                     subtype: None,
                 }),
+                annotations: None,
             },
             Candidate {
                 id: "5".into(),
@@ -836,6 +857,7 @@ pub(crate) fn get_configurable_contest(
                     is_category_list: Some(false),
                     subtype: None,
                 }),
+                annotations: None,
             },
             Candidate {
                 id: "6".into(),
@@ -863,6 +885,7 @@ pub(crate) fn get_configurable_contest(
                     is_category_list: Some(false),
                     subtype: None,
                 }),
+                annotations: None,
             },
         ],
         presentation: Some(ContestPresentation {
@@ -1032,6 +1055,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 voting_type: Some("first-past-the-post".into()),
                 counting_algorithm: Some("plurality-at-large".into()),
                 is_encrypted: (true),
+                annotations: None,
                 candidates: vec![
                     Candidate {
                         id: "0".into(),
@@ -1057,6 +1081,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_category_list: Some(false),
                             subtype: None,
                         }),
+                        annotations: None,
                     },
                     Candidate {
                         id: "1".into(),
@@ -1082,6 +1107,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_category_list: Some(false),
                             subtype: None,
                         }),
+                        annotations: None,
                     },
                     Candidate {
                         id: "2".into(),
@@ -1107,6 +1133,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_category_list: Some(false),
                             subtype: None,
                         }),
+                        annotations: None,
                     },
                     Candidate {
                         id: "3".into(),
@@ -1132,6 +1159,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_category_list: Some(false),
                             subtype: None,
                         }),
+                        annotations: None,
                     },
                 ],
                 presentation: Some(ContestPresentation {
@@ -1215,6 +1243,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 voting_type: Some("first-past-the-post".into()),
                 counting_algorithm: Some("plurality-at-large".into()),
                 is_encrypted: (true),
+                annotations: None,
                 candidates: vec![
                     Candidate {
                         id: "0".into(),
@@ -1240,6 +1269,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_category_list: Some(false),
                             subtype: None,
                         }),
+                        annotations: None,
                     },
                     Candidate {
                         id: "1".into(),
@@ -1265,6 +1295,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_category_list: Some(false),
                             subtype: None,
                         }),
+                        annotations: None,
                     },
                     Candidate {
                         id: "2".into(),
@@ -1290,6 +1321,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_category_list: Some(false),
                             subtype: None,
                         }),
+                        annotations: None,
                     },
                     Candidate {
                         id: "3".into(),
@@ -1315,6 +1347,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_category_list: Some(false),
                             subtype: None,
                         }),
+                        annotations: None,
                     },
                 ],
                 presentation: Some(ContestPresentation {
@@ -1388,6 +1421,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 voting_type: Some("first-past-the-post".into()),
                 counting_algorithm: Some("plurality-at-large".into()),
                 is_encrypted: (true),
+                annotations: None,
                 candidates: vec![
                     Candidate {
                         id: "0".into(),
@@ -1413,6 +1447,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_category_list: Some(false),
                             subtype: None,
                         }),
+                        annotations: None,
                     },
                     Candidate {
                         id: "1".into(),
@@ -1438,6 +1473,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_category_list: Some(false),
                             subtype: None,
                         }),
+                        annotations: None,
                     },
                     Candidate {
                         id: "2".into(),
@@ -1463,6 +1499,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_category_list: Some(false),
                             subtype: None,
                         }),
+                        annotations: None,
                     },
                     Candidate {
                         id: "3".into(),
@@ -1488,6 +1525,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_category_list: Some(false),
                             subtype: None,
                         }),
+                        annotations: None,
                     },
                 ],
                 presentation: Some(ContestPresentation {
@@ -1571,6 +1609,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 voting_type: Some("first-past-the-post".into()),
                 counting_algorithm: Some("plurality-at-large".into()),
                 is_encrypted: (true),
+                annotations: None,
                 candidates: vec![
                     Candidate {
                         id: "0".into(),
@@ -1596,6 +1635,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_category_list: Some(false),
                             subtype: None,
                         }),
+                        annotations: None,
                     },
                     Candidate {
                         id: "1".into(),
@@ -1621,6 +1661,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_category_list: Some(false),
                             subtype: None,
                         }),
+                        annotations: None,
                     },
                     Candidate {
                         id: "2".into(),
@@ -1646,6 +1687,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_category_list: Some(false),
                             subtype: None,
                         }),
+                        annotations: None,
                     },
                 ],
                 presentation: Some(ContestPresentation {
@@ -1729,6 +1771,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 voting_type: Some("first-past-the-post".into()),
                 counting_algorithm: Some("plurality-at-large".into()),
                 is_encrypted: (true),
+                annotations: None,
                 candidates: vec![
                     Candidate {
                         id: "0".into(),
@@ -1754,6 +1797,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_category_list: Some(false),
                             subtype: None,
                         }),
+                        annotations: None,
                     },
                     Candidate {
                         id: "1".into(),
@@ -1779,6 +1823,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_category_list: Some(false),
                             subtype: None,
                         }),
+                        annotations: None,
                     },
                     Candidate {
                         id: "2".into(),
@@ -1804,6 +1849,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_category_list: Some(false),
                             subtype: None,
                         }),
+                        annotations: None,
                     },
                 ],
                 presentation: Some(ContestPresentation {

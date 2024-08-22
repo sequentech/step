@@ -937,7 +937,74 @@ const frenchTranslation: TranslationType = {
                 downloaded: "Clé Privée Cryptée générée avec succès.",
             },
         },
+        miruExport: {
+            create: {
+                success: "",
+                error: "",
+            },
+            send: {
+                success: "",
+                error: "",
+            },
+        },
         tally: {
+            errorUploadingSignature:
+                "Une erreur s'est produite lors du téléchargement de la signature",
+            downloadTransmissionPackage: "Télécharger le paquet",
+            transmissionPackage: {
+                title: "Paquet de Transmission pour la Zone '{{name}}'",
+                description:
+                    "Vous permet d'exporter un Paquet de Transmission vers des Serveurs de Destination ou de le télécharger.",
+                actions: {
+                    send: {
+                        title: "Envoyer",
+                        dialog: {
+                            title: "Voulez-vous envoyer le Paquet de Transmission?",
+                            description:
+                                "Veuillez confirmer que vous souhaitez envoyer le Paquet de Transmission pour la Zone '{{name}}' aux Serveurs de Destination.",
+                            confirm: "Envoyer le Paquet de Transmission",
+                            cancel: "Fermer",
+                        },
+                    },
+                    download: {
+                        title: "Télécharger",
+                        itemTitle: "Télécharger le Paquet de Transmission",
+                        dialog: {
+                            title: "Voulez-vous télécharger le Paquet de Transmission?",
+                            description:
+                                "Veuillez confirmer que vous souhaitez télécharger le Paquet de Transmission pour la Zone '{{name}}.'",
+                            confirm: "Télécharger le Paquet de Transmission",
+                            cancel: "Fermer",
+                        },
+                    },
+                },
+                destinationServers: {
+                    title: "Serveurs de Destination",
+                    description:
+                        "Le tableau ci-dessous montre l'état d'envoi de chacun des Serveurs de Destination.",
+                    status: "Envoyé à {{signed}} sur {{total}}",
+                    table: {
+                        serverName: "Nom du Serveur",
+                        sendStatus: "État de l'Envoi",
+                    },
+                },
+                signatures: {
+                    title: "Signatures SBEI",
+                    description:
+                        "Les SBEI peuvent signer le Paquet de Transmission. Le tableau ci-dessous montre l'état de signature de chacun des membres du SBEI.",
+                    table: {
+                        trusteeName: "Nom du Fiduciaire",
+                        signed: "A Signé",
+                    },
+                    status: "{{signed}} sur {{total}} Ont Signé",
+                },
+            },
+            sendToTransmissionPackageServers:
+                "Envoyer le paquet de transmission pour la zone '{{name}}'",
+            uploadTransmissionPackage: "Télécharger",
+            uploadTransmissionPackageDesc:
+                "Téléchargez votre signature pour signer le paquet des Résultats Électoraux. Cette opération est optionnelle.",
+            exportElectionArea: "Envoyer le paquet de transmission pour la zone '{{name}}'",
             templateTitle: "Modèle de Résultats",
             templateSubTitle: "Éventuellement écraser le modèle de résultats.",
             ceremonyTitle: "Élections pour le Comptage",

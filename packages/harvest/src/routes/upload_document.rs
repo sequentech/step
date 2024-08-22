@@ -17,6 +17,7 @@ pub struct UploadDocumentInput {
     media_type: String,
     size: usize,
     is_public: bool,
+    is_local: Option<bool>,
     election_event_id: Option<String>,
 }
 #[derive(Serialize, Deserialize, Debug)]
@@ -51,6 +52,7 @@ pub async fn get_upload_url(
         inner.size,
         &claims.hasura_claims.tenant_id,
         inner.is_public,
+        inner.is_local,
         inner.election_event_id,
     )
     .await

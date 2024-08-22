@@ -26,3 +26,4 @@ pub mod tally_session;
 pub mod tally_session_contest;
 pub mod tally_session_execution;
 pub mod tally_sheet;
+pub mod trustee;
