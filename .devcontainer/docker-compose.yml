@@ -220,7 +220,7 @@ services:
     image: ghcr.io/sequentech/step/keycloak:latest
     restart: always
     ports:
-      - 8090:8090
+      - 127.0.0.1:8090:8090
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     environment:
