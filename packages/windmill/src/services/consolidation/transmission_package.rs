@@ -11,7 +11,7 @@ use super::{
     zip::compress_folder_to_zip,
 };
 use crate::services::{
-    password::generate_random_password,
+    password::generate_random_bytes,
     s3::{download_s3_file_to_string, get_public_asset_file_path},
     temp_path::{generate_temp_file, write_into_named_temp_file},
 };
@@ -79,7 +79,7 @@ async fn generate_encrypted_compressed_xml(
     public_key_pem: &str,
     acm_key_pair: &EciesKeyPair,
 ) -> Result<(NamedTempFile, String)> {
-    let random_pass = generate_random_password(64);
+    let random_pass = generate_random_bytes(64);
 
     let (_temp_path, temp_path_string, file_size) =
         write_into_named_temp_file(&compressed_xml, "template", ".xz")
@@ -89,14 +89,14 @@ async fn generate_encrypted_compressed_xml(
     encrypt_file_aes_256_cbc(&temp_path_string, &exz_temp_file_string, &random_pass)?;
 
     let encrypted_random_pass_base64 =
-        ecies_encrypt_string(public_key_pem, acm_key_pair, random_pass.as_bytes())?;
+        ecies_encrypt_string(public_key_pem, acm_key_pair, &random_pass)?;
     Ok((exz_temp_file, encrypted_random_pass_base64))
 }
 
 #[instrument(skip_all, err)]
 fn generate_er_final_zip(exz_temp_file_bytes: Vec<u8>, acm_json: ACMJson) -> Result<NamedTempFile> {
     let MIRU_STATION_ID =
-        std::env::var("MIRU_STATION_ID").map_err(|_| anyhow!("MIRU_STATION_ID env var missing"))?;
+        "70080001".to_string(); //std::env::var("MIRU_STATION_ID").map_err(|_| anyhow!("MIRU_STATION_ID env var missing"))?;
     // Create a temporary directory
     let temp_dir = tempdir().with_context(|| "Error generating temp directory")?;
     let temp_dir_path = temp_dir.path();

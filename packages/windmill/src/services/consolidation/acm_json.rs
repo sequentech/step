@@ -33,7 +33,7 @@ pub fn generate_acm_json(
     election_event_annotations: &Annotations,
 ) -> Result<ACMJson> {
     let MIRU_STATION_ID =
-        std::env::var("MIRU_STATION_ID").map_err(|_| anyhow!("MIRU_STATION_ID env var missing"))?;
+        "70080001".to_string();//std::env::var("MIRU_STATION_ID").map_err(|_| anyhow!("MIRU_STATION_ID env var missing"))?;
     let er_datetime = generate_timestamp(
         Some(time_zone.clone()),
         Some(DateFormat::Custom(ACM_JSON_FORMAT.to_string())),

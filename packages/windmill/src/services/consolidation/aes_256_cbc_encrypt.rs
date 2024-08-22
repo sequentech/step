@@ -20,7 +20,7 @@ const OPENSSL_SALT_HEADER: &[u8; 8] = b"Salted__";
 pub fn encrypt_file_aes_256_cbc(
     input_file_path: &str,
     output_file_path: &str,
-    password: &str,
+    password: &[u8],
 ) -> Result<()> {
     // Initialize the cipher
     let cipher = Cipher::aes_256_cbc();
@@ -35,7 +35,7 @@ pub fn encrypt_file_aes_256_cbc(
     let key_iv = openssl::pkcs5::bytes_to_key(
         cipher,
         MessageDigest::md5(),
-        password.as_bytes(),
+        password,
         Some(&salt),
         OPENSSL_ENCRYPT_ITERATION_COUNT, // Iteration count
     )
