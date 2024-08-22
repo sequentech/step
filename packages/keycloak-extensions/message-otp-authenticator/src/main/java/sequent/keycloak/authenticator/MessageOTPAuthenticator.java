@@ -50,6 +50,9 @@ public class MessageOTPAuthenticator
     Utils.MessageCourier messageCourier =
         Utils.MessageCourier.fromString(config.getConfig().get(Utils.MESSAGE_COURIER_ATTRIBUTE));
     boolean deferredUser = config.getConfig().get(Utils.DEFERRED_USER_ATTRIBUTE).equals("true");
+    String resendTime = config.getConfig().get(Utils.RESEND_ACTIVATION_TIMER);
+    log.info("resendTimer -> "+ resendTime);
+    log.info("ttl -> "+ config.getConfig().get(Utils.CODE_TTL));
     try {
       UserModel user = context.getUser();
       Utils.sendCode(config, session, user, authSession, messageCourier, deferredUser);
@@ -58,6 +61,8 @@ public class MessageOTPAuthenticator
               .form()
               .setAttribute("realm", context.getRealm())
               .setAttribute("courier", messageCourier)
+              .setAttribute("resendTimer", config.getConfig().get(Utils.RESEND_ACTIVATION_TIMER))
+              .setAttribute("ttl", config.getConfig().get(Utils.CODE_TTL))
               .createForm(TPL_CODE));
     } catch (Exception error) {
       log.infov("there was an error {0}", error);
@@ -143,6 +148,8 @@ public class MessageOTPAuthenticator
               .form()
               .setAttribute("realm", context.getRealm())
               .setAttribute("courier", messageCourier)
+              .setAttribute("resendTimer", config.getConfig().get(Utils.RESEND_ACTIVATION_TIMER))
+              .setAttribute("ttl", config.getConfig().get(Utils.CODE_TTL))
               .createForm(TPL_CODE));
     } catch (Exception error) {
         log.error("Error resending OTP", error);

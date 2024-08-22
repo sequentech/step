@@ -24,7 +24,7 @@ import org.keycloak.sessions.AuthenticationSessionModel;
 @JBossLog
 public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, RequiredActionProvider {
   public static final String PROVIDER_ID = "verify-email-otp-ra";
-  private static final String TPL_CODE = "login-message-otp.ftl";
+  private static final String TPL_CODE = "verify-email.ftl";
 
   @Override
   public InitiatedActionSupport initiatedActionSupport() {

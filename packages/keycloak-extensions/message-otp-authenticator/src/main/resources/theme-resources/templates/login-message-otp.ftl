@@ -8,8 +8,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 <@layout.registrationLayout displayInfo=true; section>
 	<#if section = "header">
 		${msg("messageOtpAuthTitle", realm.displayName)}
+       
 	<#elseif section = "show-username">
 		<h1>${msg("messageOtpAuthTitle", realm.displayName)}</h1>
+         <#assign ttlMinutes = (ttlSeconds / 60)?number?round>
+         <p class="${properties.kcLabelClass!}">${msg("messageOtpAuthTTLTime", ttlMinutes)}</p>
 	<#elseif section = "form">
 		<form
 			id="kc-message-code-login-form"
@@ -48,34 +51,32 @@ SPDX-License-Identifier: AGPL-3.0-only
 					/>
 				</div>
 			</div>
-<div class="${properties.kcFormGroupClass!}">
-    <button
-        id="resend-otp-btn"
-        type="button" 
-        name="resend"
-        value="true"
-        class="${properties.kcButtonClass!} ${properties.kcButtonSecondaryClass!}"
-        onclick="resendOtp()"
-    >
-        ${msg("resendOtp", "Resend OTP")}
-    </button>
-</div>
+            <div class="${properties.kcFormGroupClass!}">
+                <button
+                    id="resend-otp-btn"
+                    type="button" 
+                    name="resend"
+                    value="true"
+                    class="${properties.kcButtonClass!} ${properties.kcButtonSecondaryClass!}"
+                    onclick="resendOtp(${resendTimer})"
+                    >
+                    ${msg("resendOtp", "Resend OTP")}
+                </button>
+        </div>
 
 <script>
-function resendOtp() {
+function resendOtp(resendTimerr) {
     let resendBtn = document.getElementById('resend-otp-btn');
     let form = document.getElementById('kc-message-code-login-form');
-    let countdown = 60;
-
     resendBtn.disabled = true;
-    localStorage.setItem('resendOtpEndTime', Date.now() + countdown * 1000);
+    localStorage.setItem('resendOtpEndTime', Date.now() + resendTimerr * 1000);
     localStorage.setItem('resendOtpDisabled', true);
-
-    // Update button text to show countdown
+    console.log("resendTimer", ${resendTimer});
+    
     let interval = setInterval(() => {
-        if (countdown > 0) {
-            resendBtn.innerText = 'Resend OTP in ' + countdown + ' seconds';
-            countdown--;
+        if (resendTimerr > 0) {
+            resendBtn.innerText = 'Resend OTP in ' + resendTimerr + ' seconds';
+            resendTimerr--;
         } else {
             clearInterval(interval);
             resendBtn.disabled = false;
@@ -83,18 +84,15 @@ function resendOtp() {
         }
     }, 1000);
 
-    // Add hidden input to signal resend
     let hiddenInput = document.createElement("input");
     hiddenInput.type = "hidden";
     hiddenInput.name = "resend";
     hiddenInput.value = "true";
     form.appendChild(hiddenInput);
 
-    // Submit the form programmatically
     form.submit();
 }
 
-// Initialize button state on page load
 document.addEventListener('DOMContentLoaded', (event) => {
     updateButtonState();
 });
@@ -108,7 +106,7 @@ function updateButtonState() {
     if (disabled) {
         if (countdown > 0) {
             resendBtn.disabled = true;
-            resendBtn.innerText = 'Resend OTP in ' + countdown + ' seconds';
+            resendBtn.innerText = msg("resendOtpTimer", countdown);
             setTimeout(updateButtonState, 1000);
         } else {
             resendBtn.disabled = false;
@@ -122,6 +120,7 @@ function updateButtonState() {
     }
 }
 </script>
+
 		</form>
 	<#elseif section = "info" >
 		<#if courier??>
