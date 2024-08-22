@@ -301,9 +301,11 @@ async fn init<C: Ctx>(
     configuration: Configuration<C>,
 ) -> Result<()> {
     let pm = get_pm(PhantomData::<C>)?;
-    let message: B3MessageRow = Message::bootstrap_msg(&configuration, &pm)?.try_into()?;
+    // let message: B3MessageRow = Message::bootstrap_msg(&configuration, &pm)?.try_into()?;
+    let message = Message::bootstrap_msg(&configuration, &pm)?;
     info!("Adding configuration to the board..");
-    client.insert_messages(board_name, &vec![message]).await
+    // client.insert_messages(board_name, &vec![message]).await
+    client.insert_configuration::<C>(board_name, message).await
 }
 
 /*
@@ -424,15 +426,13 @@ async fn list_messages(board: &mut XPgsqlB3Client, board_name: &str) -> Result<(
 
 #[instrument(skip(board))]
 async fn list_boards(board: &mut XPgsqlB3Client) -> Result<()> {
-    let boards: Result<Vec<String>> = board
-        .get_boards()
-        .await?
-        .iter()
-        .map(|board: &B3IndexRow| Ok(board.board_name.clone()))
-        .collect();
+    let boards: Result<Vec<B3IndexRow>> = board.get_boards().await;
 
     for board in boards? {
-        info!("board: {}", board);
+        info!(
+            "board: '{}', cfg_id: {}, message_count: {}",
+            board.board_name, board.cfg_id, board.message_count
+        );
     }
     Ok(())
 }
