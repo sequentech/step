@@ -95,9 +95,8 @@ async fn generate_encrypted_compressed_xml(
 
 #[instrument(skip_all, err)]
 fn generate_er_final_zip(exz_temp_file_bytes: Vec<u8>, acm_json: ACMJson) -> Result<NamedTempFile> {
-    let MIRU_STATION_ID =
-        "70080001".to_string(); //std::env::var("MIRU_STATION_ID").map_err(|_| anyhow!("MIRU_STATION_ID env var missing"))?;
-    // Create a temporary directory
+    let MIRU_STATION_ID = "70080001".to_string(); //std::env::var("MIRU_STATION_ID").map_err(|_| anyhow!("MIRU_STATION_ID env var missing"))?;
+                                                  // Create a temporary directory
     let temp_dir = tempdir().with_context(|| "Error generating temp directory")?;
     let temp_dir_path = temp_dir.path();
 
@@ -135,8 +134,7 @@ pub async fn create_transmission_package(
             .await?;
 
     let exz_temp_file_bytes = read_temp_file(exz_temp_file)?;
-    let (exz_hash_base64, signed_exz_base64) =
-        ecies_sign_data(acm_key_pair, &exz_temp_file_bytes)?;
+    let (exz_hash_base64, signed_exz_base64) = ecies_sign_data(acm_key_pair, &exz_temp_file_bytes)?;
 
     let acm_json = generate_acm_json(
         &exz_hash_base64,

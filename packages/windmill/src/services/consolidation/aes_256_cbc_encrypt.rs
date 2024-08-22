@@ -1,17 +1,9 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::shell::run_shell_command;
 use anyhow::{anyhow, Context, Result};
-use openssl::hash::MessageDigest;
-use openssl::rand::rand_bytes;
-use openssl::symm::{Cipher, Crypter, Mode};
-use std::fs::File;
-use std::io::{Read, Write};
 use tracing::{info, instrument};
-
-const OPENSSL_ENCRYPT_ITERATION_COUNT: i32 = 10000;
-const OPENSSL_SALT_BYTES: usize = 8;
-const OPENSSL_SALT_HEADER: &[u8; 8] = b"Salted__";
 
 // used to recreate this command:
 // openssl enc -aes-256-cbc -e -in $input_file_path -out $output_file_path -pass pass:$password -md md5
@@ -22,81 +14,13 @@ pub fn encrypt_file_aes_256_cbc(
     output_file_path: &str,
     password: &[u8],
 ) -> Result<()> {
-    // Initialize the cipher
-    let cipher = Cipher::aes_256_cbc();
+    let password_str = String::from_utf8(password.to_vec())?;
+    let command = format!(
+        "openssl enc -aes-256-cbc -e -in {} -out {} -pass pass:{} -md md5",
+        input_file_path, output_file_path, password_str
+    );
 
-    // Generate a random salt
-    let mut salt = [0u8; OPENSSL_SALT_BYTES];
-    info!("Generating salt");
-    rand_bytes(&mut salt).context("Failed to generate random salt")?;
-
-    // Derive the key and IV from the password using MD5
-    info!("Calling bytes_to_key");
-    let key_iv = openssl::pkcs5::bytes_to_key(
-        cipher,
-        MessageDigest::md5(),
-        password,
-        Some(&salt),
-        OPENSSL_ENCRYPT_ITERATION_COUNT, // Iteration count
-    )
-    .context("Failed to derive key and IV")?;
-
-    let key = key_iv.key;
-    let iv = key_iv.iv.context("Failed to derive IV")?;
-
-    if key.len() != cipher.key_len() {
-        return Err(anyhow!(
-            "key len {} doesn't match cipher key len {}",
-            key.len(),
-            cipher.key_len()
-        ));
-    }
-
-    if Some(iv.len()) != cipher.iv_len() {
-        return Err(anyhow!(
-            "iv len {} doesn't match cipher iv len {:?}",
-            iv.len(),
-            cipher.iv_len()
-        ));
-    }
-
-    // Create a Crypter for encryption
-    info!("Create a Crypter for encryption");
-    let mut crypter =
-        Crypter::new(cipher, Mode::Encrypt, &key, Some(&iv)).context("Failed to create Crypter")?;
-    crypter.pad(true);
-
-    // Read the input file
-    let mut input_file = File::open(input_file_path).context("Failed to open input file")?;
-    let mut input_data = Vec::new();
-    input_file
-        .read_to_end(&mut input_data)
-        .context("Failed to read input file")?;
-
-    // Encrypt the data
-    let mut output_data = vec![0; input_data.len() + cipher.block_size()];
-    info!("Encrypting: count");
-    let count = crypter
-        .update(&input_data, &mut output_data)
-        .context("Failed to encrypt data")?;
-    info!("Encrypting: rest");
-    let rest = crypter
-        .finalize(&mut output_data[count..])
-        .context("Failed to finalize encryption")?;
-    info!("Encrypting: truncate");
-    output_data.truncate(count + rest);
-
-    // Write the salt and encrypted data to the output file
-    let mut output_file = File::create(output_file_path).context("Failed to create output file")?;
-    output_file
-        .write_all(OPENSSL_SALT_HEADER)
-        .context("Failed to write salt header")?; // Write OpenSSL's salt header
-    output_file
-        .write_all(&salt)
-        .context("Failed to write salt")?; // Store the salt at the beginning of the file
-    output_file
-        .write_all(&output_data)
-        .context("Failed to write encrypted data")?;
+    run_shell_command(&command)?;
 
     Ok(())
 }
