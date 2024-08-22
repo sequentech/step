@@ -22,7 +22,9 @@ on:
         required: true
         type: string
         default: 'admin'
-  #pull_request:
+  pull_request:
+  push:
+      branches: [ 'main' ]
 
 jobs:
   e2e:
