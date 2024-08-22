@@ -116,7 +116,7 @@ export const Question: React.FC<IQuestionProps> = ({
             choice.selected === 0 && selectedChoicesCount++
         })
         setSelectedCoicesSum(selectedChoicesCount)
-    }, [])
+    }, [contestState])
 
     const maxVotesNum = question.max_votes
     const overVoteDisbleMode =
@@ -130,7 +130,7 @@ export const Question: React.FC<IQuestionProps> = ({
                 setDisableSelect(false)
             }
         }
-    }, [contestState])
+    }, [selectedCoicesSum])
 
     // do the shuffling
     const candidatesOrderType = question.presentation?.candidates_order

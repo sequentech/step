@@ -148,7 +148,6 @@ export const Answer: React.FC<IAnswerProps> = ({
                 },
             })
         )
-        setSelectedCoicesSum(value ? selectedCoicesSum + 1 : selectedCoicesSum - 1)
     }
 
     const shouldDisable = disableSelect && selectionState?.selected === -1
