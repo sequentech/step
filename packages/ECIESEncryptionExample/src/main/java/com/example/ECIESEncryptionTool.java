@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 package com.example;
 
 import org.spongycastle.jce.ECNamedCurveTable;

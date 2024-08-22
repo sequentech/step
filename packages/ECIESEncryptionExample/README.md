@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
+
+SPDX-License-Identifier: AGPL-3.0-only
+
+-->
 # ECIES Encryption Tool
 
 This is a command line tool to encryp/decrypt using the Elliptic Curve Integrated Encryption Scheme (ECIES) Scheme.
