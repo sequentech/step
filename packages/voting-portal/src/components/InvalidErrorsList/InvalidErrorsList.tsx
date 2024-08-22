@@ -83,9 +83,6 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
                     prev?.invalid_errors.filter(
                         (error) =>
                             error.message !== "errors.implicit.selectedMin" &&
-                            !isReview &&
-                            !isTouched &&
-                            !isVotedState &&
                             error.message !== "errors.implicit.blankVote" &&
                             !isReview &&
                             !isTouched &&
@@ -95,19 +92,17 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
                     prev?.invalid_alerts.filter(
                         (error) =>
                             error.message !== "errors.implicit.underVote" &&
-                            !isReview &&
-                            !isTouched &&
-                            !isVotedState &&
                             error.message !== "errors.implicit.blankVote" &&
                             !isReview &&
                             !isTouched &&
-                            !isVotedState &&
-                            error.message !== "errors.implicit.overVoteDisabled" &&
-                            isReview
+                            !isVotedState ||
+                            error.message === "errors.implicit.overVoteDisabled" &&
+                            !isReview && // Keeps the overVoteDisabled alert when returning from the ReviewSreen
+                            isVotedState
                     ) || [],
             }
         })
-    }, [isReview, isTouched])
+    }, [isReview])
 
     useEffect(() => {
         if (decodedContestSelection) {
