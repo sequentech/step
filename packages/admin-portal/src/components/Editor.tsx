@@ -23,7 +23,7 @@ export default function MyEditor({initialValue, value, editorRef, onEditorChange
                 init={{
                     promotion: false,
                     branding: false,
-                    height: 500,
+                    height: 250,
                     menubar: false,
                     plugins: [
                         "advlist",

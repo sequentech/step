@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useEffect, useState} from "react"
+import React, {useContext, useEffect, useMemo, useState} from "react"
 import {
     SaveButton,
     SimpleForm,
@@ -20,6 +20,7 @@ import {
     FormControlLabel,
     Switch,
     Typography,
+    Alert,
 } from "@mui/material"
 import {useMutation} from "@apollo/client"
 import {SubmitHandler} from "react-hook-form"
@@ -276,6 +277,11 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                 let newEmail = selectedReceipt[0]["template"][
                     selectedMethod.toLowerCase()
                 ] as IEmail
+                Object.keys(newEmail).forEach((key) => {
+                    if (!newEmail[key as keyof IEmail]) {
+                        newEmail[key as keyof IEmail] = ""
+                    }
+                })
                 setEmail(newEmail, value)
             } else {
                 let newSms = selectedReceipt[0]["template"][selectedMethod.toLowerCase()]
@@ -283,7 +289,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                 let newSMSCommunication = {...newCommunication}
                 let a = newSMSCommunication.i18n?.["en"]
                 if (a?.sms?.message) {
-                    a.sms.message = newSms
+                    a.sms.message = newSms || ""
                 }
                 setCommunication(newSMSCommunication)
             }
@@ -376,6 +382,15 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
     //    return <div>{langNodes}</div>
     //}
 
+    const isSendBtnDisabeld = useMemo(() => {
+        return selectedMethod === ICommunicationMethod.EMAIL
+            ? communication.i18n?.["en"]?.email?.plaintext_body === "" ||
+                  communication.i18n?.["en"]?.email?.html_body === ""
+            : selectedMethod === ICommunicationMethod.SMS
+            ? communication.i18n?.["en"]?.sms?.message === ""
+            : false
+    }, [communication])
+
     if (isLoading) {
         return <></>
     }
@@ -388,7 +403,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                         <SaveButton
                             icon={<MailIcon />}
                             label={t("sendCommunication.sendButton")}
-                            alwaysEnable
+                            alwaysEnable={!isSendBtnDisabeld}
                         />
                     </Toolbar>
                 }
@@ -561,7 +576,13 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                                 onChange={handleSmsChange}
                                 multiline={true}
                                 minRows={4}
+                                required
                             />
+                        )}
+                        {isSendBtnDisabeld && selectedMethod === ICommunicationMethod.EMAIL && (
+                            <Alert severity="warning">
+                                {t("sendCommunication.email.emptyTextBoxError")}
+                            </Alert>
                         )}
                     </AccordionDetails>
                 </FormStyles.AccordionExpanded>
