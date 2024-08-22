@@ -25,7 +25,7 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {INSERT_AREA_CONTESTS} from "../../queries/InsertAreaContest"
 import {DELETE_AREA_CONTESTS} from "@/queries/DeleteAreaContest"
 import {Sequent_Backend_Area} from "@/gql/graphql"
-import {keyBy} from "@sequentech/ui-core"
+import {keyBy, translateElection} from "@sequentech/ui-core"
 
 interface EditAreaProps {
     id?: Identifier | undefined
@@ -49,7 +49,7 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
     })
     const refresh = useRefresh()
     const notify = useNotify()
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const [tenantId] = useTenantStore()
 
     const [renderUI, setRenderUI] = useState(false)
@@ -183,6 +183,21 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
         }
     }
 
+    const contestRenderer = (contest: any) => {
+        return translateElection(contest, "alias", i18n.language) ||
+        translateElection(contest, "name", i18n.language) ||
+        contest.alias ||
+        contest.name ||
+        "-"
+    }
+
+    const contestMatcher = (filter: string, contest: any) => {
+        return (
+            contest.alias.match(filter) ||
+            !contest.alias && contest.name.match(filter)
+        )
+    }
+
     if (renderUI) {
         return (
             <EditBase
@@ -216,8 +231,9 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
                                                 label={t("areas.sequent_backend_area_contest")}
                                                 source="area_contest_ids"
                                                 choices={contests}
-                                                optionText="name"
+                                                optionText={contestRenderer}
                                                 optionValue="id"
+                                                matchSuggestion={contestMatcher}
                                                 fullWidth
                                             />
                                         ) : null}
