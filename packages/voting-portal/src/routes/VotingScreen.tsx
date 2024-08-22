@@ -162,7 +162,7 @@ interface ContestPaginationProps {
     ballotStyle: any
     contests: IContest[][]
     onSetDisableNext: (contest: any) => void
-    onSetDecodedContests: (contest: any) => void
+    onSetDecodedContests: (id: string) => (value: IDecodedVoteContest) => void
     encryptAndReview: () => void
 }
 
@@ -219,8 +219,8 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
                             ballotStyle={ballotStyle}
                             question={contest}
                             isReview={false}
-                            setDisableNext={() => onSetDisableNext(contest)}
-                            setDecodedContests={() => onSetDecodedContests(contest)}
+                        setDisableNext={() => onSetDisableNext(contest)}
+                            setDecodedContests={onSetDecodedContests(contest.id)}
                         />
                     </div>
                 ))}
