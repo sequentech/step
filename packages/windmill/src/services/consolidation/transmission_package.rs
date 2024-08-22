@@ -94,9 +94,12 @@ async fn generate_encrypted_compressed_xml(
 }
 
 #[instrument(skip_all, err)]
-fn generate_er_final_zip(exz_temp_file_bytes: Vec<u8>, acm_json: ACMJson) -> Result<NamedTempFile> {
-    let MIRU_STATION_ID = "70080001".to_string(); //std::env::var("MIRU_STATION_ID").map_err(|_| anyhow!("MIRU_STATION_ID env var missing"))?;
-                                                  // Create a temporary directory
+fn generate_er_final_zip(
+    exz_temp_file_bytes: Vec<u8>,
+    acm_json: ACMJson,
+    area_station_id: &str,
+) -> Result<NamedTempFile> {
+    let MIRU_STATION_ID = area_station_id.to_string();
     let temp_dir = tempdir().with_context(|| "Error generating temp directory")?;
     let temp_dir_path = temp_dir.path();
 
@@ -128,6 +131,7 @@ pub async fn create_transmission_package(
     compressed_xml: Vec<u8>,
     acm_key_pair: &EciesKeyPair,
     ccs_public_key_pem_str: &str,
+    area_station_id: &str,
 ) -> Result<NamedTempFile> {
     let (mut exz_temp_file, encrypted_random_pass_base64) =
         generate_encrypted_compressed_xml(compressed_xml, ccs_public_key_pem_str, acm_key_pair)
@@ -144,8 +148,9 @@ pub async fn create_transmission_package(
         time_zone,
         date_time,
         election_event_annotations,
+        area_station_id,
     )?;
-    let zip_tmp_file = generate_er_final_zip(exz_temp_file_bytes, acm_json)?;
+    let zip_tmp_file = generate_er_final_zip(exz_temp_file_bytes, acm_json, area_station_id)?;
 
     Ok(zip_tmp_file)
 }

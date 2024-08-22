@@ -6,7 +6,7 @@ use super::{
     ecies_encrypt::generate_ecies_key_pair,
     eml_generator::{
         find_miru_annotation, prepend_miru_annotation, ValidateAnnotations, MIRU_AREA_CCS_SERVERS,
-        MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA,
+        MIRU_AREA_STATION_ID, MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA,
     },
     logs::{error_sending_transmission_package_to_ccs_log, send_transmission_package_to_ccs_log},
     transmission_package::create_transmission_package,
@@ -132,6 +132,15 @@ pub async fn send_transmission_package_service(
         .with_context(|| format!("Error fetching area {}", area_id))?
         .ok_or_else(|| anyhow!("Can't find area {}", area_id))?;
     let area_name = area.name.clone().unwrap_or("".into());
+    let area_annotations = area.get_valid_annotations()?;
+
+    let area_station_id = find_miru_annotation(MIRU_AREA_STATION_ID, &area_annotations)
+        .with_context(|| {
+            format!(
+                "Missing area annotation: '{}:{}'",
+                MIRU_PLUGIN_PREPEND, MIRU_AREA_STATION_ID
+            )
+        })?;
 
     let tally_session = get_tally_session_by_id(
         &hasura_transaction,
@@ -221,6 +230,7 @@ pub async fn send_transmission_package_service(
             compressed_xml_bytes.clone(),
             &acm_key_pair,
             &ccs_server.public_key_pem,
+            &area_station_id,
         )
         .await?;
         match send_package_to_ccs_server(transmission_package, ccs_server).await {
