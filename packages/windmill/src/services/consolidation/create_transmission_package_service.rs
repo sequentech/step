@@ -1,13 +1,15 @@
 use super::acm_transaction::generate_transaction_id;
+use super::ecies_encrypt::generate_ecies_key_pair;
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::eml_generator::{
     find_miru_annotation, prepend_miru_annotation, ValidateAnnotations, MIRU_AREA_CCS_SERVERS,
-    MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA,
+    MIRU_AREA_STATION_ID, MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA,
 };
 use super::logs::create_transmission_package_log;
-use super::transmission_package::generate_base_compressed_xml;
+use super::transmission_package::{create_transmission_package, generate_base_compressed_xml};
+use super::zip::compress_folder_to_zip;
 use crate::postgres::area::get_area_by_id;
 use crate::postgres::document::get_document;
 use crate::postgres::election::get_election_by_id;
@@ -21,19 +23,23 @@ use crate::services::date::ISO8601;
 use crate::services::documents::get_document_as_temp_file;
 use crate::services::documents::upload_and_return_document_postgres;
 use crate::services::folders::list_files;
-use crate::services::temp_path::write_into_named_temp_file;
-use crate::types::miru_plugin::{MiruCcsServer, MiruDocument, MiruTransmissionPackageData, MiruDocumentIds};
+use crate::services::temp_path::{generate_temp_file, get_file_size, write_into_named_temp_file};
+use crate::types::miru_plugin::{
+    MiruCcsServer, MiruDocument, MiruDocumentIds, MiruTransmissionPackageData,
+};
 use crate::{
     postgres::election_event::get_election_event_by_election_area,
     types::miru_plugin::MiruTallySessionData,
 };
 use anyhow::{anyhow, Context, Result};
-use chrono::{Local, Utc};
+use chrono::{DateTime, Local, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::ballot::Annotations;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
+use sequent_core::types::date_time::TimeZone;
+use sequent_core::types::hasura::core::Document;
 use sequent_core::util::date_time::get_system_timezone;
-use tempfile::NamedTempFile;
+use tempfile::{tempdir, NamedTempFile};
 use tracing::{info, instrument};
 use uuid::Uuid;
 use velvet::pipes::generate_reports::ReportData;
@@ -130,6 +136,64 @@ pub async fn update_transmission_package_annotations(
     Ok(())
 }
 
+#[instrument(skip_all, err)]
+pub async fn generate_all_servers_document(
+    hasura_transaction: &Transaction<'_>,
+    compressed_xml_bytes: Vec<u8>,
+    ccs_servers: &Vec<MiruCcsServer>,
+    area_station_id: &str,
+    election_event_annotations: &Annotations,
+    election_event_id: &str,
+    tenant_id: &str,
+    time_zone: TimeZone,
+    now_utc: DateTime<Utc>,
+) -> Result<Document> {
+    let acm_key_pair = generate_ecies_key_pair()?;
+    let temp_dir = tempdir().with_context(|| "Error generating temp directory")?;
+    let temp_dir_path = temp_dir.path();
+
+    for ccs_server in ccs_servers {
+        let server_path = temp_dir_path.join(&ccs_server.address);
+        std::fs::create_dir(server_path.clone())
+            .with_context(|| format!("Error generating directory {:?}", server_path.clone()))?;
+        let zip_file_path = server_path.join(format!("er_{}.zip", area_station_id));
+        let transmission_package = create_transmission_package(
+            time_zone.clone(),
+            now_utc.clone(),
+            election_event_annotations,
+            compressed_xml_bytes.clone(),
+            &acm_key_pair,
+            &ccs_server.public_key_pem,
+            area_station_id,
+            &zip_file_path,
+        )
+        .await?;
+    }
+
+    let dst_file = generate_temp_file("all_servers", ".zip")?;
+    let dst_file_path = dst_file.path();
+    let dst_file_string = dst_file_path.to_string_lossy().to_string();
+
+    compress_folder_to_zip(temp_dir_path, dst_file.path())?;
+    let file_size =
+        get_file_size(dst_file_string.as_str()).with_context(|| "Error obtaining file size")?;
+
+    let document = upload_and_return_document_postgres(
+        &hasura_transaction,
+        &dst_file_string,
+        file_size,
+        "applization/zip",
+        tenant_id,
+        election_event_id,
+        "all_servers.zip",
+        None,
+        false,
+    )
+    .await?;
+
+    Ok(document)
+}
+
 #[instrument(err)]
 pub async fn create_transmission_package_service(
     tenant_id: &str,
@@ -187,6 +251,14 @@ pub async fn create_transmission_package_service(
         .with_context(|| format!("Error fetching area {}", area_id))?
         .ok_or_else(|| anyhow!("Can't find area {}", area_id))?;
     let area_annotations = area.get_valid_annotations()?;
+
+    let area_station_id = find_miru_annotation(MIRU_AREA_STATION_ID, &area_annotations)
+        .with_context(|| {
+            format!(
+                "Missing area annotation: '{}:{}'",
+                MIRU_PLUGIN_PREPEND, MIRU_AREA_STATION_ID
+            )
+        })?;
 
     let ccs_servers_js = find_miru_annotation(MIRU_AREA_CCS_SERVERS, &area_annotations)
         .with_context(|| {
@@ -280,6 +352,19 @@ pub async fn create_transmission_package_service(
     )
     .await?;
 
+    let all_servers_document = generate_all_servers_document(
+        &hasura_transaction,
+        base_compressed_xml.clone(),
+        &ccs_servers,
+        &area_station_id,
+        &election_event_annotations,
+        &election_event.id,
+        tenant_id,
+        time_zone.clone(),
+        now_utc.clone(),
+    )
+    .await?;
+
     let area_name = area.name.clone().unwrap_or("".into());
     let new_transmission_package_data = MiruTransmissionPackageData {
         election_id: election_id.to_string(),
@@ -288,7 +373,7 @@ pub async fn create_transmission_package_service(
         documents: vec![MiruDocument {
             document_ids: MiruDocumentIds {
                 xz: document.id.clone(),
-                all_servers: "".into(),
+                all_servers: all_servers_document.id.clone(),
             },
             transaction_id: transaction_id.clone(),
             servers_sent_to: vec![],

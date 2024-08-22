@@ -21,7 +21,7 @@ use crate::{
         database::get_hasura_pool,
         date::ISO8601,
         documents::{get_document_as_temp_file, upload_and_return_document_postgres},
-        temp_path::get_file_size,
+        temp_path::{generate_temp_file, get_file_size},
     },
     types::miru_plugin::{
         MiruCcsServer, MiruServerDocument, MiruTallySessionData, MiruTransmissionPackageData,
@@ -223,7 +223,15 @@ pub async fn send_transmission_package_service(
         .collect();
 
     for ccs_server in &transmission_area_election.servers {
-        let transmission_package = create_transmission_package(
+        if servers_sent_to.contains(&ccs_server.name) {
+            info!(
+                "skipping sending to server '{}' as already sent",
+                ccs_server.name
+            );
+            continue;
+        }
+        let dst_file = generate_temp_file(format!("er_{}", area_station_id).as_str(), ".zip")?;
+        create_transmission_package(
             time_zone.clone(),
             now_utc.clone(),
             &election_event_annotations,
@@ -231,11 +239,12 @@ pub async fn send_transmission_package_service(
             &acm_key_pair,
             &ccs_server.public_key_pem,
             &area_station_id,
+            dst_file.path(),
         )
         .await?;
-        match send_package_to_ccs_server(transmission_package, ccs_server).await {
-            Ok(tmp_file_zip) => {
-                let name = format!("er_{}.zip", miru_document.transaction_id);
+        match send_package_to_ccs_server(dst_file, ccs_server).await {
+            Ok(_) => {
+                /*let name = format!("er_{}.zip", miru_document.transaction_id);
 
                 let temp_path = tmp_file_zip.into_temp_path();
                 let temp_path_string = temp_path.to_string_lossy().to_string();
@@ -253,7 +262,7 @@ pub async fn send_transmission_package_service(
                     None,
                     false,
                 )
-                .await?;
+                .await?;*/
                 new_transmission_area_election
                     .logs
                     .push(send_transmission_package_to_ccs_log(
@@ -273,7 +282,6 @@ pub async fn send_transmission_package_service(
                     ));
                 new_miru_document.servers_sent_to.push(MiruServerDocument {
                     name: ccs_server.name.clone(),
-                    document_id: document.id.clone(),
                     sent_at: ISO8601::to_string(&Local::now()),
                 });
             }

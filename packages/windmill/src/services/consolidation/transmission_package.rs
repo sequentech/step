@@ -21,9 +21,9 @@ use sequent_core::ballot::Annotations;
 use sequent_core::services::reports;
 use sequent_core::types::date_time::TimeZone;
 use serde_json::{Map, Value};
-use std::env;
 use std::fs::File;
 use std::io::{self, Read, Seek, Write};
+use std::{env, path::Path};
 use tempfile::tempdir;
 use tempfile::NamedTempFile;
 use tracing::{info, instrument};
@@ -96,7 +96,8 @@ fn generate_er_final_zip(
     exz_temp_file_bytes: Vec<u8>,
     acm_json: ACMJson,
     area_station_id: &str,
-) -> Result<NamedTempFile> {
+    output_file_path: &Path,
+) -> Result<()> {
     let MIRU_STATION_ID = area_station_id.to_string();
     let temp_dir = tempdir().with_context(|| "Error generating temp directory")?;
     let temp_dir_path = temp_dir.path();
@@ -116,9 +117,8 @@ fn generate_er_final_zip(
         .write_all(acm_json_stringified.as_bytes())
         .with_context(|| format!("Failed to write data to file: {:?}", exz_xml_path))?;
 
-    let dst_file = generate_temp_file(format!("er_{}", MIRU_STATION_ID).as_str(), ".zip")?;
-    compress_folder_to_zip(temp_dir_path, dst_file.path())?;
-    Ok(dst_file)
+    compress_folder_to_zip(temp_dir_path, output_file_path)?;
+    Ok(())
 }
 
 #[instrument(skip(compressed_xml, acm_key_pair), err)]
@@ -130,7 +130,8 @@ pub async fn create_transmission_package(
     acm_key_pair: &EciesKeyPair,
     ccs_public_key_pem_str: &str,
     area_station_id: &str,
-) -> Result<NamedTempFile> {
+    output_file_path: &Path,
+) -> Result<()> {
     let (mut exz_temp_file, encrypted_random_pass_base64) =
         generate_encrypted_compressed_xml(compressed_xml, ccs_public_key_pem_str).await?;
 
@@ -147,7 +148,12 @@ pub async fn create_transmission_package(
         election_event_annotations,
         area_station_id,
     )?;
-    let zip_tmp_file = generate_er_final_zip(exz_temp_file_bytes, acm_json, area_station_id)?;
+    generate_er_final_zip(
+        exz_temp_file_bytes,
+        acm_json,
+        area_station_id,
+        output_file_path,
+    )?;
 
-    Ok(zip_tmp_file)
+    Ok(())
 }
