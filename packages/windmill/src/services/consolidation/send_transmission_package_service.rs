@@ -198,10 +198,10 @@ pub async fn send_transmission_package_service(
         &hasura_transaction,
         tenant_id,
         Some(election_event.id.clone()),
-        &miru_document.document_id,
+        &miru_document.document_ids.xz,
     )
     .await?
-    .ok_or_else(|| anyhow!("Can't find document {}", miru_document.document_id))?;
+    .ok_or_else(|| anyhow!("Can't find document {}", miru_document.document_ids.xz))?;
 
     let mut compressed_xml = get_document_as_temp_file(tenant_id, &document).await?;
     // Rewind the file to the beginning so it can be read
@@ -305,7 +305,7 @@ pub async fn send_transmission_package_service(
         .documents
         .into_iter()
         .map(|value| {
-            if value.document_id == new_miru_document.document_id {
+            if value.document_ids.xz == new_miru_document.document_ids.xz {
                 new_miru_document.clone()
             } else {
                 value

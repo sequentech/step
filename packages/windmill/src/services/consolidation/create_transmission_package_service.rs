@@ -22,7 +22,7 @@ use crate::services::documents::get_document_as_temp_file;
 use crate::services::documents::upload_and_return_document_postgres;
 use crate::services::folders::list_files;
 use crate::services::temp_path::write_into_named_temp_file;
-use crate::types::miru_plugin::{MiruCcsServer, MiruDocument, MiruTransmissionPackageData};
+use crate::types::miru_plugin::{MiruCcsServer, MiruDocument, MiruTransmissionPackageData, MiruDocumentIds};
 use crate::{
     postgres::election_event::get_election_event_by_election_area,
     types::miru_plugin::MiruTallySessionData,
@@ -286,7 +286,10 @@ pub async fn create_transmission_package_service(
         area_id: area_id.to_string(),
         servers: ccs_servers.clone(),
         documents: vec![MiruDocument {
-            document_id: document.id.clone(),
+            document_ids: MiruDocumentIds {
+                xz: document.id.clone(),
+                all_servers: "".into(),
+            },
             transaction_id: transaction_id.clone(),
             servers_sent_to: vec![],
             created_at: ISO8601::to_string(&now_local),
