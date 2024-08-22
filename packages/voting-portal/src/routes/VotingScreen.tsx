@@ -219,7 +219,7 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
                             ballotStyle={ballotStyle}
                             question={contest}
                             isReview={false}
-                        setDisableNext={() => onSetDisableNext(contest)}
+                            setDisableNext={() => onSetDisableNext(contest)}
                             setDecodedContests={onSetDecodedContests(contest.id)}
                         />
                     </div>
