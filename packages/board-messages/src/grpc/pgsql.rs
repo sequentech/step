@@ -14,7 +14,7 @@ use tracing::instrument;
 
 use crate::braid::message::Message;
 use crate::braid::newtypes::Timestamp;
-use strand::serialization::StrandSerialize;
+use strand::serialization::{StrandDeserialize, StrandSerialize};
 
 const INDEX_TABLE: &'static str = "BULLETIN_BOARDS";
 const PG_DEFAULT_ENTRIES_TX_LIMIT: usize = 50;
@@ -270,7 +270,7 @@ pub(crate) mod tests {
         assert_eq!(msg.version, board_message.version);
     }
 }
-
+/*
 pub struct PgsqlPooledB3Client {
     pool: Pool<PostgresConnectionManager<NoTls>>,
 }
@@ -656,7 +656,7 @@ impl PgsqlPooledB3Client {
             Ok(None)
         }
     }
-}
+}*/
 
 pub struct ZPgsqlB3Client<'a> {
     client: PooledConnection<'a, PostgresConnectionManager<NoTls>>,
@@ -755,6 +755,10 @@ impl XPgsqlB3Client {
         get_with_kind(&self.client, board, kind, sender_pk).await
     }
 
+    pub async fn get_with_kind_only(&self, board: &str, kind: &str) -> Result<Vec<B3MessageRow>> {
+        get_with_kind_only(&self.client, board, kind).await
+    }
+
     pub async fn get_boards(&self) -> Result<Vec<B3IndexRow>> {
         get_boards(&self.client).await
     }
@@ -781,6 +785,10 @@ impl XPgsqlB3Client {
 
     pub async fn get_one_message(&self, board_name: &str, id: i64) -> Result<Option<B3MessageRow>> {
         get_one_message(&self.client, board_name, id).await
+    }
+
+    pub async fn get_message_count(&self, board_name: &str) -> Result<i64> {
+        get_message_count(&self.client, board_name).await
     }
 }
 
@@ -843,15 +851,18 @@ async fn create_board_ine(client: &mut Client, board: &str) -> Result<()> {
         )
         .await?;
 
-    let message_sql = r#"
-        INSERT INTO bulletin_boards(
+    let message_sql = &format!(
+        r#"
+        INSERT INTO {} (
             board_name,
             is_archived
         ) VALUES (
             $1,
             $2
         ) ON CONFLICT (board_name) DO NOTHING;
-    "#;
+        "#,
+        INDEX_TABLE
+    );
     transaction.execute(message_sql, &[&board, &false]).await?;
     transaction.commit().await?;
     Ok(())
@@ -886,6 +897,22 @@ async fn get_messages(
         messages.extend(last_batch.clone());
     }
     Ok(messages)
+}
+
+/// Get one messages matching id.
+async fn get_message_count(client: &Client, board: &str) -> Result<i64> {
+    let sql = format!(
+        r#"
+    SELECT count(*)
+    FROM {}
+    "#,
+        board
+    );
+
+    let sql_query_response = client.query(&sql, &[]).await?;
+    let count: i64 = sql_query_response[0].get(0);
+
+    Ok(count)
 }
 
 /// Get one messages matching id.
@@ -929,6 +956,33 @@ async fn get_with_kind(
     Ok(messages)
 }
 
+async fn get_with_kind_only(client: &Client, board: &str, kind: &str) -> Result<Vec<B3MessageRow>> {
+    let sql = format!(
+        r#"
+    SELECT
+        id,
+        created,
+        sender_pk,
+        statement_timestamp,
+        statement_kind,
+        message,
+        version
+    FROM {}
+    WHERE statement_kind = $1
+    ORDER BY id;
+    "#,
+        board
+    );
+
+    let sql_query_response = client.query(&sql, &[&kind]).await?;
+    let messages = sql_query_response
+        .iter()
+        .map(B3MessageRow::try_from)
+        .collect::<Result<Vec<B3MessageRow>>>()?;
+
+    Ok(messages)
+}
+
 /// Get all boards in the index.
 async fn get_boards(client: &Client) -> Result<Vec<B3IndexRow>> {
     let sql = format!(
@@ -937,11 +991,11 @@ async fn get_boards(client: &Client) -> Result<Vec<B3IndexRow>> {
         id,
         board_name,
         is_archived
-    FROM bulletin_boards
+    FROM {}
     WHERE is_archived = {}
     ORDER BY board_name
     "#,
-        false
+        INDEX_TABLE, false
     );
     let sql_query_response = client.query(&sql, &[]).await?;
     let boards = sql_query_response
@@ -977,6 +1031,66 @@ async fn get_board(client: &Client, board_name: &str) -> Result<Option<B3IndexRo
     } else {
         Ok(None)
     }
+}
+
+use crate::braid::artifact::Configuration;
+use strand::{context::Ctx, elgamal::Ciphertext};
+
+async fn update_index<C: Ctx>(
+    client: &mut Client,
+    board_name: &str,
+    configuration: &Configuration<C>,
+) -> Result<()> {
+    let transaction = client.transaction().await?;
+    let message_sql = format!(
+        r#"
+            UPDATE {}
+            set identifier = $X, threshold = $X, total_trustees = $Y
+            where board_name = $1
+            AND
+            is_archived = $2;
+        "#,
+        INDEX_TABLE
+    );
+
+    transaction
+        .execute(&message_sql, &[&board_name, &false])
+        .await?;
+    transaction
+        .execute(&format!("DROP TABLE IF EXISTS {};", board_name), &[])
+        .await?;
+
+    transaction.commit().await?;
+
+    Ok(())
+}
+
+/// Inserts the configuration into the requested board table, and updates the index.
+async fn insert_configuration<C: Ctx>(
+    client: &mut Client,
+    board_name: &str,
+    message: Message,
+) -> Result<()> {
+    let bytes = message
+        .artifact
+        .clone()
+        .ok_or(anyhow!("Expected configuration message to have artifact"))?;
+    let cfg = Configuration::<C>::strand_deserialize(&bytes)?;
+
+    let created = crate::timestamp();
+
+    let rows = vec![B3MessageRow {
+        id: 0,
+        created,
+        statement_timestamp: message.statement.get_timestamp(),
+        statement_kind: message.statement.get_kind().to_string(),
+        message: message.strand_serialize()?,
+        sender_pk: message.sender.pk.to_der_b64_string()?,
+        version: crate::get_schema_version(),
+    }];
+
+    insert(client, board_name, &rows).await?;
+    update_index(client, board_name, &cfg).await
 }
 
 /// Inserts messages into the requested board table.

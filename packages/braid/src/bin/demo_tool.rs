@@ -300,7 +300,7 @@ async fn init<C: Ctx>(
     board_name: &str,
     configuration: Configuration<C>,
 ) -> Result<()> {
-    let pm = get_pm(PhantomData::<RistrettoCtx>)?;
+    let pm = get_pm(PhantomData::<C>)?;
     let message: B3MessageRow = Message::bootstrap_msg(&configuration, &pm)?.try_into()?;
     info!("Adding configuration to the board..");
     client.insert_messages(board_name, &vec![message]).await

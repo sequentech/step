@@ -19,16 +19,34 @@ use crate::grpc::pgsql::PgsqlDbConnectionParams;
 use crate::grpc::pgsql::ZPgsqlB3Client;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 
+use std::sync::{Arc, Mutex};
+
+use std::collections::HashMap;
+struct Stat {
+    size: usize,
+    max: usize,
+}
+impl Stat {
+    fn new(size: usize, max: usize) -> Self {
+        Stat { size, max }
+    }
+}
+
 pub struct PgsqlB3Server {
     // params: PgsqlDbConnectionParams,
     pool: Pool<PostgresConnectionManager<NoTls>>,
+    stats: Arc<Mutex<HashMap<String, Stat>>>,
 }
 impl PgsqlB3Server {
     pub async fn new(connection: PgsqlDbConnectionParams) -> Result<PgsqlB3Server> {
         let config = Config::from_str(&connection.connection_string())?;
         let manager = PostgresConnectionManager::new(config, NoTls);
         let pool = Pool::builder().build(manager).await?;
-        Ok(PgsqlB3Server { pool })
+        let stats = HashMap::new();
+        Ok(PgsqlB3Server {
+            pool,
+            stats: Arc::new(Mutex::new(stats)),
+        })
     }
 }
 
@@ -112,6 +130,19 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
             .map(|m| B3MessageRow::try_from(m))
             .collect::<Result<Vec<B3MessageRow>>>()
             .map_err(|e| Status::internal(format!("Failed to parse grpc messages: {e}")))?;
+
+        {
+            let mut lock = self.stats.try_lock();
+            if let Ok(mut lock) = lock {
+                let val = lock.get(&r.board);
+                let stat = if let Some(val) = val {
+                    Stat::new(val.size + messages.len(), 0)
+                } else {
+                    Stat::new(0, 0)
+                };
+                lock.insert(r.board.clone(), stat);
+            }
+        }
 
         let reply = c.insert_messages(&r.board, &messages).await;
         let Ok(_) = reply else {
