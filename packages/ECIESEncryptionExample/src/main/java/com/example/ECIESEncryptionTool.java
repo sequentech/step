@@ -2,7 +2,6 @@ package com.example;
 
 import org.spongycastle.jce.ECNamedCurveTable;
 import org.spongycastle.jce.spec.ECParameterSpec;
-import org.spongycastle.jce.spec.IESParameterSpec;
 import org.spongycastle.jce.provider.BouncyCastleProvider;
 
 import javax.crypto.Cipher;
@@ -31,6 +30,8 @@ public class ECIESEncryptionTool {
             System.out.println("  create-keys <public-key-file> <private-key-file>");
             System.out.println("  encrypt <public-key-file> <plaintext-base64>");
             System.out.println("  decrypt <private-key-file> <encrypted-text>");
+            System.out.println("  sign <private-key-file> <plaintext-file>");
+            System.out.println("  verify <public-key-file> <plaintext-file> <signature-base64>");
             return;
         }
 
@@ -62,6 +63,24 @@ public class ECIESEncryptionTool {
                 System.out.println(decryptedText);
                 break;
 
+            case "sign":
+                if (args.length != 3) {
+                    System.out.println("Usage: sign <private-key-file> <plaintext-file>");
+                    return;
+                }
+                String signature = signText(args[1], args[2]);
+                System.out.println(signature);
+                break;
+
+            case "verify":
+                if (args.length != 4) {
+                    System.out.println("Usage: verify <public-key-file> <plaintext-file> <signature-base64>");
+                    return;
+                }
+                boolean isValid = verifyText(args[1], args[2], args[3]);
+                System.out.println("Signature valid: " + isValid);
+                break;
+
             default:
                 System.out.println("Unknown command: " + command);
                 break;
@@ -90,19 +109,9 @@ public class ECIESEncryptionTool {
         // Decode the Base64-encoded plaintext to get the original byte array
         byte[] plaintextBytes = Base64.getDecoder().decode(plaintextBase64);
 
-        // Set up IESParameterSpec with the specified parameters
-        IESParameterSpec iesParams = new IESParameterSpec(
-            null,           // derivation
-            null,           // encoding
-            256,            // macKeySize in bits
-            256,            // cipherKeySize in bits
-            null,           // nonce
-            false           // usePointCompression
-        );
-
         // Initialize the Cipher for encryption
         Cipher iesCipher = Cipher.getInstance("ECIES", "SC");
-        iesCipher.init(Cipher.ENCRYPT_MODE, publicKey, iesParams, new SecureRandom());
+        iesCipher.init(Cipher.ENCRYPT_MODE, publicKey, new SecureRandom());
 
         // Encrypt the plaintext
         byte[] ciphertext = iesCipher.doFinal(plaintextBytes);
@@ -116,25 +125,50 @@ public class ECIESEncryptionTool {
         // Decode the Base64-encoded encrypted text to get the original byte array
         byte[] encryptedTextBytes = Base64.getDecoder().decode(encryptedTextBase64);
 
-        // Set up IESParameterSpec with the specified parameters
-        IESParameterSpec iesParams = new IESParameterSpec(
-            null,           // derivation
-            null,           // encoding
-            256,            // macKeySize in bits
-            256,            // cipherKeySize in bits
-            null,           // nonce
-            false           // usePointCompression
-        );
-
         // Initialize the Cipher for decryption
         Cipher iesCipher = Cipher.getInstance("ECIES", "SC");
-        iesCipher.init(Cipher.DECRYPT_MODE, privateKey, iesParams);
+        iesCipher.init(Cipher.DECRYPT_MODE, privateKey, new SecureRandom());
 
         // Decrypt the ciphertext
         byte[] decryptedTextBytes = iesCipher.doFinal(encryptedTextBytes);
 
-        // Encode the decrypted text to Base64 to match the original format
         return Base64.getEncoder().encodeToString(decryptedTextBytes);
+    }
+
+    private static String signText(String privateKeyFile, String plaintextFilePath) throws Exception {
+        PrivateKey privateKey = loadPrivateKeyFromPEM(readFile(privateKeyFile));
+    
+        // Read the plaintext from the file to get the original byte array
+        byte[] plaintextBytes = Files.readAllBytes(Paths.get(plaintextFilePath));
+    
+        // Initialize the Signature object for signing
+        Signature signature = Signature.getInstance("SHA256withECDSA", "SC");
+        signature.initSign(privateKey);
+        signature.update(plaintextBytes);
+    
+        // Sign the plaintext
+        byte[] signatureBytes = signature.sign();
+    
+        return Base64.getEncoder().encodeToString(signatureBytes);
+    }
+    
+
+    private static boolean verifyText(String publicKeyFile, String plaintextFilePath, String signatureBase64) throws Exception {
+        PublicKey publicKey = loadPublicKeyFromPEM(readFile(publicKeyFile));
+    
+        // Read the plaintext from the file to get the original byte array
+        byte[] plaintextBytes = Files.readAllBytes(Paths.get(plaintextFilePath));
+    
+        // Decode the Base64-encoded signature to get the original byte array
+        byte[] signatureBytes = Base64.getDecoder().decode(signatureBase64);
+    
+        // Initialize the Signature object for verification
+        Signature signature = Signature.getInstance("SHA256withECDSA", "SC");
+        signature.initVerify(publicKey);
+        signature.update(plaintextBytes);
+    
+        // Verify the signature
+        return signature.verify(signatureBytes);
     }
 
     private static void writeFile(String path, String content) throws IOException {
