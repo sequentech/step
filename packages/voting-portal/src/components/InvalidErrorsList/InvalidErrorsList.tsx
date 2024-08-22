@@ -82,30 +82,28 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
                 invalid_errors:
                     prev?.invalid_errors.filter(
                         (error) =>
-                            (
-                                error.message !== "errors.implicit.selectedMin" &&
-                                !isReview && !isTouched && !isVotedState
-                            ) &&
-                            (
-                                error.message !== "errors.implicit.blankVote" &&
-                                !isReview && !isTouched && !isVotedState
-                            )
+                            error.message !== "errors.implicit.selectedMin" &&
+                            !isReview &&
+                            !isTouched &&
+                            !isVotedState &&
+                            error.message !== "errors.implicit.blankVote" &&
+                            !isReview &&
+                            !isTouched &&
+                            !isVotedState
                     ) || [],
                 invalid_alerts:
                     prev?.invalid_alerts.filter(
                         (error) =>
-                            (
-                                error.message !== "errors.implicit.underVote" &&
-                                !isReview && !isTouched && !isVotedState
-                            ) &&
-                            (
-                                error.message !== "errors.implicit.blankVote" &&
-                                !isReview && !isTouched && !isVotedState
-                            ) &&
-                            (
-                                error.message !== "errors.implicit.overVoteDisabled" &&
-                                (isReview)
-                            )
+                            error.message !== "errors.implicit.underVote" &&
+                            !isReview &&
+                            !isTouched &&
+                            !isVotedState &&
+                            error.message !== "errors.implicit.blankVote" &&
+                            !isReview &&
+                            !isTouched &&
+                            !isVotedState &&
+                            error.message !== "errors.implicit.overVoteDisabled" &&
+                            isReview
                     ) || [],
             }
         })
