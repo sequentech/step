@@ -334,4 +334,47 @@ public class Utils {
       return htmlBody;
     }
   }
+
+  protected static String getOtpAddress(Utils.MessageCourier courier, boolean deferredUser, AuthenticatorConfigModel config, AuthenticationSessionModel authSession, UserModel user) {
+    String mobileNumber = null;
+    String emailAddress = null;
+
+    if (deferredUser) {
+      String mobileNumberAttribute = config.getConfig().get(Utils.TEL_USER_ATTRIBUTE);
+      mobileNumber = authSession.getAuthNote(mobileNumberAttribute);
+      emailAddress = authSession.getAuthNote("email");
+    } else {
+      mobileNumber = Utils.getMobile(config, user);
+      emailAddress = user.getEmail();
+    }
+    log.info("mobileNumber -> "+ mobileNumber);
+    log.info("emailAddress -> "+ emailAddress);
+    switch (courier) {
+      case EMAIL:
+        return obscureEmail(emailAddress);
+      case SMS:
+        return obscurePhoneNumber(mobileNumber);
+      case BOTH:
+        return emailAddress != null ? obscureEmail(emailAddress) : obscurePhoneNumber(mobileNumber);
+    }
+    return emailAddress;
+  }
+
+  protected static String obscurePhoneNumber(String phoneNumber) {
+    if (phoneNumber == null) {
+        return phoneNumber;
+    }
+    return phoneNumber.charAt(0) + "*".repeat(phoneNumber.length() - 2) + phoneNumber.charAt(phoneNumber.length() - 1);
+}
+
+protected static String obscureEmail(String email) {
+  if (email == null || !email.contains("@")) {
+      return email;
+  }
+
+  int atIndex = email.indexOf('@');
+  String localPart = email.substring(0, atIndex);
+  String domainPart = email.substring(atIndex);
+  return localPart.charAt(0) + "*".repeat(localPart.length() - 2) + localPart.charAt(localPart.length() - 1) + domainPart;
+}
 }

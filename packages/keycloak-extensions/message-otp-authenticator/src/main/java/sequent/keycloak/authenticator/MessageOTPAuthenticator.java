@@ -53,6 +53,7 @@ public class MessageOTPAuthenticator
     String resendTime = config.getConfig().get(Utils.RESEND_ACTIVATION_TIMER);
     log.info("resendTimer -> "+ resendTime);
     log.info("ttl -> "+ config.getConfig().get(Utils.CODE_TTL));
+    log.infof("displayName", context.getRealm().getDisplayName().toString());
     try {
       UserModel user = context.getUser();
       Utils.sendCode(config, session, user, authSession, messageCourier, deferredUser);
@@ -60,6 +61,7 @@ public class MessageOTPAuthenticator
           context
               .form()
               .setAttribute("realm", context.getRealm())
+              .setAttribute("address", Utils.getOtpAddress(messageCourier, deferredUser, config, authSession, user))
               .setAttribute("courier", messageCourier)
               .setAttribute("resendTimer", config.getConfig().get(Utils.RESEND_ACTIVATION_TIMER))
               .setAttribute("ttl", config.getConfig().get(Utils.CODE_TTL))
