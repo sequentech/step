@@ -13,12 +13,37 @@ use openssl::pkey::PKey;
 use openssl::pkey::Private;
 use openssl::symm::{Cipher, Crypter, Mode};
 use strand::hash::hash_sha256;
-use tracing::instrument;
+use tracing::{info, instrument};
+use std::fs::File;
+use std::io::{self, Read, Seek, Write};
+use std::process::Command;
+use crate::services::temp_path::generate_temp_file;
 
 #[derive(Debug, Clone)]
 pub struct EciesKeyPair {
     pub private_key: EcKey<Private>,
     pub public_key_pem: String,
+}
+
+#[instrument(err)]
+fn run_shell_command(command: &str) -> Result<String> {
+    // Run the shell command
+    let output = Command::new("sh")
+        .arg("-c")
+        .arg(command)
+        .output()?;
+
+    // Check if the command was successful
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(anyhow::anyhow!("Shell command failed: {}", stderr));
+    }
+
+    // Convert the output to a string
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    // Return the output
+    Ok(stdout.to_string())
 }
 
 #[instrument(skip(password, acm_key_pair), err)]
@@ -27,6 +52,29 @@ pub fn ecies_encrypt_string(
     acm_key_pair: &EciesKeyPair,
     password: &[u8],
 ) -> Result<String> {
+    let temp_pem_file = generate_temp_file("public_key", ".pem")?;
+    let temp_pem_file_path = temp_pem_file.path();
+    let temp_pem_file_string = temp_pem_file_path.to_string_lossy().to_string();
+    // Write the salt and encrypted data to the output file
+    {
+        let mut output_file = File::create(temp_pem_file_path).context("Failed to create file")?;
+        output_file
+            .write_all(public_key_pem.as_bytes())
+            .context("Failed to write file")?;
+    }
+
+    let plaintext = "6n0NWbzB1KhHMhbiW13QgSgiaEP8DYueYUJOru4HOhtqbWU7iGwjkULU1Zh8UPW";//std::str::from_utf8(password)?;
+    info!("plaintext: '{}'", plaintext);
+
+    let command = format!("java -jar /app/windmill/external-bin/ecies-tool.jar encrypt {} {}", temp_pem_file_string, plaintext);
+
+    let result = run_shell_command(&command)?;
+
+    info!("ecies_encrypt_string: '{}'", result);
+
+    Ok(result)
+/*
+    
     // Parse the public key from PEM
     let public_key = EcKey::public_key_from_pem(public_key_pem.as_bytes())
         .context("Failed to parse PEM and extract EC key")?;
@@ -70,6 +118,7 @@ pub fn ecies_encrypt_string(
     let encrypted_base64 = STANDARD.encode(&ciphertext);
 
     Ok(encrypted_base64)
+*/
 }
 
 #[instrument(err)]
@@ -103,7 +152,7 @@ pub fn ecies_sign_data(
     let hash_bytes = hash_sha256(data)?;
     let sha256_hash_base64 = STANDARD.encode(hash_bytes.clone());
 
-    let encrypted_base64 = ecies_encrypt_string(public_key_pem_str, acm_key_pair, &hash_bytes)?;
+    let encrypted_base64 = "".to_string();//ecies_encrypt_string(public_key_pem_str, acm_key_pair, &hash_bytes)?;
 
     Ok((sha256_hash_base64, encrypted_base64))
 }

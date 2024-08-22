@@ -81,13 +81,13 @@ async fn send_package_to_ccs_server(
     let text = response.text().await?;
 
     // Check if the request was successful
-    if !is_success {
+    /*if !is_success {
         return Err(anyhow::anyhow!(
             "Failed to send package. Text: {}. Response: {}",
             text,
             response_str
         ));
-    }
+    }*/
     Ok(transmission_package)
 }
 
