@@ -90,11 +90,6 @@ public class ECIESEncryptionTool {
         // Decode the Base64-encoded plaintext to get the original byte array
         byte[] plaintextBytes = Base64.getDecoder().decode(plaintextBase64);
 
-        // Generate an ephemeral key pair for the sender
-        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("EC", "SC");
-        keyGen.initialize(new ECGenParameterSpec("secp256r1"), new SecureRandom());
-        KeyPair ephemeralKeyPair = keyGen.generateKeyPair();
-
         // Set up IESParameterSpec with the specified parameters
         IESParameterSpec iesParams = new IESParameterSpec(
             null,           // derivation
