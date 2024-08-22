@@ -191,20 +191,15 @@ const Candidate: React.FC<CandidateProps> = ({
                 </StyledLink>
             ) : null}
             {isActive ? (
-                shouldDisable ? (
-                    <Box sx={{padding: "10px", width: "23px", height: "23px"}} color={"gray"}>
-                        <FontAwesomeIcon icon={faBan} />
-                    </Box>
-                ) : (
-                    <Checkbox
-                        inputProps={{
-                            "className": "candidate-input",
-                            "aria-label": isString(title) ? title : "",
-                        }}
-                        checked={checked}
-                        onChange={handleChange}
-                    />
-                )
+                <Checkbox
+                    inputProps={{
+                        "className": "candidate-input",
+                        "aria-label": isString(title) ? title : "",
+                    }}
+                    disabled={shouldDisable}
+                    checked={checked}
+                    onChange={handleChange}
+                />
             ) : null}
         </BorderBox>
     )
