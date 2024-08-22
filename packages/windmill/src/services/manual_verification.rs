@@ -217,11 +217,11 @@ pub async fn get_manual_verification_pdf(
         <script>
           const qrcode = new QRCode(document.getElementById("qrcode"), {
             text: "{{data.manual_verification_url}}",
-            width: 180,
-            height: 180,
+            width: 480,
+            height: 480,
             colorDark: '#000000',
             colorLight: '#ffffff',
-            correctLevel: QRCode.CorrectLevel.H,
+            correctLevel: QRCode.CorrectLevel.M,
           });
         </script>
 
