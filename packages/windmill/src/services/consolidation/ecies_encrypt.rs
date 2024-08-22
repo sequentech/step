@@ -22,10 +22,7 @@ pub struct EciesKeyPair {
 }
 
 #[instrument(skip(password), err)]
-pub fn ecies_encrypt_string(
-    public_key_pem: &str,
-    password: &[u8],
-) -> Result<String> {
+pub fn ecies_encrypt_string(public_key_pem: &str, password: &[u8]) -> Result<String> {
     let temp_pem_file = generate_temp_file("public_key", ".pem")?;
     let temp_pem_file_path = temp_pem_file.path();
     let temp_pem_file_string = temp_pem_file_path.to_string_lossy().to_string();

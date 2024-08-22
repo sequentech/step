@@ -87,8 +87,7 @@ async fn generate_encrypted_compressed_xml(
     let exz_temp_file_string = exz_temp_file.path().to_string_lossy().to_string();
     encrypt_file_aes_256_cbc(&temp_path_string, &exz_temp_file_string, &random_pass)?;
 
-    let encrypted_random_pass_base64 =
-        ecies_encrypt_string(public_key_pem, &random_pass)?;
+    let encrypted_random_pass_base64 = ecies_encrypt_string(public_key_pem, &random_pass)?;
     Ok((exz_temp_file, encrypted_random_pass_base64))
 }
 
@@ -133,8 +132,7 @@ pub async fn create_transmission_package(
     area_station_id: &str,
 ) -> Result<NamedTempFile> {
     let (mut exz_temp_file, encrypted_random_pass_base64) =
-        generate_encrypted_compressed_xml(compressed_xml, ccs_public_key_pem_str)
-            .await?;
+        generate_encrypted_compressed_xml(compressed_xml, ccs_public_key_pem_str).await?;
 
     let exz_temp_file_bytes = read_temp_file(exz_temp_file)?;
     let (exz_hash_base64, signed_exz_base64) = ecies_sign_data(acm_key_pair, &exz_temp_file_bytes)?;
