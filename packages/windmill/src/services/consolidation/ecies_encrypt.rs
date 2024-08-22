@@ -68,7 +68,7 @@ pub fn ecies_encrypt_string(
 
     let command = format!("java -jar /app/windmill/external-bin/ecies-tool.jar encrypt {} {}", temp_pem_file_string, plaintext);
 
-    let result = run_shell_command(&command)?;
+    let result = run_shell_command(&command)?.replace("\n", "");
 
     info!("ecies_encrypt_string: '{}'", result);
 
@@ -150,9 +150,9 @@ pub fn ecies_sign_data(
     data: &[u8],
 ) -> Result<(String, String)> {
     let hash_bytes = hash_sha256(data)?;
-    let sha256_hash_base64 = STANDARD.encode(hash_bytes.clone());
+    let hex_string: String = hash_bytes.iter().map(|byte| format!("{:02X}", byte)).collect();
 
     let encrypted_base64 = "".to_string();//ecies_encrypt_string(public_key_pem_str, acm_key_pair, &hash_bytes)?;
 
-    Ok((sha256_hash_base64, encrypted_base64))
+    Ok((hex_string, encrypted_base64))
 }
