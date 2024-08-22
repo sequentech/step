@@ -136,7 +136,7 @@ pub async fn create_transmission_package(
 
     let exz_temp_file_bytes = read_temp_file(exz_temp_file)?;
     let (exz_hash_base64, signed_exz_base64) =
-        ecies_sign_data(ccs_public_key_pem_str, acm_key_pair, &exz_temp_file_bytes)?;
+        ecies_sign_data(acm_key_pair, &exz_temp_file_bytes)?;
 
     let acm_json = generate_acm_json(
         &exz_hash_base64,
