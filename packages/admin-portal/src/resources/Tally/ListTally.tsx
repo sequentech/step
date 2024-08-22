@@ -91,8 +91,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
 
     const isKeyCeremonyFinished =
         electionEventRecord?.status && electionEventRecord.status.keys_ceremony_finished
-    const isPublished = 
-        electionEventRecord?.status && electionEventRecord.status.is_published
+    const isPublished = electionEventRecord?.status && electionEventRecord.status.is_published
 
     const [UpdateTallyCeremonyMutation] =
         useMutation<UpdateTallyCeremonyMutation>(UPDATE_TALLY_CEREMONY)
@@ -131,7 +130,10 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     )
 
     const CreateButton = () => (
-        <Button onClick={() => setCreatingFlag(true)} disabled={!isKeyCeremonyFinished || !isPublished}>
+        <Button
+            onClick={() => setCreatingFlag(true)}
+            disabled={!isKeyCeremonyFinished || !isPublished}
+        >
             <IconButton icon={faPlus} fontSize="24px" />
             {t("electionEventScreen.tally.create.createButton")}
         </Button>
@@ -141,16 +143,12 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         <ResourceListStyles.EmptyBox>
             {canAdminCeremony && !isKeyCeremonyFinished && (
                 <Alert severity="warning">
-                    <Trans i18nKey="electionEventScreen.tally.notify.noKeysTally">
-                        {t("tally.notify.noKeysTally")}
-                    </Trans>
+                    {t("electionEventScreen.tally.notify.noKeysTally")}
                 </Alert>
             )}
             {canAdminCeremony && isKeyCeremonyFinished && !isPublished && (
                 <Alert severity="warning">
-                    <Trans i18nKey="electionEventScreen.tally.notify.noPublication">
-                        {t("tally.notify.noPublication")}
-                    </Trans>
+                    {t("electionEventScreen.tally.notify.noPublication")}
                 </Alert>
             )}
             <Typography variant="h4" paragraph>
