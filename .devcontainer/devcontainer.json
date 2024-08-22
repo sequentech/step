@@ -40,7 +40,7 @@
 	"updateRemoteUserUID": false,
 	"overrideCommand": false,
 
-	"postCreateCommand":"git config --global --add safe.directory '*' && direnv allow && OUTPUT=$(cat .devcontainer/scripts/container-script.sh) && devenv shell bash -- -c $OUTPUT",
+	"onCreateCommand": "git config --global --add safe.directory '*' && direnv allow && OUTPUT=$(cat .devcontainer/scripts/fix-vscode-settings-nix.sh) && devenv shell bash -- -c \"$OUTPUT\"",
 
 	// Adding host requirements so that there is no need to manually select the
 	// machine to run on all the time
