@@ -19,6 +19,8 @@ pub struct MiruServerDocument {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MiruDocumentIds {
+    #[serde(default)]
+    pub eml: String,
     pub xz: String,
     pub all_servers: String,
 }

@@ -16,6 +16,7 @@ export interface IMiruServersSentTo {
 }
 
 export interface IMiruDocumentIds {
+    eml: string
     xz: string
     all_servers: string
 }

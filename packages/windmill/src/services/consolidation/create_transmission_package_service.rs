@@ -339,18 +339,35 @@ pub async fn create_transmission_package_service(
     )
     .await?;
 
-    let name = format!("er_{}", transaction_id);
+    // upload .xz
+    let xz_name = format!("er_{}", transaction_id);
     let (temp_path, temp_path_string, file_size) =
-        write_into_named_temp_file(&base_compressed_xml, &name, ".xz")?;
-
-    let document = upload_and_return_document_postgres(
+        write_into_named_temp_file(&base_compressed_xml, &xz_name, ".xz")?;
+    let xz_document = upload_and_return_document_postgres(
         &hasura_transaction,
         &temp_path_string,
         file_size,
         "applization/xml",
         tenant_id,
         &election_event.id,
-        &name,
+        &xz_name,
+        None,
+        false,
+    )
+    .await?;
+
+    // upload eml
+    let eml_name = format!("er_{}", transaction_id);
+    let (temp_path, temp_path_string, file_size) =
+        write_into_named_temp_file(&eml.as_bytes().to_vec(), &eml_name, ".eml")?;
+    let eml_document = upload_and_return_document_postgres(
+        &hasura_transaction,
+        &temp_path_string,
+        file_size,
+        "applization/xml",
+        tenant_id,
+        &election_event.id,
+        &eml_name,
         None,
         false,
     )
@@ -378,7 +395,8 @@ pub async fn create_transmission_package_service(
         servers: ccs_servers.clone(),
         documents: vec![MiruDocument {
             document_ids: MiruDocumentIds {
-                xz: document.id.clone(),
+                eml: eml_document.id.clone(),
+                xz: xz_document.id.clone(),
                 all_servers: all_servers_document.id.clone(),
             },
             transaction_id: transaction_id.clone(),

@@ -151,11 +151,10 @@ pub async fn create_transmission_package(
     let (mut exz_temp_file, encrypted_random_pass_base64) =
         generate_encrypted_compressed_xml(compressed_xml, ccs_public_key_pem_str).await?;
 
-    let exz_temp_file_bytes = read_temp_file(exz_temp_file)
-        .with_context(|| "Error reading the exz")?;
+    let exz_temp_file_bytes =
+        read_temp_file(exz_temp_file).with_context(|| "Error reading the exz")?;
     let signed_eml_base64 =
-        ecies_sign_data(acm_key_pair, eml)
-        .with_context(|| "Error signing the eml hash")?;
+        ecies_sign_data(acm_key_pair, eml).with_context(|| "Error signing the eml hash")?;
 
     info!(
         "create_transmission_package(): acm_key_pair.public_key_pem = {:?}",
