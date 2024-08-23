@@ -222,7 +222,7 @@ pub async fn send_transmission_package_service(
             );
             continue;
         }
-        let second_zip_folder_path = zip_output_temp_dir.path().join("test-server");
+        let second_zip_folder_path = zip_output_temp_dir.path().join(&ccs_server.tag);
         let second_zip_path = second_zip_folder_path.join(format!("er_{}.zip", area_station_id));
         match send_package_to_ccs_server(&second_zip_path, ccs_server).await {
             Ok(_) => {

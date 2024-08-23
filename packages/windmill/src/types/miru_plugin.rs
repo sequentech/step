@@ -37,6 +37,7 @@ pub struct MiruDocument {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MiruCcsServer {
     pub name: String,
+    pub tag: String,
     pub address: String,
     pub public_key_pem: String,
 }
