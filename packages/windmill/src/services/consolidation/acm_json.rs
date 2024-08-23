@@ -2,16 +2,20 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::{
+    ecies_encrypt::{generate_ecies_key_pair, EciesKeyPair},
     eml_generator::{
         find_miru_annotation, MIRU_ELECTION_EVENT_ID, MIRU_ELECTION_EVENT_NAME, MIRU_PLUGIN_PREPEND,
     },
     eml_types::ACMJson,
 };
+use crate::services::vault;
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
-use sequent_core::types::date_time::TimeZone;
 use sequent_core::{
     ballot::Annotations, types::date_time::DateFormat, util::date_time::generate_timestamp,
+};
+use sequent_core::{
+    serialization::deserialize_with_path::deserialize_str, types::date_time::TimeZone,
 };
 use tracing::instrument;
 
@@ -22,6 +26,20 @@ const MIRU_STATION_NAME: &str = "2094A,5346A,6588A,7474A,1489A";
 const IP_ADDRESS: &str = "192.168.1.67";
 const MAC_ADDRESS: &str = "3C:7E:5A:89:4D:2F";
 
+#[instrument(err)]
+pub async fn get_acm_key_pair() -> Result<EciesKeyPair> {
+    let secret_key = format!("acm-key-pair-{}-{}", MIRU_DEVICE_ID, MIRU_SERIAL_NUMBER);
+
+    if let Some(secret_str) = vault::read_secret(secret_key.clone()).await? {
+        deserialize_str(&secret_str).map_err(|err| anyhow!("{}", err))
+    } else {
+        let key_pair = generate_ecies_key_pair()?;
+        let secret_str = serde_json::to_string(&key_pair)?;
+        vault::save_secret(secret_key, secret_str).await?;
+        Ok(key_pair)
+    }
+}
+
 #[instrument(skip(election_event_annotations), err)]
 pub fn generate_acm_json(
     sha256_hash: &str,
@@ -31,9 +49,9 @@ pub fn generate_acm_json(
     time_zone: TimeZone,
     date_time: DateTime<Utc>,
     election_event_annotations: &Annotations,
+    area_station_id: &str,
 ) -> Result<ACMJson> {
-    let MIRU_STATION_ID =
-        std::env::var("MIRU_STATION_ID").map_err(|_| anyhow!("MIRU_STATION_ID env var missing"))?;
+    let MIRU_STATION_ID = area_station_id.to_string();
     let er_datetime = generate_timestamp(
         Some(time_zone.clone()),
         Some(DateFormat::Custom(ACM_JSON_FORMAT.to_string())),
