@@ -5,7 +5,7 @@
 <#import "template.ftl" as layout>
 <@layout.registrationLayout displayMessage=false; section>
     <#if section = "header" || section = "show-username">
-        ${msg("registerFinishTitle")}
+        ${msg("registerFinishTitle")?no_esc}
     <#elseif section = "form">
         <p id="instruction1" class="instruction">
             ${msg("pageExpiredMsg2")} <a id="loginContinueLink" href="${url.loginRestartFlowUrl}">${msg("doClickHere")}</a> .
