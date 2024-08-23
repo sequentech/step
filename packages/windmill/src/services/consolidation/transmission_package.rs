@@ -4,7 +4,7 @@
 use super::{
     acm_json::generate_acm_json,
     aes_256_cbc_encrypt::encrypt_file_aes_256_cbc,
-    ecies_encrypt::{ecies_encrypt_string, ecies_sign_data, generate_ecies_key_pair, EciesKeyPair},
+    ecies_encrypt::{ecies_encrypt_string, ecies_sign_data, EciesKeyPair},
     eml_generator::render_eml_file,
     eml_types::ACMJson,
     xz_compress::xz_compress,

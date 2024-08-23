@@ -8,6 +8,7 @@ use base64::{engine::general_purpose::STANDARD, Engine};
 use openssl::ec::{EcGroup, EcKey};
 use openssl::nid::Nid;
 use openssl::pkey::Private;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::fs::File;
 use std::io::{self, Read, Seek, Write};
@@ -15,7 +16,7 @@ use strand::hash::hash_sha256;
 use tracing::{info, instrument};
 
 const ECIES_TOOL_PATH: &str = "/usr/local/bin/ecies-tool.jar";
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EciesKeyPair {
     pub private_key_pem: String,
     pub public_key_pem: String,

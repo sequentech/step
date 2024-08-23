@@ -1,3 +1,4 @@
+use super::acm_json::get_acm_key_pair;
 use super::acm_transaction::generate_transaction_id;
 use super::ecies_encrypt::generate_ecies_key_pair;
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
@@ -150,7 +151,7 @@ pub async fn generate_all_servers_document(
     time_zone: TimeZone,
     now_utc: DateTime<Utc>,
 ) -> Result<Document> {
-    let acm_key_pair = generate_ecies_key_pair()?;
+    let acm_key_pair = get_acm_key_pair().await?;
     let temp_dir = tempdir().with_context(|| "Error generating temp directory")?;
     let temp_dir_path = temp_dir.path();
 
@@ -318,7 +319,8 @@ pub async fn create_transmission_package_service(
         info!("Can't find election report for election {}", election_id);
         return Ok(());
     };
-    let reports: Vec<ReportData> = result.reports
+    let reports: Vec<ReportData> = result
+        .reports
         .into_iter()
         .filter(|result| {
             let Some(basic_area) = result.area.clone() else {

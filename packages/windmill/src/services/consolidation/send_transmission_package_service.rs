@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::{
     create_transmission_package_service::update_transmission_package_annotations,
-    ecies_encrypt::generate_ecies_key_pair,
     eml_generator::{
         find_miru_annotation, prepend_miru_annotation, ValidateAnnotations, MIRU_AREA_CCS_SERVERS,
         MIRU_AREA_STATION_ID, MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA,
