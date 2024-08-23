@@ -83,6 +83,7 @@ inside it, which allows for a faster process, without a container rebuild:
 
 ```bash
 docker compose exec windmill /bin/bash -c "cp /app/ECIESEncryptionExample/target/ECIESEncryptionExample-1.0-SNAPSHOT.jar /usr/local/bin/ecies-tool.jar"
+```
 
 b. Alternatively, we can copy the jar file to
 `/workspaces/step/packages/windmill/external-bin/ecies-tool.jar` and then
