@@ -51,7 +51,7 @@ pub async fn generate_base_compressed_xml(
     election_event_annotations: &Annotations,
     election_annotations: &Annotations,
     report: &ReportData,
-) -> Result<(Vec<u8>, String)> {
+) -> Result<(Vec<u8>, String, String)> {
     let eml_data = render_eml_file(
         tally_id,
         transaction_id,
@@ -79,7 +79,7 @@ pub async fn generate_base_compressed_xml(
 
     let compressed_xml =
         xz_compress(render_xml.as_bytes()).with_context(|| "Error compressing the rendered XML")?;
-    Ok((compressed_xml, rendered_xml_hash))
+    Ok((compressed_xml, render_xml, rendered_xml_hash))
 }
 
 #[instrument(skip(compressed_xml), err)]
@@ -138,6 +138,7 @@ fn generate_er_final_zip(
 #[instrument(skip(compressed_xml, acm_key_pair), err)]
 pub async fn create_transmission_package(
     eml_hash: &str,
+    eml: &str,
     time_zone: TimeZone,
     date_time: DateTime<Utc>,
     election_event_annotations: &Annotations,
@@ -150,9 +151,11 @@ pub async fn create_transmission_package(
     let (mut exz_temp_file, encrypted_random_pass_base64) =
         generate_encrypted_compressed_xml(compressed_xml, ccs_public_key_pem_str).await?;
 
-    let exz_temp_file_bytes = read_temp_file(exz_temp_file)?;
-    let (_exz_hash_base64, signed_exz_base64) =
-        ecies_sign_data(acm_key_pair, &exz_temp_file_bytes)?;
+    let exz_temp_file_bytes = read_temp_file(exz_temp_file)
+        .with_context(|| "Error reading the exz")?;
+    let signed_eml_base64 =
+        ecies_sign_data(acm_key_pair, eml)
+        .with_context(|| "Error signing the eml hash")?;
 
     info!(
         "create_transmission_package(): acm_key_pair.public_key_pem = {:?}",
@@ -161,7 +164,7 @@ pub async fn create_transmission_package(
     let acm_json = generate_acm_json(
         eml_hash,
         &encrypted_random_pass_base64,
-        &signed_exz_base64,
+        &signed_eml_base64,
         &acm_key_pair.public_key_pem,
         time_zone,
         date_time,

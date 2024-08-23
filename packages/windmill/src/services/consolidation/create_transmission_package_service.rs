@@ -140,6 +140,7 @@ pub async fn update_transmission_package_annotations(
 pub async fn generate_all_servers_document(
     hasura_transaction: &Transaction<'_>,
     eml_hash: &str,
+    eml: &str,
     compressed_xml_bytes: Vec<u8>,
     ccs_servers: &Vec<MiruCcsServer>,
     area_station_id: &str,
@@ -160,6 +161,7 @@ pub async fn generate_all_servers_document(
         let zip_file_path = server_path.join(format!("er_{}.zip", area_station_id));
         create_transmission_package(
             eml_hash,
+            eml,
             time_zone.clone(),
             now_utc.clone(),
             election_event_annotations,
@@ -326,7 +328,7 @@ pub async fn create_transmission_package_service(
         return Ok(());
     };
     let report: ReportData = report_computed.into();
-    let (base_compressed_xml, eml_hash) = generate_base_compressed_xml(
+    let (base_compressed_xml, eml, eml_hash) = generate_base_compressed_xml(
         tally_id,
         &transaction_id,
         time_zone.clone(),
@@ -357,6 +359,7 @@ pub async fn create_transmission_package_service(
     let all_servers_document = generate_all_servers_document(
         &hasura_transaction,
         &eml_hash,
+        &eml,
         base_compressed_xml.clone(),
         &ccs_servers,
         &area_station_id,

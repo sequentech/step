@@ -76,7 +76,7 @@ pub fn generate_ecies_key_pair() -> Result<EciesKeyPair> {
 }
 
 #[instrument(skip(data), err)]
-pub fn ecies_sign_data(acm_key_pair: &EciesKeyPair, data: &[u8]) -> Result<(String, String)> {
+pub fn ecies_sign_data(acm_key_pair: &EciesKeyPair, data: &str) -> Result<String> {
     // Retrieve the PEM as a string
     info!("pem: {}", acm_key_pair.private_key_pem);
 
@@ -90,14 +90,14 @@ pub fn ecies_sign_data(acm_key_pair: &EciesKeyPair, data: &[u8]) -> Result<(Stri
             .write_all(acm_key_pair.private_key_pem.as_bytes())
             .context("Failed to write file")?;
     }
-    let temp_data_file = generate_temp_file("data", ".exz")?;
+    let temp_data_file = generate_temp_file("data", ".eml")?;
     let temp_data_file_path = temp_data_file.path();
     let temp_data_file_string = temp_data_file_path.to_string_lossy().to_string();
     // Write the salt and encrypted data to the output file
     {
         let mut output_file = File::create(temp_data_file_path).context("Failed to create file")?;
         output_file
-            .write_all(data)
+            .write_all(data.as_bytes())
             .context("Failed to write file")?;
     }
 
@@ -110,11 +110,5 @@ pub fn ecies_sign_data(acm_key_pair: &EciesKeyPair, data: &[u8]) -> Result<(Stri
 
     info!("ecies_sign_data: '{}'", encrypted_base64);
 
-    let hash_bytes = hash_sha256(data)?;
-    let hex_string: String = hash_bytes
-        .iter()
-        .map(|byte| format!("{:02X}", byte))
-        .collect();
-
-    Ok((hex_string, encrypted_base64))
+    Ok(encrypted_base64)
 }
