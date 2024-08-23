@@ -268,7 +268,7 @@ actions:
       - role: user-read
   - name: fetchDocument
     definition:
-      kind: ""
+      kind: synchronous
       handler: http://{{HARVEST_DOMAIN}}/fetch-document
       forward_client_headers: true
       headers:
@@ -303,7 +303,7 @@ actions:
       - role: admin-user
   - name: getElectionEventStats
     definition:
-      kind: ""
+      kind: synchronous
       handler: http://{{HARVEST_DOMAIN}}/election-event/stats
       forward_client_headers: true
       request_transform:
@@ -318,7 +318,7 @@ actions:
     comment: get election event stats
   - name: getElectionStats
     definition:
-      kind: ""
+      kind: synchronous
       handler: http://{{HARVEST_DOMAIN}}/election/stats
       forward_client_headers: true
       request_transform:
@@ -360,7 +360,7 @@ actions:
       - role: admin-user
   - name: get_permissions
     definition:
-      kind: ""
+      kind: synchronous
       handler: http://{{HARVEST_DOMAIN}}/get-permissions
       forward_client_headers: true
       request_transform:
@@ -392,7 +392,7 @@ actions:
     comment: get private key
   - name: get_roles
     definition:
-      kind: ""
+      kind: synchronous
       handler: http://{{HARVEST_DOMAIN}}/get-roles
       forward_client_headers: true
       request_transform:
@@ -433,7 +433,7 @@ actions:
       - role: admin-user
   - name: get_users
     definition:
-      kind: ""
+      kind: synchronous
       handler: http://{{HARVEST_DOMAIN}}/get-users
       forward_client_headers: true
       request_transform:
@@ -553,7 +553,7 @@ actions:
     comment: insert_cast_vote
   - name: listElectoralLog
     definition:
-      kind: ""
+      kind: synchronous
       handler: http://{{HARVEST_DOMAIN}}/immudb/electoral-log
       forward_client_headers: true
       request_transform:
@@ -576,7 +576,7 @@ actions:
     comment: List Electoral Log
   - name: listPgaudit
     definition:
-      kind: ""
+      kind: synchronous
       handler: http://{{HARVEST_DOMAIN}}/immudb/pgaudit-list
       forward_client_headers: true
       headers:
@@ -603,7 +603,7 @@ actions:
     comment: List PostgreSQL audit logs
   - name: list_user_roles
     definition:
-      kind: ""
+      kind: synchronous
       handler: http://{{HARVEST_DOMAIN}}/list-user-roles
       forward_client_headers: true
       request_transform:
