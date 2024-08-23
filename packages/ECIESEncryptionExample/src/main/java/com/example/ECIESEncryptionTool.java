@@ -12,6 +12,7 @@ import javax.crypto.Cipher;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.*;
@@ -136,12 +137,20 @@ public class ECIESEncryptionTool {
 
         // Initialize the Cipher for decryption
         Cipher iesCipher = Cipher.getInstance("ECIES", "SC");
-        iesCipher.init(Cipher.DECRYPT_MODE, privateKey, new SecureRandom());
+        IESParameterSpec spec = new IESParameterSpec(
+                null,  // No derivation
+                null,  // No encoding
+                256,   // MAC key size in bits
+                256,   // Cipher key size in bits
+                null,  // No nonce
+                false  // Use point compression
+        );
+        iesCipher.init(Cipher.DECRYPT_MODE, privateKey, spec);
 
         // Decrypt the ciphertext
         byte[] decryptedTextBytes = iesCipher.doFinal(encryptedTextBytes);
 
-        return Base64.getEncoder().encodeToString(decryptedTextBytes);
+        return new String(decryptedTextBytes, StandardCharsets.UTF_8);
     }
 
     private static String signText(String privateKeyFile, String plaintextFilePath) throws Exception {
