@@ -22,7 +22,7 @@ pub struct EciesKeyPair {
 }
 
 #[instrument(skip(password), err)]
-pub fn ecies_encrypt_string(public_key_pem: &str, password: &[u8]) -> Result<String> {
+pub fn ecies_encrypt_string(public_key_pem: &str, password: &str) -> Result<String> {
     let temp_pem_file = generate_temp_file("public_key", ".pem")?;
     let temp_pem_file_path = temp_pem_file.path();
     let temp_pem_file_string = temp_pem_file_path.to_string_lossy().to_string();
@@ -34,13 +34,10 @@ pub fn ecies_encrypt_string(public_key_pem: &str, password: &[u8]) -> Result<Str
             .context("Failed to write file")?;
     }
     // Encode the &[u8] to a Base64 string
-    let plaintext_b64 = STANDARD.encode(password);
-
-    info!("plaintext b64: '{}'", plaintext_b64);
 
     let command = format!(
         "java -jar {} encrypt {} {}",
-        ECIES_TOOL_PATH, temp_pem_file_string, plaintext_b64
+        ECIES_TOOL_PATH, temp_pem_file_string, password
     );
     info!("command: '{}'", command);
 

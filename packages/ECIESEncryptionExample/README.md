@@ -62,3 +62,16 @@ echo -n "$decoded_b64" | base64 --decode
 
 signature=$(java -jar target/ECIESEncryptionExample-1.0-SNAPSHOT.jar sign private.pem private.pem)
 java -jar target/ECIESEncryptionExample-1.0-SNAPSHOT.jar verify public.pem private.pem MEYCIQCHZZhi2tklzQt+4fvRcdbmsLigvbSKOMjDeSfm672ucQIhAOtdNK7QtfLCfbr5of6VAluq5/Fk1WUUpQfaX/xLV662
+
+## Development
+
+The java code is rebuilt using:
+
+```bash
+cd /workspaces/step/packages/ECIESEncryptionExample
+mvn clean package
+```
+This generates a new jar file in the path `/app/ECIESEncryptionExample/target/ECIESEncryptionExample-1.0-SNAPSHOT.jar`. To be used.
+
+
+cp /app/ECIESEncryptionExample/target/ECIESEncryptionExample-1.0-SNAPSHOT.jar /usr/local/bin/ecies-tool.jar

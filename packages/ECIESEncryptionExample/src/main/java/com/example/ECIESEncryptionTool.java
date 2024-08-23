@@ -5,6 +5,7 @@ package com.example;
 
 import org.spongycastle.jce.ECNamedCurveTable;
 import org.spongycastle.jce.spec.ECParameterSpec;
+import org.spongycastle.jce.spec.IESParameterSpec;
 import org.spongycastle.jce.provider.BouncyCastleProvider;
 
 import javax.crypto.Cipher;
@@ -106,18 +107,23 @@ public class ECIESEncryptionTool {
         System.out.println("  Private key: " + privateKeyFile);
     }
 
-    private static String encryptText(String publicKeyFile, String plaintextBase64) throws Exception {
+    private static String encryptText(String publicKeyFile, String plaintext) throws Exception {
         PublicKey publicKey = loadPublicKeyFromPEM(readFile(publicKeyFile));
-
-        // Decode the Base64-encoded plaintext to get the original byte array
-        byte[] plaintextBytes = Base64.getDecoder().decode(plaintextBase64);
 
         // Initialize the Cipher for encryption
         Cipher iesCipher = Cipher.getInstance("ECIES", "SC");
-        iesCipher.init(Cipher.ENCRYPT_MODE, publicKey, new SecureRandom());
+        IESParameterSpec spec = new IESParameterSpec(
+                null,  // No derivation
+                null,  // No encoding
+                256,   // MAC key size in bits
+                256,   // Cipher key size in bits
+                null,  // No nonce
+                false  // Use point compression
+        );
+        iesCipher.init(Cipher.ENCRYPT_MODE, publicKey, spec);
 
         // Encrypt the plaintext
-        byte[] ciphertext = iesCipher.doFinal(plaintextBytes);
+        byte[] ciphertext = iesCipher.doFinal(plaintext.getBytes());
 
         return Base64.getEncoder().encodeToString(ciphertext);
     }

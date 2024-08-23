@@ -10,8 +10,9 @@ use super::{
     xz_compress::xz_compress,
     zip::compress_folder_to_zip,
 };
+use base64::{engine::general_purpose, Engine as _};
 use crate::services::{
-    password::generate_random_bytes,
+    password::generate_random_string_with_charset,
     s3::{download_s3_file_to_string, get_public_asset_file_path},
     temp_path::{generate_temp_file, write_into_named_temp_file},
 };
@@ -24,6 +25,7 @@ use serde_json::{Map, Value};
 use std::fs::File;
 use std::io::{self, Read, Seek, Write};
 use std::{env, path::Path};
+use strand::hash::hash_sha256;
 use tempfile::tempdir;
 use tempfile::NamedTempFile;
 use tracing::{info, instrument};
@@ -49,7 +51,7 @@ pub async fn generate_base_compressed_xml(
     election_event_annotations: &Annotations,
     election_annotations: &Annotations,
     report: &ReportData,
-) -> Result<Vec<u8>> {
+) -> Result<(Vec<u8>, String)> {
     let eml_data = render_eml_file(
         tally_id,
         transaction_id,
@@ -69,8 +71,15 @@ pub async fn generate_base_compressed_xml(
     // render handlebars template
     let render_xml = reports::render_template_text(&template_string, variables_map)
         .map_err(|err| anyhow!("{}", err))?;
-    let compressed_xml = xz_compress(render_xml.as_bytes())?;
-    Ok(compressed_xml)
+    let rendered_xml_hash = hash_sha256(render_xml.as_bytes())
+        .with_context(|| "Error hashing the rendered XML")?
+        .iter()
+        .map(|byte| format!("{:02X}", byte))
+        .collect();
+
+    let compressed_xml = xz_compress(render_xml.as_bytes())
+        .with_context(|| "Error compressing the rendered XML")?;
+    Ok((compressed_xml, rendered_xml_hash))
 }
 
 #[instrument(skip(compressed_xml), err)]
@@ -78,9 +87,10 @@ async fn generate_encrypted_compressed_xml(
     compressed_xml: Vec<u8>,
     public_key_pem: &str,
 ) -> Result<(NamedTempFile, String)> {
-    let random_pass = generate_random_bytes(64);
+    let charset: String = "0123456789abcdef".into();
+    let random_pass = generate_random_string_with_charset(64, &charset);
 
-    let (_temp_path, temp_path_string, file_size) =
+    let (_temp_path, temp_path_string, _file_size) =
         write_into_named_temp_file(&compressed_xml, "template", ".xz")
             .with_context(|| "Error writing to file")?;
     let exz_temp_file = generate_temp_file("er_xxxxxxxx", ".exz")?;
@@ -127,6 +137,7 @@ fn generate_er_final_zip(
 
 #[instrument(skip(compressed_xml, acm_key_pair), err)]
 pub async fn create_transmission_package(
+    eml_hash: &str,
     time_zone: TimeZone,
     date_time: DateTime<Utc>,
     election_event_annotations: &Annotations,
@@ -140,10 +151,10 @@ pub async fn create_transmission_package(
         generate_encrypted_compressed_xml(compressed_xml, ccs_public_key_pem_str).await?;
 
     let exz_temp_file_bytes = read_temp_file(exz_temp_file)?;
-    let (exz_hash_base64, signed_exz_base64) = ecies_sign_data(acm_key_pair, &exz_temp_file_bytes)?;
+    let (_exz_hash_base64, signed_exz_base64) = ecies_sign_data(acm_key_pair, &exz_temp_file_bytes)?;
 
     let acm_json = generate_acm_json(
-        &exz_hash_base64,
+        eml_hash,
         &encrypted_random_pass_base64,
         &signed_exz_base64,
         &acm_key_pair.public_key_pem,

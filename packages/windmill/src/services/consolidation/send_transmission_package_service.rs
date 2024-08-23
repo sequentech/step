@@ -219,10 +219,10 @@ pub async fn send_transmission_package_service(
     for ccs_server in &transmission_area_election.servers {
         if servers_sent_to.contains(&ccs_server.name) {
             info!(
-                "skipping sending to server '{}' as already sent",
+                "SHOULD BE skipping sending to server '{}' as already sent",
                 ccs_server.name
             );
-            continue;
+            //continue;
         }
         let second_zip_folder_path = zip_output_temp_dir.path().join("test-server");
         let second_zip_path = second_zip_folder_path.join(format!("er_{}.zip", area_station_id));
