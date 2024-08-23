@@ -38,8 +38,8 @@ pub const MIRU_AREA_CCS_SERVERS: &str = "area-ccs-servers";
 pub const MIRU_AREA_STATION_ID: &str = "area-station-id";
 pub const MIRU_TALLY_SESSION_DATA: &str = "tally-session-data";
 
-const ISSUE_DATE_FORMAT: &str = "%y-%m-%dT%H:%M:%S";
-const OFFICIAL_STATUS_DATE_FORMAT: &str = "%y-%m-%d";
+const ISSUE_DATE_FORMAT: &str = "%Y-%m-%dT%H:%M:%S";
+const OFFICIAL_STATUS_DATE_FORMAT: &str = "%Y-%m-%d";
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, EnumString, Display)]
 #[serde(rename_all = "lowercase")]
