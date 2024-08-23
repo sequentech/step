@@ -36,6 +36,7 @@ import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
 @AutoService(AuthenticatorFactory.class)
 public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory {
   public static final String MOBILE_NUMBER_FIELD = "sequent.read-only.mobile-number";
+  private static final String EMAIL_VERIFIED = "Email verified";
 
   public static final String PROVIDER_ID = "lookup-and-update-user";
   public static final String SEARCH_ATTRIBUTES = "search-attributes";
@@ -93,6 +94,16 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     // for other authentication models in the authentication flow
     log.info("authenticate(): updating user attributes..");
     updateUserAttributes(user, context, updateAttributesList);
+
+    // Set email to verified if it was validated
+    if (context.getAuthenticationSession().getAuthNote(EMAIL_VERIFIED) != null
+        && context
+            .getAuthenticationSession()
+            .getAuthNote(EMAIL_VERIFIED)
+            .equalsIgnoreCase("true")) {
+      user.setEmailVerified(true);
+    }
+
     log.info("authenticate(): done");
 
     // Success event, similar to RegistrationUserCreation.java in keycloak
@@ -322,13 +333,13 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
             "Login after registration",
             "If enabled the user will automatically login after registration.",
             ProviderConfigProperty.BOOLEAN_TYPE,
-            true),
+            false),
         new ProviderConfigProperty(
             AUTO_2FA,
             "Automatic 2FA Email/SMS",
             "If enabled will configure the users 2FA to use the Email or SMS provided during registration.",
             ProviderConfigProperty.BOOLEAN_TYPE,
-            true));
+            false));
   }
 
   @Override
