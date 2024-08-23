@@ -14,43 +14,27 @@ const PG_PASSW: &'static str = "postgrespw";
 const PG_PORT: u32 = 49153;
 
 fn main() {
-    // Start as usual
     let mut siv = cursive::default();
+
+    let canvas = Canvas::new(()).with_draw(draw);
+    let style = ColorStyle::new(BaseColor::White, BaseColor::Black);
+    let mut layer = Layer::new(canvas);
+    layer.set_color(style);
+
+    siv.add_layer(layer.full_screen());
     let mut theme = Theme::terminal_default();
     theme.borders = BorderStyle::None;
     siv.set_theme(theme);
     siv.add_global_callback('q', |s| s.quit());
     siv.set_fps(1);
 
-    // Canvas lets us easily override any method.
-    // Canvas can have states, but we don't need any here, so we use `()`.
-    // siv.add_layer(Canvas::new(()).with_draw(draw).fixed_size((20, 10)));
-
-    let canvas = Canvas::new(()).with_draw(draw);
-    /*let r = ResizedView::new(
-        cursive::view::SizeConstraint::Full,
-        cursive::view::SizeConstraint::Full,
-        canvas,
-    );*/
-    /*let panel = Panel::new(r)
-    .title("hohohoho")
-    .title_position(cursive::align::HAlign::Left);*/
-
-    let style = ColorStyle::new(BaseColor::White, BaseColor::Black);
-    let mut layer = Layer::new(canvas);
-    layer.set_color(style);
-
-    siv.add_layer(layer.full_screen());
-
     siv.run();
 }
-use tokio::runtime::Runtime;
 
 async fn query() -> Result<Vec<B3IndexRow>> {
     let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
     let c_db = c.with_database(PG_DATABASE);
     let client = XPgsqlB3Client::new(&c_db).await?;
-    // info!("pgsql connection ok");
     client.get_boards().await
 }
 
@@ -59,17 +43,14 @@ fn q() -> Result<Vec<B3IndexRow>> {
         .enable_all()
         .build()?;
 
-    // Call the asynchronous connect method using the runtime.
     let inner = rt.block_on(query())?;
 
     Ok(inner)
 }
 
-/// Method used to draw the cube.
-///
-/// This takes as input the Canvas state and a printer.
 fn draw(_: &(), p: &Printer) {
     let cells = q().unwrap();
+    let draw_text = cells.len() < 300;
 
     let len = cells.len();
     let lenrt = (cells.len() as f64).sqrt() as usize;
@@ -100,7 +81,7 @@ fn draw(_: &(), p: &Printer) {
     let mut index = 0;
     for _i in 0..cell_counts.y {
         for _j in 0..cell_counts.x {
-            draw_cell(p, &Vec2::new(x, y), &cell_size, &cells[index]);
+            draw_cell(p, &Vec2::new(x, y), &cell_size, &cells[index], draw_text);
             x = x + cell_width;
             index = index + 1;
             if index == len {
@@ -132,84 +113,98 @@ fn get_values(row: &B3IndexRow) -> (f64, f64) {
     }
 }
 
-fn draw_cell(p: &Printer, origin: &Vec2, size: &Vec2, data: &B3IndexRow) {
-    let black = ColorStyle::new(BaseColor::White, BaseColor::Black);
-    let gray = ColorStyle::new(BaseColor::White, Color::from_256colors(234));
-    let green_c = ColorStyle::new(BaseColor::Black, BaseColor::Green);
-    let blue_c = ColorStyle::new(BaseColor::Black, BaseColor::Blue);
+fn draw_cell(p: &Printer, origin: &Vec2, size: &Vec2, data: &B3IndexRow, draw_text: bool) {
+    let f_black = ColorStyle::new(BaseColor::White, BaseColor::Black);
+    let b_gray = ColorStyle::new(BaseColor::White, Color::from_256colors(236));
+    let b_magenta = ColorStyle::new(BaseColor::Black, BaseColor::Magenta);
+    let b_blue = ColorStyle::new(BaseColor::Black, BaseColor::Blue);
+    let b_green = ColorStyle::new(BaseColor::Black, BaseColor::Green);
 
-    p.with_color(gray, |printer| {
+    p.with_color(b_gray, |printer| {
         printer.print_rect(Rect::from_size(origin, size), " ");
     });
+    let (dkg, mix) = get_values(data);
+    let mut kind_origin_y = 0;
+    let mut draw_kind = false;
 
-    let (green, blue) = get_values(data);
-    let bar_height = (green * f64::from(size.y as u32)).round() as usize;
-    let bar_origin_y = origin.y + (size.y - bar_height);
+    if mix == 0.0 {
+        let bar_height = (dkg * f64::from(size.y as u32)).round() as usize;
+        let bar_origin_y = origin.y + (size.y - bar_height);
+        kind_origin_y = bar_origin_y;
 
-    let bar_origin = Vec2::new(origin.x, bar_origin_y);
-    let bar_size = Vec2::new(size.x, bar_height);
+        let bar_origin = Vec2::new(origin.x, bar_origin_y);
+        let bar_size = Vec2::new(size.x, bar_height);
 
-    if bar_height > 0 {
-        p.with_color(green_c, |printer| {
-            printer.print_rect(Rect::from_size(bar_origin, bar_size), " ");
-        });
+        let color = if dkg == 1.0 { b_green } else { b_blue };
+
+        if bar_height > 0 {
+            p.with_color(color, |printer| {
+                printer.print_rect(Rect::from_size(bar_origin, bar_size), " ");
+            });
+            draw_kind = true;
+        }
+    } else {
+        let bar_height = (mix * f64::from(size.y as u32)).round() as usize;
+        let bar_origin_y = origin.y + (size.y - bar_height);
+        kind_origin_y = bar_origin_y;
+
+        let bar_origin = Vec2::new(origin.x, bar_origin_y);
+        let bar_size = Vec2::new(size.x, bar_height);
+
+        let color = if mix == 1.0 { b_green } else { b_magenta };
+
+        if bar_height > 0 {
+            p.with_color(color, |printer| {
+                printer.print_rect(Rect::from_size(bar_origin, bar_size), " ");
+            });
+            draw_kind = true;
+        }
     }
 
-    let bar_height = (blue * f64::from(size.y as u32)).round() as usize;
-    let bar_origin_y = origin.y + (size.y - bar_height);
+    if draw_text {
+        if draw_kind {
+            let text_color = if mix > 0.0 {
+                b_magenta
+            } else if dkg > 0.0 {
+                b_blue
+            } else {
+                f_black
+            };
 
-    let bar_origin = Vec2::new(origin.x, bar_origin_y);
-    let bar_size = Vec2::new(size.x, bar_height);
+            let title = format!("{}", &data.last_message_kind);
+            let max_chars = title.len().min(size.x - 2);
 
-    if bar_height > 0 {
-        p.with_color(blue_c, |printer| {
-            printer.print_rect(Rect::from_size(bar_origin, bar_size), " ");
+            p.with_color(text_color, |printer| {
+                printer.print((origin.x + 1, kind_origin_y), &title[0..max_chars]);
+                // printer.print(origin, &blue.to_string());
+            });
+        }
+
+        // Title
+
+        let name = &data.board_name;
+        // let max_chars = data.len().min(size.x - 2);
+        let pct = if mix == 0.0 {
+            (dkg * 100.0).round()
+        } else {
+            (mix * 100.0).round()
+        };
+
+        let text_color = if mix == 1.0 {
+            b_green
+        } else if dkg == 1.0 {
+            b_green
+        } else {
+            f_black
+        };
+
+        let title = format!("{name} ({}%)", pct);
+        let max_chars = title.len().min(size.x - 2);
+
+        p.with_color(text_color, |printer| {
+            printer.print_hline(origin, size.x, " ");
+            printer.print((origin.x + 1, origin.y), &title[0..max_chars]);
+            // printer.print(origin, &blue.to_string());
         });
     }
-
-    let name = &data.board_name;
-    // let max_chars = data.len().min(size.x - 2);
-    let pct = if blue == 0.0 {
-        (green * 100.0).round()
-    } else {
-        (blue * 100.0).round()
-    };
-
-    let title = format!("{name} ({}%)", pct);
-    let max_chars = title.len().min(size.x - 2);
-
-    let text_color = if blue == 1.0 {
-        blue_c
-    } else if green == 1.0 {
-        green_c
-    } else {
-        black
-    };
-
-    p.with_color(text_color, |printer| {
-        printer.print_hline(origin, size.x, " ");
-        printer.print(origin, &title[0..max_chars]);
-        // printer.print(origin, &blue.to_string());
-    });
 }
-
-/*// Gradient for the front color
-fn front_color(x: u8, y: u8, x_max: u8, y_max: u8) -> Color {
-    // We return a full 24-bits RGB color, but some backends
-    // will project it to a 256-colors palette.
-    Color::Rgb(
-        x * (255 / x_max),
-        y * (255 / y_max),
-        (x + 2 * y) * (255 / (x_max + 2 * y_max)),
-    )
-}
-
-// Gradient for the background color
-fn back_color(x: u8, y: u8, x_max: u8, y_max: u8) -> Color {
-    // Let's try to have a gradient in a different direction than the front color.
-    Color::Rgb(
-        128 + (2 * y_max + x - 2 * y) * (128 / (x_max + 2 * y_max)),
-        255 - y * (255 / y_max),
-        255 - x * (255 / x_max),
-    )
-}*/
