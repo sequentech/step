@@ -22,7 +22,7 @@ use crate::util::{ProtocolContext, ProtocolError};
 // LocalBoard
 ///////////////////////////////////////////////////////////////////////////
 
-// A LocalBoard is a trustee's local copy of a bulletin board. It is specific to a protocol
+// A LocalBoard is a trustee's in-memory copy of a bulletin board. It is specific to a protocol
 // execution (session_id), referenced in the configuration
 //
 // Messages are composed of statements and optionally artifacts
@@ -513,9 +513,8 @@ pub struct StatementEntryIdentifier {
     // will not be unique with the above fields only.
     // (mixes themselves are, since only one mix is produced by each trustee, so the signer position
     // is sufficient; on the other hand each trustee signs _all other mixes_).
-    // The need to make this distinction is only for the purposes of storage in the local board,
-    // without this field, the different signature statements would be rejected as duplicates.
-    // The field is not used explicitly besides this purpose.
+    // Without including this field in the hash key, the different signature statements
+    // would be rejected as duplicates.
     pub mix_number: usize,
 }
 
