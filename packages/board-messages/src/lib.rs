@@ -6,11 +6,11 @@ pub mod braid;
 // pub mod electoral_log;
 pub mod grpc;
 
-use std::{time::{Duration, SystemTime, UNIX_EPOCH}};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use crate::braid::newtypes::Timestamp;
 
-pub(crate) fn timestamp() -> Timestamp {
+pub fn timestamp() -> Timestamp {
     let start = SystemTime::now();
     let since_the_epoch = start
         .duration_since(UNIX_EPOCH)

@@ -21,7 +21,7 @@ bench = false
 rayon = ["dep:rayon"]
 wasmrayon = ["rayon", "wasm", "dep:wasm-bindgen-rayon"]
 wasmtest = ["wasm", "dep:web-sys"]
-wasm = ["wasm-bindgen", "serde-wasm-bindgen", "num_bigint", "malachite"]
+wasm = ["wasm-bindgen", "serde-wasm-bindgen", "num_bigint", "malachite", "getrandom/js"]
 num_bigint = ["dep:num-bigint", "dep:num-traits", "dep:num-integer", "dep:num-modular"]
 malachite = ["dep:malachite"]
 openssl_core = ["dep:openssl", "dep:rand_core"]
@@ -51,11 +51,11 @@ p384 = "0.13.0"
 x509-parser = "0.15.1"
 rcgen = {version = "0.11.3", features = ["x509-parser"] }
 
-# symmetric 
+# symmetric
 chacha20poly1305 = "0.10.1"
 generic-array = "0.14.6"
 
-# Hashing 
+# Hashing
 sha2 = "0.10.7"
 # Needed for extendable hashing function when deriving generators for ristretto
 sha3 = "0.10"
@@ -66,7 +66,7 @@ base64 = "0.21"
 
 # RNG
 rand = { package="rand", version = "0.8" }
-getrandom = { version = "0.2", features = ["js"] }
+getrandom = { version = "0.2" }
 rand_core = { version = "0.6.4", optional = true }
 
 # WASM

@@ -14,7 +14,7 @@ license = "AGPL-3.0-only"
 
 [dependencies]
 rand = "0.8"
-getrandom = { version = "0.2", features = ["js"] }
+getrandom = { version = "0.2" }
 
 strand = { path="../strand", features=["rayon"] }
 board-messages = { path="../board-messages" }
@@ -24,7 +24,7 @@ strum = { version = "0.24.1", features = ["derive"] }
 rayon = { version = "1.5" }
 
 # trustee local store
-rusqlite = { version = "0.31.0", features = ["bundled"] }
+rusqlite = { version = "0.32.1", features = ["bundled"] }
 
 # only needed for verifier
 serde_json = "1.0.105"

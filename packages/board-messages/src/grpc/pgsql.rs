@@ -144,6 +144,7 @@ pub struct B3IndexRow {
     pub threshold_no: i32,
     pub trustees_no: i32,
     pub last_message_kind: String,
+    pub last_updated: Timestamp,
     pub message_count: i32,
 }
 
@@ -154,11 +155,16 @@ impl TryFrom<&Row> for B3IndexRow {
         let id = row.get("id");
         let board_name = row.get("board_name");
         let is_archived = row.get("is_archived");
-        let cfg_id = row.get("cfg_id");
-        let threshold_no = row.get("threshold_no");
-        let trustees_no = row.get("trustees_no");
-        let last_message_kind = row.get("last_message_kind");
-        let message_count = row.get("message_count");
+        let cfg_id = row.try_get("cfg_id").unwrap_or("".to_string());
+        let threshold_no = row.try_get("threshold_no").unwrap_or(0);
+        let trustees_no = row.try_get("trustees_no").unwrap_or(0);
+        let last_message_kind = row.try_get("last_message_kind").unwrap_or("".to_string());
+        let last_updated = row
+            .try_get("last_updated")
+            .unwrap_or(SystemTime::UNIX_EPOCH);
+        let message_count = row.try_get("message_count").unwrap_or(0);
+
+        let last_updated = crate::timestamp_from_system_time(&last_updated);
 
         Ok(B3IndexRow {
             id,
@@ -168,6 +174,7 @@ impl TryFrom<&Row> for B3IndexRow {
             threshold_no,
             trustees_no,
             last_message_kind,
+            last_updated,
             message_count,
         })
     }
@@ -445,6 +452,7 @@ async fn create_index_ine(client: &mut Client) -> Result<()> {
             threshold_no INT,
             trustees_no INT,
             last_message_kind VARCHAR,
+            last_updated TIMESTAMP,
             message_count INT
         );
         "#,
@@ -637,6 +645,7 @@ async fn get_boards(client: &Client) -> Result<Vec<B3IndexRow>> {
         threshold_no,
         trustees_no,
         last_message_kind,
+        last_updated,
         message_count
     FROM {}
     WHERE is_archived = {}
@@ -665,6 +674,7 @@ async fn get_board(client: &Client, board_name: &str) -> Result<Option<B3IndexRo
             threshold_no,
             trustees_no,
             last_message_kind,
+            last_updated,
             message_count
         FROM {}
         WHERE board_name = $1;
@@ -905,7 +915,8 @@ async fn insert(client: &mut Client, board_name: &str, messages: &Vec<B3MessageR
            UPDATE {}
            SET
            last_message_kind = $1,
-           message_count = (SELECT COUNT(*) FROM {})
+           message_count = (SELECT COUNT(*) FROM {}),
+           last_updated = localtimestamp
            WHERE board_name = $2
         "#,
             INDEX_TABLE, board_name,
