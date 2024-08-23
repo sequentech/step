@@ -465,7 +465,7 @@ pub fn render_eml_file(
     date_time: DateTime<Utc>,
     election_event_annotations: &Annotations,
     election_annotations: &Annotations,
-    report: &ReportData,
+    reports: &Vec<ReportData>,
 ) -> Result<EMLFile> {
     let election_event_id =
         find_miru_annotation(MIRU_ELECTION_EVENT_ID, election_event_annotations).with_context(
@@ -533,7 +533,11 @@ pub fn render_eml_file(
                     id_number: election_id,
                     name: election_name,
                 },
-                contests: vec![render_eml_contest(report)?],
+                contests: reports
+                    .into_iter()
+                    .map(|report| Ok(render_eml_contest(report)?))
+                    .collect::<Result<Vec<_>>>()
+                    .with_context(|| "Error rendering EML Contest")?,
             }],
         }],
     };

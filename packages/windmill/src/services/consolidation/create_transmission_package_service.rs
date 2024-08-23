@@ -318,16 +318,16 @@ pub async fn create_transmission_package_service(
         info!("Can't find election report for election {}", election_id);
         return Ok(());
     };
-    let Some(report_computed) = result.reports.into_iter().find(|result| {
-        let Some(basic_area) = result.area.clone() else {
-            return false;
-        };
-        return basic_area.id == area_id;
-    }) else {
-        info!("Can't find election report for area {}", area_id);
-        return Ok(());
-    };
-    let report: ReportData = report_computed.into();
+    let reports: Vec<ReportData> = result.reports
+        .into_iter()
+        .filter(|result| {
+            let Some(basic_area) = result.area.clone() else {
+                return false;
+            };
+            return basic_area.id == area_id;
+        })
+        .map(|report_computed| report_computed.into())
+        .collect();
     let (base_compressed_xml, eml, eml_hash) = generate_base_compressed_xml(
         tally_id,
         &transaction_id,
@@ -335,7 +335,7 @@ pub async fn create_transmission_package_service(
         now_utc.clone(),
         &election_event_annotations,
         &election_annotations,
-        &report,
+        &reports,
     )
     .await?;
 

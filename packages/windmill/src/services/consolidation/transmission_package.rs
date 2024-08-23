@@ -42,7 +42,7 @@ pub fn read_temp_file(mut temp_file: NamedTempFile) -> Result<Vec<u8>> {
     Ok(file_bytes)
 }
 
-#[instrument(skip(report), err)]
+#[instrument(skip(reports), err)]
 pub async fn generate_base_compressed_xml(
     tally_id: &str,
     transaction_id: &str,
@@ -50,7 +50,7 @@ pub async fn generate_base_compressed_xml(
     date_time: DateTime<Utc>,
     election_event_annotations: &Annotations,
     election_annotations: &Annotations,
-    report: &ReportData,
+    reports: &Vec<ReportData>,
 ) -> Result<(Vec<u8>, String, String)> {
     let eml_data = render_eml_file(
         tally_id,
@@ -59,7 +59,7 @@ pub async fn generate_base_compressed_xml(
         date_time,
         &election_event_annotations,
         &election_annotations,
-        &report,
+        &reports,
     )?;
     let mut variables_map: Map<String, Value> = Map::new();
     variables_map.insert("data".to_string(), serde_json::to_value(eml_data)?);
