@@ -20,7 +20,7 @@ import {
 } from "react-admin"
 import CellTowerIcon from "@mui/icons-material/CellTower"
 import {ListActions} from "../../components/ListActions"
-import {Alert, Button, Drawer, Typography} from "@mui/material"
+import {Alert, Button, Drawer, Tooltip, Typography} from "@mui/material"
 import {
     Sequent_Backend_Election_Event,
     Sequent_Backend_Tally_Session,
@@ -46,7 +46,7 @@ import styled from "@emotion/styled"
 import {IExecutionStatus, ITallyCeremonyStatus, ITallyExecutionStatus} from "@/types/ceremonies"
 import {useMutation} from "@apollo/client"
 import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
-import { IPermissions } from "@/types/keycloak"
+import {IPermissions} from "@/types/keycloak"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -87,7 +87,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
 
     const [tenantId] = useTenantStore()
     const {setTallyId, setCreatingFlag} = useElectionEventTallyStore()
-	const isTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_CEREMONY)
+    const isTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_CEREMONY)
 
     const [openCancelTally, openCancelTallySet] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
@@ -183,12 +183,24 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
 
     const actions = (record: RaRecord) => [
         {
-			icon: isTrustee ? <CellTowerIcon /> : <DescriptionIcon />,
+            icon: isTrustee ? (
+                <Tooltip title={t("tallysheet.common.tallyCeremony.manage")}>
+                    <CellTowerIcon />
+                </Tooltip>
+            ) : (
+					<Tooltip title={t("tallysheet.common.tallyCeremony.view")}>
+                    <DescriptionIcon />
+                </Tooltip>
+            ),
             action: viewAdminTally,
             showAction: (id: Identifier) => canAdminCeremony,
         },
         {
-            icon: <DoNotDisturbOnIcon />,
+            icon: (
+                <Tooltip title={t("tallysheet.common.tallyCeremony.cancel")}>
+                    <DoNotDisturbOnIcon />
+                </Tooltip>
+            ),
             action: cancelAdminTally,
             showAction: (id: Identifier) =>
                 canAdminCeremony &&
@@ -201,9 +213,13 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                 record.execution_status === ITallyExecutionStatus.NOT_STARTED ||
                 record.execution_status === ITallyExecutionStatus.STARTED ||
                 record.execution_status === ITallyExecutionStatus.CONNECTED ? (
-                    <TrusteeKeyIcon />
+                    <Tooltip title={t("tallysheet.common.tallyCeremony.addKey")}>
+                        <TrusteeKeyIcon />
+                    </Tooltip>
                 ) : (
-                    <DescriptionIcon />
+                    <Tooltip title={t("tallysheet.common.tallyCeremony.view")}>
+                        <DescriptionIcon />
+                    </Tooltip>
                 ),
             action: viewTrusteeTally,
             showAction: (id: Identifier) => canTrusteeCeremony,

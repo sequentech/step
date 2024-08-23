@@ -964,6 +964,16 @@ const englishTranslation = {
                             cancel: "Close",
                         },
                     },
+                    regenerate: {
+                        title: "Regenerate",
+                        dialog: {
+                            title: "Do you want to regenerate the Transmission Package?",
+                            description:
+                                "Please confirm you want to regenerate the Transmission Package for Area `{{name}}`",
+                            confirm: "Regenerate Transmission Package",
+                            cancel: "Close",
+                        },
+                    },
                     download: {
                         title: "Download",
                         itemTitle: "Download Transmission Package",
@@ -990,7 +1000,7 @@ const englishTranslation = {
                     title: "SBEI Signatures",
                     description:
                         "SBEIs can sign the Transmission Package. The table below shows the signing status of each of the SBEI members.",
-                    status: "{{signed}} out of {{total}} Signed",
+                    status: "{{signed}} out of {{total}} Signed, {{minimum}} minimum",
                     table: {
                         trusteeName: "Trustee Name",
                         signed: "Has Signed",
@@ -1220,6 +1230,12 @@ const englishTranslation = {
                 census: "Census",
             },
             common: {
+                tallyCeremony: {
+                    manage: "Manage Tally Ceremony",
+                    view: "View Tally Ceremony",
+                    cancel: "Cancel Tally Ceremony",
+                    addKey: "Add Tally Key",
+                },
                 edit: "Edit",
                 confirm: "Confirm",
                 back: "Back",

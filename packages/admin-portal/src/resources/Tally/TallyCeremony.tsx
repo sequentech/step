@@ -96,14 +96,20 @@ export interface IExpanded {
 export const TallyCeremony: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const {t, i18n} = useTranslation()
-	const { tallyId, setTallyId, setCreatingFlag,
-		setMiruElectionId,
-		setMiruAreaId } = useElectionEventTallyStore()
+    const {
+        tallyId,
+        setTallyId,
+        setCreatingFlag,
+        setMiruElectionId,
+        setMiruAreaId,
+        selectedTallySessionData,
+        setSelectedTallySessionData,
+    } = useElectionEventTallyStore()
     const notify = useNotify()
     const {globalSettings} = useContext(SettingsContext)
 
-    const [selectedTallySessionData, setSelectedTallySessionData] =
-        useState<IMiruTransmissionPackageData | null>(null)
+    // const [selectedTallySessionData, setSelectedTallySessionData] =
+    // useState<IMiruTransmissionPackageData | null>(null)
     const [openModal, setOpenModal] = useState(false)
     const [confirmSendMiruModal, setConfirmSendMiruModal] = useState(false)
     const [openCeremonyModal, setOpenCeremonyModal] = useState(false)
@@ -301,11 +307,12 @@ export const TallyCeremony: React.FC = () => {
                 setPage(WizardSteps.Tally)
                 return
             }
-			if (data.execution_status === ITallyExecutionStatus.SUCCESS) {
-					setPage(WizardSteps.Results)
-				return
-			}
-			setPage(WizardSteps.Start)        }
+            if (data.execution_status === ITallyExecutionStatus.SUCCESS) {
+                setPage(WizardSteps.Results)
+                return
+            }
+            setPage(WizardSteps.Start)
+        }
     }, [data])
 
     useEffect(() => {
@@ -415,8 +422,8 @@ export const TallyCeremony: React.FC = () => {
         //set new page status(navigate to miru wizard)
         if (e.existingPackage) {
             setSelectedTallySessionData(e.existingPackage)
-			setMiruElectionId(e.existingPackage.election_id)
-			setMiruAreaId(e.existingPackage.area_id)
+            setMiruElectionId(e.existingPackage.election_id)
+            setMiruAreaId(e.existingPackage.area_id)
         } else {
             let packageData: IMiruTransmissionPackageData | null = null
             let retry = 0
@@ -437,15 +444,14 @@ export const TallyCeremony: React.FC = () => {
                     packageData = found
                     clearInterval(intervalId)
                     // setSelectedTallySessionData(packageData)
-					setMiruElectionId(packageData.election_id)
-					setMiruAreaId(packageData.area_id)
+                    setMiruElectionId(packageData.election_id)
+                    setMiruAreaId(packageData.area_id)
                 } else {
                     retry = retry + 1
                 }
             }, globalSettings.QUERY_POLL_INTERVAL_MS)
         }
     }
-
 
     const [CreateTransmissionPackage] = useMutation<CreateTransmissionPackageMutation>(
         CREATE_TRANSMISSION_PACKAGE,
@@ -460,6 +466,8 @@ export const TallyCeremony: React.FC = () => {
 
     const handleCreateTransmissionPackage = useCallback(
         async ({area_id, election_id}: {area_id: string; election_id: string | null}) => {
+            setTransmissionLoading(true)
+
             const found = tallySessionData.find(
                 (datum) => datum.area_id === area_id && datum.election_id === election_id
             )
@@ -486,16 +494,19 @@ export const TallyCeremony: React.FC = () => {
                 })
 
                 if (errors) {
+                    setTransmissionLoading(false)
                     notify(t("miruExport.create.error"), {type: "error"})
                     return
                 }
 
                 if (nextStatus) {
+                    setTransmissionLoading(false)
                     notify(t("miruExport.create.success"), {type: "success"})
                     handleMiruExportSuccess?.({area_id, election_id})
                 }
             } catch (error) {
                 console.log(`Caught error: ${error}`)
+                setTransmissionLoading(false)
                 notify(t("miruExport.create.error"), {type: "error"})
             }
         },
@@ -506,17 +517,17 @@ export const TallyCeremony: React.FC = () => {
         <>
             <WizardStyles.WizardWrapper>
                 <TallyStyles.StyledHeader>
-					<BreadCrumbSteps
-						labels={[
-							"tally.breadcrumbSteps.start",
-							"tally.breadcrumbSteps.ceremony",
-							"tally.breadcrumbSteps.tally",
-							"tally.breadcrumbSteps.results",
-						]}
-						selected={page}
-						variant={BreadCrumbStepsVariant.Circle}
-						colorPreviousSteps={true}
-					/>
+                    <BreadCrumbSteps
+                        labels={[
+                            "tally.breadcrumbSteps.start",
+                            "tally.breadcrumbSteps.ceremony",
+                            "tally.breadcrumbSteps.tally",
+                            "tally.breadcrumbSteps.results",
+                        ]}
+                        selected={page}
+                        variant={BreadCrumbStepsVariant.Circle}
+                        colorPreviousSteps={true}
+                    />
                 </TallyStyles.StyledHeader>
 
                 {resultsEventId && record?.id ? (
@@ -766,12 +777,12 @@ export const TallyCeremony: React.FC = () => {
                                     tally={tally}
                                     resultsEventId={resultsEventId}
                                     onCreateTransmissionPackage={handleCreateTransmissionPackage}
+                                    loading={transmissionLoading}
                                 />
                             </WizardStyles.AccordionDetails>
                         </Accordion>
                     </>
                 )}
-
 
                 <TallyStyles.StyledFooter>
                     {page < WizardSteps.Results && (

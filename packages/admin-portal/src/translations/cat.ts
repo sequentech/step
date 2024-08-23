@@ -970,6 +970,16 @@ const catalanTranslation: TranslationType = {
                             cancel: "Tancar",
                         },
                     },
+                    regenerate: {
+                        title: "Regenerar",
+                        dialog: {
+                            title: "Vol regenerar el paquet de transmissió?",
+                            description:
+                                "Si us plau, confirmi que vol regenerar el paquet de transmissió per a l'àrea `{{name}}`",
+                            confirm: "Regenerar paquet de transmissió",
+                            cancel: "Tancar",
+                        },
+                    },
                     download: {
                         title: "Descarregar",
                         itemTitle: "Descarregar el Paquet de Transmissió",
@@ -1228,6 +1238,12 @@ const catalanTranslation: TranslationType = {
                 census: "Cens",
             },
             common: {
+                tallyCeremony: {
+                    manage: "Gestionar la Cerimònia de Còmput",
+                    view: "Veure la Cerimònia de Còmput",
+                    cancel: "Cancel·lar la Cerimònia de Còmput",
+                    addKey: "Afegir Clau de Còmput",
+                },
                 edit: "Editar",
                 confirm: "Confirmar",
                 back: "Enrere",
