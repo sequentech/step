@@ -223,7 +223,8 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     // Send a confirmation email
     EmailTemplateProvider emailTemplateProvider = session.getProvider(EmailTemplateProvider.class);
 
-    // We get the username we are going to provide the user in other to login. It's going to be either email or mobileNumber.
+    // We get the username we are going to provide the user in other to login. It's going to be
+    // either email or mobileNumber.
     String username = user.getEmail() != null ? user.getEmail() : mobileNumber;
 
     if (MessageCourier.EMAIL.equals(messageCourier) || MessageCourier.BOTH.equals(messageCourier)) {
@@ -236,11 +237,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
           .setUser(user)
           .setAttribute("realmName", context.getRealm().getName())
           .setAttribute("username", username)
-          .send(
-              SEND_SUCCESS_SUBJECT,
-              subjAttr,
-              SEND_SUCCESS_EMAIL_FTL,
-              messageAttributes);
+          .send(SEND_SUCCESS_SUBJECT, subjAttr, SEND_SUCCESS_EMAIL_FTL, messageAttributes);
     }
 
     if (MessageCourier.SMS.equals(messageCourier) || MessageCourier.BOTH.equals(messageCourier)) {
@@ -251,7 +248,12 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       List<String> smsAttributes = ImmutableList.of(context.getRealm().getName(), username);
 
       smsSenderProvider.send(
-          mobileNumber.trim(), SEND_SUCCESS_SMS_I18N_KEY, smsAttributes, context.getRealm(), user, session);
+          mobileNumber.trim(),
+          SEND_SUCCESS_SMS_I18N_KEY,
+          smsAttributes,
+          context.getRealm(),
+          user,
+          session);
     }
   }
 
