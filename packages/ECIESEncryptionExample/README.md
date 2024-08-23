@@ -71,7 +71,34 @@ The java code is rebuilt using:
 cd /workspaces/step/packages/ECIESEncryptionExample
 mvn clean package
 ```
-This generates a new jar file in the path `/app/ECIESEncryptionExample/target/ECIESEncryptionExample-1.0-SNAPSHOT.jar`. To be used.
+This generates a new jar file in the path
+`/app/ECIESEncryptionExample/target/ECIESEncryptionExample-1.0-SNAPSHOT.jar` to
+be used. We run windmill in a docker launched by docker compose. This deployment
+expects this jar file in the path `/usr/local/bin/ecies-tool.jar`.
 
+You can either:
 
-cp /app/ECIESEncryptionExample/target/ECIESEncryptionExample-1.0-SNAPSHOT.jar /usr/local/bin/ecies-tool.jar
+a. You can attach a shell to the windmill container and directly copy the jar
+inside it, which allows for a faster process, without a container rebuild:
+
+```bash
+docker compose exec windmill /bin/bash -c "cp /app/ECIESEncryptionExample/target/ECIESEncryptionExample-1.0-SNAPSHOT.jar /usr/local/bin/ecies-tool.jar"
+
+b. Alternatively, we can copy the jar file to
+`/workspaces/step/packages/windmill/external-bin/ecies-tool.jar` and then
+rebuild the `sequentech.local/cargo-packages` image, which will use it within
+the build:
+
+```bash
+cp /app/ECIESEncryptionExample/target/ECIESEncryptionExample-1.0-SNAPSHOT.jar \
+  /workspaces/step/packages/windmill/external-bin/ecies-tool.jar && \
+docker compose build harvest && \
+docker compose stop windmill && \
+docker compose up -d --no-deps windmill
+```
+
+Please ensure you update the
+`/workspaces/step/packages/windmill/external-bin/ecies-tool.jar` file with the
+latest version whenever you change the `ECIESEncryptionExample` project, since
+this is the file used during the generation of the windmill dockerfile in
+`/workspaces/step/packages/windmill/Dockerfile.prod`.

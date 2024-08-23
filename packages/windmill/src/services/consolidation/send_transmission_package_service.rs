@@ -205,7 +205,6 @@ pub async fn send_transmission_package_service(
     let zip_output_temp_dir = tempdir().with_context(|| "Error generating temp directory")?;
     unzip_file(compressed_zip.path(), zip_output_temp_dir.path())?;
 
-    let acm_key_pair = generate_ecies_key_pair()?;
     let mut new_miru_document = miru_document.clone();
     let mut new_transmission_area_election = transmission_area_election.clone();
 
@@ -222,7 +221,7 @@ pub async fn send_transmission_package_service(
                 "SHOULD BE skipping sending to server '{}' as already sent",
                 ccs_server.name
             );
-            //continue;
+            continue;
         }
         let second_zip_folder_path = zip_output_temp_dir.path().join("test-server");
         let second_zip_path = second_zip_folder_path.join(format!("er_{}.zip", area_station_id));

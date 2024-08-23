@@ -16,8 +16,8 @@ export interface IMiruServersSentTo {
 }
 
 export interface IMiruDocumentIds {
-    xz: string,
-    all_servers: string,
+    xz: string
+    all_servers: string
 }
 
 // MiruDocument interface

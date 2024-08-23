@@ -65,7 +65,9 @@ pub fn generate_ecies_key_pair() -> Result<EciesKeyPair> {
     run_shell_command(&command)?;
 
     let private_key_pem = fs::read_to_string(temp_private_pem_file_path)?;
-    let public_key_pem = fs::read_to_string(temp_private_pem_file_path)?;
+    let public_key_pem = fs::read_to_string(temp_public_pem_file_string)?;
+
+    info!("generate_ecies_key_pair(): public_key_pem: {public_key_pem:?}");
 
     Ok(EciesKeyPair {
         private_key_pem: private_key_pem,

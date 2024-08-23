@@ -10,13 +10,13 @@ use super::{
     xz_compress::xz_compress,
     zip::compress_folder_to_zip,
 };
-use base64::{engine::general_purpose, Engine as _};
 use crate::services::{
     password::generate_random_string_with_charset,
     s3::{download_s3_file_to_string, get_public_asset_file_path},
     temp_path::{generate_temp_file, write_into_named_temp_file},
 };
 use anyhow::{anyhow, Context, Result};
+use base64::{engine::general_purpose, Engine as _};
 use chrono::{DateTime, Utc};
 use sequent_core::ballot::Annotations;
 use sequent_core::services::reports;
@@ -77,8 +77,8 @@ pub async fn generate_base_compressed_xml(
         .map(|byte| format!("{:02X}", byte))
         .collect();
 
-    let compressed_xml = xz_compress(render_xml.as_bytes())
-        .with_context(|| "Error compressing the rendered XML")?;
+    let compressed_xml =
+        xz_compress(render_xml.as_bytes()).with_context(|| "Error compressing the rendered XML")?;
     Ok((compressed_xml, rendered_xml_hash))
 }
 
@@ -151,8 +151,13 @@ pub async fn create_transmission_package(
         generate_encrypted_compressed_xml(compressed_xml, ccs_public_key_pem_str).await?;
 
     let exz_temp_file_bytes = read_temp_file(exz_temp_file)?;
-    let (_exz_hash_base64, signed_exz_base64) = ecies_sign_data(acm_key_pair, &exz_temp_file_bytes)?;
+    let (_exz_hash_base64, signed_exz_base64) =
+        ecies_sign_data(acm_key_pair, &exz_temp_file_bytes)?;
 
+    info!(
+        "create_transmission_package(): acm_key_pair.public_key_pem = {:?}",
+        acm_key_pair.public_key_pem
+    );
     let acm_json = generate_acm_json(
         eml_hash,
         &encrypted_random_pass_base64,
