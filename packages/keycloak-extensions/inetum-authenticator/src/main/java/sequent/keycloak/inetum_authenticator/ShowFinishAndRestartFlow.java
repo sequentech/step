@@ -18,41 +18,34 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
-import org.keycloak.models.UserSessionModel;
+import org.keycloak.protocol.AuthorizationEndpointBase;
 import org.keycloak.provider.ProviderConfigProperty;
+import org.keycloak.services.resources.LoginActionsService;
 
 @JBossLog
 @AutoService(AuthenticatorFactory.class)
 public class ShowFinishAndRestartFlow implements Authenticator, AuthenticatorFactory {
 
-  public static final String PROVIDER_ID = "show-finish-and-restart-flow";
+  private static final String PROVIDER_ID = "show-finish-and-restart-flow";
   private static final ShowFinishAndRestartFlow SINGLETON = new ShowFinishAndRestartFlow();
 
   @Override
   public void authenticate(AuthenticationFlowContext context) {
     log.info("validate: start");
 
-    Response form = context.form().createForm("registration-finish.ftl");
+    // Force redirect to login even if initial flow was registration
+    context
+        .getAuthenticationSession()
+        .setClientNote(
+            AuthorizationEndpointBase.APP_INITIATED_FLOW, LoginActionsService.AUTHENTICATE_PATH);
+
+    Response form = context.form().createForm("message-finish.ftl");
     context.forceChallenge(form);
   }
 
   @Override
   public void action(AuthenticationFlowContext context) {
     log.info("action: start");
-
-    UserSessionModel userSession =
-        context
-            .getSession()
-            .sessions()
-            .getUserSession(
-                context.getRealm(), context.getAuthenticationSession().getParentSession().getId());
-
-    if (userSession != null) {
-      context.getSession().sessions().removeUserSession(context.getRealm(), userSession);
-    }
-
-    context.cancelLogin(); // This will stop the current authentication flow and effectively log out
-    // the user
   }
 
   @Override

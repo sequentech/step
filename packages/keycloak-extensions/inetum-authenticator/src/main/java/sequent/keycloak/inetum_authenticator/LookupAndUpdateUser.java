@@ -8,7 +8,7 @@ import static java.util.Arrays.asList;
 
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import jakarta.ws.rs.core.Response;
 import java.io.IOException;
 import java.util.Collections;
@@ -34,8 +34,10 @@ import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.models.RequiredActionProviderModel;
 import org.keycloak.models.UserCredentialModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.protocol.AuthorizationEndpointBase;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.provider.ProviderConfigProperty;
+import org.keycloak.services.resources.LoginActionsService;
 import sequent.keycloak.authenticator.MessageOTPAuthenticator;
 import sequent.keycloak.authenticator.gateway.SmsSenderProvider;
 
@@ -52,8 +54,8 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
   private static final String MESSAGE_COURIER_ATTRIBUTE = "messageCourierAttribute";
   private static final String TEL_USER_ATTRIBUTE = "telUserAttribute";
   private static final String SEND_SUCCESS_SUBJECT = "messageSuccessEmailSubject";
-  private static final String SEND_SUCCESS_SMS_I18N_KEY = "messageOtp.sendCode.sms.text";
-  private static final String SEND_SUCCESS_EMAIL_FTL = "succcess-email.ftl";
+  private static final String SEND_SUCCESS_SMS_I18N_KEY = "messageSuccessSms";
+  private static final String SEND_SUCCESS_EMAIL_FTL = "success-email.ftl";
 
   public enum MessageCourier {
     BOTH,
@@ -85,7 +87,6 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     String unsetAttributes = configMap.get(UNSET_ATTRIBUTES);
     String updateAttributes = configMap.get(UPDATE_ATTRIBUTES);
     boolean autoLogin = Boolean.parseBoolean(configMap.get(AUTO_LOGIN));
-    String confirmationCourier = configMap.get(AUTO_LOGIN);
 
     // Parse attributes lists
     List<String> searchAttributesList = parseAttributesList(searchAttributes);
@@ -190,6 +191,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
       MessageCourier messageCourier =
           MessageCourier.fromString(config.getConfig().get(MESSAGE_COURIER_ATTRIBUTE));
+      log.infov("authenticate(): messageCourier {0}", messageCourier);
 
       if (!MessageCourier.NONE.equals(messageCourier)) {
         try {
@@ -198,7 +200,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
           sendConfirmation(context, user, messageCourier, mobile);
         } catch (Exception error) {
-          log.infov("there was an error {0}", error);
+          log.errorv("there was an error {0}", error);
           context.failureChallenge(
               AuthenticationFlowError.INTERNAL_ERROR,
               context
@@ -207,6 +209,12 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
                   .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
         }
       }
+
+      // Force redirect to login even if initial flow was registration
+      context
+          .getAuthenticationSession()
+          .setClientNote(
+              AuthorizationEndpointBase.APP_INITIATED_FLOW, LoginActionsService.AUTHENTICATE_PATH);
 
       Response form = context.form().createForm("registration-finish.ftl");
       context.challenge(form);
@@ -219,6 +227,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       MessageCourier messageCourier,
       String mobileNumber)
       throws EmailException, IOException {
+    log.info("sendConfirmation(): start");
     var session = context.getSession();
     // Send a confirmation email
     EmailTemplateProvider emailTemplateProvider = session.getProvider(EmailTemplateProvider.class);
@@ -226,11 +235,17 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     // We get the username we are going to provide the user in other to login. It's going to be
     // either email or mobileNumber.
     String username = user.getEmail() != null ? user.getEmail() : mobileNumber;
+    log.infov("sendConfirmation(): username {0}", username);
+    log.infov("sendConfirmation(): messageCourier {0}", messageCourier);
 
-    if (MessageCourier.EMAIL.equals(messageCourier) || MessageCourier.BOTH.equals(messageCourier)) {
+    String email = user.getEmail();
+
+    if (email != null && email.length() > 0 && (MessageCourier.EMAIL.equals(messageCourier) || MessageCourier.BOTH.equals(messageCourier))) {
+      log.infov("sendConfirmation(): sending email", username);
       List<Object> subjAttr = ImmutableList.of(context.getRealm().getName());
-      Map<String, Object> messageAttributes =
-          ImmutableMap.of("realmName", context.getRealm().getName());
+      Map<String, Object> messageAttributes = Maps.newHashMap();
+      messageAttributes.put("realmName", context.getRealm().getName());
+      messageAttributes.put("username", username);
 
       emailTemplateProvider
           .setRealm(context.getRealm())
@@ -240,7 +255,8 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
           .send(SEND_SUCCESS_SUBJECT, subjAttr, SEND_SUCCESS_EMAIL_FTL, messageAttributes);
     }
 
-    if (MessageCourier.SMS.equals(messageCourier) || MessageCourier.BOTH.equals(messageCourier)) {
+    if (mobileNumber != null && mobileNumber.length() > 0 && MessageCourier.SMS.equals(messageCourier) || MessageCourier.BOTH.equals(messageCourier)) {
+      log.infov("sendConfirmation(): sending sms", username);
 
       SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
       log.infov("sendCode(): Sending SMS to=`{0}`", mobileNumber.trim());
