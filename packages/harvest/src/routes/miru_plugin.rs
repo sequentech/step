@@ -11,6 +11,7 @@ use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 use windmill::services::database::get_hasura_pool;
+use windmill::tasks::miru_plugin_tasks::upload_signature_task;
 use windmill::{
     services::{
         celery_app::get_celery_app,
@@ -146,6 +147,14 @@ pub async fn upload_signature(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::TALLY_WRITE],
     )?;
+
+    let Some(username) = claims.preferred_username.clone() else {
+        return Err((
+            Status::InternalServerError,
+            "missing username in claims".into(),
+        ));
+    };
+
     let celery_app = get_celery_app().await;
     let task = celery_app
         .send_task(upload_signature_task::new(
@@ -153,6 +162,7 @@ pub async fn upload_signature(
             body.election_id.clone(),
             body.area_id.clone(),
             body.tally_session_id.clone(),
+            username,
             body.private_key.clone(),
         ))
         .await

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::consolidation::create_transmission_package_service::create_transmission_package_service;
 use crate::services::consolidation::send_transmission_package_service::send_transmission_package_service;
+use crate::services::consolidation::upload_signature_service::upload_transmission_package_signature_service;
 use crate::types::error::Error;
 use crate::types::error::Result;
 use anyhow::anyhow;
@@ -93,10 +94,12 @@ pub async fn upload_signature_task(
         move || {
             tokio::runtime::Handle::current().block_on(async move {
                 upload_transmission_package_signature_service(
+                    &trustee_name,
                     &tenant_id,
                     &election_id,
                     &area_id,
                     &tally_session_id,
+                    &private_key,
                 )
                 .await
                 .map_err(|err| anyhow!("{}", err))
@@ -112,4 +115,3 @@ pub async fn upload_signature_task(
 
     Ok(())
 }
-
