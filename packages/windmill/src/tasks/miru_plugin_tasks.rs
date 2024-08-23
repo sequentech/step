@@ -76,3 +76,40 @@ pub async fn send_transmission_package_task(
 
     Ok(())
 }
+
+#[instrument(err)]
+#[wrap_map_err::wrap_map_err(TaskError)]
+#[celery::task(max_retries = 0)]
+pub async fn upload_signature_task(
+    tenant_id: String,
+    election_id: String,
+    area_id: String,
+    tally_session_id: String,
+    trustee_name: String,
+    private_key: String,
+) -> Result<()> {
+    // Spawn the task using an async block
+    let handle = tokio::task::spawn_blocking({
+        move || {
+            tokio::runtime::Handle::current().block_on(async move {
+                upload_transmission_package_signature_service(
+                    &tenant_id,
+                    &election_id,
+                    &area_id,
+                    &tally_session_id,
+                )
+                .await
+                .map_err(|err| anyhow!("{}", err))
+            })
+        }
+    });
+
+    // Await the result and handle JoinError explicitly
+    match handle.await {
+        Ok(inner_result) => inner_result.map_err(|err| Error::from(err.context("Task failed"))),
+        Err(join_error) => Err(Error::from(anyhow!("Task panicked: {}", join_error))),
+    }?;
+
+    Ok(())
+}
+
