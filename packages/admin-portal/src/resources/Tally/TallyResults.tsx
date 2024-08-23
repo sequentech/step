@@ -23,12 +23,13 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 interface TallyResultsProps {
     tally: Sequent_Backend_Tally_Session | undefined
     resultsEventId: string | null
+    loading?: boolean
     onCreateTransmissionPackage: (v: {area_id: string; election_id: string | null}) => void
 }
 
 const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> = memo(
     (props: TallyResultsProps): React.JSX.Element => {
-        const {tally, resultsEventId, onCreateTransmissionPackage} = props
+        const {tally, resultsEventId, onCreateTransmissionPackage, loading} = props
         const {globalSettings} = useContext(SettingsContext)
 
         const {t} = useTranslation()
@@ -153,6 +154,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                         <MiruExport
                             electionId={electionId}
                             onCreateTransmissionPackage={onCreateTransmissionPackage}
+                            loading={loading}
                         />
                     ) : null}
                 </Box>

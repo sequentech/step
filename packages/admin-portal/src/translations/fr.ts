@@ -954,6 +954,16 @@ const frenchTranslation: TranslationType = {
                             cancel: "Fermer",
                         },
                     },
+                    regenerate: {
+                        title: "Régénérer",
+                        dialog: {
+                            title: "Voulez-vous régénérer le paquet de transmission?",
+                            description:
+                                "Veuillez confirmer que vous souhaitez régénérer le paquet de transmission pour la zone `{{name}}`",
+                            confirm: "Régénérer le paquet de transmission",
+                            cancel: "Fermer",
+                        },
+                    },
                     download: {
                         title: "Télécharger",
                         itemTitle: "Télécharger le Paquet de Transmission",
@@ -1212,6 +1222,12 @@ const frenchTranslation: TranslationType = {
                 census: "Recensement",
             },
             common: {
+                tallyCeremony: {
+                    manage: "Gérer la Cérémonie de Décompte",
+                    view: "Voir la Cérémonie de Décompte",
+                    cancel: "Annuler la Cérémonie de Décompte",
+                    addKey: "Ajouter une Clé de Décompte",
+                },
                 edit: "Éditer",
                 confirm: "Confirmer",
                 back: "Arrière",

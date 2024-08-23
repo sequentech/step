@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useMemo, useState} from "react"
-import {Box, Menu, MenuItem} from "@mui/material"
+import {Box, CircularProgress, Menu, MenuItem} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import styled from "@emotion/styled"
 import {theme} from "@sequentech/ui-essentials"
@@ -35,13 +35,13 @@ export const ExportButton = styled.div`
 
 interface MiruExportProps {
     electionId: string | null
-    // onSuccess?: () => void
+    loading?: boolean
     onCreateTransmissionPackage: (v: {area_id: string; election_id: string | null}) => void
 }
 
 export const MiruExport: React.FC<MiruExportProps> = ({
     electionId,
-    // onSuccess,
+    loading,
     onCreateTransmissionPackage,
 }) => {
     const {t} = useTranslation()
@@ -83,7 +83,10 @@ export const MiruExport: React.FC<MiruExportProps> = ({
                 aria-haspopup="true"
                 onClick={handleMenu}
             >
-                <span title={t("common.label.actions")}>{t("common.label.actions")}</span>
+                {loading && <CircularProgress size={14} />}
+                <span title={t("common.label.actions")} style={{marginLeft: 5}}>
+                    {t("common.label.actions")}
+                </span>
             </ExportButton>
 
             <Menu

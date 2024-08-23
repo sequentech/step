@@ -949,6 +949,16 @@ const spanishTranslation: TranslationType = {
                             cancel: "Cerrar",
                         },
                     },
+                    regenerate: {
+                        title: "Regenerar",
+                        dialog: {
+                            title: "¿Desea regenerar el paquete de transmisión?",
+                            description:
+                                "Por favor confirme que desea regenerar el paquete de transmisión para el área `{{name}}`",
+                            confirm: "Regenerar paquete de transmisión",
+                            cancel: "Cerrar",
+                        },
+                    },
                     download: {
                         title: "Descargar",
                         itemTitle: "Descargar el Paquete de Transmisión",
@@ -1207,6 +1217,12 @@ const spanishTranslation: TranslationType = {
                 census: "Censo",
             },
             common: {
+                tallyCeremony: {
+                    manage: "Gestionar la Ceremonia de Cómputo",
+                    view: "Ver la Ceremonia de Cómputo",
+                    cancel: "Cancelar la Ceremonia de Cómputo",
+                    addKey: "Agregar Clave de Cómputo",
+                },
                 edit: "Editar",
                 confirm: "Confirmar",
                 back: "Atras",
