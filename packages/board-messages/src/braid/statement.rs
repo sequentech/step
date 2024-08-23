@@ -266,6 +266,10 @@ impl Statement {
         self.get_data().2
     }
 
+    pub fn get_mix_number(&self) -> MixNumber {
+        self.get_data().3
+    }
+
     pub fn get_timestamp(&self) -> Timestamp {
         self.get_data().4
     }

@@ -19,34 +19,17 @@ use crate::grpc::pgsql::PgsqlDbConnectionParams;
 use crate::grpc::pgsql::ZPgsqlB3Client;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 
-use std::sync::{Arc, Mutex};
-
-use std::collections::HashMap;
-struct Stat {
-    size: usize,
-    max: usize,
-}
-impl Stat {
-    fn new(size: usize, max: usize) -> Self {
-        Stat { size, max }
-    }
-}
-
 pub struct PgsqlB3Server {
     // params: PgsqlDbConnectionParams,
     pool: Pool<PostgresConnectionManager<NoTls>>,
-    stats: Arc<Mutex<HashMap<String, Stat>>>,
 }
 impl PgsqlB3Server {
     pub async fn new(connection: PgsqlDbConnectionParams) -> Result<PgsqlB3Server> {
         let config = Config::from_str(&connection.connection_string())?;
         let manager = PostgresConnectionManager::new(config, NoTls);
         let pool = Pool::builder().build(manager).await?;
-        let stats = HashMap::new();
-        Ok(PgsqlB3Server {
-            pool,
-            stats: Arc::new(Mutex::new(stats)),
-        })
+
+        Ok(PgsqlB3Server { pool })
     }
 }
 
@@ -131,19 +114,6 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
             .collect::<Result<Vec<B3MessageRow>>>()
             .map_err(|e| Status::internal(format!("Failed to parse grpc messages: {e}")))?;
 
-        {
-            let mut lock = self.stats.try_lock();
-            if let Ok(mut lock) = lock {
-                let val = lock.get(&r.board);
-                let stat = if let Some(val) = val {
-                    Stat::new(val.size + messages.len(), 0)
-                } else {
-                    Stat::new(0, 0)
-                };
-                lock.insert(r.board.clone(), stat);
-            }
-        }
-
         let reply = c.insert_messages(&r.board, &messages).await;
         let Ok(_) = reply else {
             error!("Failed to insert messages in database: {:?}", reply.err());
@@ -202,12 +172,17 @@ impl TryFrom<&GrpcB3Message> for B3MessageRow {
         let message = Message::strand_deserialize(&message.message)?;
         let created = crate::timestamp();
 
+        let batch: i32 = message.statement.get_batch_number().try_into()?;
+        let mix_number: i32 = message.statement.get_mix_number().try_into()?;
+
         Ok(B3MessageRow {
             id: 0,
             created,
             statement_timestamp: message.statement.get_timestamp(),
             statement_kind: message.statement.get_kind().to_string(),
             message: message.strand_serialize()?,
+            batch,
+            mix_number,
             sender_pk: message.sender.pk.to_der_b64_string()?,
             version: crate::get_schema_version(),
         })

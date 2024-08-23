@@ -1,20 +1,20 @@
 use anyhow::{anyhow, Result};
-use bb8_postgres::bb8::Pool;
 use bb8_postgres::bb8::PooledConnection;
 use bb8_postgres::PostgresConnectionManager;
 use std::borrow::BorrowMut;
 use std::ops::Deref;
 use std::ops::DerefMut;
-use std::str::FromStr;
 use std::time::SystemTime;
 use tokio_postgres::Client;
-use tokio_postgres::{config::Config, NoTls, Row};
+use tokio_postgres::{NoTls, Row};
 use tracing::error;
 use tracing::instrument;
 
+use crate::braid::artifact::Configuration;
 use crate::braid::message::Message;
 use crate::braid::newtypes::Timestamp;
 use crate::braid::statement::StatementType;
+use strand::context::Ctx;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 
 const INDEX_TABLE: &'static str = "INDEX";
@@ -81,6 +81,15 @@ impl PgsqlDbConnectionParams {
 ///////////////////////////////////////////////////////////////////////////
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/*
+The authoritative source of all message data is
+in the serialized bytes in the message row.
+All other rows are extracted from these bytes
+for the purposes of validation at the database level
+and convenient inspection. Note that validation of messages
+does not depend on the bulletin board, and is performed
+additionally by each trustee.
+*/
 pub struct B3MessageRow {
     pub id: i64,
     pub created: Timestamp,
@@ -88,6 +97,11 @@ pub struct B3MessageRow {
     pub sender_pk: String,
     pub statement_timestamp: Timestamp,
     pub statement_kind: String,
+    pub batch: i32,
+    // When signing mixes, specifies which mix in the chain is being signed.
+    // This allows creating a unique index for which otherwise there would be duplicate
+    // mix signature messages
+    pub mix_number: i32,
     pub message: Vec<u8>,
     pub version: String,
 }
@@ -103,7 +117,8 @@ impl TryFrom<&Row> for B3MessageRow {
         let statement_kind = row.get("statement_kind");
         let message = row.get("message");
         let version = row.get("version");
-
+        let batch = row.get("batch");
+        let mix_number = row.get("mix_number");
         let created = crate::timestamp_from_system_time(&created);
         let statement_timestamp = crate::timestamp_from_system_time(&statement_timestamp);
 
@@ -113,6 +128,8 @@ impl TryFrom<&Row> for B3MessageRow {
             sender_pk,
             statement_timestamp,
             statement_kind,
+            batch,
+            mix_number,
             message,
             version,
         })
@@ -123,12 +140,17 @@ impl TryFrom<Message> for B3MessageRow {
     type Error = anyhow::Error;
 
     fn try_from(message: Message) -> Result<B3MessageRow> {
+        let batch: i32 = message.statement.get_batch_number().try_into()?;
+        let mix_number: i32 = message.statement.get_mix_number().try_into()?;
+
         Ok(B3MessageRow {
             id: 0,
             created: crate::timestamp(),
             statement_timestamp: message.statement.get_timestamp(),
             statement_kind: message.statement.get_kind().to_string(),
             message: message.strand_serialize()?,
+            batch,
+            mix_number,
             sender_pk: message.sender.pk.to_der_b64_string()?,
             version: crate::get_schema_version(),
         })
@@ -146,6 +168,7 @@ pub struct B3IndexRow {
     pub last_message_kind: String,
     pub last_updated: Timestamp,
     pub message_count: i32,
+    pub batch_count: i32,
 }
 
 impl TryFrom<&Row> for B3IndexRow {
@@ -163,6 +186,7 @@ impl TryFrom<&Row> for B3IndexRow {
             .try_get("last_updated")
             .unwrap_or(SystemTime::UNIX_EPOCH);
         let message_count = row.try_get("message_count").unwrap_or(0);
+        let batch_count = row.try_get("batch_count").unwrap_or(0);
 
         let last_updated = crate::timestamp_from_system_time(&last_updated);
 
@@ -176,6 +200,7 @@ impl TryFrom<&Row> for B3IndexRow {
             last_message_kind,
             last_updated,
             message_count,
+            batch_count,
         })
     }
 }
@@ -276,6 +301,8 @@ pub(crate) mod tests {
             sender_pk: "".to_string(),
             statement_timestamp: crate::timestamp(),
             statement_kind: "".to_string(),
+            batch: 0,
+            mix_number: 0,
             message: vec![],
             version: "".to_string(),
         };
@@ -453,7 +480,9 @@ async fn create_index_ine(client: &mut Client) -> Result<()> {
             trustees_no INT,
             last_message_kind VARCHAR,
             last_updated TIMESTAMP,
-            message_count INT
+            message_count INT,
+            batch_count INT DEFAULT 0,
+            UNIQUE(board_name)
         );
         "#,
                 INDEX_TABLE
@@ -491,8 +520,11 @@ async fn create_board_ine(client: &mut Client, board: &str) -> Result<()> {
             sender_pk VARCHAR,
             statement_timestamp TIMESTAMP,
             statement_kind VARCHAR,
+            batch INT,
+            mix_number INT,
             message BYTEA,
-            version VARCHAR
+            version VARCHAR,
+            UNIQUE (sender_pk, statement_kind, batch, mix_number)
         );
         "#,
                 board
@@ -588,6 +620,8 @@ async fn get_with_kind(
         sender_pk,
         statement_timestamp,
         statement_kind,
+        batch,
+        mix_number,
         message,
         version
     FROM {}
@@ -615,6 +649,8 @@ async fn get_with_kind_only(client: &Client, board: &str, kind: &str) -> Result<
         sender_pk,
         statement_timestamp,
         statement_kind,
+        batch,
+        mix_number,
         message,
         version
     FROM {}
@@ -646,7 +682,8 @@ async fn get_boards(client: &Client) -> Result<Vec<B3IndexRow>> {
         trustees_no,
         last_message_kind,
         last_updated,
-        message_count
+        message_count,
+        batch_count
     FROM {}
     WHERE is_archived = {}
     ORDER BY board_name
@@ -675,7 +712,8 @@ async fn get_board(client: &Client, board_name: &str) -> Result<Option<B3IndexRo
             trustees_no,
             last_message_kind,
             last_updated,
-            message_count
+            message_count,
+            batch_count
         FROM {}
         WHERE board_name = $1;
     "#,
@@ -694,9 +732,6 @@ async fn get_board(client: &Client, board_name: &str) -> Result<Option<B3IndexRo
         Ok(None)
     }
 }
-
-use crate::braid::artifact::Configuration;
-use strand::{context::Ctx, elgamal::Ciphertext};
 
 async fn update_index<C: Ctx>(
     client: &mut Client,
@@ -751,12 +786,18 @@ async fn insert_configuration<C: Ctx>(
 
     let created = crate::timestamp();
 
+    // cfg batch and mix_number is always zero
+    let batch: i32 = 0;
+    let mix_number: i32 = 0;
+
     let rows = vec![B3MessageRow {
         id: 0,
         created,
         statement_timestamp: configuration.statement.get_timestamp(),
         statement_kind: configuration.statement.get_kind().to_string(),
         message: configuration.strand_serialize()?,
+        batch,
+        mix_number,
         sender_pk: configuration.sender.pk.to_der_b64_string()?,
         version: crate::get_schema_version(),
     }];
@@ -832,6 +873,8 @@ async fn get(
         sender_pk,
         statement_timestamp,
         statement_kind,
+        batch,
+        mix_number,
         message,
         version
     FROM {}
@@ -857,8 +900,13 @@ async fn get(
 async fn insert(client: &mut Client, board_name: &str, messages: &Vec<B3MessageRow>) -> Result<()> {
     // Start a new transaction
     let transaction = client.transaction().await?;
+    let mut batches: i32 = 0;
 
     for message in messages {
+        if message.statement_kind == StatementType::Ballots.to_string() {
+            batches = batches + 1;
+        }
+
         let message_sql = format!(
             r#"
             INSERT INTO {} (
@@ -866,6 +914,8 @@ async fn insert(client: &mut Client, board_name: &str, messages: &Vec<B3MessageR
                 sender_pk,
                 statement_timestamp,
                 statement_kind,
+                batch,
+                mix_number,
                 message,
                 version
             ) VALUES (
@@ -874,7 +924,9 @@ async fn insert(client: &mut Client, board_name: &str, messages: &Vec<B3MessageR
                 $3,
                 $4,
                 $5,
-                $6
+                $6,
+                $7,
+                $8
             );
         "#,
             board_name
@@ -895,6 +947,8 @@ async fn insert(client: &mut Client, board_name: &str, messages: &Vec<B3MessageR
                     &message.sender_pk,
                     &statement_timestamp,
                     &message.statement_kind,
+                    &message.batch,
+                    &message.mix_number,
                     &message.message,
                     &message.version,
                 ],
@@ -904,8 +958,8 @@ async fn insert(client: &mut Client, board_name: &str, messages: &Vec<B3MessageR
 
     transaction.commit().await?;
 
+    // We do not care if any of these operations fail, they are statistics
     if let Some(last) = messages.last() {
-        // We do not care if any of these operations fail, they are statistics
         let Ok(transaction) = client.transaction().await else {
             return Ok(());
         };
@@ -916,14 +970,15 @@ async fn insert(client: &mut Client, board_name: &str, messages: &Vec<B3MessageR
            SET
            last_message_kind = $1,
            message_count = (SELECT COUNT(*) FROM {}),
+           batch_count = batch_count + $2,
            last_updated = localtimestamp
-           WHERE board_name = $2
+           WHERE board_name = $3
         "#,
             INDEX_TABLE, board_name,
         );
 
         let Ok(_) = transaction
-            .execute(&message_sql, &[&last.statement_kind, &board_name])
+            .execute(&message_sql, &[&last.statement_kind, &batches, &board_name])
             .await
         else {
             return Ok(());
