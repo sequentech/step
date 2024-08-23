@@ -50,7 +50,10 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
   public static final String UPDATE_ATTRIBUTES = "update-attributes";
   public static final String AUTO_LOGIN = "auto-login";
   private static final String MESSAGE_COURIER_ATTRIBUTE = "messageCourierAttribute";
-  private static final String TEL_USER_ATTRIBUTE = null;
+  private static final String TEL_USER_ATTRIBUTE = "telUserAttribute";
+  private static final String SEND_SUCCESS_SUBJECT = "messageSuccessEmailSubject";
+  private static final String SEND_SUCCESS_SMS_I18N_KEY = "messageOtp.sendCode.sms.text";
+  private static final String SEND_SUCCESS_EMAIL_FTL = "succcess-email.ftl";
 
   public enum MessageCourier {
     BOTH,
@@ -220,6 +223,9 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     // Send a confirmation email
     EmailTemplateProvider emailTemplateProvider = session.getProvider(EmailTemplateProvider.class);
 
+    // We get the username we are going to provide the user in other to login. It's going to be either email or mobileNumber.
+    String username = user.getEmail() != null ? user.getEmail() : mobileNumber;
+
     if (MessageCourier.EMAIL.equals(messageCourier) || MessageCourier.BOTH.equals(messageCourier)) {
       List<Object> subjAttr = ImmutableList.of(context.getRealm().getName());
       Map<String, Object> messageAttributes =
@@ -229,10 +235,11 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
           .setRealm(context.getRealm())
           .setUser(user)
           .setAttribute("realmName", context.getRealm().getName())
+          .setAttribute("username", username)
           .send(
-              "Utils.SEND_CODE_EMAIL_SUBJECT",
+              SEND_SUCCESS_SUBJECT,
               subjAttr,
-              "Utils.SEND_CODE_EMAIL_FTL",
+              SEND_SUCCESS_EMAIL_FTL,
               messageAttributes);
     }
 
@@ -241,10 +248,10 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
       log.infov("sendCode(): Sending SMS to=`{0}`", mobileNumber.trim());
       log.infov("sendCode(): Sending SMS to=`{0}`", mobileNumber.trim());
-      List<String> smsAttributes = ImmutableList.of(context.getRealm().getName());
+      List<String> smsAttributes = ImmutableList.of(context.getRealm().getName(), username);
 
       smsSenderProvider.send(
-          mobileNumber.trim(), "", smsAttributes, context.getRealm(), user, session);
+          mobileNumber.trim(), SEND_SUCCESS_SMS_I18N_KEY, smsAttributes, context.getRealm(), user, session);
     }
   }
 
