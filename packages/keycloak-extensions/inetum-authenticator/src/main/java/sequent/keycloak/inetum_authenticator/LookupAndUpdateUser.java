@@ -240,7 +240,10 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
     String email = user.getEmail();
 
-    if (email != null && email.length() > 0 && (MessageCourier.EMAIL.equals(messageCourier) || MessageCourier.BOTH.equals(messageCourier))) {
+    if (email != null
+        && email.length() > 0
+        && (MessageCourier.EMAIL.equals(messageCourier)
+            || MessageCourier.BOTH.equals(messageCourier))) {
       log.infov("sendConfirmation(): sending email", username);
       List<Object> subjAttr = ImmutableList.of(context.getRealm().getName());
       Map<String, Object> messageAttributes = Maps.newHashMap();
@@ -255,7 +258,10 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
           .send(SEND_SUCCESS_SUBJECT, subjAttr, SEND_SUCCESS_EMAIL_FTL, messageAttributes);
     }
 
-    if (mobileNumber != null && mobileNumber.length() > 0 && MessageCourier.SMS.equals(messageCourier) || MessageCourier.BOTH.equals(messageCourier)) {
+    if (mobileNumber != null
+            && mobileNumber.length() > 0
+            && MessageCourier.SMS.equals(messageCourier)
+        || MessageCourier.BOTH.equals(messageCourier)) {
       log.infov("sendConfirmation(): sending sms", username);
 
       SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
