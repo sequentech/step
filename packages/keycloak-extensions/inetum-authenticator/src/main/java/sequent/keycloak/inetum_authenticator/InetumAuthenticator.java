@@ -307,21 +307,8 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       JsonNode attributesToCheck = null;
 
       if (attributesToValidate != null) {
-        // Example config:
-        // {
-        //     "philsysID": [
-        //         {
-        //             "authnoteAttributeId": "sequent.read-only.id-card-number",
-        //             "inetumAttributePath": "ocr/personal_number"
-        //         }
-        //     ],
-        //     "passport": [
-        //         {
-        //             "authnoteAttributeId": "firstName",
-        //             "inetumAttributePath": "mzr/given_names"
-        //         }
-        //     ]
-        // }
+        log.infov("verifyResults: attributesToValidate {0}", attributesToValidate);
+        log.infov("verifyResults: docIdType {0}", docIdType);
 
         // Read the attributes to check from the configuration depending on the ID Type
         attributesToCheck = new ObjectMapper().readTree(attributesToValidate).get(docIdType);
@@ -493,7 +480,28 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
                 + "', where the first value is the user profile attribute and the second the inetum data field. For example firstName"
                 + "given_names",
             ProviderConfigProperty.TEXT_TYPE,
-            "{}"),
+            """
+            {
+                "PhilSys ID": [
+                    {
+                        "authnoteAttributeId": "sequent.read-only.id-card-number",
+                        "inetumAttributePath": "mzr/personal_number"
+                    }
+                ],
+                "Philippine Passport": [
+                    {
+                        "authnoteAttributeId": "sequent.read-only.id-card-number",
+                        "inetumAttributePath": "mzr/personal_number"
+                    }
+                ],
+                "Philippine Passport": [
+                    {
+                        "authnoteAttributeId": "sequent.read-only.id-card-number",
+                        "inetumAttributePath": "mzr/personal_number"
+                    }
+                ]
+            }
+                """),
         new ProviderConfigProperty(
             Utils.SDK_ATTRIBUTE,
             "Configuration for the SDK",
