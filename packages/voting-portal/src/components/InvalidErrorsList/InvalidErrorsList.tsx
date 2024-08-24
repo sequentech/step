@@ -38,7 +38,8 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     isReview,
 }) => {
     const {t} = useTranslation()
-    const [isTouched, setIsTouched] = useState(false)
+    // Note that if we have reviewed, then we can asume we have touched
+    const [isTouched, setIsTouched] = useState(isReview)
     const [decodedContestSelection, setDecodedContestSelection] = useState<
         IDecodedVoteContest | undefined
     >(undefined)

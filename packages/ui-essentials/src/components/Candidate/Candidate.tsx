@@ -12,7 +12,12 @@ import emotionStyled from "@emotion/styled"
 import {useTranslation} from "react-i18next"
 import {isString} from "@sequentech/ui-core"
 
-const BorderBox = styled(Box)<{isactive: string; hascategory: string; isinvalidvote: string}>`
+const BorderBox = styled(Box)<{
+    isactive: string
+    hascategory: string
+    isinvalidvote: string
+    isdisabled: string
+}>`
     border: 2px solid
         ${({hascategory, isactive, theme}) =>
             isactive === "true" && hascategory === "true"
@@ -31,6 +36,7 @@ const BorderBox = styled(Box)<{isactive: string; hascategory: string; isinvalidv
     gap: 10px;
     align-items: center;
     flex-grow: 2;
+    ${({isdisabled}) => (isdisabled === "true" ? `opacity: 50%;` : "")}
     ${({isactive, hascategory, theme}) =>
         isactive === "true"
             ? hascategory === "true"
@@ -138,6 +144,7 @@ const Candidate: React.FC<CandidateProps> = ({
             isactive={String(!!isActive)}
             hascategory={String(!!hasCategory)}
             isinvalidvote={String(!!isInvalidVote)}
+            isdisabled={String(!!shouldDisable)}
             onClick={onClick}
             className="candidate-item"
         >
