@@ -230,7 +230,9 @@ fn draw_cell(p: &Printer, origin: &Vec2, size: &Vec2, data: &B3IndexRow, draw_te
             p.with_color(color, |printer| {
                 printer.print_rect(Rect::from_size(bar_origin, bar_size), " ");
             });
-            draw_kind = true;
+            if dkg != 1.0 {
+                draw_kind = true
+            };
         }
     } else {
         // Mix
@@ -247,7 +249,9 @@ fn draw_cell(p: &Printer, origin: &Vec2, size: &Vec2, data: &B3IndexRow, draw_te
             p.with_color(color, |printer| {
                 printer.print_rect(Rect::from_size(bar_origin, bar_size), " ");
             });
-            draw_kind = true;
+            if mix != 1.0 {
+                draw_kind = true
+            };
         }
     }
 
@@ -261,6 +265,10 @@ fn draw_cell(p: &Printer, origin: &Vec2, size: &Vec2, data: &B3IndexRow, draw_te
             } else {
                 f_black
             };
+
+            if kind_origin_y == origin.y {
+                kind_origin_y = kind_origin_y + 1;
+            }
 
             let title = format!("{}", &data.last_message_kind);
             let max_chars = title.len().min(size.x - 2);

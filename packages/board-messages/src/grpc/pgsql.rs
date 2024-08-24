@@ -964,6 +964,8 @@ async fn insert(client: &mut Client, board_name: &str, messages: &Vec<B3MessageR
             return Ok(());
         };
 
+        let kind_info = format!("{} {}", last.statement_kind, last.sender_pk);
+
         let message_sql = format!(
             r#"
            UPDATE {}
@@ -978,7 +980,7 @@ async fn insert(client: &mut Client, board_name: &str, messages: &Vec<B3MessageR
         );
 
         let Ok(_) = transaction
-            .execute(&message_sql, &[&last.statement_kind, &batches, &board_name])
+            .execute(&message_sql, &[&kind_info, &batches, &board_name])
             .await
         else {
             return Ok(());

@@ -6,6 +6,7 @@ service B3 {
   rpc GetMessages (GetMessagesRequest) returns (GetMessagesReply);
   rpc PutMessages (PutMessagesRequest) returns (PutMessagesReply);
   rpc GetBoards (GetBoardsRequest) returns (GetBoardsReply);
+  rpc GetMessagesMulti(GetMessagesMultiRequest) returns (GetMessagesMultiReply);
 }
 
 message GetBoardsRequest {
@@ -36,4 +37,17 @@ message GrpcB3Message {
   // braid::message as returned from strand_serialize
   bytes message = 2;
   string version = 3;
+}
+
+message GetMessagesMultiRequest {
+  repeated GetMessagesRequest requests = 1;
+}
+
+message GetMessagesMultiReply {
+  repeated KeyedMessages messages = 1;
+}
+
+message KeyedMessages {
+  string board = 1;
+  repeated GrpcB3Message messages = 2;
 }

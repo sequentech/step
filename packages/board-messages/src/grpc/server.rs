@@ -8,7 +8,8 @@ use tonic::{Request, Response, Status};
 use tracing::{error, info};
 
 use crate::grpc::{
-    GetBoardsReply, GetBoardsRequest, GetMessagesReply, GetMessagesRequest, GrpcB3Message,
+    GetBoardsReply, GetBoardsRequest, GetMessagesMultiReply, GetMessagesMultiRequest,
+    GetMessagesReply, GetMessagesRequest, GrpcB3Message, KeyedMessages,
 };
 use crate::grpc::{PutMessagesReply, PutMessagesRequest};
 
@@ -20,7 +21,6 @@ use crate::grpc::pgsql::ZPgsqlB3Client;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 
 pub struct PgsqlB3Server {
-    // params: PgsqlDbConnectionParams,
     pool: Pool<PostgresConnectionManager<NoTls>>,
 }
 impl PgsqlB3Server {
@@ -153,6 +153,17 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
         let boards = boards.into_iter().map(|b| b.board_name).collect();
 
         let reply = GetBoardsReply { boards };
+        Ok(Response::new(reply))
+    }
+
+    async fn get_messages_multi(
+        &self,
+        request: Request<GetMessagesMultiRequest>,
+    ) -> Result<Response<GetMessagesMultiReply>, Status> {
+        let _r: &GetMessagesMultiRequest = request.get_ref();
+
+        let keyed: Vec<KeyedMessages> = vec![];
+        let reply = GetMessagesMultiReply { messages: keyed };
         Ok(Response::new(reply))
     }
 }
