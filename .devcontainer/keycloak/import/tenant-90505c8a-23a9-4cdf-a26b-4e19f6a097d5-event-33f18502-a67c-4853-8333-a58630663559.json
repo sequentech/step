@@ -2444,7 +2444,8 @@
     "config" : {
       "update-attributes" : "sequent.read-only.id-card-number-validated,email,sequent.read-only.mobile-number,embassy,country,emailAndOrMobile",
       "auto-login" : "false",
-      "search-attributes" : "sequent.read-only.id-card-number,sequent.read-only.id-card-type"
+      "search-attributes" : "sequent.read-only.id-card-number,sequent.read-only.id-card-type",
+      "auto-2fa" : "true"
     }
   }, {
     "id" : "e2acb078-380e-4631-8a33-4d0aa811c69b",
