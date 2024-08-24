@@ -39,6 +39,7 @@ import org.keycloak.policy.PolicyError;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.services.messages.Messages;
 import org.keycloak.services.validation.Validation;
+import org.keycloak.userprofile.AttributeMetadata;
 import org.keycloak.userprofile.Attributes;
 import org.keycloak.userprofile.UserProfile;
 import org.keycloak.userprofile.UserProfileContext;
@@ -116,6 +117,78 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
     context.getEvent().detail(Details.REGISTER_METHOD, "form");
 
+    UserProfile profile = getOrCreateUserProfile(context, formData);
+    Attributes attributes = profile.getAttributes();
+    String email = attributes.getFirst(UserModel.EMAIL);
+    String username = attributes.getFirst(UserModel.USERNAME);
+    String firstName = attributes.getFirst(UserModel.FIRST_NAME);
+    String lastName = attributes.getFirst(UserModel.LAST_NAME);
+    context.getEvent().detail(Details.EMAIL, email);
+
+    context.getEvent().detail(Details.USERNAME, username);
+    context.getEvent().detail(Details.FIRST_NAME, firstName);
+    context.getEvent().detail(Details.LAST_NAME, lastName);
+
+    if (context.getRealm().isRegistrationEmailAsUsername()) {
+      context.getEvent().detail(Details.USERNAME, email);
+    }
+
+    try {
+      profile.validate();
+      // If email validation exception was not raised and an email was
+      // provided, validation should have thrown an Messages.EMAIL_EXISTS
+      // exception, so show invalid email error here
+      if (email != null && !email.isBlank()) {
+        log.info("validate: validation exception was not raised and an email was provided");
+        context.error(Errors.INVALID_EMAIL);
+        List<FormMessage> errors = new ArrayList<>();
+        errors.add(new FormMessage(RegistrationPage.FIELD_EMAIL, Messages.INVALID_EMAIL));
+        context.validationError(formData, errors);
+        return;
+      }
+    } catch (ValidationException pve) {
+      log.info("validate: ValidationException pve = " + pve.toString());
+
+      // Filter email exists and username exists - this is to be expected
+      // If username is hidden ignore the missing username validation error.
+      List<ValidationException.Error> filteredErrors =
+          pve.getErrors().stream()
+              .filter(
+                  error ->
+                      ((!context.getRealm().isRegistrationEmailAsUsername()
+                              || !Messages.USERNAME_EXISTS.equals(error.getMessage()))
+                          && !Messages.EMAIL_EXISTS.equals(error.getMessage())
+                          // If username is hidden ignore the missing username validation error.
+                          && !(Messages.MISSING_USERNAME.equals(error.getMessage())
+                              && "true"
+                                  .equals(
+                                      getAnnotationValueFromProfile(
+                                          profile, UserModel.USERNAME, "hidden")))))
+              .collect(Collectors.toList());
+      List<FormMessage> errors = Validation.getFormErrorsFromValidation(filteredErrors);
+
+      if (pve.hasError(Messages.INVALID_EMAIL)) {
+        context.getEvent().detail(Details.EMAIL, attributes.getFirst(UserModel.EMAIL));
+      }
+
+      // if error is empty but we are here, then the exception was related
+      // to error to be ignored (username/email exists), so we ignore them
+      // and continue
+      if (errors.isEmpty()) {
+
+        // if errors is not empty, show them
+      } else {
+        if (!pve.hasError(Messages.EMAIL_EXISTS)) {
+          context.error(Errors.INVALID_EMAIL);
+        } else {
+          context.error(Errors.INVALID_REGISTRATION);
+        }
+        log.info(errors);
+        context.validationError(formData, errors);
+        return;
+      }
+    }
+
     // Lookup user by attributes using form data
     UserModel user = Utils.lookupUserByFormData(context, searchAttributesList, formData);
 
@@ -173,81 +246,6 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       List<FormMessage> errors = new ArrayList<>();
       errors.add(new FormMessage(null, Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET, sessionId));
       context.validationError(formData, errors);
-    }
-
-    UserProfile profile = getOrCreateUserProfile(context, formData);
-    Attributes attributes = profile.getAttributes();
-    String email = attributes.getFirst(UserModel.EMAIL);
-    String username = attributes.getFirst(UserModel.USERNAME);
-    String firstName = attributes.getFirst(UserModel.FIRST_NAME);
-    String lastName = attributes.getFirst(UserModel.LAST_NAME);
-    context.getEvent().detail(Details.EMAIL, email);
-
-    context.getEvent().detail(Details.USERNAME, username);
-    context.getEvent().detail(Details.FIRST_NAME, firstName);
-    context.getEvent().detail(Details.LAST_NAME, lastName);
-
-    if (context.getRealm().isRegistrationEmailAsUsername()) {
-      context.getEvent().detail(Details.USERNAME, email);
-    }
-
-    try {
-      profile.validate();
-      // If email validation exception was not raised and an email was
-      // provided, validation should have thrown an Messages.EMAIL_EXISTS
-      // exception, so show invalid email error here
-      if (email != null && !email.isBlank()) {
-        log.info("validate: validation exception was not raised and an email was provided");
-        context.error(Errors.INVALID_EMAIL);
-        List<FormMessage> errors = new ArrayList<>();
-        errors.add(new FormMessage(RegistrationPage.FIELD_EMAIL, Messages.INVALID_EMAIL));
-        context.validationError(formData, errors);
-        return;
-      }
-    } catch (ValidationException pve) {
-      log.info("validate: ValidationException pve = " + pve.toString());
-
-      // Filter email exists and username exists - this is to be expected
-      // If username is hidden ignore the missing username validation error.
-      List<ValidationException.Error> filteredErrors =
-          pve.getErrors().stream()
-              .filter(
-                  error ->
-                      ((!context.getRealm().isRegistrationEmailAsUsername()
-                              || !Messages.USERNAME_EXISTS.equals(error.getMessage()))
-                          && !Messages.EMAIL_EXISTS.equals(error.getMessage())
-                          // If username is hidden ignore the missing username validation error.
-                          && !(Messages.MISSING_USERNAME.equals(error.getMessage())
-                              && "true"
-                                  .equals(
-                                      profile
-                                          .getAttributes()
-                                          .getMetadata(UserModel.USERNAME)
-                                          .getAnnotations()
-                                          .get("hidden")))))
-              .collect(Collectors.toList());
-      List<FormMessage> errors = Validation.getFormErrorsFromValidation(filteredErrors);
-
-      if (pve.hasError(Messages.INVALID_EMAIL)) {
-        context.getEvent().detail(Details.EMAIL, attributes.getFirst(UserModel.EMAIL));
-      }
-
-      // if error is empty but we are here, then the exception was related
-      // to error to be ignored (username/email exists), so we ignore them
-      // and continue
-      if (errors.isEmpty()) {
-
-        // if errors is not empty, show them
-      } else {
-        if (!pve.hasError(Messages.EMAIL_EXISTS)) {
-          context.error(Errors.INVALID_EMAIL);
-        } else {
-          context.error(Errors.INVALID_REGISTRATION);
-        }
-        log.info(errors);
-        context.validationError(formData, errors);
-        return;
-      }
     }
 
     List<FormMessage> errors = new ArrayList<>();
@@ -310,6 +308,39 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     }
     log.info("validate: success");
     context.success();
+  }
+
+  private String getAnnotationValueFromProfile(
+      UserProfile profile, String attribute, String annotation) {
+    if (profile == null || attribute == null || annotation == null) {
+      return null;
+    }
+
+    Attributes attributes = profile.getAttributes();
+
+    if (attributes == null) {
+      return null;
+    }
+
+    AttributeMetadata metadata = attributes.getMetadata(attribute);
+
+    if (metadata == null) {
+      return null;
+    }
+
+    Map<String, Object> annotations = metadata.getAnnotations();
+
+    if (annotations == null) {
+      return null;
+    }
+
+    Object value = annotations.get(annotation);
+
+    if (value instanceof String) {
+      return (String) value;
+    }
+
+    return null;
   }
 
   private boolean checkUniqueAttributes(
