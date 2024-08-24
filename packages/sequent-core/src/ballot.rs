@@ -683,13 +683,13 @@ pub enum EBlankVotePolicy {
 pub enum EOverVotePolicy {
     #[strum(serialize = "allowed")]
     #[serde(rename = "allowed")]
-    #[default]
     ALLOWED,
     #[strum(serialize = "allowed-with-msg")]
     #[serde(rename = "allowed-with-msg")]
     ALLOWED_WITH_MSG,
     #[strum(serialize = "allowed-with-msg-and-alert")]
     #[serde(rename = "allowed-with-msg-and-alert")]
+    #[default]
     ALLOWED_WITH_MSG_AND_ALERT,
     #[strum(serialize = "not-allowed-with-msg-and-alert")]
     #[serde(rename = "not-allowed-with-msg-and-alert")]

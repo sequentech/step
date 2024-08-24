@@ -539,12 +539,18 @@ fn handle_over_vote_policy(
                 decoded_contest.invalid_alerts.push(text_error())
             }
             Some(EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_ALERT) => {
-                decoded_contest.invalid_errors.push(text_error())
+                if presentation.invalid_vote_policy == Some(InvalidVotePolicy::ALLOWED)
+                {
+                    decoded_contest.invalid_errors.push(text_error());
+                }
             }
             Some(EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_DISABLE) => {
-                decoded_contest.invalid_errors.push(text_error())
+                if presentation.invalid_vote_policy == Some(InvalidVotePolicy::ALLOWED)
+                {
+                    decoded_contest.invalid_errors.push(text_error());
+                }
             }
-            _ => (),
+            None => (),
         };
     }
 }
