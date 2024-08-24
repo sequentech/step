@@ -23,6 +23,7 @@ const ErrorWrapper = styled(Box)`
 export interface IInvalidErrorsListProps {
     ballotStyle: IBallotStyle
     question: IContest
+    hasWriteIns: boolean
     isInvalidWriteIns: boolean
     setIsInvalidWriteIns: (input: boolean) => void
     setDecodedContests: (input: IDecodedVoteContest) => void
@@ -32,6 +33,7 @@ export interface IInvalidErrorsListProps {
 export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     ballotStyle,
     question,
+    hasWriteIns,
     isInvalidWriteIns,
     setIsInvalidWriteIns,
     setDecodedContests,
@@ -103,9 +105,10 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
         }
     }, [decodedContestSelection])
 
-    const numAvailableChars = contestSelection
-        ? getWriteInAvailableCharacters(contestSelection, ballotStyle.ballot_eml)
-        : 0
+    const numAvailableChars =
+        hasWriteIns && contestSelection
+            ? getWriteInAvailableCharacters(contestSelection, ballotStyle.ballot_eml)
+            : 0
 
     useEffect(() => {
         let newInvalid = numAvailableChars < 0
