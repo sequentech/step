@@ -375,15 +375,18 @@ impl RawBallotCodec for Contest {
         let mut has_undervote = false;
 
         if let Some(presentation) = &self.presentation {
-            if let (Some(max_votes), Some(min_votes)) = (max_votes, min_votes) {
+            if let Some(max_votes) = max_votes {
                 if num_selected_candidates >= max_votes {
-                    handle_over_vote_policy(
-                        &mut decoded_contest,
+                    decoded_contest = handle_over_vote_policy(
+                        &decoded_contest,
                         &presentation,
                         num_selected_candidates,
                         max_votes,
                     );
-                } else if num_selected_candidates < min_votes {
+                }
+            }
+            if let Some(min_votes) = min_votes {
+                if num_selected_candidates < min_votes {
                     has_undervote = true;
                     decoded_contest.invalid_errors.push(
                         InvalidPlaintextError {
@@ -489,28 +492,31 @@ impl RawBallotCodec for Contest {
 }
 
 fn handle_over_vote_policy(
-    decoded_contest: &mut DecodedVoteContest,
+    decoded_contest: &DecodedVoteContest,
     presentation: &ContestPresentation,
     num_selected_candidates: usize,
     max_votes: usize,
-) {
+) -> DecodedVoteContest {
+    let mut new_decoded_contest = decoded_contest.clone();
     if num_selected_candidates == max_votes
         && presentation.over_vote_policy
             == Some(EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_DISABLE)
     {
-        decoded_contest.invalid_alerts.push(InvalidPlaintextError {
-            error_type: InvalidPlaintextErrorType::Implicit,
-            candidate_id: None,
-            message: Some("errors.implicit.overVoteDisabled".to_string()),
-            message_map: HashMap::from([
-                ("type".to_string(), "alert".to_string()),
-                (
-                    "numSelected".to_string(),
-                    num_selected_candidates.to_string(),
-                ),
-                ("max".to_string(), max_votes.to_string()),
-            ]),
-        });
+        new_decoded_contest
+            .invalid_alerts
+            .push(InvalidPlaintextError {
+                error_type: InvalidPlaintextErrorType::Implicit,
+                candidate_id: None,
+                message: Some("errors.implicit.overVoteDisabled".to_string()),
+                message_map: HashMap::from([
+                    ("type".to_string(), "alert".to_string()),
+                    (
+                        "numSelected".to_string(),
+                        num_selected_candidates.to_string(),
+                    ),
+                    ("max".to_string(), max_votes.to_string()),
+                ]),
+            });
     } else if num_selected_candidates > max_votes {
         let text_error = || InvalidPlaintextError {
             error_type: InvalidPlaintextErrorType::Implicit,
@@ -525,34 +531,35 @@ fn handle_over_vote_policy(
             ]),
         };
 
-        if presentation.invalid_vote_policy != Some(InvalidVotePolicy::ALLOWED)
-        {
-            decoded_contest.invalid_errors.push(text_error());
-        }
-
-        match presentation.over_vote_policy {
-            Some(EOverVotePolicy::ALLOWED) => (),
-            Some(EOverVotePolicy::ALLOWED_WITH_MSG) => {
-                decoded_contest.invalid_alerts.push(text_error())
+        match presentation.over_vote_policy.unwrap_or_default() {
+            EOverVotePolicy::ALLOWED => (),
+            EOverVotePolicy::ALLOWED_WITH_MSG => {
+                new_decoded_contest.invalid_alerts.push(text_error())
             }
-            Some(EOverVotePolicy::ALLOWED_WITH_MSG_AND_ALERT) => {
-                decoded_contest.invalid_alerts.push(text_error())
+            EOverVotePolicy::ALLOWED_WITH_MSG_AND_ALERT => {
+                new_decoded_contest.invalid_alerts.push(text_error())
             }
-            Some(EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_ALERT) => {
-                if presentation.invalid_vote_policy == Some(InvalidVotePolicy::ALLOWED)
+            EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_ALERT => {
+                if presentation.invalid_vote_policy
+                    == Some(InvalidVotePolicy::ALLOWED)
                 {
-                    decoded_contest.invalid_errors.push(text_error());
+                    new_decoded_contest.invalid_alerts.push(text_error());
+                } else {
+                    new_decoded_contest.invalid_errors.push(text_error());
                 }
             }
-            Some(EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_DISABLE) => {
-                if presentation.invalid_vote_policy == Some(InvalidVotePolicy::ALLOWED)
+            EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_DISABLE => {
+                if presentation.invalid_vote_policy
+                    == Some(InvalidVotePolicy::ALLOWED)
                 {
-                    decoded_contest.invalid_errors.push(text_error());
+                    new_decoded_contest.invalid_alerts.push(text_error());
+                } else {
+                    new_decoded_contest.invalid_errors.push(text_error());
                 }
             }
-            None => (),
         };
     }
+    new_decoded_contest
 }
 
 #[cfg(test)]

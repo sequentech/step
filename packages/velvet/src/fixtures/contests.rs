@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use sequent_core::ballot::{Contest, ContestPresentation, InvalidVotePolicy, EOverVotePolicy};
+use sequent_core::ballot::{Contest, ContestPresentation, EOverVotePolicy, InvalidVotePolicy};
 use uuid::Uuid;
 
 use super::candidates;
