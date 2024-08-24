@@ -106,7 +106,6 @@ impl PgsqlBoard {
             })
         })?;
 
-        info!("Deserializing rows into Message structs..");
         let messages: Result<Vec<(Message, i64)>> = rows
             .map(|mr| {
                 let row = mr?;

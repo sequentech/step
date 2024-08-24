@@ -11,14 +11,14 @@ const PG_DATABASE: &'static str = "protocoldb";
 const PG_HOST: &'static str = "localhost";
 const PG_USER: &'static str = "postgres";
 const PG_PASSW: &'static str = "postgrespw";
-const PG_PORT: u32 = 49153;
+const PG_PORT: u32 = 49154;
 
 fn main() {
     let mut siv = cursive::default();
 
     let canvas = Canvas::new(()).with_draw(draw);
-    let style = ColorStyle::new(BaseColor::White, BaseColor::Black);
     let mut layer = Layer::new(canvas);
+    let style = ColorStyle::new(BaseColor::White, BaseColor::Black);
     layer.set_color(style);
 
     siv.add_layer(layer.full_screen());
@@ -69,35 +69,87 @@ fn draw(_: &(), p: &Printer) {
 
     let cell_counts = Vec2::new(width, height);
 
-    let x_offset = (p.size.x % cell_counts.x) / 2;
-    let cell_width = p.size.x / cell_counts.x;
-    let y_offset = (p.size.y % cell_counts.y) / 2;
-    let cell_height = p.size.y / cell_counts.y;
+    let mut x_offset = 0;
+    if p.size.x > cell_counts.x {
+        x_offset = (p.size.x % cell_counts.x) / 2;
+    }
 
+    let mut y_offset = 1;
+    if p.size.y > cell_counts.y {
+        y_offset = (p.size.y % cell_counts.y) / 2;
+    }
+    let cell_height = (p.size.y / cell_counts.y).max(1);
+    let cell_width = (p.size.x / cell_counts.x).max(1);
     let cell_size = Vec2::new(cell_width, cell_height);
 
     let mut x = x_offset;
     let mut y = y_offset;
     let mut index = 0;
+
+    let mut total_messages = 0;
+    let mut max_messages = 0;
+
+    let bar_gray = ColorStyle::new(BaseColor::White, Color::from_256colors(243));
+    let bar_white = ColorStyle::new(BaseColor::White, Color::from_256colors(255));
+    let bar_text = ColorStyle::new(BaseColor::Black, Color::from_256colors(255));
+
     for _i in 0..cell_counts.y {
         for _j in 0..cell_counts.x {
             draw_cell(p, &Vec2::new(x, y), &cell_size, &cells[index], draw_text);
+            let (dkg, mix) = get_max_values(&cells[index]);
+            max_messages = max_messages + (mix * &cells[index].batch_count);
+            total_messages = total_messages + &cells[index].message_count;
+            if cells[index].batch_count == 0 {
+                max_messages = max_messages + dkg;
+            } else {
+                total_messages = total_messages - dkg;
+            }
+
             x = x + cell_width;
             index = index + 1;
             if index == len {
+                let text = format!("{} / {}", total_messages, max_messages);
+                let progress = f64::from(total_messages) / f64::from(max_messages);
+
+                let w = cell_width * width;
+                let progress = progress * f64::from(w as u32);
+                let progress = progress.round() as usize;
+
+                p.with_color(bar_gray, |printer| {
+                    printer.print_hline((x_offset, y_offset - 1), w, " ");
+                });
+                p.with_color(bar_white, |printer| {
+                    printer.print_hline((x_offset, y_offset - 1), progress, " ");
+                });
+                p.with_color(bar_text, |printer| {
+                    printer.print((x_offset, y_offset - 1), &text[0..text.len().min(progress)]);
+                });
+
+                // p.print(Vec2::new(x_offset, y_offset - 1), &text);
+                // p.print(Vec2::new(x_offset, y_offset - 1), &total_messages);
+
                 return;
             }
         }
         y = y + cell_height;
         x = x_offset;
     }
+
+    // Can never reach here!
 }
 
-fn get_values(row: &B3IndexRow) -> (f64, f64) {
+fn get_max_values(row: &B3IndexRow) -> (i32, i32) {
     let dkg_max = 1 + (5 * row.trustees_no);
-    let tally_size = f64::from(
-        1 + (2 * row.threshold_no) + (row.threshold_no * (row.threshold_no - 1)) + row.trustees_no,
-    );
+    let mix_max =
+        1 + (2 * row.threshold_no) + (row.threshold_no * (row.threshold_no - 1)) + row.trustees_no;
+
+    (dkg_max, mix_max)
+}
+
+fn get_progress(row: &B3IndexRow) -> (f64, f64) {
+    let (dkg_max, mix_max) = get_max_values(row);
+
+    let tally_size = f64::from(mix_max);
 
     if row.message_count <= dkg_max {
         (f64::from(row.message_count) / f64::from(dkg_max), 0.0)
@@ -123,7 +175,7 @@ fn draw_cell(p: &Printer, origin: &Vec2, size: &Vec2, data: &B3IndexRow, draw_te
     p.with_color(b_gray, |printer| {
         printer.print_rect(Rect::from_size(origin, size), " ");
     });
-    let (dkg, mix) = get_values(data);
+    let (dkg, mix) = get_progress(data);
     let mut kind_origin_y = 0;
     let mut draw_kind = false;
 

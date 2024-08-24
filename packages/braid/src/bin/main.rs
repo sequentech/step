@@ -51,8 +51,8 @@ struct Cli {
     #[arg(long, default_value_t = false)]
     strict: bool,
 
-    #[arg(long, default_value_t = 100)]
-    session_reset_period: u32,
+    #[arg(long, default_value_t = 240)]
+    session_reset_period: u64,
 }
 
 fn get_ignored_boards() -> Vec<String> {
@@ -111,7 +111,7 @@ async fn main() -> Result<()> {
     assert_folder(store_root.clone())?;
 
     let mut session_map: HashMap<String, Session<RistrettoCtx, GrpcB3>> = HashMap::new();
-    let mut loop_count = 0;
+    let mut loop_count: u64 = 0;
     loop {
         info!("{}>", loop_count);
 
@@ -179,7 +179,7 @@ async fn main() -> Result<()> {
         for s in session_map.into_values() {
             let board_name = s.name.clone();
             info!("* Running trustee for board '{}'..", board_name);
-            let (session, result) = s.step().await;
+            let (session, result) = s.step(loop_count).await;
             match result {
                 Ok(_) => (),
                 Err(error) => {
@@ -205,7 +205,6 @@ async fn main() -> Result<()> {
         if args.strict && step_error {
             break;
         }
-        loop_count += 1;
 
         cfg_if::cfg_if! {
             if #[cfg(feature = "jemalloc")] {
@@ -222,6 +221,7 @@ async fn main() -> Result<()> {
             }
         }
 
+        loop_count += 1;
         sleep(Duration::from_millis(1000)).await;
     }
 

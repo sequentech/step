@@ -121,7 +121,7 @@ async fn run_protocol_test_grpc<C: Ctx + 'static>(
         // See https://stackoverflow.com/questions/63434977/how-can-i-spawn-asynchronous-methods-in-a-loop
         let handles: Vec<_> = sessions
             .into_iter()
-            .map(|s| tokio::spawn(async { s.step().await }))
+            .map(|s| tokio::spawn(async { s.step(1).await }))
             .collect();
 
         sessions = vec![];
@@ -191,7 +191,7 @@ async fn run_protocol_test_grpc<C: Ctx + 'static>(
 
         let handles: Vec<_> = sessions
             .into_iter()
-            .map(|s| tokio::spawn(async { s.step().await }))
+            .map(|s| tokio::spawn(async { s.step(1).await }))
             .collect();
 
         sessions = vec![];

@@ -142,7 +142,6 @@ impl GrpcB3 {
             })
         })?;
 
-        info!("Deserializing rows..");
         let messages: Result<Vec<(Message, i64)>> = rows
             .map(|mr| {
                 let row = mr?;

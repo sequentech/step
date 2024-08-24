@@ -9,7 +9,7 @@ const PG_DATABASE: &'static str = "protocoldb";
 const PG_HOST: &'static str = "localhost";
 const PG_USER: &'static str = "postgres";
 const PG_PASSW: &'static str = "postgrespw";
-const PG_PORT: u32 = 49153;
+const PG_PORT: u32 = 49154;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
