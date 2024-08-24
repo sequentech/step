@@ -24,6 +24,8 @@ import {
     checkShuffleCategories,
     checkShuffleCategoryList,
     getCheckableOptions,
+    checkAllowWriteIns,
+    checkIsWriteIn,
 } from "../../services/ElectionConfigService"
 import {
     CategoriesMap,
@@ -105,6 +107,7 @@ export const Question: React.FC<IQuestionProps> = ({
         invalidOrBlankCandidates,
         checkPositionIsTop
     )
+    let hasWriteIns = checkAllowWriteIns(question) && !!question.candidates.find(checkIsWriteIn)
 
     // do the shuffling
     const candidatesOrderType = question.presentation?.candidates_order
@@ -155,6 +158,7 @@ export const Question: React.FC<IQuestionProps> = ({
             <InvalidErrorsList
                 ballotStyle={ballotStyle}
                 question={question}
+                hasWriteIns={hasWriteIns}
                 isInvalidWriteIns={isInvalidWriteIns}
                 setIsInvalidWriteIns={onSetIsInvalidWriteIns}
                 setDecodedContests={setDecodedContests}
