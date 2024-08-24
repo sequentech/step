@@ -531,6 +531,11 @@ fn handle_over_vote_policy(
             ]),
         };
 
+        if presentation.invalid_vote_policy != Some(InvalidVotePolicy::ALLOWED)
+        {
+            decoded_contest.invalid_errors.push(text_error());
+        }
+
         match presentation.over_vote_policy.unwrap_or_default() {
             EOverVotePolicy::ALLOWED => (),
             EOverVotePolicy::ALLOWED_WITH_MSG => {
@@ -540,22 +545,10 @@ fn handle_over_vote_policy(
                 new_decoded_contest.invalid_alerts.push(text_error())
             }
             EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_ALERT => {
-                if presentation.invalid_vote_policy
-                    == Some(InvalidVotePolicy::ALLOWED)
-                {
-                    new_decoded_contest.invalid_alerts.push(text_error());
-                } else {
-                    new_decoded_contest.invalid_errors.push(text_error());
-                }
+                new_decoded_contest.invalid_alerts.push(text_error());
             }
             EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_DISABLE => {
-                if presentation.invalid_vote_policy
-                    == Some(InvalidVotePolicy::ALLOWED)
-                {
-                    new_decoded_contest.invalid_alerts.push(text_error());
-                } else {
-                    new_decoded_contest.invalid_errors.push(text_error());
-                }
+                new_decoded_contest.invalid_alerts.push(text_error());
             }
         };
     }
