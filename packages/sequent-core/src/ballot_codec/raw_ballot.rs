@@ -531,9 +531,11 @@ fn handle_over_vote_policy(
             ]),
         };
 
+        // for errors, we use only invalid_vote_policy. Overvote policy is going
+        // to be used only for alerts
         if presentation.invalid_vote_policy != Some(InvalidVotePolicy::ALLOWED)
         {
-            decoded_contest.invalid_errors.push(text_error());
+            new_decoded_contest.invalid_errors.push(text_error());
         }
 
         match presentation.over_vote_policy.unwrap_or_default() {
