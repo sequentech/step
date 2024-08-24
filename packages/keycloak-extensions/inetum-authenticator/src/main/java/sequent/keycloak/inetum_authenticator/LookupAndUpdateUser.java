@@ -241,7 +241,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     String email = user.getEmail();
 
     if (email != null
-        && email.length() > 0
+        && email.trim().length() > 0
         && (MessageCourier.EMAIL.equals(messageCourier)
             || MessageCourier.BOTH.equals(messageCourier))) {
       log.infov("sendConfirmation(): sending email", username);
@@ -259,9 +259,9 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     }
 
     if (mobileNumber != null
-            && mobileNumber.length() > 0
-            && MessageCourier.SMS.equals(messageCourier)
-        || MessageCourier.BOTH.equals(messageCourier)) {
+            && mobileNumber.trim().length() > 0
+            && (MessageCourier.SMS.equals(messageCourier)
+        || MessageCourier.BOTH.equals(messageCourier))) {
       log.infov("sendConfirmation(): sending sms", username);
 
       SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
