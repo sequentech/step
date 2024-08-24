@@ -16,9 +16,10 @@ pub async fn export_election_event(
     tenant_id: String,
     election_event_id: String,
     document_id: String,
+    executed_by_user_id: String,
 ) -> Result<()> {
     // Insert the task execution record
-    let task = post(&tenant_id, &election_event_id, "ExportElectionEvent") //TODO: fix type
+    let task = post(&tenant_id, &election_event_id, "ExportElectionEvent", &executed_by_user_id) //TODO: fix type
         .await
         .context("Failed to insert task execution record")?;
 

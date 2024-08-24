@@ -4,10 +4,12 @@
 
 use crate::postgres::candidate::insert_candidates;
 use crate::postgres::contest::export_contests;
+use crate::types::error::Error;
 use crate::{
     postgres::{document::get_document, tasks_execution::insert_tasks_execution},
     services::{database::get_hasura_pool, documents::get_document_as_temp_file},
 };
+use crate::services::tasks_execution::*;
 use anyhow::{anyhow, Context, Result};
 use csv::ReaderBuilder;
 use deadpool_postgres::Client as DbClient;
@@ -292,7 +294,12 @@ pub async fn import_candidates_task(
     tenant_id: String,
     election_event_id: String,
     document_id: String,
+    executed_by_user_id: String,
 ) -> Result<()> {
+    let task = post(&tenant_id, &election_event_id, "ImportElectionEvent", &executed_by_user_id) //TODO: fix type
+        .await
+        .context("Failed to insert task execution record")?;
+
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -328,36 +335,45 @@ pub async fn import_candidates_task(
 
     let mut candidates: Vec<Candidate> = vec![];
     for result in rdr.records() {
-        event!(Level::INFO, "result {:?}", result);
-        let record = result.with_context(|| "Error reading CSV record")?;
-        let name_on_ballot = record.get(26).unwrap_or("Candidate").to_string();
-        let political_party = record.get(7).unwrap_or("\\N").to_string();
-        let postcode = record.get(2).unwrap_or("1").to_string();
-
-        let ext = get_political_party_extension(&political_party);
-        let contest_id_opt = get_contest_from_postcode(&contests, &postcode)?;
-        let Some(contest_id) = contest_id_opt else {
-            continue;
-        };
-        let candidate = Candidate {
-            id: Uuid::new_v4().to_string(),
-            tenant_id: tenant_id.clone(),
-            election_event_id: election_event_id.clone(),
-            contest_id: Some(contest_id),
-            created_at: None,
-            last_updated_at: None,
-            labels: None,
-            annotations: None,
-            name: Some(format!("{name_on_ballot} ({ext})")),
-            alias: None,
-            description: None,
-            r#type: None,
-            presentation: None,
-            is_public: Some(true),
-            image_document_id: None,
-        };
-        candidates.push(candidate);
+        match result.with_context(|| "Error reading CSV record") {
+            Ok(record) => {
+                event!(Level::INFO, "result {:?}", record);
+                let name_on_ballot = record.get(26).unwrap_or("Candidate").to_string();
+                let political_party = record.get(7).unwrap_or("\\N").to_string();
+                let postcode = record.get(2).unwrap_or("1").to_string();
+    
+                let ext = get_political_party_extension(&political_party);
+                let contest_id_opt = get_contest_from_postcode(&contests, &postcode)?;
+                let Some(contest_id) = contest_id_opt else {
+                    continue;
+                };
+                let candidate = Candidate {
+                    id: Uuid::new_v4().to_string(),
+                    tenant_id: tenant_id.clone(),
+                    election_event_id: election_event_id.clone(),
+                    contest_id: Some(contest_id),
+                    created_at: None,
+                    last_updated_at: None,
+                    labels: None,
+                    annotations: None,
+                    name: Some(format!("{name_on_ballot} ({ext})")),
+                    alias: None,
+                    description: None,
+                    r#type: None,
+                    presentation: None,
+                    is_public: Some(true),
+                    image_document_id: None,
+                };
+                candidates.push(candidate);
+            }
+            Err(err) => {
+                event!(Level::ERROR, "Error reading CSV record: {:?}", err);
+                update_fail(&task, "Error reading CSV record").await?;
+                return Err(anyhow!("Error reading CSV record: {}", err));
+            }
+        }
     }
+    
     insert_candidates(
         &hasura_transaction,
         &tenant_id,
@@ -370,6 +386,10 @@ pub async fn import_candidates_task(
         .commit()
         .await
         .map_err(|e| anyhow!("Commit failed: {}", e));
+
+    update_complete(&task)
+        .await
+        .context("Failed to update task execution status to COMPLETED")?;
 
     Ok(())
 }

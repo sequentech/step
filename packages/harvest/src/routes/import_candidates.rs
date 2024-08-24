@@ -38,6 +38,7 @@ pub async fn import_candidates_route(
         claims.hasura_claims.tenant_id.clone(),
         body.election_event_id.clone(),
         body.document_id.clone(),
+        claims.hasura_claims.user_id.clone(),
     )
     .await
     .map_err(|error| {
