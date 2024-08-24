@@ -1697,6 +1697,7 @@ export type Mutation_RootExport_Election_Event_TasksArgs = {
   election_event_id?: InputMaybe<Scalars['String']['input']>;
 };
 
+
 /** mutation root */
 export type Mutation_RootExport_Tenant_UsersArgs = {
   tenant_id: Scalars['String']['input'];
@@ -1741,6 +1742,7 @@ export type Mutation_RootGet_Private_KeyArgs = {
 /** mutation root */
 export type Mutation_RootGet_Upload_UrlArgs = {
   election_event_id?: InputMaybe<Scalars['String']['input']>;
+  is_local?: InputMaybe<Scalars['Boolean']['input']>;
   is_public: Scalars['Boolean']['input'];
   media_type: Scalars['String']['input'];
   name: Scalars['String']['input'];
