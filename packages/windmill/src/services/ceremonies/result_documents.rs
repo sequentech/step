@@ -9,8 +9,10 @@ use crate::{
         results_event::update_results_event_documents,
     },
     services::{
-        compress::compress_folder, documents::upload_and_return_document,
-        folders::copy_to_temp_dir, temp_path::get_file_size,
+        compress::compress_folder,
+        documents::{upload_and_return_document, upload_and_return_document_postgres},
+        folders::copy_to_temp_dir,
+        temp_path::get_file_size,
     },
 };
 use anyhow::{anyhow, Context, Result};
@@ -154,6 +156,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             pdf: None,
             html: None,
             tar_gz: Some(base_path.display().to_string()),
+            tar_gz_original: None,
             vote_receipts_pdf: None,
         }
     }
@@ -169,7 +172,37 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
     ) -> Result<ResultDocuments> {
         if let Some(tar_gz_path) = document_paths.clone().tar_gz {
             // compressed file with the tally
+            // PART 1: original zip
+            // Spawn the task
+            let tar_gz_path_clone = tar_gz_path.clone();
+            let original_handle = tokio::task::spawn_blocking(move || {
+                let path = Path::new(&tar_gz_path_clone);
+                compress_folder(&path)
+            });
 
+            // Await the result
+            let original_result = original_handle.await??;
+
+            let (_original_tarfile_temp_path, original_tarfile_path, original_tarfile_size) =
+                original_result;
+
+            let contest = &self[0].reports[0].contest;
+
+            // upload binary data into a document (s3 and hasura)
+            let original_document = upload_and_return_document_postgres(
+                hasura_transaction,
+                &original_tarfile_path,
+                original_tarfile_size,
+                "application/gzip",
+                &contest.tenant_id,
+                &contest.election_event_id,
+                "tally.tar.gz",
+                None,
+                false,
+            )
+            .await?;
+
+            // PART 2: renamed folders zip
             // Spawn the task
             let handle = tokio::task::spawn_blocking(move || {
                 let path = Path::new(&tar_gz_path);
@@ -185,17 +218,15 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
 
             let (_tarfile_temp_path, tarfile_path, tarfile_size) = result;
 
-            let contest = &self[0].reports[0].contest;
-
             // upload binary data into a document (s3 and hasura)
-            let document = upload_and_return_document(
-                tarfile_path.clone(),
+            let document = upload_and_return_document_postgres(
+                hasura_transaction,
+                &tarfile_path,
                 tarfile_size,
-                "application/gzip".to_string(),
-                auth_headers.clone(),
-                contest.tenant_id.clone(),
-                contest.election_event_id.clone(),
-                "tally.tar.gz".into(),
+                "application/gzip",
+                &contest.tenant_id,
+                &contest.election_event_id,
+                "tally.tar.gz",
                 None,
                 false,
             )
@@ -206,6 +237,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 pdf: None,
                 html: None,
                 tar_gz: Some(document.id),
+                tar_gz_original: Some(original_document.id),
                 vote_receipts_pdf: None,
             };
 
@@ -225,6 +257,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 pdf: None,
                 html: None,
                 tar_gz: None,
+                tar_gz_original: None,
                 vote_receipts_pdf: None,
             })
         }
@@ -262,6 +295,7 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
                 None
             },
             tar_gz: None,
+            tar_gz_original: None,
             vote_receipts_pdf: None,
         }
     }
@@ -357,6 +391,7 @@ impl GenerateResultDocuments for ReportDataComputed {
                 None
             },
             tar_gz: None,
+            tar_gz_original: None,
             vote_receipts_pdf: vote_receipts_pdf,
         }
     }

@@ -381,7 +381,9 @@ const englishTranslation = {
                 },
                 notify: {
                     noKeysTally:
-                        "The Tally Ceremony cannot start until the Key Ceremony has been successfully completed.",
+                        "The Tally Ceremony cannot start until the Keys Ceremony has been successfully completed.",
+                    noPublication:
+                        "The Tally Ceremony cannot start until you create one publication in the Publish tab.",
                     participateNow:
                         "You have been invited to participate in a Tally ceremony. Please <1>click on the ceremony's Key Action</1> to participate.",
                 },
@@ -934,7 +936,72 @@ const englishTranslation = {
                 downloaded: "Encrypted Private Key generated successfully.",
             },
         },
+        miruExport: {
+            create: {
+                success: "Creating Transmission Package...",
+                error: "Error creating Transmission Package ",
+            },
+            send: {
+                success: "Sending Transmission Package...",
+                error: "Error sending Transmission Package ",
+            },
+        },
         tally: {
+            errorUploadingSignature: "There was an error uploading signature",
+            downloadTransmissionPackage: "Download Transmission Package",
+            transmissionPackage: {
+                title: "Transmission Package for Area '{{name}}'",
+                description:
+                    "Allows you to export a Transmission Package to Destination Servers or download it.",
+                actions: {
+                    send: {
+                        title: "Send",
+                        dialog: {
+                            title: "Do you want to Send the Transmission Package?",
+                            description:
+                                "Please confirm you want to Send the Transmission Package for Area `{{name}}` to the Destination Servers.",
+                            confirm: "Send Transmission Package",
+                            cancel: "Close",
+                        },
+                    },
+                    download: {
+                        title: "Download",
+                        itemTitle: "Download Transmission Package",
+                        dialog: {
+                            title: "Do you want to Download the Transmission Package?",
+                            description:
+                                "Please confirm you want to Download the Transmission Package for Area `{{name}}.`",
+                            confirm: "Download Transmission Package",
+                            cancel: "Close",
+                        },
+                    },
+                },
+                destinationServers: {
+                    title: "Destination Servers",
+                    description:
+                        "The table below shows the sending status of each of the Destination Servers.",
+                    status: "Sent to {{signed}} out of {{total}}",
+                    table: {
+                        serverName: "Server Name",
+                        sendStatus: "Sending Status",
+                    },
+                },
+                signatures: {
+                    title: "SBEI Signatures",
+                    description:
+                        "SBEIs can sign the Transmission Package. The table below shows the signing status of each of the SBEI members.",
+                    status: "{{signed}} out of {{total}} Signed",
+                    table: {
+                        trusteeName: "Trustee Name",
+                        signed: "Has Signed",
+                    },
+                },
+            },
+            sendToTransmissionPackageServers: "Send Transmission Package for Area '{{name}}'",
+            uploadTransmissionPackage: "Sign Transmission Package",
+            uploadTransmissionPackageDesc:
+                "Upload your Signature to sign the Transmission Package. This is an optional operation.",
+            exportElectionArea: "Send Transmission Package for Area '{{name}}'",
             templateTitle: "Results Template",
             templateSubTitle: "Optionally overwrite the results template.",
             ceremonyTitle: "Elections to Tally",

@@ -17,6 +17,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
+use tracing::{info, instrument};
 use uuid::Uuid;
 
 pub const PREFIX_ELECTION: &str = "election__";
@@ -32,6 +33,7 @@ pub const ELECTION_CONFIG_FILE: &str = "election-config.json";
 pub const CONTEST_CONFIG_FILE: &str = "contest-config.json";
 pub const AREA_CONFIG_FILE: &str = "area-config.json";
 pub const BALLOTS_FILE: &str = "ballots.csv";
+const UUID_LEN: usize = 36;
 
 #[derive(Debug)]
 pub struct PipeInputs {
@@ -103,6 +105,7 @@ impl PipeInputs {
         }
     }
 
+    #[instrument(err)]
     fn read_input_dir_config(input_dir: &Path) -> Result<Vec<InputElectionConfig>> {
         let entries = fs::read_dir(input_dir)?;
 
@@ -115,6 +118,7 @@ impl PipeInputs {
         Ok(configs)
     }
 
+    #[instrument(err)]
     fn read_election_list_config(path: &Path) -> Result<InputElectionConfig> {
         let entries = fs::read_dir(path)?;
 
@@ -150,6 +154,7 @@ impl PipeInputs {
         })
     }
 
+    #[instrument(err)]
     fn read_contest_list_config(path: &Path, election_id: Uuid) -> Result<InputContestConfig> {
         let contest_id =
             Self::parse_path_components(path, PREFIX_CONTEST).ok_or(Error::IDNotFound)?;
@@ -202,12 +207,18 @@ impl PipeInputs {
         })
     }
 
+    #[instrument]
     fn parse_path_components(path: &Path, prefix: &str) -> Option<Uuid> {
         for component in path.components() {
             let part = component.as_os_str().to_string_lossy();
 
             if let Some(res) = part.strip_prefix(prefix) {
-                return Uuid::parse_str(res).ok();
+                let slice = &res[res.len() - UUID_LEN..];
+                // Check if the string length is at least 36
+                if res.len() >= UUID_LEN {
+                    // Use the last 36 characters for UUID parsing
+                    return Uuid::parse_str(slice).ok();
+                }
             }
         }
 

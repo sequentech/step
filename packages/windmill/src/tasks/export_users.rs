@@ -31,11 +31,27 @@ pub struct ExportUsersBody {
     pub election_event_id: Option<String>,
     pub election_id: Option<String>,
 }
+#[derive(Deserialize, Debug, Clone, Serialize)]
+pub struct ExportTenantUsersBody {
+    pub tenant_id: String,
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ExportUsersOutput {
     pub document_id: String,
     pub task_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum ExportBody {
+    Users {
+        tenant_id: String,
+        election_event_id: Option<String>,
+        election_id: Option<String>,
+    },
+    TenantUsers {
+        tenant_id: String,
+    },
 }
 
 fn get_headers(elections: &Option<Vec<ElectionHead>>) -> Vec<String> {
@@ -111,13 +127,20 @@ fn get_user_record(
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 0)]
-pub async fn export_users(body: ExportUsersBody, document_id: String) -> Result<()> {
-    let realm = match body.election_event_id {
-        Some(ref election_event_id) => get_event_realm(&body.tenant_id, &election_event_id),
-        None => get_tenant_realm(&body.tenant_id),
+#[instrument(err)]
+#[wrap_map_err::wrap_map_err(TaskError)]
+#[celery::task(max_retries = 0)]
+pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
+    let realm = match &body {
+        ExportBody::Users {
+            tenant_id,
+            election_event_id,
+            ..
+        } => get_event_realm(tenant_id, election_event_id.as_deref().unwrap_or("")),
+        ExportBody::TenantUsers { tenant_id } => get_tenant_realm(tenant_id),
     };
 
-    let mut hasura_db_client: DbClient = get_hasura_pool()
+    let mut hasura_db_client = get_hasura_pool()
         .await
         .get()
         .await
@@ -128,39 +151,50 @@ pub async fn export_users(body: ExportUsersBody, document_id: String) -> Result<
         .await
         .map_err(|err| anyhow!("Error starting hasura transaction: {err}"))?;
 
-    let mut keycloak_db_client: DbClient = get_keycloak_pool()
+    let mut keycloak_db_client = get_keycloak_pool()
         .await
         .get()
         .await
         .map_err(|err| anyhow!("Error getting keycloak db pool: {err}"))?;
 
-    // we'll perform insert in a single keycloaktransaction. It either works or
-    // it doesn't
     let keycloak_transaction = keycloak_db_client
         .transaction()
         .await
         .map_err(|err| anyhow!("Error starting keycloak transaction: {err}"))?;
 
-    let elections = match body.election_event_id {
-        Some(ref election_event_id) => Some(
-            get_election_event_elections(&hasura_transaction, &body.tenant_id, &election_event_id)
+    let (elections, areas_by_id) = match &body {
+        ExportBody::Users {
+            tenant_id,
+            election_event_id,
+            ..
+        } => {
+            let elections = Some(
+                get_election_event_elections(
+                    &hasura_transaction,
+                    tenant_id,
+                    election_event_id.as_deref().unwrap_or(""),
+                )
                 .await
                 .with_context(|| "Error listing election event's elections")?,
-        ),
-        None => None,
-    };
-    let areas_by_id = match body.election_event_id {
-        Some(ref election_event_id) => Some(
-            get_areas_by_id(&hasura_transaction, &body.tenant_id, &election_event_id)
+            );
+
+            let areas_by_id = Some(
+                get_areas_by_id(
+                    &hasura_transaction,
+                    tenant_id,
+                    election_event_id.as_deref().unwrap_or(""),
+                )
                 .await
-                .with_context(|| "Error listing election event's elections")?,
-        ),
-        None => None,
+                .with_context(|| "Error listing election event's areas")?,
+            );
+
+            (elections, areas_by_id)
+        }
+        ExportBody::TenantUsers { .. } => (None, None),
     };
     let headers = get_headers(&elections);
 
     let batch_size = PgConfig::from_env()?.default_sql_batch_size;
-
     let mut offset: i32 = 0;
     let mut total_count: Option<i32> = None;
     let file =
@@ -171,12 +205,25 @@ pub async fn export_users(body: ExportUsersBody, document_id: String) -> Result<
     let mut writer = csv::WriterBuilder::new()
         .delimiter(b',')
         .from_writer(&file2);
+
     writer.write_record(&headers)?;
+
     loop {
         let filter = ListUsersFilter {
-            tenant_id: body.tenant_id.clone(),
-            election_event_id: body.election_event_id.clone(),
-            election_id: body.election_id.clone(),
+            tenant_id: match &body {
+                ExportBody::Users { tenant_id, .. } => tenant_id.to_string(),
+                ExportBody::TenantUsers { tenant_id } => tenant_id.to_string(),
+            },
+            election_event_id: match &body {
+                ExportBody::Users {
+                    election_event_id, ..
+                } => election_event_id.clone(),
+                ExportBody::TenantUsers { .. } => None,
+            },
+            election_id: match &body {
+                ExportBody::Users { election_id, .. } => election_id.clone(),
+                ExportBody::TenantUsers { .. } => None,
+            },
             area_id: None,
             realm: realm.clone(),
             search: None,
@@ -188,26 +235,29 @@ pub async fn export_users(body: ExportUsersBody, document_id: String) -> Result<
             offset: Some(offset),
             user_ids: None,
         };
-        let (users, count) = match body.election_event_id.is_some() {
-            true => list_users_with_vote_info(
+
+        let (users, count) = match &body {
+            ExportBody::Users {
+                election_event_id, ..
+            } if election_event_id.is_some() => list_users_with_vote_info(
                 &hasura_transaction,
                 &keycloak_transaction,
                 filter.clone(),
             )
             .await
-            .map_err(|error| anyhow!("Error listing users with vote info {error:?}"))?,
-            false => list_users(&hasura_transaction, &keycloak_transaction, filter.clone())
+            .map_err(|error| anyhow!("Error listing users with vote info: {error:?}"))?,
+            _ => list_users(&hasura_transaction, &keycloak_transaction, filter.clone())
                 .await
-                .map_err(|error| anyhow!("Error listing users {error:?}"))?,
+                .map_err(|error| anyhow!("Error listing users: {error:?}"))?,
         };
 
         if total_count.is_none() {
             total_count = Some(count);
         }
+
         offset += users.len() as i32;
 
         for user in users {
-            // Serialize user data to TSV format and write it
             let record = get_user_record(&elections, &areas_by_id, &user);
             writer.write_record(&record)?;
         }
@@ -216,37 +266,50 @@ pub async fn export_users(body: ExportUsersBody, document_id: String) -> Result<
             break;
         }
     }
+
     writer
         .flush()
-        .with_context(|| "Error flushing CSV writter")?;
+        .with_context(|| "Error flushing CSV writer")?;
 
     let size = file2.metadata()?.len();
     let temp_path = file.into_temp_path();
     let timestamp = util::date::timestamp().with_context(|| "Error obtaining timestamp")?;
     let name = format!("users-export-{timestamp}.csv");
-    let key = s3::get_document_key(
-        &body.tenant_id,
-        &body.election_event_id.clone().unwrap_or("".to_string()),
-        &document_id,
-        &name,
-    );
+
+    let tenant_id = match &body {
+        ExportBody::TenantUsers { tenant_id } => tenant_id.to_string(),
+        ExportBody::Users { tenant_id, .. } => tenant_id.to_string(),
+    };
+
+    let election_event_id = match &body {
+        ExportBody::Users {
+            election_event_id, ..
+        } => election_event_id.clone().unwrap_or_else(|| "".to_string()),
+        ExportBody::TenantUsers { .. } => "".to_string(),
+    };
+
+    let key = s3::get_document_key(&tenant_id, Some(&election_event_id), &document_id, &name);
+
     let media_type = "text/csv".to_string();
+
     s3::upload_file_to_s3(
-        /* key */ key,
-        /* is_public */ false,
-        /* s3_bucket */ s3::get_private_bucket()?,
-        /* media_type */ media_type.clone(),
-        /* file_path */ temp_path.to_string_lossy().to_string(),
-        /* cache_control_policy */ None,
+        key,
+        false,
+        s3::get_private_bucket()?,
+        media_type.clone(),
+        temp_path.to_string_lossy().to_string(),
+        None,
     )
     .await
     .with_context(|| "Error uploading file to s3")?;
+
     temp_path
         .close()
         .with_context(|| "Error closing temp file path")?;
+
     if size > get_max_upload_size()? as u64 {
         return Err(anyhow!(
-            "File is too big: file.metada().len() [{}] > get_max_upload_size() [{}]",
+            "File is too big: file.metadata().len() [{}] > get_max_upload_size() [{}]",
             size,
             get_max_upload_size()?
         )
@@ -259,8 +322,13 @@ pub async fn export_users(body: ExportUsersBody, document_id: String) -> Result<
 
     let _document = &hasura::document::insert_document(
         auth_headers,
-        body.tenant_id.to_string(),
-        body.election_event_id.clone(),
+        tenant_id,
+        match &body {
+            ExportBody::Users {
+                election_event_id, ..
+            } => election_event_id.clone(),
+            ExportBody::TenantUsers { .. } => None,
+        },
         name.clone(),
         media_type.clone(),
         size as i64,
@@ -273,5 +341,6 @@ pub async fn export_users(body: ExportUsersBody, document_id: String) -> Result<
     .insert_sequent_backend_document
     .ok_or(anyhow!("expected document"))?
     .returning[0];
+
     Ok(())
 }
