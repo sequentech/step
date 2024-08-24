@@ -83,11 +83,12 @@ const spanishTranslation: TranslationType = {
         tasksScreen: {
             noPermissions: "No tienes permiso para acceder a los registros.",
             title: "Ejecución de tareas",
-            subtitle: "Información sobre tareas ejecutadas",
+            subtitle: "Información sobre las tareas ejecutadas",
             status: "estado: {{status}}",
             column: {
                 id: "Índice",
                 name: "Nombre de la tarea",
+                type: "Tipo",
                 execution_status: "Estado",
                 start_at: "Hora de inicio",
                 end_at: "Hora de finalización",

@@ -88,6 +88,7 @@ const catalanTranslation: TranslationType = {
             column: {
                 id: "Índex",
                 name: "Nom de la tasca",
+                type: "Tipus",
                 execution_status: "Estat",
                 start_at: "Hora d'inici",
                 end_at: "Hora de finalització",

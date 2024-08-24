@@ -4,12 +4,13 @@
 
 use crate::postgres::candidate::insert_candidates;
 use crate::postgres::contest::export_contests;
+use crate::services::tasks_execution::*;
 use crate::types::error::Error;
+use crate::types::tasks::ETasks;
 use crate::{
     postgres::{document::get_document, tasks_execution::insert_tasks_execution},
     services::{database::get_hasura_pool, documents::get_document_as_temp_file},
 };
-use crate::services::tasks_execution::*;
 use anyhow::{anyhow, Context, Result};
 use csv::ReaderBuilder;
 use deadpool_postgres::Client as DbClient;
@@ -296,9 +297,14 @@ pub async fn import_candidates_task(
     document_id: String,
     executed_by_user_id: String,
 ) -> Result<()> {
-    let task = post(&tenant_id, &election_event_id, "ImportElectionEvent", &executed_by_user_id) //TODO: fix type
-        .await
-        .context("Failed to insert task execution record")?;
+    let task = post(
+        &tenant_id,
+        &election_event_id,
+        ETasks::IMPORT_CANDIDATES,
+        &executed_by_user_id,
+    )
+    .await
+    .context("Failed to insert task execution record")?;
 
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
@@ -341,7 +347,7 @@ pub async fn import_candidates_task(
                 let name_on_ballot = record.get(26).unwrap_or("Candidate").to_string();
                 let political_party = record.get(7).unwrap_or("\\N").to_string();
                 let postcode = record.get(2).unwrap_or("1").to_string();
-    
+
                 let ext = get_political_party_extension(&political_party);
                 let contest_id_opt = get_contest_from_postcode(&contests, &postcode)?;
                 let Some(contest_id) = contest_id_opt else {
@@ -373,7 +379,7 @@ pub async fn import_candidates_task(
             }
         }
     }
-    
+
     insert_candidates(
         &hasura_transaction,
         &tenant_id,

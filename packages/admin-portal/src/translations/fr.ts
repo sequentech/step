@@ -88,6 +88,7 @@ const frenchTranslation: TranslationType = {
             column: {
                 id: "Index",
                 name: "Nom de la tâche",
+                type: "Type",
                 execution_status: "Statut",
                 start_at: "Heure de début",
                 end_at: "Heure de fin",

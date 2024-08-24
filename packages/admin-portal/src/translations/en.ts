@@ -81,11 +81,12 @@ const englishTranslation = {
         tasksScreen: {
             noPermissions: "You don't have permission to access logs.",
             title: "Tasks Execution",
-            subtitle: "Executed tasks informtion",
+            subtitle: "Information about the executed tasks",
             status: "status: {{status}}",
             column: {
                 id: "Index",
                 name: "Task name",
+                type: "Type",
                 execution_status: "Status",
                 start_at: "Start time",
                 end_at: "End time",
