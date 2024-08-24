@@ -776,6 +776,8 @@ mod tests {
         let report = &reports[0];
 
         assert_eq!(report.contest_result.total_votes, 142);
+        assert_eq!(report.contest_result.total_valid_votes, 142);
+        assert_eq!(report.contest_result.total_blank_votes, 6);
         assert_eq!(report.contest_result.census, 200);
         assert_eq!(
             report
@@ -783,7 +785,7 @@ mod tests {
                 .iter()
                 .map(|cr| cr.total_count)
                 .sum::<u64>(),
-            134
+            138
         );
 
         let mut path = cli.output_dir.clone();
@@ -799,6 +801,9 @@ mod tests {
         let report = &reports[0];
 
         assert_eq!(report.contest_result.total_votes, 100);
+        assert_eq!(report.contest_result.total_valid_votes, 100);
+        assert_eq!(report.contest_result.total_blank_votes, 3);
+        assert_eq!(report.contest_result.total_invalid_votes, 0);
         assert_eq!(report.contest_result.census, 100);
         assert_eq!(
             report
@@ -806,7 +811,7 @@ mod tests {
                 .iter()
                 .map(|cr| cr.total_count)
                 .sum::<u64>(),
-            96
+            98
         );
 
         // test second contest
@@ -823,6 +828,9 @@ mod tests {
         let report = &reports[0];
 
         assert_eq!(report.contest_result.total_votes, 20);
+        assert_eq!(report.contest_result.total_valid_votes, 20);
+        assert_eq!(report.contest_result.total_blank_votes, 3);
+        assert_eq!(report.contest_result.total_invalid_votes, 0);
         assert_eq!(report.contest_result.census, 100);
         assert_eq!(
             report
@@ -830,7 +838,7 @@ mod tests {
                 .iter()
                 .map(|cr| cr.total_count)
                 .sum::<u64>(),
-            16
+            18
         );
 
         Ok(())
