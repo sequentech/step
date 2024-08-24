@@ -1,6 +1,10 @@
+//  cargo run --bin m2 --features=monitor 2> error
 use anyhow::Result;
 
-use board_messages::grpc::pgsql::{B3IndexRow, PgsqlConnectionParams, XPgsqlB3Client};
+use board_messages::grpc::pgsql::{
+    B3IndexRow, PgsqlConnectionParams, PgsqlDbConnectionParams, XPgsqlB3Client,
+};
+use clap::Parser;
 use cursive::style::{BaseColor, Color, ColorStyle};
 use cursive::theme::{BorderStyle, Theme};
 use cursive::view::Resizable;
@@ -13,10 +17,32 @@ const PG_USER: &'static str = "postgres";
 const PG_PASSW: &'static str = "postgrespw";
 const PG_PORT: u32 = 49154;
 
+#[derive(Parser)]
+struct Cli {
+    #[arg(long, default_value_t = PG_HOST.to_string())]
+    host: String,
+
+    #[arg(long, default_value_t = PG_PORT)]
+    port: u32,
+
+    #[arg(short, long, default_value_t = PG_USER.to_string())]
+    username: String,
+
+    #[arg(long, default_value_t = PG_PASSW.to_string())]
+    password: String,
+
+    #[arg(long, default_value_t = PG_DATABASE.to_string())]
+    database: String,
+}
+
 fn main() {
+    let args = Cli::parse();
+    let params = PgsqlConnectionParams::new(&args.host, args.port, &args.username, &args.password);
+    let params = params.with_database(&args.database);
+
     let mut siv = cursive::default();
 
-    let canvas = Canvas::new(()).with_draw(draw);
+    let canvas = Canvas::new(params).with_draw(draw);
     let mut layer = Layer::new(canvas);
     let style = ColorStyle::new(BaseColor::White, BaseColor::Black);
     layer.set_color(style);
@@ -31,25 +57,27 @@ fn main() {
     siv.run();
 }
 
-async fn query() -> Result<Vec<B3IndexRow>> {
-    let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
-    let c_db = c.with_database(PG_DATABASE);
-    let client = XPgsqlB3Client::new(&c_db).await?;
+async fn query(params: &PgsqlDbConnectionParams) -> Result<Vec<B3IndexRow>> {
+    let client = XPgsqlB3Client::new(&params).await?;
     client.get_boards().await
 }
 
-fn q() -> Result<Vec<B3IndexRow>> {
+fn q(params: &PgsqlDbConnectionParams) -> Result<Vec<B3IndexRow>> {
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()?;
 
-    let inner = rt.block_on(query())?;
+    let inner = rt.block_on(query(params))?;
 
     Ok(inner)
 }
 
-fn draw(_: &(), p: &Printer) {
-    let cells = q().unwrap();
+fn draw(params: &PgsqlDbConnectionParams, p: &Printer) {
+    let bar_gray = ColorStyle::new(BaseColor::White, Color::from_256colors(243));
+    let bar_white = ColorStyle::new(BaseColor::White, Color::from_256colors(255));
+    let bar_text = ColorStyle::new(BaseColor::Black, Color::from_256colors(255));
+
+    let cells = q(params).unwrap();
     let draw_text = cells.len() < 300;
 
     let len = cells.len();
@@ -58,7 +86,7 @@ fn draw(_: &(), p: &Printer) {
     let width = if len % lenrt == 0 && len / lenrt == lenrt {
         lenrt
     } else {
-        lenrt + 1 // 2
+        lenrt + 1
     };
 
     let height = if len % width == 0 {
@@ -76,26 +104,25 @@ fn draw(_: &(), p: &Printer) {
 
     let mut y_offset = 1;
     if p.size.y > cell_counts.y {
-        y_offset = (p.size.y % cell_counts.y) / 2;
+        y_offset = ((p.size.y % cell_counts.y) / 2).max(1);
     }
+
     let cell_height = (p.size.y / cell_counts.y).max(1);
     let cell_width = (p.size.x / cell_counts.x).max(1);
     let cell_size = Vec2::new(cell_width, cell_height);
 
     let mut x = x_offset;
     let mut y = y_offset;
-    let mut index = 0;
 
+    let mut index = 0;
     let mut total_messages = 0;
     let mut max_messages = 0;
-
-    let bar_gray = ColorStyle::new(BaseColor::White, Color::from_256colors(243));
-    let bar_white = ColorStyle::new(BaseColor::White, Color::from_256colors(255));
-    let bar_text = ColorStyle::new(BaseColor::Black, Color::from_256colors(255));
 
     for _i in 0..cell_counts.y {
         for _j in 0..cell_counts.x {
             draw_cell(p, &Vec2::new(x, y), &cell_size, &cells[index], draw_text);
+
+            // Progress
             let (dkg, mix) = get_max_values(&cells[index]);
             max_messages = max_messages + (mix * &cells[index].batch_count);
             total_messages = total_messages + &cells[index].message_count;
@@ -107,6 +134,7 @@ fn draw(_: &(), p: &Printer) {
 
             x = x + cell_width;
             index = index + 1;
+
             if index == len {
                 let text = format!("{} / {}", total_messages, max_messages);
                 let progress = f64::from(total_messages) / f64::from(max_messages);
@@ -125,9 +153,6 @@ fn draw(_: &(), p: &Printer) {
                     printer.print((x_offset, y_offset - 1), &text[0..text.len().min(progress)]);
                 });
 
-                // p.print(Vec2::new(x_offset, y_offset - 1), &text);
-                // p.print(Vec2::new(x_offset, y_offset - 1), &total_messages);
-
                 return;
             }
         }
@@ -138,6 +163,16 @@ fn draw(_: &(), p: &Printer) {
     // Can never reach here!
 }
 
+/*
+n trustees
+t threshold
+b batches
+
+DKG phase: 1 + 5n
+                     ballot  mix     mix signature     decrypt factors    plaintext + sig
+Ballot phase:    b * (1 +     t +    (t * (t - 1)) +    t +                 n)
+
+*/
 fn get_max_values(row: &B3IndexRow) -> (i32, i32) {
     let dkg_max = 1 + (5 * row.trustees_no);
     let mix_max =
@@ -172,6 +207,7 @@ fn draw_cell(p: &Printer, origin: &Vec2, size: &Vec2, data: &B3IndexRow, draw_te
     let b_blue = ColorStyle::new(BaseColor::Black, BaseColor::Blue);
     let b_green = ColorStyle::new(BaseColor::Black, BaseColor::Green);
 
+    // Background
     p.with_color(b_gray, |printer| {
         printer.print_rect(Rect::from_size(origin, size), " ");
     });
@@ -180,6 +216,7 @@ fn draw_cell(p: &Printer, origin: &Vec2, size: &Vec2, data: &B3IndexRow, draw_te
     let mut draw_kind = false;
 
     if mix == 0.0 {
+        // Dkg
         let bar_height = (dkg * f64::from(size.y as u32)).round() as usize;
         let bar_origin_y = origin.y + (size.y - bar_height);
         kind_origin_y = bar_origin_y;
@@ -196,6 +233,7 @@ fn draw_cell(p: &Printer, origin: &Vec2, size: &Vec2, data: &B3IndexRow, draw_te
             draw_kind = true;
         }
     } else {
+        // Mix
         let bar_height = (mix * f64::from(size.y as u32)).round() as usize;
         let bar_origin_y = origin.y + (size.y - bar_height);
         kind_origin_y = bar_origin_y;
@@ -214,6 +252,7 @@ fn draw_cell(p: &Printer, origin: &Vec2, size: &Vec2, data: &B3IndexRow, draw_te
     }
 
     if draw_text {
+        // Kind
         if draw_kind {
             let text_color = if mix > 0.0 {
                 b_magenta
@@ -233,9 +272,7 @@ fn draw_cell(p: &Printer, origin: &Vec2, size: &Vec2, data: &B3IndexRow, draw_te
         }
 
         // Title
-
         let name = &data.board_name;
-        // let max_chars = data.len().min(size.x - 2);
         let pct = if mix == 0.0 {
             (dkg * 100.0).round()
         } else {
@@ -256,7 +293,6 @@ fn draw_cell(p: &Printer, origin: &Vec2, size: &Vec2, data: &B3IndexRow, draw_te
         p.with_color(text_color, |printer| {
             printer.print_hline(origin, size.x, " ");
             printer.print((origin.x + 1, origin.y), &title[0..max_chars]);
-            // printer.print(origin, &blue.to_string());
         });
     }
 }

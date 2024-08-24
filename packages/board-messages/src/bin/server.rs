@@ -1,3 +1,4 @@
+use clap::Parser;
 use tonic::transport::Server;
 use tracing::info;
 
@@ -10,33 +11,57 @@ const PG_HOST: &'static str = "localhost";
 const PG_USER: &'static str = "postgres";
 const PG_PASSW: &'static str = "postgrespw";
 const PG_PORT: u32 = 49154;
+const BIND: &'static str = "127.0.0.1:50051";
+
+#[derive(Parser)]
+struct Cli {
+    #[arg(long, default_value_t = PG_HOST.to_string())]
+    host: String,
+
+    #[arg(long, default_value_t = PG_PORT)]
+    port: u32,
+
+    #[arg(short, long, default_value_t = PG_USER.to_string())]
+    username: String,
+
+    #[arg(long, default_value_t = PG_PASSW.to_string())]
+    password: String,
+
+    #[arg(long, default_value_t = PG_DATABASE.to_string())]
+    database: String,
+
+    #[arg(long, default_value_t = BIND.to_string())]
+    bind: String,
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     init_log(true);
 
-    let host = PG_HOST;
-    let port = PG_PORT;
-    let user = PG_USER;
-    let database = PG_DATABASE;
-    let socket = "192.168.1.37:50051";
+    let args = Cli::parse();
+
+    let host = &args.host;
+    let port = args.port;
+    let username = &args.username;
+    let database = &args.database;
+    let bind = &args.bind;
 
     info!("Starting b3");
     info!("pgsql host: '{host}'");
     info!("pgsql port: '{port}'");
-    info!("pgsql user: '{user}'");
+    info!("pgsql username: '{username}'");
     info!("pgsql database: '{database}'");
-    info!("grpc socket: '{socket}'");
+    info!("grpc socket: '{bind}'");
 
-    let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
-    let c_db = c.with_database(database);
+    let c = PgsqlConnectionParams::new(host, port, username, &args.password);
+    let c_db = c.with_database(&database);
     let client = XPgsqlB3Client::new(&c_db).await?;
     info!("pgsql connection ok");
     let boards = client.get_boards().await?;
     info!("there are {} boards in the index", boards.len());
     drop(client);
 
-    let addr = socket.parse()?;
+    let addr = bind.parse()?;
     let b3_impl = PgsqlB3Server::new(c_db).await?;
     let service = B3Server::new(b3_impl);
 

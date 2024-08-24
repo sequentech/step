@@ -5,7 +5,6 @@ use anyhow::{anyhow, Result};
 use board_messages::grpc::pgsql::B3IndexRow;
 use board_messages::grpc::pgsql::B3MessageRow;
 use clap::Parser;
-// use rayon::prelude::*;
 use std::fs;
 use std::fs::File;
 use std::io::Write;
@@ -26,7 +25,6 @@ use braid::protocol::trustee::Trustee;
 use braid::protocol::trustee::TrusteeConfig;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
-// use strand::elgamal::Ciphertext;
 use strand::serialization::StrandDeserialize;
 use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
@@ -281,6 +279,11 @@ fn gen_configs<C: Ctx>(n_trustees: usize, threshold: &[usize]) -> Result<()> {
         fs::create_dir_all(&path)?;
         let mut file = File::create(path.join(format!("trustee{}.toml", i + 1)))?;
         file.write_all(toml.as_bytes())?;
+        let mut file = File::create(path.join("run.sh"))?;
+        let run = format!("cargo run --manifest-path ../../Cargo.toml --release --bin main -- --server-url http://127.0.0.1:50051 --trustee-config trustee{}.toml",
+            i + 1
+        );
+        file.write_all(run.as_bytes())?;
     }
 
     Ok(())
