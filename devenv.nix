@@ -55,12 +55,7 @@
   # https://devenv.sh/scripts/
   scripts.hello.exec = "echo hello from $GREET";
 
-  enterShell = ''
-    set -a
-    source .devcontainer/.env
-    export PATH=/workspaces/step/packages/step-cli/rust-local-target/release:$PATH
-    set +a
-  '';
+  enterShell = "source .devcontainer/.env && export PATH=/workspaces/step/packages/step-cli/rust-local-target/release:$PATH";
 
   # https://devenv.sh/languages/
   languages.rust = {
