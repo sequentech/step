@@ -47,7 +47,7 @@ public class MessageOTPAuthenticator
     log.info("action() called");
     String enteredCode = context.getHttpRequest().getDecodedFormParameters().getFirst(Utils.CODE);
     String resend = context.getHttpRequest().getDecodedFormParameters().getFirst("resend");
-    if(resend != null && resend.equals("true")) {
+    if (resend != null && resend.equals("true")) {
       intiateForm(context);
       return;
     }
@@ -80,7 +80,7 @@ public class MessageOTPAuthenticator
     } else {
       // invalid
       AuthenticatorConfigModel config = context.getAuthenticatorConfig();
-  
+
       Utils.MessageCourier messageCourier =
           Utils.MessageCourier.fromString(config.getConfig().get(Utils.MESSAGE_COURIER_ATTRIBUTE));
       boolean deferredUser = config.getConfig().get(Utils.DEFERRED_USER_ATTRIBUTE).equals("true");
@@ -98,7 +98,9 @@ public class MessageOTPAuthenticator
                 .setAttribute("realm", context.getRealm())
                 .setError("messageOtpAuthCodeInvalid")
                 .setAttribute("courier", messageCourier)
-                .setAttribute("address", Utils.getOtpAddress(messageCourier, deferredUser, config, authSession, user))
+                .setAttribute(
+                    "address",
+                    Utils.getOtpAddress(messageCourier, deferredUser, config, authSession, user))
                 .setAttribute("resendTimer", config.getConfig().get(Utils.RESEND_ACTIVATION_TIMER))
                 .setAttribute("ttl", config.getConfig().get(Utils.CODE_TTL))
                 .createForm(TPL_CODE));
@@ -118,25 +120,28 @@ public class MessageOTPAuthenticator
     boolean deferredUser = config.getConfig().get(Utils.DEFERRED_USER_ATTRIBUTE).equals("true");
 
     try {
-        UserModel user = context.getUser();
-        Utils.sendCode(config, session, user, authSession, messageCourier, deferredUser);
-        log.info("OTP resent successfully");
-        context.challenge(
+      UserModel user = context.getUser();
+      Utils.sendCode(config, session, user, authSession, messageCourier, deferredUser);
+      log.info("OTP resent successfully");
+      context.challenge(
           context
               .form()
               .setAttribute("realm", context.getRealm())
               .setAttribute("courier", messageCourier)
-              .setAttribute("address", Utils.getOtpAddress(messageCourier, deferredUser, config, authSession, user))
+              .setAttribute(
+                  "address",
+                  Utils.getOtpAddress(messageCourier, deferredUser, config, authSession, user))
               .setAttribute("resendTimer", config.getConfig().get(Utils.RESEND_ACTIVATION_TIMER))
               .setAttribute("ttl", config.getConfig().get(Utils.CODE_TTL))
               .createForm(TPL_CODE));
     } catch (Exception error) {
-        log.error("Error resending OTP", error);
-        context.failureChallenge(
-            AuthenticationFlowError.INTERNAL_ERROR,
-            context.form()
-                .setError("messageNotSent", error.getMessage())
-                .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+      log.error("Error resending OTP", error);
+      context.failureChallenge(
+          AuthenticationFlowError.INTERNAL_ERROR,
+          context
+              .form()
+              .setError("messageNotSent", error.getMessage())
+              .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
     }
   }
 

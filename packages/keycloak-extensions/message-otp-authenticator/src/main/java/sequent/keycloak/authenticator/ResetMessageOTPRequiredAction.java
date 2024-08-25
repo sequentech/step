@@ -63,9 +63,8 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
     String code = authSession.getAuthNote(Utils.CODE);
     String ttl = authSession.getAuthNote(Utils.CODE_TTL);
 
-
     String resend = context.getHttpRequest().getDecodedFormParameters().getFirst("resend");
-    if(resend != null && resend.equals("true")) {
+    if (resend != null && resend.equals("true")) {
       context.challenge(createForm(context, null));
       return;
     }
@@ -134,7 +133,9 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
 
     LoginFormsProvider form = context.form();
     form.setAttribute("realm", context.getRealm())
-        .setAttribute("address", Utils.getOtpAddress(Utils.MessageCourier.BOTH, false, config.get(), authSession, user))
+        .setAttribute(
+            "address",
+            Utils.getOtpAddress(Utils.MessageCourier.BOTH, false, config.get(), authSession, user))
         .setAttribute("ttl", config.get().getConfig().get(Utils.CODE_TTL))
         .setAttribute("resendTimer", resendTimer);
 

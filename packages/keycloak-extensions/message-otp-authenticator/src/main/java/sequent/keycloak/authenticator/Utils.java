@@ -335,7 +335,12 @@ public class Utils {
     }
   }
 
-  protected static String getOtpAddress(Utils.MessageCourier courier, boolean deferredUser, AuthenticatorConfigModel config, AuthenticationSessionModel authSession, UserModel user) {
+  protected static String getOtpAddress(
+      Utils.MessageCourier courier,
+      boolean deferredUser,
+      AuthenticatorConfigModel config,
+      AuthenticationSessionModel authSession,
+      UserModel user) {
     String mobileNumber = null;
     String emailAddress = null;
 
@@ -360,19 +365,24 @@ public class Utils {
 
   protected static String obscurePhoneNumber(String phoneNumber) {
     if (phoneNumber == null) {
-        return phoneNumber;
+      return phoneNumber;
     }
-    return phoneNumber.substring(0, 4) + "*".repeat(phoneNumber.length() - 7) + phoneNumber.substring(phoneNumber.length() - 3);
-}
-
-protected static String obscureEmail(String email) {
-  if (email == null || !email.contains("@")) {
-      return email;
+    return phoneNumber.substring(0, 4)
+        + "*".repeat(phoneNumber.length() - 7)
+        + phoneNumber.substring(phoneNumber.length() - 3);
   }
 
-  int atIndex = email.indexOf('@');
-  String localPart = email.substring(0, atIndex);
-  String domainPart = email.substring(atIndex);
-  return localPart.charAt(0) + "*".repeat(localPart.length() - 2) + localPart.charAt(localPart.length() - 1) + domainPart;
-}
+  protected static String obscureEmail(String email) {
+    if (email == null || !email.contains("@")) {
+      return email;
+    }
+
+    int atIndex = email.indexOf('@');
+    String localPart = email.substring(0, atIndex);
+    String domainPart = email.substring(atIndex);
+    return localPart.charAt(0)
+        + "*".repeat(localPart.length() - 2)
+        + localPart.charAt(localPart.length() - 1)
+        + domainPart;
+  }
 }

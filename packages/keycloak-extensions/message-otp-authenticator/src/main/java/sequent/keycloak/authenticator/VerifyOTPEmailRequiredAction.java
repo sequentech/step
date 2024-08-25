@@ -7,9 +7,6 @@ package sequent.keycloak.authenticator;
 import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.Response;
 import lombok.extern.jbosslog.JBossLog;
-
-import java.util.List;
-
 import org.keycloak.Config;
 import org.keycloak.authentication.InitiatedActionSupport;
 import org.keycloak.authentication.RequiredActionContext;
@@ -20,7 +17,6 @@ import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.models.UserModel;
-import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.sessions.AuthenticationSessionModel;
 
 /** Required Action that requires users to verify its email using an OTP. */
@@ -61,7 +57,7 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
     log.info("action() called");
     String enteredCode = context.getHttpRequest().getDecodedFormParameters().getFirst(Utils.CODE);
     String resend = context.getHttpRequest().getDecodedFormParameters().getFirst("resend");
-    if(resend != null && resend.equals("true")) {
+    if (resend != null && resend.equals("true")) {
       initiateForm(context);
       return;
     }
@@ -119,20 +115,17 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
 
     try {
       UserModel user = context.getUser();
-      Utils.sendCode(
-          config,
-          session,
-          user,
-          authSession,
-          Utils.MessageCourier.EMAIL,
-          false);
+      Utils.sendCode(config, session, user, authSession, Utils.MessageCourier.EMAIL, false);
       context.challenge(
-          context.form()
-          .setAttribute("realm", context.getRealm())
-          .setAttribute("address", Utils.getOtpAddress(Utils.MessageCourier.EMAIL, false, config, authSession, user))
-          .setAttribute("ttl", config.getConfig().get(Utils.CODE_TTL))
-          .setAttribute("resendTimer", resendTimer)
-          .createForm(TPL_CODE));
+          context
+              .form()
+              .setAttribute("realm", context.getRealm())
+              .setAttribute(
+                  "address",
+                  Utils.getOtpAddress(Utils.MessageCourier.EMAIL, false, config, authSession, user))
+              .setAttribute("ttl", config.getConfig().get(Utils.CODE_TTL))
+              .setAttribute("resendTimer", resendTimer)
+              .createForm(TPL_CODE));
     } catch (Exception error) {
       log.infov("there was an error {0}", error);
       context.failure();
