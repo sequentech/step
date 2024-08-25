@@ -73,7 +73,7 @@ public class ECIESEncryptionTool {
                     System.out.println("Usage: sign <private-key-file> <plaintext-file>");
                     return;
                 }
-                String signature = signText(args[1], args[2]);
+                String signature = signText(args[1], args[2], true);
                 System.out.println(signature);
                 break;
 
@@ -82,8 +82,26 @@ public class ECIESEncryptionTool {
                     System.out.println("Usage: verify <public-key-file> <plaintext-file> <signature-base64>");
                     return;
                 }
-                boolean isValid = verifyText(args[1], args[2], args[3]);
+                boolean isValid = verifyText(args[1], args[2], args[3], true);
                 System.out.println("Signature valid: " + isValid);
+                break;
+
+            case "sign-rsa":
+                if (args.length != 3) {
+                    System.out.println("Usage: sign-rsa <private-key-file> <plaintext-file>");
+                    return;
+                }
+                String rsaSignature = signText(args[1], args[2], false);
+                System.out.println(rsaSignature);
+                break;
+
+            case "verify-rsa":
+                if (args.length != 4) {
+                    System.out.println("Usage: verify-rsa <public-key-file> <plaintext-file> <signature-base64>");
+                    return;
+                }
+                boolean isValidRsa = verifyText(args[1], args[2], args[3], false);
+                System.out.println("Signature valid: " + isValidRsa);
                 break;
 
             default:
@@ -153,14 +171,15 @@ public class ECIESEncryptionTool {
         return new String(decryptedTextBytes, StandardCharsets.UTF_8);
     }
 
-    private static String signText(String privateKeyFile, String plaintextFilePath) throws Exception {
+    private static String signText(String privateKeyFile, String plaintextFilePath, Boolean isECDSA) throws Exception {
+        String algorithm = isECDSA? "SHA256withECDSA" : "SHA256withRSA";
         PrivateKey privateKey = loadPrivateKeyFromPEM(readFile(privateKeyFile));
     
         // Read the plaintext from the file to get the original byte array
         byte[] plaintextBytes = Files.readAllBytes(Paths.get(plaintextFilePath));
     
         // Initialize the Signature object for signing
-        Signature signature = Signature.getInstance("SHA256withECDSA", "SC");
+        Signature signature = Signature.getInstance(algorithm, "SC");
         signature.initSign(privateKey);
         signature.update(plaintextBytes);
     
@@ -171,7 +190,8 @@ public class ECIESEncryptionTool {
     }
     
 
-    private static boolean verifyText(String publicKeyFile, String plaintextFilePath, String signatureBase64) throws Exception {
+    private static boolean verifyText(String publicKeyFile, String plaintextFilePath, String signatureBase64, Boolean isECDSA) throws Exception {
+        String algorithm = isECDSA? "SHA256withECDSA" : "SHA256withRSA";
         PublicKey publicKey = loadPublicKeyFromPEM(readFile(publicKeyFile));
     
         // Read the plaintext from the file to get the original byte array
@@ -181,7 +201,7 @@ public class ECIESEncryptionTool {
         byte[] signatureBytes = Base64.getDecoder().decode(signatureBase64);
     
         // Initialize the Signature object for verification
-        Signature signature = Signature.getInstance("SHA256withECDSA", "SC");
+        Signature signature = Signature.getInstance(algorithm, "SC");
         signature.initVerify(publicKey);
         signature.update(plaintextBytes);
     

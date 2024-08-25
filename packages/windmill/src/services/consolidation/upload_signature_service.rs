@@ -18,13 +18,26 @@ use tracing::{info, instrument};
 
 #[instrument(err)]
 pub async fn upload_transmission_package_signature_service(
-    trustee_name: &str,
     tenant_id: &str,
     election_id: &str,
     area_id: &str,
     tally_session_id: &str,
+    trustee_name: &str,
     private_key: &str,
 ) -> Result<()> {
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .with_context(|| "Error acquiring hasura connection pool")?;
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .with_context(|| "Error acquiring hasura transaction")?;
+    hasura_transaction
+        .commit()
+        .await
+        .with_context(|| "error comitting transaction")?;
     /*
     let election_event =
         get_election_event_by_election_area(&hasura_transaction, tenant_id, election_id, area_id)

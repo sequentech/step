@@ -94,11 +94,11 @@ pub async fn upload_signature_task(
         move || {
             tokio::runtime::Handle::current().block_on(async move {
                 upload_transmission_package_signature_service(
-                    &trustee_name,
                     &tenant_id,
                     &election_id,
                     &area_id,
                     &tally_session_id,
+                    &trustee_name,
                     &private_key,
                 )
                 .await
