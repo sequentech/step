@@ -41,6 +41,8 @@ Files:
   packages/immudb-rs/proto/immudb/*
   packages/keycloak-extensions/message-otp-authenticator/src/main/resources/theme-resources/templates/text/send-code-email.ftl
   packages/keycloak-extensions/message-otp-authenticator/src/main/resources/theme-resources/templates/html/send-code-email.ftl
+  packages/keycloak-extensions/inetum-authenticator/src/main/resources/theme-resources/templates/text/success-email.ftl
+  packages/keycloak-extensions/inetum-authenticator/src/main/resources/theme-resources/templates/html/success-email.ftl
 Copyright: 2024 Sequent Tech <legal@sequentech.io>
 License: AGPL-3.0-only
 

@@ -12,6 +12,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.extern.jbosslog.JBossLog;
@@ -54,6 +55,9 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
   public static final String UNSET_ATTRIBUTES = "unset-attributes";
   public static final String UNIQUE_ATTRIBUTES = "unique-attributes";
 
+  public static final String VERIFIED_VALUE = "VERIFIED";
+  public static final String VERIFIED_DEFAULT_ID = "sequent.read-only.id-card-number-validated";
+
   @Override
   public String getHelpText() {
     return "Sequent: This action must always be first! Validates the username and user profile of the user in validation phase.  In success phase, this will save the info necessary in auth notes to create the user - or attach to a pre-registered user.";
@@ -63,6 +67,12 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
   public List<ProviderConfigProperty> getConfigProperties() {
     // Define configuration properties
     return List.of(
+        new ProviderConfigProperty(
+            Utils.USER_STATUS_ATTRIBUTE,
+            "User Status Attribute",
+            "The name of the user validation status attribute.",
+            ProviderConfigProperty.STRING_TYPE,
+            VERIFIED_DEFAULT_ID),
         new ProviderConfigProperty(
             SEARCH_ATTRIBUTES,
             "Search Attributes",
@@ -95,6 +105,8 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     String searchAttributes = configMap.get(SEARCH_ATTRIBUTES);
     String unsetAttributes = configMap.get(UNSET_ATTRIBUTES);
     String uniqueAttributes = configMap.get(UNIQUE_ATTRIBUTES);
+    String verifiedAttributeId =
+        Optional.ofNullable(configMap.get(UNIQUE_ATTRIBUTES)).orElse(VERIFIED_DEFAULT_ID);
 
     // Parse attributes lists
     List<String> searchAttributesList = parseAttributesList(searchAttributes);
@@ -193,6 +205,18 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       List<FormMessage> errors = new ArrayList<>();
       errors.add(new FormMessage(null, Utils.ERROR_USER_NOT_FOUND, sessionId));
       context.validationError(formData, errors);
+      return;
+    }
+
+    // Check if the voter has already been validated
+    log.infov("validate: Is user validated id {0}", verifiedAttributeId);
+    var verifiedAttributeValue = user.getFirstAttribute(verifiedAttributeId);
+
+    log.infov("validate: Is user validated? {0} == {1}", VERIFIED_VALUE, verifiedAttributeValue);
+    if (VERIFIED_VALUE.equalsIgnoreCase(verifiedAttributeValue)) {
+      log.infov("validate: Is user validated? true");
+      context.getAuthenticationSession().setAuthNote(verifiedAttributeId, verifiedAttributeValue);
+      context.success();
       return;
     }
 
@@ -354,6 +378,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
   @Override
   public void success(FormContext context) {
     log.info("DeferredRegistrationUserCreation: start");
+
     checkNotOtherUserAuthenticating(context);
 
     // Retrieve the configuration
