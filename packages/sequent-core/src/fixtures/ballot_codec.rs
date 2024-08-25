@@ -210,7 +210,7 @@ fn get_contest_plurality() -> Contest {
             max_selections_per_type: None,
             types_presentation: None,
             sort_order: None,
-            under_vote_alert: Some(false),
+            under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
         }),
     }
 }
@@ -438,7 +438,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                 max_selections_per_type: None,
                 types_presentation: None,
                 sort_order: None,
-                under_vote_alert: Some(false),
+                under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
             }),
         }],
     }
@@ -656,7 +656,7 @@ pub fn get_test_contest() -> Contest {
             max_selections_per_type: None,
             types_presentation: None,
             sort_order: None,
-            under_vote_alert: Some(false),
+            under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
         }),
     }
 }
@@ -907,7 +907,7 @@ pub(crate) fn get_configurable_contest(
             max_selections_per_type: None,
             types_presentation: None,
             sort_order: None,
-            under_vote_alert: Some(false),
+            under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
         }),
     };
 
@@ -1197,7 +1197,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     max_selections_per_type: None,
                     types_presentation: None,
                     sort_order: None,
-                    under_vote_alert: Some(false),
+                    under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
                 }),
             },
             raw_ballot: RawBallotContest {
@@ -1395,7 +1395,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     max_selections_per_type: None,
                     types_presentation: None,
                     sort_order: None,
-                    under_vote_alert: Some(false),
+                    under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
                 }),
             },
             raw_ballot: RawBallotContest {
@@ -1573,7 +1573,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     max_selections_per_type: None,
                     types_presentation: None,
                     sort_order: None,
-                    under_vote_alert: Some(false),
+                    under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
                 }),
             },
             raw_ballot: RawBallotContest {
@@ -1735,7 +1735,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     max_selections_per_type: None,
                     types_presentation: None,
                     sort_order: None,
-                    under_vote_alert: Some(true),
+                    under_vote_policy: Some(EUnderVotePolicy::WARN),
                 }),
             },
             raw_ballot: RawBallotContest {
@@ -1771,9 +1771,19 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             ("numSelected".to_string(), 0.to_string()),
                             ("min".to_string(), 1.to_string()),
                         ]),
-                    }
+                    },
                 ],
-                invalid_alerts: vec![],
+                invalid_alerts: vec![
+                    InvalidPlaintextError {
+                        error_type: InvalidPlaintextErrorType::Implicit,
+                        candidate_id: None,
+                        message: Some("errors.implicit.blankVote".to_string()),
+                        message_map: HashMap::from([
+                            ("numSelected".to_string(), 0.to_string()),
+                            ("type".to_string(), "alert".to_string()),
+                        ]),
+                    },
+                ],
             },
             encoded_ballot_bigint: "0".to_string(),
             encoded_ballot: vec_to_30_array(&vec![1, 0]).unwrap(),
@@ -1897,7 +1907,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     max_selections_per_type: None,
                     types_presentation: None,
                     sort_order: None,
-                    under_vote_alert: Some(false),
+                    under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
                 }),
             },
             raw_ballot: RawBallotContest {
@@ -1933,7 +1943,16 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             ("min".to_string(), 1.to_string()),
                             ("numSelected".to_string(), 0.to_string()),
                         ]),
-                    }
+                    },
+                    InvalidPlaintextError {
+                        error_type: InvalidPlaintextErrorType::Implicit,
+                        candidate_id: None,
+                        message: Some("errors.implicit.blankVote".to_string()),
+                        message_map: HashMap::from([
+                            ("numSelected".to_string(), 0.to_string()),
+                            ("type".to_string(), "alert".to_string()),
+                        ]),
+                    },
                 ],
                 invalid_alerts: vec![],
             },
@@ -2059,7 +2078,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     max_selections_per_type: None,
                     types_presentation: None,
                     sort_order: None,
-                    under_vote_alert: Some(false),
+                    under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
                 }),
             },
             raw_ballot: RawBallotContest {

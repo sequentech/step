@@ -181,7 +181,8 @@ mod tests {
             {
                 assert_eq!(
                     &decoded_ballot.invalid_errors,
-                    &fixture.plaintext.invalid_errors
+                    &fixture.plaintext.invalid_errors,
+                    "&decoded_ballot.invalid_errors != &fixture.plaintext.invalid_errors"
                 );
             }
             if expected_error.is_none()
@@ -192,7 +193,8 @@ mod tests {
             {
                 assert_eq!(
                     &decoded_ballot.invalid_alerts,
-                    &fixture.plaintext.invalid_alerts
+                    &fixture.plaintext.invalid_alerts,
+                    "&decoded_ballot.invalid_alerts != &fixture.plaintext.invalid_alerts"
                 );
             }
             if expected_error.is_none()

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::ballot;
 use crate::ballot::*;
 use crate::ballot_codec::*;
 use crate::plaintext::*;
@@ -369,9 +370,6 @@ impl RawBallotCodec for Contest {
                 None
             }
         };
-        // has_undervote means that num_selected_candidates is less than the
-        // max
-        let mut has_undervote = false;
 
         if let Some(presentation) = &self.presentation {
             if let Some(max_votes) = max_votes {
@@ -385,9 +383,7 @@ impl RawBallotCodec for Contest {
                 }
             }
             if let Some(min_votes) = min_votes {
-                if num_selected_candidates < min_votes
-                {
-                    has_undervote = true;
+                if num_selected_candidates < min_votes {
                     decoded_contest.invalid_errors.push(
                         InvalidPlaintextError {
                             error_type: InvalidPlaintextErrorType::Implicit,
@@ -407,62 +403,46 @@ impl RawBallotCodec for Contest {
                 }
             }
 
-            if let Some(should_show_under_vote_alert) =
-                presentation.under_vote_alert
+            // Handle undervote alerts. Please note that the case of
+            // `num_selected_candidates < min_votes` is handle in prev step and
+            // is independent of `under_vote_policy`, it's an invalid vote no
+            // matter what
+            if let (Some(max_votes), Some(min_votes), Some(under_vote_policy)) =
+                (max_votes, min_votes, presentation.under_vote_policy)
             {
-                if should_show_under_vote_alert {
-                    if let (Some(max_votes), Some(min_votes)) =
-                        (max_votes, min_votes)
-                    {
-                        if num_selected_candidates < max_votes
-                            && num_selected_candidates >= min_votes
-                        {
-                            has_undervote = true;
-                            decoded_contest.invalid_alerts.push(
-                                InvalidPlaintextError {
-                                    error_type:
-                                        InvalidPlaintextErrorType::Implicit,
-                                    candidate_id: None,
-                                    message: Some(
-                                        "errors.implicit.underVote".to_string(),
-                                    ),
-                                    message_map: HashMap::from([
-                                        (
-                                            "type".to_string(),
-                                            "alert".to_string(),
-                                        ),
-                                        (
-                                            "numSelected".to_string(),
-                                            num_selected_candidates.to_string(),
-                                        ),
-                                        (
-                                            "min".to_string(),
-                                            self.min_votes.to_string(),
-                                        ),
-                                        (
-                                            "max".to_string(),
-                                            self.max_votes.to_string(),
-                                        ),
-                                    ]),
-                                },
-                            );
-                        }
-                    }
+                if under_vote_policy != EUnderVotePolicy::ALLOWED
+                    && num_selected_candidates < max_votes
+                    && num_selected_candidates >= min_votes
+                {
+                    decoded_contest.invalid_alerts.push(
+                        InvalidPlaintextError {
+                            error_type: InvalidPlaintextErrorType::Implicit,
+                            candidate_id: None,
+                            message: Some(
+                                "errors.implicit.underVote".to_string(),
+                            ),
+                            message_map: HashMap::from([
+                                ("type".to_string(), "alert".to_string()),
+                                (
+                                    "numSelected".to_string(),
+                                    num_selected_candidates.to_string(),
+                                ),
+                                ("min".to_string(), self.min_votes.to_string()),
+                                ("max".to_string(), self.max_votes.to_string()),
+                            ]),
+                        },
+                    );
                 }
             }
+
+            // handle blank vote policy
             if let Some(blank_vote_policy) = presentation.blank_vote_policy {
-                if !has_undervote
-                    && num_selected_candidates == 0
-                    && blank_vote_policy != EBlankVotePolicy::ALLOWED
-                {
+                if num_selected_candidates == 0 {
                     (match blank_vote_policy {
                         EBlankVotePolicy::NOT_ALLOWED => {
                             &mut decoded_contest.invalid_errors
                         }
-                        EBlankVotePolicy::WARN => {
-                            &mut decoded_contest.invalid_alerts
-                        }
-                        EBlankVotePolicy::ALLOWED => unreachable!(),
+                        _ => &mut decoded_contest.invalid_alerts,
                     })
                     .push(InvalidPlaintextError {
                         error_type: InvalidPlaintextErrorType::Implicit,
@@ -552,6 +532,9 @@ fn handle_over_vote_policy(
 
 #[cfg(test)]
 mod tests {
+    use raw_ballot::EUnderVotePolicy;
+
+    use crate::ballot;
     use crate::ballot_codec::*;
     use crate::fixtures::ballot_codec::*;
     use crate::mixed_radix::encode;
@@ -677,29 +660,29 @@ mod tests {
                     (max_votes, min_votes)
                 {
                     // Test for undervote
-                    if let Some(presentation) = fixture.contest.presentation {
-                        if let Some(under_vote_alert_enabled) =
-                            presentation.under_vote_alert
+                    if let Some(ballot::ContestPresentation {
+                        under_vote_policy: Some(under_vote_policy),
+                        ..
+                    }) = fixture.contest.presentation
+                    {
+                        if num_selected_candidates < max_votes
+                            && num_selected_candidates >= min_votes
+                            && under_vote_policy != EUnderVotePolicy::ALLOWED
                         {
-                            if num_selected_candidates < max_votes
-                                && num_selected_candidates >= min_votes
-                                && under_vote_alert_enabled
-                            {
-                                let has_under_vote_alert = decoded_ballot
-                                    .invalid_alerts
-                                    .iter()
-                                    .any(|alert| {
-                                        alert.message
-                                            == Some(
-                                                "errors.implicit.underVote"
-                                                    .to_string(),
-                                            )
-                                    });
-                                assert!(
-                                has_under_vote_alert,
-                                "Expected undervote alert not found in invalid_alerts"
+                            let has_under_vote_policy = decoded_ballot
+                                .invalid_alerts
+                                .iter()
+                                .any(|alert| {
+                                    alert.message
+                                        == Some(
+                                            "errors.implicit.underVote"
+                                                .to_string(),
+                                        )
+                                });
+                            assert!(
+                                has_under_vote_policy,
+                                "Expected undervote policy not found in invalid_alerts"
                             );
-                            }
                         }
                     }
                     // Test for overvote

@@ -8,11 +8,18 @@ import {provideBallotService} from "../../services/BallotService"
 import {useAppSelector} from "../../store/hooks"
 import {selectBallotSelectionByElectionId} from "../../store/ballotSelections/ballotSelectionsSlice"
 import {useTranslation} from "react-i18next"
-import {IDecodedVoteContest, IInvalidPlaintextError, IContest} from "@sequentech/ui-core"
+import {
+    IDecodedVoteContest,
+    IInvalidPlaintextError,
+    IContest,
+    EBlankVotePolicy,
+    EUnderVotePolicy,
+} from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {Box} from "@mui/material"
 import {isVotedByElectionId} from "../../store/extra/extraSlice"
 import {useParams} from "react-router-dom"
+import {error} from "console"
 
 const ErrorWrapper = styled(Box)`
     display: flex;
@@ -59,9 +66,20 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
         [selectionState]
     )
 
+    let under_vote_policy = question?.presentation?.under_vote_policy ?? ""
+    let blank_vote_policy = question?.presentation?.blank_vote_policy ?? ""
+
+    const containsError = (state: IDecodedVoteContest | undefined, message: string) => {
+        if (!state) return false
+        return (
+            state.invalid_alerts.find((error) => error.message === message) ||
+            state.invalid_errors.find((error) => error.message === message)
+        )
+    }
+
     const filterErrorList = (state: IDecodedVoteContest | undefined) => {
         if (!state) return undefined
-        return {
+        var ret = {
             ...state,
             invalid_errors:
                 state?.invalid_errors.filter(
@@ -82,9 +100,9 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
                             )
                         )
                         if (!ret) {
-                            console.log(`filtering out error: ${error.message}`)
+                            console.log(`invalid_errors: filtering out error: ${error.message}`)
                         } else {
-                            console.log(`NOT filtering out error: ${error.message}`)
+                            console.log(`invalid_errors: NOT filtering out error: ${error.message}`)
                         }
                         return ret
                     }
@@ -96,29 +114,49 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
                     // error when this happens"
                     (error) => {
                         let ret = !(
-                            // If no interaction is made and not in review screen,
-                            // filter out some errors
-                            (
-                                ([
-                                    "errors.implicit.selectedMin",
-                                    "errors.implicit.underVote",
-                                    "errors.implicit.blankVote",
-                                ].find((e) => e === error.message) &&
-                                    !isReview &&
-                                    !isTouched &&
-                                    !isVotedState) ||
-                                (error.message === "errors.implicit.overVoteDisabled" && isReview)
-                            )
+                            ("errors.implicit.selectedMin" === error.message &&
+                                !isReview &&
+                                !isTouched &&
+                                !isVotedState) ||
+                            ("errors.implicit.underVote" === error.message &&
+                                ((!isReview && !isTouched && !isVotedState) ||
+                                    (!isReview &&
+                                        under_vote_policy ===
+                                            EUnderVotePolicy.WARN_ONLY_IN_REVIEW))) ||
+                            ("errors.implicit.blankVote" === error.message &&
+                                ((!isReview && !isTouched && !isVotedState) ||
+                                    (!isReview &&
+                                        blank_vote_policy ===
+                                            EBlankVotePolicy.WARN_ONLY_IN_REVIEW))) ||
+                            (error.message === "errors.implicit.overVoteDisabled" && isReview)
                         )
                         if (!ret) {
-                            console.log(`filtering out alert: ${error.message}`)
+                            console.log(`
+                                invalid_alerts: filtering out alert: ${error.message}.
+                                - error.message: ${error.message}
+                                - isReview: ${isReview}
+                                - isTouched: ${isTouched}
+                                - isVotedState: ${isVotedState}
+                                - under_vote_policy: ${under_vote_policy}
+                                - blank_vote_policy: ${blank_vote_policy}
+                            `)
                         } else {
-                            console.log(`NOT filtering out error: ${error.message}`)
+                            console.log(`invalid_alerts: NOT filtering out error: ${error.message}`)
                         }
                         return ret
                     }
                 ) || [],
         }
+
+        // remove duplicates, if there's blank vote, remove underVote
+        ret.invalid_alerts = ret.invalid_alerts.filter(
+            (error) =>
+                !(
+                    "errors.implicit.underVote" === error.message &&
+                    containsError(ret, "errors.implicit.blankVote")
+                )
+        )
+        return ret
     }
 
     useEffect(() => {

@@ -808,6 +808,13 @@ const englishTranslation = {
                 "custom": "Custom",
                 "alphabetical": "Alphabetical",
             },
+            underVotePolicy: {
+                "label": "Under Vote Policy",
+                "allowed": "Allowed",
+                "warn-only-in-review": "Warn in Review",
+                "warn": "Warn",
+                "warn-and-alert": "Warn and Alert",
+            },
             invalidVotePolicy: {
                 "label": "Invalid Vote Policy",
                 "allowed": "Allowed",
@@ -824,6 +831,7 @@ const englishTranslation = {
             blankVotePolicy: {
                 "label": "Blank Vote Policy",
                 "allowed": "Allowed",
+                "warn-only-in-review": "Warn in Review",
                 "warn": "Warn",
                 "not-allowed": "Not Allowed",
             },
