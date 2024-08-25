@@ -78,7 +78,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                     name="resend"
                     value="true"
                     class="${properties.kcButtonClass!} ${properties.kcButtonSecondaryClass!}"
-                    onclick="resendOtp(${(resendTimer)!"60"})"
+                    onclick="resendOtp(${(resendTimer)})"
                     >
                     ${msg("resendOtp", "Resend OTP")}
                 </button>
@@ -103,7 +103,7 @@ function resendOtp(resendTimer) {
 }
 
 document.addEventListener('DOMContentLoaded', (event) => {
-    updateButtonState();
+     updateButtonState();
 });
 
 function updateButtonState() {

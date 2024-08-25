@@ -122,6 +122,7 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
     KeycloakSession session = context.getSession();
     UserModel user = context.getUser();
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
+    String resendTimer = System.getenv("KC_OTP_RESEND_INTERVAL");
     try {
       Utils.sendCode(config.get(), session, user, authSession, Utils.MessageCourier.BOTH, false);
     } catch (Exception error) {
@@ -134,7 +135,9 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
     LoginFormsProvider form = context.form();
     form.setAttribute("realm", context.getRealm())
         .setAttribute("address", Utils.getOtpAddress(Utils.MessageCourier.BOTH, false, config.get(), authSession, user))
-        .setAttribute("ttl", config.get().getConfig().get(Utils.CODE_TTL));
+        .setAttribute("ttl", config.get().getConfig().get(Utils.CODE_TTL))
+        .setAttribute("resendTimer", resendTimer);
+
     if (formConsumer != null) {
       formConsumer.accept(form);
     }

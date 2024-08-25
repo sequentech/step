@@ -86,6 +86,10 @@ public class MessageOTPAuthenticator
       boolean deferredUser = config.getConfig().get(Utils.DEFERRED_USER_ATTRIBUTE).equals("true");
       AuthenticationExecutionModel execution = context.getExecution();
       UserModel user = context.getUser();
+      String resendTimer = config.getConfig().get(Utils.RESEND_ACTIVATION_TIMER);
+      if (resendTimer == null) {
+        resendTimer = System.getenv("KC_OTP_RESEND_INTERVAL");
+      }
       if (execution.isRequired()) {
         context.failureChallenge(
             AuthenticationFlowError.INVALID_CREDENTIALS,

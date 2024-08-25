@@ -115,6 +115,7 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
     form.setAttribute("user", context.getUser());
 
     AuthenticatorConfigModel config = Utils.getConfig(authSession.getRealm()).get();
+    String resendTimer = System.getenv("KC_OTP_RESEND_INTERVAL");
 
     try {
       UserModel user = context.getUser();
@@ -130,6 +131,7 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
           .setAttribute("realm", context.getRealm())
           .setAttribute("address", Utils.getOtpAddress(Utils.MessageCourier.EMAIL, false, config, authSession, user))
           .setAttribute("ttl", config.getConfig().get(Utils.CODE_TTL))
+          .setAttribute("resendTimer", resendTimer)
           .createForm(TPL_CODE));
     } catch (Exception error) {
       log.infov("there was an error {0}", error);
@@ -164,16 +166,5 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
   @Override
   public String getId() {
     return PROVIDER_ID;
-  }
-  @Override
-  public List<ProviderConfigProperty> getConfigMetadata() {
-      return List.of(
-          new ProviderConfigProperty(
-              Utils.RESEND_ACTIVATION_TIMER,
-              "Seconds to activate resend",
-              "Time in seconds the resend code gets re activated",
-              ProviderConfigProperty.STRING_TYPE,
-              "60")
-      );
   }
 }
