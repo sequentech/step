@@ -369,9 +369,8 @@ impl RawBallotCodec for Contest {
                 None
             }
         };
-
         // has_undervote means that num_selected_candidates is less than the
-        // Max.
+        // max
         let mut has_undervote = false;
 
         if let Some(presentation) = &self.presentation {
@@ -386,7 +385,8 @@ impl RawBallotCodec for Contest {
                 }
             }
             if let Some(min_votes) = min_votes {
-                if num_selected_candidates < min_votes {
+                if num_selected_candidates < min_votes
+                {
                     has_undervote = true;
                     decoded_contest.invalid_errors.push(
                         InvalidPlaintextError {
@@ -426,7 +426,7 @@ impl RawBallotCodec for Contest {
                                     message: Some(
                                         "errors.implicit.underVote".to_string(),
                                     ),
-                                    message_map: [
+                                    message_map: HashMap::from([
                                         (
                                             "type".to_string(),
                                             "alert".to_string(),
@@ -443,17 +443,13 @@ impl RawBallotCodec for Contest {
                                             "max".to_string(),
                                             self.max_votes.to_string(),
                                         ),
-                                    ]
-                                    .iter()
-                                    .cloned()
-                                    .collect(),
+                                    ]),
                                 },
                             );
                         }
                     }
                 }
             }
-
             if let Some(blank_vote_policy) = presentation.blank_vote_policy {
                 if !has_undervote
                     && num_selected_candidates == 0
@@ -472,16 +468,13 @@ impl RawBallotCodec for Contest {
                         error_type: InvalidPlaintextErrorType::Implicit,
                         candidate_id: None,
                         message: Some("errors.implicit.blankVote".to_string()),
-                        message_map: [
+                        message_map: HashMap::from([
                             ("type".to_string(), "alert".to_string()),
                             (
                                 "numSelected".to_string(),
                                 num_selected_candidates.to_string(),
                             ),
-                        ]
-                        .iter()
-                        .cloned()
-                        .collect(),
+                        ]),
                     });
                 }
             }
