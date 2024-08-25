@@ -55,6 +55,7 @@ import {
     ICandidatePresentation,
     IElectionPresentation,
     EBlankVotePolicy,
+    EOverVotePolicy,
 } from "@sequentech/ui-core"
 import {DropFile} from "@sequentech/ui-essentials"
 import {ICountingAlgorithm, IVotingType} from "./constants"
@@ -382,6 +383,13 @@ export const ContestDataForm: React.FC = () => {
         }))
     }
 
+    const overVotePolicyChoices = () => {
+        return Object.values(EOverVotePolicy).map((value) => ({
+            id: value,
+            name: t(`contestScreen.overVotePolicy.${value}`),
+        }))
+    }
+
     const parseValues = useCallback(
         (incoming: Sequent_Backend_Contest_Extended): Sequent_Backend_Contest_Extended => {
             if (!electionEvent) {
@@ -439,6 +447,9 @@ export const ContestDataForm: React.FC = () => {
 
             newContest.presentation.blank_vote_policy =
                 newContest.presentation.blank_vote_policy || EBlankVotePolicy.ALLOWED
+
+            newContest.presentation.over_vote_policy =
+                newContest.presentation.over_vote_policy || EOverVotePolicy.ALLOWED
 
             newContest.presentation.pagination_policy =
                 newContest.presentation.pagination_policy || ""
@@ -712,6 +723,7 @@ export const ContestDataForm: React.FC = () => {
                                 <SelectInput
                                     source="presentation.invalid_vote_policy"
                                     choices={invalidVotePolicyChoices()}
+                                    label={t(`contestScreen.invalidVotePolicy.label`)}
                                     validate={required()}
                                 />
 
@@ -720,6 +732,14 @@ export const ContestDataForm: React.FC = () => {
                                     choices={blankVotePolicyChoices()}
                                     label={t(`contestScreen.blankVotePolicy.label`)}
                                     defaultValue={EBlankVotePolicy.ALLOWED}
+                                    validate={required()}
+                                />
+
+                                <SelectInput
+                                    source={`presentation.over_vote_policy`}
+                                    choices={overVotePolicyChoices()}
+                                    label={t(`contestScreen.overVotePolicy.label`)}
+                                    defaultValue={EOverVotePolicy.ALLOWED}
                                     validate={required()}
                                 />
 
