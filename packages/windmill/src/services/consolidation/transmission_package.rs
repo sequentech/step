@@ -10,6 +10,7 @@ use super::{
     xz_compress::xz_compress,
     zip::compress_folder_to_zip,
 };
+use crate::services::consolidation::eml_types::ACMTrustee;
 use crate::services::{
     password::generate_random_string_with_charset,
     s3::{download_s3_file_to_string, get_public_asset_file_path},
@@ -147,6 +148,7 @@ pub async fn create_transmission_package(
     ccs_public_key_pem_str: &str,
     area_station_id: &str,
     output_file_path: &Path,
+    server_signatures: &Vec<ACMTrustee>,
 ) -> Result<()> {
     let (mut exz_temp_file, encrypted_random_pass_base64) =
         generate_encrypted_compressed_xml(compressed_xml, ccs_public_key_pem_str).await?;
@@ -169,6 +171,7 @@ pub async fn create_transmission_package(
         date_time,
         election_event_annotations,
         area_station_id,
+        server_signatures,
     )?;
     generate_er_final_zip(
         exz_temp_file_bytes,

@@ -19,6 +19,7 @@ use crate::postgres::tally_session::{get_tally_session_by_id, update_tally_sessi
 use crate::postgres::tally_session_execution::get_tally_session_executions;
 use crate::services::ceremonies::velvet_tally::generate_initial_state;
 use crate::services::compress::decompress_file;
+use crate::services::consolidation::eml_types::ACMTrustee;
 use crate::services::database::get_hasura_pool;
 use crate::services::date::ISO8601;
 use crate::services::documents::get_document_as_temp_file;
@@ -150,6 +151,7 @@ pub async fn generate_all_servers_document(
     tenant_id: &str,
     time_zone: TimeZone,
     now_utc: DateTime<Utc>,
+    server_signatures: Vec<ACMTrustee>,
 ) -> Result<Document> {
     let acm_key_pair = get_acm_key_pair().await?;
     let temp_dir = tempdir().with_context(|| "Error generating temp directory")?;
@@ -171,6 +173,7 @@ pub async fn generate_all_servers_document(
             &ccs_server.public_key_pem,
             area_station_id,
             &zip_file_path,
+            &server_signatures,
         )
         .await?;
     }
@@ -341,23 +344,6 @@ pub async fn create_transmission_package_service(
     )
     .await?;
 
-    // upload .xz
-    let xz_name = format!("er_{}", transaction_id);
-    let (temp_path, temp_path_string, file_size) =
-        write_into_named_temp_file(&base_compressed_xml, &xz_name, ".xz")?;
-    let xz_document = upload_and_return_document_postgres(
-        &hasura_transaction,
-        &temp_path_string,
-        file_size,
-        "applization/xml",
-        tenant_id,
-        &election_event.id,
-        &xz_name,
-        None,
-        false,
-    )
-    .await?;
-
     // upload eml
     let eml_name = format!("er_{}", transaction_id);
     let (temp_path, temp_path_string, file_size) =
@@ -387,6 +373,7 @@ pub async fn create_transmission_package_service(
         tenant_id,
         time_zone.clone(),
         now_utc.clone(),
+        vec![],
     )
     .await?;
 
@@ -398,7 +385,6 @@ pub async fn create_transmission_package_service(
         documents: vec![MiruDocument {
             document_ids: MiruDocumentIds {
                 eml: eml_document.id.clone(),
-                xz: xz_document.id.clone(),
                 all_servers: all_servers_document.id.clone(),
             },
             transaction_id: transaction_id.clone(),

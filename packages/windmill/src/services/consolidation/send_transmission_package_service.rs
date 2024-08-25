@@ -24,7 +24,8 @@ use crate::{
         temp_path::{generate_temp_file, get_file_size},
     },
     types::miru_plugin::{
-        MiruCcsServer, MiruServerDocument, MiruTallySessionData, MiruTransmissionPackageData,
+        MiruCcsServer, MiruDocument, MiruServerDocument, MiruTallySessionData,
+        MiruTransmissionPackageData,
     },
 };
 use anyhow::{anyhow, Context, Result};
@@ -85,6 +86,27 @@ async fn send_package_to_ccs_server(
         ));
     }
     Ok(())
+}
+
+#[instrument(skip_all)]
+pub fn get_latest_miru_document(input_documents: &Vec<MiruDocument>) -> Option<MiruDocument> {
+    let mut documents = input_documents.clone();
+    documents.sort_by(|a, b| {
+        let Ok(a_date) = ISO8601::to_date(&a.created_at) else {
+            return Ordering::Equal;
+        };
+        let Ok(b_date) = ISO8601::to_date(&b.created_at) else {
+            return Ordering::Equal;
+        };
+        if a_date > b_date {
+            Ordering::Less
+        } else if a_date < b_date {
+            Ordering::Greater
+        } else {
+            Ordering::Equal
+        }
+    });
+    documents.first().cloned()
 }
 
 #[instrument(err)]
@@ -168,24 +190,8 @@ pub async fn send_transmission_package_service(
         info!("transmission package not found, skipping");
         return Ok(());
     };
-
-    let mut documents = transmission_area_election.documents.clone();
-    documents.sort_by(|a, b| {
-        let Ok(a_date) = ISO8601::to_date(&a.created_at) else {
-            return Ordering::Equal;
-        };
-        let Ok(b_date) = ISO8601::to_date(&b.created_at) else {
-            return Ordering::Equal;
-        };
-        if a_date > b_date {
-            Ordering::Less
-        } else if a_date < b_date {
-            Ordering::Greater
-        } else {
-            Ordering::Equal
-        }
-    });
-    let Some(miru_document) = documents.first().cloned() else {
+    let Some(miru_document) = get_latest_miru_document(&transmission_area_election.documents)
+    else {
         info!("transmission package document not found, skipping");
         return Ok(());
     };
@@ -197,7 +203,12 @@ pub async fn send_transmission_package_service(
         &miru_document.document_ids.all_servers,
     )
     .await?
-    .ok_or_else(|| anyhow!("Can't find document {}", miru_document.document_ids.xz))?;
+    .ok_or_else(|| {
+        anyhow!(
+            "Can't find document {}",
+            miru_document.document_ids.all_servers
+        )
+    })?;
 
     let mut compressed_zip = get_document_as_temp_file(tenant_id, &document).await?;
 
@@ -276,7 +287,7 @@ pub async fn send_transmission_package_service(
         .documents
         .into_iter()
         .map(|value| {
-            if value.document_ids.xz == new_miru_document.document_ids.xz {
+            if value.document_ids.all_servers == new_miru_document.document_ids.all_servers {
                 new_miru_document.clone()
             } else {
                 value

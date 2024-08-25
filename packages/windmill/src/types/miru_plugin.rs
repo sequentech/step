@@ -21,7 +21,6 @@ pub struct MiruServerDocument {
 pub struct MiruDocumentIds {
     #[serde(default)]
     pub eml: String,
-    pub xz: String,
     pub all_servers: String,
 }
 
