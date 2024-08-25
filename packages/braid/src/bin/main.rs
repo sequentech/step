@@ -178,7 +178,11 @@ async fn main() -> Result<()> {
         // handling sessions in parallel by spawning threads.
         for s in session_map.into_values() {
             let board_name = s.name.clone();
-            info!("* Running trustee for board '{}'..", board_name);
+            // info!("* Running trustee for board '{}'..", board_name);
+            // PRINT
+            // use std::io::Write;
+            // print!("{} ", i); std::io::stdout().flush();
+
             let (session, result) = s.step(loop_count).await;
             match result {
                 Ok(_) => (),
@@ -197,7 +201,6 @@ async fn main() -> Result<()> {
                     }
                 }
             };
-            info!("");
             session_map_next.insert(session.name.clone(), session);
         }
         session_map = session_map_next;
@@ -222,6 +225,7 @@ async fn main() -> Result<()> {
         }
 
         loop_count = (loop_count + 1) % u64::MAX;
+        println!("");
         sleep(Duration::from_millis(1000)).await;
     }
 

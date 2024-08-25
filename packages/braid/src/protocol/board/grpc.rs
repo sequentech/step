@@ -3,6 +3,7 @@ use anyhow::Result;
 use board_messages::grpc::GrpcB3Message;
 use rusqlite::params;
 use rusqlite::Connection;
+use std::io::Write;
 use std::path::PathBuf;
 use tracing::{info, warn};
 
@@ -120,11 +121,16 @@ impl GrpcB3 {
         // When querying for all messages we use -1 as default lower limit (this requests uses the > comparator in sql)
         let messages = self.get_remote_messages(external_last_id).await?;
 
-        info!(
-            "Retrieved {} messages remotely (last_id = {})",
-            messages.len(),
-            external_last_id
-        );
+        if messages.len() > 0 {
+            info!(
+                "Retrieved {} messages remotely (last_id = {})",
+                messages.len(),
+                external_last_id
+            );
+        } else {
+            print!(".");
+            let _ = std::io::stdout().flush();
+        }
 
         // FIXME verify message signatures before inserting in local store
         let mut statement =

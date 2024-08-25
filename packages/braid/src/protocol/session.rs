@@ -4,6 +4,8 @@
 
 use anyhow::Result;
 use tracing::{info, instrument, warn};
+// Same line printing
+use std::io::Write;
 
 use strand::context::Ctx;
 
@@ -32,7 +34,7 @@ impl<C: Ctx, B: Board> Session<C, B> {
     // Takes ownership of self to allow spawning threads in parallel
     // See https://stackoverflow.com/questions/63434977/how-can-i-spawn-asynchronous-methods-in-a-loop
     // See also protocol_test_grpc::run_protocol_test
-    #[instrument(skip_all)]
+    // #[instrument(skip_all)]
     pub async fn step(mut self, step_counter: u64) -> (Self, Result<(), ProtocolError>) {
         // Never skip more than 20 steps
         if self.active_period > 21 {
@@ -70,10 +72,12 @@ impl<C: Ctx, B: Board> Session<C, B> {
         let messages = messages.expect("impossible");
 
         if messages.len() == 0 {
-            info!(
+            /* info!(
                 "No new messages retrieved, session step finished ({}, {})",
                 self.active_period, step_counter
-            );
+            );*/
+            print!("_");
+            let _ = std::io::stdout().flush();
             self.active_period = self.active_period * 2;
             return (self, Ok(()));
         }
