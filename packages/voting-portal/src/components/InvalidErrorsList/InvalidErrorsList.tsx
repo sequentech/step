@@ -122,12 +122,14 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
                                 ((!isReview && !isTouched && !isVotedState) ||
                                     (!isReview &&
                                         under_vote_policy ===
-                                            EUnderVotePolicy.WARN_ONLY_IN_REVIEW))) ||
+                                            EUnderVotePolicy.WARN_ONLY_IN_REVIEW) ||
+                                    under_vote_policy === EUnderVotePolicy.ALLOWED)) ||
                             ("errors.implicit.blankVote" === error.message &&
                                 ((!isReview && !isTouched && !isVotedState) ||
                                     (!isReview &&
                                         blank_vote_policy ===
-                                            EBlankVotePolicy.WARN_ONLY_IN_REVIEW))) ||
+                                            EBlankVotePolicy.WARN_ONLY_IN_REVIEW) ||
+                                    blank_vote_policy === EBlankVotePolicy.ALLOWED)) ||
                             (error.message === "errors.implicit.overVoteDisabled" && isReview)
                         )
                         if (!ret) {
