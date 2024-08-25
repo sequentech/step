@@ -18,7 +18,6 @@ use tracing::{info, instrument};
 
 #[instrument(err)]
 pub async fn upload_transmission_package_signature_service(
-    hasura_transaction: &Transaction<'_>,
     trustee_name: &str,
     tenant_id: &str,
     election_id: &str,
@@ -26,6 +25,7 @@ pub async fn upload_transmission_package_signature_service(
     tally_session_id: &str,
     private_key: &str,
 ) -> Result<()> {
+    /*
     let election_event =
         get_election_event_by_election_area(&hasura_transaction, tenant_id, election_id, area_id)
             .await
@@ -64,5 +64,6 @@ pub async fn upload_transmission_package_signature_service(
     let trustee = get_trustee_by_name(&hasura_transaction, tenant_id, trustee_name)
         .await
         .with_context(|| format!("trustee with name '{}' not found", trustee_name))?;
+     */
     Ok(())
 }

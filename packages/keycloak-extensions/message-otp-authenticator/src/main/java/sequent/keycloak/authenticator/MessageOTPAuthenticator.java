@@ -24,6 +24,7 @@ public class MessageOTPAuthenticator
     implements Authenticator, CredentialValidator<MessageOTPCredentialProvider> {
   public static final String MOBILE_NUMBER_FIELD = "sequent.read-only.mobile-number";
   private static final String TPL_CODE = "login-message-otp.ftl";
+  private static final String EMAIL_VERIFIED = "Email verified";
 
   @Override
   public MessageOTPCredentialProvider getCredentialProvider(KeycloakSession session) {
@@ -74,6 +75,7 @@ public class MessageOTPAuthenticator
                 .setError("messageOtpAuthCodeExpired")
                 .createErrorPage(Response.Status.BAD_REQUEST));
       } else {
+        authSession.setAuthNote(EMAIL_VERIFIED, "true");
         // valid
         context.success();
       }

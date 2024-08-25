@@ -3,13 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::{
     create_transmission_package_service::update_transmission_package_annotations,
-    ecies_encrypt::generate_ecies_key_pair,
     eml_generator::{
         find_miru_annotation, prepend_miru_annotation, ValidateAnnotations, MIRU_AREA_CCS_SERVERS,
-        MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA,
+        MIRU_AREA_STATION_ID, MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA,
     },
     logs::{error_sending_transmission_package_to_ccs_log, send_transmission_package_to_ccs_log},
     transmission_package::create_transmission_package,
+    zip::unzip_file,
 };
 use crate::{
     postgres::{
@@ -21,7 +21,7 @@ use crate::{
         database::get_hasura_pool,
         date::ISO8601,
         documents::{get_document_as_temp_file, upload_and_return_document_postgres},
-        temp_path::get_file_size,
+        temp_path::{generate_temp_file, get_file_size},
     },
     types::miru_plugin::{
         MiruCcsServer, MiruServerDocument, MiruTallySessionData, MiruTransmissionPackageData,
@@ -37,24 +37,20 @@ use sequent_core::{
     types::hasura::core::{ElectionEvent, TallySession},
     util::date_time::get_system_timezone,
 };
-use std::cmp::Ordering;
 use std::io::{Read, Seek};
-use tempfile::NamedTempFile;
+use std::{cmp::Ordering, path::Path};
+use tempfile::{tempdir, NamedTempFile};
 use tracing::{info, instrument};
 
 const SEND_ELECTION_RESULTS_API_PATH: &str = "/api/receiver/v1/acm/election-results";
 
-#[instrument(skip(transmission_package), err)]
+#[instrument(err)]
 async fn send_package_to_ccs_server(
-    mut transmission_package: NamedTempFile,
+    transmission_package_path: &Path,
     ccs_server: &MiruCcsServer,
-) -> Result<NamedTempFile> {
-    // transmission_package the file to the beginning so it can be read
-    transmission_package.rewind()?;
-
+) -> Result<()> {
     // Read the file contents into a Vec<u8>
-    let mut transmission_package_bytes = Vec::new();
-    transmission_package.read_to_end(&mut transmission_package_bytes)?;
+    let mut transmission_package_bytes = std::fs::read(transmission_package_path)?;
 
     let uri = format!("{}{}", ccs_server.address, SEND_ELECTION_RESULTS_API_PATH);
     let client = reqwest::Client::builder()
@@ -88,7 +84,7 @@ async fn send_package_to_ccs_server(
             response_str
         ));
     }
-    Ok(transmission_package)
+    Ok(())
 }
 
 #[instrument(err)]
@@ -132,6 +128,15 @@ pub async fn send_transmission_package_service(
         .with_context(|| format!("Error fetching area {}", area_id))?
         .ok_or_else(|| anyhow!("Can't find area {}", area_id))?;
     let area_name = area.name.clone().unwrap_or("".into());
+    let area_annotations = area.get_valid_annotations()?;
+
+    let area_station_id = find_miru_annotation(MIRU_AREA_STATION_ID, &area_annotations)
+        .with_context(|| {
+            format!(
+                "Missing area annotation: '{}:{}'",
+                MIRU_PLUGIN_PREPEND, MIRU_AREA_STATION_ID
+            )
+        })?;
 
     let tally_session = get_tally_session_by_id(
         &hasura_transaction,
@@ -189,20 +194,16 @@ pub async fn send_transmission_package_service(
         &hasura_transaction,
         tenant_id,
         Some(election_event.id.clone()),
-        &miru_document.document_id,
+        &miru_document.document_ids.all_servers,
     )
     .await?
-    .ok_or_else(|| anyhow!("Can't find document {}", miru_document.document_id))?;
+    .ok_or_else(|| anyhow!("Can't find document {}", miru_document.document_ids.xz))?;
 
-    let mut compressed_xml = get_document_as_temp_file(tenant_id, &document).await?;
-    // Rewind the file to the beginning so it can be read
-    compressed_xml.rewind()?;
+    let mut compressed_zip = get_document_as_temp_file(tenant_id, &document).await?;
 
-    // Read the file contents into a Vec<u8>
-    let mut compressed_xml_bytes = Vec::new();
-    compressed_xml.read_to_end(&mut compressed_xml_bytes)?;
+    let zip_output_temp_dir = tempdir().with_context(|| "Error generating temp directory")?;
+    unzip_file(compressed_zip.path(), zip_output_temp_dir.path())?;
 
-    let acm_key_pair = generate_ecies_key_pair()?;
     let mut new_miru_document = miru_document.clone();
     let mut new_transmission_area_election = transmission_area_election.clone();
 
@@ -214,36 +215,17 @@ pub async fn send_transmission_package_service(
         .collect();
 
     for ccs_server in &transmission_area_election.servers {
-        let transmission_package = create_transmission_package(
-            time_zone.clone(),
-            now_utc.clone(),
-            &election_event_annotations,
-            compressed_xml_bytes.clone(),
-            &acm_key_pair,
-            &ccs_server.public_key_pem,
-        )
-        .await?;
-        match send_package_to_ccs_server(transmission_package, ccs_server).await {
-            Ok(tmp_file_zip) => {
-                let name = format!("er_{}.zip", miru_document.transaction_id);
-
-                let temp_path = tmp_file_zip.into_temp_path();
-                let temp_path_string = temp_path.to_string_lossy().to_string();
-                let file_size = get_file_size(temp_path_string.as_str())
-                    .with_context(|| "Error obtaining file size")?;
-
-                let document = upload_and_return_document_postgres(
-                    &hasura_transaction,
-                    &temp_path_string,
-                    file_size,
-                    "applization/zip",
-                    tenant_id,
-                    &election_event.id,
-                    &name,
-                    None,
-                    false,
-                )
-                .await?;
+        if servers_sent_to.contains(&ccs_server.name) {
+            info!(
+                "SHOULD BE skipping sending to server '{}' as already sent",
+                ccs_server.name
+            );
+            continue;
+        }
+        let second_zip_folder_path = zip_output_temp_dir.path().join(&ccs_server.tag);
+        let second_zip_path = second_zip_folder_path.join(format!("er_{}.zip", area_station_id));
+        match send_package_to_ccs_server(&second_zip_path, ccs_server).await {
+            Ok(_) => {
                 new_transmission_area_election
                     .logs
                     .push(send_transmission_package_to_ccs_log(
@@ -263,7 +245,6 @@ pub async fn send_transmission_package_service(
                     ));
                 new_miru_document.servers_sent_to.push(MiruServerDocument {
                     name: ccs_server.name.clone(),
-                    document_id: document.id.clone(),
                     sent_at: ISO8601::to_string(&Local::now()),
                 });
             }
@@ -295,7 +276,7 @@ pub async fn send_transmission_package_service(
         .documents
         .into_iter()
         .map(|value| {
-            if value.document_id == new_miru_document.document_id {
+            if value.document_ids.xz == new_miru_document.document_ids.xz {
                 new_miru_document.clone()
             } else {
                 value

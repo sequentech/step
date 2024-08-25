@@ -11,6 +11,7 @@ use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 use windmill::services::database::get_hasura_pool;
+use windmill::tasks::miru_plugin_tasks::upload_signature_task;
 use windmill::{
     services::{
         celery_app::get_celery_app,
@@ -84,7 +85,6 @@ pub async fn send_transmission_package(
     input: Json<SendTransmissionPackageInput>,
 ) -> Result<Json<SendTransmissionPackageOutput>, (Status, String)> {
     let body = input.into_inner();
-    info!("FFF claims {:?}", claims);
     let authorizations = vec![
         authorize(
             &claims,
@@ -145,7 +145,7 @@ pub async fn upload_signature(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::TRUSTEE_WRITE],
+        vec![Permissions::TALLY_WRITE],
     )?;
 
     let Some(username) = claims.preferred_username.clone() else {
@@ -155,34 +155,24 @@ pub async fn upload_signature(
         ));
     };
 
-    let mut hasura_db_client: DbClient = get_hasura_pool()
+    let celery_app = get_celery_app().await;
+    let task = celery_app
+        .send_task(upload_signature_task::new(
+            claims.hasura_claims.tenant_id.clone(),
+            body.election_id.clone(),
+            body.area_id.clone(),
+            body.tally_session_id.clone(),
+            username,
+            body.private_key.clone(),
+        ))
         .await
-        .get()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-
-    let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-
-    upload_transmission_package_signature_service(
-        &hasura_transaction,
-        &claims.hasura_claims.tenant_id,
-        &username,
-        &body.election_id,
-        &body.area_id,
-        &body.tally_session_id,
-        &body.private_key,
-    )
-    .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-
-    hasura_transaction
-        .commit()
-        .await
-        .with_context(|| "error comitting transaction")
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Error sending upload_signature_task task: {error:?}"),
+            )
+        })?;
+    info!("Sent upload_signature_task task {}", task.task_id);
 
     Ok(Json(UploadSignatureOutput {}))
 }

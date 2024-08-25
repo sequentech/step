@@ -129,6 +129,7 @@ const CandidateChoice: React.FC<CandidateChoiceProps> = ({answer, isWriteIn, wri
             description={answer?.description}
             isWriteIn={isWriteIn}
             writeInValue={writeInValue}
+            shouldDisable={false}
         >
             {imageUrl ? <Image src={imageUrl} duration={100} /> : null}
         </Candidate>
