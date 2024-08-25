@@ -425,6 +425,8 @@ const englishTranslation = {
                 },
             },
             exportError: "Error exporting Election Event",
+            taskNotification:
+                "{{action}} has started. You can see its status at Tasks Execution table.",
         },
         electionScreen: {
             common: {

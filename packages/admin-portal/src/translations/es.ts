@@ -429,6 +429,8 @@ const spanishTranslation: TranslationType = {
                 },
             },
             exportError: "Error al exportar el Evento Electoral",
+            taskNotification:
+                "{{action}} ha comenzado. Puedes ver su estado en la tabla de Ejecución de Tareas.",
         },
         electionScreen: {
             common: {

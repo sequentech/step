@@ -74,6 +74,7 @@ import {useWatch} from "react-hook-form"
 import {convertToNumber} from "@/lib/helpers"
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {ETasksExecution} from "@/types/tasksExecution"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -149,7 +150,14 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
 
     const confirmExportAction = async () => {
         console.log("CONFIRM EXPORT")
-
+        notify(
+            t("electionEventScreen.taskNotification", {
+                action: ETasksExecution.EXPORT_ELECTION_EVENT,
+            }),
+            {
+                type: "info",
+            }
+        )
         const {data: exportElectionEventData, errors} = await exportElectionEvent({
             variables: {
                 electionEventId,
@@ -521,6 +529,12 @@ export const EditElectionEventDataForm: React.FC = () => {
     }
 
     const handleImportCandidates = async (documentId: string, sha256: string) => {
+        notify(
+            t("electionEventScreen.taskNotification", {action: ETasksExecution.IMPORT_CANDIDATES}),
+            {
+                type: "info",
+            }
+        )
         let {data, errors} = await importCandidates({
             variables: {
                 documentId,

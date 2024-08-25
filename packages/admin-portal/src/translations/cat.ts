@@ -430,6 +430,8 @@ const catalanTranslation: TranslationType = {
                 },
             },
             exportError: "Error exportant l'esdeveniment electoral",
+            taskNotification:
+                "{{action}} ha començat. Podeu veure el seu estat a la taula d'Execució de Tasques.",
         },
         electionScreen: {
             common: {
