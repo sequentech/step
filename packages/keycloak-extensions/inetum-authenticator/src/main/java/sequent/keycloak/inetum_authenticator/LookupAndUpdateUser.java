@@ -39,9 +39,9 @@ import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.services.resources.LoginActionsService;
 import sequent.keycloak.authenticator.MessageOTPAuthenticator;
-import sequent.keycloak.authenticator.gateway.SmsSenderProvider;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
+import sequent.keycloak.authenticator.gateway.SmsSenderProvider;
 
 /** Lookups an user using a field */
 @JBossLog
@@ -286,9 +286,9 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     }
 
     if (mobileNumber != null
-            && mobileNumber.trim().length() > 0
-            && (MessageCourier.SMS.equals(messageCourier)
-        || MessageCourier.BOTH.equals(messageCourier))) {
+        && mobileNumber.trim().length() > 0
+        && (MessageCourier.SMS.equals(messageCourier)
+            || MessageCourier.BOTH.equals(messageCourier))) {
       log.infov("sendConfirmation(): sending sms", username);
 
       SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
@@ -468,7 +468,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
             "Login after registration",
             "If enabled the user will automatically login after registration.",
             ProviderConfigProperty.BOOLEAN_TYPE,
-false),
+            false),
         new ProviderConfigProperty(
             TEL_USER_ATTRIBUTE,
             "Telephone User Attribute",
