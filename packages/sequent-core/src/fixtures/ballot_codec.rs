@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -197,6 +198,7 @@ fn get_contest_plurality() -> Contest {
             base32_writeins: Some(true),
             invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
             blank_vote_policy: None,
+            over_vote_policy: None,
             pagination_policy: None,
             cumulative_number_of_checkboxes: None,
             shuffle_categories: Some(true),
@@ -424,6 +426,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                 base32_writeins: Some(true),
                 invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
                 blank_vote_policy: None,
+                over_vote_policy: None,
                 pagination_policy: None,
                 cumulative_number_of_checkboxes: None,
                 shuffle_categories: Some(true),
@@ -641,6 +644,7 @@ pub fn get_test_contest() -> Contest {
             base32_writeins: Some(true),
             invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
             blank_vote_policy: None,
+            over_vote_policy: None,
             pagination_policy: None,
             cumulative_number_of_checkboxes: None,
             shuffle_categories: Some(true),
@@ -891,6 +895,7 @@ pub(crate) fn get_configurable_contest(
             base32_writeins: Some(true),
             invalid_vote_policy: Some(InvalidVotePolicy::NOT_ALLOWED),
             blank_vote_policy: None,
+            over_vote_policy: Some(EOverVotePolicy::ALLOWED),
             pagination_policy: None,
             cumulative_number_of_checkboxes: None,
             shuffle_categories: Some(true),
@@ -936,7 +941,13 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
     vec![
         BallotCodecFixture {
             title: "plurality_fixture".to_string(),
-            contest: get_contest_plurality(),
+            contest: {
+                let mut contest = get_contest_plurality();
+                if let Some(ref mut presentation) = contest.presentation {
+                    presentation.invalid_vote_policy = Some(InvalidVotePolicy::WARN);
+                }
+                contest
+            },
             raw_ballot: RawBallotContest {
                 bases: vec![2u64, 2u64, 2u64, 2u64, 2u64, 2u64],
                 choices: vec![0u64, 1u64, 0u64, 0u64, 1u64, 1u64],
@@ -982,7 +993,17 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         ]),
                     }
                 ],
-                invalid_alerts: vec![],
+                invalid_alerts: vec![
+                    InvalidPlaintextError {
+                        error_type: InvalidPlaintextErrorType::Implicit,
+                        candidate_id: None,
+                        message: Some("errors.implicit.selectedMax".to_string()),
+                        message_map: HashMap::from([
+                            ("numSelected".to_string(), 3.to_string()),
+                            ("max".to_string(), 1.to_string()),
+                        ]),
+                    }
+                ],
             },
             encoded_ballot_bigint: "50".to_string(),
             encoded_ballot: vec_to_30_array(&vec![1, 50]).unwrap(),
@@ -1162,8 +1183,9 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     i18n: None,
                     allow_writeins: Some(true),
                     base32_writeins: Some(true),
-                    invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
+                    invalid_vote_policy: Some(InvalidVotePolicy::WARN),
                     blank_vote_policy: None,
+                    over_vote_policy: None,
                     pagination_policy: None,
                     cumulative_number_of_checkboxes: None,
                     shuffle_categories: Some(true),
@@ -1213,7 +1235,17 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         ]),
                     }
                 ],
-                invalid_alerts: vec![],
+                invalid_alerts: vec![
+                    InvalidPlaintextError {
+                        error_type: InvalidPlaintextErrorType::Implicit,
+                        candidate_id: None,
+                        message: Some("errors.implicit.selectedMax".to_string()),
+                        message_map: HashMap::from([
+                            ("numSelected".to_string(), 3.to_string()),
+                            ("max".to_string(), 1.to_string()),
+                        ]),
+                    }
+                ],
             },
             encoded_ballot_bigint: "15".to_string(),
             encoded_ballot: vec_to_30_array(&vec![1, 15]).unwrap(),
@@ -1351,6 +1383,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     base32_writeins: Some(true),
                     invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
                     blank_vote_policy: None,
+                    over_vote_policy: None,
                     pagination_policy: None,
                     cumulative_number_of_checkboxes: None,
                     shuffle_categories: Some(true),
@@ -1526,8 +1559,9 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     i18n: None,
                     allow_writeins: Some(true),
                     base32_writeins: Some(true),
-                    invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
+                    invalid_vote_policy: Some(InvalidVotePolicy::WARN),
                     blank_vote_policy: None,
+                    over_vote_policy: Some(EOverVotePolicy::ALLOWED),
                     pagination_policy: None,
                     cumulative_number_of_checkboxes: None,
                     shuffle_categories: Some(true),
@@ -1689,6 +1723,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     base32_writeins: Some(true),
                     invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
                     blank_vote_policy: None,
+                    over_vote_policy: None,
                     pagination_policy: None,
                     cumulative_number_of_checkboxes: None,
                     shuffle_categories: Some(true),
@@ -1850,6 +1885,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     base32_writeins: Some(true),
                     invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
                     blank_vote_policy: None,
+                    over_vote_policy: None,
                     pagination_policy: None,
                     cumulative_number_of_checkboxes: None,
                     shuffle_categories: Some(true),

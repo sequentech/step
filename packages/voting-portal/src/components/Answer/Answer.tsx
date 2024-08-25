@@ -46,6 +46,9 @@ export interface IAnswerProps {
     isInvalidWriteIns?: boolean
     isRadioSelection?: boolean
     contest: IContest
+    selectedCoicesSum: number
+    setSelectedCoicesSum: (num: number) => void
+    disableSelect: boolean
 }
 
 export const Answer: React.FC<IAnswerProps> = ({
@@ -60,6 +63,9 @@ export const Answer: React.FC<IAnswerProps> = ({
     isInvalidWriteIns,
     isRadioSelection,
     contest,
+    selectedCoicesSum,
+    setSelectedCoicesSum,
+    disableSelect,
 }) => {
     const selectionState = useAppSelector(
         selectBallotSelectionVoteChoice(ballotStyle.election_id, contestId, answer.id)
@@ -144,6 +150,8 @@ export const Answer: React.FC<IAnswerProps> = ({
         )
     }
 
+    const shouldDisable = disableSelect && selectionState?.selected === -1
+
     const isWriteIn = checkIsWriteIn(answer)
     const allowWriteIns = question && checkAllowWriteIns(question)
 
@@ -184,6 +192,7 @@ export const Answer: React.FC<IAnswerProps> = ({
             setWriteInText={setWriteInText}
             isInvalidVote={isInvalidVote}
             isInvalidWriteIn={!!selectionState?.write_in_text && isInvalidWriteIns}
+            shouldDisable={shouldDisable}
         >
             {imageUrl ? (
                 <Image src={`${globalSettings.PUBLIC_BUCKET_URL}${imageUrl}`} duration={100} />

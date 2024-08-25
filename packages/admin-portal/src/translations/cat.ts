@@ -833,6 +833,7 @@ const catalanTranslation: TranslationType = {
                 "alphabetical": "Alfabètic",
             },
             invalidVotePolicy: {
+                "label": "Política de vot invàlid",
                 "allowed": "Permesa",
                 "warn": "Advertència",
                 "warn-invalid-implicit-and-explicit": "Advertir Invàlids Implícits i Explícits",
@@ -849,6 +850,15 @@ const catalanTranslation: TranslationType = {
                 "allowed": "Permès",
                 "warn": "Advertir",
                 "not-allowed": "No permès",
+            },
+            overVotePolicy: {
+                "label": "Política de vot excessiva",
+                "allowed": "Permès",
+                "allowed-with-msg": "Permès amb missatge d'avís",
+                "allowed-with-msg-and-alert": "Permès amb missatge d'avís i alerta",
+                "not-allowed-with-msg-and-alert": "No es permet amb missatge d'avís i alerta",
+                "not-allowed-with-msg-and-disable":
+                    "No es permet amb missatge d'avís i desactiva més seleccions",
             },
             paginationPolicy: {
                 label: "Nom de la pàgina",

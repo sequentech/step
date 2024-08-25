@@ -828,6 +828,7 @@ const englishTranslation = {
                 "alphabetical": "Alphabetical",
             },
             invalidVotePolicy: {
+                "label": "Invalid Vote Policy",
                 "allowed": "Allowed",
                 "warn": "Warn",
                 "warn-invalid-implicit-and-explicit": "Warn Invalid Implicit And Explicit",
@@ -844,6 +845,15 @@ const englishTranslation = {
                 "allowed": "Allowed",
                 "warn": "Warn",
                 "not-allowed": "Not Allowed",
+            },
+            overVotePolicy: {
+                "label": "Over Vote Policy",
+                "allowed": "Allowed",
+                "allowed-with-msg": "Allowed with Warning Message",
+                "allowed-with-msg-and-alert": "Allowed with Warning message and Alert",
+                "not-allowed-with-msg-and-alert": "Not Allowed with Warning message and Alert",
+                "not-allowed-with-msg-and-disable":
+                    "Not Allowed with Warning message and Disable further selections",
             },
             paginationPolicy: {
                 label: "Page Name",

@@ -40,7 +40,8 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     isReview,
 }) => {
     const {t} = useTranslation()
-    const [isTouched, setIsTouched] = useState(false)
+    // Note that if we have reviewed, then we can asume we have touched
+    const [isTouched, setIsTouched] = useState(isReview)
     const [decodedContestSelection, setDecodedContestSelection] = useState<
         IDecodedVoteContest | undefined
     >(undefined)
@@ -76,28 +77,35 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     }, [contestSelection])
 
     useEffect(() => {
-        if (!isReview && !isTouched && !isVotedState) {
-            // Filter min selection error in case where no user interaction was yet made
-            setFilteredSelection((prev) => {
-                if (!prev) return undefined
-                return {
-                    ...prev,
-                    invalid_errors:
-                        prev?.invalid_errors.filter(
-                            (error) =>
-                                error.message !== "errors.implicit.selectedMin" &&
-                                error.message !== "errors.implicit.blankVote"
-                        ) || [],
-                    invalid_alerts:
-                        prev?.invalid_alerts.filter(
-                            (error) =>
-                                error.message !== "errors.implicit.underVote" &&
-                                error.message !== "errors.implicit.blankVote"
-                        ) || [],
-                }
-            })
-        }
-    }, [isReview, isTouched])
+        // Filter min selection error in case where no user interaction was yet made
+        setFilteredSelection((prev) => {
+            if (!prev) return undefined
+            return {
+                ...prev,
+                invalid_errors:
+                    prev?.invalid_errors.filter(
+                        (error) =>
+                            error.message !== "errors.implicit.selectedMin" &&
+                            error.message !== "errors.implicit.blankVote" &&
+                            !isReview &&
+                            !isTouched &&
+                            !isVotedState
+                    ) || [],
+                invalid_alerts:
+                    prev?.invalid_alerts.filter(
+                        (error) =>
+                            (error.message !== "errors.implicit.underVote" &&
+                                error.message !== "errors.implicit.blankVote" &&
+                                !isReview &&
+                                !isTouched &&
+                                !isVotedState) ||
+                            (error.message === "errors.implicit.overVoteDisabled" &&
+                                !isReview && // Keeps the overVoteDisabled alert when returning from the ReviewSreen
+                                isVotedState)
+                    ) || [],
+            }
+        })
+    }, [isReview])
 
     useEffect(() => {
         if (decodedContestSelection) {
