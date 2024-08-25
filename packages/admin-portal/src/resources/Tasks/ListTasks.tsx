@@ -109,19 +109,19 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
 export interface ListTasksProps {
     onViewTask: (id: Identifier) => void
     electionEventRecord: Sequent_Backend_Election_Event
-    aside?: ReactElement
 }
-export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRecord, aside}) => {
+export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRecord}) => {
     const {t} = useTranslation()
     const [openExport, setOpenExport] = React.useState(false)
     const OMIT_FIELDS: string[] = []
 
     const filters: Array<ReactElement> = [
-        <TextInput source="id" key="id_filter" label={t("filters.id")} />,
+        <TextInput source="id" key="id_filter" label={t("tasksScreen.column.id")} />,
+        <TextInput source="type" key="type_filter" label={t("tasksScreen.column.type")} />,
         <TextInput
-            source="statement_kind"
-            key="statement_kind_filter"
-            label={t("filters.statementKind")}
+            source="execution_status"
+            key="status_filter"
+            label={t("tasksScreen.column.execution_status")}
         />,
     ]
 
@@ -144,8 +144,7 @@ export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRe
                 resource="sequent_backend_tasks_execution"
                 filters={filters}
                 filter={{election_event_id: electionEventRecord?.id || undefined}}
-                sort={{field: "start_at", order: "DESC"}} //TODO: organize
-                // aside={aside}
+                sort={{field: "start_at", order: "DESC"}}
                 perPage={10}
             >
                 <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
@@ -163,11 +162,11 @@ export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRe
                     <ActionsColumn actions={actions} label={t("common.label.actions")} />
                 </DatagridConfigurable>
             </List>
-            <ExportWrapper
+            {/* <ExportWrapper
                 electionEventId={electionEventRecord.id}
                 openExport={openExport}
                 setOpenExport={setOpenExport}
-            />
+            /> */}
         </>
     )
 }

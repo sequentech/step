@@ -380,18 +380,28 @@ pub async fn import_candidates_task(
         }
     }
 
-    insert_candidates(
+    match insert_candidates(
         &hasura_transaction,
         &tenant_id,
         &election_event_id,
         &candidates,
     )
-    .await?;
+    .await
+    {
+        Ok(_) => (),
+        Err(err) => {
+            update_fail(&task, "Error inserting candidates to db").await?;
+            return Err(anyhow!("Inserting candidates failed: {:?}", err));
+        }
+    }
 
-    let _commit = hasura_transaction
-        .commit()
-        .await
-        .map_err(|e| anyhow!("Commit failed: {}", e));
+    match hasura_transaction.commit().await {
+        Ok(_) => (),
+        Err(err) => {
+            update_fail(&task, "Error updating db").await?;
+            return Err(anyhow!("Commit failed: {}", err));
+        }
+    };
 
     update_complete(&task)
         .await

@@ -7,7 +7,7 @@ use crate::services::serialize_tasks_logs::*;
 use crate::types::tasks::ETasks;
 use anyhow::{anyhow, Context, Result};
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
-use sequent_core::types::{ceremonies::Log, hasura::core::TasksExecution};
+use sequent_core::types::{hasura::core::TasksExecution};
 use serde::{Deserialize, Serialize};
 
 pub async fn post(

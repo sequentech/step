@@ -147,6 +147,7 @@ export enum ETaskExecutionStatus {
     STARTED = "STARTED",
     IN_PROGRESS = "IN_PROGRESS",
     SUCCESS = "SUCCESS",
+    FAILED = "FAILED",
     CANCELLED = "CANCELLED",
 }
 

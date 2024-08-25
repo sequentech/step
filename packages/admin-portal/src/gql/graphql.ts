@@ -15400,7 +15400,7 @@ export type Sequent_Backend_Tasks_Execution = {
   labels?: Maybe<Scalars['jsonb']['output']>;
   logs?: Maybe<Scalars['json']['output']>;
   name: Scalars['String']['output'];
-  start_at?: Maybe<Scalars['timestamptz']['output']>;
+  start_at: Scalars['timestamptz']['output'];
   /** An object relationship */
   tenant: Sequent_Backend_Tenant;
   tenant_id: Scalars['uuid']['output'];
