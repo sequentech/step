@@ -490,7 +490,19 @@ rm -rf node_modules ui-core/node_modules voting-portal/node_modules ballot-verif
 yarn && yarn build:ui-core && yarn build:ui-essentials && yarn build:voting-portal && yarn build:admin-portal
 ```
 
-And then everything should work and be updated.
+And then everything should work and be updated. 
+
+### Troubleshooting
+
+If the typescript (TS, TSX) files suddently don't have correct autocompletion in
+VSCode after this, the recommendation is to run the `Developer: Reload Window`
+task in VSCode.
+
+After running these commands, you need to stop any ui and relaunch. For some
+reason craco is not going to be available, so you need run first
+`Tasks: Run Task` > `start.build.admin-portal` which install it and all its
+dependencies. Then you can launch also for example the `start.voting-portal`
+task.
 
 ## Create election event
 
