@@ -84,7 +84,6 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
     console.log({authContext})
     const isTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_CEREMONY)
 
-
     const [uploadSignature] = useMutation<UploadSignatureMutation>(UPLOAD_SIGNATURE, {
         context: {
             headers: {
