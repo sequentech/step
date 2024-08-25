@@ -11,6 +11,9 @@ use board_messages::grpc::client::B3Client;
 
 use strand::serialization::StrandDeserialize;
 
+const MAX_MESSAGE_SIZE: usize = 1024 * 1024 * 1024;
+const GRPC_TIMEOUT: u64 = 30;
+
 impl super::Board for GrpcB3 {
     type Factory = GrpcB3BoardParams;
 
@@ -51,7 +54,7 @@ pub struct GrpcB3Index {
 }
 impl GrpcB3Index {
     pub fn new(url: &str) -> GrpcB3Index {
-        let client = B3Client::new(url);
+        let client = B3Client::new(url, MAX_MESSAGE_SIZE, GRPC_TIMEOUT);
 
         GrpcB3Index { client }
     }
@@ -71,7 +74,7 @@ pub struct GrpcB3 {
 }
 impl GrpcB3 {
     pub fn new(url: &str, board_name: &str, store_root: Option<PathBuf>) -> GrpcB3 {
-        let client = B3Client::new(url);
+        let client = B3Client::new(url, MAX_MESSAGE_SIZE, GRPC_TIMEOUT);
 
         GrpcB3 {
             client,

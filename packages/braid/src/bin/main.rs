@@ -113,7 +113,7 @@ async fn main() -> Result<()> {
     let mut session_map: HashMap<String, Session<RistrettoCtx, GrpcB3>> = HashMap::new();
     let mut loop_count: u64 = 0;
     loop {
-        info!("{}>", loop_count);
+        info!("{} >", loop_count);
 
         let b3index = GrpcB3Index::new(&args.server_url);
 
@@ -221,7 +221,7 @@ async fn main() -> Result<()> {
             }
         }
 
-        loop_count += 1;
+        loop_count = (loop_count + 1) % u64::MAX;
         sleep(Duration::from_millis(1000)).await;
     }
 

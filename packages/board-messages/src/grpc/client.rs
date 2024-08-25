@@ -17,18 +17,18 @@ use tonic::{transport::Channel, Response};
 pub struct B3Client {
     // grpc url
     url: String,
-    // grpc max message size
-    limit_bytes: usize,
+    // grpc max message size in bytes
+    max_message_size: usize,
     // grpc message timeout
     timeout_secs: u64,
 }
 
 impl B3Client {
-    pub fn new(url: &str) -> B3Client {
+    pub fn new(url: &str, max_message_size: usize, timeout_secs: u64) -> B3Client {
         B3Client {
             url: url.to_string(),
-            limit_bytes: 100 * 1024 * 1024,
-            timeout_secs: 5,
+            max_message_size,
+            timeout_secs,
         }
     }
 
@@ -107,8 +107,9 @@ impl B3Client {
         let endpoint = Endpoint::from_shared(self.url.clone())?;
         let endpoint = endpoint.timeout(Duration::from_secs(self.timeout_secs));
         let client = B3ClientInner::connect(endpoint).await?;
-        let client = client.max_decoding_message_size(self.limit_bytes);
-        let client = client.max_encoding_message_size(self.limit_bytes);
+        let client = client
+            .max_decoding_message_size(self.max_message_size)
+            .max_encoding_message_size(self.max_message_size);
 
         Ok(client)
     }

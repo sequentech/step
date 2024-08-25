@@ -96,6 +96,7 @@ fn draw(params: &PgsqlDbConnectionParams, p: &Printer) {
     };
 
     let cell_counts = Vec2::new(width, height);
+    let psize_y = p.size.y - 1;
 
     let mut x_offset = 0;
     if p.size.x > cell_counts.x {
@@ -103,11 +104,15 @@ fn draw(params: &PgsqlDbConnectionParams, p: &Printer) {
     }
 
     let mut y_offset = 1;
-    if p.size.y > cell_counts.y {
-        y_offset = ((p.size.y % cell_counts.y) / 2).max(1);
+    // if p.size.y > cell_counts.y {
+    if psize_y > cell_counts.y {
+        // max(1) required for progress
+        // y_offset = ((p.size.y % cell_counts.y) / 2).max(1);
+        y_offset = ((psize_y % cell_counts.y) / 2).max(1);
     }
 
-    let cell_height = (p.size.y / cell_counts.y).max(1);
+    // let cell_height = (p.size.y / cell_counts.y).max(1);
+    let cell_height = (psize_y / cell_counts.y).max(1);
     let cell_width = (p.size.x / cell_counts.x).max(1);
     let cell_size = Vec2::new(cell_width, cell_height);
 
@@ -266,7 +271,7 @@ fn draw_cell(p: &Printer, origin: &Vec2, size: &Vec2, data: &B3IndexRow, draw_te
                 f_black
             };
 
-            if kind_origin_y == origin.y {
+            if kind_origin_y == origin.y && size.y > 1 {
                 kind_origin_y = kind_origin_y + 1;
             }
 

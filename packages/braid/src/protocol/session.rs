@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Result;
-use tracing::info;
+use tracing::{info, instrument, warn};
 
 use strand::context::Ctx;
 
@@ -32,6 +32,7 @@ impl<C: Ctx, B: Board> Session<C, B> {
     // Takes ownership of self to allow spawning threads in parallel
     // See https://stackoverflow.com/questions/63434977/how-can-i-spawn-asynchronous-methods-in-a-loop
     // See also protocol_test_grpc::run_protocol_test
+    #[instrument(skip_all)]
     pub async fn step(mut self, step_counter: u64) -> (Self, Result<(), ProtocolError>) {
         // Never skip more than 20 steps
         if self.active_period > 21 {
@@ -87,13 +88,22 @@ impl<C: Ctx, B: Board> Session<C, B> {
             self.active_period = 1;
         }
 
+        info!("Posting {} messages..", send_messages.len());
+
         let result = board
             .insert_messages(send_messages)
             .await
             .map_err(|e| ProtocolError::BoardError(e.to_string()));
 
-        info!("Setting last_id = {}", last_id);
-        self.last_message_id = Some(last_id);
+        if result.is_ok() {
+            info!("Setting last_id = {}", last_id);
+            self.last_message_id = Some(last_id);
+        } else {
+            warn!(
+                "Error posting messages, last_id remains at: {:?}",
+                self.last_message_id
+            );
+        }
 
         (self, result)
     }

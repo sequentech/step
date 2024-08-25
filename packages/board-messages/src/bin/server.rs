@@ -13,6 +13,8 @@ const PG_PASSW: &'static str = "postgrespw";
 const PG_PORT: u32 = 49154;
 const BIND: &'static str = "127.0.0.1:50051";
 
+const MAX_MESSAGE_SIZE: usize = 1024 * 1024 * 1024;
+
 #[derive(Parser)]
 struct Cli {
     #[arg(long, default_value_t = PG_HOST.to_string())]
@@ -32,6 +34,9 @@ struct Cli {
 
     #[arg(long, default_value_t = BIND.to_string())]
     bind: String,
+
+    #[arg(long, default_value_t = MAX_MESSAGE_SIZE)]
+    max_message_size_bytes: usize,
 }
 
 #[tokio::main]
@@ -45,13 +50,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let username = &args.username;
     let database = &args.database;
     let bind = &args.bind;
+    let max_message_size = &args.max_message_size_bytes;
 
     info!("Starting b3");
     info!("pgsql host: '{host}'");
-    info!("pgsql port: '{port}'");
+    info!("pgsql port: {port}");
     info!("pgsql username: '{username}'");
     info!("pgsql database: '{database}'");
-    info!("grpc socket: '{bind}'");
+    info!("grpc socket: {bind}");
+    info!("grpc max_message_size: {} MB", (max_message_size / 1000));
 
     let c = PgsqlConnectionParams::new(host, port, username, &args.password);
     let c_db = c.with_database(&database);
@@ -63,11 +70,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let addr = bind.parse()?;
     let b3_impl = PgsqlB3Server::new(c_db).await?;
-    let service = B3Server::new(b3_impl);
-
-    let limit_mb = 100 * 1024 * 1024;
-    let service = service.max_decoding_message_size(limit_mb);
-    let service = service.max_encoding_message_size(limit_mb);
+    let service = B3Server::new(b3_impl)
+        .max_encoding_message_size(MAX_MESSAGE_SIZE)
+        .max_decoding_message_size(MAX_MESSAGE_SIZE);
 
     Server::builder().add_service(service).serve(addr).await?;
 
