@@ -7,13 +7,30 @@ SPDX-License-Identifier: AGPL-3.0-only
 <#import "template.ftl" as layout>
 <@layout.registrationLayout displayInfo=true; section>
 	<#if section = "header">
-		${msg("messageOtpAuthTitle", adress)}
+<div>
+    <div>
+     <#if address??>
+     <div>
+		${msg("messageOtpAuthTitleAddress")}
+     </div>
+     <div>
+        ${address}
+     </div>
+        <#else>
+        ${msg("messageOtpAuthTitle")}
+        </#if>
+    </div>
+    <#if ttl??>
+    <div>
         <#assign ttlSeconds = ttl?number>
         <#assign ttlMinutes = ttlSeconds / 60>
         <#assign roundedMinutes = (ttlMinutes)?round>
-            <span class="${properties.kcLabelClass!}">
+            <span style="font-size: smaller;">
                 ${msg("messageOtpAuthTTLTime",roundedMinutes)}
             </span>
+    </div>
+    </#if>
+    </div>
     <#elseif section = "show-username">
         <h1>${msg("messageOtpAuthTitle", realm.displayName)}</h1>
 	<#elseif section = "form">
@@ -54,40 +71,27 @@ SPDX-License-Identifier: AGPL-3.0-only
 					/>
 				</div>
 			</div>
-            <div class="${properties.kcFormGroupClass!}">
+            <div class="${properties.kcFormGroupClass!} ${properties.kcFormSettingClass!}">
                 <button
                     id="resend-otp-btn"
                     type="button" 
                     name="resend"
                     value="true"
                     class="${properties.kcButtonClass!} ${properties.kcButtonSecondaryClass!}"
-                    onclick="resendOtp(${resendTimer}, ${address})"
+                    onclick="resendOtp(${(resendTimer)!"60"})"
                     >
                     ${msg("resendOtp", "Resend OTP")}
                 </button>
-        </div>
+            </div>
 
 <script>
 let resendTimer = "${msg("resendOtpTimer")}"
 let resendButtonText = "${msg("resendOtpButton")}"
-function resendOtp(resendTimer, address) {
+function resendOtp(resendTimer) {
     let resendBtn = document.getElementById('resend-otp-btn');
     let form = document.getElementById('kc-message-code-login-form');
-    resendBtn.disabled = true;
     localStorage.setItem('resendOtpEndTime', Date.now() + resendTimer * 1000);
     localStorage.setItem('resendOtpDisabled', true);
-
-    let countdown = parseInt(resendTimer);
-    let interval = setInterval(() => {
-        if (countdown > 0) {
-            resendBtn.innerText = resendTimer.replace("{0}", countdown);
-            countdown--;
-        } else {
-            clearInterval(interval);
-            resendBtn.disabled = false;
-            resendBtn.innerText = resendButtonText;
-        }
-    }, 1000);
 
     let hiddenInput = document.createElement("input");
     hiddenInput.type = "hidden";
@@ -109,16 +113,17 @@ function updateButtonState() {
     let countdown = Math.max(Math.ceil((endTime - Date.now()) / 1000), 0);
 
     if (disabled) {
+        resendBtn.disabled = true;
+        let interval = setInterval(() => {
         if (countdown > 0) {
-            resendBtn.disabled = true;
             resendBtn.innerText = resendTimer.replace("{0}", countdown);
-            setTimeout(updateButtonState, 1000);
+            countdown--;
         } else {
+            clearInterval(interval);
             resendBtn.disabled = false;
             resendBtn.innerText = resendButtonText;
-            localStorage.removeItem('resendOtpEndTime');
-            localStorage.removeItem('resendOtpDisabled');
         }
+    }, 1000);
     } else {
         resendBtn.disabled = false;
         resendBtn.innerText = resendButtonText;

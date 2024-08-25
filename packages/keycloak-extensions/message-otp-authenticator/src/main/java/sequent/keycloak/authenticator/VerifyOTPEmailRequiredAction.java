@@ -7,6 +7,9 @@ package sequent.keycloak.authenticator;
 import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.Response;
 import lombok.extern.jbosslog.JBossLog;
+
+import java.util.List;
+
 import org.keycloak.Config;
 import org.keycloak.authentication.InitiatedActionSupport;
 import org.keycloak.authentication.RequiredActionContext;
@@ -17,6 +20,7 @@ import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.models.UserModel;
+import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.sessions.AuthenticationSessionModel;
 
 /** Required Action that requires users to verify its email using an OTP. */
@@ -24,7 +28,7 @@ import org.keycloak.sessions.AuthenticationSessionModel;
 @JBossLog
 public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, RequiredActionProvider {
   public static final String PROVIDER_ID = "verify-email-otp-ra";
-  private static final String TPL_CODE = "verify-email.ftl";
+  private static final String TPL_CODE = "login-message-otp.ftl";
 
   @Override
   public InitiatedActionSupport initiatedActionSupport() {
@@ -49,43 +53,18 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
 
   @Override
   public void requiredActionChallenge(RequiredActionContext context) {
-    KeycloakSession session = context.getSession();
-    AuthenticationSessionModel authSession = context.getAuthenticationSession();
-
-    // initial form
-    LoginFormsProvider form = context.form();
-    form.setAttribute("realm", context.getRealm());
-    form.setAttribute("user", context.getUser());
-
-    AuthenticatorConfigModel config = Utils.getConfig(authSession.getRealm()).get();
-
-    try {
-      UserModel user = context.getUser();
-      Utils.sendCode(
-          config,
-          session,
-          user,
-          authSession,
-          Utils.MessageCourier.EMAIL,
-          /* deferred user */ false);
-      context.challenge(
-          context.form().setAttribute("realm", context.getRealm()).createForm(TPL_CODE));
-    } catch (Exception error) {
-      log.infov("there was an error {0}", error);
-      context.failure();
-      context.challenge(
-          context
-              .form()
-              .setError("messageNotSent", error.getMessage())
-              .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
-    }
+    initiateForm(context);
   }
 
   @Override
   public void processAction(RequiredActionContext context) {
     log.info("action() called");
     String enteredCode = context.getHttpRequest().getDecodedFormParameters().getFirst(Utils.CODE);
-
+    String resend = context.getHttpRequest().getDecodedFormParameters().getFirst("resend");
+    if(resend != null && resend.equals("true")) {
+      initiateForm(context);
+      return;
+    }
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
     String code = authSession.getAuthNote(Utils.CODE);
     String ttl = authSession.getAuthNote(Utils.CODE_TTL);
@@ -126,6 +105,43 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
     }
   }
 
+  private void initiateForm(RequiredActionContext context) {
+    KeycloakSession session = context.getSession();
+    AuthenticationSessionModel authSession = context.getAuthenticationSession();
+
+    // initial form
+    LoginFormsProvider form = context.form();
+    form.setAttribute("realm", context.getRealm());
+    form.setAttribute("user", context.getUser());
+
+    AuthenticatorConfigModel config = Utils.getConfig(authSession.getRealm()).get();
+
+    try {
+      UserModel user = context.getUser();
+      Utils.sendCode(
+          config,
+          session,
+          user,
+          authSession,
+          Utils.MessageCourier.EMAIL,
+          false);
+      context.challenge(
+          context.form()
+          .setAttribute("realm", context.getRealm())
+          .setAttribute("address", Utils.getOtpAddress(Utils.MessageCourier.EMAIL, false, config, authSession, user))
+          .setAttribute("ttl", config.getConfig().get(Utils.CODE_TTL))
+          .createForm(TPL_CODE));
+    } catch (Exception error) {
+      log.infov("there was an error {0}", error);
+      context.failure();
+      context.challenge(
+          context
+              .form()
+              .setError("messageNotSent", error.getMessage())
+              .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+    }
+  }
+
   @Override
   public String getDisplayText() {
     return "Verify Email using OTP";
@@ -148,5 +164,16 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
   @Override
   public String getId() {
     return PROVIDER_ID;
+  }
+  @Override
+  public List<ProviderConfigProperty> getConfigMetadata() {
+      return List.of(
+          new ProviderConfigProperty(
+              Utils.RESEND_ACTIVATION_TIMER,
+              "Seconds to activate resend",
+              "Time in seconds the resend code gets re activated",
+              ProviderConfigProperty.STRING_TYPE,
+              "60")
+      );
   }
 }

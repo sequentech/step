@@ -605,6 +605,7 @@
       "config" : {
         "user.session.note" : "client_id",
         "introspection.token.claim" : "true",
+        "userinfo.token.claim" : "true",
         "id.token.claim" : "true",
         "access.token.claim" : "true",
         "claim.name" : "client_id",
@@ -619,6 +620,7 @@
       "config" : {
         "user.session.note" : "clientHost",
         "introspection.token.claim" : "true",
+        "userinfo.token.claim" : "true",
         "id.token.claim" : "true",
         "access.token.claim" : "true",
         "claim.name" : "clientHost",
@@ -2472,6 +2474,7 @@
     "alias" : "otp-email",
     "config" : {
       "senderId" : "Keycloak",
+      "resendCoudActivationTimer" : "60",
       "otpMethod" : "email",
       "telUserAttribute" : "sequent.read-only.mobile-number",
       "length" : "6",
@@ -2495,6 +2498,7 @@
     "alias" : "otp-sms",
     "config" : {
       "senderId" : "Keycloak",
+      "resendCoudActivationTimer" : "60",
       "telUserAttribute" : "sequent.read-only.mobile-number",
       "length" : "6",
       "ttl" : "300",

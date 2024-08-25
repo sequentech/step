@@ -347,8 +347,6 @@ public class Utils {
       mobileNumber = Utils.getMobile(config, user);
       emailAddress = user.getEmail();
     }
-    log.info("mobileNumber -> "+ mobileNumber);
-    log.info("emailAddress -> "+ emailAddress);
     switch (courier) {
       case EMAIL:
         return obscureEmail(emailAddress);
@@ -364,7 +362,7 @@ public class Utils {
     if (phoneNumber == null) {
         return phoneNumber;
     }
-    return phoneNumber.charAt(0) + "*".repeat(phoneNumber.length() - 2) + phoneNumber.charAt(phoneNumber.length() - 1);
+    return phoneNumber.substring(0, 4) + "*".repeat(phoneNumber.length() - 7) + phoneNumber.substring(phoneNumber.length() - 3);
 }
 
 protected static String obscureEmail(String email) {

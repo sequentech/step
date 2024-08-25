@@ -5,11 +5,15 @@
 package sequent.keycloak.authenticator;
 
 import com.google.auto.service.AutoService;
+
+import java.util.List;
+
 import org.keycloak.Config;
 import org.keycloak.authentication.RequiredActionFactory;
 import org.keycloak.authentication.RequiredActionProvider;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
+import org.keycloak.provider.ProviderConfigProperty;
 
 @AutoService(RequiredActionFactory.class)
 public class ResetMessageOTPRequiredActionFactory implements RequiredActionFactory {
@@ -22,6 +26,11 @@ public class ResetMessageOTPRequiredActionFactory implements RequiredActionFacto
   @Override
   public String getDisplayText() {
     return "Reset Message OTP";
+  }
+  @Override
+  public List<ProviderConfigProperty> getConfigMetadata() {
+      // TODO Auto-generated method stub
+      return RequiredActionFactory.super.getConfigMetadata();
   }
 
   @Override
