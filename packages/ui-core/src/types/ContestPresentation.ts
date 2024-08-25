@@ -30,7 +30,15 @@ export enum EEnableCheckableLists {
 export enum EBlankVotePolicy {
     ALLOWED = "allowed",
     WARN = "warn",
+    WARN_ONLY_IN_REVIEW = "warn-only-in-review",
     NOT_ALLOWED = "not-allowed",
+}
+
+export enum EUnderVotePolicy {
+    ALLOWED = "allowed",
+    WARN = "warn",
+    WARN_ONLY_IN_REVIEW = "warn-only-in-review",
+    WARN_AND_ALERT = "warn-and-alert",
 }
 
 export enum EOverVotePolicy {
@@ -65,5 +73,5 @@ export interface IContestPresentation {
     candidates_selection_policy?: ECandidatesSelectionPolicy
     types_presentation?: Record<string, ITypePresentation>
     sort_order?: number
-    under_vote_alert?: boolean
+    under_vote_policy?: EUnderVotePolicy
 }
