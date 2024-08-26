@@ -33,7 +33,7 @@ use tracing::{info, instrument};
 use velvet::pipes::generate_reports::ReportData;
 
 #[instrument(err)]
-pub fn read_temp_file(mut temp_file: NamedTempFile) -> Result<Vec<u8>> {
+pub fn read_temp_file(temp_file: &mut NamedTempFile) -> Result<Vec<u8>> {
     // Rewind the file to the beginning to read its contents
     temp_file.rewind()?;
 
@@ -41,6 +41,20 @@ pub fn read_temp_file(mut temp_file: NamedTempFile) -> Result<Vec<u8>> {
     let mut file_bytes = Vec::new();
     temp_file.read_to_end(&mut file_bytes)?;
     Ok(file_bytes)
+}
+
+// returns (base_compressed_xml, eml, eml_hash)
+#[instrument(skip_all, err)]
+pub fn compress_hash_eml(eml: &str) -> Result<(Vec<u8>, String)> {
+    let rendered_xml_hash = hash_sha256(eml.as_bytes())
+        .with_context(|| "Error hashing the rendered XML")?
+        .iter()
+        .map(|byte| format!("{:02X}", byte))
+        .collect();
+
+    let compressed_xml =
+        xz_compress(eml.as_bytes()).with_context(|| "Error compressing the rendered XML")?;
+    Ok((compressed_xml, rendered_xml_hash))
 }
 
 #[instrument(skip(reports), err)]
@@ -72,14 +86,7 @@ pub async fn generate_base_compressed_xml(
     // render handlebars template
     let render_xml = reports::render_template_text(&template_string, variables_map)
         .map_err(|err| anyhow!("{}", err))?;
-    let rendered_xml_hash = hash_sha256(render_xml.as_bytes())
-        .with_context(|| "Error hashing the rendered XML")?
-        .iter()
-        .map(|byte| format!("{:02X}", byte))
-        .collect();
-
-    let compressed_xml =
-        xz_compress(render_xml.as_bytes()).with_context(|| "Error compressing the rendered XML")?;
+    let (compressed_xml, rendered_xml_hash) = compress_hash_eml(&render_xml)?;
     Ok((compressed_xml, render_xml, rendered_xml_hash))
 }
 
@@ -154,7 +161,7 @@ pub async fn create_transmission_package(
         generate_encrypted_compressed_xml(compressed_xml, ccs_public_key_pem_str).await?;
 
     let exz_temp_file_bytes =
-        read_temp_file(exz_temp_file).with_context(|| "Error reading the exz")?;
+        read_temp_file(&mut exz_temp_file).with_context(|| "Error reading the exz")?;
     let signed_eml_base64 =
         ecies_sign_data(acm_key_pair, eml).with_context(|| "Error signing the eml hash")?;
 

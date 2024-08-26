@@ -11,15 +11,18 @@ use super::{
         MIRU_TRUSTEE_NAME,
     },
     eml_types::ACMTrustee,
-    logs::{error_sending_transmission_package_to_ccs_log, send_transmission_package_to_ccs_log},
+    logs::{
+        create_transmission_package_log, error_sending_transmission_package_to_ccs_log,
+        send_transmission_package_to_ccs_log,
+    },
     rsa::rsa_sign_data,
     send_transmission_package_service::get_latest_miru_document,
-    transmission_package::create_transmission_package,
+    transmission_package::{compress_hash_eml, create_transmission_package, read_temp_file},
     zip::unzip_file,
 };
 use crate::{
     postgres::trustee::{get_all_trustees, get_trustee_by_name},
-    types::miru_plugin::MiruSignature,
+    types::miru_plugin::{MiruDocument, MiruDocumentIds, MiruSignature},
 };
 use crate::{
     postgres::{
@@ -43,7 +46,7 @@ use deadpool_postgres::{Client as DbClient, Transaction};
 use reqwest::multipart;
 use sequent_core::{
     ballot::Annotations, serialization::deserialize_with_path::deserialize_str,
-    types::hasura::core::Trustee,
+    types::hasura::core::Trustee, util::date_time::get_system_timezone,
 };
 use std::collections::HashMap;
 use tempfile::NamedTempFile;
@@ -155,6 +158,10 @@ pub async fn upload_transmission_package_signature_service(
         .await
         .with_context(|| "Error acquiring hasura transaction")?;
 
+    let time_zone = get_system_timezone();
+    let now_utc = Utc::now();
+    let now_local = now_utc.with_timezone(&Local);
+
     let election_event =
         get_election_event_by_election_area(&hasura_transaction, tenant_id, election_id, area_id)
             .await
@@ -190,6 +197,16 @@ pub async fn upload_transmission_package_signature_service(
                 MIRU_PLUGIN_PREPEND, MIRU_AREA_STATION_ID
             )
         })?;
+
+    let ccs_servers_js = find_miru_annotation(MIRU_AREA_CCS_SERVERS, &area_annotations)
+        .with_context(|| {
+            format!(
+                "Missing area annotation: '{}:{}'",
+                MIRU_PLUGIN_PREPEND, MIRU_AREA_CCS_SERVERS
+            )
+        })?;
+    let ccs_servers: Vec<MiruCcsServer> =
+        deserialize_str(&ccs_servers_js).map_err(|err| anyhow!("{}", err))?;
 
     let tally_session = get_tally_session_by_id(
         &hasura_transaction,
@@ -242,7 +259,9 @@ pub async fn upload_transmission_package_signature_service(
         )
     })?;
 
-    let eml_data = get_document_as_temp_file(tenant_id, &document).await?;
+    let mut eml_data = get_document_as_temp_file(tenant_id, &document).await?;
+    let eml_bytes = read_temp_file(&mut eml_data)?;
+    let eml = String::from_utf8(eml_bytes)?;
     // RSA sign er file
     let server_signature = create_server_signature(eml_data, trustee, private_key, public_key)?;
 
@@ -261,13 +280,13 @@ pub async fn upload_transmission_package_signature_service(
         .collect();
     new_signatures.push(server_signature.clone());
     // generate zip of zips
-    /*
 
+    let (compressed_xml, rendered_xml_hash) = compress_hash_eml(&eml)?;
     let all_servers_document = generate_all_servers_document(
         &hasura_transaction,
-        &eml_hash,
+        &rendered_xml_hash,
         &eml,
-        base_compressed_xml.clone(),
+        compressed_xml,
         &ccs_servers,
         &area_station_id,
         &election_event_annotations,
@@ -280,7 +299,7 @@ pub async fn upload_transmission_package_signature_service(
     .await?;
 
     // upload zip of zips
-    let area_name = area.name.clone().unwrap_or("".into());
+    let area_name = area.name.clone().unwrap_or_default();
     let new_transmission_package_data = MiruTransmissionPackageData {
         election_id: election_id.to_string(),
         area_id: area_id.to_string(),
@@ -314,7 +333,7 @@ pub async fn upload_transmission_package_signature_service(
         new_transmission_package_data,
         tally_annotations.clone(),
     )
-    .await?;*/
+    .await?;
 
     hasura_transaction
         .commit()
