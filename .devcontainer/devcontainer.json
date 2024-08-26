@@ -28,19 +28,17 @@
 	],
 	// Fixes usage of LOCAL_WORKSPACE_FOLDER. See:
 	// https://github.com/microsoft/vscode-remote-release/issues/6844#issuecomment-1252288457
-	"initializeCommand": [".devcontainer/scripts/initialize-command"],
+	"initializeCommand": [".devcontainer/scripts/initialize"],
 	// Use this environment variable if you need to bind mount your local source
 	// code into a new container
 	"remoteEnv": {
 		"LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"
 	},
 	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
-	// disable command overriding and updating remote user ID
 	"userEnvProbe": "loginShell",
-	"updateRemoteUserUID": false,
-
-	"onCreateCommand": "git config --global --add safe.directory '*' && direnv allow . && OUTPUT=$(cat .devcontainer/scripts/fix-vscode-settings-nix.sh) && devenv shell bash -- -c \"$OUTPUT\"",
-
+	"updateRemoteUserUID": true,
+	"onCreateCommand": "git config --global --add safe.directory '*' && direnv allow . && OUTPUT=$(cat .devcontainer/scripts/vscode-settings.sh) && devenv shell bash -- -c \"$OUTPUT\"",
+	"postCreateCommand": "git config --global --add safe.directory '*' && direnv allow . && && OUTPUT=$(cat .devcontainer/scripts/init-cli.sh) && devenv shell bash -- -c \"$OUTPUT\"",
 	// Adding host requirements so that there is no need to manually select the
 	// machine to run on all the time
 	"hostRequirements": {

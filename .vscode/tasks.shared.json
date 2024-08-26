@@ -483,7 +483,7 @@
             "label": "update.env",
             "command": "bash",
             "args": [
-                "./.devcontainer/scripts/initialize-command.sh"
+                "./.devcontainer/scripts/initialize.sh"
             ],
             "presentation": {
                 "echo": true,
@@ -555,7 +555,7 @@
                 "bash",
                 "--",
                 "-c",
-                "./.devcontainer/scripts/fix-vscode-settings-nix.sh"
+                "./.devcontainer/scripts/vscode-settings.sh"
             ],
             "presentation": {
                 "echo": true,
