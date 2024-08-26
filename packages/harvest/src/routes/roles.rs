@@ -2,10 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::authorization::authorize;
-
 use crate::types::optional::OptionalId;
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
-use anyhow::Result;
+use anyhow::{Context, Result};
+use rocket::futures::TryFutureExt;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;

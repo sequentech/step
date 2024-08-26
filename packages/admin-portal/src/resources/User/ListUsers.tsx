@@ -567,7 +567,11 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         open={openDrawer}
                         setOpen={setOpenDrawer}
                         Component={
-                            <CreateUser electionEventId={electionEventId} close={handleClose} />
+                            <CreateUser
+                                electionEventId={electionEventId}
+                                close={handleClose}
+                                rolesList={rolesList || []}
+                            />
                         }
                         extraActions={[
                             <Button
@@ -649,7 +653,11 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 />
             </ResourceListStyles.Drawer>
             <ResourceListStyles.Drawer anchor="right" open={openNew} onClose={handleClose}>
-                <CreateUser electionEventId={electionEventId} close={handleClose} />
+                <CreateUser
+                    electionEventId={electionEventId}
+                    close={handleClose}
+                    rolesList={rolesList || []}
+                />
             </ResourceListStyles.Drawer>
             <Dialog
                 variant="warning"

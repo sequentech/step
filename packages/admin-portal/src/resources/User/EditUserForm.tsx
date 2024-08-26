@@ -46,7 +46,12 @@ interface ListUserRolesProps {
     refetch: () => void
 }
 
-const ListUserRoles: React.FC<ListUserRolesProps> = ({userRoles, rolesList, userId, refetch}) => {
+export const ListUserRoles: React.FC<ListUserRolesProps> = ({
+    userRoles,
+    rolesList,
+    userId,
+    refetch,
+}) => {
     const [tenantId] = useTenantStore()
     const {t} = useTranslation()
     const [deleteUserRole] = useMutation<DeleteUserRoleMutation>(DELETE_USER_ROLE)
@@ -54,12 +59,12 @@ const ListUserRoles: React.FC<ListUserRolesProps> = ({userRoles, rolesList, user
     const refresh = useRefresh()
     const notify = useNotify()
 
-    const activeRoleIds = userRoles.list_user_roles.map((role) => role.id || "")
+    const activeRoleIds = userRoles?.list_user_roles.map((role) => role.id || "")
 
     let rows: Array<IRole & {id: string; active: boolean}> = rolesList.map((role) => ({
         ...role,
         id: role.id || "",
-        active: activeRoleIds.includes(role.id || ""),
+        active: activeRoleIds?.includes(role.id || "") || false,
     }))
 
     const editRolePermission = (props: GridRenderCellParams<any, boolean>) => async () => {
@@ -87,7 +92,9 @@ const ListUserRoles: React.FC<ListUserRolesProps> = ({userRoles, rolesList, user
             type: "success",
         })
         refresh()
-        refetch()
+        if (refetch) {
+            refetch()
+        }
     }
 
     const columns: GridColDef[] = [
