@@ -24,7 +24,7 @@ interface TallyResultsProps {
     tally: Sequent_Backend_Tally_Session | undefined
     resultsEventId: string | null
     loading?: boolean
-    onCreateTransmissionPackage: (v: {area_id: string; election_id: string | null}) => void
+    onCreateTransmissionPackage: (v: {area_id: string; election_id: string}) => void
 }
 
 const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> = memo(

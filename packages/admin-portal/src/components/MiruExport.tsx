@@ -36,7 +36,7 @@ export const ExportButton = styled.div`
 interface MiruExportProps {
     electionId: string | null
     loading?: boolean
-    onCreateTransmissionPackage: (v: {area_id: string; election_id: string | null}) => void
+    onCreateTransmissionPackage: (v: {area_id: string; election_id: string}) => void
 }
 
 export const MiruExport: React.FC<MiruExportProps> = ({
@@ -112,7 +112,7 @@ export const MiruExport: React.FC<MiruExportProps> = ({
                             e.preventDefault()
                             e.stopPropagation()
                             handleClose()
-                            onCreateTransmissionPackage({area_id: area.id, election_id: electionId})
+                            onCreateTransmissionPackage({area_id: area.id, election_id: electionId!})
                         }}
                     >
                         <Box

@@ -424,6 +424,7 @@ export const TallyCeremony: React.FC = () => {
             setSelectedTallySessionData(e.existingPackage)
             setMiruElectionId(e.existingPackage.election_id)
             setMiruAreaId(e.existingPackage.area_id)
+			setTransmissionLoading(false)
         } else {
             let packageData: IMiruTransmissionPackageData | null = null
             let retry = 0
@@ -443,9 +444,10 @@ export const TallyCeremony: React.FC = () => {
                 if (found) {
                     packageData = found
                     clearInterval(intervalId)
-                    // setSelectedTallySessionData(packageData)
+                    setSelectedTallySessionData(packageData)
                     setMiruElectionId(packageData.election_id)
                     setMiruAreaId(packageData.area_id)
+					setTransmissionLoading(false)
                 } else {
                     retry = retry + 1
                 }
@@ -465,7 +467,7 @@ export const TallyCeremony: React.FC = () => {
     )
 
     const handleCreateTransmissionPackage = useCallback(
-        async ({area_id, election_id}: {area_id: string; election_id: string | null}) => {
+        async ({area_id, election_id}: {area_id: string; election_id: string}) => {
             setTransmissionLoading(true)
 
             const found = tallySessionData.find(
@@ -474,15 +476,21 @@ export const TallyCeremony: React.FC = () => {
 
             if (!election_id) {
                 notify(t("miruExport.create.error"), {type: "error"})
+				setTransmissionLoading(false)
                 console.log("Unable to get election id.")
                 return
             }
 
             if (found) {
                 handleMiruExportSuccess?.({existingPackage: found})
-
                 return
             }
+
+			if(isTrustee){
+				notify(t("Only Admins can send Transmission Package. Please try again later"), { type: "warning" })
+				setTransmissionLoading(false)
+				return
+			}
 
             try {
                 const {data: nextStatus, errors} = await CreateTransmissionPackage({
@@ -500,7 +508,6 @@ export const TallyCeremony: React.FC = () => {
                 }
 
                 if (nextStatus) {
-                    setTransmissionLoading(false)
                     notify(t("miruExport.create.success"), {type: "success"})
                     handleMiruExportSuccess?.({area_id, election_id})
                 }
