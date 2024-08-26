@@ -372,7 +372,9 @@ const catalanTranslation: TranslationType = {
                 },
                 notify: {
                     noKeysTally:
-                        "La Cerimònia del Compte no pot començar fins que la Cerimònia de Fideïcomissari no s'hagi completat amb èxit.",
+                        "La Cerimònia del Compte no pot començar fins que la Cerimònia de Fideïcomissaris no s'hagi completat amb èxit.",
+                    noPublication:
+                        "La Cerimònia de Còmput no pot començar fins que no creïs una publicació a la pestanya Publicar.",
                     participateNow:
                         "Ha estat convidat a participar a una Cerimònia de Recompte. Si us plau <1>feu clic a continuació en l'acció de recompte de la cerimònia</1> per participar.",
                 },
@@ -816,7 +818,15 @@ const catalanTranslation: TranslationType = {
                 "custom": "Personalitzat",
                 "alphabetical": "Alfabètic",
             },
+            underVotePolicy: {
+                "label": "Política de Votació Inferior",
+                "allowed": "Permès",
+                "warn-only-in-review": "Advertir en Revisió",
+                "warn": "Advertir",
+                "warn-and-alert": "Advertir i Alertar",
+            },
             invalidVotePolicy: {
+                "label": "Política de vot invàlid",
                 "allowed": "Permesa",
                 "warn": "Advertència",
                 "warn-invalid-implicit-and-explicit": "Advertir Invàlids Implícits i Explícits",
@@ -831,8 +841,18 @@ const catalanTranslation: TranslationType = {
             blankVotePolicy: {
                 "label": "Política de vot en blanc",
                 "allowed": "Permès",
+                "warn-only-in-review": "Advertir en Revisió",
                 "warn": "Advertir",
                 "not-allowed": "No permès",
+            },
+            overVotePolicy: {
+                "label": "Política de vot excessiva",
+                "allowed": "Permès",
+                "allowed-with-msg": "Permès amb missatge d'avís",
+                "allowed-with-msg-and-alert": "Permès amb missatge d'avís i alerta",
+                "not-allowed-with-msg-and-alert": "No es permet amb missatge d'avís i alerta",
+                "not-allowed-with-msg-and-disable":
+                    "No es permet amb missatge d'avís i desactiva més seleccions",
             },
             paginationPolicy: {
                 label: "Nom de la pàgina",
@@ -940,11 +960,59 @@ const catalanTranslation: TranslationType = {
         tally: {
             errorUploadingSignature: "S'ha produït un error en carregar la signatura",
             downloadTransmissionPackage: "Descarregar paquet",
-            TransmissionPackageServers: "Servidors",
+            transmissionPackage: {
+                title: "Paquet de Transmissió per a l'Àrea '{{name}}'",
+                description:
+                    "Et permet exportar un Paquet de Transmissió als Servidors de Destinació o descarregar-lo.",
+                actions: {
+                    send: {
+                        title: "Enviar",
+                        dialog: {
+                            title: "Vols enviar el Paquet de Transmissió?",
+                            description:
+                                "Si us plau, confirma que vols enviar el Paquet de Transmissió per a l'Àrea '{{name}}' als Servidors de Destinació.",
+                            confirm: "Enviar Paquet de Transmissió",
+                            cancel: "Tancar",
+                        },
+                    },
+                    download: {
+                        title: "Descarregar",
+                        itemTitle: "Descarregar el Paquet de Transmissió",
+                        dialog: {
+                            title: "Vols descarregar el Paquet de Transmissió?",
+                            description:
+                                "Si us plau, confirma que vols descarregar el Paquet de Transmissió per a l'Àrea '{{name}}.'",
+                            confirm: "Descarregar Paquet de Transmissió",
+                            cancel: "Tancar",
+                        },
+                    },
+                },
+                destinationServers: {
+                    title: "Servidors de Destinació",
+                    description:
+                        "La taula a continuació mostra l'estat d'enviament de cadascun dels Servidors de Destinació.",
+                    status: "Enviat a {{signed}} de {{total}}",
+                    table: {
+                        serverName: "Nom del Servidor",
+                        sendStatus: "Estat d'Enviament",
+                    },
+                },
+                signatures: {
+                    title: "Signatures SBEI",
+                    description:
+                        "Els SBEIs poden signar el Paquet de Transmissió. La taula a continuació mostra l'estat de signatura de cada un dels membres del SBEI.",
+                    table: {
+                        trusteeName: "Nom del Fiduciari",
+                        signed: "Ha Signat",
+                    },
+                    status: "{{signed}} de {{total}} Han Signat",
+                },
+            },
             sendToTransmissionPackageServers:
                 "Enviar paquet de transmissió per a l'àrea '{{name}}'",
-            transmissionPackageSignatures: "Signatures",
             uploadTransmissionPackage: "Carregar",
+            uploadTransmissionPackageDesc:
+                "Carrega la teva signatura per signar el paquet de Resultats Electorals. Aquesta operació és opcional.",
             exportElectionArea: "Envia paquet de transmissió per a l'àrea '{{name}}'",
             templateTitle: "Plantilla de Resultats",
             templateSubTitle: "Opcionalment sobreescriure la plantilla de resultats.",

@@ -4,7 +4,7 @@ SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 --}}
 
-<EML Id="{{data.id}}" SchemaVersion="7.0" xmlns="urn:oasis:names:tc:evs:schema:eml">
+<EML Id="510" SchemaVersion="7.0" xmlns="urn:oasis:names:tc:evs:schema:eml">
   <EMLHeader>
     <TransactionId>{{data.header.transaction_id}}</TransactionId>
     <IssueDate>{{data.header.issue_date}}</IssueDate>
@@ -45,12 +45,14 @@ SPDX-License-Identifier: AGPL-3.0-only
                               <StatusItem setting="{{status.setting}}" />
                             {{/each}}
                           </StatusDetails>
-                          <Affiliation>
-                            <AffiliationIdentifier IdNumber="{{candidate.affiliation.identifier.id_number}}">
-                                <RegisteredName>{{candidate.affiliation.identifier.name}}</RegisteredName>
-                            </AffiliationIdentifier>
-                            <Type>{{candidate.affiliation.party}}</Type>
-                          </Affiliation>
+                          {{#if (ne candidate.affiliation.identifier.id_number " ")}}
+                            <Affiliation>
+                              <AffiliationIdentifier IdNumber="{{candidate.affiliation.identifier.id_number}}">
+                                  <RegisteredName>{{candidate.affiliation.identifier.name}}</RegisteredName>
+                              </AffiliationIdentifier>
+                              <Type>{{candidate.affiliation.party}}</Type>
+                            </Affiliation>
+                          {{/if}}
                         </Candidate>
                       {{/each}}
                       <ValidVotes>{{selection.valid_votes}}</ValidVotes>

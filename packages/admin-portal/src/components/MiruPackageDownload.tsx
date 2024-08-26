@@ -2,17 +2,18 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {Box, CircularProgress, Menu, MenuItem} from "@mui/material"
+import {Box, Button, CircularProgress, Menu, MenuItem} from "@mui/material"
 import React, {useState} from "react"
 import {useTranslation} from "react-i18next"
 import {FetchDocumentQuery} from "@/gql/graphql"
-import styled from "@emotion/styled"
-import {theme} from "@sequentech/ui-essentials"
+import {Dialog} from "@sequentech/ui-essentials"
 import {downloadUrl} from "@sequentech/ui-core"
 import {EExportFormat, IResultDocuments} from "@/types/results"
 import {useQuery} from "@apollo/client"
 import {FETCH_DOCUMENT} from "@/queries/FetchDocument"
 import {IMiruDocument} from "@/types/miru"
+import {TallyStyles} from "@/components/styles/TallyStyles"
+import DownloadIcon from "@mui/icons-material/Download"
 
 interface PerformDownloadProps {
     onDownload: () => void
@@ -22,17 +23,6 @@ interface PerformDownloadProps {
 }
 
 let downloading = false
-
-const getDocumentExtension = (docExtension: "application/xml") => {
-    switch (docExtension) {
-        case "application/xml":
-            return ".xml"
-            break
-
-        default:
-            break
-    }
-}
 
 const PerformDownload: React.FC<PerformDownloadProps> = ({
     onDownload,
@@ -64,30 +54,9 @@ const PerformDownload: React.FC<PerformDownloadProps> = ({
     return <CircularProgress />
 }
 
-export const ExportButton = styled.div`
-    cursor: pointer;
-    margin-left: 10px;
-    margin-right: 10px;
-    padding: 5px 10px;
-    background-color: transparent;
-    color: ${theme.palette.primary.dark};
-    font-size: 14px;
-    font-weight: 500;
-    line-height: 1.5;
-    text-align: center;
-    text-transform: uppercase;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 4px;
-    &:hover {
-        background-color: ${theme.palette.primary.dark};
-        color: ${theme.palette.white};
-    }
-`
-
 interface MiruPackageDownloadProps {
     documents: IMiruDocument[] | null
+    areaName: string | null | undefined
     electionEventId: string
 }
 
@@ -98,10 +67,12 @@ interface IDocumentData {
 }
 
 export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) => {
-    const {documents, electionEventId} = props
+    const {areaName, documents, electionEventId} = props
     const {t} = useTranslation()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
+    const [openModal, setOpenModal] = useState(false)
     const [performDownload, setPerformDownload] = useState<IDocumentData | null>(null)
+    const [documentToDownload, setDocumentToDownload] = useState<IMiruDocument | null>(null)
     const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
         event.preventDefault()
         event.stopPropagation()
@@ -114,24 +85,29 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) =
 
     const handleDownload = (doc: IMiruDocument) => {
         setPerformDownload({
-            id: doc.document_id,
+            id: doc.document_ids.xz,
             kind: EExportFormat.JSON, //need to adjust this to right format because document is currently not readable
             name: `MiruDocument.json`,
         })
     }
     return (
         <div>
-            <ExportButton
+            <TallyStyles.MiruToolbarButton
+                variant="outlined"
                 aria-label="export election data"
                 aria-controls="export-menu"
                 aria-haspopup="true"
                 onClick={handleMenu}
             >
-                <span title={"Download"}>{t("auditScreen.downloadButton")}</span>
+                <DownloadIcon />
+                <span title={t("tally.transmissionPackage.actions.download.title")}>
+                    {t("tally.transmissionPackage.actions.download.title")}
+                </span>
                 {performDownload ? (
                     <PerformDownload
                         onDownload={() => {
                             downloading = false
+                            setDocumentToDownload(null)
                             setPerformDownload(null)
                         }}
                         // fileName={performDownload.name}
@@ -139,7 +115,7 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) =
                         electionEventId={electionEventId}
                     />
                 ) : null}
-            </ExportButton>
+            </TallyStyles.MiruToolbarButton>
 
             <Menu
                 id="menu-export-election"
@@ -159,12 +135,13 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) =
             >
                 {documents!.map((doc) => (
                     <MenuItem
-                        key={doc.document_id}
+                        key={doc.document_ids.xz}
                         onClick={(e: React.MouseEvent<HTMLElement>) => {
                             e.preventDefault()
                             e.stopPropagation()
                             handleClose()
-                            handleDownload(doc)
+                            setDocumentToDownload(doc)
+                            setOpenModal(true)
                         }}
                     >
                         <Box
@@ -174,13 +151,35 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) =
                                 overflow: "hidden",
                             }}
                         >
-                            <span title={"Download Document"}>
-                                {t("usersAndRolesScreen.permissions.document-download")}
+                            <span title={t("tally.transmissionPackage.actions.download.itemTitle")}>
+                                {t("tally.transmissionPackage.actions.download.itemTitle")}
                             </span>
                         </Box>
                     </MenuItem>
                 ))}
             </Menu>
+            <Dialog
+                variant="info"
+                open={openModal}
+                ok={t("tally.transmissionPackage.actions.download.dialog.confirm")}
+                cancel={t("tally.transmissionPackage.actions.download.dialog.cancel")}
+                title={t("tally.transmissionPackage.actions.download.dialog.title")}
+                handleClose={(result: boolean) => {
+                    if (!documentToDownload) {
+                        console.log("error, documentToDownload is null")
+                        return
+                    }
+                    if (result) {
+                        handleDownload(documentToDownload)
+                    }
+                    setDocumentToDownload(null)
+                    setOpenModal(false)
+                }}
+            >
+                {t("tally.transmissionPackage.actions.download.dialog.description", {
+                    name: areaName,
+                })}
+            </Dialog>
         </div>
     )
 }
