@@ -776,6 +776,8 @@ mod tests {
         let report = &reports[0];
 
         assert_eq!(report.contest_result.total_votes, 142);
+        assert_eq!(report.contest_result.total_valid_votes, 142);
+        assert_eq!(report.contest_result.total_blank_votes, 6);
         assert_eq!(report.contest_result.census, 200);
         assert_eq!(
             report
@@ -783,7 +785,7 @@ mod tests {
                 .iter()
                 .map(|cr| cr.total_count)
                 .sum::<u64>(),
-            134
+            138
         );
 
         let mut path = cli.output_dir.clone();
@@ -799,6 +801,9 @@ mod tests {
         let report = &reports[0];
 
         assert_eq!(report.contest_result.total_votes, 100);
+        assert_eq!(report.contest_result.total_valid_votes, 100);
+        assert_eq!(report.contest_result.total_blank_votes, 3);
+        assert_eq!(report.contest_result.total_invalid_votes, 0);
         assert_eq!(report.contest_result.census, 100);
         assert_eq!(
             report
@@ -806,7 +811,7 @@ mod tests {
                 .iter()
                 .map(|cr| cr.total_count)
                 .sum::<u64>(),
-            96
+            98
         );
 
         // test second contest
@@ -823,6 +828,9 @@ mod tests {
         let report = &reports[0];
 
         assert_eq!(report.contest_result.total_votes, 20);
+        assert_eq!(report.contest_result.total_valid_votes, 20);
+        assert_eq!(report.contest_result.total_blank_votes, 3);
+        assert_eq!(report.contest_result.total_invalid_votes, 0);
         assert_eq!(report.contest_result.census, 100);
         assert_eq!(
             report
@@ -830,7 +838,7 @@ mod tests {
                 .iter()
                 .map(|cr| cr.total_count)
                 .sum::<u64>(),
-            16
+            18
         );
 
         Ok(())
@@ -1441,6 +1449,7 @@ mod tests {
     fn test_check_voting_not_allowed_next() {
         // Case 1: InvalidVotePolicy::NOT_ALLOWED but there aren't any invalid_errors -> false
         let contest1 = get_contest_plurality(
+            EOverVotePolicy::ALLOWED,
             EBlankVotePolicy::ALLOWED,
             InvalidVotePolicy::NOT_ALLOWED,
             None,
@@ -1454,6 +1463,7 @@ mod tests {
 
         // Case 2: EBlankVotePolicy::NOT_ALLOWED and there aren't any votes cast -> true
         let contest2: Contest = get_contest_plurality(
+            EOverVotePolicy::ALLOWED,
             EBlankVotePolicy::NOT_ALLOWED,
             InvalidVotePolicy::ALLOWED,
             None,
@@ -1467,6 +1477,7 @@ mod tests {
 
         // Case 3: EBlankVotePolicy::NOT_ALLOWED but minVotes = 0 and InvalidVotePolicy::NOT_ALLOWED but there aren't any invalid_errors -> false
         let contest3 = get_contest_plurality(
+            EOverVotePolicy::ALLOWED,
             EBlankVotePolicy::NOT_ALLOWED,
             InvalidVotePolicy::NOT_ALLOWED,
             Some(0),
@@ -1480,6 +1491,7 @@ mod tests {
 
         // Case 4: EBlankVotePolicy::NOT_ALLOWED and InvalidVotePolicy::NOT_ALLOWED with invalid errors -> true
         let contest4 = get_contest_plurality(
+            EOverVotePolicy::ALLOWED,
             EBlankVotePolicy::NOT_ALLOWED,
             InvalidVotePolicy::NOT_ALLOWED,
             None,
@@ -1496,6 +1508,7 @@ mod tests {
     fn test_check_voting_error_dialog() {
         // Case 1: InvalidVotePolicy::WARN_INVALID_IMPLICIT_AND_EXPLICIT and is_explicit_invalid = true -> true
         let contest1 = get_contest_plurality(
+            EOverVotePolicy::ALLOWED,
             EBlankVotePolicy::ALLOWED,
             InvalidVotePolicy::WARN_INVALID_IMPLICIT_AND_EXPLICIT,
             None,
@@ -1508,8 +1521,12 @@ mod tests {
         assert_eq!(result, true);
 
         // Case 2: EBlankVotePolicy::WARN and choices_selected = 0 -> true
-        let contest2 =
-            get_contest_plurality(EBlankVotePolicy::WARN, InvalidVotePolicy::ALLOWED, None);
+        let contest2 = get_contest_plurality(
+            EOverVotePolicy::ALLOWED,
+            EBlankVotePolicy::WARN,
+            InvalidVotePolicy::ALLOWED,
+            None,
+        );
         let mut decoded_contests2: HashMap<String, DecodedVoteContest> = HashMap::new();
         let decoded_contest = get_decoded_contest_plurality(&contest2);
         decoded_contests2.insert(contest2.id.clone(), decoded_contest);
@@ -1519,6 +1536,7 @@ mod tests {
 
         // Case 3: EBlankVotePolicy::ALLOWED and minVotes = 0 and InvalidVotePolicy::NOT_ALLOWED -> false
         let contest3 = get_contest_plurality(
+            EOverVotePolicy::ALLOWED,
             EBlankVotePolicy::ALLOWED,
             InvalidVotePolicy::NOT_ALLOWED,
             Some(0),

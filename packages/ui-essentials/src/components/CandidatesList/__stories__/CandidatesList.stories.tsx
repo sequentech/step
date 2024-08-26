@@ -21,6 +21,7 @@ const SimpleCandidate: React.FC<SimpleCandidateProps> = ({isActive}) => (
         isActive={isActive}
         hasCategory={true}
         url="https://google.com"
+        shouldDisable={false}
     >
         <Image src={CandidateImg} duration={100} />
     </Candidate>

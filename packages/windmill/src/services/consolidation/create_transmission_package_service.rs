@@ -1,13 +1,16 @@
+use super::acm_json::get_acm_key_pair;
 use super::acm_transaction::generate_transaction_id;
+use super::ecies_encrypt::generate_ecies_key_pair;
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::eml_generator::{
     find_miru_annotation, prepend_miru_annotation, ValidateAnnotations, MIRU_AREA_CCS_SERVERS,
-    MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA,
+    MIRU_AREA_STATION_ID, MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA,
 };
 use super::logs::create_transmission_package_log;
-use super::transmission_package::generate_base_compressed_xml;
+use super::transmission_package::{create_transmission_package, generate_base_compressed_xml};
+use super::zip::compress_folder_to_zip;
 use crate::postgres::area::get_area_by_id;
 use crate::postgres::document::get_document;
 use crate::postgres::election::get_election_by_id;
@@ -21,19 +24,23 @@ use crate::services::date::ISO8601;
 use crate::services::documents::get_document_as_temp_file;
 use crate::services::documents::upload_and_return_document_postgres;
 use crate::services::folders::list_files;
-use crate::services::temp_path::write_into_named_temp_file;
-use crate::types::miru_plugin::{MiruCcsServer, MiruDocument, MiruTransmissionPackageData};
+use crate::services::temp_path::{generate_temp_file, get_file_size, write_into_named_temp_file};
+use crate::types::miru_plugin::{
+    MiruCcsServer, MiruDocument, MiruDocumentIds, MiruTransmissionPackageData,
+};
 use crate::{
     postgres::election_event::get_election_event_by_election_area,
     types::miru_plugin::MiruTallySessionData,
 };
 use anyhow::{anyhow, Context, Result};
-use chrono::{Local, Utc};
+use chrono::{DateTime, Local, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::ballot::Annotations;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
+use sequent_core::types::date_time::TimeZone;
+use sequent_core::types::hasura::core::Document;
 use sequent_core::util::date_time::get_system_timezone;
-use tempfile::NamedTempFile;
+use tempfile::{tempdir, NamedTempFile};
 use tracing::{info, instrument};
 use uuid::Uuid;
 use velvet::pipes::generate_reports::ReportData;
@@ -130,6 +137,68 @@ pub async fn update_transmission_package_annotations(
     Ok(())
 }
 
+#[instrument(skip_all, err)]
+pub async fn generate_all_servers_document(
+    hasura_transaction: &Transaction<'_>,
+    eml_hash: &str,
+    eml: &str,
+    compressed_xml_bytes: Vec<u8>,
+    ccs_servers: &Vec<MiruCcsServer>,
+    area_station_id: &str,
+    election_event_annotations: &Annotations,
+    election_event_id: &str,
+    tenant_id: &str,
+    time_zone: TimeZone,
+    now_utc: DateTime<Utc>,
+) -> Result<Document> {
+    let acm_key_pair = get_acm_key_pair().await?;
+    let temp_dir = tempdir().with_context(|| "Error generating temp directory")?;
+    let temp_dir_path = temp_dir.path();
+
+    for ccs_server in ccs_servers {
+        let server_path = temp_dir_path.join(&ccs_server.tag);
+        std::fs::create_dir(server_path.clone())
+            .with_context(|| format!("Error generating directory {:?}", server_path.clone()))?;
+        let zip_file_path = server_path.join(format!("er_{}.zip", area_station_id));
+        create_transmission_package(
+            eml_hash,
+            eml,
+            time_zone.clone(),
+            now_utc.clone(),
+            election_event_annotations,
+            compressed_xml_bytes.clone(),
+            &acm_key_pair,
+            &ccs_server.public_key_pem,
+            area_station_id,
+            &zip_file_path,
+        )
+        .await?;
+    }
+
+    let dst_file = generate_temp_file("all_servers", ".zip")?;
+    let dst_file_path = dst_file.path();
+    let dst_file_string = dst_file_path.to_string_lossy().to_string();
+
+    compress_folder_to_zip(temp_dir_path, dst_file.path())?;
+    let file_size =
+        get_file_size(dst_file_string.as_str()).with_context(|| "Error obtaining file size")?;
+
+    let document = upload_and_return_document_postgres(
+        &hasura_transaction,
+        &dst_file_string,
+        file_size,
+        "applization/zip",
+        tenant_id,
+        election_event_id,
+        "all_servers.zip",
+        None,
+        false,
+    )
+    .await?;
+
+    Ok(document)
+}
+
 #[instrument(err)]
 pub async fn create_transmission_package_service(
     tenant_id: &str,
@@ -188,6 +257,14 @@ pub async fn create_transmission_package_service(
         .ok_or_else(|| anyhow!("Can't find area {}", area_id))?;
     let area_annotations = area.get_valid_annotations()?;
 
+    let area_station_id = find_miru_annotation(MIRU_AREA_STATION_ID, &area_annotations)
+        .with_context(|| {
+            format!(
+                "Missing area annotation: '{}:{}'",
+                MIRU_PLUGIN_PREPEND, MIRU_AREA_STATION_ID
+            )
+        })?;
+
     let ccs_servers_js = find_miru_annotation(MIRU_AREA_CCS_SERVERS, &area_annotations)
         .with_context(|| {
             format!(
@@ -242,41 +319,74 @@ pub async fn create_transmission_package_service(
         info!("Can't find election report for election {}", election_id);
         return Ok(());
     };
-    let Some(report_computed) = result.reports.into_iter().find(|result| {
-        let Some(basic_area) = result.area.clone() else {
-            return false;
-        };
-        return basic_area.id == area_id;
-    }) else {
-        info!("Can't find election report for area {}", area_id);
-        return Ok(());
-    };
-    let report: ReportData = report_computed.into();
-    let base_compressed_xml = generate_base_compressed_xml(
+    let reports: Vec<ReportData> = result
+        .reports
+        .into_iter()
+        .filter(|result| {
+            let Some(basic_area) = result.area.clone() else {
+                return false;
+            };
+            return basic_area.id == area_id;
+        })
+        .map(|report_computed| report_computed.into())
+        .collect();
+    let (base_compressed_xml, eml, eml_hash) = generate_base_compressed_xml(
         tally_id,
         &transaction_id,
         time_zone.clone(),
         now_utc.clone(),
         &election_event_annotations,
         &election_annotations,
-        &report,
+        &reports,
     )
     .await?;
 
-    let name = format!("er_{}", transaction_id);
+    // upload .xz
+    let xz_name = format!("er_{}", transaction_id);
     let (temp_path, temp_path_string, file_size) =
-        write_into_named_temp_file(&base_compressed_xml, &name, ".xz")?;
-
-    let document = upload_and_return_document_postgres(
+        write_into_named_temp_file(&base_compressed_xml, &xz_name, ".xz")?;
+    let xz_document = upload_and_return_document_postgres(
         &hasura_transaction,
         &temp_path_string,
         file_size,
         "applization/xml",
         tenant_id,
         &election_event.id,
-        &name,
+        &xz_name,
         None,
         false,
+    )
+    .await?;
+
+    // upload eml
+    let eml_name = format!("er_{}", transaction_id);
+    let (temp_path, temp_path_string, file_size) =
+        write_into_named_temp_file(&eml.as_bytes().to_vec(), &eml_name, ".eml")?;
+    let eml_document = upload_and_return_document_postgres(
+        &hasura_transaction,
+        &temp_path_string,
+        file_size,
+        "applization/xml",
+        tenant_id,
+        &election_event.id,
+        &eml_name,
+        None,
+        false,
+    )
+    .await?;
+
+    let all_servers_document = generate_all_servers_document(
+        &hasura_transaction,
+        &eml_hash,
+        &eml,
+        base_compressed_xml.clone(),
+        &ccs_servers,
+        &area_station_id,
+        &election_event_annotations,
+        &election_event.id,
+        tenant_id,
+        time_zone.clone(),
+        now_utc.clone(),
     )
     .await?;
 
@@ -286,7 +396,11 @@ pub async fn create_transmission_package_service(
         area_id: area_id.to_string(),
         servers: ccs_servers.clone(),
         documents: vec![MiruDocument {
-            document_id: document.id.clone(),
+            document_ids: MiruDocumentIds {
+                eml: eml_document.id.clone(),
+                xz: xz_document.id.clone(),
+                all_servers: all_servers_document.id.clone(),
+            },
             transaction_id: transaction_id.clone(),
             servers_sent_to: vec![],
             created_at: ISO8601::to_string(&now_local),

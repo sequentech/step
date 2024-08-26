@@ -815,7 +815,15 @@ const frenchTranslation: TranslationType = {
                 "custom": "Personnalisé",
                 "alphabetical": "Alphabétique",
             },
+            underVotePolicy: {
+                "label": "Politique de Sous-Vote",
+                "allowed": "Autorisé",
+                "warn-only-in-review": "Avertir en Révision",
+                "warn": "Avertir",
+                "warn-and-alert": "Avertir et Alerter",
+            },
             invalidVotePolicy: {
+                "label": "Politique de vote invalide",
                 "allowed": "Permis",
                 "warn": "Avertissement",
                 "warn-invalid-implicit-and-explicit": "Avertir Inválidos Implicites et Explicites",
@@ -830,8 +838,20 @@ const frenchTranslation: TranslationType = {
             blankVotePolicy: {
                 "label": "Politique de vote blanc",
                 "allowed": "Autorisé",
+                "warn-only-in-review": "Avertir en Révision",
                 "warn": "Avertir",
                 "not-allowed": "Non autorisé",
+            },
+            overVotePolicy: {
+                "label": "Politique de vote excessive",
+                "allowed": "Autorisé",
+                "allowed-with-msg": "Autorisé avec un message d'avertissement",
+                "allowed-with-msg-and-alert":
+                    "Autorisé avec un message d'avertissement et d'alerte",
+                "not-allowed-with-msg-and-alert":
+                    "Non autorisé avec un message d'avertissement et d'alerte",
+                "not-allowed-with-msg-and-disable":
+                    "Non autorisé avec un message d'avertissement et désactiver d'autres sélections",
             },
             paginationPolicy: {
                 label: "Nom de la page",
