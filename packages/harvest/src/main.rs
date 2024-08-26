@@ -59,6 +59,7 @@ async fn rocket() -> _ {
                 routes::users::create_user,
                 routes::users::import_users_f,
                 routes::users::export_users_f,
+                routes::users::export_tenant_users_f,
                 routes::users::delete_user,
                 routes::users::get_users,
                 routes::users::get_user,
@@ -87,6 +88,9 @@ async fn rocket() -> _ {
                 routes::tally_sheets::publish_tally_sheet,
                 routes::create_vote_receipt::create_vote_receipt,
                 routes::election_dates::manage_election_dates,
+                routes::miru_plugin::create_transmission_package,
+                routes::miru_plugin::send_transmission_package,
+                routes::miru_plugin::upload_signature,
             ],
         )
 }

@@ -6,7 +6,7 @@
 
 use std::env;
 
-use super::s3;
+use super::s3::{self, get_minio_url};
 use crate::postgres::{self, communication_template, election};
 use crate::services::database::get_hasura_pool;
 use crate::services::{
@@ -63,14 +63,6 @@ impl ToMap for ManualVerificationData {
         };
         Ok(map)
     }
-}
-
-fn get_minio_url() -> Result<String> {
-    let minio_private_uri =
-        env::var("AWS_S3_PRIVATE_URI").map_err(|err| anyhow!("AWS_S3_PRIVATE_URI must be set"))?;
-    let bucket = s3::get_public_bucket()?;
-
-    Ok(format!("{}/{}", minio_private_uri, bucket))
 }
 
 #[instrument(err)]
@@ -225,11 +217,11 @@ pub async fn get_manual_verification_pdf(
         <script>
           const qrcode = new QRCode(document.getElementById("qrcode"), {
             text: "{{data.manual_verification_url}}",
-            width: 180,
-            height: 180,
+            width: 480,
+            height: 480,
             colorDark: '#000000',
             colorLight: '#ffffff',
-            correctLevel: QRCode.CorrectLevel.H,
+            correctLevel: QRCode.CorrectLevel.M,
           });
         </script>
 

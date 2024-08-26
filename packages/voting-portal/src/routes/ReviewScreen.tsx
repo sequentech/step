@@ -82,7 +82,7 @@ const ActionsContainer = styled(Box)`
 `
 
 const StyledButton = styled(Button)`
-    display flex;
+    display: flex;
     padding: 5px;
 
     span {

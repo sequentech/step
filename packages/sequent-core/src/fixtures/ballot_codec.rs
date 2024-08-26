@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -47,6 +48,7 @@ fn get_contest_plurality() -> Contest {
         voting_type: Some("first-past-the-post".into()),
         counting_algorithm: Some("plurality-at-large".into()), /* plurality-at-large|borda-nauru|borda|borda-mas-madrid|desborda3|desborda2|desborda|cumulative */
         is_encrypted: (true),
+        annotations: None,
         candidates: vec![
             Candidate {
                 id: "0".into(),
@@ -74,6 +76,7 @@ fn get_contest_plurality() -> Contest {
                     is_category_list: Some(false),
                     subtype: None,
                 }),
+                annotations: None,
             },
             Candidate {
                 id: "1".into(),
@@ -101,6 +104,7 @@ fn get_contest_plurality() -> Contest {
                     is_category_list: Some(false),
                     subtype: None,
                 }),
+                annotations: None,
             },
             Candidate {
                 id: "2".into(),
@@ -128,6 +132,7 @@ fn get_contest_plurality() -> Contest {
                     is_category_list: Some(false),
                     subtype: None,
                 }),
+                annotations: None,
             },
             Candidate {
                 id: "3".into(),
@@ -156,6 +161,7 @@ fn get_contest_plurality() -> Contest {
                     is_category_list: Some(false),
                     subtype: None,
                 }),
+                annotations: None,
             },
             Candidate {
                 id: "4".into(),
@@ -183,6 +189,7 @@ fn get_contest_plurality() -> Contest {
                     is_category_list: Some(false),
                     subtype: None,
                 }),
+                annotations: None,
             },
         ],
         presentation: Some(ContestPresentation {
@@ -191,6 +198,7 @@ fn get_contest_plurality() -> Contest {
             base32_writeins: Some(true),
             invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
             blank_vote_policy: None,
+            over_vote_policy: None,
             pagination_policy: None,
             cumulative_number_of_checkboxes: None,
             shuffle_categories: Some(true),
@@ -202,7 +210,7 @@ fn get_contest_plurality() -> Contest {
             max_selections_per_type: None,
             types_presentation: None,
             sort_order: None,
-            under_vote_alert: Some(false),
+            under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
         }),
     }
 }
@@ -274,6 +282,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
             voting_type: Some("first-past-the-post".into()),
             counting_algorithm: Some("plurality-at-large".into()),
             is_encrypted: (true),
+            annotations: None,
             candidates: vec![
                 Candidate {
                     id: "f257cd3a-d1cf-4b97-91f8-2dfe156b015c".into(),
@@ -305,6 +314,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                         is_category_list: Some(false),
                         subtype: None,
                     }),
+                    annotations: None,
                 },
                 Candidate {
                     id: "17325099-f5ab-4c48-a142-6d7ed721e9bb".into(),
@@ -349,6 +359,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                         ]),
                         subtype: None,
                     }),
+                    annotations: None,
                 },
                 Candidate {
                     id: "61320aac-0d78-4001-845e-a2f2bd8e800b".into(),
@@ -377,6 +388,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                         is_category_list: Some(false),
                         subtype: None,
                     }),
+                    annotations: None,
                 },
                 Candidate {
                     id: "e9ad3ed1-4fd5-4498-a0e7-3a3c22ef57d5".into(),
@@ -405,6 +417,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                         is_category_list: Some(false),
                         subtype: None,
                     }),
+                    annotations: None,
                 },
             ],
             presentation: Some(ContestPresentation {
@@ -413,6 +426,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                 base32_writeins: Some(true),
                 invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
                 blank_vote_policy: None,
+                over_vote_policy: None,
                 pagination_policy: None,
                 cumulative_number_of_checkboxes: None,
                 shuffle_categories: Some(true),
@@ -424,7 +438,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                 max_selections_per_type: None,
                 types_presentation: None,
                 sort_order: None,
-                under_vote_alert: Some(false),
+                under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
             }),
         }],
     }
@@ -523,6 +537,7 @@ pub fn get_test_contest() -> Contest {
         voting_type: Some("first-past-the-post".into()),
         counting_algorithm: Some("plurality-at-large".into()),
         is_encrypted: (true),
+        annotations: None,
         candidates: vec![
             Candidate {
                 id: "38df9caf-2dc8-472c-87f2-f003241e9510".into(),
@@ -555,6 +570,7 @@ pub fn get_test_contest() -> Contest {
                     ]),
                     subtype: None,
                 }),
+                annotations: None,
             },
             Candidate {
                 id: "97ac7d0a-e0f5-4e51-a1ee-6614c0836fec".into(),
@@ -593,6 +609,7 @@ pub fn get_test_contest() -> Contest {
                     ]),
                     subtype: None,
                 }),
+                annotations: None,
             },
             Candidate {
                 id: "94c9eafa-ebc6-4594-a176-24788f761ced".into(),
@@ -618,6 +635,7 @@ pub fn get_test_contest() -> Contest {
                     is_category_list: Some(false),
                     subtype: None,
                 }),
+                annotations: None,
             }
         ],
         presentation: Some(ContestPresentation {
@@ -626,6 +644,7 @@ pub fn get_test_contest() -> Contest {
             base32_writeins: Some(true),
             invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
             blank_vote_policy: None,
+            over_vote_policy: None,
             pagination_policy: None,
             cumulative_number_of_checkboxes: None,
             shuffle_categories: Some(true),
@@ -637,7 +656,7 @@ pub fn get_test_contest() -> Contest {
             max_selections_per_type: None,
             types_presentation: None,
             sort_order: None,
-            under_vote_alert: Some(false),
+            under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
         }),
     }
 }
@@ -671,6 +690,7 @@ pub(crate) fn get_configurable_contest(
         voting_type: Some("first-past-the-post".into()),
         counting_algorithm: Some("plurality-at-large".into()),
         is_encrypted: (true),
+        annotations: None,
         candidates: vec![
             Candidate {
                 id: "0".into(),
@@ -698,6 +718,7 @@ pub(crate) fn get_configurable_contest(
                     is_category_list: Some(false),
                     subtype: None,
                 }),
+                annotations: None,
             },
             Candidate {
                 id: "1".into(),
@@ -725,6 +746,7 @@ pub(crate) fn get_configurable_contest(
                     is_category_list: Some(false),
                     subtype: None,
                 }),
+                annotations: None,
             },
             Candidate {
                 id: "2".into(),
@@ -752,6 +774,7 @@ pub(crate) fn get_configurable_contest(
                     is_category_list: Some(false),
                     subtype: None,
                 }),
+                annotations: None,
             },
             Candidate {
                 id: "3".into(),
@@ -779,6 +802,7 @@ pub(crate) fn get_configurable_contest(
                     is_category_list: Some(false),
                     subtype: None,
                 }),
+                annotations: None,
             },
             Candidate {
                 id: "4".into(),
@@ -806,6 +830,7 @@ pub(crate) fn get_configurable_contest(
                     is_category_list: Some(false),
                     subtype: None,
                 }),
+                annotations: None,
             },
             Candidate {
                 id: "5".into(),
@@ -833,6 +858,7 @@ pub(crate) fn get_configurable_contest(
                     is_category_list: Some(false),
                     subtype: None,
                 }),
+                annotations: None,
             },
             Candidate {
                 id: "6".into(),
@@ -860,6 +886,7 @@ pub(crate) fn get_configurable_contest(
                     is_category_list: Some(false),
                     subtype: None,
                 }),
+                annotations: None,
             },
         ],
         presentation: Some(ContestPresentation {
@@ -868,6 +895,7 @@ pub(crate) fn get_configurable_contest(
             base32_writeins: Some(true),
             invalid_vote_policy: Some(InvalidVotePolicy::NOT_ALLOWED),
             blank_vote_policy: None,
+            over_vote_policy: Some(EOverVotePolicy::ALLOWED),
             pagination_policy: None,
             cumulative_number_of_checkboxes: None,
             shuffle_categories: Some(true),
@@ -879,7 +907,7 @@ pub(crate) fn get_configurable_contest(
             max_selections_per_type: None,
             types_presentation: None,
             sort_order: None,
-            under_vote_alert: Some(false),
+            under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
         }),
     };
 
@@ -913,7 +941,13 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
     vec![
         BallotCodecFixture {
             title: "plurality_fixture".to_string(),
-            contest: get_contest_plurality(),
+            contest: {
+                let mut contest = get_contest_plurality();
+                if let Some(ref mut presentation) = contest.presentation {
+                    presentation.invalid_vote_policy = Some(InvalidVotePolicy::WARN);
+                }
+                contest
+            },
             raw_ballot: RawBallotContest {
                 bases: vec![2u64, 2u64, 2u64, 2u64, 2u64, 2u64],
                 choices: vec![0u64, 1u64, 0u64, 0u64, 1u64, 1u64],
@@ -959,7 +993,17 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         ]),
                     }
                 ],
-                invalid_alerts: vec![],
+                invalid_alerts: vec![
+                    InvalidPlaintextError {
+                        error_type: InvalidPlaintextErrorType::Implicit,
+                        candidate_id: None,
+                        message: Some("errors.implicit.selectedMax".to_string()),
+                        message_map: HashMap::from([
+                            ("numSelected".to_string(), 3.to_string()),
+                            ("max".to_string(), 1.to_string()),
+                        ]),
+                    }
+                ],
             },
             encoded_ballot_bigint: "50".to_string(),
             encoded_ballot: vec_to_30_array(&vec![1, 50]).unwrap(),
@@ -1028,6 +1072,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 voting_type: Some("first-past-the-post".into()),
                 counting_algorithm: Some("plurality-at-large".into()),
                 is_encrypted: (true),
+                annotations: None,
                 candidates: vec![
                     Candidate {
                         id: "0".into(),
@@ -1053,6 +1098,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_category_list: Some(false),
                             subtype: None,
                         }),
+                        annotations: None,
                     },
                     Candidate {
                         id: "1".into(),
@@ -1078,6 +1124,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_category_list: Some(false),
                             subtype: None,
                         }),
+                        annotations: None,
                     },
                     Candidate {
                         id: "2".into(),
@@ -1103,6 +1150,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_category_list: Some(false),
                             subtype: None,
                         }),
+                        annotations: None,
                     },
                     Candidate {
                         id: "3".into(),
@@ -1128,14 +1176,16 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_category_list: Some(false),
                             subtype: None,
                         }),
+                        annotations: None,
                     },
                 ],
                 presentation: Some(ContestPresentation {
                     i18n: None,
                     allow_writeins: Some(true),
                     base32_writeins: Some(true),
-                    invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
+                    invalid_vote_policy: Some(InvalidVotePolicy::WARN),
                     blank_vote_policy: None,
+                    over_vote_policy: None,
                     pagination_policy: None,
                     cumulative_number_of_checkboxes: None,
                     shuffle_categories: Some(true),
@@ -1147,7 +1197,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     max_selections_per_type: None,
                     types_presentation: None,
                     sort_order: None,
-                    under_vote_alert: Some(false),
+                    under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
                 }),
             },
             raw_ballot: RawBallotContest {
@@ -1185,7 +1235,17 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         ]),
                     }
                 ],
-                invalid_alerts: vec![],
+                invalid_alerts: vec![
+                    InvalidPlaintextError {
+                        error_type: InvalidPlaintextErrorType::Implicit,
+                        candidate_id: None,
+                        message: Some("errors.implicit.selectedMax".to_string()),
+                        message_map: HashMap::from([
+                            ("numSelected".to_string(), 3.to_string()),
+                            ("max".to_string(), 1.to_string()),
+                        ]),
+                    }
+                ],
             },
             encoded_ballot_bigint: "15".to_string(),
             encoded_ballot: vec_to_30_array(&vec![1, 15]).unwrap(),
@@ -1210,6 +1270,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 voting_type: Some("first-past-the-post".into()),
                 counting_algorithm: Some("plurality-at-large".into()),
                 is_encrypted: (true),
+                annotations: None,
                 candidates: vec![
                     Candidate {
                         id: "0".into(),
@@ -1235,6 +1296,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_category_list: Some(false),
                             subtype: None,
                         }),
+                        annotations: None,
                     },
                     Candidate {
                         id: "1".into(),
@@ -1260,6 +1322,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_category_list: Some(false),
                             subtype: None,
                         }),
+                        annotations: None,
                     },
                     Candidate {
                         id: "2".into(),
@@ -1285,6 +1348,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_category_list: Some(false),
                             subtype: None,
                         }),
+                        annotations: None,
                     },
                     Candidate {
                         id: "3".into(),
@@ -1310,6 +1374,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_category_list: Some(false),
                             subtype: None,
                         }),
+                        annotations: None,
                     },
                 ],
                 presentation: Some(ContestPresentation {
@@ -1318,6 +1383,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     base32_writeins: Some(true),
                     invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
                     blank_vote_policy: None,
+                    over_vote_policy: None,
                     pagination_policy: None,
                     cumulative_number_of_checkboxes: None,
                     shuffle_categories: Some(true),
@@ -1329,7 +1395,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     max_selections_per_type: None,
                     types_presentation: None,
                     sort_order: None,
-                    under_vote_alert: Some(false),
+                    under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
                 }),
             },
             raw_ballot: RawBallotContest {
@@ -1382,6 +1448,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 voting_type: Some("first-past-the-post".into()),
                 counting_algorithm: Some("plurality-at-large".into()),
                 is_encrypted: (true),
+                annotations: None,
                 candidates: vec![
                     Candidate {
                         id: "0".into(),
@@ -1407,6 +1474,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_category_list: Some(false),
                             subtype: None,
                         }),
+                        annotations: None,
                     },
                     Candidate {
                         id: "1".into(),
@@ -1432,6 +1500,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_category_list: Some(false),
                             subtype: None,
                         }),
+                        annotations: None,
                     },
                     Candidate {
                         id: "2".into(),
@@ -1457,6 +1526,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_category_list: Some(false),
                             subtype: None,
                         }),
+                        annotations: None,
                     },
                     Candidate {
                         id: "3".into(),
@@ -1482,14 +1552,16 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_category_list: Some(false),
                             subtype: None,
                         }),
+                        annotations: None,
                     },
                 ],
                 presentation: Some(ContestPresentation {
                     i18n: None,
                     allow_writeins: Some(true),
                     base32_writeins: Some(true),
-                    invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
+                    invalid_vote_policy: Some(InvalidVotePolicy::WARN),
                     blank_vote_policy: None,
+                    over_vote_policy: Some(EOverVotePolicy::ALLOWED),
                     pagination_policy: None,
                     cumulative_number_of_checkboxes: None,
                     shuffle_categories: Some(true),
@@ -1501,7 +1573,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     max_selections_per_type: None,
                     types_presentation: None,
                     sort_order: None,
-                    under_vote_alert: Some(false),
+                    under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
                 }),
             },
             raw_ballot: RawBallotContest {
@@ -1564,6 +1636,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 voting_type: Some("first-past-the-post".into()),
                 counting_algorithm: Some("plurality-at-large".into()),
                 is_encrypted: (true),
+                annotations: None,
                 candidates: vec![
                     Candidate {
                         id: "0".into(),
@@ -1589,6 +1662,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_category_list: Some(false),
                             subtype: None,
                         }),
+                        annotations: None,
                     },
                     Candidate {
                         id: "1".into(),
@@ -1614,6 +1688,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_category_list: Some(false),
                             subtype: None,
                         }),
+                        annotations: None,
                     },
                     Candidate {
                         id: "2".into(),
@@ -1639,6 +1714,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_category_list: Some(false),
                             subtype: None,
                         }),
+                        annotations: None,
                     },
                 ],
                 presentation: Some(ContestPresentation {
@@ -1646,7 +1722,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     allow_writeins: Some(true),
                     base32_writeins: Some(true),
                     invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
-                    blank_vote_policy: None,
+                    blank_vote_policy: Some(EBlankVotePolicy::ALLOWED),
+                    over_vote_policy: None,
                     pagination_policy: None,
                     cumulative_number_of_checkboxes: None,
                     shuffle_categories: Some(true),
@@ -1658,7 +1735,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     max_selections_per_type: None,
                     types_presentation: None,
                     sort_order: None,
-                    under_vote_alert: Some(false),
+                    under_vote_policy: Some(EUnderVotePolicy::WARN),
                 }),
             },
             raw_ballot: RawBallotContest {
@@ -1694,7 +1771,188 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             ("numSelected".to_string(), 0.to_string()),
                             ("min".to_string(), 1.to_string()),
                         ]),
+                    },
+                ],
+                invalid_alerts: vec![
+                    InvalidPlaintextError {
+                        error_type: InvalidPlaintextErrorType::Implicit,
+                        candidate_id: None,
+                        message: Some("errors.implicit.blankVote".to_string()),
+                        message_map: HashMap::from([
+                            ("numSelected".to_string(), 0.to_string()),
+                            ("type".to_string(), "alert".to_string()),
+                        ]),
+                    },
+                ],
+            },
+            encoded_ballot_bigint: "0".to_string(),
+            encoded_ballot: vec_to_30_array(&vec![1, 0]).unwrap(),
+            expected_errors: None
+        },
+        BallotCodecFixture {
+            title: "example_4_implicit_empty_blank_vote".to_string(),
+            contest: Contest {
+        created_at:None,
+                id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                tenant_id: ("1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into()),
+                election_event_id: ("1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into()),
+                election_id: ("1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into()),
+                name: Some("Test contest title".into()),
+        name_i18n:None,
+        alias:None,alias_i18n:None,
+                description: None,
+        description_i18n: None,
+                max_votes: (1),
+                min_votes: (1),
+                winning_candidates_num: (1),
+                voting_type: Some("first-past-the-post".into()),
+                counting_algorithm: Some("plurality-at-large".into()),
+                is_encrypted: (true),
+                annotations: None,
+                candidates: vec![
+                    Candidate {
+                        id: "0".into(),
+                        tenant_id: ("1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into()),
+                        election_event_id: ("1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into()),
+                        election_id: ("1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into()),
+                        contest_id: ("1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into()),
+                        name: Some("Example option 1".into()),
+        name_i18n:None,
+        alias:None,alias_i18n:None,
+                        description: Some("This is an option with an simple example description.".into()),
+        description_i18n: None,
+                        candidate_type: None,
+                        presentation: Some(CandidatePresentation {
+                            i18n: None,
+                            is_explicit_invalid: Some(false),
+                            is_explicit_blank: Some(false),
+                            is_disabled: Some(false),
+                            is_write_in: Some(false),
+                            sort_order: Some(0),
+                            urls: None,
+                            invalid_vote_position: None,
+                            is_category_list: Some(false),
+                            subtype: None,
+                        }),
+                        annotations: None,
+                    },
+                    Candidate {
+                        id: "1".into(),
+                        tenant_id: ("1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into()),
+                        election_event_id: ("1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into()),
+                        election_id: ("1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into()),
+                        contest_id: ("1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into()),
+                        name: Some("Example option 2".into()),
+        name_i18n:None,
+        alias:None,alias_i18n:None,
+                        description: Some("An option can contain a description. You can add simple html like <strong>bold</strong> or <a href=\"https://sequentech.io\" rel=\"nofollow\">links to websites</a>. You can also set an image url below, but be sure it&#39;s HTTPS or else it won&#39;t load.\n\n<br /><br />You need to use two br element for new paragraphs.".into()),
+        description_i18n: None,
+                        candidate_type: None,
+                        presentation: Some(CandidatePresentation {
+                            i18n: None,
+                            is_explicit_invalid: Some(false),
+                            is_explicit_blank: Some(false),
+                            is_disabled: Some(false),
+                            is_write_in: Some(false),
+                            sort_order: Some(1),
+                            urls: None,
+                            invalid_vote_position: None,
+                            is_category_list: Some(false),
+                            subtype: None,
+                        }),
+                        annotations: None,
+                    },
+                    Candidate {
+                        id: "2".into(),
+                        tenant_id: ("1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into()),
+                        election_event_id: ("1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into()),
+                        election_id: ("1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into()),
+                        contest_id: ("1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into()),
+                        name: Some("Example option 3".into()),
+        name_i18n:None,
+        alias:None,alias_i18n:None,
+                        description: None,
+        description_i18n: None,
+                        candidate_type: None,
+                        presentation: Some(CandidatePresentation {
+                            i18n: None,
+                            is_explicit_invalid: Some(false),
+                            is_explicit_blank: Some(false),
+                            is_disabled: Some(false),
+                            is_write_in: Some(false),
+                            sort_order: Some(2),
+                            urls: None,
+                            invalid_vote_position: None,
+                            is_category_list: Some(false),
+                            subtype: None,
+                        }),
+                        annotations: None,
+                    },
+                ],
+                presentation: Some(ContestPresentation {
+                    i18n: None,
+                    allow_writeins: Some(true),
+                    base32_writeins: Some(true),
+                    invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
+                    blank_vote_policy: Some(EBlankVotePolicy::NOT_ALLOWED),
+                    over_vote_policy: None,
+                    pagination_policy: None,
+                    cumulative_number_of_checkboxes: None,
+                    shuffle_categories: Some(true),
+                    shuffle_category_list: None,
+                    show_points: Some(false),
+                    enable_checkable_lists: None,
+                    candidates_order: None,
+                    candidates_selection_policy: None,
+                    max_selections_per_type: None,
+                    types_presentation: None,
+                    sort_order: None,
+                    under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
+                }),
+            },
+            raw_ballot: RawBallotContest {
+                bases: vec![2u64, 2u64, 2u64, 2u64],
+                choices: vec![0u64, 0u64, 0u64, 0u64],
+            },
+            plaintext: DecodedVoteContest {
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
+                is_explicit_invalid: false,
+                choices: vec![
+                    DecodedVoteChoice {
+                        id: 0.to_string(),
+                        selected: -1,
+                        write_in_text: None,
+                    },
+                    DecodedVoteChoice {
+                        id: 1.to_string(),
+                        selected: -1,
+                        write_in_text: None,
+                    },
+                    DecodedVoteChoice {
+                        id: 2.to_string(),
+                        selected: -1,
+                        write_in_text: None,
                     }
+                ],
+                invalid_errors: vec![
+                    InvalidPlaintextError {
+                        error_type: InvalidPlaintextErrorType::Implicit,
+                        candidate_id: None,
+                        message: Some("errors.implicit.selectedMin".to_string()),
+                        message_map: HashMap::from([
+                            ("min".to_string(), 1.to_string()),
+                            ("numSelected".to_string(), 0.to_string()),
+                        ]),
+                    },
+                    InvalidPlaintextError {
+                        error_type: InvalidPlaintextErrorType::Implicit,
+                        candidate_id: None,
+                        message: Some("errors.implicit.blankVote".to_string()),
+                        message_map: HashMap::from([
+                            ("numSelected".to_string(), 0.to_string()),
+                            ("type".to_string(), "alert".to_string()),
+                        ]),
+                    },
                 ],
                 invalid_alerts: vec![],
             },
@@ -1721,6 +1979,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 voting_type: Some("first-past-the-post".into()),
                 counting_algorithm: Some("plurality-at-large".into()),
                 is_encrypted: (true),
+                annotations: None,
                 candidates: vec![
                     Candidate {
                         id: "0".into(),
@@ -1746,6 +2005,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_category_list: Some(false),
                             subtype: None,
                         }),
+                        annotations: None,
                     },
                     Candidate {
                         id: "1".into(),
@@ -1771,6 +2031,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_category_list: Some(false),
                             subtype: None,
                         }),
+                        annotations: None,
                     },
                     Candidate {
                         id: "2".into(),
@@ -1796,6 +2057,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_category_list: Some(false),
                             subtype: None,
                         }),
+                        annotations: None,
                     },
                 ],
                 presentation: Some(ContestPresentation {
@@ -1804,6 +2066,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     base32_writeins: Some(true),
                     invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
                     blank_vote_policy: None,
+                    over_vote_policy: None,
                     pagination_policy: None,
                     cumulative_number_of_checkboxes: None,
                     shuffle_categories: Some(true),
@@ -1815,7 +2078,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     max_selections_per_type: None,
                     types_presentation: None,
                     sort_order: None,
-                    under_vote_alert: Some(false),
+                    under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
                 }),
             },
             raw_ballot: RawBallotContest {
@@ -1859,8 +2122,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         candidate_id: None,
                         message: Some("errors.implicit.selectedMin".to_string()),
                         message_map: HashMap::from([
-                            ("numSelected".to_string(), 0.to_string()),
                             ("min".to_string(), 1.to_string()),
+                            ("numSelected".to_string(), 0.to_string()),
                         ]),
                     }
                 ],
