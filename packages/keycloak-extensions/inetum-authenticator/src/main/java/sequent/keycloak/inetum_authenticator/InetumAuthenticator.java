@@ -313,40 +313,44 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
         // Read the attributes to check from the configuration depending on the ID Type
         attributesToCheck = new ObjectMapper().readTree(attributesToValidate).get(docIdType);
 
-        for (JsonNode attributeToCheck : attributesToCheck) {
-          String attribute = attributeToCheck.get(AUTH_NOTE_ATTRIBUTE_ID).asText();
-          log.infov("verifyResults: attribute {0}", attribute);
-          String inetumField = attributeToCheck.get(INETUM_ATTRIBUTE_PATH).asText();
-          log.infov("verifyResults: inetumField {0}", inetumField);
+        if (attributesToCheck != null) {
+          for (JsonNode attributeToCheck : attributesToCheck) {
+            String attribute = attributeToCheck.get(AUTH_NOTE_ATTRIBUTE_ID).asText();
+            log.infov("verifyResults: attribute {0}", attribute);
+            String inetumField = attributeToCheck.get(INETUM_ATTRIBUTE_PATH).asText();
+            log.infov("verifyResults: inetumField {0}", inetumField);
 
-          // Get attribute from authentication notes
-          String attributeValue = context.getAuthenticationSession().getAuthNote(attribute);
-          log.infov("verifyResults: attributeValue {0}", attributeValue);
+            // Get attribute from authentication notes
+            String attributeValue = context.getAuthenticationSession().getAuthNote(attribute);
+            log.infov("verifyResults: attributeValue {0}", attributeValue);
 
-          if (attributeValue == null) {
-            log.errorv("verifyResults: could not find value in auth notes {0}", attribute);
-            return false;
+            if (attributeValue == null) {
+              log.errorv("verifyResults: could not find value in auth notes {0}", attribute);
+              return false;
+            }
+
+            // Get inetum value from response
+            String inetumValue = getValueFromInetumResponse(response, inetumField);
+
+            if (inetumValue == null) {
+              log.errorv("verifyResults: could not find value in inetum response {0}", inetumField);
+              return false;
+            }
+
+            // Compare and return false if different
+            Collator collator = Collator.getInstance();
+            collator.setDecomposition(2);
+            collator.setStrength(0);
+
+            if (collator.compare(attributeValue.trim(), inetumValue.trim()) != 0) {
+              log.errorv(
+                  "verifyResults: FALSE; attribute: {0}, inetumField: {1}, attributeValue: {2}, inetumValue: {3}",
+                  attribute, inetumField, attributeValue, inetumValue);
+              return false;
+            }
           }
-
-          // Get inetum value from response
-          String inetumValue = getValueFromInetumResponse(response, inetumField);
-
-          if (inetumValue == null) {
-            log.errorv("verifyResults: could not find value in inetum response {0}", inetumField);
-            return false;
-          }
-
-          // Compare and return false if different
-          Collator collator = Collator.getInstance();
-          collator.setDecomposition(2);
-          collator.setStrength(0);
-
-          if (collator.compare(attributeValue.trim(), inetumValue.trim()) != 0) {
-            log.errorv(
-                "verifyResults: FALSE; attribute: {0}, inetumField: {1}, attributeValue: {2}, inetumValue: {3}",
-                attribute, inetumField, attributeValue, inetumValue);
-            return false;
-          }
+        } else {
+          log.info("verifyResults: Empty configuration provided. No attributes checked.");
         }
       }
 
@@ -474,28 +478,30 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
         new ProviderConfigProperty(
             Utils.ATTRIBUTES_TO_VALIDATE,
             "Attributes to validate using inetum data",
-            "A list of attributes to be validated against inetum data. Every entry must 2 values separated by the separator '"
-                + "', where the first value is the user profile attribute and the second the inetum data field. For example firstName"
-                + "given_names",
+            "A Json where it's fields represent every id available. For each id a list of attributes to check need to be provided. With authnoteAttributeId to indicate the user profile attribute and inetumAttributePath to indicate the path to get the attribute from the inetum response.",
             ProviderConfigProperty.TEXT_TYPE,
             """
             {
                 "PhilSys ID": [
                     {
                         "authnoteAttributeId": "sequent.read-only.id-card-number",
-                        "inetumAttributePath": "mzr/personal_number"
+                        "inetumAttributePath": "/response/mzr/personal_number"
+                    },
+                    {
+                        "authnoteAttributeId": "firstName",
+                        "inetumAttributePath": "/response/mzr/given_names"
                     }
                 ],
                 "Philippine Passport": [
                     {
                         "authnoteAttributeId": "sequent.read-only.id-card-number",
-                        "inetumAttributePath": "mzr/personal_number"
+                        "inetumAttributePath": "/response/mzr/personal_number"
                     }
                 ],
                 "Philippine Passport": [
                     {
                         "authnoteAttributeId": "sequent.read-only.id-card-number",
-                        "inetumAttributePath": "mzr/personal_number"
+                        "inetumAttributePath": "/response/mzr/personal_number"
                     }
                 ]
             }
