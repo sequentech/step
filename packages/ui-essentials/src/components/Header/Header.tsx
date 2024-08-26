@@ -33,11 +33,22 @@ const StyledLink = styled.a`
     max-width: 50%;
 `
 
+const smBreakpoint = theme.breakpoints.values.sm
+
 const StyledImage = styled(Image)`
     height: 47px !important;
     width: unset !important;
     @media (max-width: ${theme.breakpoints.values.md}px) {
         height: 37px !important;
+    }
+    @media (max-width: ${smBreakpoint}px) {
+        height: 30px !important;
+    }
+    @media (max-width: ${smBreakpoint / 2}px) {
+        height: 20px !important;
+    }
+    @media (max-width: ${smBreakpoint / 3}px) {
+        height: 10px !important;
     }
 `
 
