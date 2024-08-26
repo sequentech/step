@@ -373,16 +373,30 @@ public class Utils {
   }
 
   protected static String obscureEmail(String email) {
-    if (email == null || !email.contains("@")) {
-      return email;
+    int atIndex = email.indexOf('@');
+    if (atIndex == -1 || atIndex < 2) {
+        return email;
     }
 
-    int atIndex = email.indexOf('@');
-    String localPart = email.substring(0, atIndex);
-    String domainPart = email.substring(atIndex);
-    return localPart.charAt(0)
-        + "*".repeat(localPart.length() - 2)
-        + localPart.charAt(localPart.length() - 1)
-        + domainPart;
+    String firstPart = email.substring(0, 2);
+    String domainPart = email.substring(atIndex + 1);
+    String maskedLocal = firstPart + "*".repeat(atIndex - 2);
+
+    int lastDotIndex = domainPart.lastIndexOf('.');
+    String domain, tld;
+
+    if (lastDotIndex != -1) {
+        domain = domainPart.substring(0, lastDotIndex);
+        tld = domainPart.substring(lastDotIndex);
+    } else {
+        domain = domainPart;
+        tld = "";
+    }
+
+    String maskedDomain = domain;
+    if (domain.length() >= 2) {
+      maskedDomain = "*".repeat(domain.length() - 2) + domain.substring(domain.length() - 2);
+    }
+    return maskedLocal + "@" + maskedDomain + tld;
   }
 }
