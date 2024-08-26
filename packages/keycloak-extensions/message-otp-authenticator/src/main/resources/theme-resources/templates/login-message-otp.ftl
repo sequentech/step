@@ -20,16 +20,6 @@ SPDX-License-Identifier: AGPL-3.0-only
         ${msg("messageOtpAuthTitle")}
         </#if>
     </div>
-    <#if ttl??>
-    <div>
-        <#assign ttlSeconds = ttl?number>
-        <#assign ttlMinutes = ttlSeconds / 60>
-        <#assign roundedMinutes = (ttlMinutes)?round>
-            <span style="font-size: smaller;">
-                ${msg("messageOtpAuthTTLTime",roundedMinutes)}
-            </span>
-    </div>
-    </#if>
     </div>
     <#elseif section = "show-username">
         <h1>${msg("messageOtpAuthTitle", realm.displayName)}</h1>
@@ -80,55 +70,71 @@ SPDX-License-Identifier: AGPL-3.0-only
                     class="${properties.kcButtonClass!} ${properties.kcButtonSecondaryClass!}"
                     onclick="resendOtp(${(resendTimer)})"
                     >
-                    ${msg("resendOtp", "Resend OTP")}
                 </button>
             </div>
 
 <script>
-let resendTimer = "${msg("resendOtpTimer")}"
-let resendButtonText = "${msg("resendOtpButton")}"
-function resendOtp(resendTimer) {
-    let resendBtn = document.getElementById('resend-otp-btn');
-    let form = document.getElementById('kc-message-code-login-form');
-    localStorage.setItem('resendOtpEndTime', Date.now() + resendTimer * 1000);
-    localStorage.setItem('resendOtpDisabled', true);
+    let resendTimerI18n = "${msg("resendOtpTimer")}"
+    let resendTimerTimeout = ${(resendTimer)};
+    let resendButtonI18n = "${msg("resendOtpButton")}"
+    let codeJustSent = "${(codeJustSent?string('true', 'false'))}"
+    <#noparse>
+    function resendOtp(resendTimerTimeout) {
+        let resendBtn = document.getElementById('resend-otp-btn');
+        let form = document.getElementById('kc-message-code-login-form');
+        localStorage.setItem('resendOtpEndTime', Date.now() + resendTimerTimeout * 1000);
+        localStorage.setItem('resendOtpDisabled', true);
 
-    let hiddenInput = document.createElement("input");
-    hiddenInput.type = "hidden";
-    hiddenInput.name = "resend";
-    hiddenInput.value = "true";
-    form.appendChild(hiddenInput);
+        let hiddenInput = document.createElement("input");
+        hiddenInput.type = "hidden";
+        hiddenInput.name = "resend";
+        hiddenInput.value = "true";
+        form.appendChild(hiddenInput);
 
-    form.submit();
-}
-
-document.addEventListener('DOMContentLoaded', (event) => {
-     updateButtonState();
-});
-
-function updateButtonState() {
-    let resendBtn = document.getElementById('resend-otp-btn');
-    let endTime = localStorage.getItem('resendOtpEndTime');
-    let disabled = localStorage.getItem('resendOtpDisabled') === 'true';
-    let countdown = Math.max(Math.ceil((endTime - Date.now()) / 1000), 0);
-
-    if (disabled) {
-        resendBtn.disabled = true;
-        let interval = setInterval(() => {
-        if (countdown > 0) {
-            resendBtn.innerText = resendTimer.replace("{0}", countdown);
-            countdown--;
-        } else {
-            clearInterval(interval);
-            resendBtn.disabled = false;
-            resendBtn.innerText = resendButtonText;
-        }
-    }, 1000);
-    } else {
-        resendBtn.disabled = false;
-        resendBtn.innerText = resendButtonText;
+        form.submit();
     }
-}
+
+    document.addEventListener('DOMContentLoaded', (event) => {
+        updateButtonState();
+    });
+
+    function updateButtonState() {
+        console.log("updateButtonState");
+        let resendBtn = document.getElementById('resend-otp-btn');
+        var endTime = localStorage.getItem('resendOtpEndTime');
+        var disabled = localStorage.getItem('resendOtpDisabled') === 'true';
+        var now = Date.now();
+        console.log(`updateButtonState: endTime=${endTime}, disabled=${disabled}`);
+        if (codeJustSent === "true") {
+            endTime = now + resendTimerTimeout * 1000;
+            localStorage.setItem('resendOtpEndTime', endTime);
+            localStorage.setItem('resendOtpDisabled', true);
+            console.log(`updateButtonState: CODE JUST SENT endTime=${endTime}, disabled=${disabled}`);
+        }
+        let countdown = Math.max(Math.ceil((endTime - now) / 1000), 0);
+        console.log(`updateButtonState: countdown=${countdown}`);
+
+        if (disabled) {
+            console.log(`updateButtonState: yes, disabled`);
+            resendBtn.disabled = true;
+            let interval = setInterval(() => {
+                console.log(`updateButtonState: setInterval, countdown=${countdown}`);
+                if (countdown > 0) {
+                    resendBtn.innerText = resendTimerI18n.replace("{0}", countdown);
+                    countdown--;
+                } else {
+                    clearInterval(interval);
+                    resendBtn.disabled = false;
+                    resendBtn.innerText = resendButtonI18n;
+                }
+            }, 1000);
+        } else {
+            console.log(`updateButtonState: not disabled`);
+            resendBtn.disabled = false;
+            resendBtn.innerText = resendButtonI18n;
+        }
+    }
+    </#noparse>
 </script>
 
 		</form>
@@ -142,5 +148,15 @@ function updateButtonState() {
 				${msg("messageOtpAuthInstruction")}
 			</#if>
 		</#if>
+        <#if ttl??>
+            <div>
+                <#assign ttlSeconds = ttl?number>
+                <#assign ttlMinutes = ttlSeconds / 60>
+                <#assign roundedMinutes = (ttlMinutes)?round>
+                    <span>
+                        ${msg("messageOtpAuthTTLTime",roundedMinutes)}
+                    </span>
+            </div>
+        </#if>
 	</#if>
 </@layout.registrationLayout>
