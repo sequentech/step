@@ -375,7 +375,7 @@ public class Utils {
   protected static String obscureEmail(String email) {
     int atIndex = email.indexOf('@');
     if (atIndex == -1 || atIndex < 2) {
-        return email;
+      return email;
     }
 
     String firstPart = email.substring(0, 2);
@@ -386,11 +386,11 @@ public class Utils {
     String domain, tld;
 
     if (lastDotIndex != -1) {
-        domain = domainPart.substring(0, lastDotIndex);
-        tld = domainPart.substring(lastDotIndex);
+      domain = domainPart.substring(0, lastDotIndex);
+      tld = domainPart.substring(lastDotIndex);
     } else {
-        domain = domainPart;
-        tld = "";
+      domain = domainPart;
+      tld = "";
     }
 
     String maskedDomain = domain;
