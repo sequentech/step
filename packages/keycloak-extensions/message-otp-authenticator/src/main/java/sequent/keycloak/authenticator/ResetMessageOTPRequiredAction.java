@@ -121,7 +121,7 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
     KeycloakSession session = context.getSession();
     UserModel user = context.getUser();
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
-    String resendTimer = System.getenv("KC_OTP_RESEND_INTERVAL");
+    String resendTimer = config.get()getConfig().get(Utils.RESEND_ACTIVATION_TIMER);
     try {
       Utils.sendCode(config.get(), session, user, authSession, Utils.MessageCourier.BOTH, false);
     } catch (Exception error) {
