@@ -367,7 +367,9 @@ const catalanTranslation: TranslationType = {
                 },
                 notify: {
                     noKeysTally:
-                        "La Cerimònia del Compte no pot començar fins que la Cerimònia de Fideïcomissari no s'hagi completat amb èxit.",
+                        "La Cerimònia del Compte no pot començar fins que la Cerimònia de Fideïcomissaris no s'hagi completat amb èxit.",
+                    noPublication:
+                        "La Cerimònia de Còmput no pot començar fins que no creïs una publicació a la pestanya Publicar.",
                     participateNow:
                         "Ha estat convidat a participar a una Cerimònia de Recompte. Si us plau <1>feu clic a continuació en l'acció de recompte de la cerimònia</1> per participar.",
                 },
@@ -811,7 +813,15 @@ const catalanTranslation: TranslationType = {
                 "custom": "Personalitzat",
                 "alphabetical": "Alfabètic",
             },
+            underVotePolicy: {
+                "label": "Política de Votació Inferior",
+                "allowed": "Permès",
+                "warn-only-in-review": "Advertir en Revisió",
+                "warn": "Advertir",
+                "warn-and-alert": "Advertir i Alertar",
+            },
             invalidVotePolicy: {
+                "label": "Política de vot invàlid",
                 "allowed": "Permesa",
                 "warn": "Advertència",
                 "warn-invalid-implicit-and-explicit": "Advertir Invàlids Implícits i Explícits",
@@ -826,8 +836,18 @@ const catalanTranslation: TranslationType = {
             blankVotePolicy: {
                 "label": "Política de vot en blanc",
                 "allowed": "Permès",
+                "warn-only-in-review": "Advertir en Revisió",
                 "warn": "Advertir",
                 "not-allowed": "No permès",
+            },
+            overVotePolicy: {
+                "label": "Política de vot excessiva",
+                "allowed": "Permès",
+                "allowed-with-msg": "Permès amb missatge d'avís",
+                "allowed-with-msg-and-alert": "Permès amb missatge d'avís i alerta",
+                "not-allowed-with-msg-and-alert": "No es permet amb missatge d'avís i alerta",
+                "not-allowed-with-msg-and-disable":
+                    "No es permet amb missatge d'avís i desactiva més seleccions",
             },
             paginationPolicy: {
                 label: "Nom de la pàgina",

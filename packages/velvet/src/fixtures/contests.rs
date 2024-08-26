@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use sequent_core::ballot::{Contest, ContestPresentation, InvalidVotePolicy};
+use sequent_core::ballot::{
+    Contest, ContestPresentation, EOverVotePolicy, EUnderVotePolicy, InvalidVotePolicy,
+};
 use uuid::Uuid;
 
 use super::candidates;
@@ -44,6 +46,7 @@ pub fn get_contest_1(tenant_id: &Uuid, election_event_id: &Uuid, election_id: &U
             base32_writeins: Some(true),
             invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
             blank_vote_policy: None,
+            over_vote_policy: Some(EOverVotePolicy::ALLOWED_WITH_MSG_AND_ALERT),
             pagination_policy: None,
             cumulative_number_of_checkboxes: None,
             shuffle_categories: Some(true),
@@ -55,7 +58,7 @@ pub fn get_contest_1(tenant_id: &Uuid, election_event_id: &Uuid, election_id: &U
             max_selections_per_type: None,
             types_presentation: None,
             sort_order: None,
-            under_vote_alert: Some(false),
+            under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
         }),
         annotations: None,
     }
@@ -103,6 +106,7 @@ pub fn get_contest_min_max_votes(
             base32_writeins: Some(true),
             invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
             blank_vote_policy: None,
+            over_vote_policy: Some(EOverVotePolicy::ALLOWED_WITH_MSG_AND_ALERT),
             pagination_policy: None,
             cumulative_number_of_checkboxes: None,
             shuffle_categories: Some(true),
@@ -114,7 +118,7 @@ pub fn get_contest_min_max_votes(
             max_selections_per_type: None,
             types_presentation: None,
             sort_order: None,
-            under_vote_alert: Some(false),
+            under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
         }),
         annotations: None,
     }

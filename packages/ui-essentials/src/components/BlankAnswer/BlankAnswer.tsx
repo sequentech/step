@@ -15,6 +15,7 @@ const BlankAnswer: React.FC = () => {
             checked={true}
             setChecked={() => undefined}
             hasCategory={false}
+            shouldDisable={false}
         />
     )
 }

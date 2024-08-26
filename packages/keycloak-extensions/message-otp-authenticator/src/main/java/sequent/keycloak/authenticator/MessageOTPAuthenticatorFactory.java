@@ -112,6 +112,12 @@ public class MessageOTPAuthenticatorFactory
             "If enabled, there won't be a need to have a valid user when using this authenticator",
             ProviderConfigProperty.BOOLEAN_TYPE,
             "false"),
+        new ProviderConfigProperty(
+            Utils.RESEND_ACTIVATION_TIMER,
+            "Seconds to activate resend",
+            "Time in seconds the resend code gets re activated",
+            ProviderConfigProperty.STRING_TYPE,
+            "60"),
         messageCourier);
   }
 

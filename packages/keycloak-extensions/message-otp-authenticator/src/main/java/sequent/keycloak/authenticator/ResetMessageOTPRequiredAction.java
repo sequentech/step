@@ -26,7 +26,7 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
   public static final String PROVIDER_ID = "message-otp-ra";
 
   public static final String IS_SETUP_FIELD = "is-setup";
-  private static final String FTL_RESET_MESSAGE_OTP = "reset-message-otp.ftl";
+  private static final String FTL_RESET_MESSAGE_OTP = "login-message-otp.ftl";
 
   public MessageOTPCredentialProvider getCredentialProvider(KeycloakSession session) {
     log.info("getCredentialProvider()");
@@ -62,6 +62,12 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
     String code = authSession.getAuthNote(Utils.CODE);
     String ttl = authSession.getAuthNote(Utils.CODE_TTL);
+
+    String resend = context.getHttpRequest().getDecodedFormParameters().getFirst("resend");
+    if (resend != null && resend.equals("true")) {
+      context.challenge(createForm(context, null));
+      return;
+    }
 
     if (code == null || ttl == null) {
       context.failure();
@@ -115,6 +121,7 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
     KeycloakSession session = context.getSession();
     UserModel user = context.getUser();
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
+    String resendTimer = config.get().getConfig().get(Utils.RESEND_ACTIVATION_TIMER);
     try {
       Utils.sendCode(config.get(), session, user, authSession, Utils.MessageCourier.BOTH, false);
     } catch (Exception error) {
@@ -125,7 +132,13 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
     }
 
     LoginFormsProvider form = context.form();
-    form.setAttribute("realm", context.getRealm());
+    form.setAttribute("realm", context.getRealm())
+        .setAttribute(
+            "address",
+            Utils.getOtpAddress(Utils.MessageCourier.BOTH, false, config.get(), authSession, user))
+        .setAttribute("ttl", config.get().getConfig().get(Utils.CODE_TTL))
+        .setAttribute("codeJustSent", true)
+        .setAttribute("resendTimer", resendTimer);
 
     if (formConsumer != null) {
       formConsumer.accept(form);

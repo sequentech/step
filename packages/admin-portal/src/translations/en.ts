@@ -363,7 +363,9 @@ const englishTranslation = {
                 },
                 notify: {
                     noKeysTally:
-                        "The Tally Ceremony cannot start until the Key Ceremony has been successfully completed.",
+                        "The Tally Ceremony cannot start until the Keys Ceremony has been successfully completed.",
+                    noPublication:
+                        "The Tally Ceremony cannot start until you create one publication in the Publish tab.",
                     participateNow:
                         "You have been invited to participate in a Tally ceremony. Please <1>click on the ceremony's Key Action</1> to participate.",
                 },
@@ -806,7 +808,15 @@ const englishTranslation = {
                 "custom": "Custom",
                 "alphabetical": "Alphabetical",
             },
+            underVotePolicy: {
+                "label": "Under Vote Policy",
+                "allowed": "Allowed",
+                "warn-only-in-review": "Warn in Review",
+                "warn": "Warn",
+                "warn-and-alert": "Warn and Alert",
+            },
             invalidVotePolicy: {
+                "label": "Invalid Vote Policy",
                 "allowed": "Allowed",
                 "warn": "Warn",
                 "warn-invalid-implicit-and-explicit": "Warn Invalid Implicit And Explicit",
@@ -821,8 +831,18 @@ const englishTranslation = {
             blankVotePolicy: {
                 "label": "Blank Vote Policy",
                 "allowed": "Allowed",
+                "warn-only-in-review": "Warn in Review",
                 "warn": "Warn",
                 "not-allowed": "Not Allowed",
+            },
+            overVotePolicy: {
+                "label": "Over Vote Policy",
+                "allowed": "Allowed",
+                "allowed-with-msg": "Allowed with Warning Message",
+                "allowed-with-msg-and-alert": "Allowed with Warning message and Alert",
+                "not-allowed-with-msg-and-alert": "Not Allowed with Warning message and Alert",
+                "not-allowed-with-msg-and-disable":
+                    "Not Allowed with Warning message and Disable further selections",
             },
             paginationPolicy: {
                 label: "Page Name",
