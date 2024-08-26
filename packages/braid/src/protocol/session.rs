@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Result;
-use tracing::{info, instrument, warn};
+use tracing::{info, warn};
 // Same line printing
 use std::io::Write;
 
@@ -36,9 +36,9 @@ impl<C: Ctx, B: Board> Session<C, B> {
     // See also protocol_test_grpc::run_protocol_test
     // #[instrument(skip_all)]
     pub async fn step(mut self, step_counter: u64) -> (Self, Result<(), ProtocolError>) {
-        // Never skip more than 20 steps
-        if self.active_period > 21 {
-            self.active_period = 21;
+        // Never skip more than 10 steps
+        if self.active_period > 11 {
+            self.active_period = 11;
         }
 
         // Skips steps depending on how active we are

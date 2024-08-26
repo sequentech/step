@@ -51,7 +51,7 @@ struct Cli {
     #[arg(long, default_value_t = false)]
     strict: bool,
 
-    #[arg(long, default_value_t = 240)]
+    #[arg(long, default_value_t = 300)]
     session_reset_period: u64,
 }
 
@@ -145,7 +145,10 @@ async fn main() -> Result<()> {
                 continue;
             }
 
-            info!("Creating new session for board '{}'..", board_name.clone());
+            info!(
+                "* Creating new session for board '{}'..",
+                board_name.clone()
+            );
 
             let trustee: Trustee<RistrettoCtx> = Trustee::new(
                 std::env::var("TRUSTEE_NAME").unwrap_or_else(|_| "Self".to_string()),

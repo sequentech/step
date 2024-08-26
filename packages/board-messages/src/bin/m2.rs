@@ -93,7 +93,6 @@ fn main() {
 
     let mut siv = cursive::default();
 
-    // let canvas = Canvas::new(params).with_draw(draw).with_name("Canvas");
     let data = Data::new();
     let canvas = Canvas::new(data).with_draw(draw).with_name("Canvas");
     let mut layer = Layer::new(canvas);
@@ -105,7 +104,7 @@ fn main() {
     theme.borders = BorderStyle::None;
     siv.set_theme(theme);
     siv.add_global_callback('q', |s| s.quit());
-    siv.add_global_callback('p', timer);
+    siv.add_global_callback('t', timer);
     siv.set_fps(1);
 
     siv.add_global_callback(Event::Refresh, step);
@@ -206,8 +205,7 @@ fn draw(data: &Data, p: &Printer) {
     let mut y = y_offset;
 
     let mut index = 0;
-    /* let mut total_messages = 0;
-    let mut max_messages = 0;*/
+
     let total_messages = data.total_messages;
     let max_messages = data.max_messages;
 
@@ -245,13 +243,10 @@ fn draw(data: &Data, p: &Printer) {
 
                 if data.duration != Duration::ZERO {
                     let text = data.duration.as_secs().to_string();
-                    let text_length = text.len().min(p.size.x - 1);
+                    let text_length = text.len().min(w);
 
                     p.with_color(bar_gray, |printer| {
-                        printer.print(
-                            (p.size.x - text_length - 1, y_offset - 1),
-                            &text[0..text_length],
-                        );
+                        printer.print((w - text_length, y_offset - 1), &text[0..text_length]);
                     });
                 }
 
@@ -280,15 +275,13 @@ fn draw_cell(p: &Printer, origin: &Vec2, size: &Vec2, data: &Cell, draw_text: bo
     });
 
     let (dkg, mix) = (data.progress_dkg, data.progress_mix);
-    let mut kind_origin_y = 0;
     let mut draw_kind = false;
 
-    if mix == 0.0 {
+    let mut kind_origin_y = if mix == 0.0 {
         // Dkg
         let bar_height = (dkg * f64::from(size.y as u32)).round() as usize;
         let bar_origin_y = origin.y + (size.y - bar_height);
         let bar_origin_y = bar_origin_y.max(0);
-        kind_origin_y = bar_origin_y;
 
         let bar_origin = Vec2::new(origin.x, bar_origin_y);
         let bar_size = Vec2::new(size.x, bar_height);
@@ -303,12 +296,12 @@ fn draw_cell(p: &Printer, origin: &Vec2, size: &Vec2, data: &Cell, draw_text: bo
                 draw_kind = true;
             };
         }
+        bar_origin_y
     } else {
         // Mix
         let bar_height = (mix * f64::from(size.y as u32)).round() as usize;
         let bar_origin_y = origin.y + (size.y - bar_height);
         let bar_origin_y = bar_origin_y.max(0);
-        kind_origin_y = bar_origin_y;
 
         let bar_origin = Vec2::new(origin.x, bar_origin_y);
         let bar_size = Vec2::new(size.x, bar_height);
@@ -323,7 +316,8 @@ fn draw_cell(p: &Printer, origin: &Vec2, size: &Vec2, data: &Cell, draw_text: bo
                 draw_kind = true;
             };
         }
-    }
+        bar_origin_y
+    };
 
     if draw_text {
         // Kind
