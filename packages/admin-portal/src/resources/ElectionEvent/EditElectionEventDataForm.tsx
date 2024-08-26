@@ -34,7 +34,7 @@ import {
 } from "@mui/material"
 import styled from "@emotion/styled"
 import DownloadIcon from "@mui/icons-material/Download"
-import React, {useContext, useEffect, useMemo, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
 import {useTranslation} from "react-i18next"
@@ -73,24 +73,15 @@ import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
 import {useWatch} from "react-hook-form"
 import {convertToNumber} from "@/lib/helpers"
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
-import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
-import { Widget } from "@/components/Widget"
-import { ETaskExecutionStatus } from "@sequentech/ui-core"
+import {Widget} from "@/components/Widget"
+import {ETaskExecutionStatus} from "@sequentech/ui-core"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
     defaultLanguage?: string
     electionsOrder?: Array<Sequent_Backend_Election>
 } & Sequent_Backend_Election_Event
-
-interface ExportWrapperProps {
-    electionEventId: string
-    openExport: boolean
-    setOpenExport: (val: boolean) => void
-    exportDocumentId: string | undefined
-    setExportDocumentId: (val: string | undefined) => void
-}
 
 const ElectionRows = styled.div`
     display: flex;
@@ -100,6 +91,11 @@ const ElectionRows = styled.div`
     margin-bottom: 0.1rem;
     padding: 1rem;
 `
+interface WidgetProps {
+    type: ETasksExecution
+    status: ETaskExecutionStatus
+}
+
 interface ManagedNumberInputProps {
     source: string
     label: string
@@ -133,12 +129,22 @@ const ManagedNumberInput = ({
     )
 }
 
+interface ExportWrapperProps {
+    electionEventId: string
+    openExport: boolean
+    setOpenExport: (val: boolean) => void
+    exportDocumentId: string | undefined
+    setExportDocumentId: (val: string | undefined) => void
+    setWidget: (val: WidgetProps) => void
+}
+
 const ExportWrapper: React.FC<ExportWrapperProps> = ({
     electionEventId,
     openExport,
     setOpenExport,
     exportDocumentId,
     setExportDocumentId,
+    setWidget,
 }) => {
     const [exportElectionEvent] = useMutation<ExportElectionEventMutation>(EXPORT_ELECTION_EVENT, {
         context: {
@@ -152,14 +158,10 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
 
     const confirmExportAction = async () => {
         console.log("CONFIRM EXPORT")
-        notify(
-            t("electionEventScreen.taskNotification", {
-                action: ETasksExecution.EXPORT_ELECTION_EVENT,
-            }),
-            {
-                type: "info",
-            }
-        )
+        setWidget({
+            type: ETasksExecution.EXPORT_ELECTION_EVENT,
+            status: ETaskExecutionStatus.IN_PROGRESS,
+        }) //
         const {data: exportElectionEventData, errors} = await exportElectionEvent({
             variables: {
                 electionEventId,
@@ -168,11 +170,25 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
         let documentId = exportElectionEventData?.export_election_event?.document_id
         if (errors || !documentId) {
             setOpenExport(false)
+            setWidget({
+                type: ETasksExecution.EXPORT_ELECTION_EVENT,
+                status: ETaskExecutionStatus.FAILED,
+            })
             notify(t(`electionEventScreen.exportError`), {type: "error"})
             console.log(`Error exporting users: ${errors}`)
             return
         }
         setExportDocumentId(documentId)
+    }
+
+    const onDownloadDocument = () => {
+        console.log("onDownload called")
+        setExportDocumentId(undefined)
+        setOpenExport(false)
+        setWidget({
+            type: ETasksExecution.EXPORT_ELECTION_EVENT,
+            status: ETaskExecutionStatus.SUCCESS,
+        })
     }
 
     return (
@@ -187,6 +203,10 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
                     confirmExportAction()
                 } else {
                     setOpenExport(false)
+                    setWidget({
+                        type: ETasksExecution.EXPORT_ELECTION_EVENT,
+                        status: ETaskExecutionStatus.FAILED,
+                    })
                 }
             }}
         >
@@ -198,11 +218,7 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
                         documentId={exportDocumentId}
                         electionEventId={electionEventId ?? ""}
                         fileName={`election-event-${electionEventId}-export.json`}
-                        onDownload={() => {
-                            console.log("onDownload called")
-                            setExportDocumentId(undefined)
-                            setOpenExport(false)
-                        }}
+                        onDownload={onDownloadDocument}
                     />
                 </>
             ) : null}
@@ -226,6 +242,7 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [valueMaterials, setValueMaterials] = useState(0)
     const [expanded, setExpanded] = useState("election-event-data-general")
     const [languageSettings, setLanguageSettings] = useState<Array<string>>(["en"])
+    const [openWidget, setWidget] = useState<WidgetProps | undefined>(undefined)
     const [openExport, setOpenExport] = React.useState(false)
     const [exportDocumentId, setExportDocumentId] = React.useState<string | undefined>()
     const [openDrawer, setOpenDrawer] = useState<boolean>(false)
@@ -531,26 +548,41 @@ export const EditElectionEventDataForm: React.FC = () => {
     }
 
     const handleImportCandidates = async (documentId: string, sha256: string) => {
-        notify(
-            t("electionEventScreen.taskNotification", {action: ETasksExecution.IMPORT_CANDIDATES}),
-            {
-                type: "info",
+        try {
+            setWidget({
+                type: ETasksExecution.IMPORT_CANDIDATES,
+                status: ETaskExecutionStatus.IN_PROGRESS,
+            })
+            let {data, errors} = await importCandidates({
+                variables: {
+                    documentId,
+                    electionEventId: record.id,
+                },
+            })
+
+            if (errors) {
+                console.log(errors)
+                notify("Error importing candidates", {type: "error"})
+                setWidget({
+                    type: ETasksExecution.IMPORT_CANDIDATES,
+                    status: ETaskExecutionStatus.FAILED,
+                })
+                return
             }
-        )
-        let {data, errors} = await importCandidates({
-            variables: {
-                documentId,
-                electionEventId: record.id,
-            },
-        })
 
-        if (errors) {
-            console.log(errors)
+            notify("Candidates successfully imported", {type: "success"})
+            setWidget({
+                type: ETasksExecution.IMPORT_CANDIDATES,
+                status: ETaskExecutionStatus.SUCCESS,
+            })
+        } catch (err) {
+            console.log(err)
             notify("Error importing candidates", {type: "error"})
-            return
+            setWidget({
+                type: ETasksExecution.IMPORT_CANDIDATES,
+                status: ETaskExecutionStatus.FAILED,
+            })
         }
-
-        notify("Candidates successfully imported", {type: "success"})
     }
 
     const sortedElections = (elections ?? []).sort((a, b) => {
@@ -988,8 +1020,15 @@ export const EditElectionEventDataForm: React.FC = () => {
                 setOpenExport={setOpenExport}
                 exportDocumentId={exportDocumentId}
                 setExportDocumentId={setExportDocumentId}
+                setWidget={setWidget}
             />
-            <Widget type={ETasksExecution.EXPORT_ELECTION_EVENT} status={ETaskExecutionStatus.SUCCESS}/>
+            {openWidget && (
+                <Widget
+                    type={openWidget.type}
+                    status={openWidget.status}
+                    onClose={() => setWidget(undefined)}
+                />
+            )}
         </>
     )
 }
