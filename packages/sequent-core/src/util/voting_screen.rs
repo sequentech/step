@@ -310,7 +310,7 @@ pub fn get_contest_plurality(
             max_selections_per_type: None,
             types_presentation: None,
             sort_order: None,
-            under_vote_alert: Some(false),
+            under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
             invalid_vote_policy: Some(invalid_vote_policy),
             blank_vote_policy: Some(blank_vote_policy),
             over_vote_policy: Some(over_vote_policy),

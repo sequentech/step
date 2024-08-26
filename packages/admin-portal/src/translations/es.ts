@@ -833,6 +833,13 @@ const spanishTranslation: TranslationType = {
                 "custom": "Personalizado",
                 "alphabetical": "Alfabético",
             },
+            underVotePolicy: {
+                "label": "Política de Subvoto",
+                "allowed": "Permitido",
+                "warn-only-in-review": "Advertir en Revisión",
+                "warn": "Advertir",
+                "warn-and-alert": "Advertir y Alertar",
+            },
             invalidVotePolicy: {
                 "label": "Política de Voto Inválido",
                 "allowed": "Permitido",
@@ -849,6 +856,7 @@ const spanishTranslation: TranslationType = {
             blankVotePolicy: {
                 "label": "Política de voto en blanco",
                 "allowed": "Permitido",
+                "warn-only-in-review": "Advertir en Revisión",
                 "warn": "Advertir",
                 "not-allowed": "No permitido",
             },

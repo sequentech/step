@@ -834,6 +834,13 @@ const catalanTranslation: TranslationType = {
                 "custom": "Personalitzat",
                 "alphabetical": "Alfabètic",
             },
+            underVotePolicy: {
+                "label": "Política de Votació Inferior",
+                "allowed": "Permès",
+                "warn-only-in-review": "Advertir en Revisió",
+                "warn": "Advertir",
+                "warn-and-alert": "Advertir i Alertar",
+            },
             invalidVotePolicy: {
                 "label": "Política de vot invàlid",
                 "allowed": "Permesa",
@@ -850,6 +857,7 @@ const catalanTranslation: TranslationType = {
             blankVotePolicy: {
                 "label": "Política de vot en blanc",
                 "allowed": "Permès",
+                "warn-only-in-review": "Advertir en Revisió",
                 "warn": "Advertir",
                 "not-allowed": "No permès",
             },

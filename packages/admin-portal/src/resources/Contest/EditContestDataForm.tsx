@@ -48,6 +48,7 @@ import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {
     CandidatesOrder,
     EInvalidVotePolicy,
+    EUnderVotePolicy,
     EEnableCheckableLists,
     IContestPresentation,
     IElectionEventPresentation,
@@ -369,6 +370,13 @@ export const ContestDataForm: React.FC = () => {
         }))
     }
 
+    const underVotePolicyChoices = (): Array<EnumChoice<EUnderVotePolicy>> => {
+        return Object.values(EUnderVotePolicy).map((value) => ({
+            id: value,
+            name: t(`contestScreen.underVotePolicy.${value.toLowerCase()}`),
+        }))
+    }
+
     const checkableListChoices = (): Array<EnumChoice<EEnableCheckableLists>> => {
         return Object.values(EEnableCheckableLists).map((value) => ({
             id: value,
@@ -442,8 +450,8 @@ export const ContestDataForm: React.FC = () => {
                 newContest.presentation.enable_checkable_lists ||
                 EEnableCheckableLists.CANDIDATES_AND_LISTS
 
-            newContest.presentation.under_vote_alert =
-                newContest.presentation.under_vote_alert ?? false
+            newContest.presentation.under_vote_policy =
+                newContest.presentation.under_vote_policy ?? false
 
             newContest.presentation.blank_vote_policy =
                 newContest.presentation.blank_vote_policy || EBlankVotePolicy.ALLOWED
@@ -715,9 +723,12 @@ export const ContestDataForm: React.FC = () => {
                                 >
                                     {t("contestScreen.edit.policies")}
                                 </Typography>
-                                <BooleanInput
-                                    source="presentation.under_vote_alert"
-                                    label={"Under-Vote Alert"}
+
+                                <SelectInput
+                                    source="presentation.under_vote_policy"
+                                    choices={underVotePolicyChoices()}
+                                    label={t(`contestScreen.underVotePolicy.label`)}
+                                    validate={required()}
                                 />
 
                                 <SelectInput

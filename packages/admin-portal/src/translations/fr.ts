@@ -836,6 +836,13 @@ const frenchTranslation: TranslationType = {
                 "custom": "Personnalisé",
                 "alphabetical": "Alphabétique",
             },
+            underVotePolicy: {
+                "label": "Politique de Sous-Vote",
+                "allowed": "Autorisé",
+                "warn-only-in-review": "Avertir en Révision",
+                "warn": "Avertir",
+                "warn-and-alert": "Avertir et Alerter",
+            },
             invalidVotePolicy: {
                 "label": "Politique de vote invalide",
                 "allowed": "Permis",
@@ -852,6 +859,7 @@ const frenchTranslation: TranslationType = {
             blankVotePolicy: {
                 "label": "Politique de vote blanc",
                 "allowed": "Autorisé",
+                "warn-only-in-review": "Avertir en Révision",
                 "warn": "Avertir",
                 "not-allowed": "Non autorisé",
             },
