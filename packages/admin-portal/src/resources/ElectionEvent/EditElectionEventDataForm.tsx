@@ -228,7 +228,13 @@ export const EditElectionEventDataForm: React.FC = () => {
     const defaultSecondsForCountdown = convertToNumber(process.env.SECONDS_TO_SHOW_COUNTDOWN) ?? 60
     const defaultSecondsForAlret = convertToNumber(process.env.SECONDS_TO_SHOW_AlERT) ?? 180
     const [manageElectionDates] = useMutation<ManageElectionDatesMutation>(MANAGE_ELECTION_DATES)
-    const [manageCustomUrls] = useMutation<SetCustomUrlMutation>(SET_CUSTOM_URL)
+    const [manageCustomUrls] = useMutation<SetCustomUrlMutation>(SET_CUSTOM_URL, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.USER_READ,
+            },
+        },
+    })
     const [startDate, setStartDate] = useState<string | undefined>(undefined)
     const [endDate, setEndDate] = useState<string | undefined>(undefined)
     const notify = useNotify()
@@ -577,7 +583,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                     ),
                 },
             ]
-            for (const {origin, redirect_to} of urlEntries) {
+            for (const {origin, redirect_to, key} of urlEntries) {
                 if (origin) {
                     await manageCustomUrls({
                         variables: {
@@ -906,10 +912,10 @@ export const EditElectionEventDataForm: React.FC = () => {
                                         source={`presentation.custom_urls.login`}
                                         label={t("electionEventScreen.customUrls.login")}
                                     />
-                                    <TextInput
+                                    {/* <TextInput
                                         source={`presentation.custom_urls.enrollment`}
                                         label={t("electionEventScreen.customUrls.enrollment")}
-                                    />
+                                    /> */}
                                 </AccordionDetails>
                             </Accordion>
 

@@ -32,20 +32,28 @@ pub async fn update_custom_url(
     input: Json<UpdateCustomUrlInput>,
 ) -> Result<Json<String>, (Status, String)> {
     let body = input.into_inner();
-    authorize(
+    if let Err(err) = authorize(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::ELECTION_EVENT_WRITE],
-    )?;
-    set_custom_url(&body.redirect_to, &body.origin).map_err(|error| {
-        (
-            Status::InternalServerError,
-            format!("Error updating custom url: {error:?}"),
-        )
-    })?;
+    ) {
+        error!("Authorization failed: {:?}", err);
+        return Err((Status::Forbidden, "Authorization failed".to_string()));
+    }
 
-    Ok(Json(String::from("Successfully Updated")))
+    info!("Authorization succeeded, processing URL update");
+
+    match set_custom_url(&body.redirect_to, &body.origin).await {
+        Ok(_) => {
+            info!("Custom URL successfully updated");
+            Ok(Json("Successfully Updated".to_string()))
+        },
+        Err(error) => {
+            error!("Error updating custom URL: {:?}", error);
+            Err((Status::InternalServerError, format!("Error updating custom URL: {:?}", error)))
+        }
+    }
 }
 
 #[instrument(skip(claims))]
@@ -61,7 +69,7 @@ pub async fn get_custom_url(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::ELECTION_EVENT_READ],
     )?;
-    let rule = get_page_rule(&body.redirect_to).map_err(|error| {
+    let rule = get_page_rule(&body.redirect_to).await.map_err(|error| {
         (
             Status::InternalServerError,
             format!("Error reading custom url: {error:?}"),
