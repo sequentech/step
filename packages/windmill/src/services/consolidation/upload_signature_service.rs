@@ -13,7 +13,7 @@ use super::{
     eml_types::ACMTrustee,
     logs::{
         create_transmission_package_log, error_sending_transmission_package_to_ccs_log,
-        send_transmission_package_to_ccs_log,
+        send_transmission_package_to_ccs_log, sign_transmission_package_log,
     },
     rsa::rsa_sign_data,
     send_transmission_package_service::get_latest_miru_document,
@@ -300,28 +300,31 @@ pub async fn upload_transmission_package_signature_service(
 
     // upload zip of zips
     let area_name = area.name.clone().unwrap_or_default();
-    let new_transmission_package_data = MiruTransmissionPackageData {
-        election_id: election_id.to_string(),
-        area_id: area_id.to_string(),
-        servers: ccs_servers.clone(),
-        documents: vec![MiruDocument {
-            document_ids: MiruDocumentIds {
-                eml: eml_document.id.clone(),
-                all_servers: all_servers_document.id.clone(),
-            },
-            transaction_id: transaction_id.clone(),
-            servers_sent_to: vec![],
-            created_at: ISO8601::to_string(&now_local),
-            signatures: new_miru_signatures,
-        }],
-        logs: vec![create_transmission_package_log(
+    let mut new_transmission_package_data = transmission_area_election.clone();
+    let Some(first_document) = new_transmission_package_data.documents.first() else {
+        return Err(anyhow!("Missing initial document"));
+    };
+    new_transmission_package_data.documents.push(MiruDocument {
+        document_ids: MiruDocumentIds {
+            eml: first_document.document_ids.eml.clone(),
+            xz: first_document.document_ids.xz.clone(),
+            all_servers: all_servers_document.id.clone(),
+        },
+        transaction_id: first_document.transaction_id.clone(),
+        servers_sent_to: vec![],
+        created_at: ISO8601::to_string(&now_local),
+        signatures: new_miru_signatures,
+    });
+    new_transmission_package_data
+        .logs
+        .push(sign_transmission_package_log(
             &now_local,
             election_id,
             &election.name,
             area_id,
             &area_name,
-        )],
-    };
+            &trustee_name,
+        ));
     update_transmission_package_annotations(
         &hasura_transaction,
         tenant_id,
