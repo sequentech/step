@@ -47,6 +47,7 @@ public class Utils {
   public final String SEND_CODE_SMS_I18N_KEY = "messageOtp.sendCode.sms.text";
   public final String SEND_CODE_EMAIL_SUBJECT = "messageOtp.sendCode.email.subject";
   public final String SEND_CODE_EMAIL_FTL = "send-code-email.ftl";
+  public final String RESEND_ACTIVATION_TIMER = "resendCoudActivationTimer";
 
   public enum MessageCourier {
     SMS,
@@ -332,5 +333,70 @@ public class Utils {
     public String getHtmlBody() {
       return htmlBody;
     }
+  }
+
+  protected static String getOtpAddress(
+      Utils.MessageCourier courier,
+      boolean deferredUser,
+      AuthenticatorConfigModel config,
+      AuthenticationSessionModel authSession,
+      UserModel user) {
+    String mobileNumber = null;
+    String emailAddress = null;
+
+    if (deferredUser) {
+      String mobileNumberAttribute = config.getConfig().get(Utils.TEL_USER_ATTRIBUTE);
+      mobileNumber = authSession.getAuthNote(mobileNumberAttribute);
+      emailAddress = authSession.getAuthNote("email");
+    } else {
+      mobileNumber = Utils.getMobile(config, user);
+      emailAddress = user.getEmail();
+    }
+    switch (courier) {
+      case EMAIL:
+        return obscureEmail(emailAddress);
+      case SMS:
+        return obscurePhoneNumber(mobileNumber);
+      case BOTH:
+        return emailAddress != null ? obscureEmail(emailAddress) : obscurePhoneNumber(mobileNumber);
+    }
+    return emailAddress;
+  }
+
+  protected static String obscurePhoneNumber(String phoneNumber) {
+    if (phoneNumber == null) {
+      return phoneNumber;
+    }
+    return phoneNumber.substring(0, 4)
+        + "*".repeat(phoneNumber.length() - 7)
+        + phoneNumber.substring(phoneNumber.length() - 3);
+  }
+
+  protected static String obscureEmail(String email) {
+    int atIndex = email.indexOf('@');
+    if (atIndex == -1 || atIndex < 2) {
+      return email;
+    }
+
+    String firstPart = email.substring(0, 2);
+    String domainPart = email.substring(atIndex + 1);
+    String maskedLocal = firstPart + "*".repeat(atIndex - 2);
+
+    int lastDotIndex = domainPart.lastIndexOf('.');
+    String domain, tld;
+
+    if (lastDotIndex != -1) {
+      domain = domainPart.substring(0, lastDotIndex);
+      tld = domainPart.substring(lastDotIndex);
+    } else {
+      domain = domainPart;
+      tld = "";
+    }
+
+    String maskedDomain = domain;
+    if (domain.length() >= 2) {
+      maskedDomain = "*".repeat(domain.length() - 2) + domain.substring(domain.length() - 2);
+    }
+    return maskedLocal + "@" + maskedDomain + tld;
   }
 }
