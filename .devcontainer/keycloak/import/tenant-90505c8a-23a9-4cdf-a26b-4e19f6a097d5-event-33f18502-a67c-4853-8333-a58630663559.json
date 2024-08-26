@@ -2071,6 +2071,22 @@
       "userSetupAllowed" : false
     } ]
   }, {
+    "id" : "03495826-bf25-41c6-b16f-1b48e40dff1c",
+    "alias" : "manual-verification-config",
+    "description" : "",
+    "providerId" : "basic-flow",
+    "topLevel" : true,
+    "builtIn" : false,
+    "authenticationExecutions" : [ {
+      "authenticatorConfig" : "manual-verification-config",
+      "authenticator" : "manual-verification-config",
+      "authenticatorFlow" : false,
+      "requirement" : "DISABLED",
+      "priority" : 0,
+      "autheticatorFlow" : false,
+      "userSetupAllowed" : false
+    } ]
+  }, {
     "id" : "6d2bbc26-4c5a-4312-bae6-aa6cc060cb17",
     "alias" : "message-otp-subflow",
     "description" : "",
@@ -2492,6 +2508,14 @@
       "auto-login" : "false",
       "search-attributes" : "sequent.read-only.id-card-number,sequent.read-only.id-card-type",
       "auto-2fa" : "true"
+    }
+  }, {
+    "id" : "b489a8f1-a363-4731-8d3d-265fc4752fb1",
+    "alias" : "manual-verification-config",
+    "config" : {
+      "auto-2fa" : "true",
+      "messageCourierAttribute" : "BOTH",
+      "telUserAttribute" : "sequent.read-only.mobile-number"
     }
   }, {
     "id" : "e2acb078-380e-4631-8a33-4d0aa811c69b",
