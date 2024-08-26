@@ -117,9 +117,6 @@ impl KeycloakAdminClient {
                 }
             })
             .collect();
-
-        println!("---------- {:?}", successful_results);
-
         self.client
             .realm_groups_with_group_id_role_mappings_realm_post(
                 realm,

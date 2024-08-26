@@ -2,10 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::authorization::authorize;
+
 use crate::types::optional::OptionalId;
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
-use anyhow::{Context, Result};
-use rocket::futures::TryFutureExt;
+use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
@@ -35,33 +35,30 @@ pub async fn create_role(
         Some(input.tenant_id.clone()),
         vec![Permissions::ROLE_READ],
     )?;
-    let realm: String = get_tenant_realm(&input.tenant_id);
+    let realm = get_tenant_realm(&input.tenant_id);
     let client = KeycloakAdminClient::new()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-
     let role = client.create_role(&realm, &input.role).await.map_err(|e| {
         event!(Level::INFO, "Error {:?}", e);
         (Status::InternalServerError, format!("{:?}", e))
     })?;
-
-    let client2 = KeycloakAdminClient::new()
+    //client moved to create_role so need to create new one
+    let client = KeycloakAdminClient::new()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-
     let role_with_id =
-        client2.get_role_by_name(&realm, &role).await.map_err(|e| {
+        client.get_role_by_name(&realm, &role).await.map_err(|e| {
             event!(Level::INFO, "Error {:?}", e);
             (Status::InternalServerError, format!("{:?}", e))
         })?;
 
-    let client3 = KeycloakAdminClient::new()
+    let client = KeycloakAdminClient::new()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-
     match (role.clone().permissions, role_with_id.id) {
         (Some(permissions), Some(id)) => {
-            client3
+            client
                 .set_role_permissions(&realm, &id, &permissions)
                 .await
                 .map_err(|e| {
@@ -71,7 +68,8 @@ pub async fn create_role(
         }
         _ => {}
     }
-    Ok(Json(role.clone()))
+
+    Ok(Json(role))
 }
 
 #[derive(Deserialize, Debug)]
