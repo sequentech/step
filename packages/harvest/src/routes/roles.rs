@@ -35,15 +35,43 @@ pub async fn create_role(
         Some(input.tenant_id.clone()),
         vec![Permissions::ROLE_READ],
     )?;
-    let realm = get_tenant_realm(&input.tenant_id);
+    let realm: String = get_tenant_realm(&input.tenant_id);
     let client = KeycloakAdminClient::new()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
     let role = client.create_role(&realm, &input.role).await.map_err(|e| {
         event!(Level::INFO, "Error {:?}", e);
         (Status::InternalServerError, format!("{:?}", e))
     })?;
-    Ok(Json(role))
+
+    let client2 = KeycloakAdminClient::new()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    let role_with_id =
+        client2.get_role_by_name(&realm, &role).await.map_err(|e| {
+            event!(Level::INFO, "Error {:?}", e);
+            (Status::InternalServerError, format!("{:?}", e))
+        })?;
+
+    let client3 = KeycloakAdminClient::new()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    match (role.clone().permissions, role_with_id.id) {
+        (Some(permissions), Some(id)) => {
+            client3
+                .set_role_permissions(&realm, &id, &permissions)
+                .await
+                .map_err(|e| {
+                    event!(Level::INFO, "Error {:?}", e);
+                    (Status::InternalServerError, format!("{:?}", e))
+                })?;
+        }
+        _ => {}
+    }
+    Ok(Json(role.clone()))
 }
 
 #[derive(Deserialize, Debug)]
