@@ -37,6 +37,8 @@ public class ECIESEncryptionTool {
             System.out.println("  decrypt <private-key-file> <encrypted-text>");
             System.out.println("  sign <private-key-file> <plaintext-file>");
             System.out.println("  verify <public-key-file> <plaintext-file> <signature-base64>");
+            System.out.println("  sign-rsa <private-key-file> <plaintext-file>");
+            System.out.println("  verify-rsa <public-key-file> <plaintext-file> <signature-base64>");
             return;
         }
 

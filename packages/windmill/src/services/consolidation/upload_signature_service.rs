@@ -5,14 +5,17 @@ use super::{
     create_transmission_package_service::update_transmission_package_annotations,
     eml_generator::{
         find_miru_annotation, prepend_miru_annotation, ValidateAnnotations, MIRU_AREA_CCS_SERVERS,
-        MIRU_AREA_STATION_ID, MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA,
+        MIRU_AREA_STATION_ID, MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA, MIRU_TRUSTEE_ID,
+        MIRU_TRUSTEE_NAME,
     },
+    eml_types::ACMTrustee,
     logs::{error_sending_transmission_package_to_ccs_log, send_transmission_package_to_ccs_log},
+    rsa::rsa_sign_data,
     send_transmission_package_service::get_latest_miru_document,
     transmission_package::create_transmission_package,
     zip::unzip_file,
 };
-use crate::postgres::trustee::get_trustee_by_name;
+use crate::{postgres::trustee::get_trustee_by_name, types::miru_plugin::MiruSignature};
 use crate::{
     postgres::{
         area::get_area_by_id, document::get_document, election::get_election_by_id,
@@ -34,15 +37,47 @@ use chrono::{Local, Utc};
 use deadpool_postgres::Client as DbClient;
 use reqwest::multipart;
 use sequent_core::{
-    ballot::Annotations,
-    serialization::deserialize_with_path::deserialize_str,
-    types::hasura::core::{ElectionEvent, TallySession},
-    util::date_time::get_system_timezone,
+    ballot::Annotations, serialization::deserialize_with_path::deserialize_str,
+    types::hasura::core::Trustee,
 };
-use std::io::{Read, Seek};
-use std::{cmp::Ordering, path::Path};
-use tempfile::{tempdir, NamedTempFile};
+use tempfile::NamedTempFile;
 use tracing::{info, instrument};
+
+pub fn create_server_signature(
+    eml_data: NamedTempFile,
+    trustee: Trustee,
+    private_key: &str,
+    public_key: &str,
+) -> Result<ACMTrustee> {
+    let trustee_annotations = trustee.get_valid_annotations()?;
+
+    let trustee_id =
+        find_miru_annotation(MIRU_TRUSTEE_ID, &trustee_annotations).with_context(|| {
+            format!(
+                "Missing trustee annotation: '{}:{}'",
+                MIRU_PLUGIN_PREPEND, MIRU_TRUSTEE_ID
+            )
+        })?;
+
+    let trustee_name =
+        find_miru_annotation(MIRU_TRUSTEE_NAME, &trustee_annotations).with_context(|| {
+            format!(
+                "Missing trustee annotation: '{}:{}'",
+                MIRU_PLUGIN_PREPEND, MIRU_TRUSTEE_NAME
+            )
+        })?;
+
+    let temp_pem_file_path = eml_data.path();
+    let temp_pem_file_string = temp_pem_file_path.to_string_lossy().to_string();
+
+    let signature = rsa_sign_data(private_key, &temp_pem_file_string)?;
+    Ok(ACMTrustee {
+        id: trustee_id,
+        signature: signature,
+        publickey: public_key.to_string(),
+        name: trustee_name,
+    })
+}
 
 #[instrument(err)]
 pub async fn upload_transmission_package_signature_service(
@@ -152,50 +187,75 @@ pub async fn upload_transmission_package_signature_service(
     })?;
 
     let mut eml_data = get_document_as_temp_file(tenant_id, &document).await?;
-    // sign er file
+    // RSA sign er file
+    let server_signature = create_server_signature(eml_data, trustee, private_key, public_key)?;
+    let mut new_signatures: Vec<MiruSignature> = miru_document
+        .signatures
+        .clone()
+        .into_iter()
+        .filter(|signature| &signature.trustee_name != trustee_name)
+        .collect();
+    new_signatures.push(MiruSignature {
+        trustee_name: trustee_name.to_string(),
+        pub_key: server_signature.publickey.clone(),
+        signature: server_signature.signature.clone(),
+    });
     // generate zip of zips
+
+    let all_servers_document = generate_all_servers_document(
+        &hasura_transaction,
+        &eml_hash,
+        &eml,
+        base_compressed_xml.clone(),
+        &ccs_servers,
+        &area_station_id,
+        &election_event_annotations,
+        &election_event.id,
+        tenant_id,
+        time_zone.clone(),
+        now_utc.clone(),
+        vec![],
+    )
+    .await?;
+
     // upload zip of zips
-
     /*
-    let election_event =
-        get_election_event_by_election_area(&hasura_transaction, tenant_id, election_id, area_id)
-            .await
-            .with_context(|| "Error fetching election event")?;
-
-    let tally_session = get_tally_session_by_id(
+    let area_name = area.name.clone().unwrap_or("".into());
+    let new_transmission_package_data = MiruTransmissionPackageData {
+        election_id: election_id.to_string(),
+        area_id: area_id.to_string(),
+        servers: ccs_servers.clone(),
+        documents: vec![MiruDocument {
+            document_ids: MiruDocumentIds {
+                eml: eml_document.id.clone(),
+                all_servers: all_servers_document.id.clone(),
+            },
+            transaction_id: transaction_id.clone(),
+            servers_sent_to: vec![],
+            created_at: ISO8601::to_string(&now_local),
+            signatures: vec![],
+        }],
+        logs: vec![create_transmission_package_log(
+            &now_local,
+            election_id,
+            &election.name,
+            area_id,
+            &area_name,
+        )],
+    };
+    update_transmission_package_annotations(
         &hasura_transaction,
         tenant_id,
         &election_event.id,
         tally_session_id,
+        area_id,
+        election_id,
+        transmission_data.clone(),
+        new_transmission_package_data,
+        tally_annotations.clone(),
     )
-    .await
-    .with_context(|| "Error fetching tally session")?;
-    let tally_annotations = tally_session.get_valid_annotations()?;
+    .await?;*/
 
-    let transmission_data: MiruTallySessionData =
-        find_miru_annotation(MIRU_TALLY_SESSION_DATA, &tally_annotations)
-            .with_context(|| {
-                format!(
-                    "Missing tally session annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA
-                )
-            })
-            .map(|tally_session_data_js| {
-                deserialize_str(&tally_session_data_js).map_err(|err| anyhow!("{}", err))
-            })
-            .flatten()
-            .unwrap_or(vec![]);
-
-    let Some(transmission_area_election) = transmission_data.clone().into_iter().find(|data| {
-        data.area_id == area_id.to_string() && data.election_id == election_id.to_string()
-    }) else {
-        return Err(anyhow!("transmission package not found, skipping"));
-    };
-
-    let trustee = get_trustee_by_name(&hasura_transaction, tenant_id, trustee_name)
-        .await
-        .with_context(|| format!("trustee with name '{}' not found", trustee_name))?;
-     */
     hasura_transaction
         .commit()
         .await

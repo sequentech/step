@@ -1,11 +1,17 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::consolidation::ecies_encrypt::ECIES_TOOL_PATH;
+use crate::services::shell::run_shell_command;
+use crate::services::temp_path::generate_temp_file;
 use anyhow::{Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use openssl::rsa::{Padding, Rsa};
+use std::fs;
+use std::fs::File;
+use std::io::Write;
 use strand::hash::hash_sha256;
-use tracing::instrument;
+use tracing::{info, instrument};
 
 // Function to generate RSA public/private key pair in PEM format
 #[instrument(skip_all, err)]
@@ -52,9 +58,26 @@ pub fn encrypt_with_rsa_private_key(private_key_pem: &str, data: &[u8]) -> Resul
 }
 
 #[instrument(skip_all, err)]
-pub fn rsa_private_sign(private_key_pem: &str, data: &[u8]) -> Result<String> {
-    let hash_bytes = hash_sha256(data)?;
-    let encrypted = encrypt_with_rsa_private_key(private_key_pem, &hash_bytes)?;
-    let encrypted_base64 = STANDARD.encode(encrypted.clone());
+pub fn rsa_sign_data(private_key_pem: &str, data_path: &str) -> Result<String> {
+    let temp_pem_file = generate_temp_file("private_key", ".pem")?;
+    let temp_pem_file_path = temp_pem_file.path();
+    let temp_pem_file_string = temp_pem_file_path.to_string_lossy().to_string();
+    // Write the salt and encrypted data to the output file
+    // Using brackets: let it drop out of scope so that all bytes are written
+    {
+        let mut output_file = File::create(temp_pem_file_path).context("Failed to create file")?;
+        output_file
+            .write_all(private_key_pem.as_bytes())
+            .context("Failed to write file")?;
+    }
+    let command = format!(
+        "java -jar {} sign-rsa {} {}",
+        ECIES_TOOL_PATH, temp_pem_file_string, data_path
+    );
+
+    let encrypted_base64 = run_shell_command(&command)?.replace("\n", "");
+
+    info!("ecies_sign_data: '{}'", encrypted_base64);
+
     Ok(encrypted_base64)
 }
