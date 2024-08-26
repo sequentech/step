@@ -92,7 +92,7 @@ const spanishTranslation: TranslationType = {
                 execution_status: "Estado",
                 start_at: "Hora de inicio",
                 end_at: "Hora de finalización",
-                executed_by_user_id: "Ejecutor",
+                executed_by_user: "Ejecutor",
                 annotations: "Anotaciones",
                 labels: "Etiquetas",
                 logs: "Registros",

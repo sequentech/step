@@ -41,14 +41,19 @@ pub async fn export_election_event_route(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::ELECTION_EVENT_READ],
     )?;
+    let name = claims
+        .name
+        .clone()
+        .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
     let document_id = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
+
     let task = celery_app
         .send_task(export_election_event::export_election_event::new(
             claims.hasura_claims.tenant_id.clone(),
             body.election_event_id.clone(),
             document_id.clone(),
-            claims.hasura_claims.user_id.clone(),
+            name,
         ))
         .await
         .map_err(|error| {

@@ -17,14 +17,14 @@ pub async fn export_election_event(
     tenant_id: String,
     election_event_id: String,
     document_id: String,
-    executed_by_user_id: String,
+    executed_by_user: String,
 ) -> Result<()> {
     // Insert the task execution record
     let task = post(
         &tenant_id,
         &election_event_id,
         ETasks::EXPORT_ELECTION_EVENT,
-        &executed_by_user_id,
+        &executed_by_user,
     )
     .await
     .context("Failed to insert task execution record")?;

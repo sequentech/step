@@ -28,6 +28,10 @@ pub async fn import_candidates_route(
     input: Json<ImportCandidatesInput>,
 ) -> Result<Json<ImportCandidatesOutput>, (Status, String)> {
     let body = input.into_inner();
+    let name = claims
+        .name
+        .clone()
+        .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
     authorize(
         &claims,
         true,
@@ -38,7 +42,7 @@ pub async fn import_candidates_route(
         claims.hasura_claims.tenant_id.clone(),
         body.election_event_id.clone(),
         body.document_id.clone(),
-        claims.hasura_claims.user_id.clone(),
+        name,
     )
     .await
     .map_err(|error| {

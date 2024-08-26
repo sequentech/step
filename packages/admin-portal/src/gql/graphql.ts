@@ -15394,7 +15394,7 @@ export type Sequent_Backend_Tasks_Execution = {
   created_at: Scalars['timestamptz']['output'];
   election_event_id: Scalars['uuid']['output'];
   end_at?: Maybe<Scalars['timestamptz']['output']>;
-  executed_by_user_id: Scalars['uuid']['output'];
+  executed_by_user: Scalars['String']['output'];
   execution_status: Scalars['String']['output'];
   id: Scalars['uuid']['output'];
   labels?: Maybe<Scalars['jsonb']['output']>;
@@ -15462,7 +15462,7 @@ export type Sequent_Backend_Tasks_Execution_Bool_Exp = {
   created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
   end_at?: InputMaybe<Timestamptz_Comparison_Exp>;
-  executed_by_user_id?: InputMaybe<Uuid_Comparison_Exp>;
+  executed_by_user?: InputMaybe<String_Comparison_Exp>;
   execution_status?: InputMaybe<String_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
   labels?: InputMaybe<Jsonb_Comparison_Exp>;
@@ -15504,7 +15504,7 @@ export type Sequent_Backend_Tasks_Execution_Insert_Input = {
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   end_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  executed_by_user_id?: InputMaybe<Scalars['uuid']['input']>;
+  executed_by_user?: InputMaybe<Scalars['String']['input']>;
   execution_status?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
@@ -15522,7 +15522,7 @@ export type Sequent_Backend_Tasks_Execution_Max_Fields = {
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   election_event_id?: Maybe<Scalars['uuid']['output']>;
   end_at?: Maybe<Scalars['timestamptz']['output']>;
-  executed_by_user_id?: Maybe<Scalars['uuid']['output']>;
+  executed_by_user?: Maybe<Scalars['String']['output']>;
   execution_status?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   name?: Maybe<Scalars['String']['output']>;
@@ -15537,7 +15537,7 @@ export type Sequent_Backend_Tasks_Execution_Min_Fields = {
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   election_event_id?: Maybe<Scalars['uuid']['output']>;
   end_at?: Maybe<Scalars['timestamptz']['output']>;
-  executed_by_user_id?: Maybe<Scalars['uuid']['output']>;
+  executed_by_user?: Maybe<Scalars['String']['output']>;
   execution_status?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   name?: Maybe<Scalars['String']['output']>;
@@ -15568,7 +15568,7 @@ export type Sequent_Backend_Tasks_Execution_Order_By = {
   created_at?: InputMaybe<Order_By>;
   election_event_id?: InputMaybe<Order_By>;
   end_at?: InputMaybe<Order_By>;
-  executed_by_user_id?: InputMaybe<Order_By>;
+  executed_by_user?: InputMaybe<Order_By>;
   execution_status?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   labels?: InputMaybe<Order_By>;
@@ -15604,7 +15604,7 @@ export enum Sequent_Backend_Tasks_Execution_Select_Column {
   /** column name */
   EndAt = 'end_at',
   /** column name */
-  ExecutedByUserId = 'executed_by_user_id',
+  ExecutedByUser = 'executed_by_user',
   /** column name */
   ExecutionStatus = 'execution_status',
   /** column name */
@@ -15629,7 +15629,7 @@ export type Sequent_Backend_Tasks_Execution_Set_Input = {
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   end_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  executed_by_user_id?: InputMaybe<Scalars['uuid']['input']>;
+  executed_by_user?: InputMaybe<Scalars['String']['input']>;
   execution_status?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
@@ -15654,7 +15654,7 @@ export type Sequent_Backend_Tasks_Execution_Stream_Cursor_Value_Input = {
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   end_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  executed_by_user_id?: InputMaybe<Scalars['uuid']['input']>;
+  executed_by_user?: InputMaybe<Scalars['String']['input']>;
   execution_status?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
@@ -15676,7 +15676,7 @@ export enum Sequent_Backend_Tasks_Execution_Update_Column {
   /** column name */
   EndAt = 'end_at',
   /** column name */
-  ExecutedByUserId = 'executed_by_user_id',
+  ExecutedByUser = 'executed_by_user',
   /** column name */
   ExecutionStatus = 'execution_status',
   /** column name */

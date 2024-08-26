@@ -92,7 +92,7 @@ const catalanTranslation: TranslationType = {
                 execution_status: "Estat",
                 start_at: "Hora d'inici",
                 end_at: "Hora de finalització",
-                executed_by_user_id: "Executor",
+                executed_by_user: "Executor",
                 annotations: "Annotations",
                 labels: "Etiquetes",
                 logs: "Registres",

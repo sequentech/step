@@ -19,7 +19,7 @@ insert_permissions:
     - created_at
     - election_event_id
     - end_at
-    - executed_by_user_id
+    - executed_by_user
     - id
     - labels
     - logs
@@ -44,7 +44,7 @@ select_permissions:
     - end_at
     - start_at
     - election_event_id
-    - executed_by_user_id
+    - executed_by_user
     - id
     - tenant_id
     filter:
@@ -58,7 +58,7 @@ select_permissions:
     - created_at
     - election_event_id
     - end_at
-    - executed_by_user_id
+    - executed_by_user
     - id
     - labels
     - logs
@@ -78,7 +78,7 @@ update_permissions:
     - created_at
     - election_event_id
     - end_at
-    - executed_by_user_id
+    - executed_by_user
     - id
     - labels
     - logs

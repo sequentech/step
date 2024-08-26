@@ -160,7 +160,7 @@ export interface ITaskExecuted {
     end_at: string | null
     tenant_id: string
     election_event_id: string
-    executed_by_user_id: string
+    executed_by_user: string
     annotations: object | null
     labels: object | null
     logs: object | null

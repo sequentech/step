@@ -331,7 +331,7 @@ pub struct TasksExecution {
     pub annotations: Option<Value>,
     pub labels: Option<Value>,
     pub logs: Option<Value>,
-    pub executed_by_user_id: String,
+    pub executed_by_user: String,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]

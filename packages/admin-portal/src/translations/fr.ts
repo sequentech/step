@@ -92,7 +92,7 @@ const frenchTranslation: TranslationType = {
                 execution_status: "Statut",
                 start_at: "Heure de début",
                 end_at: "Heure de fin",
-                executed_by_user_id: "Exécutant",
+                executed_by_user: "Exécutant",
                 annotations: "Annotations",
                 labels: "Étiquettes",
                 logs: "Journaux",

@@ -295,13 +295,13 @@ pub async fn import_candidates_task(
     tenant_id: String,
     election_event_id: String,
     document_id: String,
-    executed_by_user_id: String,
+    executed_by_user: String,
 ) -> Result<()> {
     let task = post(
         &tenant_id,
         &election_event_id,
         ETasks::IMPORT_CANDIDATES,
-        &executed_by_user_id,
+        &executed_by_user,
     )
     .await
     .context("Failed to insert task execution record")?;

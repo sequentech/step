@@ -94,7 +94,7 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
                                     <TableRow>
                                         <TableCell>{t("tasksScreen.column.type")}</TableCell>
                                         <TableCell align="center">
-                                            {t("tasksScreen.column.executed_by_user_id")}
+                                            {t("tasksScreen.column.executed_by_user")}
                                         </TableCell>
                                         <TableCell align="center">
                                             {t("tasksScreen.column.start_at")}
@@ -116,7 +116,7 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
                                                 {task.type}
                                             </TableCell>
                                             <TableCell align="center">
-                                                {task.executed_by_user_id}
+                                                {task.executed_by_user}
                                             </TableCell>
                                             <TableCell align="center">{task.start_at}</TableCell>
                                             <TableCell align="center">{task.end_at}</TableCell>

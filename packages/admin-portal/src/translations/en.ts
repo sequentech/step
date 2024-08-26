@@ -90,7 +90,7 @@ const englishTranslation = {
                 execution_status: "Status",
                 start_at: "Start time",
                 end_at: "End time",
-                executed_by_user_id: "Executer",
+                executed_by_user: "Executer",
                 annotations: "Annotations",
                 labels: "Labels",
                 logs: "Logs",

@@ -34,7 +34,7 @@ impl TryFrom<Row> for TasksExecutionWrapper {
             annotations: item.try_get("annotations")?,
             labels: item.try_get("labels")?,
             logs: item.try_get("logs")?,
-            executed_by_user_id: item.try_get::<_, Uuid>("executed_by_user_id")?.to_string(),
+            executed_by_user: item.try_get::<_, String>("executed_by_user")?.to_string(),
         }))
     }
 }
@@ -49,7 +49,7 @@ pub async fn insert_tasks_execution(
     annotations: Option<Value>,
     labels: Option<Value>,
     logs: Option<Value>,
-    executed_by_user_id: &str,
+    executed_by_user: &str,
 ) -> Result<TasksExecution> {
     let db_client: DbClient = get_hasura_pool()
         .await
@@ -63,15 +63,12 @@ pub async fn insert_tasks_execution(
     let election_event_uuid = Uuid::parse_str(election_event_id)
         .map_err(|err| anyhow!("Error parsing election event UUID: {}", err))?;
 
-    let executed_by_user_uuid = Uuid::parse_str(executed_by_user_id)
-        .map_err(|err| anyhow!("Error parsing executed by user UUID: {}", err))?;
-
     let statement = db_client
         .prepare(
             r#"
                 INSERT INTO
                     sequent_backend.tasks_execution
-                (tenant_id, election_event_id, name, type, execution_status, annotations, labels, logs, executed_by_user_id)
+                (tenant_id, election_event_id, name, type, execution_status, annotations, labels, logs, executed_by_user)
                 VALUES (
                     $1, $2, $3, $4, $5, $6, $7, $8, $9
                 )
@@ -93,7 +90,7 @@ pub async fn insert_tasks_execution(
                 &annotations,
                 &labels,
                 &logs,
-                &executed_by_user_uuid,
+                &executed_by_user,
             ],
         )
         .await

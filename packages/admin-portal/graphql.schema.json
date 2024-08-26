@@ -108744,7 +108744,7 @@
             "deprecationReason": null
           },
           {
-            "name": "executed_by_user_id",
+            "name": "executed_by_user",
             "description": null,
             "args": [],
             "type": {
@@ -108752,7 +108752,7 @@
               "name": null,
               "ofType": {
                 "kind": "SCALAR",
-                "name": "uuid",
+                "name": "String",
                 "ofType": null
               }
             },
@@ -109200,11 +109200,11 @@
             "deprecationReason": null
           },
           {
-            "name": "executed_by_user_id",
+            "name": "executed_by_user",
             "description": null,
             "type": {
               "kind": "INPUT_OBJECT",
-              "name": "uuid_comparison_exp",
+              "name": "String_comparison_exp",
               "ofType": null
             },
             "defaultValue": null,
@@ -109517,11 +109517,11 @@
             "deprecationReason": null
           },
           {
-            "name": "executed_by_user_id",
+            "name": "executed_by_user",
             "description": null,
             "type": {
               "kind": "SCALAR",
-              "name": "uuid",
+              "name": "String",
               "ofType": null
             },
             "defaultValue": null,
@@ -109683,12 +109683,12 @@
             "deprecationReason": null
           },
           {
-            "name": "executed_by_user_id",
+            "name": "executed_by_user",
             "description": null,
             "args": [],
             "type": {
               "kind": "SCALAR",
-              "name": "uuid",
+              "name": "String",
               "ofType": null
             },
             "isDeprecated": false,
@@ -109814,12 +109814,12 @@
             "deprecationReason": null
           },
           {
-            "name": "executed_by_user_id",
+            "name": "executed_by_user",
             "description": null,
             "args": [],
             "type": {
               "kind": "SCALAR",
-              "name": "uuid",
+              "name": "String",
               "ofType": null
             },
             "isDeprecated": false,
@@ -110072,7 +110072,7 @@
             "deprecationReason": null
           },
           {
-            "name": "executed_by_user_id",
+            "name": "executed_by_user",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -110323,7 +110323,7 @@
             "deprecationReason": null
           },
           {
-            "name": "executed_by_user_id",
+            "name": "executed_by_user",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -110434,11 +110434,11 @@
             "deprecationReason": null
           },
           {
-            "name": "executed_by_user_id",
+            "name": "executed_by_user",
             "description": null,
             "type": {
               "kind": "SCALAR",
-              "name": "uuid",
+              "name": "String",
               "ofType": null
             },
             "defaultValue": null,
@@ -110640,11 +110640,11 @@
             "deprecationReason": null
           },
           {
-            "name": "executed_by_user_id",
+            "name": "executed_by_user",
             "description": null,
             "type": {
               "kind": "SCALAR",
-              "name": "uuid",
+              "name": "String",
               "ofType": null
             },
             "defaultValue": null,
@@ -110785,7 +110785,7 @@
             "deprecationReason": null
           },
           {
-            "name": "executed_by_user_id",
+            "name": "executed_by_user",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null

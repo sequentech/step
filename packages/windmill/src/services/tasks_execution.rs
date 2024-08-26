@@ -6,15 +6,15 @@ use crate::postgres::tasks_execution::{insert_tasks_execution, update_task_execu
 use crate::services::serialize_tasks_logs::*;
 use crate::types::tasks::ETasks;
 use anyhow::{anyhow, Context, Result};
+use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
-use sequent_core::types::{hasura::core::TasksExecution};
 use serde::{Deserialize, Serialize};
 
 pub async fn post(
     tenant_id: &str,
     election_event_id: &str,
     task_type: ETasks,
-    executed_by_user_id: &str,
+    executed_by_user: &str,
 ) -> Result<TasksExecution, anyhow::Error> {
     let logs = serde_json::to_value(general_start_log())?;
 
@@ -27,7 +27,7 @@ pub async fn post(
         None,
         None,
         Some(logs),
-        executed_by_user_id,
+        executed_by_user,
     )
     .await
     .context("Failed to insert task execution record")?;
