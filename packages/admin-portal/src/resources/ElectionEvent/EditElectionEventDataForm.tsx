@@ -75,6 +75,8 @@ import {convertToNumber} from "@/lib/helpers"
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
+import { Widget } from "@/components/Widget"
+import { ETaskExecutionStatus } from "@sequentech/ui-core"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -987,6 +989,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                 exportDocumentId={exportDocumentId}
                 setExportDocumentId={setExportDocumentId}
             />
+            <Widget type={ETasksExecution.EXPORT_ELECTION_EVENT} status={ETaskExecutionStatus.SUCCESS}/>
         </>
     )
 }
