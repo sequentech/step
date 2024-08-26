@@ -315,10 +315,13 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
         for (JsonNode attributeToCheck : attributesToCheck) {
           String attribute = attributeToCheck.get(AUTH_NOTE_ATTRIBUTE_ID).asText();
+          log.infov("verifyResults: attribute {0}", attribute);
           String inetumField = attributeToCheck.get(INETUM_ATTRIBUTE_PATH).asText();
+          log.infov("verifyResults: inetumField {0}", inetumField);
 
           // Get attribute from authentication notes
           String attributeValue = context.getAuthenticationSession().getAuthNote(attribute);
+          log.infov("verifyResults: attributeValue {0}", attributeValue);
 
           if (attributeValue == null) {
             log.errorv("verifyResults: could not find value in auth notes {0}", attribute);
@@ -363,13 +366,8 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     String inetumValue = null;
     try {
       inetumValue = response.asJson().at(inetumField).asText();
-      log.infov("getValueFromInetumResponse: {0} = {1}", inetumField, inetumValue);
-      return null;
     } catch (Exception error) {
-    }
-    if (inetumValue == null) {
-      log.error("getValueFromInetumResponse: ocr is also null, return false");
-      return null;
+      log.errorv("Could not get value: {0}", error.getMessage());
     }
 
     log.infov("getValueFromInetumResponse: {0}: {1}", inetumField, inetumValue);
