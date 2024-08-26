@@ -6,7 +6,7 @@ use super::ecies_encrypt::generate_ecies_key_pair;
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::eml_generator::{
     find_miru_annotation, prepend_miru_annotation, ValidateAnnotations, MIRU_AREA_CCS_SERVERS,
-    MIRU_AREA_STATION_ID, MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA,
+    MIRU_AREA_STATION_ID, MIRU_AREA_THRESHOLD, MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA,
 };
 use super::logs::create_transmission_package_log;
 use super::transmission_package::{create_transmission_package, generate_base_compressed_xml};
@@ -268,6 +268,16 @@ pub async fn create_transmission_package_service(
             )
         })?;
 
+    let threshold = find_miru_annotation(MIRU_AREA_THRESHOLD, &area_annotations)
+        .with_context(|| {
+            format!(
+                "Missing area annotation: '{}:{}'",
+                MIRU_PLUGIN_PREPEND, MIRU_AREA_THRESHOLD
+            )
+        })?
+        .parse::<i64>()
+        .with_context(|| anyhow!("Can't parse threshold"))?;
+
     let ccs_servers_js = find_miru_annotation(MIRU_AREA_CCS_SERVERS, &area_annotations)
         .with_context(|| {
             format!(
@@ -417,6 +427,7 @@ pub async fn create_transmission_package_service(
             area_id,
             &area_name,
         )],
+        threshold: threshold,
     };
     update_transmission_package_annotations(
         &hasura_transaction,

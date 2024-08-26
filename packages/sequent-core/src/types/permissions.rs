@@ -127,6 +127,14 @@ pub enum Permissions {
     SUPPORT_MATERIAL_READ,
     #[strum(serialize = "support-material-write")]
     SUPPORT_MATERIAL_WRITE,
+    #[strum(serialize = "miru-create")]
+    MIRU_CREATE,
+    #[strum(serialize = "miru-download")]
+    MIRU_DOWNLOAD,
+    #[strum(serialize = "miru-send")]
+    MIRU_SEND,
+    #[strum(serialize = "miru-sign")]
+    MIRU_SIGN,
 }
 
 #[allow(non_camel_case_types)]

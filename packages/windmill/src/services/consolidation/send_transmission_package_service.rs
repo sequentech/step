@@ -225,6 +225,17 @@ pub async fn send_transmission_package_service(
         .map(|value| value.name.clone())
         .collect();
 
+    if transmission_area_election.threshold > -1
+        && (miru_document.signatures.len() as i64) < transmission_area_election.threshold
+    {
+        info!(
+            "Can't send to servers as number of signatures {} is less than threshold {}",
+            miru_document.signatures.len(),
+            transmission_area_election.threshold
+        );
+        return Ok(());
+    }
+
     for ccs_server in &transmission_area_election.servers {
         if servers_sent_to.contains(&ccs_server.name) {
             info!(

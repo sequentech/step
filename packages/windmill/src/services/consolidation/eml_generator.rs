@@ -36,6 +36,7 @@ const MIRU_CANDIDATE_AFFILIATION_REGISTERED_NAME: &str = "candidate-affiliation-
 const MIRU_CANDIDATE_AFFILIATION_PARTY: &str = "candidate-affiliation-party";
 pub const MIRU_AREA_CCS_SERVERS: &str = "area-ccs-servers";
 pub const MIRU_AREA_STATION_ID: &str = "area-station-id";
+pub const MIRU_AREA_THRESHOLD: &str = "area-threshold";
 pub const MIRU_TALLY_SESSION_DATA: &str = "tally-session-data";
 pub const MIRU_TRUSTEE_ID: &str = "trustee-id";
 pub const MIRU_TRUSTEE_NAME: &str = "trustee-name";
@@ -244,6 +245,7 @@ impl ValidateAnnotations for core::Area {
             vec![
                 prepend_miru_annotation(MIRU_AREA_CCS_SERVERS),
                 prepend_miru_annotation(MIRU_AREA_STATION_ID),
+                prepend_miru_annotation(MIRU_AREA_THRESHOLD),
             ],
             &annotations,
         )
