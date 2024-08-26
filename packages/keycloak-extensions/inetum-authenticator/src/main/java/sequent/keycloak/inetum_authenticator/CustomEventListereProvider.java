@@ -7,6 +7,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+
 import org.keycloak.events.Event;
 import org.keycloak.events.EventListenerProvider;
 import org.keycloak.events.admin.AdminEvent;
@@ -26,6 +28,7 @@ public class CustomEventListereProvider implements EventListenerProvider {
     private String tenantId = System.getenv("SUPER_ADMIN_TENANT_ID");
     private String clientId = System.getenv("KEYCLOAK_CLIENT_ID");
     private String clientSecret = System.getenv("KEYCLOAK_CLIENT_SECRET");
+    private String harvestUrl = System.getenv("HARVEST_DOMAIN");
     private String access_token;
     public CustomEventListereProvider(KeycloakSession session) {
         this.session = session;
@@ -37,6 +40,10 @@ public class CustomEventListereProvider implements EventListenerProvider {
 
     @Override
     public void onEvent(Event event) {
+        if (this.access_token == null) {
+            authenticate();
+        }
+        logEvent();
     }
 
     public void authenticate() {
@@ -60,18 +67,18 @@ public class CustomEventListereProvider implements EventListenerProvider {
                     .POST(HttpRequest.BodyPublishers.ofString(form))
                     .build();
     
-            HttpResponse<String> response;
-            try {
-                response = client.send(request, HttpResponse.BodyHandlers.ofString());
-                String responseBody = response.body();
-                Object access_token = JsonSerialization.readValue(responseBody, Map.class).get("access_token");
-                this.access_token = access_token.toString();
-                log.info(access_token);
-            } catch (IOException e) {
-                log.info("IOException: " + e.getMessage());
-            } catch (InterruptedException e) {
-                log.info("IOException: " + e.getMessage());
-            }
+            CompletableFuture<HttpResponse<String>> responseFuture;
+                responseFuture = client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+                responseFuture.thenAccept(response -> {
+                    String responseBody = response.body();
+                    Object access_token;
+                    try {
+                        access_token = JsonSerialization.readValue(responseBody, Map.class).get("access_token");
+                        this.access_token = access_token.toString();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                });
         }
 
     @Override
@@ -84,7 +91,22 @@ public class CustomEventListereProvider implements EventListenerProvider {
     }
 
     private void logEvent() {
-        
+        HttpClient client = HttpClient.newHttpClient();
+        String url = this.harvestUrl + "/immudb/log-event";
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .header("Content-Type", "application/json")
+                .header("Authorization", "Bearer " + this.access_token)
+                .POST(HttpRequest.BodyPublishers.ofString("{\"event\": \"test\"}"))
+                .build();
+        CompletableFuture<HttpResponse<String>> response = client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+        response.thenAccept(res -> {    
+            log.info("success");
+        }).exceptionally(e -> {
+            log.error("error");
+            return null;
+        });
     }
      
 } 
