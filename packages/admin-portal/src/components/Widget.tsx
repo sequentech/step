@@ -6,10 +6,10 @@ import React from "react"
 import {IKeysCeremonyLog as ITaskLog} from "@/services/KeyCeremony"
 import {Paper, Box, Typography, IconButton, Divider} from "@mui/material"
 import CloseIcon from "@mui/icons-material/Close"
+import {Visibility} from "@mui/icons-material"
 import CheckCircleIcon from "@mui/icons-material/CheckCircle"
 import ErrorIcon from "@mui/icons-material/Error"
 import LoaderIcon from "@mui/icons-material/HourglassEmpty"
-import NavigateNextIcon from "@mui/icons-material/NavigateNext"
 import {ETaskExecutionStatus} from "@sequentech/ui-core"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {styled} from "@mui/material/styles"
@@ -75,7 +75,7 @@ export const Widget: React.FC<WidgetProps> = ({type, status, onClose, logs}) => 
                 <StatusBox>
                     {getStatusIcon()}
                     <StyledIconButton size="small">
-                        <NavigateNextIcon onClick={handleNavigateNext} />
+                        <Visibility onClick={handleNavigateNext} />
                     </StyledIconButton>
                     <StyledIconButton size="small">
                         <CloseIcon onClick={onClose} />

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::tasks_execution::*;
 use crate::services::{database::get_hasura_pool, export_election_event::process_export};
-use crate::types::error::Result;
+use crate::types::error::{Error, Result};
 use crate::types::tasks::ETasks;
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
@@ -17,23 +17,28 @@ pub async fn export_election_event(
     tenant_id: String,
     election_event_id: String,
     document_id: String,
-    executed_by_user: String,
+    executed_by_user_id: String,
 ) -> Result<()> {
     // Insert the task execution record
     let task = post(
         &tenant_id,
         &election_event_id,
         ETasks::EXPORT_ELECTION_EVENT,
-        &executed_by_user,
+        &executed_by_user_id,
     )
     .await
     .context("Failed to insert task execution record")?;
 
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|err| anyhow!("Error getting hasura db pool: {err}"))?;
+    let mut hasura_db_client: DbClient = match get_hasura_pool().await.get().await {
+        Ok(client) => client,
+        Err(err) => {
+            update_fail(&task, "Failed to get Hasura DB pool").await;
+            return Err(Error::String(format!(
+                "Error getting Hasura DB pool: {}",
+                err
+            )));
+        }
+    };
 
     // Start a new database transaction
     let hasura_transaction = hasura_db_client
@@ -42,17 +47,26 @@ pub async fn export_election_event(
         .map_err(|err| anyhow!("Error starting hasura transaction: {err}"))?;
 
     // Process the export
-    process_export(&tenant_id, &election_event_id, &document_id)
-        .await
-        .context("Failed to export election event data")?;
+    match process_export(&tenant_id, &election_event_id, &document_id)
+        .await {
+            Ok(_) => (),
+            Err(err) => {
+                update_fail(&task, "Failed to export election event data").await?;
+                return Err(Error::String(format!("Failed to export election event data: {}", err)));
+            }
+        }
 
-    hasura_transaction
-        .commit()
-        .await
-        .context("Failed to insert task execution record")?;
+        match hasura_transaction.commit().await {
+            Ok(_) => (),
+            Err(err) => {
+                update_fail(&task, "Failed to insert task execution record").await?;
+                return Err(Error::String(format!("Commit failed: {}", err)));
+            }
+        };
 
     update_complete(&task)
         .await
         .context("Failed to update task execution status to COMPLETED")?;
+    
     Ok(())
 }
