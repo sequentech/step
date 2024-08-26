@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::{
-    create_transmission_package_service::update_transmission_package_annotations,
+    create_transmission_package_service::{
+        generate_all_servers_document, update_transmission_package_annotations,
+    },
     eml_generator::{
         find_miru_annotation, prepend_miru_annotation, ValidateAnnotations, MIRU_AREA_CCS_SERVERS,
         MIRU_AREA_STATION_ID, MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA, MIRU_TRUSTEE_ID,
@@ -15,7 +17,10 @@ use super::{
     transmission_package::create_transmission_package,
     zip::unzip_file,
 };
-use crate::{postgres::trustee::get_trustee_by_name, types::miru_plugin::MiruSignature};
+use crate::{
+    postgres::trustee::{get_all_trustees, get_trustee_by_name},
+    types::miru_plugin::MiruSignature,
+};
 use crate::{
     postgres::{
         area::get_area_by_id, document::get_document, election::get_election_by_id,
@@ -34,21 +39,19 @@ use crate::{
 };
 use anyhow::{anyhow, Context, Result};
 use chrono::{Local, Utc};
-use deadpool_postgres::Client as DbClient;
+use deadpool_postgres::{Client as DbClient, Transaction};
 use reqwest::multipart;
 use sequent_core::{
     ballot::Annotations, serialization::deserialize_with_path::deserialize_str,
     types::hasura::core::Trustee,
 };
+use std::collections::HashMap;
 use tempfile::NamedTempFile;
 use tracing::{info, instrument};
 
-pub fn create_server_signature(
-    eml_data: NamedTempFile,
-    trustee: Trustee,
-    private_key: &str,
-    public_key: &str,
-) -> Result<ACMTrustee> {
+// returns (trustee_id, trustee_name)
+#[instrument(err)]
+fn get_trustee_annotations(trustee: &Trustee) -> Result<(String, String)> {
     let trustee_annotations = trustee.get_valid_annotations()?;
 
     let trustee_id =
@@ -66,16 +69,69 @@ pub fn create_server_signature(
                 MIRU_PLUGIN_PREPEND, MIRU_TRUSTEE_NAME
             )
         })?;
+    Ok((trustee_id, trustee_name))
+}
 
+#[instrument(skip_all, err)]
+async fn update_signatures(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    new_miru_signature: &MiruSignature,
+    current_miru_signatures: &Vec<MiruSignature>,
+) -> Result<(Vec<ACMTrustee>, Vec<MiruSignature>)> {
+    let trustees = get_all_trustees(hasura_transaction, tenant_id).await?;
+
+    let mut new_miru_signatures: Vec<MiruSignature> = current_miru_signatures
+        .clone()
+        .into_iter()
+        .filter(|signature| signature.trustee_name != new_miru_signature.trustee_name)
+        .collect();
+    new_miru_signatures.push(new_miru_signature.clone());
+
+    let trustees_map: HashMap<String, Trustee> = trustees
+        .clone()
+        .iter()
+        .map(|trustee| (trustee.name.clone().unwrap_or_default(), trustee.clone()))
+        .collect::<HashMap<String, Trustee>>();
+
+    let acm_trustees: Vec<ACMTrustee> = new_miru_signatures
+        .clone()
+        .into_iter()
+        .map(|miru_signature| -> Result<ACMTrustee> {
+            let found_trustee = trustees_map
+                .get(&miru_signature.trustee_name)
+                .ok_or(anyhow!(
+                    "Can't find trustee by name {}",
+                    miru_signature.trustee_name
+                ))?;
+            let (trustee_id, trustee_name) = get_trustee_annotations(&found_trustee)?;
+
+            Ok(ACMTrustee {
+                id: trustee_id,
+                signature: miru_signature.signature.clone(),
+                publickey: miru_signature.pub_key.clone(),
+                name: trustee_name,
+            })
+        })
+        .collect::<Result<_>>()?;
+
+    Ok((acm_trustees, new_miru_signatures))
+}
+
+pub fn create_server_signature(
+    eml_data: NamedTempFile,
+    trustee: Trustee,
+    private_key: &str,
+    public_key: &str,
+) -> Result<MiruSignature> {
     let temp_pem_file_path = eml_data.path();
     let temp_pem_file_string = temp_pem_file_path.to_string_lossy().to_string();
 
     let signature = rsa_sign_data(private_key, &temp_pem_file_string)?;
-    Ok(ACMTrustee {
-        id: trustee_id,
+    Ok(MiruSignature {
+        trustee_name: trustee.name.clone().unwrap_or_default(),
+        pub_key: public_key.to_string(),
         signature: signature,
-        publickey: public_key.to_string(),
-        name: trustee_name,
     })
 }
 
@@ -186,21 +242,26 @@ pub async fn upload_transmission_package_signature_service(
         )
     })?;
 
-    let mut eml_data = get_document_as_temp_file(tenant_id, &document).await?;
+    let eml_data = get_document_as_temp_file(tenant_id, &document).await?;
     // RSA sign er file
     let server_signature = create_server_signature(eml_data, trustee, private_key, public_key)?;
+
+    let (new_acm_signatures, new_miru_signatures) = update_signatures(
+        &hasura_transaction,
+        tenant_id,
+        &server_signature,
+        &miru_document.signatures,
+    )
+    .await?;
     let mut new_signatures: Vec<MiruSignature> = miru_document
         .signatures
         .clone()
         .into_iter()
         .filter(|signature| &signature.trustee_name != trustee_name)
         .collect();
-    new_signatures.push(MiruSignature {
-        trustee_name: trustee_name.to_string(),
-        pub_key: server_signature.publickey.clone(),
-        signature: server_signature.signature.clone(),
-    });
+    new_signatures.push(server_signature.clone());
     // generate zip of zips
+    /*
 
     let all_servers_document = generate_all_servers_document(
         &hasura_transaction,
@@ -214,12 +275,11 @@ pub async fn upload_transmission_package_signature_service(
         tenant_id,
         time_zone.clone(),
         now_utc.clone(),
-        vec![],
+        new_acm_signatures,
     )
     .await?;
 
     // upload zip of zips
-    /*
     let area_name = area.name.clone().unwrap_or("".into());
     let new_transmission_package_data = MiruTransmissionPackageData {
         election_id: election_id.to_string(),
@@ -233,7 +293,7 @@ pub async fn upload_transmission_package_signature_service(
             transaction_id: transaction_id.clone(),
             servers_sent_to: vec![],
             created_at: ISO8601::to_string(&now_local),
-            signatures: vec![],
+            signatures: new_miru_signatures,
         }],
         logs: vec![create_transmission_package_log(
             &now_local,
