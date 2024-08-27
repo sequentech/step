@@ -2519,6 +2519,7 @@
     "alias" : "otp-email",
     "config" : {
       "senderId" : "Keycloak",
+      "resendCoudActivationTimer" : "60",
       "otpMethod" : "email",
       "telUserAttribute" : "sequent.read-only.mobile-number",
       "length" : "6",
@@ -2542,6 +2543,7 @@
     "alias" : "otp-sms",
     "config" : {
       "senderId" : "Keycloak",
+      "resendCoudActivationTimer" : "60",
       "telUserAttribute" : "sequent.read-only.mobile-number",
       "length" : "6",
       "ttl" : "300",
