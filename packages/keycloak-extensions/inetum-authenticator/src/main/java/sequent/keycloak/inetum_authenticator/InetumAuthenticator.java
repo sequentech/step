@@ -227,6 +227,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       } else if (execution.isConditional() || execution.isAlternative()) {
         context.attempted();
       }
+      return;
     }
 
     boolean attributesValidated = validateAttributes(context, result);
@@ -246,6 +247,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       } else if (execution.isConditional() || execution.isAlternative()) {
         context.attempted();
       }
+      return;
     }
 
     boolean scoreOk = validateInetumScore(context, result);
@@ -265,6 +267,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       } else if (execution.isConditional() || execution.isAlternative()) {
         context.attempted();
       }
+      return;
     }
 
     // valid
