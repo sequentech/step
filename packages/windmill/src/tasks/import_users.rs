@@ -9,7 +9,9 @@ use crate::postgres::keycloak_realm;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::documents::get_document_as_temp_file;
 use crate::services::s3;
+use crate::services::tasks_execution::*;
 use crate::types::error::{Error, Result};
+use crate::types::tasks::ETasks;
 use anyhow::{anyhow, Context};
 use base64::prelude::*;
 use celery::error::TaskError;
@@ -454,53 +456,61 @@ impl ImportUsersBody {
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 2)]
-pub async fn import_users(body: ImportUsersBody) -> Result<()> {
+pub async fn import_users(body: ImportUsersBody, executed_by_user: String) -> Result<()> {
+    // Insert the task execution record
+    let task = post(
+        &body.tenant_id.clone(),
+        &body.election_event_id.clone().unwrap_or_default(),
+        ETasks::IMPORT_USERS,
+        &executed_by_user,
+    )
+    .await
+    .context("Failed to insert task execution record")?;
+
     let auth_headers = keycloak::get_client_credentials()
         .await
         .with_context(|| "Error obtaining keycloak client credentials")?;
-    let _election_event = match body.election_event_id.clone() {
-        None => None,
-        Some(election_event_id) => {
-            let event = get_election_event(
-                auth_headers.clone(),
-                body.tenant_id.clone(),
-                election_event_id.clone(),
-            )
-            .await?
-            .data
-            .ok_or(anyhow!("Election event not found: {}", election_event_id))?
-            .sequent_backend_election_event;
-            if (event.is_empty()) {
-                None
-            } else {
-                Some(event[0].clone())
-            }
+
+    let mut hasura_db_client: DbClient = match get_hasura_pool().await.get().await {
+        Ok(client) => client,
+        Err(err) => {
+            update_fail(&task, "Failed to get Hasura DB pool").await?;
+            return Err(Error::String(format!(
+                "Error getting Hasura DB pool: {}",
+                err
+            )));
         }
     };
 
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|err| anyhow!("Error getting hasura db pool: {err}"))?;
+    let hasura_transaction = match hasura_db_client.transaction().await {
+        Ok(transaction) => transaction,
+        Err(err) => {
+            update_fail(&task, "Failed to start Hasura transaction").await?;
+            return Err(Error::String(format!(
+                "Error starting Hasura transaction: {err}"
+            )));
+        }
+    };
 
-    let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .map_err(|err| anyhow!("Error starting hasura transaction: {err}"))?;
+    let mut keycloak_db_client: DbClient = match get_keycloak_pool().await.get().await {
+        Ok(client) => client,
+        Err(err) => {
+            update_fail(&task, "Failed to get Keycloak DB pool").await?;
+            return Err(Error::String(format!(
+                "Error getting Keycloak DB pool: {err}"
+            )));
+        }
+    };
 
-    let mut keycloak_db_client: DbClient = get_keycloak_pool()
-        .await
-        .get()
-        .await
-        .map_err(|err| anyhow!("Error getting keycloak db pool: {err}"))?;
-
-    // we'll perform insert in a single keycloaktransaction. It either works or
-    // it doesn't
-    let keycloak_transaction = keycloak_db_client
-        .transaction()
-        .await
-        .map_err(|err| anyhow!("Error starting keycloak transaction: {err}"))?;
+    let keycloak_transaction = match keycloak_db_client.transaction().await {
+        Ok(transaction) => transaction,
+        Err(err) => {
+            update_fail(&task, "Failed to start Keycloak transaction").await?;
+            return Err(Error::String(format!(
+                "Error starting Keycloak transaction: {err}"
+            )));
+        }
+    };
 
     keycloak_transaction
         .simple_query(
@@ -542,7 +552,12 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
     info!("headers: {headers:?}");
     for header in headers.iter() {
         if !HEADER_RE.is_match(header) {
-            return Err(Error::from(format!(
+            update_fail(
+                &task,
+                &format!("CSV Header contains characters not allowed: {header}"),
+            )
+            .await?;
+            return Err(Error::String(format!(
                 "CSV Header contains characters not allowed: {header}"
             )));
         }
@@ -576,28 +591,39 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
         )
         .with_context(|| "Error obtaining insert_user_query query")?;
 
-    // Execute the create table query
-    keycloak_transaction
+    if let Err(err) = keycloak_transaction
         .execute(create_table_query.as_str(), &[])
         .await
-        .with_context(|| "Error executing create_table_query statement")?;
+    {
+        update_fail(&task, "Error executing create table query").await?;
+        return Err(Error::String(format!(
+            "Error executing create table query: {err}"
+        )));
+    }
 
-    // Prepare for COPY FROM STDIN
-    let sink = keycloak_transaction
-        .copy_in(copy_from_query.as_str())
-        .await
-        .with_context(|| "Error preparing COPY transaction")?;
+    let sink = match keycloak_transaction.copy_in(copy_from_query.as_str()).await {
+        Ok(sink) => sink,
+        Err(err) => {
+            update_fail(&task, "Error preparing COPY transaction").await?;
+            return Err(Error::String(format!(
+                "Error preparing COPY transaction: {err}"
+            )));
+        }
+    };
     let writer = BinaryCopyInWriter::new(sink, &voters_table_processed_columns_types);
     pin_mut!(writer);
 
-    // Stream data from CSV to sink
-    let mut owned_data: Vec<String> = Vec::new(); // To store owned string data
-
+    let mut owned_data: Vec<String> = Vec::new();
     for result in rdr.records() {
-        let record = result.with_context(|| "Error reading CSV record")?;
-        owned_data.clear(); // Clear previously stored data
+        let record = match result {
+            Ok(record) => record,
+            Err(err) => {
+                update_fail(&task, "Error reading CSV record").await?;
+                return Err(Error::String(format!("Error reading CSV record: {err}")));
+            }
+        };
+        owned_data.clear();
 
-        // Store owned data, and process it
         let mut password_salt: Option<String> = None;
         let mut hashed_password: Option<String> = None;
         for (data, column_name) in record.iter().zip(voters_table_input_columns_names.iter()) {
@@ -623,16 +649,14 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
                 owned_data.push(processed_data);
             }
         }
-        info!("owned_data: {owned_data:?}");
+
         if voters_table_processed_columns_names.contains(&*HASHED_PASSWORD_COL_NAME) {
-            info!("password data: salt={password_salt:?}, hashed_password={hashed_password:?}");
-            owned_data.push(password_salt.ok_or_else(|| anyhow!("password salt empty"))?);
-            owned_data.push(hashed_password.ok_or_else(|| anyhow!("hashed password empty"))?);
+            owned_data.push(password_salt.ok_or_else(|| anyhow!("Password salt empty"))?);
+            owned_data.push(hashed_password.ok_or_else(|| anyhow!("Hashed password empty"))?);
         }
 
         if !voters_table_input_columns_names.contains(&*USERNAME_COL_NAME) {
             let username = Uuid::new_v4().to_string();
-            info!("user data: random username={username:?}");
             owned_data.push(username);
         }
 
@@ -641,33 +665,46 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
             .map(|data| data as &(dyn tokio_postgres::types::ToSql + Sync))
             .collect();
 
-        writer
-            .as_mut()
-            .write(row.as_slice())
-            .await
-            .with_context(|| "Error writing to COPY IN stdin transaction")?;
+        if let Err(err) = writer.as_mut().write(row.as_slice()).await {
+            update_fail(&task, "Error writing to COPY IN transaction").await?;
+            return Err(Error::String(format!(
+                "Error writing to COPY IN transaction: {err}"
+            )));
+        }
     }
 
-    writer
-        .finish()
-        .await
-        .with_context(|| "Error finishing COPY IN transaction")?;
+    if let Err(err) = writer.finish().await {
+        update_fail(&task, "Error finishing COPY IN transaction").await?;
+        return Err(Error::String(format!(
+            "Error finishing COPY IN transaction: {err}"
+        )));
+    }
 
-    // Complete the copy process
-
-    // Execute the insert users query from the temporal table
-    let num_rows = keycloak_transaction
+    let num_rows = match keycloak_transaction
         .execute(insert_user_query.as_str(), &[])
         .await
-        .with_context(|| "Error executing INSERT USER transaction")?;
+    {
+        Ok(num_rows) => num_rows,
+        Err(err) => {
+            update_fail(&task, "Error executing INSERT USER transaction").await?;
+            return Err(Error::String(format!(
+                "Error executing INSERT USER transaction: {err}"
+            )));
+        }
+    };
 
     info!("num_rows = {num_rows}");
 
-    // Commit the transaction
-    keycloak_transaction
-        .commit()
+    if let Err(err) = keycloak_transaction.commit().await {
+        update_fail(&task, "Error committing transaction").await?;
+        return Err(Error::String(format!(
+            "Error committing transaction: {err}"
+        )));
+    }
+
+    update_complete(&task)
         .await
-        .with_context(|| "error committing transaction")?;
+        .context("Failed to update task execution status to COMPLETED")?;
 
     Ok(())
 }

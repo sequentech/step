@@ -10,4 +10,5 @@ use strum_macros::EnumString;
 pub enum ETasks {
     EXPORT_ELECTION_EVENT,
     IMPORT_CANDIDATES,
+    IMPORT_USERS,
 }

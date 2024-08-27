@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {ReactElement, useContext} from "react"
+import React, {ReactElement, useContext, useState} from "react"
 import {
     DatagridConfigurable,
     List,
@@ -50,7 +50,7 @@ import {MANUAL_VERIFICATION} from "@/queries/ManualVerification"
 import {useLazyQuery, useMutation} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
-import {IRole, IUser} from "@sequentech/ui-core"
+import {ETaskExecutionStatus, IRole, IUser} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {FormStyles} from "@/components/styles/FormStyles"
@@ -58,6 +58,8 @@ import {EXPORT_USERS} from "@/queries/ExportUsers"
 import {EXPORT_TENANT_USERS} from "@/queries/ExportTenantUsers"
 import {DownloadDocument} from "./DownloadDocument"
 import {IMPORT_USERS} from "@/queries/ImportUsers"
+import {ETasksExecution} from "@/types/tasksExecution"
+import {Widget, WidgetStateProps} from "@/components/Widget"
 
 const OMIT_FIELDS: Array<string> = ["id", "email_verified"]
 
@@ -109,6 +111,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [getDocument, {data: documentData}] = useLazyQuery<GetDocumentQuery>(GET_DOCUMENT)
     const documentUrlRef = React.useRef(documentUrl)
     const {getDocumentUrl} = useGetPublicDocumentUrl()
+    const [openWidget, setWidget] = useState<WidgetStateProps | undefined>(undefined)
 
     const [openSendCommunication, setOpenSendCommunication] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
@@ -533,20 +536,40 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [importUsers] = useMutation<ImportUsersMutation>(IMPORT_USERS)
 
     const handleImportVoters = async (documentId: string, sha256: string) => {
-        let {data, errors} = await importUsers({
-            variables: {
-                tenantId,
-                documentId,
-                electionEventId: electionEvent.id,
-            },
-        })
+        try {
+            setWidget({
+                type: ETasksExecution.IMPORT_USERS,
+                status: ETaskExecutionStatus.IN_PROGRESS,
+            })
+            let {data, errors} = await importUsers({
+                variables: {
+                    tenantId,
+                    documentId,
+                    electionEventId: electionEvent.id,
+                },
+            })
+            console.log({data})
 
-        refresh()
+            refresh()
 
-        if (!errors) {
-            notify(t("electionEventScreen.import.importVotersSuccess"), {type: "success"})
-        } else {
-            notify(t("electionEventScreen.import.importVotersError"), {type: "error"})
+            if (!errors) {
+                setWidget({
+                    type: ETasksExecution.IMPORT_USERS,
+                    status: ETaskExecutionStatus.SUCCESS,
+                })
+                notify(t("electionEventScreen.import.importVotersSuccess"), {type: "success"})
+            } else {
+                setWidget({
+                    type: ETasksExecution.IMPORT_USERS,
+                    status: ETaskExecutionStatus.FAILED,
+                })
+                notify(t("electionEventScreen.import.importVotersError"), {type: "error"})
+            }
+        } catch (err) {
+            setWidget({
+                type: ETasksExecution.IMPORT_USERS,
+                status: ETaskExecutionStatus.FAILED,
+            })
         }
     }
 
@@ -743,6 +766,13 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     ) : null}
                 </FormStyles.ReservedProgressSpace>
             </Dialog>
+            {openWidget && (
+                <Widget
+                    type={openWidget.type}
+                    status={openWidget.status}
+                    onClose={() => setWidget(undefined)}
+                />
+            )}
         </>
     )
 }

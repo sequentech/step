@@ -44,6 +44,11 @@ const StyledIconButton = styled(IconButton)({
     marginLeft: 8,
 })
 
+export interface WidgetStateProps {
+    type: ETasksExecution
+    status: ETaskExecutionStatus
+}
+
 interface WidgetProps {
     type: ETasksExecution
     status: ETaskExecutionStatus

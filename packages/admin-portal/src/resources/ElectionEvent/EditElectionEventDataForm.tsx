@@ -74,7 +74,7 @@ import {useWatch} from "react-hook-form"
 import {convertToNumber} from "@/lib/helpers"
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {ETasksExecution} from "@/types/tasksExecution"
-import {Widget} from "@/components/Widget"
+import {Widget, WidgetStateProps} from "@/components/Widget"
 import {ETaskExecutionStatus} from "@sequentech/ui-core"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
@@ -91,10 +91,6 @@ const ElectionRows = styled.div`
     margin-bottom: 0.1rem;
     padding: 1rem;
 `
-interface WidgetProps {
-    type: ETasksExecution
-    status: ETaskExecutionStatus
-}
 
 interface ManagedNumberInputProps {
     source: string
@@ -135,7 +131,7 @@ interface ExportWrapperProps {
     setOpenExport: (val: boolean) => void
     exportDocumentId: string | undefined
     setExportDocumentId: (val: string | undefined) => void
-    setWidget: (val: WidgetProps) => void
+    setWidget: (val: WidgetStateProps) => void
 }
 
 const ExportWrapper: React.FC<ExportWrapperProps> = ({
@@ -242,7 +238,7 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [valueMaterials, setValueMaterials] = useState(0)
     const [expanded, setExpanded] = useState("election-event-data-general")
     const [languageSettings, setLanguageSettings] = useState<Array<string>>(["en"])
-    const [openWidget, setWidget] = useState<WidgetProps | undefined>(undefined)
+    const [openWidget, setWidget] = useState<WidgetStateProps | undefined>(undefined)
     const [openExport, setOpenExport] = React.useState(false)
     const [exportDocumentId, setExportDocumentId] = React.useState<string | undefined>()
     const [openDrawer, setOpenDrawer] = useState<boolean>(false)

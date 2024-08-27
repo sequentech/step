@@ -17,14 +17,14 @@ pub async fn export_election_event(
     tenant_id: String,
     election_event_id: String,
     document_id: String,
-    executed_by_user_id: String,
+    executed_by_user: String,
 ) -> Result<()> {
     // Insert the task execution record
     let task = post(
         &tenant_id,
         &election_event_id,
         ETasks::EXPORT_ELECTION_EVENT,
-        &executed_by_user_id,
+        &executed_by_user,
     )
     .await
     .context("Failed to insert task execution record")?;
@@ -47,26 +47,28 @@ pub async fn export_election_event(
         .map_err(|err| anyhow!("Error starting hasura transaction: {err}"))?;
 
     // Process the export
-    match process_export(&tenant_id, &election_event_id, &document_id)
-        .await {
-            Ok(_) => (),
-            Err(err) => {
-                update_fail(&task, "Failed to export election event data").await?;
-                return Err(Error::String(format!("Failed to export election event data: {}", err)));
-            }
+    match process_export(&tenant_id, &election_event_id, &document_id).await {
+        Ok(_) => (),
+        Err(err) => {
+            update_fail(&task, "Failed to export election event data").await?;
+            return Err(Error::String(format!(
+                "Failed to export election event data: {}",
+                err
+            )));
         }
+    }
 
-        match hasura_transaction.commit().await {
-            Ok(_) => (),
-            Err(err) => {
-                update_fail(&task, "Failed to insert task execution record").await?;
-                return Err(Error::String(format!("Commit failed: {}", err)));
-            }
-        };
+    match hasura_transaction.commit().await {
+        Ok(_) => (),
+        Err(err) => {
+            update_fail(&task, "Failed to insert task execution record").await?;
+            return Err(Error::String(format!("Commit failed: {}", err)));
+        }
+    };
 
     update_complete(&task)
         .await
         .context("Failed to update task execution status to COMPLETED")?;
-    
+
     Ok(())
 }
