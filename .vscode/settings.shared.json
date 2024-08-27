@@ -15,5 +15,5 @@
     "docker.views.dockerNetworks.visibility": "collapsed",
     "docker.views.dockerVolumes.visibility": "collapsed",
     "docker.views.dockerContexts.visibility": "collapsed",
-    "workbench.editor.enablePreview": false,
+    "workbench.editor.enablePreview": false
 }

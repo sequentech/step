@@ -37,11 +37,8 @@ services:
 
   postgres:
     profiles: ["full", "base"]
-    image: sequentech.local/postgresql
+    image: ghcr.io/sequentech/step/postgres:latest
     container_name: postgres
-    build:
-      context: ./postgresql
-      dockerfile: Dockerfile
     restart: unless-stopped
     volumes:
       - db_data:/var/lib/postgresql/data
@@ -98,10 +95,7 @@ services:
   configure-minio:
     profiles: ["full", "base"]
     container_name: configure-minio
-    build:
-      context: ./minio
-      dockerfile: Dockerfile
-    #image: minio/mc
+    image: ghcr.io/sequentech/step/minio:latest
     depends_on:
       - minio
     environment:
@@ -118,9 +112,7 @@ services:
   vault:
     profiles: ["full", "base"]
     container_name: vault
-    build:
-      context: ./vault
-      dockerfile: Dockerfile
+    image: ghcr.io/sequentech/step/vault:latest
     restart: on-failure:10
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
@@ -201,7 +193,7 @@ services:
 
   postgres-keycloak:
     profiles: ["full", "base"]
-    image: sequentech.local/postgresql
+    image: ghcr.io/sequentech/step/postgres:latest
     container_name: postgres-keycloak
     restart: unless-stopped
     volumes:
@@ -225,12 +217,10 @@ services:
   keycloak:
     profiles: ["full", "base"]
     container_name: keycloak
-    build:
-      context: ../packages/
-      dockerfile: Dockerfile.keycloak
+    image: ghcr.io/sequentech/step/keycloak:latest
     restart: always
     ports:
-      - 8090:8090
+      - 127.0.0.1:8090:8090
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     environment:
@@ -282,18 +272,15 @@ services:
 
   admin-portal:
     profiles: ["full"]
-    image: sequentech.local/frontend
+    image: ghcr.io/sequentech/step/yarn:latest
     container_name: admin-portal
-    build:
-      context: ../packages/
-      dockerfile: Dockerfile
     #restart: always
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     ports:
-      - 3002:3000
+      - 3002:3002
     stdin_open: true
-    entrypoint: ["./init.sh", "start:admin:container"]
+    entrypoint: ["yarn", "start:admin-portal"]
     volumes:
        - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
     environment:
@@ -303,7 +290,7 @@ services:
 
   voting-portal:
     profiles: ["full"]
-    image: sequentech.local/frontend
+    image: ghcr.io/sequentech/step/yarn:latest
     container_name: voting-portal
     # depending on the `admin-portal` container to ensure that the
     # `sequentech.local/frontend` image is locally build, so that we can reuse
@@ -316,17 +303,14 @@ services:
     ports:
       - 3000:3000
     stdin_open: true
-    entrypoint: ["./init.sh", "start"]
+    entrypoint: ["yarn", "start:voting-portal"]
     volumes:
        - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
 
   immudb:
     profiles: ["full", "base"]
     container_name: immudb
-    image: sequentech.local/immudb
-    build:
-      context: ../packages/
-      dockerfile: ./Dockerfile.immudb
+    image: ghcr.io/sequentech/step/immudb:latest
     restart: always
     environment:
       - IMMUDB_PGSQL_SERVER=true
@@ -345,11 +329,8 @@ services:
   harvest:
     profiles: ["full", "base"]
     stdin_open: true
-    image: sequentech.local/cargo-packages
+    image: ghcr.io/sequentech/step/cargo-packages:latest
     container_name: harvest
-    build:
-      context: ../packages/
-      dockerfile: ./Dockerfile.cargo-packages
     volumes:
       - ../packages/:/app
     working_dir: /app/harvest
@@ -506,11 +487,8 @@ services:
   # Create collection in immudb
   immudb-log-audit-init:
     profiles: ["full", "base"]
-    image: sequentech.local/immudb-log-audit
+    image: ghcr.io/sequentech/step/immudb-log-audit:latest
     container_name: immudb-log-audit-init
-    build:
-      context: ../vendor/immudb-log-audit
-      dockerfile: Dockerfile.immudb
     command: >
       create sql pgaudit_hasura
       --parser pgauditjsonlog
@@ -527,7 +505,7 @@ services:
   # Send audit logs to immudb
   immudb-log-audit:
     profiles: ["full", "base"]
-    image: sequentech.local/immudb-log-audit
+    image: ghcr.io/sequentech/step/immudb-log-audit:latest
     container_name: immudb-log-audit
     command: >
       tail file pgaudit_hasura "/logs/*.json"
@@ -557,7 +535,7 @@ services:
   # Create collection in immudb
   immudb-log-audit-init-keycloak:
     profiles: ["full", "base"]
-    image: sequentech.local/immudb-log-audit
+    image: ghcr.io/sequentech/step/immudb-log-audit:latest
     container_name: immudb-log-audit-init-keycloak
     command: >
       create sql pgaudit_keycloak
@@ -576,7 +554,7 @@ services:
   # Send audit logs to immudb
   immudb-log-audit-keycloak:
     profiles: ["full", "base"]
-    image: sequentech.local/immudb-log-audit
+    image: ghcr.io/sequentech/step/immudb-log-audit:latest
     container_name: immudb-log-audit-keycloak
     command: >
       tail file pgaudit_keycloak "/logs/*.json"
@@ -615,7 +593,7 @@ services:
   immudb-init:
     profiles: ["full", "base"]
     stdin_open: true
-    image: sequentech.local/cargo-packages
+    image: ghcr.io/sequentech/step/cargo-packages:latest
     container_name: immudb-init
     # make sure to depend on the `harvest` container to ensure
     # that the `sequentech.local/cargo-packages` image is locally build, so
@@ -653,7 +631,7 @@ services:
   windmill:
     profiles: ["full", "base"]
     stdin_open: true
-    image: sequentech.local/cargo-packages
+    image: ghcr.io/sequentech/step/cargo-packages:latest
     container_name: windmill
     # make sure to depend on the `harvest` container to ensure
     # that the `sequentech.local/cargo-packages` image is locally build, so
@@ -757,7 +735,7 @@ services:
   beat:
     profiles: ["full"]
     stdin_open: true
-    image: sequentech.local/cargo-packages
+    image: ghcr.io/sequentech/step/cargo-packages:latest
     container_name: beat
     # make sure to depend on the `harvest` container to ensure
     # that the `sequentech.local/cargo-packages` image is locally build, so

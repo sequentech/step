@@ -1,8 +1,7 @@
-#!/bin/bash -i
+#!/bin/bash
 # SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
-
 if [ -z "$SUPER_ADMIN_TENANT_ID" ] || [ -z "$HASURA_ENDPOINT" ] || [ -z "$KEYCLOAK_URL" ] || [ -z "$KEYCLOAK_ADMIN" ] || [ -z "$KEYCLOAK_CLI_CLIENT_ID" ] || [ -z "$KEYCLOAK_CLI_CLIENT_SECRET" ]; then
     echo "missing default environments for auto config"
 else
