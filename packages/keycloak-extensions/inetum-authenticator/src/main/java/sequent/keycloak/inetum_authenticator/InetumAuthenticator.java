@@ -485,23 +485,23 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
                 "PhilSys ID": [
                     {
                         "authnoteAttributeId": "sequent.read-only.id-card-number",
-                        "inetumAttributePath": "/response/mzr/personal_number"
+                        "inetumAttributePath": "/response/mrz/personal_number"
                     },
                     {
                         "authnoteAttributeId": "firstName",
-                        "inetumAttributePath": "/response/mzr/given_names"
+                        "inetumAttributePath": "/response/mrz/given_names"
                     }
                 ],
                 "Philippine Passport": [
                     {
                         "authnoteAttributeId": "sequent.read-only.id-card-number",
-                        "inetumAttributePath": "/response/mzr/personal_number"
+                        "inetumAttributePath": "/response/mrz/personal_number"
                     }
                 ],
                 "Philippine Passport": [
                     {
                         "authnoteAttributeId": "sequent.read-only.id-card-number",
-                        "inetumAttributePath": "/response/mzr/personal_number"
+                        "inetumAttributePath": "/response/mrz/personal_number"
                     }
                 ]
             }
