@@ -33,7 +33,6 @@ public class CustomEventListereProvider implements EventListenerProvider {
     public CustomEventListereProvider(KeycloakSession session) {
         this.session = session;
         authenticate();
-
     }
     @Override
     public void close() {}
@@ -43,6 +42,7 @@ public class CustomEventListereProvider implements EventListenerProvider {
         if (this.access_token == null) {
             authenticate();
         }
+        log.info("access token: " + this.access_token);
         logEvent();
     }
 
@@ -69,16 +69,15 @@ public class CustomEventListereProvider implements EventListenerProvider {
     
             CompletableFuture<HttpResponse<String>> responseFuture;
                 responseFuture = client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
-                responseFuture.thenAccept(response -> {
-                    String responseBody = response.body();
-                    Object access_token;
+                    String responseBody = responseFuture.join().body();
+                    Object accessToken;
                     try {
-                        access_token = JsonSerialization.readValue(responseBody, Map.class).get("access_token");
-                        this.access_token = access_token.toString();
+                        accessToken = JsonSerialization.readValue(responseBody, Map.class).get("access_token");
+                        log.info("authenticate " + accessToken.toString());
+                        this.access_token = accessToken.toString();
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
-                });
         }
 
     @Override
@@ -92,19 +91,19 @@ public class CustomEventListereProvider implements EventListenerProvider {
 
     private void logEvent() {
         HttpClient client = HttpClient.newHttpClient();
-        String url = this.harvestUrl + "/immudb/log-event";
-
+        String url = "http://" + this.harvestUrl + "/immudb/log-event";
+        log.info("url: " + url);
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .header("Content-Type", "application/json")
                 .header("Authorization", "Bearer " + this.access_token)
-                .POST(HttpRequest.BodyPublishers.ofString("{\"event\": \"test\"}"))
+                .POST(HttpRequest.BodyPublishers.ofString("{\"election_event_id\": \"test\", \"messageType\": \"testMessageType\"}"))
                 .build();
         CompletableFuture<HttpResponse<String>> response = client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
         response.thenAccept(res -> {    
             log.info("success");
         }).exceptionally(e -> {
-            log.error("error");
+            log.error(e);
             return null;
         });
     }

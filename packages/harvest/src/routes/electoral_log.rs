@@ -79,7 +79,7 @@ pub async fn create_electoral_log(
     let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
         .with_context(|| "error getting election event")
         .map_err(|e| (rocket::http::Status::InternalServerError, format!("{:?}", e)))?;
-    
+    info!("electoral logs success");
 
     Ok(Json(LogEventOutput {
         id: input.election_event_id.clone(),
