@@ -115,7 +115,7 @@ pub async fn update_transmission_package_annotations(
         .clone()
         .into_iter()
         .filter(|data| {
-            data.area_id != area_id.to_string() && data.election_id != election_id.to_string()
+            data.area_id != area_id.to_string() || data.election_id != election_id.to_string()
         })
         .collect();
     new_transmission_data.push(new_transmission_package_data);

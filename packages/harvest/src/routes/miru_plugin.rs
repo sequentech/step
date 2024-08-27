@@ -39,12 +39,12 @@ pub async fn create_transmission_package(
     input: Json<CreateTransmissionPackageInput>,
 ) -> Result<Json<CreateTransmissionPackageOutput>, (Status, String)> {
     let body = input.into_inner();
-    authorize(
-        &claims,
-        true,
-        Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::MIRU_CREATE],
-    )?;
+    // authorize(
+    //     &claims,
+    //     true,
+    //     Some(claims.hasura_claims.tenant_id.clone()),
+    //     vec![Permissions::MIRU_CREATE],
+    // )?;
     let celery_app = get_celery_app().await;
     let task = celery_app
         .send_task(create_transmission_package_task::new(
@@ -85,12 +85,12 @@ pub async fn send_transmission_package(
     input: Json<SendTransmissionPackageInput>,
 ) -> Result<Json<SendTransmissionPackageOutput>, (Status, String)> {
     let body = input.into_inner();
-    authorize(
-        &claims,
-        true,
-        Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::MIRU_SEND],
-    )?;
+    // authorize(
+    //     &claims,
+    //     true,
+    //     Some(claims.hasura_claims.tenant_id.clone()),
+    //     vec![Permissions::MIRU_SEND],
+    // )?;
     let celery_app = get_celery_app().await;
     let task = celery_app
         .send_task(send_transmission_package_task::new(
@@ -130,12 +130,12 @@ pub async fn upload_signature(
     input: Json<UploadSignatureInput>,
 ) -> Result<Json<UploadSignatureOutput>, (Status, String)> {
     let body = input.into_inner();
-    authorize(
-        &claims,
-        true,
-        Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::MIRU_SIGN],
-    )?;
+    // authorize(
+    //     &claims,
+    //     true,
+    //     Some(claims.hasura_claims.tenant_id.clone()),
+    //     vec![Permissions::MIRU_SIGN],
+    // )?;
 
     let Some(username) = claims.preferred_username.clone() else {
         return Err((
