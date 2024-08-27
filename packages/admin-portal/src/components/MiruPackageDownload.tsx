@@ -5,7 +5,7 @@
 import {Box, Button, CircularProgress, Menu, MenuItem} from "@mui/material"
 import React, {useState} from "react"
 import {useTranslation} from "react-i18next"
-import {FetchDocumentQuery} from "@/gql/graphql"
+import {FetchDocumentQuery, Sequent_Backend_Document} from "@/gql/graphql"
 import {Dialog} from "@sequentech/ui-essentials"
 import {downloadUrl} from "@sequentech/ui-core"
 import {EExportFormat, IResultDocuments} from "@/types/results"
@@ -14,6 +14,8 @@ import {FETCH_DOCUMENT} from "@/queries/FetchDocument"
 import {IMiruDocument} from "@/types/miru"
 import {TallyStyles} from "@/components/styles/TallyStyles"
 import DownloadIcon from "@mui/icons-material/Download"
+import { useGetOne } from "react-admin"
+import { useTenantStore } from "@/providers/TenantContextProvider"
 
 interface PerformDownloadProps {
     onDownload: () => void
@@ -73,6 +75,12 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) =
     const [openModal, setOpenModal] = useState(false)
     const [performDownload, setPerformDownload] = useState<IDocumentData | null>(null)
     const [documentToDownload, setDocumentToDownload] = useState<IMiruDocument | null>(null)
+	const [tenantId] = useTenantStore()
+	const { data: document } = useGetOne<Sequent_Backend_Document>("sequent_backend_document", {
+		id: documentToDownload?.document_id ?? tenantId,
+		meta: { tenant_id: tenantId },
+	})
+
     const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
         event.preventDefault()
         event.stopPropagation()
