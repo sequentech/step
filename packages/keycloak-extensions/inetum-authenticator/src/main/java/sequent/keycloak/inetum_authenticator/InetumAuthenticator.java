@@ -13,6 +13,8 @@ import java.text.Collator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.Config;
 import org.keycloak.authentication.AuthenticationFlowContext;
@@ -354,6 +356,17 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
         }
       }
 
+      String configScore = configMap.get(Utils.SCORING_THRESHOLD);
+      int minimumScore = Integer.parseInt(Optional.<String>ofNullable(configScore).orElse("50"));
+      log.infov("verifyResults: minimumScore {0}", minimumScore);
+
+      boolean scoreOk = validateInetumScore(minimumScore, response);
+
+      if(!scoreOk) {
+        log.error("Found a score that is less than minimum allowed.");
+        return false;
+      }
+
       log.info("verifyResults: TRUE");
 
       sessionModel.setAuthNote(
@@ -364,6 +377,33 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       log.error("verifyResults(): FALSE; Exception: " + error.toString());
       return false;
     }
+  }
+
+  private boolean validateInetumScore(int minimumScore, SimpleHttp.Response response) {
+    try {
+      JsonNode scores = response.asJson().at("/response/resultData");
+
+      if(scores != null) {
+        var iter = scores.fields();
+
+        while (iter.hasNext()) {
+          var field = iter.next();
+
+          int score = Integer.parseInt(field.getValue().asText());
+          log.infov("{0} : {1}", field.getKey(), score);
+
+          // We ignore the scores from the validations that we did not run.
+          if (score != -1 && score < minimumScore) {
+            return false;
+          }
+        }
+      }
+    } catch (IOException e) {
+      e.printStackTrace();
+      return false;
+    }
+
+    return true;
   }
 
   private String getValueFromInetumResponse(SimpleHttp.Response response, String inetumField) {
@@ -475,6 +515,12 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
             "The name of the user validation status attribute.",
             ProviderConfigProperty.STRING_TYPE,
             "sequent.read-only.id-card-number-validated"),
+        new ProviderConfigProperty(
+            Utils.SCORING_THRESHOLD,
+            "Minimum validation score threshold",
+            "A number representing the minim value for inetum score between 0 and 100",
+            ProviderConfigProperty.STRING_TYPE,
+            "50"),
         new ProviderConfigProperty(
             Utils.ATTRIBUTES_TO_VALIDATE,
             "Attributes to validate using inetum data",
