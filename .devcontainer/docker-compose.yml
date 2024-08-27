@@ -6,10 +6,7 @@ version: "3.6"
 services:
   devcontainer:
     profiles: ["full", "base"]
-    image: ghcr.io/cachix/devenv:latest
-    build:
-      args:
-        log-level: TRACE
+    image: ghcr.io/cachix/devenv:v1.0.7
     container_name: devcontainer
     volumes:
       - ../..:/workspaces:cached
