@@ -23,6 +23,7 @@
 
 	"userEnvProbe": "loginShell",
 	"updateRemoteUserUID": true,
+	"remoteUser": "root",
 
 	"onCreateCommand": "direnv allow && devenv shell bash -- -c './.devcontainer/scripts/fix-vscode-settings-nix.sh'",
 	"updateContentCommand": "direnv allow && devenv shell bash -- -c './.devcontainer/scripts/fix-vscode-settings-nix.sh'",
