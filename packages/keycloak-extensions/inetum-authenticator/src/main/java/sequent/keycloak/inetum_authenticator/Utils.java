@@ -8,7 +8,6 @@
 
 package sequent.keycloak.inetum_authenticator;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import freemarker.template.Template;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
@@ -72,7 +71,6 @@ public class Utils {
   public final String FTL_ERROR_AUTH_INVALID = "internalInetumError";
   public final String FTL_ERROR_INVALID_SCORE = "scoringInetumError";
   public final String FTL_ERROR_INVALID_ATTRIBUTES = "attributesInetumError";
-
 
   private static final String KEYS_USERDATA = "keyUserdata";
   private static final String KEYS_USERDATA_SEPARATOR = ";";

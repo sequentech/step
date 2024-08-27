@@ -14,7 +14,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.Config;
 import org.keycloak.authentication.AuthenticationFlowContext;
@@ -232,26 +231,26 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
     boolean attributesValidated = validateAttributes(context, result);
 
-    if(!attributesValidated) {
+    if (!attributesValidated) {
       log.error("The submitted form data does not correspond with the ones provided by Inetum.");
-        // invalid
-        AuthenticationExecutionModel execution = context.getExecution();
-        if (execution.isRequired()) {
-          context.failure(AuthenticationFlowError.INVALID_CREDENTIALS);
-          context.attempted();
-          Response challenge =
-              getBaseForm(context)
-                  .setAttribute(Utils.FTL_ERROR, Utils.FTL_ERROR_INVALID_ATTRIBUTES)
-                  .createForm(Utils.INETUM_ERROR);
-          context.challenge(challenge);
-        } else if (execution.isConditional() || execution.isAlternative()) {
-          context.attempted();
-        }    
+      // invalid
+      AuthenticationExecutionModel execution = context.getExecution();
+      if (execution.isRequired()) {
+        context.failure(AuthenticationFlowError.INVALID_CREDENTIALS);
+        context.attempted();
+        Response challenge =
+            getBaseForm(context)
+                .setAttribute(Utils.FTL_ERROR, Utils.FTL_ERROR_INVALID_ATTRIBUTES)
+                .createForm(Utils.INETUM_ERROR);
+        context.challenge(challenge);
+      } else if (execution.isConditional() || execution.isAlternative()) {
+        context.attempted();
+      }
     }
 
     boolean scoreOk = validateInetumScore(context, result);
 
-    if(!scoreOk) {
+    if (!scoreOk) {
       log.error("Found a score that is less than minimum allowed.");
       // invalid
       AuthenticationExecutionModel execution = context.getExecution();
@@ -351,7 +350,8 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     }
   }
 
-  private boolean validateAttributes(AuthenticationFlowContext context, SimpleHttp.Response response) {
+  private boolean validateAttributes(
+      AuthenticationFlowContext context, SimpleHttp.Response response) {
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
     Map<String, String> configMap = config.getConfig();
 
@@ -369,8 +369,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       try {
         // Read the attributes to check from the configuration depending on the ID Type
         attributesToCheck = new ObjectMapper().readTree(attributesToValidate).get(docIdType);
-      }
-      catch (Exception exception) {
+      } catch (Exception exception) {
         return false;
       }
 
@@ -418,7 +417,8 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     return true;
   }
 
-  private boolean validateInetumScore(AuthenticationFlowContext context, SimpleHttp.Response response) {
+  private boolean validateInetumScore(
+      AuthenticationFlowContext context, SimpleHttp.Response response) {
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
     Map<String, String> configMap = config.getConfig();
 
@@ -429,7 +429,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     try {
       JsonNode scores = response.asJson().at("/response/resultData");
 
-      if(scores != null) {
+      if (scores != null) {
         var iter = scores.fields();
 
         while (iter.hasNext()) {
