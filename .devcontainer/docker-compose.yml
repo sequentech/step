@@ -7,8 +7,9 @@ services:
   devcontainer:
     profiles: ["full", "base"]
     image: ghcr.io/cachix/devenv:latest
-    args:
-      log-level: TRACE
+    build:
+      args:
+        log-level: TRACE
     container_name: devcontainer
     volumes:
       - ../..:/workspaces:cached
