@@ -8,6 +8,7 @@
 
 package sequent.keycloak.inetum_authenticator;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import freemarker.template.Template;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
@@ -80,6 +81,9 @@ public class Utils {
   public static final String ERROR_USER_NOT_FOUND = "userNotFound";
   public static final String ERROR_USER_ATTRIBUTES_NOT_UNSET = "userAttributesNotUnset";
   public static final String ERROR_USER_ATTRIBUTES_NOT_UNIQUE = "userAttributesNotUnique";
+
+  private static final String INETUM_PATH_SEPARATOR = ".";
+  private static JsonNode asJson;
 
   /**
    * We store the user data entered in the registration form in the session notes. This information
