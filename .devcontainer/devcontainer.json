@@ -46,7 +46,7 @@
 		"cpus": 4
 	},
 	"features": {
-		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
+		"ghcr.io/devcontainers/features/docker-in-docker:2": {},
 		"ghcr.io/devcontainers/features/sshd:1": {
 			"version": "latest"
 		}

@@ -18,7 +18,7 @@
     "prettify:fix": "prettier --write .",
     "lint": "eslint --ext js,jsx,ts,tsx,md,mdx .",
     "lint:fix": "eslint --fix --ext js,jsx,ts,tsx,md,mdx .",
-    "test": "jest",
+    "test": "jest --maxWorkers=4",
     "dev": "NODE_OPTIONS=--openssl-legacy-provider tsc --watch",
     "chromatic": "NODE_OPTIONS=--openssl-legacy-provider npx chromatic --project-token=%CHROMATIC_PROJECT_TOKEN%"
   },
