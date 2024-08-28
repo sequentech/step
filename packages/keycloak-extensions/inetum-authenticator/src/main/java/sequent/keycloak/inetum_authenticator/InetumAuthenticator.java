@@ -208,7 +208,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
   @Override
   public void action(AuthenticationFlowContext context) {
-    log.info("action()");
+    log.info("action(): start");
     SimpleHttp.Response result = verifyResults(context);
     if (result == null) {
       // invalid
@@ -236,7 +236,8 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     String error = validateAttributes(context, result);
 
     if (error != null) {
-      log.error("The submitted form data does not correspond with the ones provided by Inetum.");
+      log.error(
+          "action(): The submitted form data does not correspond with the ones provided by Inetum.");
       // invalid
       AuthenticationExecutionModel execution = context.getExecution();
       if (execution.isRequired()) {
@@ -253,6 +254,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       return;
     }
 
+    log.info("action(): success");
     // valid
     context.success();
   }
@@ -422,10 +424,11 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
           }
         }
       } else {
-        log.info("verifyResults: Empty configuration provided. No attributes checked.");
+        log.info("validateAttributes: Empty configuration provided. No attributes checked.");
       }
     }
 
+    log.info("validateAttributes: success");
     return null;
   }
 
@@ -450,6 +453,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       return typeError;
     }
 
+    log.info("equalValue: success");
     return null;
   }
 
@@ -472,6 +476,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       return typeError;
     }
 
+    log.info("integerMinValue: success");
     return null;
   }
 
@@ -504,6 +509,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       return typeError;
     }
 
+    log.info("checkAuthnoteEquals: start");
     return null;
   }
 
