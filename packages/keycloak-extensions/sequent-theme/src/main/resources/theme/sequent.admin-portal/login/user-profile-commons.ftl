@@ -69,7 +69,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 			if (element) {
 				element.readOnly = !value;
 				element.required = value;
-				element.value = '';
+				if (!value) {
+					element.value = '';
+				}
 			}
 		}
 
