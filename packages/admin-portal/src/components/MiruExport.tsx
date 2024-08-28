@@ -112,7 +112,10 @@ export const MiruExport: React.FC<MiruExportProps> = ({
                             e.preventDefault()
                             e.stopPropagation()
                             handleClose()
-                            onCreateTransmissionPackage({area_id: area.id, election_id: electionId!})
+                            onCreateTransmissionPackage({
+                                area_id: area.id,
+                                election_id: electionId!,
+                            })
                         }}
                     >
                         <Box

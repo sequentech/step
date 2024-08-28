@@ -14,8 +14,8 @@ import {FETCH_DOCUMENT} from "@/queries/FetchDocument"
 import {IMiruDocument} from "@/types/miru"
 import {TallyStyles} from "@/components/styles/TallyStyles"
 import DownloadIcon from "@mui/icons-material/Download"
-import { useGetOne } from "react-admin"
-import { useTenantStore } from "@/providers/TenantContextProvider"
+import {useGetOne} from "react-admin"
+import {useTenantStore} from "@/providers/TenantContextProvider"
 
 interface PerformDownloadProps {
     onDownload: () => void
@@ -75,12 +75,12 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) =
     const [openModal, setOpenModal] = useState(false)
     const [performDownload, setPerformDownload] = useState<IDocumentData | null>(null)
     const [documentToDownload, setDocumentToDownload] = useState<IMiruDocument | null>(null)
-	const [tenantId] = useTenantStore()
-	console.log({documentToDownload, documents})
-	const { data: document } = useGetOne<Sequent_Backend_Document>("sequent_backend_document", {
-		id: documentToDownload?.document_ids.eml ?? tenantId,
-		meta: { tenant_id: tenantId },
-	})
+    const [tenantId] = useTenantStore()
+    console.log({documentToDownload, documents})
+    const {data: document} = useGetOne<Sequent_Backend_Document>("sequent_backend_document", {
+        id: documentToDownload?.document_ids.eml ?? tenantId,
+        meta: {tenant_id: tenantId},
+    })
 
     const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
         event.preventDefault()
@@ -93,21 +93,19 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) =
     }
 
     const handleDownload = (doc: IMiruDocument) => {
+        console.log({document, doc})
 
-		console.log({document, doc})
+        let name = "er_111.eml"
 
-		let name = 'er_111.eml'
+        if (document?.name) {
+            name = document.name
+        }
 
-		if(document?.name){
-			name = document.name
-		}
-
-		setPerformDownload({
-			id: doc.document_ids.eml,
-			kind: EExportFormat.JSON, //need to adjust this to right format because document is currently not readable
-			name
-		})
-
+        setPerformDownload({
+            id: doc.document_ids.eml,
+            kind: EExportFormat.JSON, //need to adjust this to right format because document is currently not readable
+            name,
+        })
     }
     return (
         <div>

@@ -31,7 +31,7 @@ import {translateElection} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {Box} from "@mui/material"
 import {MenuStyles, TreeMenuItemContainer} from "@/components/styles/Menu"
-import { Sequent_Backend_Document } from "@/gql/graphql"
+import {Sequent_Backend_Document} from "@/gql/graphql"
 
 export const mapAddResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "createResource.electionEvent",

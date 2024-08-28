@@ -188,7 +188,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                     <CellTowerIcon />
                 </Tooltip>
             ) : (
-					<Tooltip title={t("tallysheet.common.tallyCeremony.view")}>
+                <Tooltip title={t("tallysheet.common.tallyCeremony.view")}>
                     <DescriptionIcon />
                 </Tooltip>
             ),

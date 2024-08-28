@@ -424,7 +424,7 @@ export const TallyCeremony: React.FC = () => {
             setSelectedTallySessionData(e.existingPackage)
             setMiruElectionId(e.existingPackage.election_id)
             setMiruAreaId(e.existingPackage.area_id)
-			setTransmissionLoading(false)
+            setTransmissionLoading(false)
         } else {
             let packageData: IMiruTransmissionPackageData | null = null
             let retry = 0
@@ -447,7 +447,7 @@ export const TallyCeremony: React.FC = () => {
                     setSelectedTallySessionData(packageData)
                     setMiruElectionId(packageData.election_id)
                     setMiruAreaId(packageData.area_id)
-					setTransmissionLoading(false)
+                    setTransmissionLoading(false)
                 } else {
                     retry = retry + 1
                 }
@@ -469,11 +469,11 @@ export const TallyCeremony: React.FC = () => {
     const handleCreateTransmissionPackage = useCallback(
         async ({area_id, election_id}: {area_id: string; election_id: string}) => {
             setTransmissionLoading(true)
-			console.log({
-				electionId: election_id,
-				tallySessionId: tallyId,
-				areaId: area_id,
-			})
+            console.log({
+                electionId: election_id,
+                tallySessionId: tallyId,
+                areaId: area_id,
+            })
 
             const found = tallySessionData.find(
                 (datum) => datum.area_id === area_id && datum.election_id === election_id
@@ -481,7 +481,7 @@ export const TallyCeremony: React.FC = () => {
 
             if (!election_id) {
                 notify(t("miruExport.create.error"), {type: "error"})
-				setTransmissionLoading(false)
+                setTransmissionLoading(false)
                 console.log("Unable to get election id.")
                 return
             }
@@ -491,11 +491,13 @@ export const TallyCeremony: React.FC = () => {
                 return
             }
 
-			if(isTrustee){
-				notify(t("Only Admins can send Transmission Package. Please try again later"), { type: "warning" })
-				setTransmissionLoading(false)
-				return
-			}
+            if (isTrustee) {
+                notify(t("Only Admins can send Transmission Package. Please try again later"), {
+                    type: "warning",
+                })
+                setTransmissionLoading(false)
+                return
+            }
 
             try {
                 const {data: nextStatus, errors} = await CreateTransmissionPackage({
@@ -506,7 +508,7 @@ export const TallyCeremony: React.FC = () => {
                     },
                 })
 
-				console.log('createTransmissionPackage',{nextStatus, errors})
+                console.log("createTransmissionPackage", {nextStatus, errors})
 
                 if (errors) {
                     setTransmissionLoading(false)
