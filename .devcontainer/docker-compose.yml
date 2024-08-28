@@ -141,8 +141,10 @@ services:
       - "8080:8080"
     restart: always
     volumes:
-      - ../hasura/metadata/:/hasura-metadata:cached
-      - ../hasura/migrations/:/hasura-migrations:cached
+      #- ../hasura/metadata/:/hasura-metadata:cached
+      #- ../hasura/migrations/:/hasura-migrations:cached
+      - hasura_metadata:/hasura-metadata:cached
+      - hasura_migrations:/hasura-migrations:cached
     environment:
       # applies migrations on start
       HASURA_GRAPHQL_MIGRATIONS_SERVER_TIMEOUT: 60
@@ -792,6 +794,18 @@ volumes:
     driver_opts:
       type: none
       device: /Users/jorge/repos/step/packages
+      o: bind
+  hasura_metadata:
+    driver: local
+    driver_opts:
+      type: none
+      device: /Users/jorge/repos/step/hasura/metadata
+      o: bind
+  hasura_migrations:
+    driver: local
+    driver_opts:
+      type: none
+      device: /Users/jorge/repos/step/hasura/migrations
       o: bind
   immudb_data:
   immudb_logs:
