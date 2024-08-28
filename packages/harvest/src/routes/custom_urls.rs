@@ -26,7 +26,7 @@ pub struct GetCustomUrlInput {
 }
 // TODO: Add env for cloudflare auth + for local / remote
 #[instrument(skip(claims))]
-#[post("/update-custom-url", format = "json", data = "<input>")]
+#[post("/set-custom-url", format = "json", data = "<input>")]
 pub async fn update_custom_url(
     claims: JwtClaims,
     input: Json<UpdateCustomUrlInput>,

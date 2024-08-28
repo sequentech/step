@@ -62,7 +62,8 @@ import {
     Sequent_Backend_Election,
     ManageElectionDatesMutation,
     Sequent_Backend_Election_Event,
-    SetCustomUrlMutation,
+    // SetCustomUrlMutation,
+    SetCustomUrlsMutation,
 } from "@/gql/graphql"
 import {ElectionStyles} from "@/components/styles/ElectionStyles"
 import {FormStyles} from "@/components/styles/FormStyles"
@@ -75,7 +76,8 @@ import {useWatch} from "react-hook-form"
 import {convertToNumber} from "@/lib/helpers"
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {SET_CUSTOM_URL} from "@/queries/SetCustomUrl"
+// import {SET_CUSTOM_URL} from "@/queries/SetCustomUrl"
+import {SET_CUSTOM_URLS} from "@/queries/SetCustomUrls"
 import {getAuthUrl} from "@/services/UrlGeneration"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
@@ -228,7 +230,14 @@ export const EditElectionEventDataForm: React.FC = () => {
     const defaultSecondsForCountdown = convertToNumber(process.env.SECONDS_TO_SHOW_COUNTDOWN) ?? 60
     const defaultSecondsForAlret = convertToNumber(process.env.SECONDS_TO_SHOW_AlERT) ?? 180
     const [manageElectionDates] = useMutation<ManageElectionDatesMutation>(MANAGE_ELECTION_DATES)
-    const [manageCustomUrls] = useMutation<SetCustomUrlMutation>(SET_CUSTOM_URL, {
+    // const [manageCustomUrls] = useMutation<SetCustomUrlMutation>(SET_CUSTOM_URL, {
+    //     context: {
+    //         headers: {
+    //             "x-hasura-role": IPermissions.USER_READ,
+    //         },
+    //     },
+    // })
+    const [manageCustomUrls] = useMutation<SetCustomUrlsMutation>(SET_CUSTOM_URLS, {
         context: {
             headers: {
                 "x-hasura-role": IPermissions.USER_READ,
