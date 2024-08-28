@@ -814,7 +814,7 @@ volumes:
     driver: local
     driver_opts:
       type: none
-      device: ${PWD}/minio/nginx
+      device: ${PWD}/.devcontainer/minio/nginx
       o: bind
   trustee1_data:
   trustee2_data:
