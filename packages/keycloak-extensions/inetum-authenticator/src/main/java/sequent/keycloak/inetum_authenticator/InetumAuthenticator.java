@@ -10,6 +10,8 @@ import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.Response;
 import java.io.IOException;
 import java.text.Collator;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +43,11 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
   private static final String VALIDATION_ATTRIBUTE_ERROR = "errorMsg";
   private static final String INTEGER_MIN_VALUE = "intMinValue";
   private static final String EQUAL_VALUE = "equalValue";
+  private static final String EQUAL_DATE = "equalDateAuthnoteAttributeId";
+  private static final String VALUE_DATE_FORMAT = "valueDateFormat";
+  private static final String INETUM_DATE_FORMAT = "inetumDateFormat";
+  private static final String EXPIRED_DATE = "isBeforeDateValue";
+  private static final String NOW = "now";
 
   @Override
   public void authenticate(AuthenticationFlowContext context) {
@@ -388,7 +395,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
           String typeError = attributeToCheck.get(VALIDATION_ATTRIBUTE_ERROR).asText();
           log.infov("validateAttributes: error {0}", typeError);
 
-          if (typeError == null || type.isBlank()) {
+          if (typeError == null || typeError.isBlank()) {
             typeError = Utils.FTL_ERROR_AUTH_INVALID;
           }
 
@@ -417,6 +424,18 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
                   equalValue(
                       context, attributeToCheck, attribute, typeError, inetumValue, inetumField);
               break;
+            case EQUAL_DATE:
+              validationError =
+                  equalDate(
+                      context, attributeToCheck, attribute, typeError, inetumValue, inetumField);
+              break;
+            case EXPIRED_DATE:
+              validationError =
+                  isBeforeDate(
+                      context, attributeToCheck, attribute, typeError, inetumValue, inetumField);
+              break;
+            default:
+              log.warnv("validateAttributes: Unknow validation {0}. Ignoring validation.", type);
           }
 
           if (validationError != null) {
@@ -432,10 +451,81 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     return null;
   }
 
+  private String equalDate(
+      AuthenticationFlowContext context,
+      JsonNode attributeToCheck,
+      String attributeId,
+      String typeError,
+      String inetumValue,
+      String inetumField) {
+    log.info("equalDate: start");
+
+    // Get attribute value from authentication notes
+    String attributeValue = context.getAuthenticationSession().getAuthNote(attributeId);
+    log.infov("equalDate: attributeValue {0}", attributeValue);
+
+    if (attributeValue == null) {
+      log.errorv("equalDate: could not find value in auth notes {0}", attributeId);
+      return typeError;
+    }
+
+    LocalDate valueDate = getDate(attributeToCheck, VALUE_DATE_FORMAT, attributeValue);
+    LocalDate inetumDate = getDate(attributeToCheck, INETUM_DATE_FORMAT, inetumValue);
+
+    if (!valueDate.isEqual(inetumDate)) {
+      log.error("equalDate: FALSE");
+      return typeError;
+    }
+
+    log.info("equalDate: success");
+    return null;
+  }
+
+  private String isBeforeDate(
+      AuthenticationFlowContext context,
+      JsonNode attributeToCheck,
+      String attributeValue,
+      String typeError,
+      String inetumValue,
+      String inetumField) {
+    log.info("equalDate: start");
+
+    LocalDate valueDate = null;
+    // If now is provided use current date.
+    if (NOW.equalsIgnoreCase(attributeValue)) {
+      log.info("equalDate: valueDate set to now");
+      valueDate = LocalDate.now();
+    } else {
+      valueDate = getDate(attributeToCheck, VALUE_DATE_FORMAT, attributeValue);
+    }
+    LocalDate inetumDate = getDate(attributeToCheck, INETUM_DATE_FORMAT, inetumValue);
+
+    if (!valueDate.isBefore(inetumDate)) {
+      log.error("equalDate: FALSE");
+      return typeError;
+    }
+
+    log.info("equalDate: success");
+    return null;
+  }
+
+  private LocalDate getDate(JsonNode attributeToCheck, String format, String dateValue) {
+    String valuePattern = attributeToCheck.get(format).asText();
+    log.infov("equalDate: valuePattern {0}", valuePattern);
+    if (valuePattern == null || valuePattern.isBlank()) {
+      valuePattern = Utils.FTL_ERROR_AUTH_INVALID;
+    }
+    DateTimeFormatter valueFormat = DateTimeFormatter.ofPattern(valuePattern);
+    LocalDate valueDate = LocalDate.parse(dateValue, valueFormat);
+    log.infov("equalDate: valueDate {0}", valueDate);
+
+    return valueDate;
+  }
+
   private String equalValue(
       AuthenticationFlowContext context,
       JsonNode attributeToCheck,
-      String attribute,
+      String attributeValue,
       String typeError,
       String inetumValue,
       String inetumField) {
@@ -446,10 +536,10 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     collator.setDecomposition(2);
     collator.setStrength(0);
 
-    if (collator.compare(attribute.trim(), inetumValue.trim()) != 0) {
+    if (collator.compare(attributeValue.trim(), inetumValue.trim()) != 0) {
       log.errorv(
           "equalValue: FALSE; attribute: {0}, inetumField: {1}, attributeValue: {2}, inetumValue: {3}",
-          attribute, inetumField, attribute, inetumValue);
+          attributeValue, inetumField, attributeValue, inetumValue);
       return typeError;
     }
 
@@ -460,13 +550,13 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
   private String integerMinValue(
       AuthenticationFlowContext context,
       JsonNode attributeToCheck,
-      String attribute,
+      String attributeValue,
       String typeError,
       String inetumValue,
       String inetumField) {
     log.info("integerMinValue: start");
 
-    int minValue = Integer.parseInt(attribute);
+    int minValue = Integer.parseInt(attributeValue);
     log.infov("integerMinValue: minValue {0}", minValue);
 
     int intInetumValue = Integer.parseInt(inetumValue);
@@ -483,17 +573,17 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
   private String checkAuthnoteEquals(
       AuthenticationFlowContext context,
       JsonNode attributeToCheck,
-      String attribute,
+      String attributeId,
       String typeError,
       String inetumValue,
       Object inetumField) {
     log.info("checkAuthnoteEquals: start");
-    // Get attribute from authentication notes
-    String attributeValue = context.getAuthenticationSession().getAuthNote(attribute);
-    log.infov("verifyResults: attributeValue {0}", attributeValue);
+    // Get attribute value from authentication notes
+    String attributeValue = context.getAuthenticationSession().getAuthNote(attributeId);
+    log.infov("checkAuthnoteEquals: attributeValue {0}", attributeValue);
 
     if (attributeValue == null) {
-      log.errorv("verifyResults: could not find value in auth notes {0}", attribute);
+      log.errorv("checkAuthnoteEquals: could not find value in auth notes {0}", attributeId);
       return typeError;
     }
 
@@ -504,8 +594,8 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
     if (collator.compare(attributeValue.trim(), inetumValue.trim()) != 0) {
       log.errorv(
-          "verifyResults: FALSE; attribute: {0}, inetumField: {1}, attributeValue: {2}, inetumValue: {3}",
-          attribute, inetumField, attributeValue, inetumValue);
+          "checkAuthnoteEquals: FALSE; attribute: {0}, inetumField: {1}, attributeValue: {2}, inetumValue: {3}",
+          attributeId, inetumField, attributeValue, inetumValue);
       return typeError;
     }
 
@@ -518,7 +608,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     try {
       inetumValue = response.asJson().at(inetumField).asText();
     } catch (Exception error) {
-      log.errorv("Could not get value: {0}", error.getMessage());
+      log.errorv("getValueFromInetumResponse: Could not get value: {0}", error.getMessage());
     }
 
     log.infov("getValueFromInetumResponse: {0}: {1}", inetumField, inetumValue);
@@ -647,6 +737,22 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
                         "intMinValue": "50",
                         "inetumAttributePath": "/response/resultData/scoreDocumental",
                         "errorMsg": "scoringInetumError"
+                    },
+                    {
+                        "type": "equalDateAuthnoteAttributeId",
+                        "equalDateAuthnoteAttributeId": "dateOfBirth",
+                        "valueDateFormat": "yyyy-MM-dd",
+                        "inetumAttributePath": "/response/mrz/date_of_birth",
+                        "inetumDateFormat": "dd/MM/yyyy",
+                        "errorMsg": "attributesInetumError"
+                    },
+                    {
+                        "type": "isBeforeDateValue",
+                        "isBeforeDateValue": "now",
+                        "valueDateFormat": "yyyy-MM-dd",
+                        "inetumAttributePath": "/response/mrz/date_of_expiry",
+                        "inetumDateFormat": "dd/MM/yyyy",
+                        "errorMsg": "attributesInetumError"
                     }
                 ],
                 "Seaman Book": [
