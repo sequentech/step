@@ -234,14 +234,16 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
 
     return (
         <Box sx={{marginBottom: "10px", marginTop: "10px"}}>
-            <StyledButton
-                sx={{display: {xs: "none", sm: "none"}, marginBottom: "2px", width: "100%"}}
-                variant="warning"
-                onClick={() => setAuditBallotHelp(true)}
-            >
-                <Icon icon={faFire} size="sm" />
-                <Box>{t("reviewScreen.auditButton")}</Box>
-            </StyledButton>
+            {hideAudit ? null : (
+                <StyledButton
+                    sx={{display: {xs: "flex", sm: "none"}, marginBottom: "2px", width: "100%"}}
+                    variant="warning"
+                    onClick={() => setAuditBallotHelp(true)}
+                >
+                    <Icon icon={faFire} size="sm" />
+                    <Box>{t("reviewScreen.auditButton")}</Box>
+                </StyledButton>
+            )}
             <Dialog
                 handleClose={handleClose}
                 open={auditBallotHelp}
