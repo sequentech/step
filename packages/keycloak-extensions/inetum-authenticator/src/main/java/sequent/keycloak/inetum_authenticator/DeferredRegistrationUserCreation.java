@@ -57,6 +57,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
 
   public static final String VERIFIED_VALUE = "VERIFIED";
   public static final String VERIFIED_DEFAULT_ID = "sequent.read-only.id-card-number-validated";
+  // TODO fix
 
   @Override
   public String getHelpText() {
