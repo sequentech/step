@@ -90,7 +90,7 @@ services:
     volumes:
       #- ./minio/nginx:/etc/nginx/conf.d
       - type: bind
-        source: ./minio/nginx
+        source: ./minio/nginx/
         target: /etc/nginx/conf.d
       #- minio_nginx:/etc/nginx/conf.d
     depends_on:
