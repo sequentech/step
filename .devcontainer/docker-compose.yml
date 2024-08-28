@@ -601,7 +601,7 @@ services:
     depends_on:
       - harvest
     volumes:
-      - ./keycloak/import:/import
+      - keycloak_import:/import
       - ../packages/:/app
     restart: always
     working_dir: /app/immu-board
@@ -650,7 +650,7 @@ services:
       "run --bin main consume -q short_queue tally_queue beat reports_queue communication_queue import_export_queue"
     ]
     volumes:
-      - ./keycloak/import:/import
+      - keycloak_import:/import
       - ../packages/:/app
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
