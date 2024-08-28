@@ -778,7 +778,7 @@ volumes:
     driver: local
     driver_opts:
       type: none
-      device: ./keycloak/import
+      device: /Users/jorge/repos/step/.devcontainer/keycloak/import
       o: bind
   immudb_data:
   immudb_logs:
