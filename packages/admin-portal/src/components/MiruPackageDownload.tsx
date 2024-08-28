@@ -76,10 +76,10 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) =
     const [performDownload, setPerformDownload] = useState<IDocumentData | null>(null)
     const [documentToDownload, setDocumentToDownload] = useState<IMiruDocument | null>(null)
 	const [tenantId] = useTenantStore()
-	const { data: document } = useGetOne<Sequent_Backend_Document>("sequent_backend_document", {
-		id: documentToDownload?.document_id ?? tenantId,
-		meta: { tenant_id: tenantId },
-	})
+	// const { data: document } = useGetOne<Sequent_Backend_Document>("sequent_backend_document", {
+	// 	id: documentToDownload?.document_id ?? tenantId,
+	// 	meta: { tenant_id: tenantId },
+	// })
 
     const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
         event.preventDefault()

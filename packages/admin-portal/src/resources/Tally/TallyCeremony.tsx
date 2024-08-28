@@ -469,6 +469,11 @@ export const TallyCeremony: React.FC = () => {
     const handleCreateTransmissionPackage = useCallback(
         async ({area_id, election_id}: {area_id: string; election_id: string}) => {
             setTransmissionLoading(true)
+			console.log({
+				electionId: election_id,
+				tallySessionId: tallyId,
+				areaId: area_id,
+			})
 
             const found = tallySessionData.find(
                 (datum) => datum.area_id === area_id && datum.election_id === election_id
@@ -500,6 +505,8 @@ export const TallyCeremony: React.FC = () => {
                         areaId: area_id,
                     },
                 })
+
+				console.log('createTransmissionPackage',{nextStatus, errors})
 
                 if (errors) {
                     setTransmissionLoading(false)
