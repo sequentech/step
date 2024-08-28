@@ -55,16 +55,18 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
   @Override
   public void processAction(RequiredActionContext context) {
     log.info("action() called");
-    String enteredCode = context.getHttpRequest().getDecodedFormParameters().getFirst(Utils.CODE);
     String resend = context.getHttpRequest().getDecodedFormParameters().getFirst("resend");
     if (resend != null && resend.equals("true")) {
       initiateForm(context);
       return;
     }
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
+    AuthenticatorConfigModel config = Utils.getConfig(authSession.getRealm()).get();
+    boolean isOtl = config.getConfig().get(Utils.ONE_TIME_LINK).equals("true");
     String code = authSession.getAuthNote(Utils.CODE);
     String ttl = authSession.getAuthNote(Utils.CODE_TTL);
     UserModel user = context.getUser();
+    String resendTimer = config.getConfig().get(Utils.RESEND_ACTIVATION_TIMER);
 
     if (code == null || ttl == null) {
       context.failure();
@@ -72,6 +74,18 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
       return;
     }
 
+    // If it's an OTL, the user should never execute an action
+    if (isOtl) {
+      context.failure();
+      context.challenge(
+          context
+              .form()
+              .setError("messageOtp.auth.codeWithOtl")
+              .createErrorPage(Response.Status.BAD_REQUEST));
+      return;
+    }
+
+    String enteredCode = context.getHttpRequest().getDecodedFormParameters().getFirst(Utils.CODE);
     boolean isValid = Utils.constantTimeIsEqual(enteredCode.getBytes(), code.getBytes());
     if (isValid) {
       context.getAuthenticationSession().removeAuthNote(Utils.CODE);
@@ -96,6 +110,11 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
           context
               .form()
               .setAttribute("realm", context.getRealm())
+              .setAttribute("codeJustSent", true)
+              .setAttribute("ttl", ttl)
+              .setAttribute("user", context.getUser())
+              .setAttribute("isOtl", isOtl)
+              .setAttribute("resendTimer", resendTimer)
               .setError("messageOtp.auth.codeInvalid")
               .createForm(TPL_CODE));
     }
@@ -114,6 +133,7 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
         context
             .form()
             .setAttribute("realm", context.getRealm())
+            .setAttribute("codeJustSent", true)
             .setAttribute("user", context.getUser())
             .setAttribute("isOtl", isOtl)
             .setAttribute("ttl", config.getConfig().get(Utils.CODE_TTL))

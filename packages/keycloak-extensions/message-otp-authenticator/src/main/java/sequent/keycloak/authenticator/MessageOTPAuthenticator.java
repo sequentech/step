@@ -75,7 +75,7 @@ public class MessageOTPAuthenticator
             AuthenticationFlowError.ACCESS_DENIED,
             context
                 .form()
-                .setError("messageOtpCodeWithOtl")
+                .setError("messageOtp.auth.codeWithOtl")
                 .createErrorPage(Response.Status.BAD_REQUEST));
         return;
       } else if (execution.isConditional() || execution.isAlternative()) {
@@ -151,7 +151,7 @@ public class MessageOTPAuthenticator
     // handle OTL
     boolean isOtl = config.getConfig().get(Utils.ONE_TIME_LINK).equals("true");
     String otlVisited = authSession.getAuthNote(Utils.OTL_VISITED);
-    if (!resend && isOtl && otlVisited.equals("true")) {
+    if (!resend && isOtl && otlVisited != null && otlVisited.equals("true")) {
       context.success();
       return;
     }
