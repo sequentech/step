@@ -43,11 +43,12 @@ import {
     ImportUsersMutation,
     ManualVerificationMutation,
     Sequent_Backend_Election_Event,
+    UserProfileAttributesOutput,
 } from "@/gql/graphql"
 import {DELETE_USER} from "@/queries/DeleteUser"
 import {GET_DOCUMENT} from "@/queries/GetDocument"
 import {MANUAL_VERIFICATION} from "@/queries/ManualVerification"
-import {useLazyQuery, useMutation} from "@apollo/client"
+import {useLazyQuery, useMutation, useQuery} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {IRole, IUser} from "@sequentech/ui-core"
@@ -58,6 +59,7 @@ import {EXPORT_USERS} from "@/queries/ExportUsers"
 import {EXPORT_TENANT_USERS} from "@/queries/ExportTenantUsers"
 import {DownloadDocument} from "./DownloadDocument"
 import {IMPORT_USERS} from "@/queries/ImportUsers"
+import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
 
 const OMIT_FIELDS: Array<string> = ["id", "email_verified"]
 
@@ -125,6 +127,15 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [getManualVerificationPdf] = useMutation<ManualVerificationMutation>(MANUAL_VERIFICATION)
     const [deleteUsers] = useMutation<DeleteUserMutation>(DELETE_USER)
     const [exportUsers] = useMutation<ExportUsersMutation>(EXPORT_USERS)
+    const {data: userFields, refetch} = useQuery<UserProfileAttributesOutput>(
+        USER_PROFILE_ATTRIBUTES,
+        {
+            variables: {
+                tenantId: tenantId,
+            },
+        }
+    )
+
     const [exportTenantUsers] = useMutation<ExportTenantUsersMutation>(EXPORT_TENANT_USERS, {
         context: {
             headers: {

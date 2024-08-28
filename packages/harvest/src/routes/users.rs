@@ -12,7 +12,9 @@ use rocket::serde::json::Json;
 use sequent_core::services::jwt;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
-use sequent_core::types::keycloak::{User, TENANT_ID_ATTR_NAME};
+use sequent_core::types::keycloak::{
+    User, UserProfileAttribute, TENANT_ID_ATTR_NAME,
+};
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
 use serde_json::Value;
@@ -121,7 +123,6 @@ pub async fn delete_users(
             .await
             .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     }
-
     Ok(Json(Default::default()))
 }
 
@@ -239,6 +240,7 @@ pub async fn get_users(
                 )
             })?,
     };
+
     Ok(Json(DataList {
         items: users,
         total: TotalAggregate {
@@ -548,4 +550,51 @@ pub async fn export_tenant_users_f(
     info!("Sent EXPORT_TENANT_USERS task {}", task.task_id);
 
     Ok(Json(output))
+}
+
+#[derive(Deserialize, Debug)]
+pub struct GetUserProfileAttributesBody {
+    tenant_id: String,
+}
+
+#[instrument(skip(claims))]
+#[post("/get-user-profile-attributes", format = "json", data = "<body>")]
+pub async fn get_user_profile_attributes(
+    claims: jwt::JwtClaims,
+    body: Json<GetUserProfileAttributesBody>,
+) -> Result<Json<Vec<UserProfileAttribute>>, (Status, String)> {
+    info!("IN ATTRB");
+
+    let input = body.into_inner();
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![Permissions::USER_READ],
+    )?;
+
+    let realm = get_tenant_realm(&input.tenant_id);
+    let client = KeycloakAdminClient::new()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    let attributes_res = client
+        .get_user_profile_attributes(&realm)
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    let user_profile_attributes = attributes_res
+        .iter()
+        .map(|attr| UserProfileAttribute {
+            annotations: attr.annotations.clone(),
+            display_name: attr.display_name.clone(),
+            group: attr.group.clone(),
+            multivalued: attr.multivalued,
+            name: attr.name.clone(),
+            read_only: attr.read_only,
+            required: attr.required,
+            validators: attr.validators.clone(),
+        })
+        .collect();
+    Ok(Json(user_profile_attributes))
 }

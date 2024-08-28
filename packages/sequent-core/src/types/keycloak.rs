@@ -56,3 +56,15 @@ pub struct Role {
     pub attributes: Option<HashMap<String, Vec<String>>>,
     pub client_roles: Option<HashMap<String, Vec<String>>>,
 }
+
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+pub struct UserProfileAttribute {
+    pub annotations: Option<HashMap<String, Value>>,
+    pub display_name: Option<String>,
+    pub group: Option<String>,
+    pub multivalued: Option<bool>,
+    pub name: Option<String>,
+    pub read_only: Option<bool>,
+    pub required: Option<bool>,
+    pub validators: Option<HashMap<String, HashMap<String, Value>>>,
+}
