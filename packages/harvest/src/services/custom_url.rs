@@ -106,16 +106,18 @@ pub async fn get_page_rule(
 pub async fn set_custom_url(
     origin: &str,
     redirect_to: &str,
+    dns_prefix: &str
 ) -> Result<(), Box<dyn Error>> {
     info!{"origin pring {:?}", origin}
     info!{"origin redirect too {:?}", redirect_to}
     if let Ok(_cloudflare_env) = std::env::var("CLOUDFLARE_ENV") {
         let current_page_rule = get_page_rule(origin).await?;
         info!("got to set custom service - page rule {:?}", current_page_rule);
+        info!("dns_prefixdns_prefixdns_prefix {:?}", dns_prefix);
 
          match current_page_rule {
              Some(page_rule) => {
-                 if create_dns_record(redirect_to, origin).await.is_ok() {
+                 if create_dns_record(redirect_to, dns_prefix).await.is_ok() {
                      update_page_rule(&page_rule.id, redirect_to, origin).await?;
                  } else {
                      return Err("Failed to create DNS record. Page rule was not created.".into());
@@ -123,7 +125,7 @@ pub async fn set_custom_url(
          info!("got updated");
              }
              None => {
-                 if create_dns_record(redirect_to, origin).await.is_ok() {
+                 if create_dns_record(redirect_to, dns_prefix).await.is_ok() {
                 //      let redirect_to_login = format!("{}/login", redirect_to);
                 //      let redirect_to_enrollment = format!("{}/enrollment", redirect_to);
                 //      info!("originoriginoriginorigin{:?}", origin);

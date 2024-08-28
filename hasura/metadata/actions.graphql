@@ -348,6 +348,7 @@ type Mutation {
   set_custom_urls (
     origin: String!
     redirect_to: String!
+    dns_prefix: String!
   ): String
 }
 

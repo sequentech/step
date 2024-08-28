@@ -18,6 +18,7 @@ use tracing::{event, instrument, Level};
 pub struct UpdateCustomUrlInput {
     pub origin: String,
     pub redirect_to: String,
+    pub dns_prefix: String
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -44,7 +45,7 @@ pub async fn update_custom_url(
 
     info!("Authorization succeeded, processing URL update");
 
-    match set_custom_url(&body.redirect_to, &body.origin).await {
+    match set_custom_url(&body.redirect_to, &body.origin, &body.dns_prefix).await {
         Ok(_) => {
             info!("Custom URL successfully updated");
             Ok(Json("Successfully Updated".to_string()))
