@@ -34,7 +34,7 @@ import {
 } from "@mui/material"
 import styled from "@emotion/styled"
 import DownloadIcon from "@mui/icons-material/Download"
-import React, {useContext, useEffect, useMemo, useState} from "react"
+import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
 import {useTranslation} from "react-i18next"
@@ -230,13 +230,6 @@ export const EditElectionEventDataForm: React.FC = () => {
     const defaultSecondsForCountdown = convertToNumber(process.env.SECONDS_TO_SHOW_COUNTDOWN) ?? 60
     const defaultSecondsForAlret = convertToNumber(process.env.SECONDS_TO_SHOW_AlERT) ?? 180
     const [manageElectionDates] = useMutation<ManageElectionDatesMutation>(MANAGE_ELECTION_DATES)
-    // const [manageCustomUrls] = useMutation<SetCustomUrlMutation>(SET_CUSTOM_URL, {
-    //     context: {
-    //         headers: {
-    //             "x-hasura-role": IPermissions.USER_READ,
-    //         },
-    //     },
-    // })
     const [manageCustomUrls] = useMutation<SetCustomUrlsMutation>(SET_CUSTOM_URLS, {
         context: {
             headers: {
@@ -244,6 +237,7 @@ export const EditElectionEventDataForm: React.FC = () => {
             },
         },
     })
+
     const [startDate, setStartDate] = useState<string | undefined>(undefined)
     const [endDate, setEndDate] = useState<string | undefined>(undefined)
     const notify = useNotify()
@@ -306,67 +300,60 @@ export const EditElectionEventDataForm: React.FC = () => {
         incoming: Sequent_Backend_Election_Event_Extended,
         languageSettings: Array<string>
     ): Sequent_Backend_Election_Event_Extended => {
-        const temp = {...incoming}
+        // Perform a deep copy of `incoming` to ensure no references are shared.
+        const temp = {
+            ...incoming,
+            enabled_languages: {...incoming.enabled_languages},
+            presentation: {...incoming.presentation},
+            voting_channels: {...incoming.voting_channels},
+        }
 
-        // languages
+        // Ensure that `enabled_languages` is always an object.
         temp.enabled_languages = {}
 
         if (!incoming.presentation) {
             temp.presentation = {}
         }
-        const incomingLangConf = (incoming?.presentation as IElectionEventPresentation | undefined)
+
+        const incomingLangConf = (incoming.presentation as IElectionEventPresentation | undefined)
             ?.language_conf
 
         if (
             incomingLangConf?.enabled_language_codes &&
-            incomingLangConf?.enabled_language_codes.length > 0
+            incomingLangConf.enabled_language_codes.length > 0
         ) {
-            // if presentation has lang then set from event
+            // Set from event if presentation has languages.
             for (const setting of languageSettings) {
-                const enabled_item: {[key: string]: boolean} = {}
-
-                const isInEnabled =
-                    incomingLangConf?.enabled_language_codes?.find(
-                        (item: string) => setting === item
-                    ) ?? false
-
-                enabled_item[setting] = !!isInEnabled
-
-                temp.enabled_languages = {...temp.enabled_languages, ...enabled_item}
+                const isEnabled = incomingLangConf.enabled_language_codes.includes(setting)
+                temp.enabled_languages[setting] = isEnabled
             }
         } else {
-            // if presentation has no lang then use always the default settings
-            temp.enabled_languages = {...temp.enabled_languages}
+            // Use default settings if presentation has no languages.
             for (const item of languageSettings) {
                 temp.enabled_languages[item] = false
             }
         }
 
-        // set english first lang always
+        // Ensure English is the first language always.
         if (temp.enabled_languages) {
-            const en = {en: temp.enabled_languages["en"]}
+            const en = {en: temp.enabled_languages["en"] ?? false} // Handle case where `en` might not exist.
             delete temp.enabled_languages.en
-            const rest = temp.enabled_languages
-            temp.enabled_languages = {...en, ...rest}
+            temp.enabled_languages = {...en, ...temp.enabled_languages}
         }
-        // voting channels
-        const all_channels = {...incoming?.voting_channels}
 
-        // delete incoming.voting_channels
+        // Handle voting channels.
+        const all_channels = {...incoming.voting_channels} // Deep copy to prevent mutating the original.
+
         temp.voting_channels = {}
 
         for (const setting in votingSettings) {
-            const enabled_item: any = {}
-            enabled_item[setting] =
+            temp.voting_channels[setting] =
                 setting in all_channels ? all_channels[setting] : votingSettings[setting]
-            temp.voting_channels = {...temp.voting_channels, ...enabled_item}
-        }
-        if (!temp.presentation) {
-            temp.presentation = {}
         }
 
+        // Ensure default presentation values are set.
         temp.presentation.elections_order =
-            temp?.presentation.elections_order || ElectionsOrder.ALPHABETICAL
+            temp.presentation.elections_order || ElectionsOrder.ALPHABETICAL
 
         if (
             !(temp.presentation as IElectionEventPresentation | undefined)
@@ -377,7 +364,7 @@ export const EditElectionEventDataForm: React.FC = () => {
             }
         }
 
-        if (!temp.presentation?.custom_urls) {
+        if (!temp.presentation.custom_urls) {
             temp.presentation.custom_urls = {}
         }
 
@@ -569,31 +556,35 @@ export const EditElectionEventDataForm: React.FC = () => {
         recordId: string
     ) => {
         const customUrls = presentation?.custom_urls
+
         if (customUrls) {
             const urlEntries = [
                 {
                     key: "login",
-                    origin: customUrls.login,
-                    redirect_to: getAuthUrl(
-                        globalSettings.VOTING_PORTAL_URL,
-                        tenantId ?? "",
-                        recordId,
-                        "login"
-                    ),
+                    origin: `https://${customUrls.login}.vaiphon.com/login`,
+                    redirect_to: "https://google.com/login",
+                    //  getAuthUrl(
+                    //     globalSettings.VOTING_PORTAL_URL,
+                    //     tenantId ?? "",
+                    //     recordId,
+                    //     "login"
+                    // ),
                 },
                 {
                     key: "enrollment",
-                    origin: customUrls.enrollment,
-                    redirect_to: getAuthUrl(
-                        globalSettings.VOTING_PORTAL_URL,
-                        tenantId ?? "",
-                        recordId,
-                        "enroll"
-                    ),
+                    origin: `https://${customUrls.enrollment}.vaiphon.com/enrollment`,
+                    redirect_to: "https://google.com/enrollment",
+                    // getAuthUrl(
+                    //     globalSettings.VOTING_PORTAL_URL,
+                    //     tenantId ?? "",
+                    //     recordId,
+                    //     "enroll"
+                    // ),
                 },
             ]
             for (const {origin, redirect_to, key} of urlEntries) {
                 if (origin) {
+                    console.log(origin, "test")
                     await manageCustomUrls({
                         variables: {
                             origin: origin,
@@ -916,14 +907,53 @@ export const EditElectionEventDataForm: React.FC = () => {
                                         </ElectionHeaderStyles.Title>
                                     </ElectionHeaderStyles.Wrapper>
                                 </AccordionSummary>
-                                <AccordionDetails>
-                                    <TextInput
-                                        source={`presentation.custom_urls.login`}
-                                        label={t("electionEventScreen.customUrls.login")}
-                                    />
+                                <AccordionDetails
+                                // sx={{
+                                //     display: "flex",
+                                //     flexDirection: "colun",
+                                //     alignItems: "center",
+                                //     gap: "8px",
+                                // }}
+                                >
+                                    <Box
+                                        sx={{
+                                            display: "flex",
+                                            flexDirection: "row",
+                                            alignItems: "center",
+                                            gap: "8px",
+                                        }}
+                                    >
+                                        <p>https://</p>
+                                        <TextInput
+                                            variant="standard"
+                                            helperText={false}
+                                            sx={{width: "300px"}}
+                                            source={`presentation.custom_urls.login`}
+                                            label={""}
+                                        />
+                                        <p>.sequent.io/login</p>
+                                    </Box>
+                                    <Box
+                                        sx={{
+                                            display: "flex",
+                                            flexDirection: "row",
+                                            alignItems: "center",
+                                            gap: "8px",
+                                        }}
+                                    >
+                                        <p>https://</p>
+                                        <TextInput
+                                            variant="standard"
+                                            helperText={false}
+                                            sx={{width: "300px"}}
+                                            source={`presentation.custom_urls.enrollment`}
+                                            label={""}
+                                        />
+                                        <p>.sequent.io/enrollment</p>
+                                    </Box>
                                     {/* <TextInput
                                         source={`presentation.custom_urls.enrollment`}
-                                        label={t("electionEventScreen.customUrls.enrollment")}
+                                        // label={t("electionEventScreen.customUrls.enrollment")}
                                     /> */}
                                 </AccordionDetails>
                             </Accordion>
@@ -1067,4 +1097,10 @@ export const EditElectionEventDataForm: React.FC = () => {
             />
         </>
     )
+}
+function useCallBack(
+    arg0: (presentation: IElectionEventPresentation, recordId: string) => Promise<void>,
+    arg1: never[]
+) {
+    throw new Error("Function not implemented.")
 }

@@ -236,7 +236,7 @@ const spanishTranslation: TranslationType = {
             edit: {
                 general: "General",
                 dates: "Fechas",
-                customUrls: "URLs personalizadas",
+                customUrls: "Prefixo de URLs personalizados",
                 votingPeriod: "Período de votación",
                 language: "Idiomas",
                 allowed: "Canales de Voto Permitidos",

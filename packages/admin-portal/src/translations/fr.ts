@@ -238,7 +238,7 @@ const frenchTranslation: TranslationType = {
                 dates: "Dates",
                 votingPeriod: "Période de vote",
                 language: "Langues",
-                customUrls: "URLs personnalisées",
+                customUrls: "Préfixer les URL personnalisées",
                 allowed: "Canaux de Vote Permis",
                 materials: "Matériaux de Support",
                 ballotDesign: "Design du Bulletin",
