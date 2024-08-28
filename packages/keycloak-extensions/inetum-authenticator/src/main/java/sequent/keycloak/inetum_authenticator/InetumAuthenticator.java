@@ -401,17 +401,20 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
           switch (type) {
             case AUTH_NOTE_ATTRIBUTE_ID:
-              validationError = checkAuthnoteEquals(
-                  context, attributeToCheck, attribute, typeError, inetumValue, inetumField);
+              validationError =
+                  checkAuthnoteEquals(
+                      context, attributeToCheck, attribute, typeError, inetumValue, inetumField);
               break;
             case INTEGER_MIN_VALUE:
-            validationError =  integerMinValue(
-                  context, attributeToCheck, attribute, typeError, inetumValue, inetumField);
-                  break;
+              validationError =
+                  integerMinValue(
+                      context, attributeToCheck, attribute, typeError, inetumValue, inetumField);
+              break;
             case EQUAL_VALUE:
-            validationError =  equalValue(
-                  context, attributeToCheck, attribute, typeError, inetumValue, inetumField);
-                  break;
+              validationError =
+                  equalValue(
+                      context, attributeToCheck, attribute, typeError, inetumValue, inetumField);
+              break;
           }
 
           if (validationError != null) {
