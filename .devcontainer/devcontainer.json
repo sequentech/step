@@ -37,6 +37,7 @@
 	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
 	"userEnvProbe": "loginShell",
 	"updateRemoteUserUID": true,
+	"remoteUser": "root",
 	"onCreateCommand": "git config --global --add safe.directory '*' && direnv allow . && OUTPUT=$(cat .devcontainer/scripts/vscode-settings.sh) && devenv shell bash -- -c \"$OUTPUT\"",
 	"postCreateCommand": "git config --global --add safe.directory '*' && direnv allow . && OUTPUT=$(cat .devcontainer/scripts/init-cli.sh) && devenv shell bash -- -c \"$OUTPUT\"",
 	// Adding host requirements so that there is no need to manually select the
