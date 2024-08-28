@@ -88,7 +88,8 @@ services:
     ports:
       - "9002:9002"
     volumes:
-      - ./minio/nginx:/etc/nginx/conf.d
+      #- ./minio/nginx:/etc/nginx/conf.d
+      - minio_nginx:/etc/nginx/conf.d
     depends_on:
       - minio
   
@@ -795,6 +796,12 @@ volumes:
   immudb_data:
   immudb_logs:
   minio_storage:
+  minio_nginx:
+    driver: local
+    driver_opts:
+      type: none
+      device: /Users/jorge/repos/step/.devcontainer/minio/nginx
+      o: bind
   trustee1_data:
   trustee2_data:
   trustee3_data:
