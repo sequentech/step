@@ -13,7 +13,6 @@ import java.text.Collator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.Config;
 import org.keycloak.authentication.AuthenticationFlowContext;
@@ -39,8 +38,9 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
   private static final String AUTH_NOTE_ATTRIBUTE_ID = "equalAuthnoteAttributeId";
   private static final String INETUM_ATTRIBUTE_PATH = "inetumAttributePath";
   private static final String VALIDATION_ATTRIBUTE_TYPE = "type";
-private static final String INTEGER_MIN_VALUE = "intMinValue";
-private static final String EQUAL_VALUE = "equalValue";
+  private static final String VALIDATION_ATTRIBUTE_ERROR = "errorMsg";
+  private static final String INTEGER_MIN_VALUE = "intMinValue";
+  private static final String EQUAL_VALUE = "equalValue";
 
   @Override
   public void authenticate(AuthenticationFlowContext context) {
@@ -338,7 +338,7 @@ private static final String EQUAL_VALUE = "equalValue";
 
   private String validateAttributes(
       AuthenticationFlowContext context, SimpleHttp.Response response) {
-        log.info("validateAttributes: start");
+    log.info("validateAttributes: start");
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
     Map<String, String> configMap = config.getConfig();
 
@@ -346,7 +346,8 @@ private static final String EQUAL_VALUE = "equalValue";
     String docIdType = context.getAuthenticationSession().getAuthNote(docIdTypeAttributeName);
 
     String attributesToValidate = configMap.get(Utils.ATTRIBUTES_TO_VALIDATE);
-    log.infov("validateAttributes: attributes to validate configuration: {0}", attributesToValidate);
+    log.infov(
+        "validateAttributes: attributes to validate configuration: {0}", attributesToValidate);
     JsonNode attributesToCheck = null;
 
     if (attributesToValidate != null) {
@@ -370,7 +371,8 @@ private static final String EQUAL_VALUE = "equalValue";
           String inetumValue = getValueFromInetumResponse(response, inetumField);
 
           if (inetumValue == null) {
-            log.errorv("validateAttributes: could not find value in inetum response {0}", inetumField);
+            log.errorv(
+                "validateAttributes: could not find value in inetum response {0}", inetumField);
             return Utils.FTL_ERROR_AUTH_INVALID;
           }
 
@@ -378,30 +380,42 @@ private static final String EQUAL_VALUE = "equalValue";
           log.infov("validateAttributes: type {0}", type);
 
           if (type == null || type.isBlank()) {
-            return Utils.FTL_ERROR_AUTH_INVALID; 
+            return Utils.FTL_ERROR_AUTH_INVALID;
           }
 
-          String error = attributeToCheck.get(VALIDATION_ATTRIBUTE_TYPE).asText();
-          log.infov("validateAttributes: type {0}", type);
+          String typeError = attributeToCheck.get(VALIDATION_ATTRIBUTE_ERROR).asText();
+          log.infov("validateAttributes: error {0}", typeError);
 
-          if (error == null || type.isBlank()) {
-            error = Utils.FTL_ERROR_AUTH_INVALID; 
+          if (typeError == null || type.isBlank()) {
+            typeError = Utils.FTL_ERROR_AUTH_INVALID;
           }
 
           String attribute = attributeToCheck.get(type).asText();
-          log.infov("validateAttributes: attribute {0}", type);          
-          
-          if (error == null || type.isBlank()) {
-            error = Utils.FTL_ERROR_AUTH_INVALID; 
+          log.infov("validateAttributes: attribute {0}", type);
+
+          if (typeError == null || type.isBlank()) {
+            typeError = Utils.FTL_ERROR_AUTH_INVALID;
           }
+
+          String validationError = null;
 
           switch (type) {
             case AUTH_NOTE_ATTRIBUTE_ID:
-              return checkAuthnoteEquals(context, attributeToCheck, attribute, error, inetumValue, inetumField);
+              validationError = checkAuthnoteEquals(
+                  context, attributeToCheck, attribute, typeError, inetumValue, inetumField);
+              break;
             case INTEGER_MIN_VALUE:
-              return integerMinValue(context, attributeToCheck, attribute, error, inetumValue, inetumField);
+            validationError =  integerMinValue(
+                  context, attributeToCheck, attribute, typeError, inetumValue, inetumField);
+                  break;
             case EQUAL_VALUE:
-              return equalValue(context, attributeToCheck, attribute, error, inetumValue, inetumField);
+            validationError =  equalValue(
+                  context, attributeToCheck, attribute, typeError, inetumValue, inetumField);
+                  break;
+          }
+
+          if (validationError != null) {
+            return validationError;
           }
         }
       } else {
@@ -412,51 +426,67 @@ private static final String EQUAL_VALUE = "equalValue";
     return null;
   }
 
-  private String equalValue(AuthenticationFlowContext context, JsonNode attributeToCheck, String attribute, String error,
-		String inetumValue, String inetumField) {
-      log.info("equalValue: start");    
-  
-      // Compare and return false if different
-      Collator collator = Collator.getInstance();
-      collator.setDecomposition(2);
-      collator.setStrength(0);
-  
-      if (collator.compare(attribute.trim(), inetumValue.trim()) != 0) {
-        log.errorv(
-            "verifyResults: FALSE; attribute: {0}, inetumField: {1}, attributeValue: {2}, inetumValue: {3}",
-            attribute, inetumField, attribute, inetumValue);
-        return error;
-      }
+  private String equalValue(
+      AuthenticationFlowContext context,
+      JsonNode attributeToCheck,
+      String attribute,
+      String typeError,
+      String inetumValue,
+      String inetumField) {
+    log.info("equalValue: start");
 
-  return null;
-}
+    // Compare and return false if different
+    Collator collator = Collator.getInstance();
+    collator.setDecomposition(2);
+    collator.setStrength(0);
 
-private String integerMinValue(AuthenticationFlowContext context, JsonNode attributeToCheck, String attribute, String error,
-		String inetumValue, String inetumField) {
-      log.info("integerMinValue: start");
+    if (collator.compare(attribute.trim(), inetumValue.trim()) != 0) {
+      log.errorv(
+          "verifyResults: FALSE; attribute: {0}, inetumField: {1}, attributeValue: {2}, inetumValue: {3}",
+          attribute, inetumField, attribute, inetumValue);
+      return typeError;
+    }
 
-      int minValue = Integer.parseInt(attribute);
-      log.infov("verifyResults: minValue {0}", minValue);
-    
-      int intInetumValue = Integer.parseInt(inetumValue);
-      log.infov("verifyResults: intInetumValue {0}", minValue);
-    
-      if (intInetumValue < minValue) {
-        return error;
-      }
+    return null;
+  }
 
-      return null;
-}
+  private String integerMinValue(
+      AuthenticationFlowContext context,
+      JsonNode attributeToCheck,
+      String attribute,
+      String typeError,
+      String inetumValue,
+      String inetumField) {
+    log.info("integerMinValue: start");
 
-private String checkAuthnoteEquals(AuthenticationFlowContext context, JsonNode attributeToCheck, String attribute, String error, String inetumValue, Object inetumField) {
-  log.info("checkAuthnoteEquals: start");
+    int minValue = Integer.parseInt(attribute);
+    log.infov("verifyResults: minValue {0}", minValue);
+
+    int intInetumValue = Integer.parseInt(inetumValue);
+    log.infov("verifyResults: intInetumValue {0}", minValue);
+
+    if (intInetumValue < minValue) {
+      return typeError;
+    }
+
+    return null;
+  }
+
+  private String checkAuthnoteEquals(
+      AuthenticationFlowContext context,
+      JsonNode attributeToCheck,
+      String attribute,
+      String typeError,
+      String inetumValue,
+      Object inetumField) {
+    log.info("checkAuthnoteEquals: start");
     // Get attribute from authentication notes
     String attributeValue = context.getAuthenticationSession().getAuthNote(attribute);
     log.infov("verifyResults: attributeValue {0}", attributeValue);
 
     if (attributeValue == null) {
       log.errorv("verifyResults: could not find value in auth notes {0}", attribute);
-      return error;
+      return typeError;
     }
 
     // Compare and return false if different
@@ -468,13 +498,13 @@ private String checkAuthnoteEquals(AuthenticationFlowContext context, JsonNode a
       log.errorv(
           "verifyResults: FALSE; attribute: {0}, inetumField: {1}, attributeValue: {2}, inetumValue: {3}",
           attribute, inetumField, attributeValue, inetumValue);
-      return error;
+      return typeError;
     }
 
     return null;
-}
+  }
 
-private String getValueFromInetumResponse(SimpleHttp.Response response, String inetumField) {
+  private String getValueFromInetumResponse(SimpleHttp.Response response, String inetumField) {
     String inetumValue = null;
     try {
       inetumValue = response.asJson().at(inetumField).asText();
