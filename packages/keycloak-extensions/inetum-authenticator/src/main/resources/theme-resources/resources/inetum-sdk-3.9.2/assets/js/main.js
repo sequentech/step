@@ -517,6 +517,11 @@ sdk = {
 // after the demo
 env_config = eval("(" + window.DOB_ENV_CONFIG + ")");
 
+// Add default assets if not set in configuration
+if(!env_config.baseAssetsUrl) {
+  env_config.baseAssetsUrl = window.ASSETS_URL;
+}
+
 session = {
   tokenDOB: window.DOB_DATA.td,
   userID: window.DOB_DATA.uid
