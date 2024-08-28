@@ -99,10 +99,8 @@ public class MessageOTPAuthenticator
       } else {
         // Set email as verified in the auth note only if we actually verified
         // the email or email and/or sms
-        if (
-          messageCourier == Utils.MessageCourier.BOTH
-          || messageCourier == Utils.MessageCourier.EMAIL)
-        {
+        if (messageCourier == Utils.MessageCourier.BOTH
+            || messageCourier == Utils.MessageCourier.EMAIL) {
           authSession.setAuthNote(EMAIL_VERIFIED, "true");
         }
 
@@ -193,14 +191,7 @@ public class MessageOTPAuthenticator
 
       if ((!resend && (code == null || ttl == null)) || (resend && allowResend)) {
         Utils.sendCode(
-          config,
-          session,
-          user,
-          authSession,
-          messageCourier,
-          deferredUser,
-          /* isOTl */ isOtl
-        );
+            config, session, user, authSession, messageCourier, deferredUser, isOtl);
         codeJustSent = true;
         // after sending the code, we have a new ttl
         ttl = authSession.getAuthNote(Utils.CODE_TTL);
