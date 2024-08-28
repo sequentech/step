@@ -11,6 +11,7 @@ import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.Authenticator;
 import org.keycloak.authentication.CredentialValidator;
+import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
@@ -23,7 +24,7 @@ import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
 public class MessageOTPAuthenticator
     implements Authenticator, CredentialValidator<MessageOTPCredentialProvider> {
   public static final String MOBILE_NUMBER_FIELD = "sequent.read-only.mobile-number";
-  private static final String TPL_CODE = "login-message-otp.ftl";
+  private static final String TPL_CODE = "message-otp.login.ftl";
   private static final String EMAIL_VERIFIED = "Email verified";
 
   @Override
@@ -121,8 +122,8 @@ public class MessageOTPAuthenticator
             AuthenticationFlowError.INVALID_CREDENTIALS,
             context
                 .form()
-                .setAttribute("realm", context.getRealm())
                 .setError("messageOtp.auth.codeInvalid")
+                .setAttribute("realm", context.getRealm())
                 .setAttribute("courier", messageCourier)
                 .setAttribute("isOtl", isOtl)
                 .setAttribute("codeJustSent", false)
@@ -154,6 +155,13 @@ public class MessageOTPAuthenticator
       context.success();
       return;
     }
+
+    LoginFormsProvider form = context
+      .form()
+      .setAttribute("realm", context.getRealm())
+      .setAttribute("courier", messageCourier)
+      .setAttribute("isOtl", isOtl)
+      .setAttribute("ttl", config.getConfig().get(Utils.CODE_TTL));
 
     try {
       UserModel user = context.getUser();
@@ -190,8 +198,7 @@ public class MessageOTPAuthenticator
       }
 
       if ((!resend && (code == null || ttl == null)) || (resend && allowResend)) {
-        Utils.sendCode(
-            config, session, user, authSession, messageCourier, deferredUser, isOtl);
+        Utils.sendCode(config, session, user, authSession, messageCourier, deferredUser, isOtl);
         codeJustSent = true;
         // after sending the code, we have a new ttl
         ttl = authSession.getAuthNote(Utils.CODE_TTL);
@@ -201,17 +208,12 @@ public class MessageOTPAuthenticator
       }
 
       context.challenge(
-          context
-              .form()
-              .setAttribute("realm", context.getRealm())
-              .setAttribute("courier", messageCourier)
-              .setAttribute("isOtl", isOtl)
-              .setAttribute("codeJustSent", codeJustSent)
+          form
               .setAttribute(
                   "address",
                   Utils.getOtpAddress(messageCourier, deferredUser, config, authSession, user))
               .setAttribute("resendTimer", config.getConfig().get(Utils.RESEND_ACTIVATION_TIMER))
-              .setAttribute("ttl", config.getConfig().get(Utils.CODE_TTL))
+              .setAttribute("codeJustSent", codeJustSent)
               .createForm(TPL_CODE));
     } catch (Exception error) {
       log.error("Error resending OTP", error);

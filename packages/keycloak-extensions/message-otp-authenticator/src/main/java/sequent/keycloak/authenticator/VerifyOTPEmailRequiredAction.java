@@ -105,14 +105,17 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
     KeycloakSession session = context.getSession();
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
 
-    // initial form
-    LoginFormsProvider form = context.form();
-    form.setAttribute("realm", context.getRealm());
-    form.setAttribute("user", context.getUser());
-
     AuthenticatorConfigModel config = Utils.getConfig(authSession.getRealm()).get();
     String resendTimer = config.getConfig().get(Utils.RESEND_ACTIVATION_TIMER);
     boolean isOtl = config.getConfig().get(Utils.ONE_TIME_LINK).equals("true");
+
+    // initial form
+    LoginFormsProvider form = context.form()
+      .setAttribute("realm", context.getRealm())
+      .setAttribute("user", context.getUser())
+      .setAttribute("isOtl", isOtl)
+      .setAttribute("ttl", config.getConfig().get(Utils.CODE_TTL))
+      .setAttribute("resendTimer", resendTimer);
 
     try {
       UserModel user = context.getUser();
@@ -125,22 +128,16 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
           /* deferred user */ false,
           isOtl);
       context.challenge(
-          context
-              .form()
-              .setAttribute("realm", context.getRealm())
-              .setAttribute("isOtl", isOtl)
+          form
               .setAttribute(
                   "address",
                   Utils.getOtpAddress(Utils.MessageCourier.EMAIL, false, config, authSession, user))
-              .setAttribute("ttl", config.getConfig().get(Utils.CODE_TTL))
-              .setAttribute("resendTimer", resendTimer)
               .createForm(TPL_CODE));
     } catch (Exception error) {
       log.infov("there was an error {0}", error);
       context.failure();
       context.challenge(
-          context
-              .form()
+          form
               .setError("messageNotSent", error.getMessage())
               .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
     }
