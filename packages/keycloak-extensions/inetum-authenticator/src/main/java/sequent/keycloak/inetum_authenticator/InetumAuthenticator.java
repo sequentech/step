@@ -445,7 +445,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
     if (collator.compare(attribute.trim(), inetumValue.trim()) != 0) {
       log.errorv(
-          "verifyResults: FALSE; attribute: {0}, inetumField: {1}, attributeValue: {2}, inetumValue: {3}",
+          "equalValue: FALSE; attribute: {0}, inetumField: {1}, attributeValue: {2}, inetumValue: {3}",
           attribute, inetumField, attribute, inetumValue);
       return typeError;
     }
@@ -463,10 +463,10 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     log.info("integerMinValue: start");
 
     int minValue = Integer.parseInt(attribute);
-    log.infov("verifyResults: minValue {0}", minValue);
+    log.infov("integerMinValue: minValue {0}", minValue);
 
     int intInetumValue = Integer.parseInt(inetumValue);
-    log.infov("verifyResults: intInetumValue {0}", minValue);
+    log.infov("integerMinValue: intInetumValue {0}", minValue);
 
     if (intInetumValue < minValue) {
       return typeError;
