@@ -640,6 +640,14 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
                         "errorMsg": "scoringInetumError"
                     }
                 ],
+                "Seaman Book": [
+                    {
+                        "type": "equalAuthnoteAttributeId",
+                        "equalAuthnoteAttributeId": "sequent.read-only.id-card-number",
+                        "inetumAttributePath": "/response/mrz/personal_number",
+                        "errorMsg": "attributesInetumError"
+                    }
+                ],
                 "Philippine Passport": [
                     {
                         "type": "equalAuthnoteAttributeId",
