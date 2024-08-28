@@ -2,32 +2,32 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-version: "3.6"
+version: '3.6'
 services:
   devcontainer:
-    profiles: ["full", "base"]
-    image: ghcr.io/cachix/devenv:latest
+    #profiles: ["full", "base"]
+    image: ghcr.io/cachix/devenv:v1.0.7
     container_name: devcontainer
     volumes:
       - ../..:/workspaces:cached
     # support ptrace-based debuggers like C++, Go, and Rust
     cap_add:
-     - SYS_PTRACE
+      - SYS_PTRACE
     security_opt:
       - label:disable
     environment:
       # postgres database to store Hasura metadata
       HASURA_GRAPHQL_METADATA_DATABASE_URL: ${HASURA_GRAPHQL_METADATA_DATABASE_URL}
-      # this env var can be used to add the above postgres database to Hasura 
+      # this env var can be used to add the above postgres database to Hasura
       # as a data source. this can be removed/updated based on your needs
       PG_DATABASE_URL: ${HASURA_PG_DATABASE_URL}
 
   # Needed to set up proper permissions for non root user in postgres
   postgres-volume-init:
-    profiles: ["full", "base"]
+    #profiles: ["full", "base"]
     image: alpine
     container_name: postgres-volume-init
-    volumes: 
+    volumes:
       - db_logs:/logs
       - keycloak_db_logs:/keycloak_logs
     user: root
@@ -36,8 +36,8 @@ services:
     command: chown -R 999:999 /logs /keycloak_logs
 
   postgres:
-    profiles: ["full", "base"]
-    image: ghcr.io/sequentech/step/postgres:latest
+    #profiles: ["full", "base"]
+    image: sequentech.local/postgresql
     container_name: postgres
     restart: unless-stopped
     volumes:
@@ -46,7 +46,7 @@ services:
     environment:
       POSTGRES_PASSWORD: ${HASURA_PG_PASSWORD}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
       interval: 5s
       timeout: 10s
       retries: 15
@@ -56,14 +56,14 @@ services:
       - postgres-volume-init
 
   minio:
-    profiles: ["full", "base"]
+    #profiles: ["full", "base"]
     container_name: minio
     image: minio/minio
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - '9000:9000'
+      - '9001:9001'
     volumes:
       - minio_storage:/data
     environment:
@@ -79,21 +79,21 @@ services:
     #restart: always
     #depends_on:
     #  - graphql-engine
-  
+
   # used to add headers to minio
   minio-proxy:
-    profiles: ["full", "base"]
+    #profiles: ["full", "base"]
     container_name: minio-proxy
     image: nginx:latest
     ports:
-      - "9002:9002"
+      - '9002:9002'
     volumes:
       - ./minio/nginx:/etc/nginx/conf.d
     depends_on:
       - minio
-  
+
   configure-minio:
-    profiles: ["full", "base"]
+    #profiles: ["full", "base"]
     container_name: configure-minio
     image: ghcr.io/sequentech/step/minio:latest
     depends_on:
@@ -110,15 +110,15 @@ services:
 
   # hashicorp vault to store secrets
   vault:
-    profiles: ["full", "base"]
+    #profiles: ["full", "base"]
     container_name: vault
     image: ghcr.io/sequentech/step/vault:latest
     restart: on-failure:10
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     ports:
-      - "8201:8201"
-      - "8200:8200"
+      - '8201:8201'
+      - '8200:8200'
     environment:
       VAULT_API_ADDR: 'http://0.0.0.0:8200'
       VAULT_ADDR: 'http://0.0.0.0:8201'
@@ -133,11 +133,11 @@ services:
     entrypoint: /opt/vault/entrypoint.sh
 
   graphql-engine:
-    profiles: ["full", "base"]
+    #profiles: ["full", "base"]
     image: hasura/graphql-engine:v2.33.1.cli-migrations-v3
     container_name: hasura
     ports:
-      - "8080:8080"
+      - '8080:8080'
     restart: always
     volumes:
       - ../hasura/metadata/:/hasura-metadata:cached
@@ -153,7 +153,7 @@ services:
       PG_DATABASE_URL: ${HASURA_PG_DATABASE_URL}
       ## enable the console served by server
       # set to "false" to disable console
-      HASURA_GRAPHQL_ENABLE_CONSOLE: ${HASURA_GRAPHQL_ENABLE_CONSOLE} 
+      HASURA_GRAPHQL_ENABLE_CONSOLE: ${HASURA_GRAPHQL_ENABLE_CONSOLE}
       ## enable debugging mode. It is recommended to disable this in production
       HASURA_GRAPHQL_DEV_MODE: ${HASURA_GRAPHQL_DEV_MODE}
       # https://hasura.io/docs/latest/deployment/graphql-engine-flags/config-examples/#console-assets-on-server
@@ -173,7 +173,7 @@ services:
         condition: service_healthy
 
   data-connector-agent:
-    profiles: ["full", "base"]
+    #profiles: ["full", "base"]
     container_name: data-connector-agent
     image: hasura/graphql-data-connector:v2.31.0
     restart: always
@@ -182,18 +182,18 @@ services:
     environment:
       QUARKUS_LOG_LEVEL: ERROR # FATAL, ERROR, WARN, INFO, DEBUG, TRACE
       ## https://quarkus.io/guides/opentelemetry#configuration-reference
-      QUARKUS_OPENTELEMETRY_ENABLED: "false"
+      QUARKUS_OPENTELEMETRY_ENABLED: 'false'
       ## QUARKUS_OPENTELEMETRY_TRACER_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/api/v1/athena/health"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:8081/api/v1/athena/health']
       interval: 5s
       timeout: 10s
       retries: 25
       start_period: 5s
 
   postgres-keycloak:
-    profiles: ["full", "base"]
-    image: ghcr.io/sequentech/step/postgres:latest
+    #profiles: ["full", "base"]
+    image: sequentech.local/postgresql
     container_name: postgres-keycloak
     restart: unless-stopped
     volumes:
@@ -203,7 +203,7 @@ services:
     environment:
       POSTGRES_PASSWORD: ${KC_DB_PASSWORD}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready  -U postgres"]
+      test: ['CMD-SHELL', 'pg_isready  -U postgres']
       interval: 5s
       timeout: 10s
       retries: 15
@@ -215,7 +215,7 @@ services:
       - postgres
 
   keycloak:
-    profiles: ["full", "base"]
+    #profiles: ["full", "base"]
     container_name: keycloak
     image: ghcr.io/sequentech/step/keycloak:latest
     restart: always
@@ -264,51 +264,54 @@ services:
       postgres-keycloak:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://127.0.0.1:8090/health/live"]
+      test: ['CMD', 'curl', '-f', 'http://127.0.0.1:8090/health/live']
       interval: 5s
       timeout: 10s
       retries: 25
       start_period: 5s
 
-  admin-portal:
-    profiles: ["full"]
-    image: ghcr.io/sequentech/step/yarn:latest
-    container_name: admin-portal
-    #restart: always
-    #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
-    #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
-    ports:
-      - 3002:3002
-    stdin_open: true
-    entrypoint: ["yarn", "start:admin-portal"]
-    volumes:
-       - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
-    environment:
-        MAX_DIFF_LINES: ${MAX_DIFF_LINES}
-        SECONDS_TO_SHOW_COUNTDOWN: ${SECONDS_TO_SHOW_COUNTDOWN}
-        SECONDS_TO_SHOW_ALRET: ${SECONDS_TO_SHOW_ALRET}
+  # admin-portal:
+  #   profiles: ["full"]
+  #   image: sequentech.local/frontend
+  #   container_name: admin-portal
+  #   build:
+  #     context: ../packages/
+  #     dockerfile: Dockerfile
+  #   #restart: always
+  #   #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
+  #   #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
+  #   ports:
+  #     - 3002:3000
+  #   stdin_open: true
+  #   entrypoint: ["./init.sh", "start:admin:container"]
+  #   volumes:
+  #      - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
+  #   environment:
+  #       MAX_DIFF_LINES: ${MAX_DIFF_LINES}
+  #       SECONDS_TO_SHOW_COUNTDOWN: ${SECONDS_TO_SHOW_COUNTDOWN}
+  #       SECONDS_TO_SHOW_ALRET: ${SECONDS_TO_SHOW_ALRET}
 
-  voting-portal:
-    profiles: ["full"]
-    image: ghcr.io/sequentech/step/yarn:latest
-    container_name: voting-portal
-    # depending on the `admin-portal` container to ensure that the
-    # `sequentech.local/frontend` image is locally build, so that we can reuse
-    # it:
-    depends_on:
-      - admin-portal
-    #restart: always
-    #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
-    #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
-    ports:
-      - 3000:3000
-    stdin_open: true
-    entrypoint: ["yarn", "start:voting-portal"]
-    volumes:
-       - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
+  # voting-portal:
+  #   profiles: ["full"]
+  #   image: sequentech.local/frontend
+  #   container_name: voting-portal
+  #   # depending on the `admin-portal` container to ensure that the
+  #   # `sequentech.local/frontend` image is locally build, so that we can reuse
+  #   # it:
+  #   depends_on:
+  #     - admin-portal
+  #   #restart: always
+  #   #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
+  #   #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
+  #   ports:
+  #     - 3000:3000
+  #   stdin_open: true
+  #   entrypoint: ["./init.sh", "start"]
+  #   volumes:
+  #      - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
 
   immudb:
-    profiles: ["full", "base"]
+    #profiles: ["full", "base"]
     container_name: immudb
     image: ghcr.io/sequentech/step/immudb:latest
     restart: always
@@ -325,9 +328,9 @@ services:
       - immudb_logs:/var/log/immudb
     depends_on:
       - immudb-init
-  
+
   harvest:
-    profiles: ["full", "base"]
+    #profiles: ["full", "base"]
     stdin_open: true
     image: ghcr.io/sequentech/step/cargo-packages:latest
     container_name: harvest
@@ -335,16 +338,16 @@ services:
       - ../packages/:/app
     working_dir: /app/harvest
     entrypoint: [
-      "cargo",
-      "watch",
-      "--why",
-      # ignoring rust-local-target/ since it's used for local builds and
-      # otherwise triggers a rebuild all the time (probably rust analyzer)
-      "--ignore",
-      "rust-local-target/",
-      "-x",
-      "run"
-    ]
+        'cargo',
+        'watch',
+        '--why',
+        # ignoring rust-local-target/ since it's used for local builds and
+        # otherwise triggers a rebuild all the time (probably rust analyzer)
+        '--ignore',
+        'rust-local-target/',
+        '-x',
+        'run',
+      ]
     environment:
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
       LOG_LEVEL: ${LOG_LEVEL}
@@ -407,10 +410,10 @@ services:
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     ports:
-     - ${HARVEST_PORT}:${HARVEST_PORT}
+      - ${HARVEST_PORT}:${HARVEST_PORT}
 
   trustee1:
-    profiles: ["full"]
+    #profiles: ["full"]
     stdin_open: true
     container_name: trustee1
     image: sequentech.local/braid
@@ -421,21 +424,21 @@ services:
       context: ../packages/
       dockerfile: ./braid/Dockerfile
     environment:
-        IMMUDB_USER: ${IMMUDB_USER}
-        IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-        IMMUDB_URL: ${IMMUDB_SERVER_URL}
-        IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
-        TRUSTEE_NAME: trustee1
-        TRUSTEE_CONFIG: ${TRUSTEE1_CONFIG}
-        IGNORE_BOARDS: ${IGNORE_BOARDS}
-        SECRETS_BACKEND: ${SECRETS_BACKEND}
-        VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-        VAULT_TOKEN: ${VAULT_TOKEN}
+      IMMUDB_USER: ${IMMUDB_USER}
+      IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
+      IMMUDB_URL: ${IMMUDB_SERVER_URL}
+      IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
+      TRUSTEE_NAME: trustee1
+      TRUSTEE_CONFIG: ${TRUSTEE1_CONFIG}
+      IGNORE_BOARDS: ${IGNORE_BOARDS}
+      SECRETS_BACKEND: ${SECRETS_BACKEND}
+      VAULT_SERVER_URL: ${VAULT_SERVER_URL}
+      VAULT_TOKEN: ${VAULT_TOKEN}
     depends_on:
       - immudb
-  
+
   trustee2:
-    profiles: ["full"]
+    #profiles: ["full"]
     stdin_open: true
     image: sequentech.local/braid
     container_name: trustee2
@@ -448,46 +451,46 @@ services:
       - trustee1
       - immudb
     environment:
-        IMMUDB_USER: ${IMMUDB_USER}
-        IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-        IMMUDB_URL: ${IMMUDB_SERVER_URL}
-        IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
-        TRUSTEE_NAME: trustee2
-        TRUSTEE_CONFIG: ${TRUSTEE2_CONFIG}
-        IGNORE_BOARDS: ${IGNORE_BOARDS}
-        SECRETS_BACKEND: ${SECRETS_BACKEND}
-        VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-        VAULT_TOKEN: ${VAULT_TOKEN}
-  
-  trustee3:
-    profiles: ["full"]
-    stdin_open: true
-    image: sequentech.local/braid
-    container_name: trustee3
-    volumes:
-      - trustee3_data:/opt/braid
-    # depending on the `trustee1` container to ensure that the
-    # `sequentech.local/braid` image is locally build, so that we can reuse
-    # it:
-    depends_on:
-      - trustee1
-      - immudb
-    environment:
-        IMMUDB_USER: ${IMMUDB_USER}
-        IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-        IMMUDB_URL: ${IMMUDB_SERVER_URL}
-        IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
-        TRUSTEE_NAME: trustee3
-        TRUSTEE_CONFIG: ${TRUSTEE3_CONFIG}
-        IGNORE_BOARDS: ${IGNORE_BOARDS}
-        SECRETS_BACKEND: ${SECRETS_BACKEND}
-        VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-        VAULT_TOKEN: ${VAULT_TOKEN}
+      IMMUDB_USER: ${IMMUDB_USER}
+      IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
+      IMMUDB_URL: ${IMMUDB_SERVER_URL}
+      IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
+      TRUSTEE_NAME: trustee2
+      TRUSTEE_CONFIG: ${TRUSTEE2_CONFIG}
+      IGNORE_BOARDS: ${IGNORE_BOARDS}
+      SECRETS_BACKEND: ${SECRETS_BACKEND}
+      VAULT_SERVER_URL: ${VAULT_SERVER_URL}
+      VAULT_TOKEN: ${VAULT_TOKEN}
+
+  # trustee3:
+  #   profiles: ["full"]
+  #   stdin_open: true
+  #   image: sequentech.local/braid
+  #   container_name: trustee3
+  #   volumes:
+  #     - trustee3_data:/opt/braid
+  #   # depending on the `trustee1` container to ensure that the
+  #   # `sequentech.local/braid` image is locally build, so that we can reuse
+  #   # it:
+  #   depends_on:
+  #     - trustee1
+  #     - immudb
+  #   environment:
+  #       IMMUDB_USER: ${IMMUDB_USER}
+  #       IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
+  #       IMMUDB_URL: ${IMMUDB_SERVER_URL}
+  #       IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
+  #       TRUSTEE_NAME: trustee3
+  #       TRUSTEE_CONFIG: ${TRUSTEE3_CONFIG}
+  #       IGNORE_BOARDS: ${IGNORE_BOARDS}
+  #       SECRETS_BACKEND: ${SECRETS_BACKEND}
+  #       VAULT_SERVER_URL: ${VAULT_SERVER_URL}
+  #       VAULT_TOKEN: ${VAULT_TOKEN}
 
   # Create collection in immudb
   immudb-log-audit-init:
-    profiles: ["full", "base"]
-    image: ghcr.io/sequentech/step/immudb-log-audit:latest
+    #profiles: ["full", "base"]
+    image: sequentech.local/immudb-log-audit
     container_name: immudb-log-audit-init
     command: >
       create sql pgaudit_hasura
@@ -504,8 +507,8 @@ services:
 
   # Send audit logs to immudb
   immudb-log-audit:
-    profiles: ["full", "base"]
-    image: ghcr.io/sequentech/step/immudb-log-audit:latest
+    #profiles: ["full", "base"]
+    image: sequentech.local/immudb-log-audit
     container_name: immudb-log-audit
     command: >
       tail file pgaudit_hasura "/logs/*.json"
@@ -518,7 +521,7 @@ services:
       --immudb-host ${IMMUDB_HOST}
       --immudb-port ${IMMUDB_PORT}
       --immudb-database ${IMMUDB_LOGS_DB}
-    volumes: 
+    volumes:
       - 'immudb_log_audit_data:/data'
       - 'db_logs:/logs'
     # make sure to depend on the `immudb-log-audit-init` container to ensure
@@ -534,8 +537,8 @@ services:
 
   # Create collection in immudb
   immudb-log-audit-init-keycloak:
-    profiles: ["full", "base"]
-    image: ghcr.io/sequentech/step/immudb-log-audit:latest
+    #profiles: ["full", "base"]
+    image: sequentech.local/immudb-log-audit
     container_name: immudb-log-audit-init-keycloak
     command: >
       create sql pgaudit_keycloak
@@ -553,8 +556,8 @@ services:
 
   # Send audit logs to immudb
   immudb-log-audit-keycloak:
-    profiles: ["full", "base"]
-    image: ghcr.io/sequentech/step/immudb-log-audit:latest
+    #profiles: ["full", "base"]
+    image: sequentech.local/immudb-log-audit
     container_name: immudb-log-audit-keycloak
     command: >
       tail file pgaudit_keycloak "/logs/*.json"
@@ -567,7 +570,7 @@ services:
       --immudb-host ${IMMUDB_HOST}
       --immudb-port ${IMMUDB_PORT}
       --immudb-database ${IMMUDB_LOGS_DB}
-    volumes: 
+    volumes:
       - 'keycloak_immudb_log_audit_data:/data'
       - 'keycloak_db_logs:/logs'
     # make sure to depend on the `immudb-log-audit-init` container to ensure
@@ -578,20 +581,19 @@ services:
       - immudb
       - immudb-log-audit-init-keycloak
 
-
   rabbitmq:
-    profiles: ["full", "base"]
+    #profiles: ["full", "base"]
     image: rabbitmq:management
     container_name: rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - '5672:5672'
+      - '15672:15672'
 
   immudb-init:
-    profiles: ["full", "base"]
+    #profiles: ["full", "base"]
     stdin_open: true
     image: ghcr.io/sequentech/step/cargo-packages:latest
     container_name: immudb-init
@@ -605,31 +607,32 @@ services:
       - ../packages/:/app
     restart: always
     working_dir: /app/immu-board
-    entrypoint: [
-      "cargo",
-      "run",
-      "--bin",
-      "bb_helper",
-      "--",
-      "--server-url",
-      "${IMMUDB_SERVER_URL}",
-      "--username",
-      "${IMMUDB_USER}",
-      "--password",
-      "${IMMUDB_PASSWORD}",
-      "--index-dbname",
-      "${IMMUDB_INDEX_DB}",
-      "--board-dbname",
-      "${IMMUDB_BOARD_DB_NAME}",
-      "--cache-dir",
-      "/tmp/immu-board",
-      "upsert-init-db"
-    ]
+    entrypoint:
+      [
+        'cargo',
+        'run',
+        '--bin',
+        'bb_helper',
+        '--',
+        '--server-url',
+        '${IMMUDB_SERVER_URL}',
+        '--username',
+        '${IMMUDB_USER}',
+        '--password',
+        '${IMMUDB_PASSWORD}',
+        '--index-dbname',
+        '${IMMUDB_INDEX_DB}',
+        '--board-dbname',
+        '${IMMUDB_BOARD_DB_NAME}',
+        '--cache-dir',
+        '/tmp/immu-board',
+        'upsert-init-db',
+      ]
     env_file:
       - .env
 
   windmill:
-    profiles: ["full", "base"]
+    #profiles: ["full", "base"]
     stdin_open: true
     image: ghcr.io/sequentech/step/cargo-packages:latest
     container_name: windmill
@@ -639,16 +642,16 @@ services:
     restart: always
     working_dir: /app/windmill
     entrypoint: [
-      "cargo",
-      "watch",
-      "--why",
-      # ignoring rust-local-target/ since it's used for local builds and
-      # otherwise triggers a rebuild all the time (probably rust analyzer)
-      "--ignore",
-      "rust-local-target/",
-      "-x",
-      "run --bin main consume -q short_queue tally_queue beat reports_queue communication_queue import_export_queue"
-    ]
+        'cargo',
+        'watch',
+        '--why',
+        # ignoring rust-local-target/ since it's used for local builds and
+        # otherwise triggers a rebuild all the time (probably rust analyzer)
+        '--ignore',
+        'rust-local-target/',
+        '-x',
+        'run --bin main consume -q short_queue tally_queue beat reports_queue communication_queue import_export_queue',
+      ]
     volumes:
       - ./keycloak/import:/import
       - ../packages/:/app
@@ -726,14 +729,14 @@ services:
       PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE: ${PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE}
       PUBLIC_ASSETS_EML_BASE_TEMPLATE: ${PUBLIC_ASSETS_EML_BASE_TEMPLATE}
       VOTE_RECEIPT_TEMPLATE_TITLE: ${VOTE_RECEIPT_TEMPLATE_TITLE}
-      VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE: ${VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE}
-       #Demo key
+      VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE:
+        ${VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE}
+        #Demo key
       DEMO_PUBLIC_KEY: ${DEMO_PUBLIC_KEY}
       MIRU_STATION_ID: ${MIRU_STATION_ID}
-      
 
   beat:
-    profiles: ["full"]
+    #profiles: ["full"]
     stdin_open: true
     image: ghcr.io/sequentech/step/cargo-packages:latest
     container_name: beat
@@ -744,16 +747,16 @@ services:
       - harvest
     working_dir: /app/windmill
     entrypoint: [
-      "cargo",
-      "watch",
-      "--why",
-      # ignoring rust-local-target/ since it's used for local builds and
-      # otherwise triggers a rebuild all the time (probably rust analyzer)
-      "--ignore",
-      "rust-local-target/",
-      "-x",
-      "run --bin beat"
-    ]
+        'cargo',
+        'watch',
+        '--why',
+        # ignoring rust-local-target/ since it's used for local builds and
+        # otherwise triggers a rebuild all the time (probably rust analyzer)
+        '--ignore',
+        'rust-local-target/',
+        '-x',
+        'run --bin beat',
+      ]
     volumes:
       - ./keycloak/import:/import
       - ../packages/:/app
