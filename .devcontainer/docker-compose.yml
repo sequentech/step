@@ -787,25 +787,25 @@ volumes:
     driver: local
     driver_opts:
       type: none
-      device: /Users/jorge/repos/step/.devcontainer/keycloak/import
+      device: ~/repos/step/.devcontainer/keycloak/import
       o: bind
   packages:
     driver: local
     driver_opts:
       type: none
-      device: /Users/jorge/repos/step/packages
+      device: ~/repos/step/packages
       o: bind
   hasura_metadata:
     driver: local
     driver_opts:
       type: none
-      device: /Users/jorge/repos/step/hasura/metadata
+      device: ~/repos/step/hasura/metadata
       o: bind
   hasura_migrations:
     driver: local
     driver_opts:
       type: none
-      device: /Users/jorge/repos/step/hasura/migrations
+      device: ~/repos/step/hasura/migrations
       o: bind
   immudb_data:
   immudb_logs:
