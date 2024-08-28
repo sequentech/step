@@ -10,6 +10,7 @@ import org.spongycastle.jce.provider.BouncyCastleProvider;
 
 import javax.crypto.Cipher;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -37,8 +38,10 @@ public class ECIESEncryptionTool {
             System.out.println("  decrypt <private-key-file> <encrypted-text>");
             System.out.println("  sign <private-key-file> <plaintext-file>");
             System.out.println("  verify <public-key-file> <plaintext-file> <signature-base64>");
-            System.out.println("  sign-rsa <private-key-file> <plaintext-file>");
+            System.out.println("  sign-rsa <p12-private-key-file> <plaintext-file> <p12-password>");
             System.out.println("  verify-rsa <public-key-file> <plaintext-file> <signature-base64>");
+            System.out.println("  public-key <p12-private-key-file> <p12-password>");
+
             return;
         }
 
@@ -89,11 +92,11 @@ public class ECIESEncryptionTool {
                 break;
 
             case "sign-rsa":
-                if (args.length != 3) {
-                    System.out.println("Usage: sign-rsa <private-key-file> <plaintext-file>");
+                if (args.length != 4) {
+                    System.out.println("Usage: sign-rsa <p12-private-key-file> <plaintext-file> <p12-password>");
                     return;
                 }
-                String rsaSignature = signText(args[1], args[2], false);
+                String rsaSignature = signTextP12(args[1], args[2], false, args[3]);
                 System.out.println(rsaSignature);
                 break;
 
@@ -104,6 +107,15 @@ public class ECIESEncryptionTool {
                 }
                 boolean isValidRsa = verifyText(args[1], args[2], args[3], false);
                 System.out.println("Signature valid: " + isValidRsa);
+                break;
+
+            case "public-key":
+                if (args.length != 3) {
+                    System.out.println("Usage: public-key <p12-private-key-file> <p12-password>");
+                    return;
+                }
+                String publicKey = publicKeyPemFromP12(args[1], args[2]);
+                System.out.println(publicKey);
                 break;
 
             default:
@@ -190,7 +202,68 @@ public class ECIESEncryptionTool {
     
         return Base64.getEncoder().encodeToString(signatureBytes);
     }
-    
+
+    private static String signTextP12(String p12FilePath, String plaintextFilePath, Boolean isECDSA, String password) throws Exception {
+        String algorithm = isECDSA ? "SHA256withECDSA" : "SHA256withRSA";
+        
+        // Load the P12 file and extract the private key
+        KeyStore keyStore = KeyStore.getInstance("PKCS12");
+        try (FileInputStream fis = new FileInputStream(p12FilePath)) {
+            keyStore.load(fis, password.toCharArray());
+        }
+        
+        // Assuming the alias is the first one in the keystore
+        String alias = keyStore.aliases().nextElement();
+        PrivateKey privateKey = (PrivateKey) keyStore.getKey(alias, password.toCharArray());
+
+        // Read the plaintext from the file to get the original byte array
+        byte[] plaintextBytes = Files.readAllBytes(Paths.get(plaintextFilePath));
+
+        // Initialize the Signature object for signing
+        Signature signature = Signature.getInstance(algorithm, "SC");
+        signature.initSign(privateKey);
+        signature.update(plaintextBytes);
+
+        // Sign the plaintext
+        byte[] signatureBytes = signature.sign();
+
+        return Base64.getEncoder().encodeToString(signatureBytes);
+    }
+
+    private static PublicKey derivePublicKeyFromPrivateKey(PrivateKey privateKey) throws Exception {
+        // Cast the private key to ECPrivateKey and get the parameters
+        ECPrivateKey ecPrivateKey = (ECPrivateKey) privateKey;
+        org.spongycastle.jce.spec.ECParameterSpec ecSpec = ECNamedCurveTable.getParameterSpec("secp256r1");
+
+        // Convert the private key's scalar (d) into a BigInteger
+        java.math.BigInteger d = ecPrivateKey.getS();
+
+        // Generate the public key point using the private key's scalar (d)
+        org.spongycastle.math.ec.ECPoint q = ecSpec.getG().multiply(d).normalize();
+
+        // Create the public key spec using Bouncy Castle's ECPublicKeySpec
+        org.spongycastle.jce.spec.ECPublicKeySpec publicKeySpec = new org.spongycastle.jce.spec.ECPublicKeySpec(q, ecSpec);
+
+        // Create the key factory and generate the public key using Bouncy Castle
+        KeyFactory keyFactory = KeyFactory.getInstance("EC", "SC");
+        return keyFactory.generatePublic(publicKeySpec);
+    }
+
+    private static String publicKeyPemFromP12(String p12FilePath, String password)  throws Exception {
+        // Load the P12 file and extract the private key
+        KeyStore keyStore = KeyStore.getInstance("PKCS12");
+        try (FileInputStream fis = new FileInputStream(p12FilePath)) {
+            keyStore.load(fis, password.toCharArray());
+        }
+        
+        // Assuming the alias is the first one in the keystore
+        String alias = keyStore.aliases().nextElement();
+        PrivateKey privateKey = (PrivateKey) keyStore.getKey(alias, password.toCharArray());
+        PublicKey publicKey = derivePublicKeyFromPrivateKey(privateKey);
+
+        // Convert the PublicKey to PEM format
+        return getPublicKeyPEM(publicKey);
+    }
 
     private static boolean verifyText(String publicKeyFile, String plaintextFilePath, String signatureBase64, Boolean isECDSA) throws Exception {
         String algorithm = isECDSA? "SHA256withECDSA" : "SHA256withRSA";
