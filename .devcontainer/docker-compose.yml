@@ -334,7 +334,7 @@ services:
     container_name: harvest
     volumes:
       #- ../packages/:/app
-      - packages/:/app
+      - packages:/app
     working_dir: /app/harvest
     entrypoint: [
       "cargo",
@@ -606,7 +606,7 @@ services:
       - keycloak_import:/import
       #- ./keycloak/import:/import
       #- ../packages/:/app
-      - packages/:/app
+      - packages:/app
     restart: always
     working_dir: /app/immu-board
     entrypoint: [
@@ -657,7 +657,7 @@ services:
       - keycloak_import:/import
       #- ./keycloak/import:/import
       #- ../packages/:/app
-      - packages/:/app
+      - packages:/app
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
       RUST_BACKTRACE: ${RUST_BACKTRACE}
