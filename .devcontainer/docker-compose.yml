@@ -240,6 +240,7 @@ services:
     volumes:
       # https://www.keycloak.org/server/containers#_importing_a_realm_on_startup
       - keycloak_import:/opt/keycloak/data/import
+      #- ./keycloak/import:/opt/keycloak/data/import
     # Below we're using the dummy email email sender provider but that's just for
     # development, in production we should still use the default SMTP email provider
     #
@@ -332,7 +333,8 @@ services:
     image: ghcr.io/sequentech/step/cargo-packages:latest
     container_name: harvest
     volumes:
-      - ../packages/:/app
+      #- ../packages/:/app
+      - packages/:/app
     working_dir: /app/harvest
     entrypoint: [
       "cargo",
@@ -602,7 +604,9 @@ services:
       - harvest
     volumes:
       - keycloak_import:/import
-      - ../packages/:/app
+      #- ./keycloak/import:/import
+      #- ../packages/:/app
+      - packages/:/app
     restart: always
     working_dir: /app/immu-board
     entrypoint: [
@@ -651,7 +655,9 @@ services:
     ]
     volumes:
       - keycloak_import:/import
-      - ../packages/:/app
+      #- ./keycloak/import:/import
+      #- ../packages/:/app
+      - packages/:/app
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
       RUST_BACKTRACE: ${RUST_BACKTRACE}
@@ -779,6 +785,12 @@ volumes:
     driver_opts:
       type: none
       device: /Users/jorge/repos/step/.devcontainer/keycloak/import
+      o: bind
+  packages:
+    driver: local
+    driver_opts:
+      type: none
+      device: /Users/jorge/repos/step/packages
       o: bind
   immudb_data:
   immudb_logs:
