@@ -82,6 +82,7 @@ const englishTranslation = {
             noPermissions: "You don't have permission to access logs.",
             title: "Tasks Execution",
             subtitle: "Information about the executed tasks",
+            taskInformation: "Task Information",
             status: "status: {{status}}",
             column: {
                 id: "Index",

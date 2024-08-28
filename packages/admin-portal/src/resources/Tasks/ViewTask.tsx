@@ -69,9 +69,9 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
                     onChange={() => setProgressExpanded(!progressExpanded)}
                 >
                     <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                        {/* <WizardStyles.AccordionTitle>
-                            {t("keysGeneration.ceremonyStep.progressHeader")}
-                        </WizardStyles.AccordionTitle> */}
+                        <WizardStyles.AccordionTitle>
+                            {t("tasksScreen.taskInformation")}
+                        </WizardStyles.AccordionTitle>
                         <WizardStyles.CeremonyStatus
                             sx={{
                                 backgroundColor: statusColor(
@@ -85,9 +85,6 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
                         />
                     </AccordionSummary>
                     <WizardStyles.AccordionDetails>
-                        <Typography variant="body2">
-                            {t("keysGeneration.ceremonyStep.description")}
-                        </Typography>
                         <TableContainer component={Paper}>
                             <Table sx={{minWidth: 650}} aria-label="simple table">
                                 <TableHead>
@@ -118,8 +115,12 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
                                             <TableCell align="center">
                                                 {task.executed_by_user}
                                             </TableCell>
-                                            <TableCell align="center">{task.start_at}</TableCell>
-                                            <TableCell align="center">{task.end_at}</TableCell>
+                                            <TableCell align="center">
+                                                {new Date(task.start_at).toLocaleString()}
+                                            </TableCell>
+                                            <TableCell align="center">
+                                                {new Date(task.end_at).toLocaleString()}
+                                            </TableCell>
                                         </TableRow>
                                     )}
                                 </TableBody>

@@ -84,6 +84,7 @@ const spanishTranslation: TranslationType = {
             noPermissions: "No tienes permiso para acceder a los registros.",
             title: "Ejecución de tareas",
             subtitle: "Información sobre las tareas ejecutadas",
+            taskInformation: "Información de la tarea",
             status: "estado: {{status}}",
             column: {
                 id: "Índice",

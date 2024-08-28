@@ -83,7 +83,8 @@ const frenchTranslation: TranslationType = {
         tasksScreen: {
             noPermissions: "Vous n'avez pas la permission d'accéder aux journaux.",
             title: "Exécution des tâches",
-            subtitle: "Informations sur les tâches exécutées",
+            subtitle: "Informations sur les tâches exécutées et les journaux de progression",
+            taskInformation: "Informations sur la tâche",
             status: "statut : {{status}}",
             column: {
                 id: "Index",

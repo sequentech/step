@@ -157,7 +157,7 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
         setWidget({
             type: ETasksExecution.EXPORT_ELECTION_EVENT,
             status: ETaskExecutionStatus.IN_PROGRESS,
-        }) //
+        })
         const {data: exportElectionEventData, errors} = await exportElectionEvent({
             variables: {
                 electionEventId,
