@@ -890,4 +890,6 @@ custom_types:
   - name: ExportAllUsersOutput
   - name: ExportTenantUsersOutput
   - name: ExportTasksOutput
+  - name: ExportTaskOutput
+  - name: sequent_backend_tasks_execution_ActionType
   scalars: []

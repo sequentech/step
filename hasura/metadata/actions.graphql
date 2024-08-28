@@ -115,7 +115,7 @@ type Mutation {
 type Mutation {
   export_election_event (
     election_event_id: String
-  ): ExportUsersOutput
+  ): ExportTaskOutput
 }
 
 type Mutation {
@@ -902,5 +902,26 @@ type ExportTenantUsersOutput {
 type ExportTasksOutput {
   task_id : String!
   document_id : String!
+}
+
+type ExportTaskOutput {
+  task : sequent_backend_tasks_execution_ActionType!
+  document_id : String!
+}
+
+type sequent_backend_tasks_execution_ActionType {
+  annotations : jsonb
+  created_at : timestamptz!
+  election_event_id : uuid!
+  end_at : timestamptz
+  executed_by_user : String!
+  execution_status : String!
+  id : uuid!
+  labels : jsonb
+  logs : json
+  name : String!
+  start_at : timestamptz!
+  tenant_id : uuid!
+  type : String!
 }
 

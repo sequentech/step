@@ -4,10 +4,10 @@
 use crate::services::tasks_execution::*;
 use crate::services::{database::get_hasura_pool, export_election_event::process_export};
 use crate::types::error::{Error, Result};
-use crate::types::tasks::ETasks;
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction};
+use sequent_core::types::hasura::core::TasksExecution;
 use tracing::{event, instrument, Level};
 
 #[instrument(err)]
@@ -17,18 +17,8 @@ pub async fn export_election_event(
     tenant_id: String,
     election_event_id: String,
     document_id: String,
-    executed_by_user: String,
+    task: TasksExecution,
 ) -> Result<()> {
-    // Insert the task execution record
-    let task = post(
-        &tenant_id,
-        &election_event_id,
-        ETasks::EXPORT_ELECTION_EVENT,
-        &executed_by_user,
-    )
-    .await
-    .context("Failed to insert task execution record")?;
-
     let mut hasura_db_client: DbClient = match get_hasura_pool().await.get().await {
         Ok(client) => client,
         Err(err) => {

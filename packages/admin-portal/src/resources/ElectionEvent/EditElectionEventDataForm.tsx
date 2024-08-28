@@ -163,6 +163,7 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
                 electionEventId,
             },
         })
+        console.log({exportElectionEventData})
         let documentId = exportElectionEventData?.export_election_event?.document_id
         if (errors || !documentId) {
             setOpenExport(false)
