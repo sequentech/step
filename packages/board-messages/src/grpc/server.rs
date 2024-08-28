@@ -9,7 +9,8 @@ use tracing::{error, info};
 
 use crate::grpc::{
     GetBoardsReply, GetBoardsRequest, GetMessagesMultiReply, GetMessagesMultiRequest,
-    GetMessagesReply, GetMessagesRequest, GrpcB3Message, KeyedMessages,
+    GetMessagesReply, GetMessagesRequest, GrpcB3Message, KeyedMessages, PutMessagesMultiReply,
+    PutMessagesMultiRequest,
 };
 use crate::grpc::{PutMessagesReply, PutMessagesRequest};
 
@@ -31,6 +32,72 @@ impl PgsqlB3Server {
 
         Ok(PgsqlB3Server { pool })
     }
+
+    async fn get_messages_(&self, board: &str, last_id: i64) -> Result<Vec<GrpcB3Message>, Status> {
+        validate_board_name(board)
+            .map_err(|e| Status::invalid_argument(format!("Invalid board: {e}")))?;
+
+        let c = self.pool.get().await;
+        let Ok(c) = c else {
+            error!("Pgsql connection failed: {:?}", c.err());
+            return Err(Status::internal(format!("Pgsql connection failed")));
+        };
+        let c = ZPgsqlB3Client::new(c);
+
+        let messages = c.get_messages(board, last_id).await;
+        let Ok(messages) = messages else {
+            error!(
+                "Failed to retrieve messages from database: {:?}",
+                messages.err()
+            );
+            return Err(Status::internal(format!(
+                "Failed to retrieve messages from database"
+            )));
+        };
+
+        let messages: Vec<GrpcB3Message> = messages
+            .into_iter()
+            .map(|m| GrpcB3Message {
+                id: m.id,
+                message: m.message,
+                version: m.version,
+            })
+            .collect();
+
+        Ok(messages)
+    }
+
+    async fn put_messages_(
+        &self,
+        board: &str,
+        messages: &Vec<GrpcB3Message>,
+    ) -> Result<(), Status> {
+        validate_board_name(board)
+            .map_err(|e| Status::invalid_argument(format!("Invalid board: {e}")))?;
+
+        let c = self.pool.get().await;
+        let Ok(c) = c else {
+            error!("Pgsql connection failed: {:?}", c.err());
+            return Err(Status::internal(format!("Pgsql connection failed")));
+        };
+        let mut c = ZPgsqlB3Client::new(c);
+
+        let messages = messages
+            .iter()
+            .map(|m| B3MessageRow::try_from(m))
+            .collect::<Result<Vec<B3MessageRow>>>()
+            .map_err(|e| Status::internal(format!("Failed to parse grpc messages: {e}")))?;
+
+        let reply = c.insert_messages(board, &messages).await;
+        let Ok(_) = reply else {
+            error!("Failed to insert messages in database: {:?}", reply.err());
+            return Err(Status::internal(format!(
+                "Failed to insert messages in database"
+            )));
+        };
+
+        Ok(())
+    }
 }
 
 #[tonic::async_trait]
@@ -41,7 +108,7 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
     ) -> Result<Response<GetMessagesReply>, Status> {
         let r = request.get_ref();
 
-        validate_board_name(&r.board)
+        /* validate_board_name(&r.board)
             .map_err(|e| Status::invalid_argument(format!("Invalid board: {e}")))?;
 
         let c = self.pool.get().await;
@@ -51,10 +118,6 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
         };
         let c = ZPgsqlB3Client::new(c);
 
-        /* let Ok(mut c) = c else {
-            error!("Pgsql connection failed: {:?}", c.err());
-            return Err(Status::internal(format!("Pgsql connection failed")));
-        };*/
         let messages = c.get_messages(&r.board, r.last_id).await;
         let Ok(messages) = messages else {
             error!(
@@ -74,6 +137,8 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
                 version: m.version,
             })
             .collect();
+        */
+        let messages = self.get_messages_(&r.board, r.last_id).await?;
 
         info!(
             "get_messages: returning {} messages with id > {} for board '{}'",
@@ -97,7 +162,7 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
             r.board
         );
 
-        validate_board_name(&r.board)
+        /*validate_board_name(&r.board)
             .map_err(|e| Status::invalid_argument(format!("Invalid board: {e}")))?;
 
         let c = self.pool.get().await;
@@ -120,7 +185,8 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
             return Err(Status::internal(format!(
                 "Failed to insert messages in database"
             )));
-        };
+        };*/
+        self.put_messages_(&r.board, &r.messages).await?;
 
         let reply = PutMessagesReply {};
         Ok(Response::new(reply))
@@ -160,10 +226,35 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
         &self,
         request: Request<GetMessagesMultiRequest>,
     ) -> Result<Response<GetMessagesMultiReply>, Status> {
-        let _r: &GetMessagesMultiRequest = request.get_ref();
+        let r: &GetMessagesMultiRequest = request.get_ref();
 
-        let keyed: Vec<KeyedMessages> = vec![];
+        let mut keyed: Vec<KeyedMessages> = vec![];
+        for request in &r.requests {
+            let ms = self.get_messages_(&request.board, request.last_id).await?;
+            let k = KeyedMessages {
+                board: request.board.clone(),
+                messages: ms,
+                deferred: false,
+            };
+            keyed.push(k);
+        }
+
         let reply = GetMessagesMultiReply { messages: keyed };
+        Ok(Response::new(reply))
+    }
+
+    async fn put_messages_multi(
+        &self,
+        request: Request<PutMessagesMultiRequest>,
+    ) -> Result<Response<PutMessagesMultiReply>, Status> {
+        let r = request.get_ref();
+
+        for request in &r.requests {
+            self.put_messages_(&request.board, &request.messages)
+                .await?;
+        }
+
+        let reply = PutMessagesMultiReply {};
         Ok(Response::new(reply))
     }
 }

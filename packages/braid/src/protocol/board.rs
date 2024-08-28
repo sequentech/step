@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 pub mod grpc;
+pub mod grpc2;
 pub mod local;
 pub mod pgsql;
 

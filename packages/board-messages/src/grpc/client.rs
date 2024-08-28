@@ -7,8 +7,9 @@ use tonic::transport::Endpoint;
 
 use super::GetMessagesReply;
 use super::{
-    B3Client as B3ClientInner, GetBoardsReply, GetBoardsRequest, GetMessagesRequest, GrpcB3Message,
-    PutMessagesReply, PutMessagesRequest,
+    B3Client as B3ClientInner, GetBoardsReply, GetBoardsRequest, GetMessagesMultiReply,
+    GetMessagesMultiRequest, GetMessagesRequest, GrpcB3Message, PutMessagesMultiReply,
+    PutMessagesMultiRequest, PutMessagesReply, PutMessagesRequest,
 };
 use anyhow::Result;
 use tonic::Request;
@@ -38,6 +39,7 @@ impl B3Client {
         last_id: i64,
     ) -> Result<Response<GetMessagesReply>> {
         let request = Self::get_messages_request(board, last_id);
+        let request = Request::new(request);
 
         let mut client = self.get_grpc_client().await?;
         let response = client.get_messages(request).await?;
@@ -51,6 +53,7 @@ impl B3Client {
         messages: &[Message],
     ) -> Result<Response<PutMessagesReply>> {
         let request = Self::put_messages_request(board, messages)?;
+        let request = Request::new(request);
 
         let mut client = self.get_grpc_client().await?;
         let response = client.put_messages(request).await?;
@@ -67,10 +70,48 @@ impl B3Client {
         Ok(response)
     }
 
+    pub async fn get_messages_multi(
+        &self,
+        requests: Vec<(String, i64)>,
+    ) -> Result<Response<GetMessagesMultiReply>> {
+        let mut rs = vec![];
+        for r in requests {
+            let next = Self::get_messages_request(&r.0, r.1);
+            rs.push(next);
+        }
+
+        let request = GetMessagesMultiRequest { requests: rs };
+        let request = Request::new(request);
+
+        let mut client = self.get_grpc_client().await?;
+        let response = client.get_messages_multi(request).await?;
+
+        Ok(response)
+    }
+
+    pub async fn put_messages_multi(
+        &self,
+        requests: Vec<(String, Vec<Message>)>,
+    ) -> Result<Response<PutMessagesMultiReply>> {
+        let mut rs = vec![];
+        for r in requests {
+            let next = Self::put_messages_request(&r.0, &r.1);
+            rs.push(next?);
+        }
+
+        let put_request = PutMessagesMultiRequest { requests: rs };
+        let put_request = Request::new(put_request);
+
+        let mut client = self.get_grpc_client().await?;
+        let response = client.put_messages_multi(put_request).await?;
+
+        Ok(response)
+    }
+
     pub(crate) fn put_messages_request(
         board: &str,
         messages: &[Message],
-    ) -> Result<Request<PutMessagesRequest>> {
+    ) -> Result<PutMessagesRequest> {
         let messages: Result<Vec<GrpcB3Message>> = messages
             .into_iter()
             .map(|m| {
@@ -84,19 +125,17 @@ impl B3Client {
             })
             .collect();
 
-        let request = Request::new(PutMessagesRequest {
+        Ok(PutMessagesRequest {
             board: board.to_string(),
             messages: messages?,
-        });
-
-        Ok(request)
+        })
     }
 
-    pub(crate) fn get_messages_request(board: &str, last_id: i64) -> Request<GetMessagesRequest> {
-        Request::new(GetMessagesRequest {
+    pub(crate) fn get_messages_request(board: &str, last_id: i64) -> GetMessagesRequest {
+        GetMessagesRequest {
             board: board.to_string(),
             last_id,
-        })
+        }
     }
 
     pub(crate) fn get_boards_request() -> Request<GetBoardsRequest> {
