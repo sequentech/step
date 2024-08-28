@@ -143,8 +143,8 @@ services:
     volumes:
       #- ../hasura/metadata/:/hasura-metadata:cached
       #- ../hasura/migrations/:/hasura-migrations:cached
-      - hasura_metadata:/hasura-metadata:cached
-      - hasura_migrations:/hasura-migrations:cached
+      - hasura_metadata:/hasura-metadata
+      - hasura_migrations:/hasura-migrations
     environment:
       # applies migrations on start
       HASURA_GRAPHQL_MIGRATIONS_SERVER_TIMEOUT: 60
