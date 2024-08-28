@@ -156,12 +156,13 @@ public class MessageOTPAuthenticator
       return;
     }
 
-    LoginFormsProvider form = context
-      .form()
-      .setAttribute("realm", context.getRealm())
-      .setAttribute("courier", messageCourier)
-      .setAttribute("isOtl", isOtl)
-      .setAttribute("ttl", config.getConfig().get(Utils.CODE_TTL));
+    LoginFormsProvider form =
+        context
+            .form()
+            .setAttribute("realm", context.getRealm())
+            .setAttribute("courier", messageCourier)
+            .setAttribute("isOtl", isOtl)
+            .setAttribute("ttl", config.getConfig().get(Utils.CODE_TTL));
 
     try {
       UserModel user = context.getUser();
@@ -208,8 +209,7 @@ public class MessageOTPAuthenticator
       }
 
       context.challenge(
-          form
-              .setAttribute(
+          form.setAttribute(
                   "address",
                   Utils.getOtpAddress(messageCourier, deferredUser, config, authSession, user))
               .setAttribute("resendTimer", config.getConfig().get(Utils.RESEND_ACTIVATION_TIMER))

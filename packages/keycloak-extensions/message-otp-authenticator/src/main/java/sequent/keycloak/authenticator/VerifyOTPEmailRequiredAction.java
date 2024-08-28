@@ -110,12 +110,14 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
     boolean isOtl = config.getConfig().get(Utils.ONE_TIME_LINK).equals("true");
 
     // initial form
-    LoginFormsProvider form = context.form()
-      .setAttribute("realm", context.getRealm())
-      .setAttribute("user", context.getUser())
-      .setAttribute("isOtl", isOtl)
-      .setAttribute("ttl", config.getConfig().get(Utils.CODE_TTL))
-      .setAttribute("resendTimer", resendTimer);
+    LoginFormsProvider form =
+        context
+            .form()
+            .setAttribute("realm", context.getRealm())
+            .setAttribute("user", context.getUser())
+            .setAttribute("isOtl", isOtl)
+            .setAttribute("ttl", config.getConfig().get(Utils.CODE_TTL))
+            .setAttribute("resendTimer", resendTimer);
 
     try {
       UserModel user = context.getUser();
@@ -128,8 +130,7 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
           /* deferred user */ false,
           isOtl);
       context.challenge(
-          form
-              .setAttribute(
+          form.setAttribute(
                   "address",
                   Utils.getOtpAddress(Utils.MessageCourier.EMAIL, false, config, authSession, user))
               .createForm(TPL_CODE));
@@ -137,8 +138,7 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
       log.infov("there was an error {0}", error);
       context.failure();
       context.challenge(
-          form
-              .setError("messageNotSent", error.getMessage())
+          form.setError("messageNotSent", error.getMessage())
               .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
     }
   }
