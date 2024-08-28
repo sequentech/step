@@ -8,7 +8,6 @@ import LanguageMenu from "../LanguageMenu/LanguageMenu"
 import PageBanner from "../PageBanner/PageBanner"
 import PageLimit from "../PageLimit/PageLimit"
 import {theme} from "../../services/theme"
-import LogoImg from "../../../public/Sequent_logo.svg"
 import styled from "@emotion/styled"
 import {Box, Button, Tooltip, TooltipProps, tooltipClasses} from "@mui/material"
 import Version from "../Version/Version"
@@ -164,9 +163,21 @@ export default function Header({
             >
                 <PageLimit maxWidth="lg" sx={{height: {xs: "37px", md: "47px"}}}>
                     <PageBanner direction="row" sx={{height: "100%"}}>
-                        <StyledLink href={logoLink} target="_blank">
-                            <StyledImage src={logoUrl ?? LogoImg} duration={100} alt="Logo Image" />
-                        </StyledLink>
+                        <Box
+                            display="flex"
+                            alignItems="center"
+                            sx={{gap: {xs: "11px", lg: "31px"}}}
+                        >
+                            {logoUrl && (
+                                <StyledLink href={logoLink} target="_blank">
+                                    <StyledImage
+                                        src={logoUrl || ""}
+                                        duration={100}
+                                        alt="Logo Image"
+                                    />
+                                </StyledLink>
+                            )}
+                        </Box>
                         <Box
                             display="flex"
                             alignItems="center"
