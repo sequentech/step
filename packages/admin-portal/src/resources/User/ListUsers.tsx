@@ -536,6 +536,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [importUsers] = useMutation<ImportUsersMutation>(IMPORT_USERS)
 
     const handleImportVoters = async (documentId: string, sha256: string) => {
+        setOpenImportDrawer(false)
         try {
             setWidget({
                 type: ETasksExecution.IMPORT_USERS,
@@ -587,6 +588,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         doImport={handleImport}
                         withExport
                         doExport={handleExport}
+                        isExportDisabled={openExport}
                         open={openDrawer}
                         setOpen={setOpenDrawer}
                         Component={

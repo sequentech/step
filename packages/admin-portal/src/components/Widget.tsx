@@ -2,47 +2,57 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React from "react"
-import {IKeysCeremonyLog as ITaskLog} from "@/services/KeyCeremony"
-import {Paper, Box, Typography, IconButton, Divider} from "@mui/material"
+import React, {useState} from "react"
+import {
+    Accordion,
+    AccordionSummary,
+    AccordionDetails,
+    Divider,
+    LinearProgress,
+    TableBody,
+    TableRow,
+} from "@mui/material"
+import {
+    TransparentTable,
+    TransparentTableCell,
+    WidgetContainer,
+    HeaderBox,
+    InfoBox,
+    TypeTypography,
+    StatusBox,
+    StyledIconButton,
+    StyledProgressBar,
+    LogTypography,
+    LogsBox,
+} from "./styles/WidgetStyle"
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import CloseIcon from "@mui/icons-material/Close"
 import {Visibility} from "@mui/icons-material"
-import CheckCircleIcon from "@mui/icons-material/CheckCircle"
-import ErrorIcon from "@mui/icons-material/Error"
-import LoaderIcon from "@mui/icons-material/HourglassEmpty"
 import {ETaskExecutionStatus} from "@sequentech/ui-core"
 import {ETasksExecution} from "@/types/tasksExecution"
-import {styled} from "@mui/material/styles"
 import {useLocation, useNavigate} from "react-router-dom"
+import {StatusChip} from "./StatusChip"
+import {IKeysCeremonyLog as ITaskLog} from "@/services/KeyCeremony"
+import {useTranslation} from "react-i18next"
 
-const StyledPaper = styled(Paper)({
-    width: 320,
-    position: "fixed",
-    bottom: 16,
-    right: 16,
-    padding: 16,
-    zIndex: 1300,
-})
+interface LogTableProps {
+    logs: ITaskLog[]
+}
 
-const HeaderBox = styled(Box)({
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-})
-
-const StatusBox = styled(Box)({
-    display: "flex",
-    alignItems: "center",
-})
-
-const StatusTypography = styled(Typography)({
-    fontSize: "14px",
-    margin: "0px",
-})
-
-const StyledIconButton = styled(IconButton)({
-    marginLeft: 8,
-})
+export const LogTable: React.FC<LogTableProps> = ({logs}) => {
+    return (
+        <TransparentTable>
+            <TableBody>
+                {logs.map((log, index) => (
+                    <TableRow key={index}>
+                        <TransparentTableCell>{log.created_date}</TransparentTableCell>
+                        <TransparentTableCell>{log.log_text}</TransparentTableCell>
+                    </TableRow>
+                ))}
+            </TableBody>
+        </TransparentTable>
+    )
+}
 
 export interface WidgetStateProps {
     type: ETasksExecution
@@ -57,15 +67,13 @@ interface WidgetProps {
 }
 
 export const Widget: React.FC<WidgetProps> = ({type, status, onClose, logs}) => {
+    const {t} = useTranslation()
     const navigate = useNavigate()
     const location = useLocation()
-
-    const getStatusIcon = () => {
-        if (status === ETaskExecutionStatus.SUCCESS) return <CheckCircleIcon color="success" />
-        if (status === ETaskExecutionStatus.FAILED) return <ErrorIcon color="error" />
-        if (status === ETaskExecutionStatus.IN_PROGRESS) return <LoaderIcon color="action" />
-        return null
-    }
+    const [expanded, setExpanded] = useState(false)
+    const initialLog: ITaskLog[] = [
+        {created_date: new Date().toLocaleString(), log_text: "Task started"},
+    ]
 
     const handleNavigateNext = () => {
         const baseUrl = location.pathname.split("/").slice(0, 3).join("/")
@@ -74,19 +82,37 @@ export const Widget: React.FC<WidgetProps> = ({type, status, onClose, logs}) => 
     }
 
     return (
-        <StyledPaper>
-            <HeaderBox>
-                <StatusTypography>{type}</StatusTypography>
-                <StatusBox>
-                    {getStatusIcon()}
-                    <StyledIconButton size="small">
-                        <Visibility onClick={handleNavigateNext} />
-                    </StyledIconButton>
-                    <StyledIconButton size="small">
-                        <CloseIcon onClick={onClose} />
-                    </StyledIconButton>
-                </StatusBox>
-            </HeaderBox>
-        </StyledPaper>
+        <WidgetContainer>
+            <Accordion expanded={expanded} onChange={() => setExpanded(!expanded)}>
+                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                    <HeaderBox>
+                        <InfoBox>
+                            <TypeTypography>{type}</TypeTypography>
+                            <StatusBox>
+                                <StatusChip status={status} />
+                                <StyledIconButton size="small">
+                                    <Visibility onClick={handleNavigateNext} />
+                                </StyledIconButton>
+                                <StyledIconButton size="small">
+                                    <CloseIcon onClick={onClose} />
+                                </StyledIconButton>
+                            </StatusBox>
+                        </InfoBox>
+                        {status === ETaskExecutionStatus.IN_PROGRESS && (
+                            <StyledProgressBar>
+                                <LinearProgress />
+                            </StyledProgressBar>
+                        )}
+                    </HeaderBox>
+                </AccordionSummary>
+                <AccordionDetails>
+                    <LogTypography>{t("widget.logs")}</LogTypography>
+                    <Divider />
+                    <LogsBox>
+                        <LogTable logs={logs || initialLog} />
+                    </LogsBox>
+                </AccordionDetails>
+            </Accordion>
+        </WidgetContainer>
     )
 }

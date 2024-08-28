@@ -1340,6 +1340,9 @@ const englishTranslation = {
                 publicUrl: "Public URL",
             },
         },
+        widget: {
+            logs: "Logs",
+        },
     },
 }
 

@@ -544,6 +544,7 @@ export const EditElectionEventDataForm: React.FC = () => {
     }
 
     const handleImportCandidates = async (documentId: string, sha256: string) => {
+        setOpenImportCandidates(false)
         try {
             setWidget({
                 type: ETasksExecution.IMPORT_CANDIDATES,
@@ -609,6 +610,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                     withImport={false}
                     withExport
                     doExport={handleExport}
+                    isExportDisabled={openExport}
                     withColumns={false}
                     withFilter={false}
                     extraActions={[

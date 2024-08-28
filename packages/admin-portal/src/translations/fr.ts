@@ -1355,6 +1355,9 @@ const frenchTranslation: TranslationType = {
                 publicUrl: "Lien public",
             },
         },
+        widget: {
+            logs: "Journaux",
+        },
     },
 }
 

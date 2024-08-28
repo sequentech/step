@@ -1348,6 +1348,9 @@ const spanishTranslation: TranslationType = {
                 publicUrl: "Enlace público",
             },
         },
+        widget: {
+            logs: "Registros",
+        },
     },
 }
 

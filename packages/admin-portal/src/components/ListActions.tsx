@@ -19,6 +19,7 @@ interface ListActionsProps {
     doImport?: () => void
     withExport?: boolean
     doExport?: () => void
+    isExportDisabled?: boolean
     withFilter?: boolean
     withAction?: boolean
     open?: boolean
@@ -37,6 +38,7 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
         doImport = () => {},
         withExport = true,
         doExport = () => {},
+        isExportDisabled = false,
         withFilter = true,
         withAction = false,
         doAction = () => {},
@@ -116,7 +118,11 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
                 null}
 
                 {withExport ? (
-                    <Button onClick={doExport} label={t("common.label.export")}>
+                    <Button
+                        onClick={doExport}
+                        label={t("common.label.export")}
+                        disabled={isExportDisabled}
+                    >
                         <DownloadIcon />
                     </Button>
                 ) : // <ExportButton />

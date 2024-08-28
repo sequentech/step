@@ -1349,6 +1349,9 @@ const catalanTranslation: TranslationType = {
                 publicUrl: "Enllaç públic",
             },
         },
+        widget: {
+            logs: "Registres",
+        },
     },
 }
 
