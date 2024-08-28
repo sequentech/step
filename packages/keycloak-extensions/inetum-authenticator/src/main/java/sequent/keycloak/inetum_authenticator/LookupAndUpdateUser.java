@@ -5,12 +5,10 @@
 package sequent.keycloak.inetum_authenticator;
 
 import static java.util.Arrays.asList;
+import static sequent.keycloak.authenticator.Utils.sendConfirmation;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Maps;
 import jakarta.ws.rs.core.Response;
-import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -23,8 +21,6 @@ import org.keycloak.authentication.AuthenticatorFactory;
 import org.keycloak.authentication.forms.RegistrationPage;
 import org.keycloak.authentication.requiredactions.TermsAndConditions;
 import org.keycloak.common.util.Time;
-import org.keycloak.email.EmailException;
-import org.keycloak.email.EmailTemplateProvider;
 import org.keycloak.events.Details;
 import org.keycloak.events.EventType;
 import org.keycloak.models.AuthenticationExecutionModel;
@@ -39,9 +35,9 @@ import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.services.resources.LoginActionsService;
 import sequent.keycloak.authenticator.MessageOTPAuthenticator;
+import sequent.keycloak.authenticator.Utils.MessageCourier;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
-import sequent.keycloak.authenticator.gateway.SmsSenderProvider;
 
 /** Lookups an user using a field */
 @JBossLog
@@ -57,28 +53,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
   public static final String AUTO_LOGIN = "auto-login";
   private static final String MESSAGE_COURIER_ATTRIBUTE = "messageCourierAttribute";
   private static final String TEL_USER_ATTRIBUTE = "telUserAttribute";
-  private static final String SEND_SUCCESS_SUBJECT = "messageSuccessEmailSubject";
-  private static final String SEND_SUCCESS_SMS_I18N_KEY = "messageSuccessSms";
-  private static final String SEND_SUCCESS_EMAIL_FTL = "success-email.ftl";
   public static final String AUTO_2FA = "auto-2fa";
-
-  public enum MessageCourier {
-    BOTH,
-    SMS,
-    EMAIL,
-    NONE;
-
-    static MessageCourier fromString(String type) {
-      if (type != null) {
-        for (MessageCourier messageCourier : MessageCourier.values()) {
-          if (type.equalsIgnoreCase(messageCourier.name())) {
-            return messageCourier;
-          }
-        }
-      }
-      throw new IllegalArgumentException("No constant with text " + type + " found");
-    }
-  }
 
   @Override
   public void authenticate(AuthenticationFlowContext context) {
@@ -225,7 +200,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
           String telUserAttribute = config.getConfig().get(TEL_USER_ATTRIBUTE);
           String mobile = user.getFirstAttribute(telUserAttribute);
 
-          sendConfirmation(context, user, messageCourier, mobile);
+          sendConfirmation(context.getSession(), context.getRealm(), user, messageCourier, mobile);
         } catch (Exception error) {
           log.errorv("there was an error {0}", error);
           context.failureChallenge(
@@ -245,64 +220,6 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
       Response form = context.form().createForm("registration-finish.ftl");
       context.challenge(form);
-    }
-  }
-
-  private void sendConfirmation(
-      AuthenticationFlowContext context,
-      UserModel user,
-      MessageCourier messageCourier,
-      String mobileNumber)
-      throws EmailException, IOException {
-    log.info("sendConfirmation(): start");
-    var session = context.getSession();
-    // Send a confirmation email
-    EmailTemplateProvider emailTemplateProvider = session.getProvider(EmailTemplateProvider.class);
-
-    // We get the username we are going to provide the user in other to login. It's going to be
-    // either email or mobileNumber.
-    String username = user.getEmail() != null ? user.getEmail() : mobileNumber;
-    log.infov("sendConfirmation(): username {0}", username);
-    log.infov("sendConfirmation(): messageCourier {0}", messageCourier);
-
-    String email = user.getEmail();
-
-    if (email != null
-        && email.trim().length() > 0
-        && (MessageCourier.EMAIL.equals(messageCourier)
-            || MessageCourier.BOTH.equals(messageCourier))) {
-      log.infov("sendConfirmation(): sending email", username);
-      List<Object> subjAttr = ImmutableList.of(context.getRealm().getName());
-      Map<String, Object> messageAttributes = Maps.newHashMap();
-      messageAttributes.put("realmName", context.getRealm().getName());
-      messageAttributes.put("username", username);
-
-      emailTemplateProvider
-          .setRealm(context.getRealm())
-          .setUser(user)
-          .setAttribute("realmName", context.getRealm().getName())
-          .setAttribute("username", username)
-          .send(SEND_SUCCESS_SUBJECT, subjAttr, SEND_SUCCESS_EMAIL_FTL, messageAttributes);
-    }
-
-    if (mobileNumber != null
-        && mobileNumber.trim().length() > 0
-        && (MessageCourier.SMS.equals(messageCourier)
-            || MessageCourier.BOTH.equals(messageCourier))) {
-      log.infov("sendConfirmation(): sending sms", username);
-
-      SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
-      log.infov("sendCode(): Sending SMS to=`{0}`", mobileNumber.trim());
-      log.infov("sendCode(): Sending SMS to=`{0}`", mobileNumber.trim());
-      List<String> smsAttributes = ImmutableList.of(context.getRealm().getName(), username);
-
-      smsSenderProvider.send(
-          mobileNumber.trim(),
-          SEND_SUCCESS_SMS_I18N_KEY,
-          smsAttributes,
-          context.getRealm(),
-          user,
-          session);
     }
   }
 
