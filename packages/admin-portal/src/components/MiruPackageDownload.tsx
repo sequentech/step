@@ -76,10 +76,11 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) =
     const [performDownload, setPerformDownload] = useState<IDocumentData | null>(null)
     const [documentToDownload, setDocumentToDownload] = useState<IMiruDocument | null>(null)
 	const [tenantId] = useTenantStore()
-	// const { data: document } = useGetOne<Sequent_Backend_Document>("sequent_backend_document", {
-	// 	id: documentToDownload?.document_id ?? tenantId,
-	// 	meta: { tenant_id: tenantId },
-	// })
+	console.log({documentToDownload, documents})
+	const { data: document } = useGetOne<Sequent_Backend_Document>("sequent_backend_document", {
+		id: documentToDownload?.document_ids.eml ?? tenantId,
+		meta: { tenant_id: tenantId },
+	})
 
     const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
         event.preventDefault()
@@ -92,11 +93,21 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) =
     }
 
     const handleDownload = (doc: IMiruDocument) => {
-        setPerformDownload({
-            id: doc.document_ids.xz,
-            kind: EExportFormat.JSON, //need to adjust this to right format because document is currently not readable
-            name: `MiruDocument.json`,
-        })
+
+		console.log({document, doc})
+
+		let name = 'er_111.eml'
+
+		if(document?.name){
+			name = document.name
+		}
+
+		setPerformDownload({
+			id: doc.document_ids.eml,
+			kind: EExportFormat.JSON, //need to adjust this to right format because document is currently not readable
+			name
+		})
+
     }
     return (
         <div>
@@ -118,7 +129,7 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) =
                             setDocumentToDownload(null)
                             setPerformDownload(null)
                         }}
-                        // fileName={performDownload.name}
+                        fileName={performDownload.name}
                         documentId={performDownload.id}
                         electionEventId={electionEventId}
                     />
@@ -141,7 +152,7 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) =
                 open={Boolean(anchorEl)}
                 onClose={handleClose}
             >
-                {documents!.map((doc) => (
+                {documents?.map((doc) => (
                     <MenuItem
                         key={doc.document_ids.xz}
                         onClick={(e: React.MouseEvent<HTMLElement>) => {
