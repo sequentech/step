@@ -693,6 +693,7 @@ const catalanTranslation: TranslationType = {
                 en: "Anglès",
                 fr: "Francès",
                 cat: "Valencià",
+                tl: "Tagal",
             },
             channel: {
                 online: "En línia",

@@ -20,6 +20,7 @@
                 td: "${token_dob}"
             };
             window.DOB_ENV_CONFIG = `${env_config}`;
+            window.ASSETS_URL = "${url.resourcesPath}/inetum-sdk-3.9.2/"
             window.KEYCLOAK_LOGIN_ACTION_URL = "${url.loginAction}";
         </script>
     </#outputformat>

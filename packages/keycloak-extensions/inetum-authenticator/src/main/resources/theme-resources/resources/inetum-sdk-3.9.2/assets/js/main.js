@@ -58,7 +58,7 @@ function flow() {
       // Esto simplemente es un ejemplo en caso de ser un flujo para dni
       return [
         new InitialStep('permissions'),
-        new InstructionsStep('show-doc-front', SDKUtils.isMobile() ? 'showfrontdesktop' : 'showfrontdesktop', InstructionsResourceType.video, -1),
+        // new InstructionsStep('show-doc-front', SDKUtils.isMobile() ? 'showfrontdesktop' : 'showfrontdesktop', InstructionsResourceType.video, -1),
         new DocCaptureStep('front-capture', DocSide.front, Evidence.imgDocFront, SDKUtils.isMobile() ? 'environment' : 'user', VideoType.photo, true, 10),
         new DocCaptureStep('back-capture', DocSide.back, Evidence.imgDocReverse, SDKUtils.isMobile() ? 'environment' : 'user', VideoType.photo, true, 10),
         // TODO: Reactivate
@@ -516,6 +516,11 @@ sdk = {
 // TODO: HACK: We should improve this by interpolating it in the server-side
 // after the demo
 env_config = eval("(" + window.DOB_ENV_CONFIG + ")");
+
+// Add default assets if not set in configuration
+if(!env_config.baseAssetsUrl) {
+  env_config.baseAssetsUrl = window.ASSETS_URL;
+}
 
 session = {
   tokenDOB: window.DOB_DATA.td,
