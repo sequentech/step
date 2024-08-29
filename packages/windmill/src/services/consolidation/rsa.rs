@@ -57,22 +57,28 @@ pub fn encrypt_with_rsa_private_key(private_key_pem: &str, data: &[u8]) -> Resul
     Ok(encrypted_data)
 }
 
-#[instrument(skip_all, err)]
-pub fn rsa_sign_data(private_key_pem: &str, data_path: &str) -> Result<String> {
-    let temp_pem_file = generate_temp_file("private_key", ".pem")?;
-    let temp_pem_file_path = temp_pem_file.path();
-    let temp_pem_file_string = temp_pem_file_path.to_string_lossy().to_string();
-    // Write the salt and encrypted data to the output file
-    // Using brackets: let it drop out of scope so that all bytes are written
-    {
-        let mut output_file = File::create(temp_pem_file_path).context("Failed to create file")?;
-        output_file
-            .write_all(private_key_pem.as_bytes())
-            .context("Failed to write file")?;
-    }
+pub fn derive_public_key_from_p12(pk12_file_path_string: &str, password: &str) -> Result<String> {
     let command = format!(
-        "java -jar {} sign-rsa {} {}",
-        ECIES_TOOL_PATH, temp_pem_file_string, data_path
+        "java -jar {} public-key {} {}",
+        ECIES_TOOL_PATH, pk12_file_path_string, password
+    );
+
+    let public_pem = run_shell_command(&command)?.replace("\n", "");
+
+    info!("public pem: '{}'", public_pem);
+
+    Ok(public_pem)
+}
+
+#[instrument(skip_all, err)]
+pub fn rsa_sign_data(
+    pk12_file_path_string: &str,
+    password: &str,
+    data_path: &str,
+) -> Result<String> {
+    let command = format!(
+        "java -jar {} sign-rsa {} {} {}",
+        ECIES_TOOL_PATH, pk12_file_path_string, data_path, password
     );
 
     let encrypted_base64 = run_shell_command(&command)?.replace("\n", "");

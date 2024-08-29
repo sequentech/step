@@ -87,8 +87,8 @@ pub async fn upload_signature_task(
     area_id: String,
     tally_session_id: String,
     trustee_name: String,
-    private_key: String,
-    public_key: String,
+    document_id: String,
+    password: String,
 ) -> Result<()> {
     // Spawn the task using an async block
     let handle = tokio::task::spawn_blocking({
@@ -100,8 +100,8 @@ pub async fn upload_signature_task(
                     &area_id,
                     &tally_session_id,
                     &trustee_name,
-                    &private_key,
-                    &public_key,
+                    &document_id,
+                    &password,
                 )
                 .await
                 .map_err(|err| anyhow!("{}", err))

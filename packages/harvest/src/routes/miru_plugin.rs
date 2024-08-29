@@ -116,8 +116,8 @@ pub struct UploadSignatureInput {
     election_id: String,
     area_id: String,
     tally_session_id: String,
-    private_key: String,
-    public_key: String,
+    document_id: String,
+    password: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -152,8 +152,8 @@ pub async fn upload_signature(
             body.area_id.clone(),
             body.tally_session_id.clone(),
             username,
-            body.private_key.clone(),
-            body.public_key.clone(),
+            body.document_id.clone(),
+            body.password.clone(),
         ))
         .await
         .map_err(|error| {

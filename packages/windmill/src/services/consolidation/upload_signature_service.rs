@@ -15,7 +15,7 @@ use super::{
         create_transmission_package_log, error_sending_transmission_package_to_ccs_log,
         send_transmission_package_to_ccs_log, sign_transmission_package_log,
     },
-    rsa::rsa_sign_data,
+    rsa::{derive_public_key_from_p12, rsa_sign_data},
     send_transmission_package_service::get_latest_miru_document,
     transmission_package::{compress_hash_eml, create_transmission_package, read_temp_file},
     zip::unzip_file,
@@ -121,16 +121,29 @@ async fn update_signatures(
     Ok((acm_trustees, new_miru_signatures))
 }
 
+pub fn derive_public_key_from_private_key(
+    private_key_temp_file: &NamedTempFile,
+    password: &str,
+) -> Result<String> {
+    let pk12_file_path = private_key_temp_file.path();
+    let pk12_file_path_string = pk12_file_path.to_string_lossy().to_string();
+    derive_public_key_from_p12(&pk12_file_path_string, password)
+}
+
 pub fn create_server_signature(
     eml_data: NamedTempFile,
     trustee: Trustee,
-    private_key: &str,
+    private_key_temp_file: &NamedTempFile,
+    password: &str,
     public_key: &str,
 ) -> Result<MiruSignature> {
     let temp_pem_file_path = eml_data.path();
     let temp_pem_file_string = temp_pem_file_path.to_string_lossy().to_string();
 
-    let signature = rsa_sign_data(private_key, &temp_pem_file_string)?;
+    let pk12_file_path = private_key_temp_file.path();
+    let pk12_file_path_string = pk12_file_path.to_string_lossy().to_string();
+
+    let signature = rsa_sign_data(&pk12_file_path_string, password, &temp_pem_file_string)?;
     Ok(MiruSignature {
         trustee_name: trustee.name.clone().unwrap_or_default(),
         pub_key: public_key.to_string(),
@@ -145,8 +158,8 @@ pub async fn upload_transmission_package_signature_service(
     area_id: &str,
     tally_session_id: &str,
     trustee_name: &str,
-    private_key: &str,
-    public_key: &str,
+    document_id: &str,
+    password: &str,
 ) -> Result<()> {
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
@@ -244,6 +257,17 @@ pub async fn upload_transmission_package_signature_service(
         return Ok(());
     };
 
+    let private_key_document = get_document(
+        &hasura_transaction,
+        tenant_id,
+        Some(election_event.id.clone()),
+        &document_id,
+    )
+    .await?
+    .ok_or_else(|| anyhow!("Can't find document {}", document_id))?;
+    let mut private_key_temp_file =
+        get_document_as_temp_file(tenant_id, &private_key_document).await?;
+
     // download er file
     let document = get_document(
         &hasura_transaction,
@@ -263,7 +287,15 @@ pub async fn upload_transmission_package_signature_service(
     let eml_bytes = read_temp_file(&mut eml_data)?;
     let eml = String::from_utf8(eml_bytes)?;
     // RSA sign er file
-    let server_signature = create_server_signature(eml_data, trustee, private_key, public_key)?;
+    let public_key_pem_string =
+        derive_public_key_from_private_key(&private_key_temp_file, password)?;
+    let server_signature = create_server_signature(
+        eml_data,
+        trustee,
+        &private_key_temp_file,
+        password,
+        &public_key_pem_string,
+    )?;
 
     let (new_acm_signatures, new_miru_signatures) = update_signatures(
         &hasura_transaction,
