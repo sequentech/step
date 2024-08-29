@@ -72,7 +72,7 @@ impl B3Client {
 
     pub async fn get_messages_multi(
         &self,
-        requests: Vec<(String, i64)>,
+        requests: &Vec<(String, i64)>,
     ) -> Result<Response<GetMessagesMultiReply>> {
         let mut rs = vec![];
         for r in requests {

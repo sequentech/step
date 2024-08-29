@@ -480,7 +480,7 @@ async fn get_messages(
     last_id: i64,
 ) -> Result<Vec<B3MessageRow>> {
     let mut offset: usize = 0;
-    let mut last_batch = get(
+    let mut start = get(
         client,
         board_name,
         last_id,
@@ -488,10 +488,12 @@ async fn get_messages(
         Some(offset),
     )
     .await?;
-    let mut messages = last_batch.clone();
-    while PG_DEFAULT_LIMIT == last_batch.len() {
-        offset += last_batch.len();
-        last_batch = get(
+    // let mut messages = last_batch.clone();
+    let mut last_batch_len = start.len();
+    // while PG_DEFAULT_LIMIT == last_batch.len() {
+    while PG_DEFAULT_LIMIT == last_batch_len {
+        offset += last_batch_len;
+        let next = get(
             client,
             board_name,
             last_id,
@@ -499,9 +501,11 @@ async fn get_messages(
             Some(offset),
         )
         .await?;
-        messages.extend(last_batch.clone());
+        last_batch_len = next.len();
+        // messages.extend(last_batch.clone());
+        start.extend(next);
     }
-    Ok(messages)
+    Ok(start)
 }
 
 async fn get_message_count(client: &Client, board: &str) -> Result<i64> {

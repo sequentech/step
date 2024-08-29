@@ -14,16 +14,12 @@ const GRPC_TIMEOUT: u64 = 5 * 60;
 impl BoardMulti for GrpcB3 {
     type Factory = GrpcB3BoardParams;
 
-    async fn get_messages_multi(&self, requests: Vec<(String, i64)>) -> Result<Vec<KeyedMessages>> {
+    async fn get_messages_multi(
+        &self,
+        requests: &Vec<(String, i64)>,
+    ) -> Result<Vec<KeyedMessages>> {
         let response = self.client.get_messages_multi(requests).await?;
         let response = response.into_inner();
-
-        // let mut ret: Vec<(String, Vec<GrpcB3Message>)> = vec![];
-
-        /*for ks in response.messages {
-
-            ret.push((ks.board, ks.messages))
-        }*/
 
         Ok(response.messages)
     }
@@ -99,7 +95,7 @@ pub trait BoardMulti: Sized {
 
     fn get_messages_multi(
         &self,
-        requests: Vec<(String, i64)>,
+        requests: &Vec<(String, i64)>,
     ) -> impl std::future::Future<Output = Result<Vec<KeyedMessages>>> + Send;
     // ) -> impl std::future::Future<Output = Result<Vec<(String, Vec<GrpcB3Message>)>>> + Send;
 

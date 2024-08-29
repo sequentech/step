@@ -168,22 +168,36 @@ async fn main() -> Result<()> {
             requests.push((board_name.to_string(), last_id));
         }
 
-        println!("requests: {:?}", requests);
+        info!("gathered {} requests", requests.len());
         let board = GrpcB3BoardParams::new(&args.server_url);
         let board = board.get_board();
-        let responses = board.get_messages_multi(requests).await?;
-        println!("responses: {:?}", responses);
+        let responses = board.get_messages_multi(&requests).await;
+        let Ok(responses) = responses else {
+            error!(
+                "Error retrieving messages for {} requests: {}",
+                requests.len(),
+                responses.err().unwrap()
+            );
+            sleep(Duration::from_millis(1000)).await;
+            continue;
+        };
+        info!("received {} keyed messages", responses.len());
 
         let mut step_error = false;
         let mut post_messages = vec![];
+        let mut total_bytes: u32 = 0;
 
         for km in responses {
+            if km.messages.len() == 0 {
+                continue;
+            }
+
             let s = session_map.get_mut(&km.board);
             let Some(s) = s else {
                 error!("Could not retrieve session with name: '{}'", km.board);
                 continue;
             };
-            println!("Step for {} with messages: {:?}", km.board, km.messages);
+            // println!("Step for {} with {} messages", km.board, km.messages.len());
             let messages = s.step(km.messages, loop_count).await;
 
             let Ok(messages) = messages else {
@@ -203,13 +217,29 @@ async fn main() -> Result<()> {
                 continue;
             };
 
-            post_messages.push((km.board, messages));
+            if messages.len() > 0 {
+                let next_bytes: usize = messages
+                    .iter()
+                    .map(|m| m.artifact.as_ref().map(|v| v.len()).unwrap_or(0))
+                    .sum();
+                total_bytes += next_bytes as u32;
+                post_messages.push((km.board, messages));
+            }
         }
 
-        let result = board.insert_messages_multi(post_messages).await;
-        if let Err(err) = result {
-            error!("Error posting messages: '{:?}'", err);
-            step_error = true;
+        if post_messages.len() > 0 {
+            info!(
+                "Posting {} keyed messages with {:.2} MB",
+                post_messages.len(),
+                f64::from(total_bytes) / (1024.0 * 1024.0)
+            );
+            let result = board.insert_messages_multi(post_messages).await;
+            if let Err(err) = result {
+                error!("Error posting messages: '{:?}'", err);
+                step_error = true;
+            }
+        } else {
+            info!("No messages to post on this step");
         }
 
         if args.strict && step_error {
