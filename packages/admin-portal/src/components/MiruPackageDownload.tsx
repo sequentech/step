@@ -85,7 +85,7 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) =
 
     const handleDownload = (doc: IMiruDocument) => {
         setPerformDownload({
-            id: doc.document_id,
+            id: doc.document_ids.xz,
             kind: EExportFormat.JSON, //need to adjust this to right format because document is currently not readable
             name: `MiruDocument.json`,
         })
@@ -135,7 +135,7 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) =
             >
                 {documents!.map((doc) => (
                     <MenuItem
-                        key={doc.document_id}
+                        key={doc.document_ids.xz}
                         onClick={(e: React.MouseEvent<HTMLElement>) => {
                             e.preventDefault()
                             e.stopPropagation()

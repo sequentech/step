@@ -368,6 +368,8 @@ const spanishTranslation: TranslationType = {
                 notify: {
                     noKeysTally:
                         "La Ceremonia de Recuento no puede comenzar hasta que la Ceremonia de Claves se haya completado con éxito.",
+                    noPublication:
+                        "La Ceremonia de Escrutinio no puede comenzar hasta que crees una publicación en la pestaña Publicar.",
                     participateNow:
                         "Ha sido invitado a participar a una Ceremonia de Recuento. Por favor <1>haz clic abajo en la acción de llave de la ceremonia</1> para participar.",
                 },
@@ -811,7 +813,15 @@ const spanishTranslation: TranslationType = {
                 "custom": "Personalizado",
                 "alphabetical": "Alfabético",
             },
+            underVotePolicy: {
+                "label": "Política de Subvoto",
+                "allowed": "Permitido",
+                "warn-only-in-review": "Advertir en Revisión",
+                "warn": "Advertir",
+                "warn-and-alert": "Advertir y Alertar",
+            },
             invalidVotePolicy: {
+                "label": "Política de Voto Inválido",
                 "allowed": "Permitido",
                 "warn": "Advertencia",
                 "warn-invalid-implicit-and-explicit": "Advertir Inválidos Implícitos y Explícitos",
@@ -826,8 +836,18 @@ const spanishTranslation: TranslationType = {
             blankVotePolicy: {
                 "label": "Política de voto en blanco",
                 "allowed": "Permitido",
+                "warn-only-in-review": "Advertir en Revisión",
                 "warn": "Advertir",
                 "not-allowed": "No permitido",
+            },
+            overVotePolicy: {
+                "label": "Política de voto excesivo",
+                "allowed": "Permitido",
+                "allowed-with-msg": "Permitido con un mensaje de warning",
+                "allowed-with-msg-and-alert": "Permitido con un mensaje de warning y alerta",
+                "not-allowed-with-msg-and-alert": "No permitido con un mensaje de warning y alerta",
+                "not-allowed-with-msg-and-disable":
+                    "No permitido con un mensaje de warning y dehabilitar selecciones adicionales",
             },
             paginationPolicy: {
                 label: "Nombre de la página",

@@ -49,43 +49,18 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
 
   @Override
   public void requiredActionChallenge(RequiredActionContext context) {
-    KeycloakSession session = context.getSession();
-    AuthenticationSessionModel authSession = context.getAuthenticationSession();
-
-    // initial form
-    LoginFormsProvider form = context.form();
-    form.setAttribute("realm", context.getRealm());
-    form.setAttribute("user", context.getUser());
-
-    AuthenticatorConfigModel config = Utils.getConfig(authSession.getRealm()).get();
-
-    try {
-      UserModel user = context.getUser();
-      Utils.sendCode(
-          config,
-          session,
-          user,
-          authSession,
-          Utils.MessageCourier.EMAIL,
-          /* deferred user */ false);
-      context.challenge(
-          context.form().setAttribute("realm", context.getRealm()).createForm(TPL_CODE));
-    } catch (Exception error) {
-      log.infov("there was an error {0}", error);
-      context.failure();
-      context.challenge(
-          context
-              .form()
-              .setError("messageNotSent", error.getMessage())
-              .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
-    }
+    initiateForm(context);
   }
 
   @Override
   public void processAction(RequiredActionContext context) {
     log.info("action() called");
     String enteredCode = context.getHttpRequest().getDecodedFormParameters().getFirst(Utils.CODE);
-
+    String resend = context.getHttpRequest().getDecodedFormParameters().getFirst("resend");
+    if (resend != null && resend.equals("true")) {
+      initiateForm(context);
+      return;
+    }
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
     String code = authSession.getAuthNote(Utils.CODE);
     String ttl = authSession.getAuthNote(Utils.CODE_TTL);
@@ -121,8 +96,46 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
           context
               .form()
               .setAttribute("realm", context.getRealm())
+              .setAttribute("codeJustSent", false)
               .setError("messageOtpAuthCodeInvalid")
               .createForm(TPL_CODE));
+    }
+  }
+
+  private void initiateForm(RequiredActionContext context) {
+    KeycloakSession session = context.getSession();
+    AuthenticationSessionModel authSession = context.getAuthenticationSession();
+
+    // initial form
+    LoginFormsProvider form = context.form();
+    form.setAttribute("realm", context.getRealm());
+    form.setAttribute("user", context.getUser());
+
+    AuthenticatorConfigModel config = Utils.getConfig(authSession.getRealm()).get();
+    String resendTimer = System.getenv("KC_OTP_RESEND_INTERVAL");
+
+    try {
+      UserModel user = context.getUser();
+      Utils.sendCode(config, session, user, authSession, Utils.MessageCourier.EMAIL, false);
+      context.challenge(
+          context
+              .form()
+              .setAttribute("realm", context.getRealm())
+              .setAttribute(
+                  "address",
+                  Utils.getOtpAddress(Utils.MessageCourier.EMAIL, false, config, authSession, user))
+              .setAttribute("ttl", config.getConfig().get(Utils.CODE_TTL))
+              .setAttribute("codeJustSent", false)
+              .setAttribute("resendTimer", resendTimer)
+              .createForm(TPL_CODE));
+    } catch (Exception error) {
+      log.infov("there was an error {0}", error);
+      context.failure();
+      context.challenge(
+          context
+              .form()
+              .setError("messageNotSent", error.getMessage())
+              .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
     }
   }
 
