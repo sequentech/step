@@ -46,12 +46,14 @@ const HeaderWithContext: React.FC = () => {
         return ballotStyle?.ballot_eml.election_event_presentation?.voting_portal_countdown_policy
     }, [ballotStyle])
 
-    const logoImg = presentation?.logo_url === undefined
-    ? BlankLogoImg
-    : presentation?.logo_url ===  null
-    ? SequentLogo :  presentation?.logo_url;
+    const logoImg =
+        presentation?.logo_url === undefined
+            ? BlankLogoImg
+            : presentation?.logo_url === null
+            ? SequentLogo
+            : presentation?.logo_url
 
-        return (
+    return (
         <Header
             appVersion={{main: globalSettings.APP_VERSION}}
             userProfile={{
@@ -62,7 +64,6 @@ const HeaderWithContext: React.FC = () => {
             languagesList={languagesList}
             logoutFn={authContext.isAuthenticated ? authContext.logout : undefined}
             logoUrl={logoImg}
-
             expiry={{
                 alertAt: countdownPolicy?.countdown_alert_anticipation_secs,
                 countdown: countdownPolicy?.policy ?? EVotingPortalCountdownPolicy.NO_COUNTDOWN,

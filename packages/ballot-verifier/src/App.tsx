@@ -34,11 +34,13 @@ const HeaderWithContext: React.FC = () => {
     let languagesList = presentation?.language_conf?.enabled_language_codes ?? ["en"]
     let showUserProfile = presentation?.show_user_profile ?? true
 
-    const logoImg = presentation?.logo_url === undefined
-    ? BlankLogoImg
-    : presentation?.logo_url ===  null
-    ? SequentLogo :  presentation?.logo_url;
-    
+    const logoImg =
+        presentation?.logo_url === undefined
+            ? BlankLogoImg
+            : presentation?.logo_url === null
+            ? SequentLogo
+            : presentation?.logo_url
+
     return (
         <Header
             appVersion={{main: "10.4.2"}}
