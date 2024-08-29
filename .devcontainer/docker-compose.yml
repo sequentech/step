@@ -606,10 +606,10 @@ services:
     depends_on:
       - harvest
     volumes:
-      - keycloak_import:/import
-      #- ./keycloak/import:/import
-      #- ../packages/:/app
-      - packages:/app
+      #- keycloak_import:/import
+      - ./keycloak/import:/import
+      - ../packages/:/app
+      #- packages:/app
     restart: always
     working_dir: /app/immu-board
     entrypoint: [
@@ -783,39 +783,39 @@ volumes:
   immudb_log_audit_data:
   keycloak_immudb_log_audit_data:
   keycloak_db_data:
-  keycloak_import:
-    driver: local
-    driver_opts:
-      type: none
-      device: ~/repos/step/.devcontainer/keycloak/import
-      o: bind
-  packages:
-    driver: local
-    driver_opts:
-      type: none
-      device: ~/repos/step/packages
-      o: bind
-  hasura_metadata:
-    driver: local
-    driver_opts:
-      type: none
-      device: ~/repos/step/hasura/metadata
-      o: bind
-  hasura_migrations:
-    driver: local
-    driver_opts:
-      type: none
-      device: ~/repos/step/hasura/migrations
-      o: bind
+  # keycloak_import:
+  #   driver: local
+  #   driver_opts:
+  #     type: none
+  #     device: ~/repos/step/.devcontainer/keycloak/import
+  #     o: bind
+  # packages:
+  #   driver: local
+  #   driver_opts:
+  #     type: none
+  #     device: ~/repos/step/packages
+  #     o: bind
+  # hasura_metadata:
+  #   driver: local
+  #   driver_opts:
+  #     type: none
+  #     device: ~/repos/step/hasura/metadata
+  #     o: bind
+  # hasura_migrations:
+  #   driver: local
+  #   driver_opts:
+  #     type: none
+  #     device: ~/repos/step/hasura/migrations
+  #     o: bind
   immudb_data:
   immudb_logs:
   minio_storage:
-  minio_nginx:
-    driver: local
-    driver_opts:
-      type: none
-      device: ~/repos/step/.devcontainer/minio/nginx
-      o: bind
+  # minio_nginx:
+  #   driver: local
+  #   driver_opts:
+  #     type: none
+  #     device: ~/repos/step/.devcontainer/minio/nginx
+  #     o: bind
   trustee1_data:
   trustee2_data:
   trustee3_data:
