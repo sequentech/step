@@ -25,6 +25,12 @@ pub struct UpdateCustomUrlInput {
 pub struct GetCustomUrlInput {
     pub redirect_to: String,
 }
+#[derive(Serialize)]
+struct ErrorResponse {
+    error: String,
+    message: String,
+}
+
 // TODO: Add env for cloudflare auth + for local / remote
 #[instrument(skip(claims))]
 #[post("/set-custom-url", format = "json", data = "<input>")]
@@ -51,11 +57,23 @@ pub async fn update_custom_url(
             Ok(Json("Successfully Updated".to_string()))
         },
         Err(error) => {
-            error!("Error updating custom URL: {:?}", error);
-            Err((Status::InternalServerError, format!("Error updating custom URL: {:?}", error)))
+            let error_message = format!("Error updating custom URL: {:?}", error);
+            error!("{}", error_message);
+
+            let error_response = ErrorResponse {
+                error: "InternalServerError".to_string(),
+                message: error_message.clone(),
+            };
+
+            // Serialize the error response to a string
+            let error_response_string = serde_json::to_string(&error_response)
+                .unwrap_or_else(|_| "Failed to serialize error response".to_string());
+
+            // Return the serialized string in the Err variant
+            return Err((Status::InternalServerError, error_response_string))
         }
     }
-}
+    }
 
 #[instrument(skip(claims))]
 #[post("/get-custom-url", format = "json", data = "<input>")]

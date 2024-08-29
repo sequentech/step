@@ -79,6 +79,9 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 // import {SET_CUSTOM_URL} from "@/queries/SetCustomUrl"
 import {SET_CUSTOM_URLS} from "@/queries/SetCustomUrls"
 import {getAuthUrl} from "@/services/UrlGeneration"
+import {WizardStyles} from "@/components/styles/WizardStyles"
+import {CustomUrlsStyle} from "@/components/styles/CustomUrlsStyle"
+import {StatusChip} from "@/components/StatusChip"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -230,13 +233,15 @@ export const EditElectionEventDataForm: React.FC = () => {
     const defaultSecondsForCountdown = convertToNumber(process.env.SECONDS_TO_SHOW_COUNTDOWN) ?? 60
     const defaultSecondsForAlret = convertToNumber(process.env.SECONDS_TO_SHOW_AlERT) ?? 180
     const [manageElectionDates] = useMutation<ManageElectionDatesMutation>(MANAGE_ELECTION_DATES)
-    const [manageCustomUrls] = useMutation<SetCustomUrlsMutation>(SET_CUSTOM_URLS, {
+    const [customUrlsValues, setCustomUrlsValues] = useState({login: "", enrollment: ""})
+    const [manageCustomUrls, response] = useMutation<SetCustomUrlsMutation>(SET_CUSTOM_URLS, {
         context: {
             headers: {
                 "x-hasura-role": IPermissions.USER_READ,
             },
         },
     })
+    console.log(response, "custom url response")
 
     const [startDate, setStartDate] = useState<string | undefined>(undefined)
     const [endDate, setEndDate] = useState<string | undefined>(undefined)
@@ -556,46 +561,61 @@ export const EditElectionEventDataForm: React.FC = () => {
         recordId: string
     ) => {
         const customUrls = presentation?.custom_urls
+        try {
+            if (customUrls) {
+                const urlEntries = [
+                    {
+                        key: "login",
+                        origin: `https://${customUrlsValues.login}.vaiphon.com/login`,
+                        redirect_to: "https://google.com/login",
+                        dns_prefix: customUrlsValues.login,
+                        //  getAuthUrl(
+                        //     globalSettings.VOTING_PORTAL_URL,
+                        //     tenantId ?? "",
+                        //     recordId,
+                        //     "login"
+                        // ),
+                    },
+                    {
+                        key: "enrollment",
+                        origin: `https://${customUrlsValues.enrollment}.vaiphon.com/enrollment`,
+                        redirect_to: "https://google.com/enrollment",
+                        dns_prefix: customUrlsValues.enrollment,
+                        // getAuthUrl(
+                        //     globalSettings.VOTING_PORTAL_URL,
+                        //     tenantId ?? "",
+                        //     recordId,
+                        //     "enroll"
+                        // ),
+                    },
+                ]
+                // const [loginResponse, enrollmentResponse] = await Promise.all(
+                //     urlEntries.map((item) => {
+                //         return manageCustomUrls({
+                //             variables: {
+                //                 origin: item.origin,
+                //                 redirect_to: item.redirect_to ?? "",
+                //                 dns_prefix: item.dns_prefix,
+                //             },
+                //         })
+                //     })
+                // )
 
-        if (customUrls) {
-            const urlEntries = [
-                {
-                    key: "login",
-                    origin: `https://${customUrls.login}.vaiphon.com/login`,
-                    redirect_to: "https://google.com/login",
-                    dns_prefix: customUrls.login,
-                    //  getAuthUrl(
-                    //     globalSettings.VOTING_PORTAL_URL,
-                    //     tenantId ?? "",
-                    //     recordId,
-                    //     "login"
-                    // ),
-                },
-                {
-                    key: "enrollment",
-                    origin: `https://${customUrls.enrollment}.vaiphon.com/enrollment`,
-                    redirect_to: "https://google.com/enrollment",
-                    dns_prefix: customUrls.enrollment,
-                    // getAuthUrl(
-                    //     globalSettings.VOTING_PORTAL_URL,
-                    //     tenantId ?? "",
-                    //     recordId,
-                    //     "enroll"
-                    // ),
-                },
-            ]
-            for (const {origin, redirect_to, dns_prefix, key} of urlEntries) {
-                if (origin) {
-                    console.log(origin, "test")
-                    await manageCustomUrls({
-                        variables: {
-                            origin: origin,
-                            redirect_to: redirect_to ?? "",
-                            dns_prefix: dns_prefix,
-                        },
-                    })
+                for (const {origin, redirect_to, dns_prefix, key} of urlEntries) {
+                    if (origin) {
+                        console.log(origin, "test")
+                        await manageCustomUrls({
+                            variables: {
+                                origin: origin,
+                                redirect_to: redirect_to ?? "",
+                                dns_prefix: dns_prefix,
+                            },
+                        })
+                    }
                 }
             }
+        } catch (err) {
+            console.log(err, "errrrrr")
         }
     }
 
@@ -910,22 +930,8 @@ export const EditElectionEventDataForm: React.FC = () => {
                                         </ElectionHeaderStyles.Title>
                                     </ElectionHeaderStyles.Wrapper>
                                 </AccordionSummary>
-                                <AccordionDetails
-                                // sx={{
-                                //     display: "flex",
-                                //     flexDirection: "colun",
-                                //     alignItems: "center",
-                                //     gap: "8px",
-                                // }}
-                                >
-                                    <Box
-                                        sx={{
-                                            display: "flex",
-                                            flexDirection: "row",
-                                            alignItems: "center",
-                                            gap: "8px",
-                                        }}
-                                    >
+                                <AccordionDetails>
+                                    <CustomUrlsStyle.InputWrapper>
                                         <p>https://</p>
                                         <TextInput
                                             variant="standard"
@@ -933,17 +939,22 @@ export const EditElectionEventDataForm: React.FC = () => {
                                             sx={{width: "300px"}}
                                             source={`presentation.custom_urls.login`}
                                             label={""}
+                                            onChange={(e) =>
+                                                setCustomUrlsValues({
+                                                    ...customUrlsValues,
+                                                    login: e.target.value,
+                                                })
+                                            }
                                         />
                                         <p>.sequent.io/login</p>
-                                    </Box>
-                                    <Box
-                                        sx={{
-                                            display: "flex",
-                                            flexDirection: "row",
-                                            alignItems: "center",
-                                            gap: "8px",
-                                        }}
-                                    >
+                                        {response.loading && (
+                                            <WizardStyles.DownloadProgress size={18} />
+                                        )}
+                                        {!response.error && !response.loading && (
+                                            <StatusChip status="SUCCESS" />
+                                        )}
+                                    </CustomUrlsStyle.InputWrapper>
+                                    <CustomUrlsStyle.InputWrapper>
                                         <p>https://</p>
                                         <TextInput
                                             variant="standard"
@@ -951,13 +962,23 @@ export const EditElectionEventDataForm: React.FC = () => {
                                             sx={{width: "300px"}}
                                             source={`presentation.custom_urls.enrollment`}
                                             label={""}
+                                            onChange={(e) =>
+                                                setCustomUrlsValues({
+                                                    ...customUrlsValues,
+                                                    enrollment: e.target.value,
+                                                })
+                                            }
                                         />
                                         <p>.sequent.io/enrollment</p>
-                                    </Box>
-                                    {/* <TextInput
-                                        source={`presentation.custom_urls.enrollment`}
-                                        // label={t("electionEventScreen.customUrls.enrollment")}
-                                    /> */}
+                                        {response.loading && (
+                                            <WizardStyles.DownloadProgress size={18} />
+                                        )}
+                                        {response.called &&
+                                            !response.error &&
+                                            !response.loading && (
+                                                <p style={{color: "green"}}>Active</p>
+                                            )}
+                                    </CustomUrlsStyle.InputWrapper>
                                 </AccordionDetails>
                             </Accordion>
 

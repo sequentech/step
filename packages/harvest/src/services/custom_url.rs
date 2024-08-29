@@ -103,44 +103,70 @@ pub async fn get_page_rule(
     info!("get_page_rules: {:?}", page_rules);
     Ok(find_matching_target(page_rules, target_value))
 }
+
 pub async fn set_custom_url(
     origin: &str,
     redirect_to: &str,
-    dns_prefix: &str
+    dns_prefix: &str,
 ) -> Result<(), Box<dyn Error>> {
-    info!{"origin pring {:?}", origin}
-    info!{"origin redirect too {:?}", redirect_to}
-    if let Ok(_cloudflare_env) = std::env::var("CLOUDFLARE_ENV") {
-        let current_page_rule = get_page_rule(origin).await?;
-        info!("got to set custom service - page rule {:?}", current_page_rule);
-        info!("dns_prefixdns_prefixdns_prefix {:?}", dns_prefix);
-
-         match current_page_rule {
-             Some(page_rule) => {
-                 if create_dns_record(redirect_to, dns_prefix).await.is_ok() {
-                     update_page_rule(&page_rule.id, redirect_to, origin).await?;
-                 } else {
-                     return Err("Failed to create DNS record. Page rule was not created.".into());
-                 }
-         info!("got updated");
-             }
-             None => {
-                 if create_dns_record(redirect_to, dns_prefix).await.is_ok() {
-                //      let redirect_to_login = format!("{}/login", redirect_to);
-                //      let redirect_to_enrollment = format!("{}/enrollment", redirect_to);
-                //      info!("originoriginoriginorigin{:?}", origin);
-                    create_page_rule(redirect_to, origin).await?;
-                 } else {
-                     return Err("Failed to create DNS record. Page rule was not created.".into());
-                 }
-             }
-         }
-    } else {
+    info!("Origin: {:?}", origin);
+    info!("Redirect to: {:?}", redirect_to);
+    
+    if std::env::var("CLOUDFLARE_ENV").is_err() {
         info!("CLOUDFLARE_ENV environment variable is not set.");
+        return Err("CLOUDFLARE_ENV environment variable is not set.".into());
+    }
+    
+    let current_page_rule = match get_page_rule(origin).await {
+        Ok(page_rule) => {
+            info!("Current page rule found: {:?}", page_rule);
+            page_rule
+        }
+        Err(e) => {
+            let error_message = format!("Failed to get page rule for {}: {}", origin, e);
+            info!("{}", error_message);
+            return Err(error_message.into());
+        }
+    };
+
+    info!("DNS Prefix: {:?}", dns_prefix);
+
+    match current_page_rule {
+        Some(page_rule) => {
+            if let Err(e) = create_dns_record(redirect_to, dns_prefix).await {
+                let error_message = format!("Failed to create DNS record: {}", e);
+                info!("{}", error_message);
+                return Err(error_message.into());
+            }
+
+            if let Err(e) = update_page_rule(&page_rule.id, redirect_to, origin).await {
+                let error_message = format!("Failed to update page rule: {}", e);
+                info!("{}", error_message);
+                return Err(error_message.into());
+            }
+            
+            info!("Page rule updated successfully.");
+        }
+        None => {
+            if let Err(e) = create_dns_record(redirect_to, dns_prefix).await {
+                let error_message = format!("Failed to create DNS record: {}", e);
+                info!("{}", error_message);
+                return Err(error_message.into());
+            }
+
+            if let Err(e) = create_page_rule(redirect_to, origin).await {
+                let error_message = format!("Failed to create page rule: {}", e);
+                info!("{}", error_message);
+                return Err(error_message.into());
+            }
+
+            info!("Page rule created successfully.");
+        }
     }
 
     Ok(())
 }
+
 
 fn get_cloudflare_vars() -> Result<(String, String, String), Box<dyn Error>> {
     let cloudflare_zone = std::env::var("CLOUDFLARE_ZONE")
@@ -244,28 +270,53 @@ info!("originnnnnn {:?}", origin);
         proxied: false,
     }
 }
+
 pub async fn create_dns_record(
     redirect_to: &str,
     origin: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn Error>> {
     let client = Client::new();
-    let (zone_id, api_email, api_key) = get_cloudflare_vars()?;
-    let url = format!("https://api.cloudflare.com/client/v4/zones/{}/dns_records", zone_id);
+    let (zone_id, api_email, api_key) = match get_cloudflare_vars() {
+        Ok(vars) => vars,
+        Err(e) => {
+            eprintln!("Failed to get Cloudflare environment variables: {}", e);
+            return Err(format!("Failed to get Cloudflare environment variables: {}", e).into());
+        }
+    };
+
+    let url = format!(
+        "https://api.cloudflare.com/client/v4/zones/{}/dns_records",
+        zone_id
+    );
+
     let request_dns_body = create_dns_payload(redirect_to, origin);
 
-    let response = client
+    let response = match client
         .post(&url)
         .header("X-Auth-Email", api_email)
         .header("Authorization", format!("Bearer {}", api_key))
         .json(&request_dns_body)
         .send()
-        .await?;
+        .await
+    {
+        Ok(resp) => resp,
+        Err(e) => {
+            eprintln!("HTTP request failed: {}", e);
+            return Err(format!("HTTP request failed: {}", e).into());
+        }
+    };
 
     if response.status().is_success() {
         println!("DNS record created successfully");
         Ok(())
     } else {
-        let body = response.text().await?;
+        let body = match response.text().await {
+            Ok(text) => text,
+            Err(e) => {
+                eprintln!("Failed to read error response: {}", e);
+                return Err(format!("Failed to read error response: {}", e).into());
+            }
+        };
         Err(format!("Failed to create DNS record: {}", body).into())
     }
 }
