@@ -4769,7 +4769,7 @@
       },
       {
         "kind": "OBJECT",
-        "name": "UserProfileAttributesOutput",
+        "name": "UserProfileAttribute",
         "description": null,
         "fields": [
           {
@@ -4833,6 +4833,18 @@
             "deprecationReason": null
           },
           {
+            "name": "permissions",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "jsonb",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "read_only",
             "description": null,
             "args": [],
@@ -4850,14 +4862,26 @@
             "args": [],
             "type": {
               "kind": "SCALAR",
-              "name": "Boolean",
+              "name": "jsonb",
               "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
           },
           {
-            "name": "validators",
+            "name": "selector",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "jsonb",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "validations",
             "description": null,
             "args": [],
             "type": {
@@ -21550,6 +21574,18 @@
             "description": null,
             "args": [
               {
+                "name": "election_event_id",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
                 "name": "tenant_id",
                 "description": null,
                 "type": {
@@ -21573,9 +21609,13 @@
                 "kind": "LIST",
                 "name": null,
                 "ofType": {
-                  "kind": "OBJECT",
-                  "name": "UserProfileAttributesOutput",
-                  "ofType": null
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "OBJECT",
+                    "name": "UserProfileAttribute",
+                    "ofType": null
+                  }
                 }
               }
             },

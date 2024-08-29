@@ -13,7 +13,8 @@ use sequent_core::services::jwt;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::keycloak::{
-    User, UserProfileAttribute, TENANT_ID_ATTR_NAME,
+    UPAttributePermissions, UPAttributeRequired, UPAttributeSelector, User,
+    UserProfileAttribute, TENANT_ID_ATTR_NAME,
 };
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
@@ -555,6 +556,7 @@ pub async fn export_tenant_users_f(
 #[derive(Deserialize, Debug)]
 pub struct GetUserProfileAttributesBody {
     tenant_id: String,
+    election_event_id: Option<String>,
 }
 
 #[instrument(skip(claims))]
@@ -563,17 +565,32 @@ pub async fn get_user_profile_attributes(
     claims: jwt::JwtClaims,
     body: Json<GetUserProfileAttributesBody>,
 ) -> Result<Json<Vec<UserProfileAttribute>>, (Status, String)> {
-    info!("IN ATTRB");
+    let required_perm = if body.election_event_id.is_some() {
+        Permissions::VOTER_READ
+    } else {
+        Permissions::USER_READ
+    };
 
     let input = body.into_inner();
     authorize(
         &claims,
         true,
         Some(input.tenant_id.clone()),
-        vec![Permissions::USER_READ],
+        vec![required_perm],
     )?;
 
-    let realm = get_tenant_realm(&input.tenant_id);
+    let realm = match input.election_event_id {
+        Some(election_event_id) => {
+            info!("ELECTION ID: {}", &election_event_id);
+            get_event_realm(&input.tenant_id, &election_event_id)
+        }
+        None => {
+            info!("NONE ELECTION ID");
+            get_tenant_realm(&input.tenant_id)
+        }
+    };
+
+    info!("REALM ID: {}", &realm);
     let client = KeycloakAdminClient::new()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
@@ -591,9 +608,27 @@ pub async fn get_user_profile_attributes(
             group: attr.group.clone(),
             multivalued: attr.multivalued,
             name: attr.name.clone(),
-            read_only: attr.read_only,
-            required: attr.required,
-            validators: attr.validators.clone(),
+            required: match attr.required.clone() {
+                Some(required) => Some(UPAttributeRequired {
+                    roles: required.roles,
+                    scopes: required.scopes,
+                }),
+                None => None,
+            },
+            validations: attr.validations.clone(),
+            permissions: match attr.permissions.clone() {
+                Some(permissions) => Some(UPAttributePermissions {
+                    edit: permissions.edit,
+                    view: permissions.view,
+                }),
+                None => None,
+            },
+            selector: match attr.selector.clone() {
+                Some(selector) => Some(UPAttributeSelector {
+                    scopes: selector.scopes,
+                }),
+                None => None,
+            },
         })
         .collect();
     Ok(Json(user_profile_attributes))

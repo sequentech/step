@@ -218,7 +218,8 @@ type Mutation {
 type Query {
   get_user_profile_attributes (
     tenant_id: String!
-  ): [UserProfileAttributesOutput]!
+    election_event_id: String
+  ): [UserProfileAttribute!]!
 }
 
 type Query {
@@ -607,6 +608,7 @@ input RestorePrivateKeyInput {
 
 input UserProfileAttributesInput {
   tenant_id : String!
+  election_event_id : String
 }
 
 type GetManualVerificationOutput {
@@ -914,14 +916,16 @@ type UserProfileAttributes {
   validators : jsonb
 }
 
-type UserProfileAttributesOutput {
+type UserProfileAttribute {
   annotations : jsonb
   display_name : String
   group : String
   multivalued : Boolean
   name : String
   read_only : Boolean
-  required : Boolean
-  validators : jsonb
+  required : jsonb
+  validations : jsonb
+  permissions : jsonb
+  selector : jsonb
 }
 

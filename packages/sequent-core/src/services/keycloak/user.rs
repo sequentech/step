@@ -6,8 +6,8 @@ use crate::types::keycloak::*;
 use crate::util::convert_vec::convert_map;
 use anyhow::{anyhow, Result};
 use keycloak::types::{
-    CredentialRepresentation, UserProfileAttributeMetadata,
-    UserProfileMetadata, UserRepresentation,
+    CredentialRepresentation, UPAttribute, UPConfig,
+    UserProfileAttributeMetadata, UserProfileMetadata, UserRepresentation,
 };
 use serde_json::Value;
 use std::collections::HashMap;
@@ -328,10 +328,10 @@ impl KeycloakAdminClient {
     pub async fn get_user_profile_attributes(
         self: &KeycloakAdminClient,
         realm: &str,
-    ) -> Result<Vec<UserProfileAttributeMetadata>> {
-        let response: UserProfileMetadata = self
+    ) -> Result<Vec<UPAttribute>> {
+        let response: UPConfig = self
             .client
-            .realm_users_profile_metadata_get(&realm)
+            .realm_users_profile_get(&realm)
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
         match response.attributes {

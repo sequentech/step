@@ -895,5 +895,5 @@ custom_types:
   - name: ExportAllUsersOutput
   - name: ExportTenantUsersOutput
   - name: UserProfileAttributes
-  - name: UserProfileAttributesOutput
+  - name: UserProfileAttribute
   scalars: []

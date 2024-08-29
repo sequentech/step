@@ -58,13 +58,31 @@ pub struct Role {
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+pub struct UPAttributePermissions {
+    pub edit: Option<Vec<String>>,
+    pub view: Option<Vec<String>>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+pub struct UPAttributeSelector {
+    pub scopes: Option<Vec<String>>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+pub struct UPAttributeRequired {
+    pub roles: Option<Vec<String>>,
+    pub scopes: Option<Vec<String>>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct UserProfileAttribute {
     pub annotations: Option<HashMap<String, Value>>,
     pub display_name: Option<String>,
     pub group: Option<String>,
     pub multivalued: Option<bool>,
     pub name: Option<String>,
-    pub read_only: Option<bool>,
-    pub required: Option<bool>,
-    pub validators: Option<HashMap<String, HashMap<String, Value>>>,
+    pub required: Option<UPAttributeRequired>,
+    pub validations: Option<HashMap<String, HashMap<String, Value>>>,
+    pub permissions: Option<UPAttributePermissions>,
+    pub selector: Option<UPAttributeSelector>,
 }
