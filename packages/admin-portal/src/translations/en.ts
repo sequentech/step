@@ -1,5 +1,8 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
+
+import { Placeholder } from "react-admin"
+
 // SPDX-License-Identifier: AGPL-3.0-only
 const englishTranslation = {
     translations: {
@@ -974,6 +977,19 @@ const englishTranslation = {
                             cancel: "Close",
                         },
                     },
+					sign: {
+						title: "Regenerate",
+						dialog: {
+							title: "Do you want to sign the Transmission Package?",
+							description:
+								"Please confirm you want to regenerate the Transmission Package for Area `{{name}}`",
+							confirm: "Sign Transmission Package",
+							cancel: "Close",
+							input: {
+								placeholder: "Enter your password"
+							}
+						},
+					},
                     download: {
                         title: "Download",
                         itemTitle: "Download Transmission Package",
