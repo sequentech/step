@@ -202,6 +202,12 @@ type Query {
   ): GetRolesOutput!
 }
 
+type Query {
+  get_task_by_id (
+    task_id: uuid
+  ): TaskOutput!
+}
+
 type Mutation {
   get_upload_url (
     name: String!
@@ -910,6 +916,26 @@ type ExportTaskOutput {
 }
 
 type sequent_backend_tasks_execution_ActionType {
+  annotations : jsonb
+  created_at : timestamptz!
+  election_event_id : uuid!
+  end_at : timestamptz
+  executed_by_user : String!
+  execution_status : String!
+  id : uuid!
+  labels : jsonb
+  logs : json
+  name : String!
+  start_at : timestamptz!
+  tenant_id : uuid!
+  type : String!
+}
+
+type TaskOutput {
+  task : tasks_execution_type!
+}
+
+type tasks_execution_type {
   annotations : jsonb
   created_at : timestamptz!
   election_event_id : uuid!

@@ -62,6 +62,7 @@ import {
     Sequent_Backend_Election,
     ManageElectionDatesMutation,
     Sequent_Backend_Election_Event,
+    Tasks_Execution_Type,
 } from "@/gql/graphql"
 import {ElectionStyles} from "@/components/styles/ElectionStyles"
 import {FormStyles} from "@/components/styles/FormStyles"
@@ -76,6 +77,7 @@ import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {Widget, WidgetStateProps} from "@/components/Widget"
 import {ETaskExecutionStatus} from "@sequentech/ui-core"
+import { GET_TASK_BY_ID } from "@/queries/getTaskById"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -142,10 +144,18 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
     setExportDocumentId,
     setWidget,
 }) => {
+    const [exportTaskLogs, setExportTaskLogs] = useState();
     const [exportElectionEvent] = useMutation<ExportElectionEventMutation>(EXPORT_ELECTION_EVENT, {
         context: {
             headers: {
                 "x-hasura-role": IPermissions.ELECTION_EVENT_READ,
+            },
+        },
+    })
+    const [getTaskByID] = useMutation<Tasks_Execution_Type>(GET_TASK_BY_ID, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.TASKS_READ,
             },
         },
     })
@@ -163,7 +173,6 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
                 electionEventId,
             },
         })
-        console.log({exportElectionEventData})
         let documentId = exportElectionEventData?.export_election_event?.document_id
         if (errors || !documentId) {
             setOpenExport(false)
@@ -175,6 +184,14 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
             console.log(`Error exporting users: ${errors}`)
             return
         }
+        const taskId = exportElectionEventData?.export_election_event?.task.id
+        const {data: taskData} = await getTaskByID({
+            variables: {
+                taskId
+            },
+        })
+        console.log({taskData})
+        setExportTaskLogs(exportElectionEventData?.export_election_event?.task.logs)
         setExportDocumentId(documentId)
     }
 
@@ -185,6 +202,7 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
         setWidget({
             type: ETasksExecution.EXPORT_ELECTION_EVENT,
             status: ETaskExecutionStatus.SUCCESS,
+            logs: exportTaskLogs
         })
     }
 
@@ -1025,6 +1043,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                 <Widget
                     type={openWidget.type}
                     status={openWidget.status}
+                    logs={openWidget.logs}
                     onClose={() => setWidget(undefined)}
                 />
             )}

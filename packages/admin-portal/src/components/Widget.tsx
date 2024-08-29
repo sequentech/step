@@ -45,7 +45,7 @@ export const LogTable: React.FC<LogTableProps> = ({logs}) => {
             <TableBody>
                 {logs.map((log, index) => (
                     <TableRow key={index}>
-                        <TransparentTableCell>{log.created_date}</TransparentTableCell>
+                        <TransparentTableCell>{new Date(log.created_date).toLocaleString()}</TransparentTableCell>
                         <TransparentTableCell>{log.log_text}</TransparentTableCell>
                     </TableRow>
                 ))}
@@ -57,6 +57,7 @@ export const LogTable: React.FC<LogTableProps> = ({logs}) => {
 export interface WidgetStateProps {
     type: ETasksExecution
     status: ETaskExecutionStatus
+    logs?: Array<ITaskLog>
 }
 
 interface WidgetProps {

@@ -8,10 +8,11 @@ use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
 use sequent_core::services::jwt::JwtClaims;
-use sequent_core::types::permissions::Permissions;
 use sequent_core::types::hasura::core::TasksExecution;
+use sequent_core::types::permissions::Permissions;
 use sequent_core::types::permissions::VoterPermissions;
 use serde::{Deserialize, Serialize};
+use windmill::postgres::tasks_execution::get_task_by_id;
 use std::time::Instant;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
@@ -84,11 +85,22 @@ pub async fn export_election_event_route(
                 format!("Error sending export_election_event task: {error:?}"),
             )
         })?;
+
+    let task = get_task_by_id(&task.id.clone()).await.map_err(|error| {
+        (
+            Status::InternalServerError,
+            format!("Error fetching task: {error:?}"),
+        )
+    })?;
+
+
     let output = ExportElectionEventOutput {
         document_id: document_id,
         task: task.clone(),
     };
     // info!("Sent EXPORT_ELECTION_EVENT task {}", task.id);
+
+    info!("Created Task {:?}", &task);
 
     Ok(Json(output))
 }

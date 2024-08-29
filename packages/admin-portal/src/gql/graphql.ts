@@ -574,6 +574,11 @@ export type String_Comparison_Exp = {
   _similar?: InputMaybe<Scalars['String']['input']>;
 };
 
+export type TaskOutput = {
+  __typename?: 'TaskOutput';
+  task: Tasks_Execution_Type;
+};
+
 export type TotalAggregate = {
   __typename?: 'TotalAggregate';
   aggregate: Aggregate;
@@ -814,6 +819,8 @@ export type Mutation_Root = {
   get_manual_verification_pdf?: Maybe<GetManualVerificationOutput>;
   /** get private key */
   get_private_key?: Maybe<GetPrivateKeyOutput>;
+  /** get task by id */
+  get_task_by_id: TaskOutput;
   get_upload_url?: Maybe<GetUploadUrlOutput>;
   get_user: KeycloakUser;
   import_areas?: Maybe<OptionalId>;
@@ -1742,6 +1749,12 @@ export type Mutation_RootGet_Manual_Verification_PdfArgs = {
 /** mutation root */
 export type Mutation_RootGet_Private_KeyArgs = {
   object: GetPrivateKeyInput;
+};
+
+
+/** mutation root */
+export type Mutation_RootGet_Task_By_IdArgs = {
+  task_id?: InputMaybe<Scalars['uuid']['input']>;
 };
 
 
@@ -17627,6 +17640,23 @@ export type Subscription_RootSequent_Backend_Trustee_StreamArgs = {
   batch_size: Scalars['Int']['input'];
   cursor: Array<InputMaybe<Sequent_Backend_Trustee_Stream_Cursor_Input>>;
   where?: InputMaybe<Sequent_Backend_Trustee_Bool_Exp>;
+};
+
+export type Tasks_Execution_Type = {
+  __typename?: 'tasks_execution_type';
+  annotations?: Maybe<Scalars['jsonb']['output']>;
+  created_at: Scalars['timestamptz']['output'];
+  election_event_id: Scalars['uuid']['output'];
+  end_at?: Maybe<Scalars['timestamptz']['output']>;
+  executed_by_user: Scalars['String']['output'];
+  execution_status: Scalars['String']['output'];
+  id: Scalars['uuid']['output'];
+  labels?: Maybe<Scalars['jsonb']['output']>;
+  logs?: Maybe<Scalars['json']['output']>;
+  name: Scalars['String']['output'];
+  start_at: Scalars['timestamptz']['output'];
+  tenant_id: Scalars['uuid']['output'];
+  type: Scalars['String']['output'];
 };
 
 /** Boolean expression to compare columns of type "timestamptz". All fields are combined with logical 'AND'. */

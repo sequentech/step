@@ -147,3 +147,41 @@ pub async fn update_task_execution_status(
 
     Ok(())
 }
+
+#[instrument(skip(), err)]
+pub async fn get_task_by_id(task_id: &str) -> Result<TasksExecution> {
+    let db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|err| anyhow!("Error getting hasura db pool: {err}"))?;
+
+    let task_uuid =
+        Uuid::parse_str(task_id).map_err(|err| anyhow!("Error parsing task UUID: {}", err))?;
+
+    let statement = db_client
+        .prepare(
+            r#"
+                SELECT
+                    *
+                FROM 
+                    sequent_backend.tasks_execution
+                WHERE
+                    id = $1
+            "#,
+        )
+        .await?;
+
+    let row = db_client
+        .query_one(&statement, &[&task_uuid])
+        .await
+        .map_err(|err| anyhow!("Error fetching task: {}", err))?;
+
+    // Convert the resulting row into `TasksExecution` struct
+    let task_execution: TasksExecution = row
+        .try_into()
+        .map(|wrapper: TasksExecutionWrapper| wrapper.0)
+        .context("Error converting database row to TasksExecution")?;
+
+    Ok(task_execution)
+}
