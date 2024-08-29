@@ -119,16 +119,15 @@ async fn main() -> Result<()> {
         let b3index = GrpcB3Index::new(&args.server_url);
 
         let boards_result = b3index.get_boards().await;
-        let boards: Vec<String> = match boards_result {
-            Ok(boards) => boards,
-            Err(error) => {
-                error!(
-                    "Error listing board names: '{}' ({})",
-                    error, args.server_url
-                );
-                sleep(Duration::from_millis(1000)).await;
-                continue;
-            }
+
+        let Ok(boards) = boards_result else {
+            error!(
+                "Error listing board names: '{}' ({})",
+                boards_result.err().unwrap(),
+                args.server_url
+            );
+            sleep(Duration::from_millis(1000)).await;
+            continue;
         };
 
         if loop_count % args.session_reset_period == 0 {
@@ -143,7 +142,10 @@ async fn main() -> Result<()> {
                 continue;
             }
 
-            let last_id = if !session_map.contains_key(board_name) {
+            let session = session_map.get_mut(board_name);
+            let last_id = if let Some(s) = session {
+                s.get_last_external_id().await?
+            } else {
                 info!(
                     "* Creating new session for board '{}'..",
                     board_name.clone()
@@ -161,10 +163,6 @@ async fn main() -> Result<()> {
                 session_map.insert(board_name.clone(), session);
 
                 last_id
-            } else {
-                let s = session_map.get_mut(board_name).expect("impossible");
-
-                s.get_last_external_id().await?
             };
 
             requests.push((board_name.to_string(), last_id));
