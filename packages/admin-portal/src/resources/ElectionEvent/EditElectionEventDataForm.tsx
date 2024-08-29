@@ -62,13 +62,12 @@ import {
     Sequent_Backend_Election,
     ManageElectionDatesMutation,
     Sequent_Backend_Election_Event,
-    Tasks_Execution_Type,
 } from "@/gql/graphql"
 import {ElectionStyles} from "@/components/styles/ElectionStyles"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {DownloadDocument} from "../User/DownloadDocument"
 import {EXPORT_ELECTION_EVENT} from "@/queries/ExportElectionEvent"
-import {useMutation} from "@apollo/client"
+import {useLazyQuery, useMutation} from "@apollo/client"
 import {IMPORT_CANDIDTATES} from "@/queries/ImportCandidates"
 import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
 import {useWatch} from "react-hook-form"
@@ -77,7 +76,7 @@ import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {Widget, WidgetStateProps} from "@/components/Widget"
 import {ETaskExecutionStatus} from "@sequentech/ui-core"
-import { GET_TASK_BY_ID } from "@/queries/getTaskById"
+import {GET_TASK_BY_ID} from "@/queries/GetTaskById"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -144,7 +143,6 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
     setExportDocumentId,
     setWidget,
 }) => {
-    const [exportTaskLogs, setExportTaskLogs] = useState();
     const [exportElectionEvent] = useMutation<ExportElectionEventMutation>(EXPORT_ELECTION_EVENT, {
         context: {
             headers: {
@@ -152,13 +150,8 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
             },
         },
     })
-    const [getTaskByID] = useMutation<Tasks_Execution_Type>(GET_TASK_BY_ID, {
-        context: {
-            headers: {
-                "x-hasura-role": IPermissions.TASKS_READ,
-            },
-        },
-    })
+    const [getTaskByID, {data: taskData, error: taskError}] = useLazyQuery(GET_TASK_BY_ID)
+
     const notify = useNotify()
     const {t} = useTranslation()
 
@@ -168,32 +161,39 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
             type: ETasksExecution.EXPORT_ELECTION_EVENT,
             status: ETaskExecutionStatus.IN_PROGRESS,
         })
+
         const {data: exportElectionEventData, errors} = await exportElectionEvent({
-            variables: {
-                electionEventId,
-            },
+            variables: {electionEventId},
         })
-        let documentId = exportElectionEventData?.export_election_event?.document_id
+
+        const documentId = exportElectionEventData?.export_election_event?.document_id
         if (errors || !documentId) {
             setOpenExport(false)
             setWidget({
                 type: ETasksExecution.EXPORT_ELECTION_EVENT,
                 status: ETaskExecutionStatus.FAILED,
             })
-            notify(t(`electionEventScreen.exportError`), {type: "error"})
+            notify(t("electionEventScreen.exportError"), {type: "error"})
             console.log(`Error exporting users: ${errors}`)
             return
         }
-        const taskId = exportElectionEventData?.export_election_event?.task.id
-        const {data: taskData} = await getTaskByID({
-            variables: {
-                taskId
-            },
-        })
-        console.log({taskData})
-        setExportTaskLogs(exportElectionEventData?.export_election_event?.task.logs)
+
+        const task_id = exportElectionEventData?.export_election_event?.task.id
+        getTaskByID({variables: {task_id: task_id}})
         setExportDocumentId(documentId)
     }
+
+    useEffect(() => {
+        if (taskData) {
+            // TODO: setWidget
+            console.log({logs: taskData?.logs})
+        }
+        if (taskError) {
+            // TODO: setWidget ERROR
+            console.error(taskError)
+            notify(t("electionEventScreen.taskFetchError"), {type: "error"})
+        }
+    }, [taskData, taskError])
 
     const onDownloadDocument = () => {
         console.log("onDownload called")
@@ -202,7 +202,7 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
         setWidget({
             type: ETasksExecution.EXPORT_ELECTION_EVENT,
             status: ETaskExecutionStatus.SUCCESS,
-            logs: exportTaskLogs
+            // logs: exportTaskLogs,
         })
     }
 

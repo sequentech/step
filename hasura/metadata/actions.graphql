@@ -202,12 +202,6 @@ type Query {
   ): GetRolesOutput!
 }
 
-type Query {
-  get_task_by_id (
-    task_id: uuid
-  ): TaskOutput!
-}
-
 type Mutation {
   get_upload_url (
     name: String!

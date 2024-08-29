@@ -12,10 +12,10 @@ use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use sequent_core::types::permissions::VoterPermissions;
 use serde::{Deserialize, Serialize};
-use windmill::postgres::tasks_execution::get_task_by_id;
 use std::time::Instant;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
+use windmill::postgres::tasks_execution::get_task_by_id;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::tasks_execution::*;
 use windmill::tasks::export_election_event;
@@ -47,7 +47,7 @@ pub async fn export_election_event_route(
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
 
     // Insert the task execution record
-    let task = post(
+    let task_execution = post(
         &tenant_id,
         &election_event_id,
         ETasks::EXPORT_ELECTION_EVENT,
@@ -76,7 +76,7 @@ pub async fn export_election_event_route(
             tenant_id,
             election_event_id,
             document_id.clone(),
-            task.clone(),
+            task_execution.clone(),
         ))
         .await
         .map_err(|error| {
@@ -86,21 +86,12 @@ pub async fn export_election_event_route(
             )
         })?;
 
-    let task = get_task_by_id(&task.id.clone()).await.map_err(|error| {
-        (
-            Status::InternalServerError,
-            format!("Error fetching task: {error:?}"),
-        )
-    })?;
-
-
     let output = ExportElectionEventOutput {
         document_id: document_id,
-        task: task.clone(),
+        task: task_execution.clone(),
     };
-    // info!("Sent EXPORT_ELECTION_EVENT task {}", task.id);
 
-    info!("Created Task {:?}", &task);
+    info!("Sent EXPORT_ELECTION_EVENT task  {:?}", &task_execution);
 
     Ok(Json(output))
 }
