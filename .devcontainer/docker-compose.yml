@@ -141,10 +141,10 @@ services:
       - "8080:8080"
     restart: always
     volumes:
-      #- ../hasura/metadata/:/hasura-metadata:cached
-      #- ../hasura/migrations/:/hasura-migrations:cached
-      - hasura_metadata:/hasura-metadata
-      - hasura_migrations:/hasura-migrations
+      - ../hasura/metadata/:/hasura-metadata:cached
+      - ../hasura/migrations/:/hasura-migrations:cached
+      #- hasura_metadata:/hasura-metadata
+      #- hasura_migrations:/hasura-migrations
     environment:
       # applies migrations on start
       HASURA_GRAPHQL_MIGRATIONS_SERVER_TIMEOUT: 60
@@ -242,8 +242,8 @@ services:
       KC_OTP_RESEND_INTERVAL: ${KC_OTP_RESEND_INTERVAL}
     volumes:
       # https://www.keycloak.org/server/containers#_importing_a_realm_on_startup
-      - keycloak_import:/opt/keycloak/data/import
-      #- ./keycloak/import:/opt/keycloak/data/import
+      #- keycloak_import:/opt/keycloak/data/import
+      - ./keycloak/import:/opt/keycloak/data/import
     # Below we're using the dummy email email sender provider but that's just for
     # development, in production we should still use the default SMTP email provider
     #
@@ -336,8 +336,8 @@ services:
     image: ghcr.io/sequentech/step/cargo-packages:latest
     container_name: harvest
     volumes:
-      #- ../packages/:/app
-      - packages:/app
+      - ../packages/:/app
+      #- packages:/app
     working_dir: /app/harvest
     entrypoint: [
       "cargo",
@@ -657,10 +657,10 @@ services:
       "run --bin main consume -q short_queue tally_queue beat reports_queue communication_queue import_export_queue"
     ]
     volumes:
-      - keycloak_import:/import
-      #- ./keycloak/import:/import
-      #- ../packages/:/app
-      - packages:/app
+      #- keycloak_import:/import
+      - ./keycloak/import:/import
+      - ../packages/:/app
+      #- packages:/app
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
       RUST_BACKTRACE: ${RUST_BACKTRACE}
