@@ -7,6 +7,7 @@ services:
   devcontainer:
     #profiles: ["full", "base"]
     image: ghcr.io/cachix/devenv:latest
+
     container_name: devcontainer
     volumes:
       - ../..:/workspaces:cached
@@ -197,6 +198,7 @@ services:
   postgres-keycloak:
     #profiles: ["full", "base"]
     image: ghcr.io/sequentech/step/postgres:latest
+    image: sequentech.local/postgresql
     container_name: postgres-keycloak
     restart: unless-stopped
     volumes:
@@ -278,6 +280,7 @@ services:
   #   #profiles: ["full"]
   #   image: ghcr.io/sequentech/step/yarn:latest
   #   container_name: admin-portal
+
   #   #restart: always
   #   #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
   #   #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
