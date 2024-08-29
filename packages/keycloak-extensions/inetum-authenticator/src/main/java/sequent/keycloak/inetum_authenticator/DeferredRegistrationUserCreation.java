@@ -63,6 +63,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
   public static final String PHONE_NUMBER = "sequent.read-only.mobile-number";
   public static final String MISSING_FIELDS = "MissingFields";
   public static final String MISSING_FIELDS_ERROR = "error-user-attribute-required";
+  // TODO fix
 
   @Override
   public String getHelpText() {

@@ -6,15 +6,17 @@ import englishTranslation from "../translations/en"
 import spanishTranslation from "../translations/es"
 import catalanTranslation from "../translations/cat"
 import frenchTranslation from "../translations/fr"
+import tagalogTranslation from "../translations/tl"
 
 initializeLanguages({
     en: englishTranslation,
     es: spanishTranslation,
     cat: catalanTranslation,
     fr: frenchTranslation,
+    tl: tagalogTranslation,
 })
 
-export const getAllLangs = (): Array<string> => ["en", "es", "cat", "fr"]
+export const getAllLangs = (): Array<string> => ["en", "es", "cat", "fr", "tl"]
 
 export const addDefaultTranslationsToElement = (data: {
     name?: string | null
