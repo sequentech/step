@@ -198,7 +198,6 @@ services:
   postgres-keycloak:
     #profiles: ["full", "base"]
     image: ghcr.io/sequentech/step/postgres:latest
-    image: sequentech.local/postgresql
     container_name: postgres-keycloak
     restart: unless-stopped
     volumes:
