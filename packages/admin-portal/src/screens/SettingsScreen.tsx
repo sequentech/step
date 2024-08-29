@@ -80,7 +80,10 @@ export const SettingsScreen: React.FC = () => {
                     {
                         label: t("electionTypeScreen.tabs.lookCustomization"),
                         component: () => (
-                            <Resource name="sequent_backend_tenant" list={SettingsLookCustomization} />
+                            <Resource
+                                name="sequent_backend_tenant"
+                                list={SettingsLookCustomization}
+                            />
                         ),
                     },
                     {

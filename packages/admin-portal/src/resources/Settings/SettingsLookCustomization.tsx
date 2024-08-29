@@ -6,15 +6,10 @@ import React, {useEffect, useState} from "react"
 import styled from "@emotion/styled"
 
 import {useTranslation} from "react-i18next"
-import {
-    SimpleForm,
-    TextInput,
-    useEditController,
-} from "react-admin"
+import {SimpleForm, TextInput, useEditController} from "react-admin"
 
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ITenantSettings} from "@sequentech/ui-core"
-
 
 export const SettingsLookCustomization: React.FC<void> = () => {
     const [tenantId] = useTenantStore()
@@ -25,7 +20,7 @@ export const SettingsLookCustomization: React.FC<void> = () => {
         redirect: false,
         undoable: false,
     })
-    
+
     // if (save) {
     //     save({
     //         settings: {
@@ -35,14 +30,13 @@ export const SettingsLookCustomization: React.FC<void> = () => {
     //     })
     // }
 
-
     // if (isLoading) return null
 
     return (
         <SimpleForm>
             <TextInput
                 resettable={true}
-                source={"presentation.logo_url"} //TODO: Currently Sequent logo is not shown. Fix the logo after merging 1958 to use the blank/Sequent/custom logo with the same logic than Voting Screen on that ticket 
+                source={"presentation.logo_url"} //TODO: Currently Sequent logo is not shown. Fix the logo after merging 1958 to use the blank/Sequent/custom logo with the same logic than Voting Screen on that ticket
                 label={t("electionEventScreen.field.logoUrl")}
             />
             <TextInput
@@ -56,7 +50,6 @@ export const SettingsLookCustomization: React.FC<void> = () => {
                 source={"presentation.css"}
                 label={t("electionEventScreen.field.css")}
             />
-
-        </SimpleForm> 
+        </SimpleForm>
     )
 }
