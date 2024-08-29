@@ -563,6 +563,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                     key: "login",
                     origin: `https://${customUrls.login}.vaiphon.com/login`,
                     redirect_to: "https://google.com/login",
+                    dns_prefix: customUrls.login,
                     //  getAuthUrl(
                     //     globalSettings.VOTING_PORTAL_URL,
                     //     tenantId ?? "",
@@ -574,6 +575,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                     key: "enrollment",
                     origin: `https://${customUrls.enrollment}.vaiphon.com/enrollment`,
                     redirect_to: "https://google.com/enrollment",
+                    dns_prefix: customUrls.enrollment,
                     // getAuthUrl(
                     //     globalSettings.VOTING_PORTAL_URL,
                     //     tenantId ?? "",
@@ -582,13 +584,14 @@ export const EditElectionEventDataForm: React.FC = () => {
                     // ),
                 },
             ]
-            for (const {origin, redirect_to, key} of urlEntries) {
+            for (const {origin, redirect_to, dns_prefix, key} of urlEntries) {
                 if (origin) {
                     console.log(origin, "test")
                     await manageCustomUrls({
                         variables: {
                             origin: origin,
                             redirect_to: redirect_to ?? "",
+                            dns_prefix: dns_prefix,
                         },
                     })
                 }
