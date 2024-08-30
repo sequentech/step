@@ -19,6 +19,9 @@ on:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        architecture: [amd64, arm64]
     permissions:
       contents: read
       packages: write
@@ -42,38 +45,62 @@ jobs:
     - name: Build and push Keycloak
       uses: docker/build-push-action@v6
       with:
-        platforms: linux/amd64,linux/arm64
+        platforms: linux/${{ matrix.architecture }}
         context: packages/.
         file: packages/Dockerfile.keycloak
         tags: ghcr.io/${{ github.repository }}/keycloak:latest
         push: true
 
     - name: Build and push Postgres
-      run: |
-        cd .devcontainer/postgresql && docker build -t ghcr.io/${{ github.repository }}/postgres:latest -f Dockerfile .
-        docker push ghcr.io/${{ github.repository }}/postgres:latest
+      uses: docker/build-push-action@v6
+      with:
+        platforms: linux/${{ matrix.architecture }}
+        context: .devcontainer/postgresql/.
+        file: .devcontainer/postgresql/Dockerfile
+        tags: ghcr.io/${{ github.repository }}/postgres:latest
+        push: true
 
     - name: Build and push Minio
-      run: |
-        cd .devcontainer/minio && docker build -t ghcr.io/${{ github.repository }}/minio:latest -f Dockerfile .
-        docker push ghcr.io/${{ github.repository }}/minio:latest
+      uses: docker/build-push-action@v6
+      with:
+        platforms: linux/${{ matrix.architecture }}
+        context: .devcontainer/minio/.
+        file: .devcontainer/minio/Dockerfile
+        tags: ghcr.io/${{ github.repository }}/minio:latest
+        push: true
 
     - name: Build and push Vault
-      run: |
-        cd .devcontainer/vault && docker build -t ghcr.io/${{ github.repository }}/vault:latest -f Dockerfile .
-        docker push ghcr.io/${{ github.repository }}/vault:latest
+      uses: docker/build-push-action@v6
+      with:
+        platforms: linux/${{ matrix.architecture }}
+        context: .devcontainer/vault/.
+        file: .devcontainer/vault/Dockerfile
+        tags: ghcr.io/${{ github.repository }}/vault:latest
+        push: true
 
     - name: Build and push cargo packages
-      run: |
-        cd packages && docker build -t ghcr.io/${{ github.repository }}/cargo-packages:latest -f Dockerfile.cargo-packages .
-        docker push ghcr.io/${{ github.repository }}/cargo-packages:latest
+      uses: docker/build-push-action@v6
+      with:
+        platforms: linux/${{ matrix.architecture }}
+        context: packages/.
+        file: packages/Dockerfile.cargo-packages
+        tags: ghcr.io/${{ github.repository }}/cargo-packages:latest
+        push: true
 
     - name: Build and push immudb
-      run: |
-        cd packages && docker build -t ghcr.io/${{ github.repository }}/immudb:latest -f Dockerfile.immudb .
-        docker push ghcr.io/${{ github.repository }}/immudb:latest
+      uses: docker/build-push-action@v6
+      with:
+        platforms: linux/${{ matrix.architecture }}
+        context: packages/.
+        file: packages/Dockerfile.immudb
+        tags: ghcr.io/${{ github.repository }}/immudb:latest
+        push: true
 
     - name: Build and push immudb-log-audit
-      run: |
-        cd vendor/immudb-log-audit && docker build -t ghcr.io/${{ github.repository }}/immudb-log-audit:latest -f Dockerfile.immudb .
-        docker push ghcr.io/${{ github.repository }}/cargo-packages:latest
+      uses: docker/build-push-action@v6
+      with:
+        platforms: linux/${{ matrix.architecture }}
+        context: vendor/immudb-log-audit/.
+        file: vendor/immudb-log-audit/Dockerfile.immudb
+        tags: ghcr.io/${{ github.repository }}/immudb-log-audit:latest
+        push: true
