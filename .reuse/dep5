@@ -43,6 +43,8 @@ Files:
   packages/keycloak-extensions/message-otp-authenticator/src/main/resources/theme-resources/templates/html/send-code-email.ftl
   packages/keycloak-extensions/message-otp-authenticator/src/main/resources/theme-resources/templates/text/success-email.ftl
   packages/keycloak-extensions/message-otp-authenticator/src/main/resources/theme-resources/templates/html/success-email.ftl
+  packages/keycloak-extensions/sequent-extend-admin-console-spi/src/main/resources/META-INF/services/org.keycloak.services.ui.extend.UiPageProviderFactory
+  packages/keycloak-extensions/sequent-extend-admin-console-spi/src/main/resources/META-INF/services/org.keycloak.services.ui.extend.UiTabProviderFactory
 Copyright: 2024 Sequent Tech <legal@sequentech.io>
 License: AGPL-3.0-only
 
