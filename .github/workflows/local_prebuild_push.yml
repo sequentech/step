@@ -5,8 +5,7 @@
 name: Local images Prebuild and Push
 
 on:
-  push:
-    branches: [ 'main' ]
+  pull_request:
     paths: 
       - '.devcontainer/postgresql/**'
       - '.devcontainer/minio/**'
