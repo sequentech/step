@@ -22,16 +22,14 @@ services:
       # as a data source. this can be removed/updated based on your needs
       PG_DATABASE_URL: ${HASURA_PG_DATABASE_URL}
 
-  simplesamlphp:
+  simplesaml:
     image: kenchan0130/simplesamlphp
     container_name: simplesamlphp
     ports:
-      - "8083:8080"
-    environment:
-      SIMPLESAMLPHP_SP_ENTITY_ID: http://app.example.com
-      SIMPLESAMLPHP_SP_ASSERTION_CONSUMER_SERVICE: http://localhost/simplesaml/module.php/saml/sp/saml2-acs.php/test-sp
-      SIMPLESAMLPHP_SP_SINGLE_LOGOUT_SERVICE: http://localhost/simplesaml/module.php/saml/sp/saml2-logout.php/test-sp      
-
+      - "8083:8083"    
+    volumes:
+      - ./simplesaml/authsources.php:/var/www/simplesamlphp/config/authsources.php
+      - ./simplesaml/saml20-sp-remote.php:/var/www/simplesamlphp/metadata/saml20-sp-remote.php
   # Needed to set up proper permissions for non root user in postgres
   postgres-volume-init:
     #profiles: ["full", "base"]
