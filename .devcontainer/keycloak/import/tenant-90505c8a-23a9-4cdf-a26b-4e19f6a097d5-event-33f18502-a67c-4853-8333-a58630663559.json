@@ -1461,7 +1461,7 @@
   "adminEventsDetailsEnabled" : false,
   "identityProviders": [
     {
-      "alias": "SimpleSamlPHP",
+      "alias": "simplesamlphp",
       "displayName": "",
       "internalId": "02782c48-c205-449c-a781-6b3b6aeb75fd",
       "providerId": "saml",
