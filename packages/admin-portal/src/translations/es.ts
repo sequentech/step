@@ -169,6 +169,8 @@ const spanishTranslation: TranslationType = {
                 createNew: "Crear un Tipo de Elección",
                 emptyHeader: "No hay Tipos de Elección aún.",
                 emptyBody: "¿Quieres crear uno?",
+                logoUrl: "Logo URL",
+                css: "CSS personalizado",
             },
             create: {
                 title: "Crear Tipo de Elección",

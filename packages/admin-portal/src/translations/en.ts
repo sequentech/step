@@ -167,6 +167,8 @@ const englishTranslation = {
                 createNew: "Create Election Type",
                 emptyHeader: "No Election Types yet.",
                 emptyBody: "Do you want to create one?",
+                logoUrl: "Logo URL",
+                css: "Custom CSS",
             },
             create: {
                 title: "Create Election Type",

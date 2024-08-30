@@ -169,6 +169,8 @@ const tagalogTranslation = {
                 createNew: "Lumikha ng Uri ng Halalan",
                 emptyHeader: "Wala pang Uri ng Halalan.",
                 emptyBody: "Gusto mo bang lumikha ng isa?",
+                logoUrl: "URL ng Logo",
+                css: "Custom CSS",
             },
             create: {
                 title: "Lumikha ng Uri ng Halalan",

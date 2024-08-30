@@ -37,18 +37,13 @@ export const SettingsLookCustomization: React.FC<void> = () => {
             <TextInput
                 resettable={true}
                 source={"presentation.logo_url"} //TODO: Currently Sequent logo is not shown. Fix the logo after merging 1958 to use the blank/Sequent/custom logo with the same logic than Voting Screen on that ticket
-                label={t("electionEventScreen.field.logoUrl")}
-            />
-            <TextInput
-                resettable={true}
-                source={"presentation.redirect_finish_url"}
-                label={t("electionEventScreen.field.redirectFinishUrl")}
+                label={t("electionTypeScreen.common.logoUrl")}
             />
             <TextInput
                 resettable={true}
                 multiline={true}
                 source={"presentation.css"}
-                label={t("electionEventScreen.field.css")}
+                label={t("electionTypeScreen.common.css")}
             />
         </SimpleForm>
     )
