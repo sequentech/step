@@ -24,37 +24,37 @@ services:
       PG_DATABASE_URL: ${HASURA_PG_DATABASE_URL}
 
   # Needed to set up proper permissions for non root user in postgres
-  # postgres-volume-init:
-  #   #profiles: ["full", "base"]
-  #   image: alpine
-  #   container_name: postgres-volume-init
-  #   volumes: 
-  #     - db_logs:/logs
-  #     - keycloak_db_logs:/keycloak_logs
-  #   user: root
-  #   group_add:
-  #     - '999'
-  #   command: chown -R 999:999 /logs /keycloak_logs
+  postgres-volume-init:
+    #profiles: ["full", "base"]
+    image: alpine
+    container_name: postgres-volume-init
+    volumes: 
+      - db_logs:/logs
+      - keycloak_db_logs:/keycloak_logs
+    user: root
+    group_add:
+      - '999'
+    command: chown -R 999:999 /logs /keycloak_logs
 
-  # postgres:
-  #   #profiles: ["full", "base"]
-  #   image: ghcr.io/sequentech/step/postgres:latest
-  #   container_name: postgres
-  #   restart: unless-stopped
-  #   volumes:
-  #     - db_data:/var/lib/postgresql/data
-  #     - db_logs:/logs
-  #   environment:
-  #     POSTGRES_PASSWORD: ${HASURA_PG_PASSWORD}
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "pg_isready -U postgres"]
-  #     interval: 5s
-  #     timeout: 10s
-  #     retries: 15
-  #     start_period: 5s
-  #   command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
-  #   depends_on:
-  #     - postgres-volume-init
+  postgres:
+    #profiles: ["full", "base"]
+    image: ghcr.io/sequentech/step/postgres:latest
+    container_name: postgres
+    restart: unless-stopped
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - db_logs:/logs
+    environment:
+      POSTGRES_PASSWORD: ${HASURA_PG_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 10s
+      retries: 15
+      start_period: 5s
+    command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
+    depends_on:
+      - postgres-volume-init
 
   # minio:
   #   #profiles: ["full", "base"]
@@ -195,28 +195,28 @@ services:
   #     retries: 25
   #     start_period: 5s
 
-  # postgres-keycloak:
-  #   #profiles: ["full", "base"]
-  #   image: ghcr.io/sequentech/step/postgres:latest
-  #   container_name: postgres-keycloak
-  #   restart: unless-stopped
-  #   volumes:
-  #     - keycloak_db_data:/var/lib/postgresql/data
-  #     - keycloak_db_logs:/logs
-  #   command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
-  #   environment:
-  #     POSTGRES_PASSWORD: ${KC_DB_PASSWORD}
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "pg_isready  -U postgres"]
-  #     interval: 5s
-  #     timeout: 10s
-  #     retries: 15
-  #     start_period: 5s
-  #   # depending on the `postgres` container to ensure that the
-  #   # `sequentech.local/postgresql` image is locally build, so that we can reuse
-  #   # it:
-  #   depends_on:
-  #     - postgres
+  postgres-keycloak:
+    #profiles: ["full", "base"]
+    image: ghcr.io/sequentech/step/postgres:latest
+    container_name: postgres-keycloak
+    restart: unless-stopped
+    volumes:
+      - keycloak_db_data:/var/lib/postgresql/data
+      - keycloak_db_logs:/logs
+    command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
+    environment:
+      POSTGRES_PASSWORD: ${KC_DB_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready  -U postgres"]
+      interval: 5s
+      timeout: 10s
+      retries: 15
+      start_period: 5s
+    # depending on the `postgres` container to ensure that the
+    # `sequentech.local/postgresql` image is locally build, so that we can reuse
+    # it:
+    depends_on:
+      - postgres
 
   keycloak:
     #profiles: ["full", "base"]
