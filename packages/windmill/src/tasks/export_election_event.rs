@@ -17,12 +17,12 @@ pub async fn export_election_event(
     tenant_id: String,
     election_event_id: String,
     document_id: String,
-    task: TasksExecution,
+    task_execution: TasksExecution,
 ) -> Result<()> {
     let mut hasura_db_client: DbClient = match get_hasura_pool().await.get().await {
         Ok(client) => client,
         Err(err) => {
-            update_fail(&task, "Failed to get Hasura DB pool").await;
+            update_fail(&task_execution, "Failed to get Hasura DB pool").await;
             return Err(Error::String(format!(
                 "Error getting Hasura DB pool: {}",
                 err
@@ -40,7 +40,7 @@ pub async fn export_election_event(
     match process_export(&tenant_id, &election_event_id, &document_id).await {
         Ok(_) => (),
         Err(err) => {
-            update_fail(&task, "Failed to export election event data").await?;
+            update_fail(&task_execution, "Failed to export election event data").await?;
             return Err(Error::String(format!(
                 "Failed to export election event data: {}",
                 err
@@ -51,12 +51,12 @@ pub async fn export_election_event(
     match hasura_transaction.commit().await {
         Ok(_) => (),
         Err(err) => {
-            update_fail(&task, "Failed to insert task execution record").await?;
+            update_fail(&task_execution, "Failed to insert task execution record").await?;
             return Err(Error::String(format!("Commit failed: {}", err)));
         }
     };
 
-    update_complete(&task)
+    update_complete(&task_execution)
         .await
         .context("Failed to update task execution status to COMPLETED")?;
 

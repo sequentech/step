@@ -29,7 +29,7 @@ pub struct ExportElectionEventInput {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ExportElectionEventOutput {
     document_id: String,
-    task: TasksExecution,
+    task_execution: TasksExecution,
 }
 
 #[instrument(skip(claims))]
@@ -88,7 +88,7 @@ pub async fn export_election_event_route(
 
     let output = ExportElectionEventOutput {
         document_id: document_id,
-        task: task_execution.clone(),
+        task_execution: task_execution.clone(),
     };
 
     info!("Sent EXPORT_ELECTION_EVENT task  {:?}", &task_execution);

@@ -18,9 +18,8 @@ use encoding_rs::WINDOWS_1252;
 use encoding_rs_io::DecodeReaderBytesBuilder;
 use sequent_core::ballot::ContestPresentation;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
-use sequent_core::types::hasura::core::Candidate;
 use sequent_core::types::hasura::core::Contest;
-use sequent_core::types::hasura::extra::TasksExecutionStatus;
+use sequent_core::types::hasura::core::{Candidate, TasksExecution};
 use std::fs::File;
 use std::io::BufReader;
 use std::io::Seek;
@@ -295,17 +294,8 @@ pub async fn import_candidates_task(
     tenant_id: String,
     election_event_id: String,
     document_id: String,
-    executed_by_user: String,
+    task_execution: TasksExecution,
 ) -> Result<()> {
-    let task = post(
-        &tenant_id,
-        &election_event_id,
-        ETasks::IMPORT_CANDIDATES,
-        &executed_by_user,
-    )
-    .await
-    .context("Failed to insert task execution record")?;
-
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -374,7 +364,7 @@ pub async fn import_candidates_task(
             }
             Err(err) => {
                 event!(Level::ERROR, "Error reading CSV record: {:?}", err);
-                update_fail(&task, "Error reading CSV record").await?;
+                update_fail(&task_execution, "Error reading CSV record").await?;
                 return Err(anyhow!("Error reading CSV record: {}", err));
             }
         }
@@ -390,7 +380,7 @@ pub async fn import_candidates_task(
     {
         Ok(_) => (),
         Err(err) => {
-            update_fail(&task, "Error inserting candidates to db").await?;
+            update_fail(&task_execution, "Error inserting candidates to db").await?;
             return Err(anyhow!("Inserting candidates failed: {:?}", err));
         }
     }
@@ -398,12 +388,12 @@ pub async fn import_candidates_task(
     match hasura_transaction.commit().await {
         Ok(_) => (),
         Err(err) => {
-            update_fail(&task, "Error updating db").await?;
+            update_fail(&task_execution, "Error updating db").await?;
             return Err(anyhow!("Commit failed: {}", err));
         }
     };
 
-    update_complete(&task)
+    update_complete(&task_execution)
         .await
         .context("Failed to update task execution status to COMPLETED")?;
 

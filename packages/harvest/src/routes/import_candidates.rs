@@ -7,10 +7,14 @@ use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
+use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
-use windmill::tasks::import_candidates::import_candidates_task;
+use windmill::services::tasks_execution::*;
+use windmill::{
+    tasks::import_candidates::import_candidates_task, types::tasks::ETasks,
+};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ImportCandidatesInput {
@@ -19,7 +23,10 @@ pub struct ImportCandidatesInput {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct ImportCandidatesOutput {}
+pub struct ImportCandidatesOutput {
+    document_id: String,
+    task_execution: TasksExecution,
+}
 
 #[instrument(skip(claims))]
 #[post("/import-candidates", format = "json", data = "<input>")]
@@ -28,21 +35,40 @@ pub async fn import_candidates_route(
     input: Json<ImportCandidatesInput>,
 ) -> Result<Json<ImportCandidatesOutput>, (Status, String)> {
     let body = input.into_inner();
-    let name = claims
+    let tenant_id = claims.hasura_claims.tenant_id.clone();
+    let election_event_id = body.election_event_id.clone();
+    let executer_name = claims
         .name
         .clone()
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
+
+    // Insert the task execution record
+    let task_execution = post(
+        &tenant_id,
+        &election_event_id,
+        ETasks::IMPORT_CANDIDATES,
+        &executer_name,
+    )
+    .await
+    .map_err(|error| {
+        (
+            Status::InternalServerError,
+            format!("Failed to insert task execution record: {error:?}"),
+        )
+    })?;
+
     authorize(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::ADMIN_USER],
     )?;
+
     import_candidates_task(
         claims.hasura_claims.tenant_id.clone(),
-        body.election_event_id.clone(),
+        election_event_id,
         body.document_id.clone(),
-        name,
+        task_execution.clone(),
     )
     .await
     .map_err(|error| {
@@ -52,5 +78,10 @@ pub async fn import_candidates_route(
         )
     })?;
 
-    Ok(Json(ImportCandidatesOutput {}))
+    let output = ImportCandidatesOutput {
+        document_id: body.document_id.clone(),
+        task_execution: task_execution.clone(),
+    };
+
+    Ok(Json(output))
 }

@@ -45,7 +45,9 @@ export const LogTable: React.FC<LogTableProps> = ({logs}) => {
             <TableBody>
                 {logs.map((log, index) => (
                     <TableRow key={index}>
-                        <TransparentTableCell>{new Date(log.created_date).toLocaleString()}</TransparentTableCell>
+                        <TransparentTableCell>
+                            {new Date(log.created_date).toLocaleString()}
+                        </TransparentTableCell>
                         <TransparentTableCell>{log.log_text}</TransparentTableCell>
                     </TableRow>
                 ))}
