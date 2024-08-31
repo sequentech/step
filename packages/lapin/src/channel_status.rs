@@ -77,6 +77,7 @@ impl ChannelStatus {
         invalid_class_hanlder: OnInvalidClass,
         error_handler: OnError,
     ) -> Result<()> {
+        trace!("FF (channel_status)set_content_length.",);
         let mut inner = self.0.lock();
         let confirm_mode = inner.confirm;
         inner.receiver_state.set_content_length(

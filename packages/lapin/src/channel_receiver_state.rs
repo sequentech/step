@@ -7,6 +7,7 @@ use crate::{
     Result,
 };
 use std::collections::VecDeque;
+use tracing::trace;
 
 #[derive(Debug, Default)]
 pub(crate) struct ChannelReceiverStates(VecDeque<ChannelReceiverState>);
@@ -38,12 +39,21 @@ impl ChannelReceiverStates {
         error_handler: OnError,
         confirm_mode: bool,
     ) -> Result<()> {
+        trace!(
+            "FF (channel_receiver_state) set_content_length. channel_id = {}, class_id = {}, length = {}",
+            channel_id,
+            class_id,
+            length,
+        );
         if let Some(ChannelReceiverState::WillReceiveContent(expected_class_id, delivery_cause)) =
             self.0.pop_front()
         {
+            trace!("FF (channel_receiver_state) step 0");
             if expected_class_id == class_id {
+                trace!("FF (channel_receiver_state) step 1");
                 handler(&delivery_cause, confirm_mode);
                 if length > 0 {
+                    trace!("FF (channel_receiver_state) step 2");
                     self.0.push_front(ChannelReceiverState::ReceivingContent(
                         delivery_cause,
                         length,
@@ -51,12 +61,14 @@ impl ChannelReceiverStates {
                 }
                 Ok(())
             } else {
+                trace!("FF (channel_receiver_state) step 3");
                 invalid_class_hanlder(format!(
                     "content header frame with class id {} instead of {} received on channel {}",
                     class_id, expected_class_id, channel_id
                 ))
             }
         } else {
+            trace!("FF (channel_receiver_state) step 4");
             error_handler(format!(
                 "unexpected content header frame received on channel {}",
                 channel_id
