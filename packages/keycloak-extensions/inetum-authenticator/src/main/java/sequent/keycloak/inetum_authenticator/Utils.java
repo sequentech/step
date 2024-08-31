@@ -69,6 +69,8 @@ public class Utils {
   public final String FTL_DOC_ID_TYPE = "doc_id_type";
   public final String FTL_ERROR_INTERNAL = "internalInetumError";
   public final String FTL_ERROR_AUTH_INVALID = "internalInetumError";
+  public final String FTL_ERROR_INVALID_SCORE = "scoringInetumError";
+  public final String FTL_ERROR_INVALID_ATTRIBUTES = "attributesInetumError";
 
   private static final String KEYS_USERDATA = "keyUserdata";
   private static final String KEYS_USERDATA_SEPARATOR = ";";
@@ -80,7 +82,6 @@ public class Utils {
   public static final String ERROR_USER_NOT_FOUND = "userNotFound";
   public static final String ERROR_USER_ATTRIBUTES_NOT_UNSET = "userAttributesNotUnset";
   public static final String ERROR_USER_ATTRIBUTES_NOT_UNIQUE = "userAttributesNotUnique";
-
   /**
    * We store the user data entered in the registration form in the session notes. This information
    * will later be retrieved to create a user account.
