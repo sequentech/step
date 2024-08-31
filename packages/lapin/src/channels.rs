@@ -106,7 +106,13 @@ impl Channels {
         size: PayloadSize,
         properties: BasicProperties,
     ) -> Result<()> {
-        trace!("FF handle_content_header_frame. id = {}, class_id = {}, size = {}, properties = {:?}", id, class_id, size, properties);
+        trace!(
+            "FF handle_content_header_frame. id = {}, class_id = {}, size = {}, properties = {:?}",
+            id,
+            class_id,
+            size,
+            properties
+        );
         self.get(id)
             .map(|channel| channel.handle_content_header_frame(class_id, size, properties))
             .unwrap_or_else(|| Err(Error::InvalidChannel(id)))
@@ -200,7 +206,11 @@ impl Channels {
                 return Err(error);
             }
             AMQPFrame::Method(channel_id, method) => {
-                trace!("FF will handle AMQPFrame::Method. channel_id = {}, method = {:?}", channel_id, method);
+                trace!(
+                    "FF will handle AMQPFrame::Method. channel_id = {}, method = {:?}",
+                    channel_id,
+                    method
+                );
                 self.receive_method(channel_id, method)?;
             }
             AMQPFrame::Heartbeat(channel_id) => {
@@ -229,7 +239,11 @@ impl Channels {
                 }
             }
             AMQPFrame::Header(channel_id, class_id, header) => {
-                trace!("FF will handle AMQPFrame::Header. channel_id = {}, class_id = {}", channel_id, class_id);
+                trace!(
+                    "FF will handle AMQPFrame::Header. channel_id = {}, class_id = {}",
+                    channel_id,
+                    class_id
+                );
                 if channel_id == 0 {
                     error!(channel=%channel_id, "received content header");
                     let error = AMQPError::new(
@@ -260,7 +274,10 @@ impl Channels {
                 }
             }
             AMQPFrame::Body(channel_id, payload) => {
-                trace!("FF will handle AMQPFrame::Body. channel_id = {}", channel_id);
+                trace!(
+                    "FF will handle AMQPFrame::Body. channel_id = {}",
+                    channel_id
+                );
                 self.handle_body_frame(channel_id, payload)?;
             }
         }

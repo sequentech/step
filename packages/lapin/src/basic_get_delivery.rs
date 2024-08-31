@@ -80,7 +80,11 @@ impl Inner {
     }
 
     fn handle_content_header_frame(&mut self, size: PayloadSize, properties: BasicProperties) {
-        trace!("FF (basic_get_delivery) handle_content_header_frame size = {}, properties = {:?}", size, properties);
+        trace!(
+            "FF (basic_get_delivery) handle_content_header_frame size = {}, properties = {:?}",
+            size,
+            properties
+        );
         if let Some(inner) = self.0.as_mut() {
             inner.message.properties = properties;
         }

@@ -437,7 +437,12 @@ impl Channel {
         size: PayloadSize,
         properties: BasicProperties,
     ) -> Result<()> {
-        trace!("FF (inner) handle_content_header_frame. class_id = {}, size = {}, properties = {:?}", class_id, size, properties);
+        trace!(
+            "FF (inner) handle_content_header_frame. class_id = {}, size = {}, properties = {:?}",
+            class_id,
+            size,
+            properties
+        );
         self.status.set_content_length(
             self.id,
             class_id,

@@ -591,7 +591,7 @@ impl Celery {
                                 tokio::spawn(self.clone().handle_delivery(delivery, task_event_tx));
                             }
                             Err(e) => {
-                                
+
                                 error!("Deliver failed: {}", e);
                             }
                         }
