@@ -181,8 +181,7 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
             return
         }
 
-        const task_id = exportElectionEventData?.export_election_event?.task.id
-        console.log({task_id})
+        const task_id = exportElectionEventData?.export_election_event?.task_execution.id
         setTaskId(task_id)
         setExportDocumentId(documentId)
     }
@@ -580,6 +579,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                 })
                 return
             }
+            setTaskId(data?.import_candidates?.task_execution.id)
 
             notify("Candidates successfully imported", {type: "success"})
         } catch (err) {

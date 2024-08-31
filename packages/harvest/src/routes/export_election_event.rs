@@ -15,7 +15,6 @@ use serde::{Deserialize, Serialize};
 use std::time::Instant;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
-use windmill::postgres::tasks_execution::get_task_by_id;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::tasks_execution::*;
 use windmill::tasks::export_election_event;

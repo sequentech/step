@@ -47,7 +47,7 @@ import {
 import {DELETE_USER} from "@/queries/DeleteUser"
 import {GET_DOCUMENT} from "@/queries/GetDocument"
 import {MANUAL_VERIFICATION} from "@/queries/ManualVerification"
-import {useLazyQuery, useMutation} from "@apollo/client"
+import {useLazyQuery, useMutation, useQuery} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {ETaskExecutionStatus, IRole, IUser} from "@sequentech/ui-core"
@@ -60,6 +60,7 @@ import {DownloadDocument} from "./DownloadDocument"
 import {IMPORT_USERS} from "@/queries/ImportUsers"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {Widget, WidgetStateProps} from "@/components/Widget"
+import {GET_TASK_BY_ID} from "@/queries/GetTaskById"
 
 const OMIT_FIELDS: Array<string> = ["id", "email_verified"]
 
@@ -122,6 +123,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
     const [openImportDrawer, setOpenImportDrawer] = React.useState<boolean>(false)
     const [recordIds, setRecordIds] = React.useState<Array<Identifier>>([])
+    const [taskId, setTaskId] = useState<String | undefined>(undefined)
     const authContext = useContext(AuthContext)
     const refresh = useRefresh()
     const [deleteUser] = useMutation<DeleteUserMutation>(DELETE_USER)
@@ -134,6 +136,11 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 "x-hasura-role": IPermissions.USER_READ,
             },
         },
+    })
+    const {data: taskData, loading} = useQuery(GET_TASK_BY_ID, {
+        variables: {task_id: taskId},
+        skip: !taskId,
+        pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
     })
 
     const notify = useNotify()
@@ -266,7 +273,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setOpenManualVerificationModal(false)
         setOpenDeleteBulkModal(false)
         setOpenSendCommunication(true)
-
         setAudienceSelection(audienceSelection)
         setRecordIds(ids)
     }
@@ -537,6 +543,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
 
     const handleImportVoters = async (documentId: string, sha256: string) => {
         setOpenImportDrawer(false)
+        setTaskId(undefined)
         try {
             setWidget({
                 type: ETasksExecution.IMPORT_USERS,
@@ -549,15 +556,12 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     electionEventId: electionEvent.id,
                 },
             })
-            console.log({data})
+            const task_id = data?.import_users?.task_execution.id
+            setTaskId(task_id)
 
             refresh()
 
             if (!errors) {
-                setWidget({
-                    type: ETasksExecution.IMPORT_USERS,
-                    status: ETaskExecutionStatus.SUCCESS,
-                })
                 notify(t("electionEventScreen.import.importVotersSuccess"), {type: "success"})
             } else {
                 setWidget({
@@ -770,8 +774,12 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             </Dialog>
             {openWidget && (
                 <Widget
-                    type={openWidget.type}
-                    status={openWidget.status}
+                    type={taskData?.sequent_backend_tasks_execution[0].type || openWidget.type}
+                    status={
+                        taskData?.sequent_backend_tasks_execution[0].execution_status ||
+                        openWidget.status
+                    }
+                    logs={taskData?.sequent_backend_tasks_execution[0].logs || openWidget.logs}
                     onClose={() => setWidget(undefined)}
                 />
             )}

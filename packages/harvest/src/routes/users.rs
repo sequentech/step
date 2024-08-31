@@ -22,10 +22,12 @@ use tracing::instrument;
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
+use windmill::services::tasks_execution::*;
 use windmill::services::users::ListUsersFilter;
 use windmill::services::users::{list_users, list_users_with_vote_info};
 use windmill::tasks::export_users;
-use windmill::tasks::import_users;
+use windmill::tasks::import_users::{self, ImportUsersOutput};
+use windmill::types::tasks::ETasks;
 
 #[derive(Deserialize, Debug)]
 pub struct DeleteUserBody {
@@ -427,13 +429,35 @@ pub async fn get_user(
 pub async fn import_users_f(
     claims: jwt::JwtClaims,
     body: Json<import_users::ImportUsersBody>,
-) -> Result<Json<OptionalId>, (Status, String)> {
-    let input = body.into_inner();
+) -> Result<Json<ImportUsersOutput>, (Status, String)> {
+    let input = body.clone().into_inner();
+    let tenant_id = claims.hasura_claims.tenant_id.clone();
+    let election_event_id = input.election_event_id.clone().unwrap_or_default();
+    let executer_name = claims
+        .name
+        .clone()
+        .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
     let required_perm: Permissions = if input.election_event_id.is_some() {
         Permissions::VOTER_CREATE
     } else {
         Permissions::USER_CREATE
     };
+
+    // Insert the task execution record
+    let task_execution = post(
+        &tenant_id,
+        &election_event_id,
+        ETasks::IMPORT_USERS,
+        &executer_name,
+    )
+    .await
+    .map_err(|error| {
+        (
+            Status::InternalServerError,
+            format!("Failed to insert task execution record: {error:?}"),
+        )
+    })?;
+
     authorize(
         &claims,
         true,
@@ -445,8 +469,11 @@ pub async fn import_users_f(
         .clone()
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
     let celery_app = get_celery_app().await;
-    let task = celery_app
-        .send_task(import_users::import_users::new(input, name))
+    let celery_task = celery_app
+        .send_task(import_users::import_users::new(
+            input,
+            task_execution.clone(),
+        ))
         .await
         .map_err(|e| {
             (
@@ -454,11 +481,13 @@ pub async fn import_users_f(
                 format!("Error sending import_users task: {:?}", e),
             )
         })?;
-    info!("Sent IMPORT_USERS task {}", task.task_id);
+    info!("Sent IMPORT_USERS task {}", task_execution.id);
 
-    Ok(Json(OptionalId {
-        id: Some(task.task_id),
-    }))
+    let output = ImportUsersOutput {
+        task_execution: task_execution.clone(),
+    };
+
+    Ok(Json(output))
 }
 
 #[instrument(skip(claims))]

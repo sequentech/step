@@ -27,6 +27,7 @@ use rocket::futures::SinkExt as _;
 use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::services::{keycloak, reports};
+use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::keycloak::{AREA_ID_ATTR_NAME, TENANT_ID_ATTR_NAME};
 use serde::{Deserialize, Serialize};
 use std::fs::File;
@@ -68,7 +69,7 @@ pub struct ImportUsersBody {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ImportUsersOutput {
-    pub id: String,
+    pub task_execution: TasksExecution,
 }
 
 fn sanitize_db_key(key: &String) -> String {
@@ -456,17 +457,7 @@ impl ImportUsersBody {
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 2)]
-pub async fn import_users(body: ImportUsersBody, executed_by_user: String) -> Result<()> {
-    // Insert the task execution record
-    let task = post(
-        &body.tenant_id.clone(),
-        &body.election_event_id.clone().unwrap_or_default(),
-        ETasks::IMPORT_USERS,
-        &executed_by_user,
-    )
-    .await
-    .context("Failed to insert task execution record")?;
-
+pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials()
         .await
         .with_context(|| "Error obtaining keycloak client credentials")?;
@@ -474,7 +465,7 @@ pub async fn import_users(body: ImportUsersBody, executed_by_user: String) -> Re
     let mut hasura_db_client: DbClient = match get_hasura_pool().await.get().await {
         Ok(client) => client,
         Err(err) => {
-            update_fail(&task, "Failed to get Hasura DB pool").await?;
+            update_fail(&task_execution, "Failed to get Hasura DB pool").await?;
             return Err(Error::String(format!(
                 "Error getting Hasura DB pool: {}",
                 err
@@ -485,7 +476,7 @@ pub async fn import_users(body: ImportUsersBody, executed_by_user: String) -> Re
     let hasura_transaction = match hasura_db_client.transaction().await {
         Ok(transaction) => transaction,
         Err(err) => {
-            update_fail(&task, "Failed to start Hasura transaction").await?;
+            update_fail(&task_execution, "Failed to start Hasura transaction").await?;
             return Err(Error::String(format!(
                 "Error starting Hasura transaction: {err}"
             )));
@@ -495,7 +486,7 @@ pub async fn import_users(body: ImportUsersBody, executed_by_user: String) -> Re
     let mut keycloak_db_client: DbClient = match get_keycloak_pool().await.get().await {
         Ok(client) => client,
         Err(err) => {
-            update_fail(&task, "Failed to get Keycloak DB pool").await?;
+            update_fail(&task_execution, "Failed to get Keycloak DB pool").await?;
             return Err(Error::String(format!(
                 "Error getting Keycloak DB pool: {err}"
             )));
@@ -505,7 +496,7 @@ pub async fn import_users(body: ImportUsersBody, executed_by_user: String) -> Re
     let keycloak_transaction = match keycloak_db_client.transaction().await {
         Ok(transaction) => transaction,
         Err(err) => {
-            update_fail(&task, "Failed to start Keycloak transaction").await?;
+            update_fail(&task_execution, "Failed to start Keycloak transaction").await?;
             return Err(Error::String(format!(
                 "Error starting Keycloak transaction: {err}"
             )));
@@ -553,7 +544,7 @@ pub async fn import_users(body: ImportUsersBody, executed_by_user: String) -> Re
     for header in headers.iter() {
         if !HEADER_RE.is_match(header) {
             update_fail(
-                &task,
+                &task_execution,
                 &format!("CSV Header contains characters not allowed: {header}"),
             )
             .await?;
@@ -595,7 +586,7 @@ pub async fn import_users(body: ImportUsersBody, executed_by_user: String) -> Re
         .execute(create_table_query.as_str(), &[])
         .await
     {
-        update_fail(&task, "Error executing create table query").await?;
+        update_fail(&task_execution, "Error executing create table query").await?;
         return Err(Error::String(format!(
             "Error executing create table query: {err}"
         )));
@@ -604,7 +595,7 @@ pub async fn import_users(body: ImportUsersBody, executed_by_user: String) -> Re
     let sink = match keycloak_transaction.copy_in(copy_from_query.as_str()).await {
         Ok(sink) => sink,
         Err(err) => {
-            update_fail(&task, "Error preparing COPY transaction").await?;
+            update_fail(&task_execution, "Error preparing COPY transaction").await?;
             return Err(Error::String(format!(
                 "Error preparing COPY transaction: {err}"
             )));
@@ -618,7 +609,7 @@ pub async fn import_users(body: ImportUsersBody, executed_by_user: String) -> Re
         let record = match result {
             Ok(record) => record,
             Err(err) => {
-                update_fail(&task, "Error reading CSV record").await?;
+                update_fail(&task_execution, "Error reading CSV record").await?;
                 return Err(Error::String(format!("Error reading CSV record: {err}")));
             }
         };
@@ -628,12 +619,22 @@ pub async fn import_users(body: ImportUsersBody, executed_by_user: String) -> Re
         let mut hashed_password: Option<String> = None;
         for (data, column_name) in record.iter().zip(voters_table_input_columns_names.iter()) {
             let processed_data = match column_name.as_str() {
-                column_name if column_name == AREA_ID_ATTR_NAME => areas_map
-                    .as_ref()
-                    .ok_or_else(|| anyhow!("Using area-id without providing election-event-id"))?
-                    .get(data)
-                    .ok_or_else(|| anyhow!("Area not found by name=`{data}`"))?
-                    .to_string(),
+                column_name if column_name == AREA_ID_ATTR_NAME => {
+                    match areas_map
+                        .as_ref()
+                        .ok_or_else(|| {
+                            anyhow!("Using area-id without providing election-event-id")
+                        })?
+                        .get(data)
+                    {
+                        Some(area_id) => area_id.to_string(),
+                        None => {
+                            let error_message = format!("Area not found by name=`{data}`");
+                            update_fail(&task_execution, &error_message).await?;
+                            return Err(Error::String(error_message));
+                        }
+                    }
+                }
                 _ => data.to_string(),
             };
             if column_name == &*PASSWORD_COL_NAME {
@@ -666,7 +667,7 @@ pub async fn import_users(body: ImportUsersBody, executed_by_user: String) -> Re
             .collect();
 
         if let Err(err) = writer.as_mut().write(row.as_slice()).await {
-            update_fail(&task, "Error writing to COPY IN transaction").await?;
+            update_fail(&task_execution, "Error writing to COPY IN transaction").await?;
             return Err(Error::String(format!(
                 "Error writing to COPY IN transaction: {err}"
             )));
@@ -674,7 +675,7 @@ pub async fn import_users(body: ImportUsersBody, executed_by_user: String) -> Re
     }
 
     if let Err(err) = writer.finish().await {
-        update_fail(&task, "Error finishing COPY IN transaction").await?;
+        update_fail(&task_execution, "Error finishing COPY IN transaction").await?;
         return Err(Error::String(format!(
             "Error finishing COPY IN transaction: {err}"
         )));
@@ -686,7 +687,7 @@ pub async fn import_users(body: ImportUsersBody, executed_by_user: String) -> Re
     {
         Ok(num_rows) => num_rows,
         Err(err) => {
-            update_fail(&task, "Error executing INSERT USER transaction").await?;
+            update_fail(&task_execution, "Error executing INSERT USER transaction").await?;
             return Err(Error::String(format!(
                 "Error executing INSERT USER transaction: {err}"
             )));
@@ -696,13 +697,13 @@ pub async fn import_users(body: ImportUsersBody, executed_by_user: String) -> Re
     info!("num_rows = {num_rows}");
 
     if let Err(err) = keycloak_transaction.commit().await {
-        update_fail(&task, "Error committing transaction").await?;
+        update_fail(&task_execution, "Error committing transaction").await?;
         return Err(Error::String(format!(
             "Error committing transaction: {err}"
         )));
     }
 
-    update_complete(&task)
+    update_complete(&task_execution)
         .await
         .context("Failed to update task execution status to COMPLETED")?;
 

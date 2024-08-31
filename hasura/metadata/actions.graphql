@@ -115,7 +115,7 @@ type Mutation {
 type Mutation {
   export_election_event (
     election_event_id: String
-  ): taskOutput
+  ): documentTaskOutput
 }
 
 type Mutation {
@@ -238,7 +238,7 @@ type Mutation {
   import_candidates (
     election_event_id: String!
     document_id: String!
-  ): taskOutput
+  ): documentTaskOutput
 }
 
 type Mutation {
@@ -254,7 +254,7 @@ type Mutation {
     tenant_id: String!
     election_event_id: String
     document_id: String!
-  ): OptionalId
+  ): taskOutput
 }
 
 type Mutation {
@@ -946,7 +946,11 @@ type tasks_execution_type {
 }
 
 type taskOutput {
-  task : tasks_execution_type!
+  task_execution : tasks_execution_type!
+}
+
+type documentTaskOutput {
+  task_execution : tasks_execution_type!
   document_id : String!
 }
 

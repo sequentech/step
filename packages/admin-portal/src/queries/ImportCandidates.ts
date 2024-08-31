@@ -8,7 +8,7 @@ export const IMPORT_CANDIDTATES = gql`
     mutation ImportCandidates($documentId: String!, $electionEventId: String!) {
         import_candidates(election_event_id: $electionEventId, document_id: $documentId) {
             document_id
-            task {
+            task_execution {
                 id
                 name
                 execution_status

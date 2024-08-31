@@ -895,4 +895,5 @@ custom_types:
   - name: TaskOutput
   - name: tasks_execution_type
   - name: taskOutput
+  - name: documentTaskOutput
   scalars: []

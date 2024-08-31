@@ -7,7 +7,7 @@ export const EXPORT_ELECTION_EVENT = gql`
     mutation ExportElectionEvent($electionEventId: String) {
         export_election_event(election_event_id: $electionEventId) {
             document_id
-            task {
+            task_execution {
                 id
                 name
                 execution_status
