@@ -7,6 +7,7 @@ use crate::{
 };
 use parking_lot::Mutex;
 use std::{fmt, sync::Arc};
+use tracing::trace;
 
 #[derive(Clone, Default)]
 pub(crate) struct BasicGetDelivery(Arc<Mutex<Inner>>);
@@ -75,10 +76,12 @@ impl Inner {
     }
 
     fn handle_content_header_frame(&mut self, size: PayloadSize, properties: BasicProperties) {
+        trace!("FF (basic_get_delivery) handle_content_header_frame size = {}, properties = {:?}", size, properties);
         if let Some(inner) = self.0.as_mut() {
             inner.message.properties = properties;
         }
         if size == 0 {
+            trace!("FF (basic_get_delivery) handle_content_header_frame scalling new_delivery_complete");
             self.new_delivery_complete();
         }
     }

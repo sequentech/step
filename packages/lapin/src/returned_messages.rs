@@ -22,6 +22,7 @@ impl ReturnedMessages {
         properties: BasicProperties,
         confirm_mode: bool,
     ) {
+        trace!("FF handle_content_header_frame");
         self.inner
             .lock()
             .handle_content_header_frame(size, properties, confirm_mode);
@@ -80,10 +81,12 @@ impl Inner {
         properties: BasicProperties,
         confirm_mode: bool,
     ) {
+        trace!("FF (Impl Inner for returned messages) handle_content_header_frame size = {}, properties = {:?}, confirm_mode = {}", size, properties, confirm_mode);
         if let Some(message) = self.current_message.as_mut() {
             message.properties = properties;
         }
         if size == 0 {
+            trace!("FF (Impl Inner for returned messages) handle_content_header_frame: new_delivery_complete");
             self.new_delivery_complete(confirm_mode);
         }
     }

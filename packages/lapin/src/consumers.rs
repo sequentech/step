@@ -8,6 +8,7 @@ use crate::{
 };
 use parking_lot::Mutex;
 use std::{borrow::Borrow, collections::HashMap, fmt, hash::Hash, sync::Arc};
+use tracing::trace;
 
 #[derive(Clone, Default)]
 pub(crate) struct Consumers(Arc<Mutex<HashMap<ShortString, Consumer>>>);
@@ -55,6 +56,7 @@ impl Consumers {
     ) where
         ShortString: Borrow<S>,
     {
+        trace!("FF Consumers::handle_content_header_frame");
         if let Some(consumer) = self.0.lock().get_mut(consumer_tag) {
             consumer.handle_content_header_frame(size, properties);
         }

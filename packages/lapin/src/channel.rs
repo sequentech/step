@@ -433,28 +433,33 @@ impl Channel {
         size: PayloadSize,
         properties: BasicProperties,
     ) -> Result<()> {
+        trace!("FF (inner) handle_content_header_frame. class_id = {}, size = {}, properties = {:?}", class_id, size, properties);
         self.status.set_content_length(
             self.id,
             class_id,
             size,
-            |delivery_cause, confirm_mode| match delivery_cause {
-                DeliveryCause::Consume(consumer_tag) => {
-                    self.consumers
-                        .handle_content_header_frame(consumer_tag, size, properties);
-                }
-                DeliveryCause::Get => {
-                    self.basic_get_delivery
-                        .handle_content_header_frame(size, properties);
-                }
-                DeliveryCause::Return => {
-                    self.returned_messages.handle_content_header_frame(
-                        size,
-                        properties,
-                        confirm_mode,
-                    );
+            |delivery_cause, confirm_mode| {
+                trace!("FF handler of handle_content_header_frame. delivery_cause = {:?}, confirm_mode = {}", delivery_cause, confirm_mode);
+                match delivery_cause {
+                    DeliveryCause::Consume(consumer_tag) => {
+                        self.consumers
+                            .handle_content_header_frame(consumer_tag, size, properties);
+                    }
+                    DeliveryCause::Get => {
+                        self.basic_get_delivery
+                            .handle_content_header_frame(size, properties);
+                    }
+                    DeliveryCause::Return => {
+                        self.returned_messages.handle_content_header_frame(
+                            size,
+                            properties,
+                            confirm_mode,
+                        );
+                    }
                 }
             },
             |msg| {
+                trace!("FF invalid class handler of handle_content_header_frame. msg = {}", msg);
                 error!(%msg);
                 let error = AMQPError::new(AMQPHardError::FRAMEERROR.into(), msg.into());
                 self.internal_rpc.close_connection(
@@ -467,7 +472,10 @@ impl Channel {
                 self.set_connection_error(error.clone());
                 Err(error)
             },
-            |msg| self.handle_invalid_contents(msg, class_id, 0),
+            |msg| {
+                trace!("FF error handler of handle_content_header_frame. msg = {}", msg);
+                self.handle_invalid_contents(msg, class_id, 0)
+            },
         )
     }
 

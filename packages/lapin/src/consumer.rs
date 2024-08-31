@@ -337,10 +337,12 @@ impl ConsumerInner {
     }
 
     fn handle_content_header_frame(&mut self, size: PayloadSize, properties: BasicProperties) {
+        trace!("FF (Impl ConsumerInner for consumer) handle_content_header_frame size = {}, properties = {:?}", size, properties);
         if let Some(delivery) = self.current_message.as_mut() {
             delivery.properties = properties;
         }
         if size == 0 {
+            trace!("FF (Impl ConsumerInner for consumer) calling new_delivery_complete");
             self.new_delivery_complete();
         }
     }
@@ -355,13 +357,17 @@ impl ConsumerInner {
     }
 
     fn new_delivery_complete(&mut self) {
+        trace!("FF (Impl ConsumerInner for consumer) new_delivery_complete 0");
         if let Some(delivery) = self.current_message.take() {
+            trace!("FF (Impl ConsumerInner for consumer) new_delivery_complete 1");
             trace!(consumer_tag=%self.tag, "new_delivery");
             if let Some(delegate) = self.delegate.as_ref() {
+                trace!("FF (Impl ConsumerInner for consumer) new_delivery_complete 2");
                 let delegate = delegate.clone();
                 self.executor
                     .spawn(delegate.on_new_delivery(Ok(Some(delivery))));
             } else {
+                trace!("FF (Impl ConsumerInner for consumer) new_delivery_complete 3");
                 self.deliveries_in
                     .send(Ok(Some(delivery)))
                     .expect("failed to send delivery to consumer");
