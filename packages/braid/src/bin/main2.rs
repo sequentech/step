@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Result;
+use board_messages::braid::message::Message;
+use board_messages::grpc::{GrpcB3Message, KeyedMessages};
 use braid::protocol::board::grpc2::{
     BoardFactoryMulti, BoardMulti, GrpcB3, GrpcB3BoardParams, GrpcB3Index,
 };
@@ -13,6 +15,8 @@ use std::path::PathBuf;
 use tokio::time::{sleep, Duration};
 use tracing::instrument;
 use tracing::{error, info};
+
+use rayon::prelude::*;
 
 use braid::protocol::session2::Session2;
 use braid::protocol::trustee::Trustee;
@@ -144,7 +148,7 @@ async fn main() -> Result<()> {
 
             let session = session_map.get_mut(board_name);
             let last_id = if let Some(s) = session {
-                s.get_last_external_id().await?
+                s.get_last_external_id()?
             } else {
                 info!(
                     "* Creating new session for board '{}'..",
@@ -158,7 +162,7 @@ async fn main() -> Result<()> {
                 );
 
                 let mut session = Session2::new(&board_name, trustee, &store_root);
-                let last_id = session.get_last_external_id().await?;
+                let last_id = session.get_last_external_id()?;
 
                 session_map.insert(board_name.clone(), session);
 
@@ -183,7 +187,52 @@ async fn main() -> Result<()> {
         };
         info!("received {} keyed messages", responses.len());
 
+        let response_map: HashMap<String, Vec<GrpcB3Message>> = responses
+            .into_iter()
+            .map(|km| (km.board, km.messages))
+            .collect();
+
+        let mut pairs: Vec<(&mut Session2<RistrettoCtx>, &Vec<GrpcB3Message>)> = session_map
+            .iter_mut()
+            .map(|(k, v)| (v, response_map.get(k).unwrap()))
+            .collect();
+
         let mut step_error = false;
+        let post_messages: Vec<(String, Vec<Message>)> = pairs
+            .par_iter_mut()
+            .filter_map(|(s, messages)| {
+                if messages.len() == 0 {
+                    return None;
+                }
+
+                let messages = s.step(messages, loop_count);
+
+                let Ok(messages) = messages else {
+                    let _ = messages.inspect_err(|error| {
+                        error!(
+                            "Error executing step for board '{}': '{:?}'",
+                            s.board_name, error
+                        );
+                        // FIXME identify this condition properly
+                        /*if error.to_string().contains("Self authority not found") {
+                            ignored_boards.push(s.board_name.clone());
+                        } else {
+                            step_error = true;
+                        }*/
+                    });
+
+                    return None;
+                };
+
+                if messages.len() > 0 {
+                    Some((s.board_name.clone(), messages))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        /*
         let mut post_messages = vec![];
         let mut total_bytes: u32 = 0;
 
@@ -225,14 +274,14 @@ async fn main() -> Result<()> {
                 total_bytes += next_bytes as u32;
                 post_messages.push((km.board, messages));
             }
-        }
+        }*/
 
-        if post_messages.len() > 0 {
-            info!(
+        /* if post_messages.len() > 0 {
+            /*info!(
                 "Posting {} keyed messages with {:.2} MB",
                 post_messages.len(),
                 f64::from(total_bytes) / (1024.0 * 1024.0)
-            );
+            );*/
             let result = board.insert_messages_multi(post_messages).await;
             if let Err(err) = result {
                 error!("Error posting messages: '{:?}'", err);
@@ -240,7 +289,7 @@ async fn main() -> Result<()> {
             }
         } else {
             info!("No messages to post on this step");
-        }
+        }*/
 
         if args.strict && step_error {
             break;

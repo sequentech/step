@@ -264,31 +264,40 @@ impl Predicate {
     pub(crate) fn get_bootstrap_predicate<C: Ctx>(
         configuration: &Configuration<C>,
         trustee_pk: &StrandSignaturePk,
-    ) -> Option<Predicate> {
-        let index = configuration.get_trustee_position(trustee_pk)?;
+    ) -> Result<Predicate, ProtocolError> {
+        let index = configuration.get_trustee_position(trustee_pk).ok_or(
+            ProtocolError::InvalidConfiguration(
+                "Could not find trustee position in configuration".to_string(),
+            ),
+        )?;
+
         assert!(index != PROTOCOL_MANAGER_INDEX);
 
-        let p = Predicate::Configuration(
-            ConfigurationHash::from_configuration(configuration).ok()?,
+        let cfg = ConfigurationHash::from_configuration(configuration).map_err(|e| {
+            ProtocolError::InvalidConfiguration(format!("Could not read configuration {}", e))
+        })?;
+
+        Ok(Predicate::Configuration(
+            cfg,
             index,
             configuration.trustees.len(),
             configuration.threshold,
-        );
-
-        Some(p)
+        ))
     }
 
     // Used when a trustee runs in verifier mode
     pub(crate) fn get_verifier_bootstrap_predicate<C: Ctx>(
         configuration: &Configuration<C>,
-    ) -> Option<Predicate> {
-        let p = Predicate::Configuration(
-            ConfigurationHash::from_configuration(configuration).ok()?,
+    ) -> Result<Predicate, ProtocolError> {
+        let cfg = ConfigurationHash::from_configuration(configuration).map_err(|e| {
+            ProtocolError::InvalidConfiguration(format!("Could not read configuration {}", e))
+        })?;
+
+        Ok(Predicate::Configuration(
+            cfg,
             VERIFIER_INDEX,
             configuration.trustees.len(),
             configuration.threshold,
-        );
-
-        Some(p)
+        ))
     }
 }

@@ -45,14 +45,13 @@ impl<C: Ctx> Session2<C> {
     // See https://stackoverflow.com/questions/63434977/how-can-i-spawn-asynchronous-methods-in-a-loop
     // See also protocol_test_grpc::run_protocol_test
     // #[instrument(skip_all)]
-    pub async fn step(
+    pub fn step(
         &mut self,
-        messages: Vec<GrpcB3Message>,
+        messages: &Vec<GrpcB3Message>,
         step_counter: u64,
     ) -> Result<Vec<Message>, ProtocolError> {
         let messages = self
             .store_and_return_messages(messages)
-            .await
             .map_err(|e| ProtocolError::BoardError(e.to_string()));
 
         if let Err(err) = messages {
@@ -88,7 +87,7 @@ impl<C: Ctx> Session2<C> {
     // Returns the largest id stored in the local message store
     // in the event that there are holes, an external_last_id reset will eventually load missing
     // messages from the remote board
-    pub async fn get_last_external_id(&mut self) -> Result<i64> {
+    pub fn get_last_external_id(&mut self) -> Result<i64> {
         let connection = self.get_store()?;
 
         let external_last_id =
@@ -114,9 +113,9 @@ impl<C: Ctx> Session2<C> {
         Ok(external_last_id)
     }
 
-    async fn store_and_return_messages(
+    fn store_and_return_messages(
         &mut self,
-        messages: Vec<GrpcB3Message>,
+        messages: &Vec<GrpcB3Message>,
     ) -> Result<Vec<(Message, i64)>> {
         let connection = self.get_store()?;
 

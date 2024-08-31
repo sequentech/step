@@ -276,11 +276,12 @@ impl<C: Ctx> Trustee<C> {
             Predicate::get_verifier_bootstrap_predicate(&configuration)
         };
 
-        let configuration_p = configuration_p.ok_or(ProtocolError::InvalidConfiguration(
+        /* let configuration_p = configuration_p.ok_or(ProtocolError::InvalidConfiguration(
             format!("Self authority not found in configuration"),
-        ))?;
-        predicates.push(configuration_p);
+        ))?;*/
+
         trace!("Adding bootstrap predicate {:?}", configuration_p);
+        predicates.push(configuration_p?);
 
         let entries = self.local_board.get_entries();
 
