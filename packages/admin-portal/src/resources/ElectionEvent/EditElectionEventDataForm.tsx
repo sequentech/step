@@ -78,7 +78,7 @@ import {Widget, WidgetStateProps} from "@/components/Widget"
 import {ETaskExecutionStatus} from "@sequentech/ui-core"
 import {GET_TASK_BY_ID} from "@/queries/GetTaskById"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import { set } from "lodash"
+import {set} from "lodash"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -1035,7 +1035,10 @@ export const EditElectionEventDataForm: React.FC = () => {
             {openWidget && (
                 <Widget
                     type={taskData?.sequent_backend_tasks_execution[0].type || openWidget.type}
-                    status={taskData?.sequent_backend_tasks_execution[0].execution_status || openWidget.status}
+                    status={
+                        taskData?.sequent_backend_tasks_execution[0].execution_status ||
+                        openWidget.status
+                    }
                     logs={taskData?.sequent_backend_tasks_execution[0].logs || openWidget.logs}
                     onClose={() => setWidget(undefined)}
                 />
