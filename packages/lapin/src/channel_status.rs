@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 use crate::{
     channel_receiver_state::{ChannelReceiverStates, DeliveryCause},
     types::{ChannelId, Identifier, PayloadSize},

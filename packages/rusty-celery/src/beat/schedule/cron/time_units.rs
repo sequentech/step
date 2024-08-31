@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 //! This module contains the definition of the time units used by cron schedules.
 //!
 //! Each unit has a range of valid values and some of them have a string

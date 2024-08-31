@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 use crate::{
     message::BasicReturnMessage, publisher_confirm::Confirmation, types::PayloadSize,
     BasicProperties, Promise,

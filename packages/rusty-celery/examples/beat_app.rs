@@ -1,5 +1,9 @@
 #![allow(unused_variables)]
 
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 use anyhow::Result;
 use celery::beat::{CronSchedule, DeltaSchedule};
 use celery::task::TaskResult;

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 //! The broker is an integral part of a [`Celery`](crate::Celery) app. It provides the transport for messages that
 //! encode tasks.
 

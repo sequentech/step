@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+
 # Publishing a new release
 
 1. Install `toml-cli` if you haven't already (`cargo install toml-cli --version 0.2.3`).

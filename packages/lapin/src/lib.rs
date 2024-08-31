@@ -1,5 +1,9 @@
 #![warn(rust_2018_idioms)]
 
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 //! lapin
 //!
 //! This project follows the AMQP 0.9.1 specifications, targeting especially RabbitMQ.

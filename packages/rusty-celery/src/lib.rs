@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 //! A Rust implementation of [Celery](http://www.celeryproject.org/) for producing and consuming
 //! asynchronous tasks with a distributed message queue.
 //!

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 use super::Schedule;
 use crate::protocol::TryCreateMessage;
 use std::{cmp::Ordering, time::SystemTime};

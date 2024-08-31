@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+
 <div align="center">
 <img src="logo.jpg" width="30%"></img>
 

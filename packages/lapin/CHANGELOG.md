@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+
 ### 2.5.0 (2024-07-27)
 
 #### Bug Fixes

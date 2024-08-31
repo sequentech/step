@@ -1,4 +1,9 @@
 #![allow(clippy::unit_arg)]
+
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 /// NOTE: Some tests in this module are time-sensitive.
 ///
 /// Errors in the order of 1-2 milliseconds are expected, so checks

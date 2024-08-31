@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+
 # Hacking Rusty Celery
 
 If you're new to Rust this will show you how to set up your development environment for Rusty Celery and start making contributions. After going through this guide, search for issues with the label ["Good first issue"](https://github.com/rusty-celery/rusty-celery/issues?q=is%3Aissue+is%3Aopen+label%3A%22Good+first+issue%22) to find a place to start.

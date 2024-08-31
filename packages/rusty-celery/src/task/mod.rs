@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 //! Provides the [`Task`] trait as well as options for configuring tasks.
 
 use async_trait::async_trait;

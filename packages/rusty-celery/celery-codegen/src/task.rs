@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Adapted from https://github.com/kureuil/batch-rs/blob/master/batch-codegen/src/job.rs.
 
 use proc_macro2::{Span, TokenStream};

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 /// This module contains the definition of application-provided scheduler backends.
 use super::scheduled_task::ScheduledTask;
 use crate::error::BeatError;

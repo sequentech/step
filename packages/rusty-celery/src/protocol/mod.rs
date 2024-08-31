@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 //! Defines the Celery protocol.
 //!
 //! The top part of the protocol is the [`Message`] struct, which builds on

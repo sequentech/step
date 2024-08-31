@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 //! Defines mock broker that can be used to test other components that rely on a broker.
 
 use super::{Broker, BrokerBuilder, Delivery, DeliveryStream};
