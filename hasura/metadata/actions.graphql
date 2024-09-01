@@ -349,7 +349,7 @@ type Mutation {
     origin: String!
     redirect_to: String!
     dns_prefix: String!
-  ): String
+  ): SetCustomUrlsOutput
 }
 
 type Mutation {
@@ -913,6 +913,6 @@ type SetCustomUrlOutput {
 }
 
 type SetCustomUrlsOutput {
-  url : String!
+  message : String
 }
 

@@ -25,10 +25,11 @@ pub struct UpdateCustomUrlInput {
 pub struct GetCustomUrlInput {
     pub redirect_to: String,
 }
+
 #[derive(Serialize)]
-struct ErrorResponse {
-    error: String,
+struct GraphQLError {
     message: String,
+    extensions: Option<serde_json::Value>,
 }
 
 // TODO: Add env for cloudflare auth + for local / remote
@@ -59,18 +60,19 @@ pub async fn update_custom_url(
         Err(error) => {
             let error_message = format!("Error updating custom URL: {:?}", error);
             error!("{}", error_message);
-
-            let error_response = ErrorResponse {
-                error: "InternalServerError".to_string(),
+    
+            // Create a GraphQL error response
+            let graphql_error = GraphQLError {
                 message: error_message.clone(),
+                extensions: None, // You can add more structured information if needed
             };
-
-            // Serialize the error response to a string
-            let error_response_string = serde_json::to_string(&error_response)
-                .unwrap_or_else(|_| "Failed to serialize error response".to_string());
-
-            // Return the serialized string in the Err variant
-            return Err((Status::InternalServerError, error_response_string))
+    
+            // Serialize the error response to a JSON string
+            let graphql_error_response = serde_json::to_string(&graphql_error)
+                .unwrap_or_else(|_| "Failed to serialize GraphQL error".to_string());
+    
+            // Return the error in the expected format (Status, String)
+            Err((Status::InternalServerError, graphql_error_response))
         }
     }
     }

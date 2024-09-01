@@ -62,7 +62,6 @@ import {
     Sequent_Backend_Election,
     ManageElectionDatesMutation,
     Sequent_Backend_Election_Event,
-    // SetCustomUrlMutation,
     SetCustomUrlsMutation,
 } from "@/gql/graphql"
 import {ElectionStyles} from "@/components/styles/ElectionStyles"
@@ -241,7 +240,7 @@ export const EditElectionEventDataForm: React.FC = () => {
             },
         },
     })
-    console.log(response, "custom url response")
+    console.log(response, "login url response")
 
     const [startDate, setStartDate] = useState<string | undefined>(undefined)
     const [endDate, setEndDate] = useState<string | undefined>(undefined)
@@ -589,30 +588,35 @@ export const EditElectionEventDataForm: React.FC = () => {
                         // ),
                     },
                 ]
-                // const [loginResponse, enrollmentResponse] = await Promise.all(
-                //     urlEntries.map((item) => {
-                //         return manageCustomUrls({
-                //             variables: {
-                //                 origin: item.origin,
-                //                 redirect_to: item.redirect_to ?? "",
-                //                 dns_prefix: item.dns_prefix,
-                //             },
-                //         })
-                //     })
-                // )
-
-                for (const {origin, redirect_to, dns_prefix, key} of urlEntries) {
-                    if (origin) {
-                        console.log(origin, "test")
-                        await manageCustomUrls({
+                const responses = await Promise.all(
+                    urlEntries.map((item) => {
+                        return manageCustomUrls({
                             variables: {
-                                origin: origin,
-                                redirect_to: redirect_to ?? "",
-                                dns_prefix: dns_prefix,
+                                origin: item.origin,
+                                redirect_to: item.redirect_to ?? "",
+                                dns_prefix: item.dns_prefix,
                             },
                         })
-                    }
-                }
+                    })
+                )
+
+                // Log each response individually
+                responses.forEach((response, index) => {
+                    console.log(`Response for item ${index}:`, response)
+                })
+
+                // for (const {origin, redirect_to, dns_prefix, key} of urlEntries) {
+                //     if (origin) {
+                //         console.log(origin, "test")
+                //         await manageCustomUrls({
+                //             variables: {
+                //                 origin: origin,
+                //                 redirect_to: redirect_to ?? "",
+                //                 dns_prefix: dns_prefix,
+                //             },
+                //         })
+                //     }
+                // }
             }
         } catch (err) {
             console.log(err, "errrrrr")

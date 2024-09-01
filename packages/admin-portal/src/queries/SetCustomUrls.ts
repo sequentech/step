@@ -5,6 +5,8 @@ import {gql} from "@apollo/client"
 
 export const SET_CUSTOM_URLS = gql`
     mutation SetCustomUrls($origin: String!, $redirect_to: String!, $dns_prefix: String!) {
-        set_custom_urls(origin: $origin, redirect_to: $redirect_to, dns_prefix: $dns_prefix)
+        set_custom_urls(origin: $origin, redirect_to: $redirect_to, dns_prefix: $dns_prefix) {
+            message
+        }
     }
 `

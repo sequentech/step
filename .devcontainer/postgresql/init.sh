@@ -2,9 +2,7 @@
 # SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
-
 set -ex
-
 psql \
     -v ON_ERROR_STOP=1 \
     --username "$POSTGRES_USER" \
