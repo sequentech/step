@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {useMutation} from "@apollo/client"
+import {useMutation, useQuery} from "@apollo/client"
 import React, {useContext, useEffect, useState} from "react"
 import {
     CreateElectionEventMutation,
@@ -21,16 +21,19 @@ import {
     useGetOne,
     useNotify,
     useRefresh,
-    Button,
     RaRecord,
-    Identifier,
     useGetList,
 } from "react-admin"
 import {JsonInput} from "react-admin-json-view"
 import {INSERT_ELECTION_EVENT} from "../../queries/InsertElectionEvent"
 import {Box, CircularProgress, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
-import {IElectionEventPresentation, ITenantSettings, isNull} from "@sequentech/ui-core"
+import {
+    ETaskExecutionStatus,
+    IElectionEventPresentation,
+    ITenantSettings,
+    isNull,
+} from "@sequentech/ui-core"
 import {useNavigate} from "react-router"
 import {useTenantStore} from "../../providers/TenantContextProvider"
 import UploadIcon from "@mui/icons-material/Upload"
@@ -42,6 +45,9 @@ import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDa
 import {IMPORT_ELECTION_EVENT} from "@/queries/ImportElectionEvent"
 import {ExportButton} from "@/components/tally/ExportElectionMenu"
 import {addDefaultTranslationsToElement} from "@/services/i18n"
+import {GET_TASK_BY_ID} from "@/queries/GetTaskById"
+import {Widget, WidgetStateProps} from "@/components/Widget"
+import {ETasksExecution} from "@/types/tasksExecution"
 
 const Hidden = styled(Box)`
     display: none;
@@ -106,11 +112,18 @@ export const CreateElectionList: React.FC = () => {
     const {t} = useTranslation()
     const navigate = useNavigate()
     const refresh = useRefresh()
+    const [taskId, setTaskId] = useState<String | undefined>(undefined)
+    const [openWidget, setWidget] = useState<WidgetStateProps | undefined>(undefined)
 
     const postDefaultValues = () => ({id: v4()})
 
     const {data: tenant} = useGetOne("sequent_backend_tenant", {
         id: tenantId,
+    })
+    const {data: taskData, loading} = useQuery(GET_TASK_BY_ID, {
+        variables: {task_id: taskId},
+        skip: !taskId,
+        pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
     })
 
     const {setLastCreatedResource} = useContext(NewResourceContext)
@@ -211,7 +224,7 @@ export const CreateElectionList: React.FC = () => {
 
     const uploadCallback = async (documentId: string) => {
         setErrors(null)
-        let {data, errors} = await importElectionEvent({
+        let {data: importData, errors} = await importElectionEvent({
             variables: {
                 tenantId,
                 documentId,
@@ -219,19 +232,24 @@ export const CreateElectionList: React.FC = () => {
             },
         })
 
-        if (data?.import_election_event?.error) {
-            setErrors(data.import_election_event.error)
-            throw new Error(data?.import_election_event?.error)
+        if (importData?.import_election_event?.error) {
+            setErrors(importData.import_election_event.error)
+            throw new Error(importData?.import_election_event?.error)
         }
     }
 
     const handleImportElectionEvent = async (documentId: string, sha256: string) => {
+        closeImportDrawer()
         setErrors(null)
         let {data, errors} = await importElectionEvent({
             variables: {
                 tenantId,
                 documentId,
             },
+        })
+        setWidget({
+            type: ETasksExecution.IMPORT_ELECTION_EVENT,
+            status: ETaskExecutionStatus.IN_PROGRESS,
         })
 
         if (data?.import_election_event?.error) {
@@ -241,6 +259,7 @@ export const CreateElectionList: React.FC = () => {
 
         let id = data?.import_election_event?.id
         if (id) {
+            setTaskId(data?.import_election_event?.task_execution?.id)
             setNewId(id)
             setLastCreatedResource({id, type: "sequent_backend_election_event"})
             setIsLoading(true)
@@ -362,6 +381,18 @@ export const CreateElectionList: React.FC = () => {
                 uploadCallback={uploadCallback}
                 errors={errors}
             />
+
+            {openWidget && (
+                <Widget
+                    type={taskData?.sequent_backend_tasks_execution[0].type || openWidget.type}
+                    status={
+                        taskData?.sequent_backend_tasks_execution[0].execution_status ||
+                        openWidget.status
+                    }
+                    logs={taskData?.sequent_backend_tasks_execution[0].logs || openWidget.logs}
+                    onClose={() => setWidget(undefined)}
+                />
+            )}
         </>
     )
 }

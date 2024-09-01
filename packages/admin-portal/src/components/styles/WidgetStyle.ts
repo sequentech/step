@@ -8,7 +8,7 @@ import {Paper, Box, Typography, IconButton, Table, TableCell} from "@mui/materia
 export const WidgetContainer = styled(Paper)({
     display: "flex",
     flexDirection: "column",
-    width: "30vw",
+    width: "max-content",
     maxWidth: 450,
     minWidth: 300,
     position: "fixed",
