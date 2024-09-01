@@ -199,11 +199,7 @@ async fn get_all_page_rules() -> Result<Vec<PageRule>, Box<dyn Error>> {
         .await
         .map_err(|e| CloudflareError::new(&format!("Request error: {}", e)))?;
     
-    info!("Response status: {:?}", response.status());
-    info!("Response headers: {:?}", response.headers());
-
     if response.status().is_success() {
-        info!("Successful response");
         let api_response: ApiResponse<Vec<PageRule>> = response
             .json()
             .await
@@ -223,8 +219,6 @@ fn find_matching_target(
     rules: Vec<PageRule>,
     expected_redirect_url: &str,
 ) -> Option<PageRule> {
-    info!("rulesrulesrulesrules: {:?}", rules);
-    info!("expected_redirect_urlexpected_redirect_url: {}", expected_redirect_url);
     for rule in rules {
         for action in &rule.actions {
             let forward = &action.value;
@@ -237,12 +231,10 @@ fn find_matching_target(
 }
 
 fn create_payload(origin: &str, redirect_to: &str) -> CreatePageRuleRequest {
-    // let url = format!("https://{}.vaiphon.com", origin);
     let targets = vec![Target {
         constraint: Constraint {
             operator: "matches".to_string(),
             value: origin.to_string()
-            // origin.to_string(),
             
         },
         target: "url".to_string(),
@@ -259,16 +251,16 @@ fn create_payload(origin: &str, redirect_to: &str) -> CreatePageRuleRequest {
     CreatePageRuleRequest { targets, actions, status:"active".to_string() }
 }
 
-fn create_dns_payload( redirect_to: &str, origin: &str,) -> CreateDNSRecordRequest {
+fn create_dns_payload(redirect_to: &str, origin: &str) -> Result<CreateDNSRecordRequest, String> {
+    let cloudflare_ip_dns_content = std::env::var("CUSTOM_URLS_IP_DNS_CONTENT").map_err(|_| "Failed to retrieve DNS_IP_ADDRESS from environment")?;
 
-info!("originnnnnn {:?}", origin);
-    CreateDNSRecordRequest {
+    Ok(CreateDNSRecordRequest {
         name: origin.to_string(),
         record_type: "A".to_string(),
-        content: "165.22.199.100".to_string(),
+        content: cloudflare_ip_dns_content,
         ttl: 3600,
         proxied: false,
-    }
+    })
 }
 
 pub async fn create_dns_record(

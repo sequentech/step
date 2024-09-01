@@ -236,11 +236,10 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [manageCustomUrls, response] = useMutation<SetCustomUrlsMutation>(SET_CUSTOM_URLS, {
         context: {
             headers: {
-                "x-hasura-role": IPermissions.USER_READ,
+                "x-hasura-role": IPermissions.ELECTION_EVENT_WRITE,
             },
         },
     })
-    console.log(response, "login url response")
 
     const [startDate, setStartDate] = useState<string | undefined>(undefined)
     const [endDate, setEndDate] = useState<string | undefined>(undefined)
@@ -563,67 +562,51 @@ export const EditElectionEventDataForm: React.FC = () => {
         presentation: IElectionEventPresentation,
         recordId: string
     ) => {
-        const customUrls = presentation?.custom_urls
         try {
-            if (customUrls) {
-                const urlEntries = [
-                    {
-                        key: "login",
-                        origin: `https://${customUrlsValues.login}.vaiphon.com/login`,
-                        redirect_to: "https://google.com/login",
-                        dns_prefix: customUrlsValues.login,
-                        //  getAuthUrl(
-                        //     globalSettings.VOTING_PORTAL_URL,
-                        //     tenantId ?? "",
-                        //     recordId,
-                        //     "login"
-                        // ),
-                    },
-                    {
-                        key: "enrollment",
-                        origin: `https://${customUrlsValues.enrollment}.vaiphon.com/enrollment`,
-                        redirect_to: "https://google.com/enrollment",
-                        dns_prefix: customUrlsValues.enrollment,
-                        // getAuthUrl(
-                        //     globalSettings.VOTING_PORTAL_URL,
-                        //     tenantId ?? "",
-                        //     recordId,
-                        //     "enroll"
-                        // ),
-                    },
-                ]
-                const responses = await Promise.all(
-                    urlEntries.map((item) => {
-                        return manageCustomUrls({
-                            variables: {
-                                origin: item.origin,
-                                redirect_to: item.redirect_to ?? "",
-                                dns_prefix: item.dns_prefix,
-                            },
-                        })
+            const urlEntries = [
+                {
+                    key: "login",
+                    origin: `https://${customUrlsValues.login}.${process.env.CUSTOM_URLS_DOMAIN_NAME}/login`,
+                    redirect_to: getAuthUrl(
+                        globalSettings.VOTING_PORTAL_URL,
+                        tenantId ?? "",
+                        recordId,
+                        "login"
+                    ),
+                    dns_prefix: customUrlsValues.login,
+                },
+                {
+                    key: "enrollment",
+                    origin: `https://${customUrlsValues.enrollment}.${process.env.CUSTOM_URLS_DOMAIN_NAME}/enrollment`,
+                    redirect_to: getAuthUrl(
+                        globalSettings.VOTING_PORTAL_URL,
+                        tenantId ?? "",
+                        recordId,
+                        "enroll"
+                    ),
+                    dns_prefix: customUrlsValues.enrollment,
+                },
+            ]
+            await Promise.all(
+                urlEntries.map((item) =>
+                    manageCustomUrls({
+                        variables: {
+                            origin: item.origin,
+                            redirect_to: item.redirect_to ?? "",
+                            dns_prefix: item.dns_prefix,
+                        },
                     })
                 )
-
-                // Log each response individually
-                responses.forEach((response, index) => {
-                    console.log(`Response for item ${index}:`, response)
-                })
-
-                // for (const {origin, redirect_to, dns_prefix, key} of urlEntries) {
-                //     if (origin) {
-                //         console.log(origin, "test")
-                //         await manageCustomUrls({
-                //             variables: {
-                //                 origin: origin,
-                //                 redirect_to: redirect_to ?? "",
-                //                 dns_prefix: dns_prefix,
-                //             },
-                //         })
-                //     }
-                // }
+            )
+        } catch (err: any) {
+            if (err.networkError) {
+                console.log("Network error occurred, please try again")
+            } else if (err.graphQLErrors) {
+                const graphqlErrors = "One of the URLS has invalid or already used DNS name"
+                console.log(graphqlErrors)
+            } else {
+                console.log(`"Server error"`)
             }
-        } catch (err) {
-            console.log(err, "errrrrr")
         }
     }
 
@@ -954,7 +937,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                                                 })
                                             }
                                         />
-                                        <p>.sequent.io/login</p>
+                                        <p>{`.${process.env.CUSTOM_URLS_DOMAIN_NAME}/login`}</p>
                                         {response.loading && (
                                             <WizardStyles.DownloadProgress size={18} />
                                         )}
@@ -977,15 +960,13 @@ export const EditElectionEventDataForm: React.FC = () => {
                                                 })
                                             }
                                         />
-                                        <p>.sequent.io/enrollment</p>
+                                        <p>{`.${process.env.CUSTOM_URLS_DOMAIN_NAME}/enrollment`}</p>
                                         {response.loading && (
                                             <WizardStyles.DownloadProgress size={18} />
                                         )}
-                                        {response.called &&
-                                            !response.error &&
-                                            !response.loading && (
-                                                <p style={{color: "green"}}>Active</p>
-                                            )}
+                                        {!response.error && !response.loading && (
+                                            <StatusChip status="SUCCESS" />
+                                        )}
                                     </CustomUrlsStyle.InputWrapper>
                                 </AccordionDetails>
                             </Accordion>

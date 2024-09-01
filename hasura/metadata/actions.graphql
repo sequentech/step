@@ -906,6 +906,7 @@ type SetCustomUrlOutput {
 }
 
 type SetCustomUrlsOutput {
+  success : Boolean!
   message : String
 }
 

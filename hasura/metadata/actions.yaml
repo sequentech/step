@@ -699,7 +699,6 @@ actions:
       version: 2
   permissions:
   - role: election-event-write
-  - role: user-read
   - role: admin-user
 - name: set_role_permission
   definition:
