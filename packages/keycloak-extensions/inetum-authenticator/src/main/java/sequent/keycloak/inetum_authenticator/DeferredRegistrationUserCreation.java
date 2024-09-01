@@ -62,6 +62,9 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
   public static final String ID_NUMBER = "sequent.read-only.id-card-number";
   public static final String PHONE_NUMBER = "sequent.read-only.mobile-number";
   public static final String MISSING_FIELDS = "MissingFields";
+  public static final String PASSWORD_NOT_MATCHED = "PasswordsNotMatched";
+  public static final String PASSWORD_NOT_STRONG = "PasswordsNotStrongEnough";
+
   public static final String MISSING_FIELDS_ERROR = "error-user-attribute-required";
   // TODO fix
 
@@ -271,7 +274,8 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     } else if (!formData
         .getFirst(RegistrationPage.FIELD_PASSWORD)
         .equals(formData.getFirst(RegistrationPage.FIELD_PASSWORD_CONFIRM))) {
-      errors.add(
+        context.error(PASSWORD_NOT_MATCHED);
+        errors.add(
           new FormMessage(
               RegistrationPage.FIELD_PASSWORD_CONFIRM, Messages.INVALID_PASSWORD_CONFIRM));
     }
@@ -303,7 +307,6 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
 
         String key = confirmKey.substring(0, confirmKey.indexOf("-confirm"));
         String value = formData.getFirst(key);
-
         if (!value.equals(confirmValue)) {
           log.errorv(
               "validate: confirm value invalid key:{0} values {1} != {2}",
@@ -314,9 +317,17 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         }
       }
     }
-
+    log.info("errors formMessages" + errors);
     if (errors.size() > 0) {
-      context.error(Errors.INVALID_REGISTRATION);
+    for (FormMessage formMessage : errors) {
+      if(formMessage.getField() == RegistrationPage.FIELD_PASSWORD_CONFIRM)  {
+        context.error(PASSWORD_NOT_MATCHED);
+      }  else if (formMessage.getField() == RegistrationPage.FIELD_PASSWORD) {
+        context.error(PASSWORD_NOT_STRONG + formMessage.getMessage());
+      } else {
+        context.error(Errors.INVALID_REGISTRATION);
+      }
+    }
       formData.remove(RegistrationPage.FIELD_PASSWORD);
       formData.remove(RegistrationPage.FIELD_PASSWORD_CONFIRM);
       context.validationError(formData, errors);

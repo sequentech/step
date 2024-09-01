@@ -18,7 +18,6 @@ import org.keycloak.util.JsonSerialization;
 import com.fasterxml.jackson.databind.util.JSONPObject;
 import com.google.gson.Gson;
 import lombok.extern.jbosslog.JBossLog;
-import sequent.keycloak.inetum_authenticator.types.AuthToken;
 
 @JBossLog
 public class CustomEventListereProvider implements EventListenerProvider {
