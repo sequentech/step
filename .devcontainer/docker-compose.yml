@@ -2,7 +2,6 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-version: "3.6"
 services:
   devcontainer:
     #profiles: ["full", "base"]
@@ -13,7 +12,6 @@ services:
       source: ../..
       target: /workspaces
       bind:
-        propagation: rshared
         create_host_path: true
         selinux: z
     # support ptrace-based debuggers like C++, Go, and Rust
@@ -763,8 +761,6 @@ services:
       VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE: ${VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE}
        #Demo key
       DEMO_PUBLIC_KEY: ${DEMO_PUBLIC_KEY}
-      MIRU_STATION_ID: ${MIRU_STATION_ID}
-      
 
   beat:
     #profiles: ["full"]
