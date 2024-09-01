@@ -183,7 +183,7 @@ const tagalogTranslation = {
                 electionTypes: "URI NG HALALAN",
                 communications: "KOMUNIKASYON",
                 languages: "WIKA",
-                lookCustomization: "PAGPASADYA KAN ITSURA",
+                lookAndFeel: "PAGPASADYA KAN ITSURA",
                 schedules: "NAISKEDYUL NA MGA KAGANAPAN",
                 trustees: "TAGAPANGALAGA",
             },

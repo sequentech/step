@@ -183,7 +183,7 @@ const catalanTranslation: TranslationType = {
                 electionTypes: "TIPUS D'ELECCIÓ",
                 communications: "COMUNICACIÓ",
                 languages: "IDIOMES",
-                lookCustomization: "PERSONALITZACIÓ D'APARENÇA",
+                lookAndFeel: "PERSONALITZACIÓ D'APARENÇA",
                 schedules: "ESDEVENIMENTS PROGRAMATS",
                 trustees: "AUTORITATS",
             },

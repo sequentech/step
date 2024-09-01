@@ -10,6 +10,7 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {TenantContext} from "@/providers/TenantContextProvider"
 import {Sequent_Backend_Tenant} from "@/gql/graphql"
 import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
+import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
 
 export const CustomAppBar: React.FC = () => {
     const authContext = useContext(AuthContext)
@@ -27,6 +28,13 @@ export const CustomAppBar: React.FC = () => {
 
     const langList = (tenant?.settings as ITenantSettings | undefined)?.language_conf
         ?.enabled_language_codes ?? ["en"]
+
+    const logUrl = (tenant?.settings as ITenantSettings | undefined)?.logo_url
+
+    console.log("CustomAppBar: logUrl :: ", logUrl)
+    const logoImg = logUrl === undefined ? BlankLogoImg : logUrl === null ? SequentLogo : logUrl
+    console.log("CustomAppBar: logoImg :: ", logoImg)
+
     return (
         <AppBar
             toolbar={<></>}
@@ -49,7 +57,7 @@ export const CustomAppBar: React.FC = () => {
                 }}
                 logoutFn={authContext.isAuthenticated ? authContext.logout : undefined}
                 languagesList={langList}
-                logoUrl={SequentLogo}
+                logoUrl={logoImg}
             />
         </AppBar>
     )

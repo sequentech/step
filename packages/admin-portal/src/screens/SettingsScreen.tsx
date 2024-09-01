@@ -20,7 +20,7 @@ import {Typography} from "@mui/material"
 import {SettingsSchedules} from "@/resources/Settings/SettingsSchedules"
 import {SettingsSchedulesCreate} from "@/resources/Settings/SettingsSchedulesCreate"
 import {SettingsTrustees} from "@/resources/Settings/SettingsTrustees"
-import {SettingsLookCustomization} from "@/resources/Settings/SettingsLookCustomization"
+import {SettingslookAndFeel} from "@/resources/Settings/SettingslookAndFeel"
 
 export const SettingsScreen: React.FC = () => {
     const {t} = useTranslation()
@@ -78,11 +78,11 @@ export const SettingsScreen: React.FC = () => {
                         ),
                     },
                     {
-                        label: t("electionTypeScreen.tabs.lookCustomization"),
+                        label: t("electionTypeScreen.tabs.lookAndFeel"),
                         component: () => (
                             <Resource
                                 name="sequent_backend_tenant"
-                                list={SettingsLookCustomization}
+                                list={SettingslookAndFeel}
                             />
                         ),
                     },

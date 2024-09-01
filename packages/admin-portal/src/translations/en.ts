@@ -181,7 +181,7 @@ const englishTranslation = {
                 electionTypes: "ELECTION TYPES",
                 communications: "COMMUNICATION",
                 languages: "LANGUAGES",
-                lookCustomization: "LOOK CUSTOMiZATION",
+                lookAndFeel: "Look & Feel",
                 schedules: "SCHEDULED EVENTS",
                 trustees: "TRUSTEES",
             },

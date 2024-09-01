@@ -183,7 +183,7 @@ const spanishTranslation: TranslationType = {
                 electionTypes: "TIPOS DE ELECCIÓN",
                 communications: "COMUNICACIÓN",
                 languages: "IDIOMAS",
-                lookCustomization: "PERSONILIZACIÓN DE APARIENCIA",
+                lookAndFeel: "PERSONILIZACIÓN DE APARIENCIA",
                 schedules: "EVENTOS PROGRAMADOS",
                 trustees: "AUTORIDADES",
             },
