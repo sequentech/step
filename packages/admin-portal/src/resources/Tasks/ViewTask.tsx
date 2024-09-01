@@ -86,17 +86,19 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
                             <Table sx={{minWidth: 650}} aria-label="task details table">
                                 <TableBody>
                                     <TableRow>
-                                        <TableCell sx={{fontWeight:"500"}}>{t("tasksScreen.column.type")}</TableCell>
+                                        <TableCell sx={{fontWeight: "500"}}>
+                                            {t("tasksScreen.column.type")}
+                                        </TableCell>
                                         <TableCell>{task?.type}</TableCell>
                                     </TableRow>
                                     <TableRow>
-                                        <TableCell align="left" sx={{fontWeight:"500"}}>
+                                        <TableCell align="left" sx={{fontWeight: "500"}}>
                                             {t("tasksScreen.column.executed_by_user")}
                                         </TableCell>
                                         <TableCell align="left">{task?.executed_by_user}</TableCell>
                                     </TableRow>
                                     <TableRow>
-                                        <TableCell align="left" sx={{fontWeight:"500"}}>
+                                        <TableCell align="left" sx={{fontWeight: "500"}}>
                                             {t("tasksScreen.column.start_at")}
                                         </TableCell>
                                         <TableCell align="left">
@@ -104,7 +106,7 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
                                         </TableCell>
                                     </TableRow>
                                     <TableRow>
-                                        <TableCell align="left" sx={{fontWeight:"500"}}>
+                                        <TableCell align="left" sx={{fontWeight: "500"}}>
                                             {t("tasksScreen.column.end_at")}
                                         </TableCell>
                                         <TableCell align="left">
