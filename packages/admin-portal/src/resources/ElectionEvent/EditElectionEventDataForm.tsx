@@ -304,60 +304,67 @@ export const EditElectionEventDataForm: React.FC = () => {
         incoming: Sequent_Backend_Election_Event_Extended,
         languageSettings: Array<string>
     ): Sequent_Backend_Election_Event_Extended => {
-        // Perform a deep copy of `incoming` to ensure no references are shared.
-        const temp = {
-            ...incoming,
-            enabled_languages: {...incoming.enabled_languages},
-            presentation: {...incoming.presentation},
-            voting_channels: {...incoming.voting_channels},
-        }
+        const temp = {...incoming}
 
-        // Ensure that `enabled_languages` is always an object.
+        // languages
         temp.enabled_languages = {}
 
         if (!incoming.presentation) {
             temp.presentation = {}
         }
-
-        const incomingLangConf = (incoming.presentation as IElectionEventPresentation | undefined)
+        const incomingLangConf = (incoming?.presentation as IElectionEventPresentation | undefined)
             ?.language_conf
 
         if (
             incomingLangConf?.enabled_language_codes &&
-            incomingLangConf.enabled_language_codes.length > 0
+            incomingLangConf?.enabled_language_codes.length > 0
         ) {
-            // Set from event if presentation has languages.
+            // if presentation has lang then set from event
             for (const setting of languageSettings) {
-                const isEnabled = incomingLangConf.enabled_language_codes.includes(setting)
-                temp.enabled_languages[setting] = isEnabled
+                const enabled_item: {[key: string]: boolean} = {}
+
+                const isInEnabled =
+                    incomingLangConf?.enabled_language_codes?.find(
+                        (item: string) => setting === item
+                    ) ?? false
+
+                enabled_item[setting] = !!isInEnabled
+
+                temp.enabled_languages = {...temp.enabled_languages, ...enabled_item}
             }
         } else {
-            // Use default settings if presentation has no languages.
+            // if presentation has no lang then use always the default settings
+            temp.enabled_languages = {...temp.enabled_languages}
             for (const item of languageSettings) {
                 temp.enabled_languages[item] = false
             }
         }
 
-        // Ensure English is the first language always.
+        // set english first lang always
         if (temp.enabled_languages) {
-            const en = {en: temp.enabled_languages["en"] ?? false} // Handle case where `en` might not exist.
+            const en = {en: temp.enabled_languages["en"]}
             delete temp.enabled_languages.en
-            temp.enabled_languages = {...en, ...temp.enabled_languages}
+            const rest = temp.enabled_languages
+            temp.enabled_languages = {...en, ...rest}
         }
+        // voting channels
+        const all_channels = {...incoming?.voting_channels}
 
-        // Handle voting channels.
-        const all_channels = {...incoming.voting_channels} // Deep copy to prevent mutating the original.
-
+        // delete incoming.voting_channels
         temp.voting_channels = {}
 
         for (const setting in votingSettings) {
-            temp.voting_channels[setting] =
+            const enabled_item: any = {}
+            enabled_item[setting] =
                 setting in all_channels ? all_channels[setting] : votingSettings[setting]
+            temp.voting_channels = {...temp.voting_channels, ...enabled_item}
+        }
+        if (!temp.presentation) {
+            temp.presentation = {}
         }
 
-        // Ensure default presentation values are set.
         temp.presentation.elections_order =
-            temp.presentation.elections_order || ElectionsOrder.ALPHABETICAL
+            temp?.presentation.elections_order || ElectionsOrder.ALPHABETICAL
 
         if (
             !(temp.presentation as IElectionEventPresentation | undefined)
@@ -367,7 +374,6 @@ export const EditElectionEventDataForm: React.FC = () => {
                 policy: EVotingPortalCountdownPolicy.NO_COUNTDOWN,
             }
         }
-
         if (!temp.presentation.custom_urls) {
             temp.presentation.custom_urls = {}
         }
@@ -385,11 +391,9 @@ export const EditElectionEventDataForm: React.FC = () => {
 
     const formValidator = (values: any): any => {
         const errors: any = {dates: {}}
-        /*if (values?.dates?.start_date && values?.dates?.end_date <= values?.dates?.start_date) {
-            errors.dates.end_date = t("electionEventScreen.error.endDate")
-        } else if (new Date(values?.dates?.start_date) <= new Date(Date.now())) {
-            errors.dates.start_date = t("electionEventScreen.error.startDate")
-        }*/
+        if (values?.dates?.start_date && values?.dates?.end_date <= values?.dates?.start_date) {
+            errors.dates.end_date = t("electionScreen.error.endDate")
+        }
         return errors
     }
 

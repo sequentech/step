@@ -57,41 +57,25 @@ export const EditElectionEventData: React.FC = () => {
         }
         // i18n
         // is alll object, no change needed
-        // Delete enabled_languages if it exists
         delete data.enabled_languages
 
-        // Safe checks and defaults for presentation and i18n
-        const presentationI18n = data.presentation?.i18n
-
-        // Initialize variables for name, alias, and description
-        let fromPresentationName = ""
-        let fromPresentationAlias = ""
-        let fromPresentationDescription = ""
-
-        // Check if `presentationI18n` exists and has keys
-        if (presentationI18n && Object.keys(presentationI18n).length > 0) {
-            fromPresentationName =
-                presentationI18n.en?.name ||
-                presentationI18n[Object.keys(presentationI18n)[0]]?.name ||
-                ""
-
-            fromPresentationAlias =
-                presentationI18n.en?.alias ||
-                presentationI18n[Object.keys(presentationI18n)[0]]?.alias ||
-                ""
-
-            fromPresentationDescription =
-                presentationI18n.en?.description ||
-                presentationI18n[Object.keys(presentationI18n)[0]]?.description ||
-                ""
-        }
-
-        // Assign the values to `data`
+        // name, alias and description fields
+        const fromPresentationName =
+            data?.presentation?.i18n?.en?.name ||
+            data?.presentation?.i18n[Object.keys(data.presentation.i18n)[0]].name ||
+            ""
         data.name = fromPresentationName
+        const fromPresentationAlias =
+            data?.presentation?.i18n?.en?.alias ||
+            data?.presentation?.i18n[Object.keys(data.presentation.i18n)[0]].alias ||
+            ""
         data.alias = fromPresentationAlias
+        const fromPresentationDescription =
+            data?.presentation?.i18n?.en?.description ||
+            data?.presentation?.i18n[Object.keys(data.presentation.i18n)[0]].description ||
+            ""
         data.description = fromPresentationDescription
-
-        // END name, alias, and description fields
+        // END name, alias and description fields
 
         return {
             ...data,
