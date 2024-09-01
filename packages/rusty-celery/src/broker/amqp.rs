@@ -25,6 +25,7 @@ use super::{Broker, BrokerBuilder, DeliveryError, DeliveryStream};
 use crate::error::{BrokerError, ProtocolError};
 use crate::protocol::{Message, MessageHeaders, MessageProperties, TryDeserializeMessage};
 use tokio_executor_trait::Tokio as TokioExecutor;
+use tracing::trace;
 
 #[cfg(test)]
 use std::any::Any;
@@ -64,18 +65,28 @@ impl Stream for Consumer {
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<std::option::Option<<Self as futures::Stream>::Item>> {
+        trace!("FFFF celery::poll_next() step 0");
         use futures_lite::stream::StreamExt;
 
         if let Poll::Ready(ret) = self.wrapped.poll_next(cx) {
+            trace!("FFFF celery::poll_next() step 1");
             if let Some(result) = ret {
                 match result {
-                    Ok(x) => Poll::Ready(Some(Ok(Box::new(x)))),
-                    Err(x) => Poll::Ready(Some(Err(Box::new(x)))),
+                    Ok(x) => {
+                        trace!("FFFF celery::poll_next() step 2");
+                        Poll::Ready(Some(Ok(Box::new(x))))
+                    }
+                    Err(x) => {
+                        trace!("FFFF celery::poll_next() step 3 Err: {:?}", x);
+                        Poll::Ready(Some(Err(Box::new(x))))
+                    }
                 }
             } else {
+                trace!("FFFF celery::poll_next() step 4");
                 Poll::Ready(None)
             }
         } else {
+            trace!("FFFF celery::poll_next() step 5");
             Poll::Pending
         }
     }
