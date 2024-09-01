@@ -1,5 +1,3 @@
-// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
-//
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {Sequent_Backend_Election_Event, Sequent_Backend_Tasks_Execution} from "@/gql/graphql"
@@ -18,7 +16,6 @@ import Table from "@mui/material/Table"
 import TableBody from "@mui/material/TableBody"
 import TableCell from "@mui/material/TableCell"
 import TableContainer from "@mui/material/TableContainer"
-import TableHead from "@mui/material/TableHead"
 import TableRow from "@mui/material/TableRow"
 import Paper from "@mui/material/Paper"
 import {Identifier, useGetOne} from "react-admin"
@@ -40,7 +37,7 @@ export const statusColor: (status: string) => string = (status) => {
 }
 
 export interface ViewTaskProps {
-    currTaskId: Identifier | null //Sequent_Backend_Tasks_Execution
+    currTaskId: Identifier | null // Sequent_Backend_Tasks_Execution
     electionEventRecord: Sequent_Backend_Election_Event
     onViewList: () => void
 }
@@ -86,43 +83,34 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
                     </AccordionSummary>
                     <WizardStyles.AccordionDetails>
                         <TableContainer component={Paper}>
-                            <Table sx={{minWidth: 650}} aria-label="simple table">
-                                <TableHead>
+                            <Table sx={{minWidth: 650}} aria-label="task details table">
+                                <TableBody>
                                     <TableRow>
-                                        <TableCell>{t("tasksScreen.column.type")}</TableCell>
-                                        <TableCell align="center">
+                                        <TableCell sx={{fontWeight:"500"}}>{t("tasksScreen.column.type")}</TableCell>
+                                        <TableCell>{task?.type}</TableCell>
+                                    </TableRow>
+                                    <TableRow>
+                                        <TableCell align="left" sx={{fontWeight:"500"}}>
                                             {t("tasksScreen.column.executed_by_user")}
                                         </TableCell>
-                                        <TableCell align="center">
+                                        <TableCell align="left">{task?.executed_by_user}</TableCell>
+                                    </TableRow>
+                                    <TableRow>
+                                        <TableCell align="left" sx={{fontWeight:"500"}}>
                                             {t("tasksScreen.column.start_at")}
                                         </TableCell>
-                                        <TableCell align="center">
-                                            {t("tasksScreen.column.end_at")}
+                                        <TableCell align="left">
+                                            {task && new Date(task.start_at).toLocaleString()}
                                         </TableCell>
                                     </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {task && (
-                                        <TableRow
-                                            key={task?.name as any}
-                                            sx={{
-                                                "&:last-child td, &:last-child th": {border: 0},
-                                            }}
-                                        >
-                                            <TableCell component="th" scope="row">
-                                                {task.type}
-                                            </TableCell>
-                                            <TableCell align="center">
-                                                {task.executed_by_user}
-                                            </TableCell>
-                                            <TableCell align="center">
-                                                {new Date(task.start_at).toLocaleString()}
-                                            </TableCell>
-                                            <TableCell align="center">
-                                                {new Date(task.end_at).toLocaleString()}
-                                            </TableCell>
-                                        </TableRow>
-                                    )}
+                                    <TableRow>
+                                        <TableCell align="left" sx={{fontWeight:"500"}}>
+                                            {t("tasksScreen.column.end_at")}
+                                        </TableCell>
+                                        <TableCell align="left">
+                                            {task && new Date(task.end_at).toLocaleString()}
+                                        </TableCell>
+                                    </TableRow>
                                 </TableBody>
                             </Table>
                         </TableContainer>
