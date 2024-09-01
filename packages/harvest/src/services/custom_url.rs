@@ -39,17 +39,17 @@ struct ApiResponse<T> {
 struct CreatePageRuleRequest {
     targets: Vec<Target>,
     actions: Vec<Action>,
-    status: String
+    status: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateDNSRecordRequest {
     #[serde(rename = "type")]
-     record_type: String, 
-     name: String,
-     content: String,
-     ttl: u64,
-     proxied: bool, 
+    record_type: String,
+    name: String,
+    content: String,
+    ttl: u64,
+    proxied: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -111,19 +111,20 @@ pub async fn set_custom_url(
 ) -> Result<(), Box<dyn Error>> {
     info!("Origin: {:?}", origin);
     info!("Redirect to: {:?}", redirect_to);
-    
+
     if std::env::var("CLOUDFLARE_ENV").is_err() {
         info!("CLOUDFLARE_ENV environment variable is not set.");
         return Err("CLOUDFLARE_ENV environment variable is not set.".into());
     }
-    
+
     let current_page_rule = match get_page_rule(origin).await {
         Ok(page_rule) => {
             info!("Current page rule found: {:?}", page_rule);
             page_rule
         }
         Err(e) => {
-            let error_message = format!("Failed to get page rule for {}: {}", origin, e);
+            let error_message =
+                format!("Failed to get page rule for {}: {}", origin, e);
             info!("{}", error_message);
             return Err(error_message.into());
         }
@@ -138,8 +139,11 @@ pub async fn set_custom_url(
 
     match current_page_rule {
         Some(page_rule) => {
-            if let Err(e) = update_page_rule(&page_rule.id, redirect_to, origin).await {
-                let error_message = format!("Failed to update page rule: {}", e);
+            if let Err(e) =
+                update_page_rule(&page_rule.id, redirect_to, origin).await
+            {
+                let error_message =
+                    format!("Failed to update page rule: {}", e);
                 info!("{}", error_message);
                 return Err(error_message.into());
             }
@@ -148,7 +152,8 @@ pub async fn set_custom_url(
         }
         None => {
             if let Err(e) = create_page_rule(redirect_to, origin).await {
-                let error_message = format!("Failed to create page rule: {}", e);
+                let error_message =
+                    format!("Failed to create page rule: {}", e);
                 info!("{}", error_message);
                 return Err(error_message.into());
             }
@@ -160,7 +165,6 @@ pub async fn set_custom_url(
     Ok(())
 }
 
-
 fn get_cloudflare_vars() -> Result<(String, String, String), Box<dyn Error>> {
     let cloudflare_zone = std::env::var("CLOUDFLARE_ZONE")
         .map_err(|_e| "Missing cloudflare env variable".to_string())?;
@@ -168,7 +172,6 @@ fn get_cloudflare_vars() -> Result<(String, String, String), Box<dyn Error>> {
         .map_err(|_e| "Missing cloudflare env variable".to_string())?;
     let cloudflare_api_key = std::env::var("CLOUDFLARE_API_KEY")
         .map_err(|_e| "Missing cloudflare env variable".to_string())?;
-
 
     Ok((cloudflare_zone, cloudflare_api_email, cloudflare_api_key))
 }
@@ -178,9 +181,9 @@ async fn get_all_page_rules() -> Result<Vec<PageRule>, Box<dyn Error>> {
     info!("zone_id {:?}", zone_id);
     info!("api_email {:?}", api_email);
     info!("api_key {:?}", format!("Bearer {}", api_key));
-    
+
     let client = Client::new();
-    
+
     let response = client
         .get(&format!(
             "https://api.cloudflare.com/client/v4/zones/{}/pagerules",
@@ -192,15 +195,23 @@ async fn get_all_page_rules() -> Result<Vec<PageRule>, Box<dyn Error>> {
         .send()
         .await
         .map_err(|e| CloudflareError::new(&format!("Request error: {}", e)))?;
-    
+
     if response.status().is_success() {
-        let api_response: ApiResponse<Vec<PageRule>> = response
-            .json()
-            .await
-            .map_err(|e| CloudflareError::new(&format!("Failed to parse response: {}", e)))?;
+        let api_response: ApiResponse<Vec<PageRule>> =
+            response.json().await.map_err(|e| {
+                CloudflareError::new(&format!(
+                    "Failed to parse response: {}",
+                    e
+                ))
+            })?;
         Ok(api_response.result)
     } else {
-        let error_text = response.text().await.map_err(|e| CloudflareError::new(&format!("Failed to read error response: {}", e)))?;
+        let error_text = response.text().await.map_err(|e| {
+            CloudflareError::new(&format!(
+                "Failed to read error response: {}",
+                e
+            ))
+        })?;
         info!("Error response: {}", error_text);
         Err(Box::new(CloudflareError::new(&format!(
             "Failed to get page rules: {}",
@@ -228,8 +239,7 @@ fn create_payload(origin: &str, redirect_to: &str) -> CreatePageRuleRequest {
     let targets = vec![Target {
         constraint: Constraint {
             operator: "matches".to_string(),
-            value: origin.to_string()
-            
+            value: origin.to_string(),
         },
         target: "url".to_string(),
     }];
@@ -242,20 +252,27 @@ fn create_payload(origin: &str, redirect_to: &str) -> CreatePageRuleRequest {
         },
     }];
 
-    CreatePageRuleRequest { targets, actions, status:"active".to_string() }
+    CreatePageRuleRequest {
+        targets,
+        actions,
+        status: "active".to_string(),
+    }
 }
 
-
-fn create_dns_payload( redirect_to: &str, origin: &str,) -> CreateDNSRecordRequest {
-    let cloudflare_ip_dns_content = std::env::var("CUSTOM_URLS_IP_DNS_CONTENT").unwrap_or_else(|_| "default.ip.address".to_string());
-        CreateDNSRecordRequest {
-            name: origin.to_string(),
-            record_type: "A".to_string(),
-            content: cloudflare_ip_dns_content,
-            ttl: 3600,
-            proxied: false,
-        }
+fn create_dns_payload(
+    redirect_to: &str,
+    origin: &str,
+) -> CreateDNSRecordRequest {
+    let cloudflare_ip_dns_content = std::env::var("CUSTOM_URLS_IP_DNS_CONTENT")
+        .unwrap_or_else(|_| "default.ip.address".to_string());
+    CreateDNSRecordRequest {
+        name: origin.to_string(),
+        record_type: "A".to_string(),
+        content: cloudflare_ip_dns_content,
+        ttl: 3600,
+        proxied: false,
     }
+}
 
 pub async fn create_dns_record(
     redirect_to: &str,
@@ -266,7 +283,11 @@ pub async fn create_dns_record(
         Ok(vars) => vars,
         Err(e) => {
             eprintln!("Failed to get Cloudflare environment variables: {}", e);
-            return Err(format!("Failed to get Cloudflare environment variables: {}", e).into());
+            return Err(format!(
+                "Failed to get Cloudflare environment variables: {}",
+                e
+            )
+            .into());
         }
     };
 
@@ -300,7 +321,9 @@ pub async fn create_dns_record(
             Ok(text) => text,
             Err(e) => {
                 eprintln!("Failed to read error response: {}", e);
-                return Err(format!("Failed to read error response: {}", e).into());
+                return Err(
+                    format!("Failed to read error response: {}", e).into()
+                );
             }
         };
         Err(format!("Failed to create DNS record: {}", body).into())
@@ -363,16 +386,20 @@ async fn create_page_rule(
         .send()
         .await
         .map_err(|e| CloudflareError::new(&format!("Request error: {}", e)))?;
-    
+
     if response.status().is_success() {
         println!("Page rule created successfully");
         Ok(())
     } else {
-        let error_text = response.text().await.map_err(|e| CloudflareError::new(&format!("Failed to read error response: {}", e)))?;
+        let error_text = response.text().await.map_err(|e| {
+            CloudflareError::new(&format!(
+                "Failed to read error response: {}",
+                e
+            ))
+        })?;
         Err(Box::new(CloudflareError::new(&format!(
             "Failed to create page rule: {}",
             error_text
         ))))
     }
 }
-

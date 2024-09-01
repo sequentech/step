@@ -18,7 +18,7 @@ use tracing::{event, instrument, Level};
 pub struct UpdateCustomUrlInput {
     pub origin: String,
     pub redirect_to: String,
-    pub dns_prefix: String
+    pub dns_prefix: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -52,30 +52,36 @@ pub async fn update_custom_url(
 
     info!("Authorization succeeded, processing URL update");
 
-    match set_custom_url(&body.redirect_to, &body.origin, &body.dns_prefix).await {
+    match set_custom_url(&body.redirect_to, &body.origin, &body.dns_prefix)
+        .await
+    {
         Ok(_) => {
             info!("Custom URL successfully updated");
             Ok(Json("Successfully Updated".to_string()))
-        },
+        }
         Err(error) => {
-            let error_message = format!("Error updating custom URL: {:?}", error);
+            let error_message =
+                format!("Error updating custom URL: {:?}", error);
             error!("{}", error_message);
-    
+
             // Create a GraphQL error response
             let graphql_error = GraphQLError {
                 message: error_message.clone(),
-                extensions: None, // You can add more structured information if needed
+                extensions: None, /* You can add more structured information
+                                   * if needed */
             };
-    
+
             // Serialize the error response to a JSON string
             let graphql_error_response = serde_json::to_string(&graphql_error)
-                .unwrap_or_else(|_| "Failed to serialize GraphQL error".to_string());
-    
+                .unwrap_or_else(|_| {
+                    "Failed to serialize GraphQL error".to_string()
+                });
+
             // Return the error in the expected format (Status, String)
             Err((Status::InternalServerError, graphql_error_response))
         }
     }
-    }
+}
 
 #[instrument(skip(claims))]
 #[post("/get-custom-url", format = "json", data = "<input>")]
