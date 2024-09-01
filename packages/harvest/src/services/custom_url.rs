@@ -131,29 +131,22 @@ pub async fn set_custom_url(
 
     info!("DNS Prefix: {:?}", dns_prefix);
 
+    if let Err(e) = create_dns_record(redirect_to, dns_prefix).await {
+        let error_message = format!("Failed to create DNS record: {}", e);
+        info!("{}", error_message);
+    }
+
     match current_page_rule {
         Some(page_rule) => {
-            if let Err(e) = create_dns_record(redirect_to, dns_prefix).await {
-                let error_message = format!("Failed to create DNS record: {}", e);
-                info!("{}", error_message);
-                return Err(error_message.into());
-            }
-
             if let Err(e) = update_page_rule(&page_rule.id, redirect_to, origin).await {
                 let error_message = format!("Failed to update page rule: {}", e);
                 info!("{}", error_message);
                 return Err(error_message.into());
             }
-            
+
             info!("Page rule updated successfully.");
         }
         None => {
-            if let Err(e) = create_dns_record(redirect_to, dns_prefix).await {
-                let error_message = format!("Failed to create DNS record: {}", e);
-                info!("{}", error_message);
-                return Err(error_message.into());
-            }
-
             if let Err(e) = create_page_rule(redirect_to, origin).await {
                 let error_message = format!("Failed to create page rule: {}", e);
                 info!("{}", error_message);
@@ -175,6 +168,7 @@ fn get_cloudflare_vars() -> Result<(String, String, String), Box<dyn Error>> {
         .map_err(|_e| "Missing cloudflare env variable".to_string())?;
     let cloudflare_api_key = std::env::var("CLOUDFLARE_API_KEY")
         .map_err(|_e| "Missing cloudflare env variable".to_string())?;
+
 
     Ok((cloudflare_zone, cloudflare_api_email, cloudflare_api_key))
 }
@@ -251,21 +245,21 @@ fn create_payload(origin: &str, redirect_to: &str) -> CreatePageRuleRequest {
     CreatePageRuleRequest { targets, actions, status:"active".to_string() }
 }
 
-fn create_dns_payload(redirect_to: &str, origin: &str) -> Result<CreateDNSRecordRequest, String> {
-    let cloudflare_ip_dns_content = std::env::var("CUSTOM_URLS_IP_DNS_CONTENT").map_err(|_| "Failed to retrieve DNS_IP_ADDRESS from environment")?;
 
-    Ok(CreateDNSRecordRequest {
-        name: origin.to_string(),
-        record_type: "A".to_string(),
-        content: cloudflare_ip_dns_content,
-        ttl: 3600,
-        proxied: false,
-    })
-}
+fn create_dns_payload( redirect_to: &str, origin: &str,) -> CreateDNSRecordRequest {
+    let cloudflare_ip_dns_content = std::env::var("CUSTOM_URLS_IP_DNS_CONTENT").unwrap_or_else(|_| "default.ip.address".to_string());
+        CreateDNSRecordRequest {
+            name: origin.to_string(),
+            record_type: "A".to_string(),
+            content: cloudflare_ip_dns_content,
+            ttl: 3600,
+            proxied: false,
+        }
+    }
 
 pub async fn create_dns_record(
     redirect_to: &str,
-    origin: &str,
+    dns_prefix: &str,
 ) -> Result<(), Box<dyn Error>> {
     let client = Client::new();
     let (zone_id, api_email, api_key) = match get_cloudflare_vars() {
@@ -281,8 +275,8 @@ pub async fn create_dns_record(
         zone_id
     );
 
-    let request_dns_body = create_dns_payload(redirect_to, origin);
-
+    let request_dns_body = create_dns_payload(redirect_to, dns_prefix);
+    info!("dns prefixxxxxxx {:?}", dns_prefix);
     let response = match client
         .post(&url)
         .header("X-Auth-Email", api_email)
