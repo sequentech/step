@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-version: '3.6'
+version: "3.6"
 services:
   devcontainer:
     #profiles: ["full", "base"]
@@ -32,12 +32,16 @@ services:
       - keycloak_db_logs:/keycloak_logs
     user: root
     group_add:
-      - '999'
+      - "999"
     command: chown -R 999:999 /logs /keycloak_logs
+
   postgres:
     #profiles: ["full", "base"]
     image: sequentech.local/postgresql
     container_name: postgres
+    build:
+      context: ./postgresql
+      dockerfile: Dockerfile
     restart: unless-stopped
     volumes:
       - db_data:/var/lib/postgresql/data
@@ -45,7 +49,7 @@ services:
     environment:
       POSTGRES_PASSWORD: ${HASURA_PG_PASSWORD}
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 10s
       retries: 15
@@ -53,6 +57,7 @@ services:
     command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
     depends_on:
       - postgres-volume-init
+
   minio:
     #profiles: ["full", "base"]
     container_name: minio
@@ -60,8 +65,8 @@ services:
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     ports:
-      - '9000:9000'
-      - '9001:9001'
+      - "9000:9000"
+      - "9001:9001"
     volumes:
       - minio_storage:/data
     environment:
@@ -84,7 +89,7 @@ services:
     container_name: minio-proxy
     image: nginx:latest
     ports:
-      - '9002:9002'
+      - "9002:9002"
     volumes:
       - ./minio/nginx:/etc/nginx/conf.d
     depends_on:
@@ -93,7 +98,10 @@ services:
   configure-minio:
     #profiles: ["full", "base"]
     container_name: configure-minio
-    image: ghcr.io/sequentech/step/minio:latest
+    build:
+      context: ./minio
+      dockerfile: Dockerfile
+    #image: minio/mc
     depends_on:
       - minio
     environment:
@@ -105,20 +113,23 @@ services:
       - MINIO_PUBLIC_BUCKET=${AWS_S3_PUBLIC_BUCKET}
       - MINIO_BUCKET=${AWS_S3_BUCKET}
     entrypoint: /scripts/entrypoint.sh
+
   # hashicorp vault to store secrets
   vault:
     #profiles: ["full", "base"]
     container_name: vault
-    image: ghcr.io/sequentech/step/vault:latest
+    build:
+      context: ./vault
+      dockerfile: Dockerfile
     restart: on-failure:10
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     ports:
-      - '8201:8201'
-      - '8200:8200'
+      - "8201:8201"
+      - "8200:8200"
     environment:
-      VAULT_API_ADDR: 'http://0.0.0.0:8200'
-      VAULT_ADDR: 'http://0.0.0.0:8201'
+      VAULT_API_ADDR: "http://0.0.0.0:8200"
+      VAULT_ADDR: "http://0.0.0.0:8201"
       VAULT_UNSEAL_KEY: ciWE5G/CT7/uo5mfaGeRvSyuGRnbtijzvLDg3ru/jv0=
       VAULT_TOKEN: hvs.s0djsk0LLBI19K0DkW4Fajs7
     cap_add:
@@ -128,12 +139,13 @@ services:
     healthcheck:
       retries: 5
     entrypoint: /opt/vault/entrypoint.sh
+
   graphql-engine:
     #profiles: ["full", "base"]
     image: hasura/graphql-engine:v2.33.1.cli-migrations-v3
     container_name: hasura
     ports:
-      - '8080:8080'
+      - "8080:8080"
     restart: always
     volumes:
       - ../hasura/metadata/:/hasura-metadata:cached
@@ -167,6 +179,7 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
+
   data-connector-agent:
     #profiles: ["full", "base"]
     container_name: data-connector-agent
@@ -177,14 +190,15 @@ services:
     environment:
       QUARKUS_LOG_LEVEL: ERROR # FATAL, ERROR, WARN, INFO, DEBUG, TRACE
       ## https://quarkus.io/guides/opentelemetry#configuration-reference
-      QUARKUS_OPENTELEMETRY_ENABLED: 'false'
+      QUARKUS_OPENTELEMETRY_ENABLED: "false"
       ## QUARKUS_OPENTELEMETRY_TRACER_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8081/api/v1/athena/health']
+      test: ["CMD", "curl", "-f", "http://localhost:8081/api/v1/athena/health"]
       interval: 5s
       timeout: 10s
       retries: 25
       start_period: 5s
+
   postgres-keycloak:
     #profiles: ["full", "base"]
     image: sequentech.local/postgresql
@@ -197,7 +211,7 @@ services:
     environment:
       POSTGRES_PASSWORD: ${KC_DB_PASSWORD}
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready  -U postgres']
+      test: ["CMD-SHELL", "pg_isready  -U postgres"]
       interval: 5s
       timeout: 10s
       retries: 15
@@ -207,13 +221,16 @@ services:
     # it:
     depends_on:
       - postgres
+
   keycloak:
     #profiles: ["full", "base"]
     container_name: keycloak
-    image: ghcr.io/sequentech/step/keycloak:latest
+    build:
+      context: ../packages/
+      dockerfile: Dockerfile.keycloak
     restart: always
     ports:
-      - 127.0.0.1:8090:8090
+      - 8090:8090
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     environment:
@@ -257,11 +274,12 @@ services:
       postgres-keycloak:
         condition: service_healthy
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://127.0.0.1:8090/health/live']
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8090/health/live"]
       interval: 5s
       timeout: 10s
       retries: 25
       start_period: 5s
+
   # admin-portal:
   #   profiles: ["full"]
   #   image: sequentech.local/frontend
@@ -282,6 +300,7 @@ services:
   #       MAX_DIFF_LINES: ${MAX_DIFF_LINES}
   #       SECONDS_TO_SHOW_COUNTDOWN: ${SECONDS_TO_SHOW_COUNTDOWN}
   #       SECONDS_TO_SHOW_ALRET: ${SECONDS_TO_SHOW_ALRET}
+
   # voting-portal:
   #   profiles: ["full"]
   #   image: sequentech.local/frontend
@@ -300,10 +319,14 @@ services:
   #   entrypoint: ["./init.sh", "start"]
   #   volumes:
   #      - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
+
   immudb:
     #profiles: ["full", "base"]
     container_name: immudb
-    image: ghcr.io/sequentech/step/immudb:latest
+    image: sequentech.local/immudb
+    build:
+      context: ../packages/
+      dockerfile: ./Dockerfile.immudb
     restart: always
     environment:
       - IMMUDB_PGSQL_SERVER=true
@@ -322,21 +345,24 @@ services:
   harvest:
     #profiles: ["full", "base"]
     stdin_open: true
-    image: ghcr.io/sequentech/step/cargo-packages:latest
+    image: sequentech.local/cargo-packages
     container_name: harvest
+    build:
+      context: ../packages/
+      dockerfile: ./Dockerfile.cargo-packages
     volumes:
       - ../packages/:/app
     working_dir: /app/harvest
     entrypoint: [
-        'cargo',
-        'watch',
-        '--why',
+        "cargo",
+        "watch",
+        "--why",
         # ignoring rust-local-target/ since it's used for local builds and
         # otherwise triggers a rebuild all the time (probably rust analyzer)
-        '--ignore',
-        'rust-local-target/',
-        '-x',
-        'run',
+        "--ignore",
+        "rust-local-target/",
+        "-x",
+        "run",
       ]
     environment:
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
@@ -381,18 +407,22 @@ services:
       AWS_S3_PUBLIC_BUCKET: ${AWS_S3_PUBLIC_BUCKET}
       AWS_S3_ACCESS_KEY: ${AWS_S3_ACCESS_KEY}
       AWS_S3_ACCESS_SECRET: ${AWS_S3_ACCESS_SECRET}
+
       # used by AWS S3 to "load_from_env()". Don't use this in production, not
       # needed. Instead, in production we'll use Web Identity Tokens
       AWS_ACCESS_KEY_ID: ${AWS_S3_ACCESS_KEY}
       AWS_SECRET_ACCESS_KEY: ${AWS_S3_ACCESS_SECRET}
+
       SECRETS_BACKEND: ${SECRETS_BACKEND}
       AWS_SM_KEY_PREFIX: ${AWS_SM_KEY_PREFIX}
       VAULT_SERVER_URL: ${VAULT_SERVER_URL}
       VAULT_TOKEN: ${VAULT_TOKEN}
+
       AWS_S3_UPLOAD_EXPIRATION_SECS: ${AWS_S3_UPLOAD_EXPIRATION_SECS}
       AWS_S3_FETCH_EXPIRATION_SECS: ${AWS_S3_FETCH_EXPIRATION_SECS}
       AWS_REGION: ${AWS_REGION}
       AWS_S3_MAX_UPLOAD_BYTES: ${AWS_S3_MAX_UPLOAD_BYTES}
+
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     ports:
@@ -472,11 +502,15 @@ services:
   #       SECRETS_BACKEND: ${SECRETS_BACKEND}
   #       VAULT_SERVER_URL: ${VAULT_SERVER_URL}
   #       VAULT_TOKEN: ${VAULT_TOKEN}
+
   # Create collection in immudb
   immudb-log-audit-init:
     #profiles: ["full", "base"]
     image: sequentech.local/immudb-log-audit
     container_name: immudb-log-audit-init
+    build:
+      context: ../vendor/immudb-log-audit
+      dockerfile: Dockerfile.immudb
     command: >
       create sql pgaudit_hasura
       --parser pgauditjsonlog
@@ -489,6 +523,7 @@ services:
     depends_on:
       - postgres
       - immudb
+
   # Send audit logs to immudb
   immudb-log-audit:
     #profiles: ["full", "base"]
@@ -506,8 +541,8 @@ services:
       --immudb-port ${IMMUDB_PORT}
       --immudb-database ${IMMUDB_LOGS_DB}
     volumes:
-      - 'immudb_log_audit_data:/data'
-      - 'db_logs:/logs'
+      - "immudb_log_audit_data:/data"
+      - "db_logs:/logs"
     # make sure to depend on the `immudb-log-audit-init` container to ensure
     # that the `sequentech.local/immudb-log-audit` image is locally build, so
     # that we can reuse it:
@@ -518,6 +553,7 @@ services:
     environment:
       IMMUDB_LOG_AUDIT_PROBE_ADDR: ${IMMUDB_LOG_AUDIT_PROBE_ADDR}
       IMMUDB_LOG_AUDIT_PROBE_LIVE_PATH: ${IMMUDB_LOG_AUDIT_PROBE_LIVE_PATH}
+
   # Create collection in immudb
   immudb-log-audit-init-keycloak:
     #profiles: ["full", "base"]
@@ -536,6 +572,7 @@ services:
       - postgres
       - immudb
       - immudb-log-audit-init
+
   # Send audit logs to immudb
   immudb-log-audit-keycloak:
     #profiles: ["full", "base"]
@@ -553,8 +590,8 @@ services:
       --immudb-port ${IMMUDB_PORT}
       --immudb-database ${IMMUDB_LOGS_DB}
     volumes:
-      - 'keycloak_immudb_log_audit_data:/data'
-      - 'keycloak_db_logs:/logs'
+      - "keycloak_immudb_log_audit_data:/data"
+      - "keycloak_db_logs:/logs"
     # make sure to depend on the `immudb-log-audit-init` container to ensure
     # that the `sequentech.local/immudb-log-audit` image is locally build, so
     # that we can reuse it:
@@ -565,19 +602,19 @@ services:
 
   rabbitmq:
     #profiles: ["full", "base"]
-    image: rabbitmq:management
+    image: rabbitmq:3.12.11-management
     container_name: rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
     ports:
-      - '5672:5672'
-      - '15672:15672'
+      - "5672:5672"
+      - "15672:15672"
 
   immudb-init:
     #profiles: ["full", "base"]
     stdin_open: true
-    image: ghcr.io/sequentech/step/cargo-packages:latest
+    image: sequentech.local/cargo-packages
     container_name: immudb-init
     # make sure to depend on the `harvest` container to ensure
     # that the `sequentech.local/cargo-packages` image is locally build, so
@@ -591,24 +628,24 @@ services:
     working_dir: /app/immu-board
     entrypoint:
       [
-        'cargo',
-        'run',
-        '--bin',
-        'bb_helper',
-        '--',
-        '--server-url',
-        '${IMMUDB_SERVER_URL}',
-        '--username',
-        '${IMMUDB_USER}',
-        '--password',
-        '${IMMUDB_PASSWORD}',
-        '--index-dbname',
-        '${IMMUDB_INDEX_DB}',
-        '--board-dbname',
-        '${IMMUDB_BOARD_DB_NAME}',
-        '--cache-dir',
-        '/tmp/immu-board',
-        'upsert-init-db',
+        "cargo",
+        "run",
+        "--bin",
+        "bb_helper",
+        "--",
+        "--server-url",
+        "${IMMUDB_SERVER_URL}",
+        "--username",
+        "${IMMUDB_USER}",
+        "--password",
+        "${IMMUDB_PASSWORD}",
+        "--index-dbname",
+        "${IMMUDB_INDEX_DB}",
+        "--board-dbname",
+        "${IMMUDB_BOARD_DB_NAME}",
+        "--cache-dir",
+        "/tmp/immu-board",
+        "upsert-init-db",
       ]
     env_file:
       - .env
@@ -616,7 +653,7 @@ services:
   windmill:
     #profiles: ["full", "base"]
     stdin_open: true
-    image: ghcr.io/sequentech/step/cargo-packages:latest
+    image: sequentech.local/cargo-packages
     container_name: windmill
     # make sure to depend on the `harvest` container to ensure
     # that the `sequentech.local/cargo-packages` image is locally build, so
@@ -624,15 +661,15 @@ services:
     restart: always
     working_dir: /app/windmill
     entrypoint: [
-        'cargo',
-        'watch',
-        '--why',
+        "cargo",
+        "watch",
+        "--why",
         # ignoring rust-local-target/ since it's used for local builds and
         # otherwise triggers a rebuild all the time (probably rust analyzer)
-        '--ignore',
-        'rust-local-target/',
-        '-x',
-        'run --bin main consume -q short_queue tally_queue beat reports_queue communication_queue import_export_queue',
+        "--ignore",
+        "rust-local-target/",
+        "-x",
+        "run --bin main consume --acks-late -q short_queue tally_queue beat reports_queue communication_queue import_export_queue",
       ]
     volumes:
       - ./keycloak/import:/import
@@ -640,7 +677,7 @@ services:
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
       RUST_BACKTRACE: ${RUST_BACKTRACE}
-      LOG_LEVEL: ${LOG_LEVEL}
+      LOG_LEVEL: trace
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
       HASURA_ENDPOINT: ${HASURA_ENDPOINT}
       AMQP_ADDR: ${AMQP_ADDR}
@@ -656,18 +693,22 @@ services:
       AWS_S3_ACCESS_KEY: ${AWS_S3_ACCESS_KEY}
       AWS_S3_ACCESS_SECRET: ${AWS_S3_ACCESS_SECRET}
       AWS_S3_JWKS_CACHE_POLICY: ${AWS_S3_JWKS_CACHE_POLICY}
+
       # used by AWS S3 to "load_from_env()". Don't use this in production, not
       # needed. Instead, in production we'll use Web Identity Tokens
       AWS_ACCESS_KEY_ID: ${AWS_S3_ACCESS_KEY}
       AWS_SECRET_ACCESS_KEY: ${AWS_S3_ACCESS_SECRET}
+
       AWS_S3_UPLOAD_EXPIRATION_SECS: ${AWS_S3_UPLOAD_EXPIRATION_SECS}
       AWS_S3_FETCH_EXPIRATION_SECS: ${AWS_S3_FETCH_EXPIRATION_SECS}
       AWS_REGION: ${AWS_REGION}
       AWS_S3_MAX_UPLOAD_BYTES: ${AWS_S3_MAX_UPLOAD_BYTES}
+
       SECRETS_BACKEND: ${SECRETS_BACKEND}
       AWS_SM_KEY_PREFIX: ${AWS_SM_KEY_PREFIX}
       VAULT_SERVER_URL: ${VAULT_SERVER_URL}
       VAULT_TOKEN: ${VAULT_TOKEN}
+
       KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH: ${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH}
       KEYCLOAK_TENANT_REALM_CONFIG_PATH: ${KEYCLOAK_TENANT_REALM_CONFIG_PATH}
       KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID}
@@ -698,6 +739,7 @@ services:
       WINDMILL_PROBE_ADDR: ${WINDMILL_PROBE_ADDR}
       WINDMILL_PROBE_LIVE_PATH: ${WINDMILL_PROBE_LIVE_PATH}
       WINDMILL_PROBE_READY_PATH: ${WINDMILL_PROBE_READY_PATH}
+
       PUBLIC_ASSETS_PATH: ${PUBLIC_ASSETS_PATH}
       PUBLIC_ASSETS_LOGO_IMG: ${PUBLIC_ASSETS_LOGO_IMG}
       PUBLIC_ASSETS_QRCODE_LIB: ${PUBLIC_ASSETS_QRCODE_LIB}
@@ -710,12 +752,11 @@ services:
         ${VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE}
         #Demo key
       DEMO_PUBLIC_KEY: ${DEMO_PUBLIC_KEY}
-      MIRU_STATION_ID: ${MIRU_STATION_ID}
 
   beat:
     #profiles: ["full"]
     stdin_open: true
-    image: ghcr.io/sequentech/step/cargo-packages:latest
+    image: sequentech.local/cargo-packages
     container_name: beat
     # make sure to depend on the `harvest` container to ensure
     # that the `sequentech.local/cargo-packages` image is locally build, so
@@ -724,15 +765,15 @@ services:
       - harvest
     working_dir: /app/windmill
     entrypoint: [
-        'cargo',
-        'watch',
-        '--why',
+        "cargo",
+        "watch",
+        "--why",
         # ignoring rust-local-target/ since it's used for local builds and
         # otherwise triggers a rebuild all the time (probably rust analyzer)
-        '--ignore',
-        'rust-local-target/',
-        '-x',
-        'run --bin beat',
+        "--ignore",
+        "rust-local-target/",
+        "-x",
+        "run --bin beat",
       ]
     volumes:
       - ./keycloak/import:/import
@@ -746,6 +787,7 @@ services:
       BEAT_PROBE_ADDR: ${BEAT_PROBE_ADDR}
       BEAT_PROBE_LIVE_PATH: ${BEAT_PROBE_LIVE_PATH}
       BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
+
 volumes:
   db_data:
   db_logs:
