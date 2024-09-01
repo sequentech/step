@@ -603,7 +603,7 @@ services:
 
   rabbitmq:
     #profiles: ["full", "base"]
-    image: rabbitmq:management
+    image: rabbitmq:3.12.11-management
     container_name: rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
@@ -669,7 +669,7 @@ services:
       "--ignore",
       "rust-local-target/",
       "-x",
-      "run --bin main consume -q short_queue tally_queue beat reports_queue communication_queue import_export_queue"
+      "run --bin main consume --acks-late -q short_queue tally_queue beat reports_queue communication_queue import_export_queue"
     ]
     volumes:
       - ./keycloak/import:/import
@@ -677,7 +677,7 @@ services:
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
       RUST_BACKTRACE: ${RUST_BACKTRACE}
-      LOG_LEVEL: ${LOG_LEVEL}
+      LOG_LEVEL: trace
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
       HASURA_ENDPOINT: ${HASURA_ENDPOINT}
       AMQP_ADDR: ${AMQP_ADDR}
@@ -751,7 +751,6 @@ services:
       VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE: ${VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE}
        #Demo key
       DEMO_PUBLIC_KEY: ${DEMO_PUBLIC_KEY}
-      MIRU_STATION_ID: ${MIRU_STATION_ID}
       
 
   beat:
