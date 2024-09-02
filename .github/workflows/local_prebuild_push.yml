@@ -5,8 +5,7 @@
 name: Local images Prebuild and Push
 
 on:
-  push:
-    branches: [ 'main' ]
+  pull_request:
     paths: 
       - '.devcontainer/postgresql/**'
       - '.devcontainer/minio/**'
@@ -50,6 +49,8 @@ jobs:
         context: packages/.
         file: packages/Dockerfile.keycloak
         tags: ghcr.io/${{ github.repository }}/keycloak:latest
+        provenance: false
+        sbom: false
         push: true
 
     - name: Build and push Postgres
@@ -59,6 +60,8 @@ jobs:
         context: .devcontainer/postgresql/.
         file: .devcontainer/postgresql/Dockerfile
         tags: ghcr.io/${{ github.repository }}/postgres:latest
+        provenance: false
+        sbom: false
         push: true
 
     - name: Build and push Minio
@@ -68,6 +71,8 @@ jobs:
         context: .devcontainer/minio/.
         file: .devcontainer/minio/Dockerfile
         tags: ghcr.io/${{ github.repository }}/minio:latest
+        provenance: false
+        sbom: false
         push: true
 
     - name: Build and push Vault
@@ -77,6 +82,8 @@ jobs:
         context: .devcontainer/vault/.
         file: .devcontainer/vault/Dockerfile
         tags: ghcr.io/${{ github.repository }}/vault:latest
+        provenance: false
+        sbom: false
         push: true
 
     - name: Build and push cargo packages
@@ -86,6 +93,8 @@ jobs:
         context: packages/.
         file: packages/Dockerfile.cargo-packages
         tags: ghcr.io/${{ github.repository }}/cargo-packages:latest
+        provenance: false
+        sbom: false
         push: true
 
     - name: Build and push immudb
@@ -95,6 +104,8 @@ jobs:
         context: packages/.
         file: packages/Dockerfile.immudb
         tags: ghcr.io/${{ github.repository }}/immudb:latest
+        provenance: false
+        sbom: false
         push: true
 
     - name: Build and push immudb-log-audit
@@ -104,4 +115,6 @@ jobs:
         context: vendor/immudb-log-audit/.
         file: vendor/immudb-log-audit/Dockerfile.immudb
         tags: ghcr.io/${{ github.repository }}/immudb-log-audit:latest
+        provenance: false
+        sbom: false
         push: true
