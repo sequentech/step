@@ -2,7 +2,6 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-version: "3.6"
 services:
   devcontainer:
     #profiles: ["full", "base"]
@@ -10,7 +9,12 @@ services:
 
     container_name: devcontainer
     volumes:
-      - ../..:/workspaces:cached
+    - type: bind
+      source: ../..
+      target: /workspaces
+      bind:
+        create_host_path: true
+        selinux: z
     # support ptrace-based debuggers like C++, Go, and Rust
     cap_add:
      - SYS_PTRACE
@@ -134,47 +138,46 @@ services:
   #     retries: 5
   #   entrypoint: /opt/vault/entrypoint.sh
 
-  # graphql-engine:
-  #   #profiles: ["full", "base"]
-  #   image: hasura/graphql-engine:v2.33.1.cli-migrations-v3
-  #   container_name: hasura
-  #   ports:
-  #     - "8080:8080"
-  #   restart: always
-  #   volumes:
-  #     - ../hasura/metadata/:/hasura-metadata:cached
-  #     - ../hasura/migrations/:/hasura-migrations:cached
-  #     #- hasura_metadata:/hasura-metadata
-  #     #- hasura_migrations:/hasura-migrations
-  #   environment:
-  #     # applies migrations on start
-  #     HASURA_GRAPHQL_MIGRATIONS_SERVER_TIMEOUT: 60
-  #     HASURA_GRAPHQL_MIGRATIONS_DIR: /hasura-migrations
-  #     HASURA_GRAPHQL_METADATA_DIR: /hasura-metadata
-  #     ## postgres database to store Hasura metadata
-  #     HASURA_GRAPHQL_METADATA_DATABASE_URL: ${HASURA_GRAPHQL_METADATA_DATABASE_URL}
-  #     ## this env var can be used to add the above postgres database to Hasura as a data source. this can be removed/updated based on your needs
-  #     PG_DATABASE_URL: ${HASURA_PG_DATABASE_URL}
-  #     ## enable the console served by server
-  #     # set to "false" to disable console
-  #     HASURA_GRAPHQL_ENABLE_CONSOLE: ${HASURA_GRAPHQL_ENABLE_CONSOLE} 
-  #     ## enable debugging mode. It is recommended to disable this in production
-  #     HASURA_GRAPHQL_DEV_MODE: ${HASURA_GRAPHQL_DEV_MODE}
-  #     # https://hasura.io/docs/latest/deployment/graphql-engine-flags/config-examples/#console-assets-on-server
-  #     ## uncomment next line to run console offline (i.e load console assets from server instead of CDN)
-  #     HASURA_GRAPHQL_CONSOLE_ASSETS_DIR: ${HASURA_GRAPHQL_CONSOLE_ASSETS_DIR}
-  #     HASURA_GRAPHQL_ENABLED_LOG_TYPES: ${HASURA_GRAPHQL_ENABLED_LOG_TYPES}
-  #     HASURA_GRAPHQL_METADATA_DEFAULTS: ${HASURA_GRAPHQL_METADATA_DEFAULTS}
-  #     # keycloak jwks endpoint
-  #     HASURA_GRAPHQL_JWT_SECRET: ${HASURA_GRAPHQL_JWT_SECRET}
-  #     HASURA_GRAPHQL_ADMIN_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
-  #     ACTIONS_ADMIN_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
-  #     HARVEST_DOMAIN: ${HARVEST_DOMAIN}
-  #   depends_on:
-  #     data-connector-agent:
-  #       condition: service_healthy
-  #     postgres:
-  #       condition: service_healthy
+  graphql-engine:
+    #profiles: ["full", "base"]
+    image: hasura/graphql-engine:v2.33.1.cli-migrations-v3
+    container_name: hasura
+    ports:
+      - "8080:8080"
+    restart: always
+    volumes_from:
+    - devcontainer
+    environment:
+      # applies migrations on start
+      HASURA_GRAPHQL_MIGRATIONS_SERVER_TIMEOUT: 60
+      HASURA_GRAPHQL_MIGRATIONS_DIR: /workspaces/step/hasura/migrations
+      HASURA_GRAPHQL_METADATA_DIR: /workspaces/step/hasura/metadata
+      ## postgres database to store Hasura metadata
+      HASURA_GRAPHQL_METADATA_DATABASE_URL: ${HASURA_GRAPHQL_METADATA_DATABASE_URL}
+      ## this env var can be used to add the above postgres database to Hasura as a data source. this can be removed/updated based on your needs
+      PG_DATABASE_URL: ${HASURA_PG_DATABASE_URL}
+      ## enable the console served by server
+      # set to "false" to disable console
+      HASURA_GRAPHQL_ENABLE_CONSOLE: ${HASURA_GRAPHQL_ENABLE_CONSOLE} 
+      ## enable debugging mode. It is recommended to disable this in production
+      HASURA_GRAPHQL_DEV_MODE: ${HASURA_GRAPHQL_DEV_MODE}
+      # https://hasura.io/docs/latest/deployment/graphql-engine-flags/config-examples/#console-assets-on-server
+      ## uncomment next line to run console offline (i.e load console assets from server instead of CDN)
+      HASURA_GRAPHQL_CONSOLE_ASSETS_DIR: ${HASURA_GRAPHQL_CONSOLE_ASSETS_DIR}
+      HASURA_GRAPHQL_ENABLED_LOG_TYPES: ${HASURA_GRAPHQL_ENABLED_LOG_TYPES}
+      HASURA_GRAPHQL_METADATA_DEFAULTS: ${HASURA_GRAPHQL_METADATA_DEFAULTS}
+      # keycloak jwks endpoint
+      HASURA_GRAPHQL_JWT_SECRET: ${HASURA_GRAPHQL_JWT_SECRET}
+      HASURA_GRAPHQL_ADMIN_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
+      ACTIONS_ADMIN_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
+      HARVEST_DOMAIN: ${HARVEST_DOMAIN}
+    depends_on:
+      devcontainer:
+        condition: service_started
+      data-connector-agent:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
 
   # data-connector-agent:
   #   #profiles: ["full", "base"]
@@ -243,8 +246,7 @@ services:
       KC_OTP_RESEND_INTERVAL: ${KC_OTP_RESEND_INTERVAL}
     volumes:
       # https://www.keycloak.org/server/containers#_importing_a_realm_on_startup
-      #- keycloak_import:/opt/keycloak/data/import
-      - ./keycloak/import:/opt/keycloak/data/import
+      - ./keycloak/import:/opt/keycloak/data/import:z
     # Below we're using the dummy email email sender provider but that's just for
     # development, in production we should still use the default SMTP email provider
     #
@@ -332,69 +334,73 @@ services:
   #   depends_on:
   #     - immudb-init
   
-  # harvest:
-  #   #profiles: ["full", "base"]
-  #   stdin_open: true
-  #   image: ghcr.io/sequentech/step/cargo-packages:latest
-  #   container_name: harvest
-  #   volumes:
-  #     - ../packages/:/app
-  #     #- packages:/app
-  #   working_dir: /app/harvest
-  #   entrypoint: [
-  #     "cargo",
-  #     "watch",
-  #     "--why",
-  #     # ignoring rust-local-target/ since it's used for local builds and
-  #     # otherwise triggers a rebuild all the time (probably rust analyzer)
-  #     "--ignore",
-  #     "rust-local-target/",
-  #     "-x",
-  #     "run"
-  #   ]
-  #   environment:
-  #     SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
-  #     LOG_LEVEL: ${LOG_LEVEL}
-  #     ROCKET_ADDRESS: ${ROCKET_ADDRESS}
-  #     ROCKET_PORT: ${HARVEST_PORT}
-  #     RUSTFLAGS: ${RUSTFLAGS}
-  #     CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
-  #     IMMUDB_USER: ${IMMUDB_USER}
-  #     IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-  #     IMMUDB_SERVER_URL: ${IMMUDB_SERVER_URL}
-  #     KEYCLOAK_DB__USER: ${KEYCLOAK_DB__USER}
-  #     KEYCLOAK_DB__PASSWORD: ${KEYCLOAK_DB__PASSWORD}
-  #     KEYCLOAK_DB__HOST: ${KEYCLOAK_DB__HOST}
-  #     KEYCLOAK_DB__PORT: ${KEYCLOAK_DB__PORT}
-  #     KEYCLOAK_DB__DBNAME: ${KEYCLOAK_DB__DBNAME}
-  #     KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: ${KEYCLOAK_DB__MANAGER__RECYCLING_METHOD}
-  #     AMQP_ADDR: ${AMQP_ADDR}
-  #     KEYCLOAK_URL: ${KEYCLOAK_URL}
-  #     KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH: ${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH}
-  #     KEYCLOAK_TENANT_REALM_CONFIG_PATH: ${KEYCLOAK_TENANT_REALM_CONFIG_PATH}
-  #     KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID}
-  #     KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
-  #     KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
-  #     KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
-  #     HASURA_DB__USER: ${HASURA_DB__USER}
-  #     HASURA_DB__PASSWORD: ${HASURA_DB__PASSWORD}
-  #     HASURA_DB__HOST: ${HASURA_DB__HOST}
-  #     HASURA_DB__PORT: ${HASURA_DB__PORT}
-  #     HASURA_DB__DBNAME: ${HASURA_DB__DBNAME}
-  #     HASURA_DB__MANAGER__RECYCLING_METHOD: ${HASURA_DB__MANAGER__RECYCLING_METHOD}
-  #     LOW_SQL_LIMIT: ${LOW_SQL_LIMIT}
-  #     DEFAULT_SQL_LIMIT: ${DEFAULT_SQL_LIMIT}
-  #     DEFAULT_SQL_BATCH_SIZE: ${DEFAULT_SQL_BATCH_SIZE}
-  #     HARVEST_PROBE_ADDR: ${HARVEST_PROBE_ADDR}
-  #     HARVEST_PROBE_LIVE_PATH: ${HARVEST_PROBE_LIVE_PATH}
-  #     HARVEST_PROBE_READY_PATH: ${HARVEST_PROBE_READY_PATH}
-  #     KEYCLOAK_VOTER_GROUP_NAME: ${KEYCLOAK_VOTER_GROUP_NAME}
-  #     AWS_S3_PRIVATE_URI: ${AWS_S3_PRIVATE_URI}
-  #     AWS_S3_PUBLIC_URI: ${AWS_S3_PUBLIC_URI}
-  #     AWS_S3_BUCKET: ${AWS_S3_BUCKET}
-  #     AWS_S3_PUBLIC_BUCKET: ${AWS_S3_PUBLIC_BUCKET}
-  #     AWS_S3_ACCESS_KEY: ${AWS_S3_ACCESS_KEY}
-  #     AWS_S3_ACCESS_SECRET: ${AWS_S3_ACCESS_SECRET}
+  harvest:
+    #profiles: ["full", "base"]
+    stdin_open: true
+    image: sequentech.local/cargo-packages
+    container_name: harvest
+    build:
+      context: ../packages/
+      dockerfile: ./Dockerfile.cargo-packages
+    volumes_from:
+      - devcontainer
+    depends_on:
+      - devcontainer
+    working_dir: /workspaces/step/packages/harvest
+    entrypoint: [
+      "cargo",
+      "watch",
+      "--why",
+      # ignoring rust-local-target/ since it's used for local builds and
+      # otherwise triggers a rebuild all the time (probably rust analyzer)
+      "--ignore",
+      "rust-local-target/",
+      "-x",
+      "run"
+    ]
+    environment:
+      SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
+      LOG_LEVEL: ${LOG_LEVEL}
+      ROCKET_ADDRESS: ${ROCKET_ADDRESS}
+      ROCKET_PORT: ${HARVEST_PORT}
+      RUSTFLAGS: ${RUSTFLAGS}
+      CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
+      IMMUDB_USER: ${IMMUDB_USER}
+      IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
+      IMMUDB_SERVER_URL: ${IMMUDB_SERVER_URL}
+      KEYCLOAK_DB__USER: ${KEYCLOAK_DB__USER}
+      KEYCLOAK_DB__PASSWORD: ${KEYCLOAK_DB__PASSWORD}
+      KEYCLOAK_DB__HOST: ${KEYCLOAK_DB__HOST}
+      KEYCLOAK_DB__PORT: ${KEYCLOAK_DB__PORT}
+      KEYCLOAK_DB__DBNAME: ${KEYCLOAK_DB__DBNAME}
+      KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: ${KEYCLOAK_DB__MANAGER__RECYCLING_METHOD}
+      AMQP_ADDR: ${AMQP_ADDR}
+      KEYCLOAK_URL: ${KEYCLOAK_URL}
+      KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH: ${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH}
+      KEYCLOAK_TENANT_REALM_CONFIG_PATH: ${KEYCLOAK_TENANT_REALM_CONFIG_PATH}
+      KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID}
+      KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
+      HASURA_DB__USER: ${HASURA_DB__USER}
+      HASURA_DB__PASSWORD: ${HASURA_DB__PASSWORD}
+      HASURA_DB__HOST: ${HASURA_DB__HOST}
+      HASURA_DB__PORT: ${HASURA_DB__PORT}
+      HASURA_DB__DBNAME: ${HASURA_DB__DBNAME}
+      HASURA_DB__MANAGER__RECYCLING_METHOD: ${HASURA_DB__MANAGER__RECYCLING_METHOD}
+      LOW_SQL_LIMIT: ${LOW_SQL_LIMIT}
+      DEFAULT_SQL_LIMIT: ${DEFAULT_SQL_LIMIT}
+      DEFAULT_SQL_BATCH_SIZE: ${DEFAULT_SQL_BATCH_SIZE}
+      HARVEST_PROBE_ADDR: ${HARVEST_PROBE_ADDR}
+      HARVEST_PROBE_LIVE_PATH: ${HARVEST_PROBE_LIVE_PATH}
+      HARVEST_PROBE_READY_PATH: ${HARVEST_PROBE_READY_PATH}
+      KEYCLOAK_VOTER_GROUP_NAME: ${KEYCLOAK_VOTER_GROUP_NAME}
+      AWS_S3_PRIVATE_URI: ${AWS_S3_PRIVATE_URI}
+      AWS_S3_PUBLIC_URI: ${AWS_S3_PUBLIC_URI}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET}
+      AWS_S3_PUBLIC_BUCKET: ${AWS_S3_PUBLIC_BUCKET}
+      AWS_S3_ACCESS_KEY: ${AWS_S3_ACCESS_KEY}
+      AWS_S3_ACCESS_SECRET: ${AWS_S3_ACCESS_SECRET}
 
   #     # used by AWS S3 to "load_from_env()". Don't use this in production, not
   #     # needed. Instead, in production we'll use Web Identity Tokens
@@ -585,56 +591,54 @@ services:
   #     - immudb
   #     - immudb-log-audit-init-keycloak
 
-  # rabbitmq:
-  #   #profiles: ["full", "base"]
-  #   image: rabbitmq:management
-  #   container_name: rabbitmq
-  #   environment:
-  #     RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
-  #     RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
-  #   ports:
-  #     - "5672:5672"
-  #     - "15672:15672"
+  rabbitmq:
+    #profiles: ["full", "base"]
+    image: rabbitmq:3.12.11-management
+    container_name: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
 
-  # immudb-init:
-  #   #profiles: ["full", "base"]
-  #   stdin_open: true
-  #   image: ghcr.io/sequentech/step/cargo-packages:latest
-  #   container_name: immudb-init
-  #   # make sure to depend on the `harvest` container to ensure
-  #   # that the `sequentech.local/cargo-packages` image is locally build, so
-  #   # that we can reuse it:
-  #   depends_on:
-  #     - harvest
-  #   volumes:
-  #     #- keycloak_import:/import
-  #     - ./keycloak/import:/import
-  #     - ../packages/:/app
-  #     #- packages:/app
-  #   restart: always
-  #   working_dir: /app/immu-board
-  #   entrypoint: [
-  #     "cargo",
-  #     "run",
-  #     "--bin",
-  #     "bb_helper",
-  #     "--",
-  #     "--server-url",
-  #     "${IMMUDB_SERVER_URL}",
-  #     "--username",
-  #     "${IMMUDB_USER}",
-  #     "--password",
-  #     "${IMMUDB_PASSWORD}",
-  #     "--index-dbname",
-  #     "${IMMUDB_INDEX_DB}",
-  #     "--board-dbname",
-  #     "${IMMUDB_BOARD_DB_NAME}",
-  #     "--cache-dir",
-  #     "/tmp/immu-board",
-  #     "upsert-init-db"
-  #   ]
-  #   env_file:
-  #     - .env
+  immudb-init:
+    #profiles: ["full", "base"]
+    stdin_open: true
+    image: sequentech.local/cargo-packages
+    container_name: immudb-init
+    # make sure to depend on the `harvest` container to ensure
+    # that the `sequentech.local/cargo-packages` image is locally build, so
+    # that we can reuse it:
+    depends_on:
+      - harvest
+    volumes:
+      - ./keycloak/import:/import:z
+      - ../packages/:/app:z
+    restart: always
+    working_dir: /app/immu-board
+    entrypoint: [
+      "cargo",
+      "run",
+      "--bin",
+      "bb_helper",
+      "--",
+      "--server-url",
+      "${IMMUDB_SERVER_URL}",
+      "--username",
+      "${IMMUDB_USER}",
+      "--password",
+      "${IMMUDB_PASSWORD}",
+      "--index-dbname",
+      "${IMMUDB_INDEX_DB}",
+      "--board-dbname",
+      "${IMMUDB_BOARD_DB_NAME}",
+      "--cache-dir",
+      "/tmp/immu-board",
+      "upsert-init-db"
+    ]
+    env_file:
+      - .env
 
   windmill:
     #profiles: ["full", "base"]
@@ -645,7 +649,7 @@ services:
     # that the `sequentech.local/cargo-packages` image is locally build, so
     # that we can reuse it:
     restart: always
-    working_dir: /app/windmill
+    working_dir: /workspaces/step/packages/windmill
     entrypoint: [
       "cargo",
       "watch",
@@ -655,17 +659,18 @@ services:
       "--ignore",
       "rust-local-target/",
       "-x",
-      "run --bin main consume -q short_queue tally_queue beat reports_queue communication_queue import_export_queue"
+      "run --bin main consume --acks-late -q short_queue tally_queue beat reports_queue communication_queue import_export_queue"
     ]
-    volumes:
-      #- keycloak_import:/import
-      - ./keycloak/import:/import
-      - ../packages/:/app
-      #- packages:/app
+    volumes_from:
+      - devcontainer
+    depends_on:
+      - devcontainer
+      #- postgres
+      #- postgres-keycloak
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
       RUST_BACKTRACE: ${RUST_BACKTRACE}
-      LOG_LEVEL: ${LOG_LEVEL}
+      LOG_LEVEL: trace
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
       HASURA_ENDPOINT: ${HASURA_ENDPOINT}
       AMQP_ADDR: ${AMQP_ADDR}
@@ -739,43 +744,41 @@ services:
       VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE: ${VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE}
        #Demo key
       DEMO_PUBLIC_KEY: ${DEMO_PUBLIC_KEY}
-      MIRU_STATION_ID: ${MIRU_STATION_ID}
-      
 
-  # beat:
-  #   #profiles: ["full"]
-  #   stdin_open: true
-  #   image: ghcr.io/sequentech/step/cargo-packages:latest
-  #   container_name: beat
-  #   # make sure to depend on the `harvest` container to ensure
-  #   # that the `sequentech.local/cargo-packages` image is locally build, so
-  #   # that we can reuse it:
-  #   depends_on:
-  #     - harvest
-  #   working_dir: /app/windmill
-  #   entrypoint: [
-  #     "cargo",
-  #     "watch",
-  #     "--why",
-  #     # ignoring rust-local-target/ since it's used for local builds and
-  #     # otherwise triggers a rebuild all the time (probably rust analyzer)
-  #     "--ignore",
-  #     "rust-local-target/",
-  #     "-x",
-  #     "run --bin beat"
-  #   ]
-  #   volumes:
-  #     - ./keycloak/import:/import
-  #     - ../packages/:/app
-  #   environment:
-  #     RUSTFLAGS: ${RUSTFLAGS}
-  #     LOG_LEVEL: ${LOG_LEVEL}
-  #     CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
-  #     HASURA_ENDPOINT: ${HASURA_ENDPOINT}
-  #     AMQP_ADDR: ${AMQP_ADDR}
-  #     BEAT_PROBE_ADDR: ${BEAT_PROBE_ADDR}
-  #     BEAT_PROBE_LIVE_PATH: ${BEAT_PROBE_LIVE_PATH}
-  #     BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
+  beat:
+    #profiles: ["full"]
+    stdin_open: true
+    image: sequentech.local/cargo-packages
+    container_name: beat
+    volumes_from:
+      - devcontainer
+    # make sure to depend on the `harvest` container to ensure
+    # that the `sequentech.local/cargo-packages` image is locally build, so
+    # that we can reuse it:
+    depends_on:
+      - devcontainer
+      - harvest
+    working_dir: /workspaces/step/packages/windmill
+    entrypoint: [
+      "cargo",
+      "watch",
+      "--why",
+      # ignoring rust-local-target/ since it's used for local builds and
+      # otherwise triggers a rebuild all the time (probably rust analyzer)
+      "--ignore",
+      "rust-local-target/",
+      "-x",
+      "run --bin beat"
+    ]
+    environment:
+      RUSTFLAGS: ${RUSTFLAGS}
+      LOG_LEVEL: ${LOG_LEVEL}
+      CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
+      HASURA_ENDPOINT: ${HASURA_ENDPOINT}
+      AMQP_ADDR: ${AMQP_ADDR}
+      BEAT_PROBE_ADDR: ${BEAT_PROBE_ADDR}
+      BEAT_PROBE_LIVE_PATH: ${BEAT_PROBE_LIVE_PATH}
+      BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
 
 volumes:
   db_data:
