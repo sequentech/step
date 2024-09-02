@@ -136,49 +136,60 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
 
     return (
         <Box>
-            <StyledButtonTooltip
-                disableHoverListener={
-                    !expiry || (expiry.countdownAt ? timeLeft > expiry?.countdownAt : true)
-                }
-                arrow
-                placement="bottom-end"
-                title={<CountdownTooltipContent timeLeft={timeLeftText} />}
-                slotProps={{
-                    popper: {
-                        modifiers: [
-                            {
-                                name: "offset",
-                                options: {
-                                    offset: [-0, 10],
+            <Box style={{display: "flex", gap: "5px", alignItems: "center"}}>
+                <Typography
+                    sx={{
+                        fontWeight: 500,
+                        color: theme.palette.brandColor,
+                    }}
+                    title={userProfile.username}
+                >
+                    {userProfile.username.split(" ")[0]}
+                </Typography>
+                <StyledButtonTooltip
+                    disableHoverListener={
+                        !expiry || (expiry.countdownAt ? timeLeft > expiry?.countdownAt : true)
+                    }
+                    arrow
+                    placement="bottom-end"
+                    title={<CountdownTooltipContent timeLeft={timeLeftText} />}
+                    slotProps={{
+                        popper: {
+                            modifiers: [
+                                {
+                                    name: "offset",
+                                    options: {
+                                        offset: [-0, 10],
+                                    },
                                 },
-                            },
-                        ],
-                    },
-                }}
-            >
-                <StyledButtonContainerWrapper style={{width: 60}}>
-                    <StyledButtonContainer className="logout-button-container">
-                        <StyledButton
-                            className="logout-button"
-                            aria-label="log out button"
-                            onClick={handleMenu}
-                        >
-                            <AccountCircle sx={{fontSize: 40}} />
-                            {/* <Box
+                            ],
+                        },
+                    }}
+                >
+                    <StyledButtonContainerWrapper style={{width: 60}}>
+                        <StyledButtonContainer className="logout-button-container">
+                            <StyledButton
+                                className="logout-button"
+                                aria-label="log out button"
+                                onClick={handleMenu}
+                            >
+                                <AccountCircle sx={{fontSize: 40}} />
+                                {/* <Box
 									sx={{
 										display: {xs: "none", sm: "block"},
 									}}
 								>
 									Profile
 								</Box> */}
-                        </StyledButton>
-                    </StyledButtonContainer>
+                            </StyledButton>
+                        </StyledButtonContainer>
 
-                    {expiry && timeLeft > 0 && timeLeft < totalDuration && (
-                        <CountdownTimer progress={(timeLeft / totalDuration) * 100} />
-                    )}
-                </StyledButtonContainerWrapper>
-            </StyledButtonTooltip>
+                        {expiry && timeLeft > 0 && timeLeft < totalDuration && (
+                            <CountdownTimer progress={(timeLeft / totalDuration) * 100} />
+                        )}
+                    </StyledButtonContainerWrapper>
+                </StyledButtonTooltip>
+            </Box>
             <Menu
                 id="menu-appbar"
                 anchorEl={anchorEl}
