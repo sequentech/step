@@ -18,30 +18,30 @@
 module.exports = {
     // An array of folders (excluding subfolders) where your tests are located;
     // if this is not specified, the test source must be passed as the second argument to the test runner.
-    src_folders: ["test", "nightwatch"],
+    "src_folders": ["test", "nightwatch"],
 
     // See https://nightwatchjs.org/guide/concepts/page-object-model.html
-    page_objects_path: [],
+    "page_objects_path": [],
 
     // See https://nightwatchjs.org/guide/extending-nightwatch/adding-custom-commands.html
-    custom_commands_path: ["test/commands"],
+    "custom_commands_path": ["test/commands"],
 
     // See https://nightwatchjs.org/guide/extending-nightwatch/adding-custom-assertions.html
-    custom_assertions_path: [],
+    "custom_assertions_path": [],
 
     // See https://nightwatchjs.org/guide/extending-nightwatch/adding-plugins.html
-    plugins: ["@nightwatch/browserstack"],
+    "plugins": ["@nightwatch/browserstack"],
 
     // See https://nightwatchjs.org/guide/concepts/test-globals.html
-    globals_path: "",
+    "globals_path": "",
 
-    webdriver: {},
+    "webdriver": {},
 
-    test_workers: {
+    "test_workers": {
         enabled: true,
     },
 
-    test_settings: {
+    "test_settings": {
         default: {
             disable_error_log: false,
             launch_url: "http://localhost:3001",
@@ -65,7 +65,7 @@ module.exports = {
                 server_path: "",
             },
         },
-        
+
         chrome: {
             desiredCapabilities: {
                 "browserName": "chrome",

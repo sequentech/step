@@ -66,7 +66,7 @@ module.exports = {
                 server_path: "",
             },
         },
-        
+
         chrome: {
             desiredCapabilities: {
                 "browserName": "chrome",
