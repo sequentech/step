@@ -4,9 +4,9 @@
 
 use anyhow::Result;
 use board_messages::braid::message::Message;
-use board_messages::grpc::{GrpcB3Message, KeyedMessages};
+use board_messages::grpc::GrpcB3Message;
 use braid::protocol::board::grpc2::{
-    BoardFactoryMulti, BoardMulti, GrpcB3, GrpcB3BoardParams, GrpcB3Index,
+    BoardFactoryMulti, BoardMulti, GrpcB3BoardParams, GrpcB3Index,
 };
 use clap::Parser;
 use std::collections::HashMap;
@@ -21,7 +21,7 @@ use rayon::prelude::*;
 use braid::protocol::session2::Session2;
 use braid::protocol::trustee::Trustee;
 use braid::protocol::trustee::TrusteeConfig;
-use braid::util::assert_folder;
+
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;
 use strand::symm;
@@ -113,7 +113,7 @@ async fn main() -> Result<()> {
     info!("ignored boards {:?}", ignored_boards);
 
     let store_root = std::env::current_dir().unwrap().join("message_store");
-    assert_folder(store_root.clone())?;
+    braid::util::ensure_directory(store_root.clone())?;
 
     let mut session_map: HashMap<String, Session2<RistrettoCtx>> = HashMap::new();
     let mut loop_count: u64 = 0;
@@ -161,7 +161,7 @@ async fn main() -> Result<()> {
                     ek.clone(),
                 );
 
-                let mut session = Session2::new(&board_name, trustee, &store_root);
+                let mut session = Session2::new(&board_name, trustee, &store_root)?;
                 let last_id = session.get_last_external_id()?;
 
                 session_map.insert(board_name.clone(), session);
@@ -205,7 +205,7 @@ async fn main() -> Result<()> {
                     return None;
                 }
 
-                let messages = s.step(messages, loop_count);
+                let messages = s.step(messages);
 
                 let Ok(messages) = messages else {
                     let _ = messages.inspect_err(|error| {
@@ -276,7 +276,7 @@ async fn main() -> Result<()> {
             }
         }*/
 
-        /* if post_messages.len() > 0 {
+        if post_messages.len() > 0 {
             /*info!(
                 "Posting {} keyed messages with {:.2} MB",
                 post_messages.len(),
@@ -289,7 +289,7 @@ async fn main() -> Result<()> {
             }
         } else {
             info!("No messages to post on this step");
-        }*/
+        }
 
         if args.strict && step_error {
             break;

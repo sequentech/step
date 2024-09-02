@@ -2,68 +2,71 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use board_messages::grpc::GrpcB3Message;
-use tracing::{info, warn};
-// Same line printing
 use rusqlite::params;
 use rusqlite::Connection;
+use strand::signature::StrandSignatureSk;
+use strand::symm::SymmetricKey;
+use std::collections::HashSet;
 use std::io::Write;
 use std::path::PathBuf;
+use tokio::sync::mpsc::Receiver;
 use strand::serialization::StrandDeserialize;
+use std::collections::HashMap;
+use strand::backend::ristretto::RistrettoCtx;
+use tokio::sync::mpsc;
 
 use strand::context::Ctx;
 
-use crate::protocol::board::{Board, BoardFactory};
+use tokio::time::{sleep, Duration};
+use tokio::task::JoinHandle;
+use tracing::{error, info, warn};
+use crate::protocol::board::grpc2::{
+    BoardFactoryMulti, BoardMulti, GrpcB3BoardParams,
+};
 use crate::protocol::trustee::Trustee;
 use crate::util::ProtocolError;
 use board_messages::braid::message::Message;
 
+use super::trustee::TrusteeConfig;
+
 const RETRIEVE_ALL_PERIOD: i64 = 5 * 60;
+const SESSION_RESET_PERIOD: i64 = 5 * 60;
 
 pub struct Session2<C: Ctx + 'static> {
     pub board_name: String,
     trustee: Trustee<C>,
+    // last message retrieved from message_Store
     last_message_id: i64,
-    last_external_message_id: i64,
     store_root: PathBuf,
     step_counter: i64,
 }
 impl<C: Ctx> Session2<C> {
-    pub fn new(board_name: &str, trustee: Trustee<C>, store_root: &PathBuf) -> Session2<C> {
-        Session2 {
+    pub fn new(board_name: &str, trustee: Trustee<C>, store_root: &PathBuf) -> Result<Session2<C>> {
+        let ret = Session2 {
             board_name: board_name.to_string(),
             trustee,
             last_message_id: -1,
-            last_external_message_id: -1,
             store_root: store_root.clone(),
             step_counter: 1,
-        }
+        };
+
+        // fail early
+        ret.get_store()?;
+
+        Ok(ret)
     }
 
-    // Takes ownership of self to allow spawning threads in parallel
-    // See https://stackoverflow.com/questions/63434977/how-can-i-spawn-asynchronous-methods-in-a-loop
-    // See also protocol_test_grpc::run_protocol_test
-    // #[instrument(skip_all)]
     pub fn step(
         &mut self,
         messages: &Vec<GrpcB3Message>,
-        step_counter: u64,
     ) -> Result<Vec<Message>, ProtocolError> {
         let messages = self
             .store_and_return_messages(messages)
-            .map_err(|e| ProtocolError::BoardError(e.to_string()));
-
-        if let Err(err) = messages {
-            return Err(err);
-        }
-        let messages = messages.expect("impossible");
+            .map_err(|e| ProtocolError::BoardError(e.to_string()))?;
 
         if messages.len() == 0 {
-            /* info!(
-                "No new messages retrieved, session step finished ({}, {})",
-                self.active_period, step_counter
-            );*/
             print!("_");
             let _ = std::io::stdout().flush();
             return Ok(vec![]);
@@ -74,7 +77,7 @@ impl<C: Ctx> Session2<C> {
             return Err(err);
         }
         let (send_messages, _actions, last_id) = step_result.expect("impossible");
-        // last_id is the larget message id that was successfully updated to the trustee's board in memory
+        // last_id is the largest message id that was successfully updated to the trustee's board in memory
         // in the event that there are holes, a session reset will eventually load missing messages
         // from the store
         self.last_message_id = last_id;
@@ -94,13 +97,6 @@ impl<C: Ctx> Session2<C> {
             connection.query_row("SELECT max(external_id) FROM messages;", [], |row| {
                 row.get(0)
             });
-
-        if external_last_id.is_err() {
-            warn!(
-                "sql error retrieving external_last_id {:?}",
-                external_last_id
-            );
-        }
 
         self.step_counter += 1;
         let reset = self.step_counter % RETRIEVE_ALL_PERIOD == 0;
@@ -175,4 +171,209 @@ impl<C: Ctx> Session2<C> {
 struct MessageRow {
     id: i64,
     message: Vec<u8>,
+}
+
+pub enum SessionSetMessage {
+    REFRESH(Vec<String>),
+}
+
+pub struct SessionSet {
+    session_factory: SessionFactory,
+    b3_url: String,
+    inbox: Receiver<SessionSetMessage>
+}
+
+
+impl SessionSet {
+    pub fn new(session_factory: &SessionFactory, b3_url: &str, inbox: mpsc::Receiver<SessionSetMessage>) -> Result<Self> {
+        Ok(SessionSet {
+            session_factory: session_factory.clone(),
+            b3_url: b3_url.to_string(),
+            inbox
+        })
+    }
+    
+    pub fn run(mut self) -> JoinHandle<()> {
+        let handler = tokio::spawn(async move {
+            
+            let mut session_map: HashMap<String, Session2<RistrettoCtx>> = HashMap::new();
+            let mut loop_count: i64 = 0;
+            
+            loop {
+                loop_count += 1;
+                let signal = self.inbox.recv().await;
+
+                if signal.is_none() {
+                    info!("SessionSet shutting down ({})..", loop_count);
+                    break;
+                }
+                
+                match signal.expect("impossible") {
+                    SessionSetMessage::REFRESH(boards) => {
+                        for b in boards.iter() {
+                            if !session_map.contains_key(b) {
+                                info!("Adding session '{}'..", b);
+                                let session = self.session_factory.get_session(b);
+                                if let Ok(session) = session {
+                                    session_map.insert(b.to_string(), session);
+                                }
+                                else {
+                                    error!("Unable to create session '{}': {}", b, session.err().unwrap());
+                                }
+                            }
+                        }
+                        
+                        let boards_set: HashSet<String> = HashSet::from_iter(boards.into_iter());
+
+                        session_map.retain(|k, v| {
+                            let ret = boards_set.contains(k);
+                            if !ret {
+                                info!("Removing session '{}'", k);
+                            }
+                            ret
+                        });
+                    }
+                }
+
+                if loop_count % SESSION_RESET_PERIOD == 0 {
+                    info!("* Session memory reset: reload all artifacts from store");
+                    let new_sessions: Result<Vec<(String, Session2<RistrettoCtx>)>> = 
+                        session_map.keys().map(|k| Ok((k.clone(), self.session_factory.get_session(&k)?)))
+                        .collect();
+
+                    if let Ok(new_sessions) = new_sessions {
+                        session_map = new_sessions.into_iter().collect();
+                    }
+                    else {
+                        error!("Unable to reset sessions: {:?}", new_sessions.err().unwrap());
+                    }
+                }
+
+                let mut requests: Vec<(String, i64)> = vec![];
+                for session in session_map.values_mut() {
+                    let last_id = session.get_last_external_id();
+                    
+                    let Ok(last_id) = last_id else {
+                        warn!(
+                            "sql error retrieving external_last_id {:?}",
+                            last_id
+                        );
+                        continue;
+                    };
+
+                    requests.push((session.board_name.to_string(), last_id));
+                }
+                info!("gathered {} requests", requests.len());
+                
+                let board = GrpcB3BoardParams::new(&self.b3_url);
+                let board = board.get_board();
+                let responses = board.get_messages_multi(&requests).await;
+                let Ok(responses) = responses else {
+                    error!(
+                        "Error retrieving messages for {} requests: {}",
+                        requests.len(),
+                        responses.err().unwrap()
+                    );
+                    sleep(Duration::from_millis(1000)).await;
+                    continue;
+                };
+                info!("received {} keyed messages", responses.len());
+
+                let mut post_messages = vec![];
+                let mut total_bytes: u32 = 0;
+        
+                for km in responses {
+                    if km.messages.len() == 0 {
+                        continue;
+                    }
+        
+                    let s = session_map.get_mut(&km.board);
+                    let Some(s) = s else {
+                        error!("Could not retrieve session with name: '{}'", km.board);
+                        continue;
+                    };
+                    // println!("Step for {} with {} messages", km.board, km.messages.len());
+                    let messages = s.step(&km.messages);
+        
+                    let Ok(messages) = messages else {
+                        let _ = messages.inspect_err(|error| {
+                            error!(
+                                "Error executing step for board '{}': '{:?}'",
+                                km.board, error
+                            );
+                        });
+        
+                        continue;
+                    };
+        
+                    if messages.len() > 0 {
+                        let next_bytes: usize = messages
+                            .iter()
+                            .map(|m| m.artifact.as_ref().map(|v| v.len()).unwrap_or(0))
+                            .sum();
+                        total_bytes += next_bytes as u32;
+                        post_messages.push((km.board, messages));
+                    }
+                }
+
+                if post_messages.len() > 0 {
+                    info!(
+                        "Posting {} keyed messages with {:.2} MB",
+                        post_messages.len(),
+                        f64::from(total_bytes) / (1024.0 * 1024.0)
+                    );
+                    let result = board.insert_messages_multi(post_messages).await;
+                    if let Err(err) = result {
+                        error!("Error posting messages: '{:?}'", err);
+                    }
+                } else {
+                    info!("No messages to post on this step");
+                }
+            }
+        });
+
+        handler
+    }
+}
+
+#[derive(Clone)]
+pub struct SessionFactory {
+    trustee_name: String,
+    signing_key: StrandSignatureSk,
+    symm_key: SymmetricKey,
+    store_root: PathBuf,
+}
+impl SessionFactory {
+    pub fn new(trustee_name: &str, cfg: TrusteeConfig, store_root: PathBuf) -> Result<Self> {
+        let signing_key: StrandSignatureSk = StrandSignatureSk::from_der_b64_string(&cfg.signing_key_sk)?;
+
+        let bytes = crate::util::decode_base64(&cfg.encryption_key)?;
+        let symm_key = strand::symm::sk_from_bytes(&bytes)?;
+        
+        if !store_root.is_dir() {
+            return Err(anyhow!("Invalid store root {:?}", store_root));
+        }
+
+        Ok(SessionFactory {
+            trustee_name: trustee_name.to_string(),
+            symm_key,
+            signing_key,
+            store_root
+        })
+    }
+
+    pub fn get_session(&self, board_name: &str) -> Result<Session2<RistrettoCtx>> {
+        info!(
+            "* Creating new session for board '{}'..",
+            board_name
+        );
+
+        let trustee: Trustee<RistrettoCtx> = Trustee::new(
+            self.trustee_name.clone(),
+            self.signing_key.clone(),
+            self.symm_key,
+        );
+        
+        Session2::new(board_name, trustee, &self.store_root)
+    }
 }

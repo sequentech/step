@@ -91,7 +91,7 @@ pub fn decode_base64(s: &String) -> Result<Vec<u8>> {
         .map_err(|error| anyhow!(error))
 }
 
-pub fn assert_folder(folder: PathBuf) -> Result<()> {
+pub fn ensure_directory(folder: PathBuf) -> Result<()> {
     let path = folder.as_path();
     if path.exists() {
         if path.is_dir() {

@@ -534,7 +534,7 @@ impl<C: Ctx> std::fmt::Debug for Trustee<C> {
 use base64::{engine::general_purpose, Engine as _};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct TrusteeConfig {
     // base64 encoding of a der encoded pkcs#8 v1
     pub signing_key_sk: String,
@@ -544,6 +544,15 @@ pub struct TrusteeConfig {
     pub encryption_key: String,
 }
 impl TrusteeConfig {
+    pub fn new(signing_key_sk: &str, signing_key_pk: &str, symm_key: &str) -> Self {
+
+        TrusteeConfig {
+            signing_key_sk: signing_key_sk.to_string(),
+            signing_key_pk: signing_key_pk.to_string(),
+            encryption_key: symm_key.to_string()
+        }
+    }
+
     pub fn from<C: Ctx>(trustee: &Trustee<C>) -> TrusteeConfig {
         let sk_string = trustee.signing_key.to_der_b64_string().unwrap();
         let pk_string = StrandSignaturePk::from_sk(&trustee.signing_key)

@@ -16,7 +16,6 @@ use braid::protocol::board::BoardFactory;
 use braid::protocol::session::Session;
 use braid::protocol::trustee::Trustee;
 use braid::protocol::trustee::TrusteeConfig;
-use braid::util::assert_folder;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;
 use strand::symm;
@@ -99,7 +98,7 @@ async fn main() -> Result<()> {
     info!("{}", strand::info_string());
 
     let tc: TrusteeConfig = toml::from_str(&contents).unwrap();
-    let sk: StrandSignatureSk = StrandSignatureSk::from_der_b64_string(&tc.signing_key_sk).unwrap();
+    let sk: StrandSignatureSk = StrandSignatureSk::from_der_b64_string(&tc.signing_key_sk)?;
 
     let bytes = braid::util::decode_base64(&tc.encryption_key)?;
     let ek = symm::sk_from_bytes(&bytes)?;
@@ -108,7 +107,7 @@ async fn main() -> Result<()> {
     info!("ignored boards {:?}", ignored_boards);
 
     let store_root = std::env::current_dir().unwrap().join("message_store");
-    assert_folder(store_root.clone())?;
+    braid::util::ensure_directory(store_root.clone())?;
 
     let mut session_map: HashMap<String, Session<RistrettoCtx, GrpcB3>> = HashMap::new();
     let mut loop_count: u64 = 0;
