@@ -65,5 +65,53 @@ module.exports = {
                 server_path: "",
             },
         },
+        
+        chrome: {
+            desiredCapabilities: {
+                "browserName": "chrome",
+                "goog:chromeOptions": {
+                    // More info on Chromedriver: https://sites.google.com/a/chromium.org/chromedriver/
+                    //
+                    // w3c:false tells Chromedriver to run using the legacy JSONWire protocol (not required in Chrome 78)
+                    w3c: true,
+                    args: [
+                        //'--no-sandbox',
+                        //'--ignore-certificate-errors',
+                        //'--allow-insecure-localhost',
+                        //'--headless'
+                        "--start-maximized",
+                    ],
+                },
+                "chromeOptions": {
+                    args: ["start-maximized"],
+                },
+            },
+
+            webdriver: {
+                start_process: true,
+                server_path: "",
+                cli_args: [
+                    // --verbose
+                ],
+            },
+        },
+
+        firefox: {
+            desiredCapabilities: {
+                "browserName": "firefox",
+                "acceptInsecureCerts": true,
+                "moz:firefoxOptions": {
+                    args: ["--headless"],
+                },
+            },
+
+            webdriver: {
+                start_process: true,
+                server_path: "",
+                cli_args: [
+                    // --verbose
+                ],
+            },
+        },
     },
 }
