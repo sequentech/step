@@ -65,5 +65,33 @@ module.exports = {
                 server_path: "",
             },
         },
+
+        firefox: {
+            desiredCapabilities: {
+                "browserName": "firefox",
+                "acceptInsecureCerts": true,
+                "moz:firefoxOptions": {
+                    args: ["--headless"],
+                },
+            },
+
+            webdriver: {
+                start_process: true,
+                server_path: "",
+                cli_args: [
+                    // --verbose
+                ],
+            },
+        },
+    },
+    "@nightwatch/browserstack": {
+        test_observability: {
+            enabled: true,
+            user: process.env.BROWSERSTACK_USERNAME,
+            key: process.env.BROWSERSTACK_ACCESS_KEY,
+            projectName: "Sequent Admin Portal",
+            buildName: "Sequent Admin Portal",
+            buildTag: ["nightwatch", "admin-portal"],
+        },
     },
 }
