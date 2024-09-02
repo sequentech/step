@@ -18,33 +18,33 @@
 module.exports = {
     // An array of folders (excluding subfolders) where your tests are located;
     // if this is not specified, the test source must be passed as the second argument to the test runner.
-    "src_folders": ["test", "nightwatch"],
+    src_folders: ["test", "nightwatch"],
 
     // See https://nightwatchjs.org/guide/concepts/page-object-model.html
-    "page_objects_path": [],
+    page_objects_path: [],
 
     // See https://nightwatchjs.org/guide/extending-nightwatch/adding-custom-commands.html
-    "custom_commands_path": ["test/commands"],
+    custom_commands_path: ["test/commands"],
 
     // See https://nightwatchjs.org/guide/extending-nightwatch/adding-custom-assertions.html
-    "custom_assertions_path": [],
+    custom_assertions_path: [],
 
     // See https://nightwatchjs.org/guide/extending-nightwatch/adding-plugins.html
-    "plugins": ["@nightwatch/browserstack"],
+    plugins: ["@nightwatch/browserstack"],
 
     // See https://nightwatchjs.org/guide/concepts/test-globals.html
-    "globals_path": "",
+    globals_path: "",
 
-    "webdriver": {},
+    webdriver: {},
 
-    "test_workers": {
+    test_workers: {
         enabled: true,
     },
 
-    "test_settings": {
+    test_settings: {
         default: {
             disable_error_log: false,
-            launch_url: "${TEST_URL}",
+            launch_url: "http://localhost:3001",
 
             screenshots: {
                 enabled: false,
@@ -53,16 +53,10 @@ module.exports = {
             },
 
             desiredCapabilities: {
-                browserName: "chrome",
-                chromeOptions: {
-                    prefs: {
-                        download: {
-                            prompt_for_download: false,
-                            default_directory: require("path").resolve(
-                                __dirname + "/test/e2e/downloads"
-                            ),
-                        },
-                    },
+                "browserName": "firefox",
+                "acceptInsecureCerts": true,
+                "moz:firefoxOptions": {
+                    args: ["--headless"],
                 },
             },
 
@@ -70,46 +64,6 @@ module.exports = {
                 start_process: true,
                 server_path: "",
             },
-        },
-
-        chrome: {
-            desiredCapabilities: {
-                "browserName": "chrome",
-                "goog:chromeOptions": {
-                    // More info on Chromedriver: https://sites.google.com/a/chromium.org/chromedriver/
-                    //
-                    // w3c:false tells Chromedriver to run using the legacy JSONWire protocol (not required in Chrome 78)
-                    w3c: true,
-                    args: [
-                        //'--no-sandbox',
-                        //'--ignore-certificate-errors',
-                        //'--allow-insecure-localhost',
-                        //'--headless'
-                        "--start-maximized",
-                    ],
-                },
-                "chromeOptions": {
-                    args: ["start-maximized"],
-                },
-            },
-
-            webdriver: {
-                start_process: true,
-                server_path: "",
-                cli_args: [
-                    // --verbose
-                ],
-            },
-        },
-    },
-    "@nightwatch/browserstack": {
-        test_observability: {
-            enabled: true,
-            user: process.env.BROWSERSTACK_USERNAME,
-            key: process.env.BROWSERSTACK_ACCESS_KEY,
-            projectName: "Sequent Admin Portal",
-            buildName: "Sequent Admin Portal",
-            buildTag: ["nightwatch", "admin-portal"],
         },
     },
 }

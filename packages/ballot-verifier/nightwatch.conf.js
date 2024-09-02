@@ -53,53 +53,16 @@ module.exports = {
             },
 
             desiredCapabilities: {
-                browserName: "chrome",
-                chromeOptions: {
-                    prefs: {
-                        download: {
-                            prompt_for_download: false,
-                            default_directory: require("path").resolve(
-                                __dirname + "/test/e2e/downloads"
-                            ),
-                        },
-                    },
+                "browserName": "firefox",
+                "acceptInsecureCerts": true,
+                "moz:firefoxOptions": {
+                    args: ["--headless"],
                 },
             },
 
             webdriver: {
                 start_process: true,
                 server_path: "",
-            },
-        },
-
-        chrome: {
-            desiredCapabilities: {
-                "browserName": "chrome",
-                "chromeOptions": {
-                    prefs: {
-                        download: {
-                            prompt_for_download: false,
-                            default_directory: require("path").resolve(__dirname + "/download"),
-                        },
-                    },
-                },
-                "goog:chromeOptions": {
-                    // More info on Chromedriver: https://sites.google.com/a/chromium.org/chromedriver/
-                    args: [
-                        //'--no-sandbox',
-                        //'--ignore-certificate-errors',
-                        //'--allow-insecure-localhost',
-                        //'--headless=new'
-                    ],
-                },
-            },
-
-            webdriver: {
-                start_process: true,
-                server_path: "",
-                cli_args: [
-                    // --verbose
-                ],
             },
         },
     },

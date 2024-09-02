@@ -53,55 +53,16 @@ module.exports = {
             },
 
             desiredCapabilities: {
-                browserName: "chrome",
-                chromeOptions: {
-                    prefs: {
-                        download: {
-                            prompt_for_download: false,
-                            default_directory: require("path").resolve(
-                                __dirname + "/test/e2e/downloads"
-                            ),
-                        },
-                    },
-                    args: ["headless"]
+                "browserName": "firefox",
+                "acceptInsecureCerts": true,
+                "moz:firefoxOptions": {
+                    args: ["--headless"],
                 },
             },
 
             webdriver: {
                 start_process: true,
                 server_path: "",
-                // TODO Figure out how to put this path in here. Env variable to set server path?
-                // server_path: "/nix/store/0mzxx1mb640d2fqpzdhx4vgh8mk2byvz-chromedriver-unwrapped-128.0.6613.113/bin/chromedriver",
-            },
-        },
-
-        chrome: {
-            desiredCapabilities: {
-                "browserName": "chrome",
-                "goog:chromeOptions": {
-                    // More info on Chromedriver: https://sites.google.com/a/chromium.org/chromedriver/
-                    //
-                    // w3c:false tells Chromedriver to run using the legacy JSONWire protocol (not required in Chrome 78)
-                    w3c: true,
-                    args: [
-                        //'--no-sandbox',
-                        //'--ignore-certificate-errors',
-                        //'--allow-insecure-localhost',
-                        //'--headless'
-                        "--start-maximized",
-                    ],
-                },
-                "chromeOptions": {
-                    args: ["start-maximized"],
-                },
-            },
-
-            webdriver: {
-                start_process: true,
-                server_path: "",
-                cli_args: [
-                    // --verbose
-                ],
             },
         },
     },

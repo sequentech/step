@@ -37,8 +37,8 @@
     # For protocol buffers
     pkgs.protobuf
     pkgs.iputils
-    pkgs.chromium
-    pkgs.chromedriver
+    pkgs.geckodriver
+    pkgs.firefox
 
     # to build the rug backend in strand/braid
     pkgs.gcc
