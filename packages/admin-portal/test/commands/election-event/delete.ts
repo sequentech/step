@@ -5,6 +5,7 @@
 import {NightwatchAPI} from "nightwatch"
 import {candidateLink, contestLink, electionEventLink, electionLink} from "../.."
 import {createElectionEvent} from "./create"
+import {pause} from "../../index"
 
 export const deleteElectionEvent = {
     deleteElectionEvent: (browser: NightwatchAPI) => {
@@ -12,9 +13,17 @@ export const deleteElectionEvent = {
             hoverElement: `a[title='${createElectionEvent.config.electionEvent.name}']`,
             clickElement: `//a//span[text()='${createElectionEvent.config.electionEvent.name}']/../../..//div[contains(@class,'menu-actions-sequent')]//*[local-name()='svg']`,
         })
+	// 	browser.useCss().pause(pause.short)
+	// 	browser
+    // .useXpath()
+    // .waitForElementVisible(`//li[contains(@class, 'menu-action-archive-${electionEventLink!}')]`, 10000)
+    // .click(`//li[contains(@class, 'menu-action-archive-${electionEventLink!}')]`)
+    // .useCss();
         browser
             .useCss()
             .assert.visible(`li.menu-action-archive-${electionEventLink!}`)
+		browser
+			.useCss()
             .element(`li.menu-action-archive-${electionEventLink!}`)
             .click()
         browser.element(`button.ok-button`).click()
