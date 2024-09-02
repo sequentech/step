@@ -48,9 +48,7 @@ jobs:
         platforms: linux/${{ matrix.architecture }}
         context: packages/.
         file: packages/Dockerfile.keycloak
-        tags: ghcr.io/${{ github.repository }}/keycloak:latest
-        provenance: false
-        sbom: false
+        tags: ghcr.io/${{ github.repository }}/keycloak
         push: true
 
     - name: Build and push Postgres
@@ -59,9 +57,7 @@ jobs:
         platforms: linux/${{ matrix.architecture }}
         context: .devcontainer/postgresql/.
         file: .devcontainer/postgresql/Dockerfile
-        tags: ghcr.io/${{ github.repository }}/postgres:latest
-        provenance: false
-        sbom: false
+        tags: ghcr.io/${{ github.repository }}/postgres
         push: true
 
     - name: Build and push Minio
@@ -70,9 +66,7 @@ jobs:
         platforms: linux/${{ matrix.architecture }}
         context: .devcontainer/minio/.
         file: .devcontainer/minio/Dockerfile
-        tags: ghcr.io/${{ github.repository }}/minio:latest
-        provenance: false
-        sbom: false
+        tags: ghcr.io/${{ github.repository }}/minio
         push: true
 
     - name: Build and push Vault
@@ -81,9 +75,7 @@ jobs:
         platforms: linux/${{ matrix.architecture }}
         context: .devcontainer/vault/.
         file: .devcontainer/vault/Dockerfile
-        tags: ghcr.io/${{ github.repository }}/vault:latest
-        provenance: false
-        sbom: false
+        tags: ghcr.io/${{ github.repository }}/vault
         push: true
 
     - name: Build and push cargo packages
@@ -92,9 +84,7 @@ jobs:
         platforms: linux/${{ matrix.architecture }}
         context: packages/.
         file: packages/Dockerfile.cargo-packages
-        tags: ghcr.io/${{ github.repository }}/cargo-packages:latest
-        provenance: false
-        sbom: false
+        tags: ghcr.io/${{ github.repository }}/cargo-packages
         push: true
 
     - name: Build and push immudb
@@ -103,9 +93,7 @@ jobs:
         platforms: linux/${{ matrix.architecture }}
         context: packages/.
         file: packages/Dockerfile.immudb
-        tags: ghcr.io/${{ github.repository }}/immudb:latest
-        provenance: false
-        sbom: false
+        tags: ghcr.io/${{ github.repository }}/immudb
         push: true
 
     - name: Build and push immudb-log-audit
@@ -114,7 +102,5 @@ jobs:
         platforms: linux/${{ matrix.architecture }}
         context: vendor/immudb-log-audit/.
         file: vendor/immudb-log-audit/Dockerfile.immudb
-        tags: ghcr.io/${{ github.repository }}/immudb-log-audit:latest
-        provenance: false
-        sbom: false
+        tags: ghcr.io/${{ github.repository }}/immudb-log-audit
         push: true
