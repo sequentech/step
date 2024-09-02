@@ -145,6 +145,9 @@ SPDX-License-Identifier: AGPL-3.0-only
                     utilsScript: "${url.resourcesPath}/intl-tel-input-23.3.2/js/utils.js",
                     initialCountry: "auto",
                     separateDialCode: true,
+					customPlaceholder: function(selectedCountryPlaceholder, selectedCountryData) {
+						return "0000-0000";
+					},
                     hiddenInput: () => ({ phone: id, country: "country_code" }),
                     geoIpLookup: function(success, failure) {
                         const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
