@@ -12,6 +12,7 @@ use super::{
     PutMessagesMultiRequest, PutMessagesReply, PutMessagesRequest,
 };
 use anyhow::Result;
+use rayon::prelude::*;
 use tonic::Request;
 use tonic::{transport::Channel, Response};
 
@@ -113,7 +114,7 @@ impl B3Client {
         messages: &[Message],
     ) -> Result<PutMessagesRequest> {
         let messages: Result<Vec<GrpcB3Message>> = messages
-            .into_iter()
+            .into_par_iter()
             .map(|m| {
                 let message = GrpcB3Message {
                     id: 0,

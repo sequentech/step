@@ -481,10 +481,11 @@ fn step<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option
         let t = value.parse::<u8>()?;
         let trustee_: Option<&mut Trustee<C>> = context.trustees.get_mut(t as usize);
         if let Some(trustee) = trustee_ {
-            let (messages, actions, _last_id) = trustee.step(context.remote.get(-1)).unwrap();
-            send(&messages, &mut context.remote);
-            context.last_messages = messages;
-            context.last_actions = actions;
+            // let (messages, actions, _last_id) = trustee.step(context.remote.get(-1)).unwrap();
+            let step_result = trustee.step(context.remote.get(-1)).unwrap();
+            send(&step_result.messages, &mut context.remote);
+            context.last_messages = step_result.messages;
+            context.last_actions = step_result.actions;
         } else {
             return Ok(Some("Invalid trustee index".to_string()));
         }
@@ -495,10 +496,11 @@ fn step<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option
                 "====================== Running trustee {} ======================",
                 position.unwrap()
             );
-            let (mut messages, actions, _last_id) = t.step(context.remote.get(-1)).unwrap();
-            send(&messages, &mut context.remote);
-            context.last_messages.append(&mut messages);
-            context.last_actions.extend(&actions);
+            //let (mut messages, actions, _last_id) = t.step(context.remote.get(-1)).unwrap();
+            let mut step_result =  t.step(context.remote.get(-1)).unwrap();
+            send(&step_result.messages, &mut context.remote);
+            context.last_messages.append(&mut step_result.messages);
+            context.last_actions.extend(&step_result.actions);
         }
     }
 

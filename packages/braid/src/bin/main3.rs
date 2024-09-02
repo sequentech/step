@@ -6,15 +6,17 @@ use anyhow::Result;
 
 use braid::protocol::board::grpc2::GrpcB3Index;
 use clap::Parser;
+use log::warn;
 use std::collections::HashSet;
 use std::fs;
+use std::hash::Hasher;
 use std::path::PathBuf;
 
 use tokio::time::{sleep, Duration};
 use tracing::instrument;
 use tracing::{error, info};
 
-use hashring::HashRing;
+use rustc_hash::FxHasher;
 
 use tokio::sync::mpsc::{Sender, Receiver};
 
@@ -72,6 +74,12 @@ command line option is set to true.
 #[instrument]
 async fn main() -> Result<()> {
     braid::util::init_log(true);
+
+    let default_panic = std::panic::take_hook();
+        std::panic::set_hook(Box::new(move |info| {
+            default_panic(info);
+            std::process::exit(1);
+    }));
 
     cfg_if::cfg_if! {
         if #[cfg(feature = "jemalloc")] {
@@ -164,24 +172,20 @@ struct SessionSetRing {
     session_sets: Vec<SessionSetHandle>,
     b3_url: String,
     session_factory: SessionFactory,
-    ring: HashRing<usize>
 }
 impl SessionSetRing {
     fn new(b3_url: &str, session_factory: SessionFactory, size: usize) -> Result<Self> {
         
-        let mut ring = HashRing::new();
         let mut session_sets = vec![];
         let mut runners = vec![];
         for i in 0..size {
             let (s,r): (Sender<SessionSetMessage>, Receiver<SessionSetMessage>)
-                    = tokio::sync::mpsc::channel(10);
-            let session_set = SessionSet::new(&session_factory, &b3_url, r)?;
+                    = tokio::sync::mpsc::channel(1);
+            let session_set = SessionSet::new(&i.to_string(), &session_factory, &b3_url, r)?;
             runners.push(session_set);
             
             let handle = SessionSetHandle::new(s);
             session_sets.push(handle);
-
-            ring.add(i);
         }
 
         info!("* Starting {} session sets..", runners.len());
@@ -190,33 +194,35 @@ impl SessionSetRing {
         Ok(SessionSetRing {
             b3_url: b3_url.to_string(),
             session_factory,
-            ring,
             session_sets,
         })
+    }
+
+    fn hash(&self, board: &str) -> usize {
+        let mut hasher = FxHasher::default();
+        hasher.write(board.as_bytes());
+        let ret = hasher.finish() % self.session_sets.len() as u64;
+
+        ret as usize
     }
 
     async fn refresh(&mut self, boards: Vec<String>) -> Result<()> {        
         
         for board in boards {
-
-            let index = self.ring.get(&board);
-            let Some(index) = index else {
-                // This is impossible
-                error!("No session set index was returned for board '{}'", board);
-                continue;
-            };
-            
-            self.session_sets[*index].boards.push(board);
+            let index = self.hash(&board);
+            // Assign boards to session sets
+            self.session_sets[index].boards.push(board);
         }
 
         for (i, h) in self.session_sets.iter_mut().enumerate() {
             let boards = std::mem::replace(&mut h.boards, vec![]);
-            info!("Refresing set {} with {:?}", i, boards);
+            info!("Refreshing set {} with {} boards", i, boards.len());
 
             if h.sender.is_closed() {
+                warn!("Sender was closed, rebuilding set..");
                 let (s,r): (Sender<SessionSetMessage>, Receiver<SessionSetMessage>)
-                = tokio::sync::mpsc::channel(10);
-                let session_set = SessionSet::new(&self.session_factory, &self.b3_url, r)?;
+                = tokio::sync::mpsc::channel(1);
+                let session_set = SessionSet::new(&format!("rebuilt {}", i), &self.session_factory, &self.b3_url, r)?;
                 h.sender = s;
                 
                 session_set.run();

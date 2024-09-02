@@ -41,11 +41,12 @@ impl<C: Ctx> VectorSession<C> {
         let count = messages.len() as i64;
         let result = self.trustee.step(messages);
         self.last_message += count;
-        if let Ok((send_messages, _actions, _last_id)) = result {
+        // if let Ok((send_messages, _actions, _last_id)) = result {
+        if let Ok(step_result) = result {
             let mut remote = self.remote.lock().unwrap();
-            send(send_messages, &mut remote);
+            send(step_result.messages, &mut remote);
         } else {
-            error!("VectorSession: Trustee step returned err {:?}", result);
+            error!("VectorSession: Trustee step returned err {:?}", result.err().unwrap());
         }
     }
 

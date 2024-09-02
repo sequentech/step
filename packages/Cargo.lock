@@ -413,6 +413,7 @@ dependencies = [
  "hex",
  "log",
  "prost",
+ "rayon",
  "serde",
  "serial_test",
  "strand",
@@ -491,13 +492,13 @@ dependencies = [
  "crepe",
  "criterion 0.4.0",
  "getrandom 0.2.15",
- "hashring",
  "hex",
  "log",
  "rand 0.8.5",
  "rayon",
  "reedline-repl-rs",
  "rusqlite",
+ "rustc-hash",
  "serde",
  "serde_json",
  "serial_test",
@@ -1607,15 +1608,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ba4ff7128dee98c7dc9794b6a411377e1404dba1c97deb8d1a55297bd25d8af"
 dependencies = [
  "hashbrown 0.14.5",
-]
-
-[[package]]
-name = "hashring"
-version = "0.3.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "43bfd649ac5e0f82ae98d547450f1d31af49742be255b5380c61fc8513b9df11"
-dependencies = [
- "siphasher",
 ]
 
 [[package]]
@@ -2971,6 +2963,12 @@ name = "rustc-demangle"
 version = "0.1.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "719b953e2095829ee67db738b3bfa9fa368c94900df327b3f07fe6e794d2fe1f"
+
+[[package]]
+name = "rustc-hash"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "583034fd73374156e66797ed8e5b0d5690409c9226b22d87cb7f19821c05d152"
 
 [[package]]
 name = "rustc_version"

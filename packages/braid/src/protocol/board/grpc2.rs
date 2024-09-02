@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use board_messages::grpc::{GrpcB3Message, KeyedMessages};
+use board_messages::grpc::KeyedMessages;
 
 use board_messages::braid::message::Message;
 use board_messages::grpc::client::B3Client;
@@ -48,7 +48,6 @@ impl GrpcB3Index {
 
 pub struct GrpcB3 {
     client: B3Client,
-    step_counter: u64,
 }
 impl GrpcB3 {
     pub fn new(url: &str) -> GrpcB3 {
@@ -56,17 +55,7 @@ impl GrpcB3 {
 
         GrpcB3 {
             client,
-            step_counter: 0,
         }
-    }
-
-    // Returns all messages whose id > last_id.
-    async fn get_remote_messages(&mut self, last_id: i64) -> Result<Vec<GrpcB3Message>> {
-        let messages = self.client.get_messages("FOO", last_id).await?;
-
-        let messages = messages.into_inner();
-
-        Ok(messages.messages)
     }
 }
 

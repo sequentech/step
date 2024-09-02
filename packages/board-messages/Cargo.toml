@@ -17,6 +17,7 @@ strand = { path="../strand", features=["rayon"] }
 borsh = "0.9.3"
 strum = { version = "0.24.1", features = ["derive"] }
 anyhow = "1.0"
+rayon = "1.5"
 
 # logging
 log = "0.4.17"

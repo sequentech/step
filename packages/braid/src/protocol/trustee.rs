@@ -82,16 +82,17 @@ impl<C: Ctx> Trustee<C> {
     // Protocol step: update->derive predicates->infer&run
     ///////////////////////////////////////////////////////////////////////////
 
-    #[instrument(name = "Trustee::step", skip(messages, self))]
+    #[instrument(name = "Trustee::step", skip(messages, self), level="trace"in)]
     pub(crate) fn step(
         &mut self,
         messages: Vec<(Message, i64)>,
-    ) -> Result<(Vec<Message>, HashSet<Action>, i64), ProtocolError> {
+    ) -> Result<StepResult, ProtocolError> {
+    // ) -> Result<(Vec<Message>, HashSet<Action>, i64), ProtocolError> {
         let (added_messages, last_id) = self.update_local_board(messages)?;
 
-        info!("Update added {} messages", added_messages);
+        trace!("Update added {} messages", added_messages);
         let predicates = self.derive_predicates(false)?;
-        info!("Derived {} predicates", predicates.len());
+        trace!("Derived {} predicates", predicates.len());
         let (messages, actions) = self.infer_and_run_actions(&predicates, false)?;
 
         // Sanity check: ensure that all outgoing messages' cfg field matches that of the local board
@@ -105,7 +106,10 @@ impl<C: Ctx> Trustee<C> {
             );
         }
 
-        Ok((messages, actions, last_id))
+        let ret = StepResult::new(messages, actions, added_messages, last_id);
+
+        Ok(ret)
+        // Ok((messages, actions, last_id))
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -117,8 +121,8 @@ impl<C: Ctx> Trustee<C> {
     fn update_local_board(
         &mut self,
         messages: Vec<(Message, i64)>,
-    ) -> Result<(i32, i64), ProtocolError> {
-        trace!("Updating with {} messages", messages.len());
+    ) -> Result<(i64, i64), ProtocolError> {
+        // trace!("Updating with {} messages", messages.len());
 
         let configuration = self.local_board.get_configuration_raw();
         if let Some(configuration) = configuration {
@@ -139,7 +143,7 @@ impl<C: Ctx> Trustee<C> {
         &mut self,
         messages: Vec<(Message, i64)>,
         configuration: Configuration<C>,
-    ) -> Result<(i32, i64), ProtocolError> {
+    ) -> Result<(i64, i64), ProtocolError> {
         let mut added = 0;
         let mut last_added_id: i64 = -1;
 
@@ -153,12 +157,14 @@ impl<C: Ctx> Trustee<C> {
 
         let cfg_hash = cfg_hash.expect("impossible");
         // Show the latest message received
-        let (last_message, id) = messages.get(messages.len() - 1).expect("impossible");
-        info!(
-            "Update: last message is {:?} ({})",
-            last_message.statement.get_kind(),
-            id
-        );
+        if messages.len() > 0 {
+            let (last_message, id) = messages.get(messages.len() - 1).expect("impossible");
+            info!(
+                "Update: last message is {:?} ({})",
+                last_message.statement.get_kind(),
+                id
+            );
+        }
 
         for (message, id) in messages.into_iter() {
             let statement_info = message.statement.to_string();
@@ -199,7 +205,7 @@ impl<C: Ctx> Trustee<C> {
     fn update_bootstrap(
         &mut self,
         mut messages: Vec<(Message, i64)>,
-    ) -> Result<(i32, i64), ProtocolError> {
+    ) -> Result<(i64, i64), ProtocolError> {
         let mut added = 0;
         let mut last_added_id: i64 = -1;
 
@@ -321,7 +327,7 @@ impl<C: Ctx> Trustee<C> {
             .ok_or(ProtocolError::MissingArtifact(StatementType::Configuration))?;
 
         let actions = crate::protocol::datalog::run(predicates)?;
-        info!(
+        trace!(
             "Datalog derived {} actions, {:?}",
             actions.len(),
             actions
@@ -333,7 +339,7 @@ impl<C: Ctx> Trustee<C> {
         let ret_actions = actions.clone();
 
         if actions.len() == 0 {
-            info!("-- Idle --");
+            trace!("-- Idle --");
         }
 
         // Cross-Action parallelism (which in effect is cross-batch parallelism)
@@ -570,6 +576,23 @@ impl TrusteeConfig {
             signing_key_sk: sk_string,
             signing_key_pk: pk_string,
             encryption_key: ek_string,
+        }
+    }
+}
+
+pub struct StepResult {
+    pub(crate) messages: Vec<Message>,
+    pub(crate) actions: HashSet<Action>,
+    pub(crate) added_messages: i64,
+    pub(crate) last_id: i64,
+}
+impl StepResult {
+    fn new(messages: Vec<Message>, actions: HashSet<Action>, added_messages: i64, last_id: i64) -> Self {
+        StepResult {
+            messages,
+            actions,
+            added_messages,
+            last_id,
         }
     }
 }

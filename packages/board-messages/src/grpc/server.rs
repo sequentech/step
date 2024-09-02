@@ -21,6 +21,8 @@ use crate::grpc::pgsql::PgsqlDbConnectionParams;
 use crate::grpc::pgsql::ZPgsqlB3Client;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 
+const BB8_POOL_SIZE: u32 = 20;
+
 pub struct PgsqlB3Server {
     pool: Pool<PostgresConnectionManager<NoTls>>,
 }
@@ -28,7 +30,7 @@ impl PgsqlB3Server {
     pub async fn new(connection: PgsqlDbConnectionParams) -> Result<PgsqlB3Server> {
         let config = Config::from_str(&connection.connection_string())?;
         let manager = PostgresConnectionManager::new(config, NoTls);
-        let pool = Pool::builder().build(manager).await?;
+        let pool = Pool::builder().max_size(BB8_POOL_SIZE).build(manager).await?;
 
         Ok(PgsqlB3Server { pool })
     }
@@ -303,11 +305,11 @@ pub(crate) mod tests {
         let cfg = get_test_configuration::<RistrettoCtx>(3, 2);
         let messages = vec![cfg];
         let request = B3Client::put_messages_request(TEST_BOARD, &messages).unwrap();
-        let put = b3_impl.put_messages(request).await.unwrap();
+        let put = b3_impl.put_messages(tonic::Request::new(request)).await.unwrap();
         let _ = put.get_ref();
 
         let request = B3Client::get_messages_request(TEST_BOARD, -1);
-        let messages_returned = b3_impl.get_messages(request).await.unwrap();
+        let messages_returned = b3_impl.get_messages(tonic::Request::new(request)).await.unwrap();
         let messages_returned = messages_returned.get_ref();
 
         assert_eq!(messages_returned.messages.len(), 1);

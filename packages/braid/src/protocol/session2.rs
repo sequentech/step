@@ -9,7 +9,6 @@ use rusqlite::Connection;
 use strand::signature::StrandSignatureSk;
 use strand::symm::SymmetricKey;
 use std::collections::HashSet;
-use std::io::Write;
 use std::path::PathBuf;
 use tokio::sync::mpsc::Receiver;
 use strand::serialization::StrandDeserialize;
@@ -66,25 +65,23 @@ impl<C: Ctx> Session2<C> {
             .store_and_return_messages(messages)
             .map_err(|e| ProtocolError::BoardError(e.to_string()))?;
 
-        if messages.len() == 0 {
-            print!("_");
-            let _ = std::io::stdout().flush();
-            return Ok(vec![]);
-        }
-
+        // NOTE: we must call step even if there are no new remote messages
+        // because there may be actions pending in the trustees memory board
         let step_result = self.trustee.step(messages);
         if let Err(err) = step_result {
             return Err(err);
         }
-        let (send_messages, _actions, last_id) = step_result.expect("impossible");
+        // let (send_messages, _actions, last_id) = step_result.expect("impossible");
+        let step_result = step_result.expect("impossible");
         // last_id is the largest message id that was successfully updated to the trustee's board in memory
         // in the event that there are holes, a session reset will eventually load missing messages
         // from the store
-        self.last_message_id = last_id;
+        if step_result.added_messages > 0 {
+            // if no messages were
+            self.last_message_id = step_result.last_id;
+        }
 
-        info!("Returning {} messages..", send_messages.len());
-
-        Ok(send_messages)
+        Ok(step_result.messages)
     }
 
     // Returns the largest id stored in the local message store
@@ -178,6 +175,7 @@ pub enum SessionSetMessage {
 }
 
 pub struct SessionSet {
+    name: String,
     session_factory: SessionFactory,
     b3_url: String,
     inbox: Receiver<SessionSetMessage>
@@ -185,8 +183,9 @@ pub struct SessionSet {
 
 
 impl SessionSet {
-    pub fn new(session_factory: &SessionFactory, b3_url: &str, inbox: mpsc::Receiver<SessionSetMessage>) -> Result<Self> {
+    pub fn new(name: &str, session_factory: &SessionFactory, b3_url: &str, inbox: mpsc::Receiver<SessionSetMessage>) -> Result<Self> {
         Ok(SessionSet {
+            name: name.to_string(),
             session_factory: session_factory.clone(),
             b3_url: b3_url.to_string(),
             inbox
@@ -204,31 +203,32 @@ impl SessionSet {
                 let signal = self.inbox.recv().await;
 
                 if signal.is_none() {
-                    info!("SessionSet shutting down ({})..", loop_count);
+                    warn!("Set {}: shutting down ({})..", self.name, loop_count);
                     break;
                 }
                 
                 match signal.expect("impossible") {
                     SessionSetMessage::REFRESH(boards) => {
+                        info!("Set {}: ({}) received refresh for {} boards", self.name, session_map.len(), boards.len());
                         for b in boards.iter() {
                             if !session_map.contains_key(b) {
-                                info!("Adding session '{}'..", b);
+                                info!("Set {}: adding session '{}'..", self.name, b);
                                 let session = self.session_factory.get_session(b);
                                 if let Ok(session) = session {
                                     session_map.insert(b.to_string(), session);
                                 }
                                 else {
-                                    error!("Unable to create session '{}': {}", b, session.err().unwrap());
+                                    error!("Unable to create session '{}': {} (set {})", b, session.err().unwrap(), self.name);
                                 }
                             }
                         }
                         
                         let boards_set: HashSet<String> = HashSet::from_iter(boards.into_iter());
 
-                        session_map.retain(|k, v| {
+                        session_map.retain(|k, _v| {
                             let ret = boards_set.contains(k);
                             if !ret {
-                                info!("Removing session '{}'", k);
+                                info!("Set {}: Removing session '{}'", k, self.name);
                             }
                             ret
                         });
@@ -236,7 +236,7 @@ impl SessionSet {
                 }
 
                 if loop_count % SESSION_RESET_PERIOD == 0 {
-                    info!("* Session memory reset: reload all artifacts from store");
+                    info!("* Set {}: Session memory reset: reload all artifacts from store", self.name);
                     let new_sessions: Result<Vec<(String, Session2<RistrettoCtx>)>> = 
                         session_map.keys().map(|k| Ok((k.clone(), self.session_factory.get_session(&k)?)))
                         .collect();
@@ -261,31 +261,63 @@ impl SessionSet {
                         continue;
                     };
 
+                    // info!("Set {}: board {}, external_last_id: {}", self.name, session.board_name, last_id);
                     requests.push((session.board_name.to_string(), last_id));
                 }
-                info!("gathered {} requests", requests.len());
+                info!("Set {}: gathered {} requests", self.name, requests.len());
                 
                 let board = GrpcB3BoardParams::new(&self.b3_url);
                 let board = board.get_board();
                 let responses = board.get_messages_multi(&requests).await;
                 let Ok(responses) = responses else {
                     error!(
-                        "Error retrieving messages for {} requests: {}",
+                        "Error retrieving messages for {} requests: {} (set {})",
                         requests.len(),
-                        responses.err().unwrap()
+                        responses.err().unwrap(),
+                        self.name
                     );
                     sleep(Duration::from_millis(1000)).await;
                     continue;
                 };
-                info!("received {} keyed messages", responses.len());
+                info!("Set {}: received {} keyed messages", self.name, responses.len());
 
                 let mut post_messages = vec![];
                 let mut total_bytes: u32 = 0;
+
+                
+                let tuples = responses.into_iter()
+                    .map(|km| (km.board, km.messages));
+                let km_table: HashMap<String, Vec<GrpcB3Message>> = HashMap::from_iter(tuples);
+
+                for (k, s) in session_map.iter_mut() {
+                    let empty = vec![];
+                    let messages = km_table.get(k).unwrap_or(&empty);
+                    // NOTE: we must call step even if there are no new remote messages
+                    // because there may be messages pending in the message_store
+                    let messages = s.step(messages);
         
-                for km in responses {
-                    if km.messages.len() == 0 {
+                    let Ok(messages) = messages else {
+                        let _ = messages.inspect_err(|error| {
+                            error!(
+                                "Error executing step for board '{}': '{:?}' (set {})",
+                                k, error, self.name
+                            );
+                        });
+        
                         continue;
+                    };
+        
+                    if messages.len() > 0 {
+                        let next_bytes: usize = messages
+                            .iter()
+                            .map(|m| m.artifact.as_ref().map(|v| v.len()).unwrap_or(0))
+                            .sum();
+                        total_bytes += next_bytes as u32;
+                        post_messages.push((k.clone(), messages));
                     }
+                }
+        
+                /*for km in responses {
         
                     let s = session_map.get_mut(&km.board);
                     let Some(s) = s else {
@@ -314,24 +346,28 @@ impl SessionSet {
                         total_bytes += next_bytes as u32;
                         post_messages.push((km.board, messages));
                     }
-                }
+                }*/
 
                 if post_messages.len() > 0 {
                     info!(
-                        "Posting {} keyed messages with {:.2} MB",
+                        "Set {}: posting {} keyed messages with {:.2} MB",
+                        self.name,
                         post_messages.len(),
                         f64::from(total_bytes) / (1024.0 * 1024.0)
                     );
                     let result = board.insert_messages_multi(post_messages).await;
                     if let Err(err) = result {
-                        error!("Error posting messages: '{:?}'", err);
+                        error!("Error posting messages: '{:?} (set {})'", err, self.name);
                     }
                 } else {
                     info!("No messages to post on this step");
                 }
             }
+            std::process::exit(1);
+
         });
 
+        // std::process::exit(1);
         handler
     }
 }

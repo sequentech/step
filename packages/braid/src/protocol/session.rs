@@ -3,9 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Result;
-use tracing::{info, warn};
-// Same line printing
-use std::io::Write;
+use tracing::info;
 
 use strand::context::Ctx;
 
@@ -18,7 +16,6 @@ pub struct Session<C: Ctx + 'static, B: Board + 'static> {
     trustee: Trustee<C>,
     board: B::Factory,
     last_message_id: Option<i64>,
-    active_period: u64,
 }
 impl<C: Ctx, B: Board> Session<C, B> {
     pub fn new(name: &str, trustee: Trustee<C>, board: B::Factory) -> Session<C, B> {
@@ -27,7 +24,6 @@ impl<C: Ctx, B: Board> Session<C, B> {
             trustee,
             board,
             last_message_id: None,
-            active_period: 1,
         }
     }
 
@@ -36,15 +32,6 @@ impl<C: Ctx, B: Board> Session<C, B> {
     // See also protocol_test_grpc::run_protocol_test
     // #[instrument(skip_all)]
     pub async fn step(mut self, step_counter: u64) -> (Self, Result<(), ProtocolError>) {
-        // Never skip more than 10 steps
-        if self.active_period > 11 {
-            self.active_period = 11;
-        }
-
-        // Skips steps depending on how active we are
-        if (step_counter % self.active_period) != 0 {
-            return (self, Ok(()));
-        }
 
         let board = self
             .board
@@ -71,42 +58,25 @@ impl<C: Ctx, B: Board> Session<C, B> {
         }
         let messages = messages.expect("impossible");
 
-        if messages.len() == 0 {
-            /* info!(
-                "No new messages retrieved, session step finished ({}, {})",
-                self.active_period, step_counter
-            );*/
-            print!("_");
-            let _ = std::io::stdout().flush();
-            self.active_period = self.active_period * 2;
-            return (self, Ok(()));
-        }
-
+        // NOTE: we must call step even if there are no new remote messages
+        // because there may be actions pending in the trustees memory board
         let step_result = self.trustee.step(messages);
         if let Err(err) = step_result {
             return (self, Err(err));
         }
-        let (send_messages, _actions, last_id) = step_result.expect("impossible");
+        // let (send_messages, _actions, last_id) = step_result.expect("impossible");
+        let step_result = step_result.expect("impossible");
 
-        if send_messages.len() > 0 {
-            self.active_period = 1;
-        }
-
-        info!("Posting {} messages..", send_messages.len());
+        info!("Posting {} messages..", step_result.messages.len());
 
         let result = board
-            .insert_messages(send_messages)
+            .insert_messages(step_result.messages)
             .await
             .map_err(|e| ProtocolError::BoardError(e.to_string()));
 
-        if result.is_ok() {
-            info!("Setting last_id = {}", last_id);
-            self.last_message_id = Some(last_id);
-        } else {
-            warn!(
-                "Error posting messages, last_id remains at: {:?}",
-                self.last_message_id
-            );
+        if step_result.added_messages > 0 {
+            info!("Setting last_id = {}", step_result.last_id);
+            self.last_message_id = Some(step_result.last_id);
         }
 
         (self, result)

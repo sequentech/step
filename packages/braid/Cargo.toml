@@ -37,7 +37,7 @@ colored = "2.0.4"
 clap = { version = "4.0", features = ["derive"] }
 tokio = { version = "1.0" }
 uuid = { version = "1.2", features = ["v4"] }
-hashring = "0.3.6"
+rustc-hash = "2.0.0"
 
 # logging
 log = "0.4.17"
