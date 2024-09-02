@@ -74,6 +74,7 @@ impl Consumers {
     ) where
         ShortString: Borrow<S>,
     {
+        trace!("FF Consumers::handle_body_frame");
         if let Some(consumer) = self.0.lock().get_mut(consumer_tag) {
             consumer.handle_body_frame(remaining_size, payload);
         }

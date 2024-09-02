@@ -1494,6 +1494,7 @@ dependencies = [
  "tokio-executor-trait",
  "tokio-reactor-trait",
  "tokio-stream",
+ "tracing",
  "uuid",
 ]
 

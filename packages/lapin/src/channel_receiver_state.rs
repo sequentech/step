@@ -87,10 +87,12 @@ impl ChannelReceiverStates {
         error_handler: OnError,
         confirm_mode: bool,
     ) -> Result<()> {
+        trace!("FF ChanelReceiverStates::receive. step 0");
         if let Some(ChannelReceiverState::ReceivingContent(delivery_cause, len)) =
             self.0.pop_front()
         {
             if let Some(remaining) = len.checked_sub(length) {
+                trace!("FF ChanelReceiverStates::receive. step 1");
                 handler(&delivery_cause, remaining, confirm_mode);
                 if remaining > 0 {
                     self.0.push_front(ChannelReceiverState::ReceivingContent(
@@ -100,9 +102,11 @@ impl ChannelReceiverStates {
                 }
                 Ok(())
             } else {
+                trace!("FF ChanelReceiverStates::receive. step 2");
                 error_handler(format!("unexpectedly large content body frame received on channel {} ({} bytes, expected {} bytes)", channel_id, length, len))
             }
         } else {
+            trace!("FF ChanelReceiverStates::receive. step 3");
             error_handler(format!(
                 "unexpected content body frame received on channel {}",
                 channel_id
