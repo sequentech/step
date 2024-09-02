@@ -5,8 +5,7 @@
 services:
   devcontainer:
     #profiles: ["full", "base"]
-    image: ghcr.io/cachix/devenv:latest
-
+    image: ghcr.io/cachix/devenv:v1.0.7
     container_name: devcontainer
     volumes:
     - type: bind
@@ -60,83 +59,82 @@ services:
     depends_on:
       - postgres-volume-init
 
-  # minio:
-  #   #profiles: ["full", "base"]
-  #   container_name: minio
-  #   image: minio/minio
-  #   #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
-  #   #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
-  #   ports:
-  #     - "9000:9000"
-  #     - "9001:9001"
-  #   volumes:
-  #     - minio_storage:/data
-  #   environment:
-  #     - MINIO_ROOT_USER=${AWS_S3_ROOT_USER}
-  #     - MINIO_ROOT_PASSWORD=${AWS_S3_ROOT_PASSWORD}
-  #     - MINIO_ACCESS_KEY=${AWS_S3_ACCESS_KEY}
-  #     - MINIO_ACCESS_SECRET=${AWS_S3_ACCESS_SECRET}
-  #   #entrypoint: sh
-  #   #command: -c 'mc config host add minio http://localhost:9000 $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD && mc admin user svcacct add --access-key "$MINIO_ACCESS_KEY" --secret-key "$MINIO_ACCESS_SECRET" minio $MINIO_ROOT_USER && server --console-address ":9001" /data'
-  #   command: server --console-address ":9001" /data
-  #   #entrypoint: /bin/bash
-  #   #command: -c 'minio server --console-address ":9001" /data'
-  #   #restart: always
-  #   #depends_on:
-  #   #  - graphql-engine
+  minio:
+    #profiles: ["full", "base"]
+    container_name: minio
+    image: minio/minio
+    #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
+    #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_storage:/data
+    environment:
+      - MINIO_ROOT_USER=${AWS_S3_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${AWS_S3_ROOT_PASSWORD}
+      - MINIO_ACCESS_KEY=${AWS_S3_ACCESS_KEY}
+      - MINIO_ACCESS_SECRET=${AWS_S3_ACCESS_SECRET}
+    #entrypoint: sh
+    #command: -c 'mc config host add minio http://localhost:9000 $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD && mc admin user svcacct add --access-key "$MINIO_ACCESS_KEY" --secret-key "$MINIO_ACCESS_SECRET" minio $MINIO_ROOT_USER && server --console-address ":9001" /data'
+    command: server --console-address ":9001" /data
+    #entrypoint: /bin/bash
+    #command: -c 'minio server --console-address ":9001" /data'
+    #restart: always
+    #depends_on:
+    #  - graphql-engine
   
   # used to add headers to minio
-  # minio-proxy:
-  #   #profiles: ["full", "base"]
-  #   container_name: minio-proxy
-  #   image: nginx:latest
-  #   ports:
-  #     - "9002:9002"
-  #   volumes:
-  #     - ./minio/nginx:/etc/nginx/conf.d
-  #     #- minio_nginx:/etc/nginx/conf.d
-  #   depends_on:
-  #     - minio
+  minio-proxy:
+    #profiles: ["full", "base"]
+    container_name: minio-proxy
+    image: nginx:latest
+    ports:
+      - "9002:9002"
+    volumes:
+      - ./minio/nginx:/etc/nginx/conf.d
+    depends_on:
+      - minio
   
-  # configure-minio:
-  #   #profiles: ["full", "base"]
-  #   container_name: configure-minio
-  #   image: ghcr.io/sequentech/step/minio:latest
-  #   depends_on:
-  #     - minio
-  #   environment:
-  #     - MINIO_ROOT_USER=${AWS_S3_ROOT_USER}
-  #     - MINIO_ROOT_PASSWORD=${AWS_S3_ROOT_PASSWORD}
-  #     - MINIO_ACCESS_KEY=${AWS_S3_ACCESS_KEY}
-  #     - MINIO_ACCESS_SECRET=${AWS_S3_ACCESS_SECRET}
-  #     - MINIO_PRIVATE_URI=${AWS_S3_PRIVATE_URI}
-  #     - MINIO_PUBLIC_BUCKET=${AWS_S3_PUBLIC_BUCKET}
-  #     - MINIO_BUCKET=${AWS_S3_BUCKET}
-  #   entrypoint: /scripts/entrypoint.sh
+  configure-minio:
+    #profiles: ["full", "base"]
+    container_name: configure-minio
+    image: ghcr.io/sequentech/step/minio:latest
+    depends_on:
+      - minio
+    environment:
+      - MINIO_ROOT_USER=${AWS_S3_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${AWS_S3_ROOT_PASSWORD}
+      - MINIO_ACCESS_KEY=${AWS_S3_ACCESS_KEY}
+      - MINIO_ACCESS_SECRET=${AWS_S3_ACCESS_SECRET}
+      - MINIO_PRIVATE_URI=${AWS_S3_PRIVATE_URI}
+      - MINIO_PUBLIC_BUCKET=${AWS_S3_PUBLIC_BUCKET}
+      - MINIO_BUCKET=${AWS_S3_BUCKET}
+    entrypoint: /scripts/entrypoint.sh
 
   # hashicorp vault to store secrets
-  # vault:
-  #   #profiles: ["full", "base"]
-  #   container_name: vault
-  #   image: ghcr.io/sequentech/step/vault:latest
-  #   restart: on-failure:10
-  #   #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
-  #   #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
-  #   ports:
-  #     - "8201:8201"
-  #     - "8200:8200"
-  #   environment:
-  #     VAULT_API_ADDR: 'http://0.0.0.0:8200'
-  #     VAULT_ADDR: 'http://0.0.0.0:8201'
-  #     VAULT_UNSEAL_KEY: ciWE5G/CT7/uo5mfaGeRvSyuGRnbtijzvLDg3ru/jv0=
-  #     VAULT_TOKEN: hvs.s0djsk0LLBI19K0DkW4Fajs7
-  #   cap_add:
-  #     - IPC_LOCK
-  #   volumes:
-  #     - vault-volume:/vault
-  #   healthcheck:
-  #     retries: 5
-  #   entrypoint: /opt/vault/entrypoint.sh
+  vault:
+    #profiles: ["full", "base"]
+    container_name: vault
+    image: ghcr.io/sequentech/step/vault:latest
+    restart: on-failure:10
+    #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
+    #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
+    ports:
+      - "8201:8201"
+      - "8200:8200"
+    environment:
+      VAULT_API_ADDR: 'http://0.0.0.0:8200'
+      VAULT_ADDR: 'http://0.0.0.0:8201'
+      VAULT_UNSEAL_KEY: ciWE5G/CT7/uo5mfaGeRvSyuGRnbtijzvLDg3ru/jv0=
+      VAULT_TOKEN: hvs.s0djsk0LLBI19K0DkW4Fajs7
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - vault-volume:/vault
+    healthcheck:
+      retries: 5
+    entrypoint: /opt/vault/entrypoint.sh
 
   graphql-engine:
     #profiles: ["full", "base"]
@@ -179,24 +177,24 @@ services:
       postgres:
         condition: service_healthy
 
-  # data-connector-agent:
-  #   #profiles: ["full", "base"]
-  #   container_name: data-connector-agent
-  #   image: hasura/graphql-data-connector:v2.31.0
-  #   restart: always
-  #   ports:
-  #     - 8081:8081
-  #   environment:
-  #     QUARKUS_LOG_LEVEL: ERROR # FATAL, ERROR, WARN, INFO, DEBUG, TRACE
-  #     ## https://quarkus.io/guides/opentelemetry#configuration-reference
-  #     QUARKUS_OPENTELEMETRY_ENABLED: "false"
-  #     ## QUARKUS_OPENTELEMETRY_TRACER_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
-  #   healthcheck:
-  #     test: ["CMD", "curl", "-f", "http://localhost:8081/api/v1/athena/health"]
-  #     interval: 5s
-  #     timeout: 10s
-  #     retries: 25
-  #     start_period: 5s
+  data-connector-agent:
+    #profiles: ["full", "base"]
+    container_name: data-connector-agent
+    image: hasura/graphql-data-connector:v2.31.0
+    restart: always
+    ports:
+      - 8081:8081
+    environment:
+      QUARKUS_LOG_LEVEL: ERROR # FATAL, ERROR, WARN, INFO, DEBUG, TRACE
+      ## https://quarkus.io/guides/opentelemetry#configuration-reference
+      QUARKUS_OPENTELEMETRY_ENABLED: "false"
+      ## QUARKUS_OPENTELEMETRY_TRACER_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/api/v1/athena/health"]
+      interval: 5s
+      timeout: 10s
+      retries: 25
+      start_period: 5s
 
   postgres-keycloak:
     #profiles: ["full", "base"]
@@ -277,62 +275,62 @@ services:
       retries: 25
       start_period: 5s
 
-  # admin-portal:
-  #   #profiles: ["full"]
-  #   image: ghcr.io/sequentech/step/yarn:latest
-  #   container_name: admin-portal
+  admin-portal:
+    #profiles: ["full"]
+    image: ghcr.io/sequentech/step/yarn:latest
+    container_name: admin-portal
 
-  #   #restart: always
-  #   #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
-  #   #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
-  #   ports:
-  #     - 3002:3002
-  #   stdin_open: true
-  #   entrypoint: ["yarn", "start:admin-portal"]
-  #   volumes:
-  #      - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
-  #   environment:
-  #       MAX_DIFF_LINES: ${MAX_DIFF_LINES}
-  #       SECONDS_TO_SHOW_COUNTDOWN: ${SECONDS_TO_SHOW_COUNTDOWN}
-  #       SECONDS_TO_SHOW_ALRET: ${SECONDS_TO_SHOW_ALRET}
+    #restart: always
+    #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
+    #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
+    ports:
+      - 3002:3002
+    stdin_open: true
+    entrypoint: ["./init.sh", "start:admin:container"]
+    volumes:
+       - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
+    environment:
+        MAX_DIFF_LINES: ${MAX_DIFF_LINES}
+        SECONDS_TO_SHOW_COUNTDOWN: ${SECONDS_TO_SHOW_COUNTDOWN}
+        SECONDS_TO_SHOW_ALRET: ${SECONDS_TO_SHOW_ALRET}
 
-  # voting-portal:
-  #   #profiles: ["full"]
-  #   image: ghcr.io/sequentech/step/yarn:latest
-  #   container_name: voting-portal
-  #   # depending on the `admin-portal` container to ensure that the
-  #   # `sequentech.local/frontend` image is locally build, so that we can reuse
-  #   # it:
-  #   depends_on:
-  #     - admin-portal
-  #   #restart: always
-  #   #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
-  #   #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
-  #   ports:
-  #     - 3000:3000
-  #   stdin_open: true
-  #   entrypoint: ["yarn", "start:voting-portal"]
-  #   volumes:
-  #      - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
+  voting-portal:
+    #profiles: ["full"]
+    image: ghcr.io/sequentech/step/yarn:latest
+    container_name: voting-portal
+    # depending on the `admin-portal` container to ensure that the
+    # `sequentech.local/frontend` image is locally build, so that we can reuse
+    # it:
+    depends_on:
+      - admin-portal
+    #restart: always
+    #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
+    #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
+    ports:
+      - 3000:3000
+    stdin_open: true
+    entrypoint: ["./init.sh", "start"]
+    volumes:
+       - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
 
-  # immudb:
-  #   #profiles: ["full", "base"]
-  #   container_name: immudb
-  #   image: ghcr.io/sequentech/step/immudb:latest
-  #   restart: always
-  #   environment:
-  #     - IMMUDB_PGSQL_SERVER=true
-  #   #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
-  #   #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
-  #   ports:
-  #     - 3322:3322 # immudb service
-  #     - 3324:9497 # prometheus
-  #     - 3325:8080 # web console
-  #   volumes:
-  #     - immudb_data:/var/lib/immudb
-  #     - immudb_logs:/var/log/immudb
-  #   depends_on:
-  #     - immudb-init
+  immudb:
+    #profiles: ["full", "base"]
+    container_name: immudb
+    image: ghcr.io/sequentech/step/immudb:latest
+    restart: always
+    environment:
+      - IMMUDB_PGSQL_SERVER=true
+    #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
+    #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
+    ports:
+      - 3322:3322 # immudb service
+      - 3324:9497 # prometheus
+      - 3325:8080 # web console
+    volumes:
+      - immudb_data:/var/lib/immudb
+      - immudb_logs:/var/log/immudb
+    depends_on:
+      - immudb-init
   
   harvest:
     #profiles: ["full", "base"]
@@ -402,78 +400,78 @@ services:
       AWS_S3_ACCESS_KEY: ${AWS_S3_ACCESS_KEY}
       AWS_S3_ACCESS_SECRET: ${AWS_S3_ACCESS_SECRET}
 
-  #     # used by AWS S3 to "load_from_env()". Don't use this in production, not
-  #     # needed. Instead, in production we'll use Web Identity Tokens
-  #     AWS_ACCESS_KEY_ID: ${AWS_S3_ACCESS_KEY}
-  #     AWS_SECRET_ACCESS_KEY: ${AWS_S3_ACCESS_SECRET}
+      # used by AWS S3 to "load_from_env()". Don't use this in production, not
+      # needed. Instead, in production we'll use Web Identity Tokens
+      AWS_ACCESS_KEY_ID: ${AWS_S3_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${AWS_S3_ACCESS_SECRET}
 
-  #     SECRETS_BACKEND: ${SECRETS_BACKEND}
-  #     AWS_SM_KEY_PREFIX: ${AWS_SM_KEY_PREFIX}
-  #     VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-  #     VAULT_TOKEN: ${VAULT_TOKEN}
+      SECRETS_BACKEND: ${SECRETS_BACKEND}
+      AWS_SM_KEY_PREFIX: ${AWS_SM_KEY_PREFIX}
+      VAULT_SERVER_URL: ${VAULT_SERVER_URL}
+      VAULT_TOKEN: ${VAULT_TOKEN}
 
-  #     AWS_S3_UPLOAD_EXPIRATION_SECS: ${AWS_S3_UPLOAD_EXPIRATION_SECS}
-  #     AWS_S3_FETCH_EXPIRATION_SECS: ${AWS_S3_FETCH_EXPIRATION_SECS}
-  #     AWS_REGION: ${AWS_REGION}
-  #     AWS_S3_MAX_UPLOAD_BYTES: ${AWS_S3_MAX_UPLOAD_BYTES}
+      AWS_S3_UPLOAD_EXPIRATION_SECS: ${AWS_S3_UPLOAD_EXPIRATION_SECS}
+      AWS_S3_FETCH_EXPIRATION_SECS: ${AWS_S3_FETCH_EXPIRATION_SECS}
+      AWS_REGION: ${AWS_REGION}
+      AWS_S3_MAX_UPLOAD_BYTES: ${AWS_S3_MAX_UPLOAD_BYTES}
 
-  #   #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
-  #   #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
-  #   ports:
-  #    - ${HARVEST_PORT}:${HARVEST_PORT}
+    #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
+    #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
+    ports:
+     - ${HARVEST_PORT}:${HARVEST_PORT}
 
-  # trustee1:
-  #   #profiles: ["full"]
-  #   stdin_open: true
-  #   container_name: trustee1
-  #   image: sequentech.local/braid
-  #   volumes:
-  #     - trustee1_data:/opt/braid
-  #   # TODO: be able to reuse the `sequentech.local/cargo-packages` image
-  #   build:
-  #     context: ../packages/
-  #     dockerfile: ./braid/Dockerfile
-  #   environment:
-  #       IMMUDB_USER: ${IMMUDB_USER}
-  #       IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-  #       IMMUDB_URL: ${IMMUDB_SERVER_URL}
-  #       IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
-  #       TRUSTEE_NAME: trustee1
-  #       TRUSTEE_CONFIG: ${TRUSTEE1_CONFIG}
-  #       IGNORE_BOARDS: ${IGNORE_BOARDS}
-  #       SECRETS_BACKEND: ${SECRETS_BACKEND}
-  #       VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-  #       VAULT_TOKEN: ${VAULT_TOKEN}
-  #   depends_on:
-  #     - immudb
+  trustee1:
+    #profiles: ["full"]
+    stdin_open: true
+    container_name: trustee1
+    image: sequentech.local/braid
+    volumes:
+      - trustee1_data:/opt/braid
+    # TODO: be able to reuse the `sequentech.local/cargo-packages` image
+    build:
+      context: ../packages/
+      dockerfile: ./braid/Dockerfile
+    environment:
+        IMMUDB_USER: ${IMMUDB_USER}
+        IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
+        IMMUDB_URL: ${IMMUDB_SERVER_URL}
+        IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
+        TRUSTEE_NAME: trustee1
+        TRUSTEE_CONFIG: ${TRUSTEE1_CONFIG}
+        IGNORE_BOARDS: ${IGNORE_BOARDS}
+        SECRETS_BACKEND: ${SECRETS_BACKEND}
+        VAULT_SERVER_URL: ${VAULT_SERVER_URL}
+        VAULT_TOKEN: ${VAULT_TOKEN}
+    depends_on:
+      - immudb
   
-  # trustee2:
-  #   #profiles: ["full"]
-  #   stdin_open: true
-  #   image: sequentech.local/braid
-  #   container_name: trustee2
-  #   volumes:
-  #     - trustee2_data:/opt/braid
-  #   # depending on the `trustee1` container to ensure that the
-  #   # `sequentech.local/braid` image is locally build, so that we can reuse
-  #   # it:
-  #   depends_on:
-  #     - trustee1
-  #     - immudb
-  #   environment:
-  #       IMMUDB_USER: ${IMMUDB_USER}
-  #       IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-  #       IMMUDB_URL: ${IMMUDB_SERVER_URL}
-  #       IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
-  #       TRUSTEE_NAME: trustee2
-  #       TRUSTEE_CONFIG: ${TRUSTEE2_CONFIG}
-  #       IGNORE_BOARDS: ${IGNORE_BOARDS}
-  #       SECRETS_BACKEND: ${SECRETS_BACKEND}
-  #       VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-  #       VAULT_TOKEN: ${VAULT_TOKEN}
+  trustee2:
+    #profiles: ["full"]
+    stdin_open: true
+    image: sequentech.local/braid
+    container_name: trustee2
+    volumes:
+      - trustee2_data:/opt/braid
+    # depending on the `trustee1` container to ensure that the
+    # `sequentech.local/braid` image is locally build, so that we can reuse
+    # it:
+    depends_on:
+      - trustee1
+      - immudb
+    environment:
+        IMMUDB_USER: ${IMMUDB_USER}
+        IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
+        IMMUDB_URL: ${IMMUDB_SERVER_URL}
+        IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
+        TRUSTEE_NAME: trustee2
+        TRUSTEE_CONFIG: ${TRUSTEE2_CONFIG}
+        IGNORE_BOARDS: ${IGNORE_BOARDS}
+        SECRETS_BACKEND: ${SECRETS_BACKEND}
+        VAULT_SERVER_URL: ${VAULT_SERVER_URL}
+        VAULT_TOKEN: ${VAULT_TOKEN}
   
   # trustee3:
-  #   #profiles: ["full"]
+  #   profiles: ["full"]
   #   stdin_open: true
   #   image: sequentech.local/braid
   #   container_name: trustee3
@@ -498,98 +496,98 @@ services:
   #       VAULT_TOKEN: ${VAULT_TOKEN}
 
   # Create collection in immudb
-  # immudb-log-audit-init:
-  #   #profiles: ["full", "base"]
-  #   image: ghcr.io/sequentech/step/immudb-log-audit:latest
-  #   container_name: immudb-log-audit-init
-  #   command: >
-  #     create sql pgaudit_hasura
-  #     --parser pgauditjsonlog
-  #     --log-level debug
-  #     --immudb-user ${IMMUDB_USER}
-  #     --immudb-password ${IMMUDB_PASSWORD}
-  #     --immudb-host ${IMMUDB_HOST}
-  #     --immudb-port ${IMMUDB_PORT}
-  #     --immudb-database ${IMMUDB_LOGS_DB}
-  #   depends_on:
-  #     - postgres
-  #     - immudb
+  immudb-log-audit-init:
+    #profiles: ["full", "base"]
+    image: ghcr.io/sequentech/step/immudb-log-audit:latest
+    container_name: immudb-log-audit-init
+    command: >
+      create sql pgaudit_hasura
+      --parser pgauditjsonlog
+      --log-level debug
+      --immudb-user ${IMMUDB_USER}
+      --immudb-password ${IMMUDB_PASSWORD}
+      --immudb-host ${IMMUDB_HOST}
+      --immudb-port ${IMMUDB_PORT}
+      --immudb-database ${IMMUDB_LOGS_DB}
+    depends_on:
+      - postgres
+      - immudb
 
   # Send audit logs to immudb
-  # immudb-log-audit:
-  #   #profiles: ["full", "base"]
-  #   image: ghcr.io/sequentech/step/immudb-log-audit:latest
-  #   container_name: immudb-log-audit
-  #   command: >
-  #     tail file pgaudit_hasura "/logs/*.json"
-  #     --follow
-  #     --parser pgauditjsonlog
-  #     --file-registry-dir=/data
-  #     --log-level debug
-  #     --immudb-user ${IMMUDB_USER}
-  #     --immudb-password ${IMMUDB_PASSWORD}
-  #     --immudb-host ${IMMUDB_HOST}
-  #     --immudb-port ${IMMUDB_PORT}
-  #     --immudb-database ${IMMUDB_LOGS_DB}
-  #   volumes: 
-  #     - 'immudb_log_audit_data:/data'
-  #     - 'db_logs:/logs'
-  #   # make sure to depend on the `immudb-log-audit-init` container to ensure
-  #   # that the `sequentech.local/immudb-log-audit` image is locally build, so
-  #   # that we can reuse it:
-  #   depends_on:
-  #     - postgres
-  #     - immudb
-  #     - immudb-log-audit-init
-  #   environment:
-  #     IMMUDB_LOG_AUDIT_PROBE_ADDR: ${IMMUDB_LOG_AUDIT_PROBE_ADDR}
-  #     IMMUDB_LOG_AUDIT_PROBE_LIVE_PATH: ${IMMUDB_LOG_AUDIT_PROBE_LIVE_PATH}
+  immudb-log-audit:
+    #profiles: ["full", "base"]
+    image: ghcr.io/sequentech/step/immudb-log-audit:latest
+    container_name: immudb-log-audit
+    command: >
+      tail file pgaudit_hasura "/logs/*.json"
+      --follow
+      --parser pgauditjsonlog
+      --file-registry-dir=/data
+      --log-level debug
+      --immudb-user ${IMMUDB_USER}
+      --immudb-password ${IMMUDB_PASSWORD}
+      --immudb-host ${IMMUDB_HOST}
+      --immudb-port ${IMMUDB_PORT}
+      --immudb-database ${IMMUDB_LOGS_DB}
+    volumes: 
+      - 'immudb_log_audit_data:/data'
+      - 'db_logs:/logs'
+    # make sure to depend on the `immudb-log-audit-init` container to ensure
+    # that the `sequentech.local/immudb-log-audit` image is locally build, so
+    # that we can reuse it:
+    depends_on:
+      - postgres
+      - immudb
+      - immudb-log-audit-init
+    environment:
+      IMMUDB_LOG_AUDIT_PROBE_ADDR: ${IMMUDB_LOG_AUDIT_PROBE_ADDR}
+      IMMUDB_LOG_AUDIT_PROBE_LIVE_PATH: ${IMMUDB_LOG_AUDIT_PROBE_LIVE_PATH}
 
   # Create collection in immudb
-  # immudb-log-audit-init-keycloak:
-  #   #profiles: ["full", "base"]
-  #   image: ghcr.io/sequentech/step/immudb-log-audit:latest
-  #   container_name: immudb-log-audit-init-keycloak
-  #   command: >
-  #     create sql pgaudit_keycloak
-  #     --parser pgauditjsonlog
-  #     --log-level debug
-  #     --immudb-user ${IMMUDB_USER}
-  #     --immudb-password ${IMMUDB_PASSWORD}
-  #     --immudb-host ${IMMUDB_HOST}
-  #     --immudb-port ${IMMUDB_PORT}
-  #     --immudb-database ${IMMUDB_LOGS_DB}
-  #   depends_on:
-  #     - postgres
-  #     - immudb
-  #     - immudb-log-audit-init
+  immudb-log-audit-init-keycloak:
+    #profiles: ["full", "base"]
+    image: ghcr.io/sequentech/step/immudb-log-audit:latest
+    container_name: immudb-log-audit-init-keycloak
+    command: >
+      create sql pgaudit_keycloak
+      --parser pgauditjsonlog
+      --log-level debug
+      --immudb-user ${IMMUDB_USER}
+      --immudb-password ${IMMUDB_PASSWORD}
+      --immudb-host ${IMMUDB_HOST}
+      --immudb-port ${IMMUDB_PORT}
+      --immudb-database ${IMMUDB_LOGS_DB}
+    depends_on:
+      - postgres
+      - immudb
+      - immudb-log-audit-init
 
   # Send audit logs to immudb
-  # immudb-log-audit-keycloak:
-  #   #profiles: ["full", "base"]
-  #   image: ghcr.io/sequentech/step/immudb-log-audit:latest
-  #   container_name: immudb-log-audit-keycloak
-  #   command: >
-  #     tail file pgaudit_keycloak "/logs/*.json"
-  #     --follow
-  #     --parser pgauditjsonlog
-  #     --file-registry-dir=/data
-  #     --log-level debug
-  #     --immudb-user ${IMMUDB_USER}
-  #     --immudb-password ${IMMUDB_PASSWORD}
-  #     --immudb-host ${IMMUDB_HOST}
-  #     --immudb-port ${IMMUDB_PORT}
-  #     --immudb-database ${IMMUDB_LOGS_DB}
-  #   volumes: 
-  #     - 'keycloak_immudb_log_audit_data:/data'
-  #     - 'keycloak_db_logs:/logs'
-  #   # make sure to depend on the `immudb-log-audit-init` container to ensure
-  #   # that the `sequentech.local/immudb-log-audit` image is locally build, so
-  #   # that we can reuse it:
-  #   depends_on:
-  #     - postgres
-  #     - immudb
-  #     - immudb-log-audit-init-keycloak
+  immudb-log-audit-keycloak:
+    #profiles: ["full", "base"]
+    image: ghcr.io/sequentech/step/immudb-log-audit:latest
+    container_name: immudb-log-audit-keycloak
+    command: >
+      tail file pgaudit_keycloak "/logs/*.json"
+      --follow
+      --parser pgauditjsonlog
+      --file-registry-dir=/data
+      --log-level debug
+      --immudb-user ${IMMUDB_USER}
+      --immudb-password ${IMMUDB_PASSWORD}
+      --immudb-host ${IMMUDB_HOST}
+      --immudb-port ${IMMUDB_PORT}
+      --immudb-database ${IMMUDB_LOGS_DB}
+    volumes: 
+      - 'keycloak_immudb_log_audit_data:/data'
+      - 'keycloak_db_logs:/logs'
+    # make sure to depend on the `immudb-log-audit-init` container to ensure
+    # that the `sequentech.local/immudb-log-audit` image is locally build, so
+    # that we can reuse it:
+    depends_on:
+      - postgres
+      - immudb
+      - immudb-log-audit-init-keycloak
 
   rabbitmq:
     #profiles: ["full", "base"]
@@ -787,39 +785,9 @@ volumes:
   immudb_log_audit_data:
   keycloak_immudb_log_audit_data:
   keycloak_db_data:
-  # keycloak_import:
-  #   driver: local
-  #   driver_opts:
-  #     type: none
-  #     device: ~/repos/step/.devcontainer/keycloak/import
-  #     o: bind
-  # packages:
-  #   driver: local
-  #   driver_opts:
-  #     type: none
-  #     device: ~/repos/step/packages
-  #     o: bind
-  # hasura_metadata:
-  #   driver: local
-  #   driver_opts:
-  #     type: none
-  #     device: ~/repos/step/hasura/metadata
-  #     o: bind
-  # hasura_migrations:
-  #   driver: local
-  #   driver_opts:
-  #     type: none
-  #     device: ~/repos/step/hasura/migrations
-  #     o: bind
   immudb_data:
   immudb_logs:
   minio_storage:
-  # minio_nginx:
-  #   driver: local
-  #   driver_opts:
-  #     type: none
-  #     device: ~/repos/step/.devcontainer/minio/nginx
-  #     o: bind
   trustee1_data:
   trustee2_data:
   trustee3_data:
