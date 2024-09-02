@@ -30,7 +30,23 @@ export enum EEnableCheckableLists {
 export enum EBlankVotePolicy {
     ALLOWED = "allowed",
     WARN = "warn",
+    WARN_ONLY_IN_REVIEW = "warn-only-in-review",
     NOT_ALLOWED = "not-allowed",
+}
+
+export enum EUnderVotePolicy {
+    ALLOWED = "allowed",
+    WARN = "warn",
+    WARN_ONLY_IN_REVIEW = "warn-only-in-review",
+    WARN_AND_ALERT = "warn-and-alert",
+}
+
+export enum EOverVotePolicy {
+    ALLOWED = "allowed",
+    ALLOWED_WITH_MSG = "allowed-with-msg",
+    ALLOWED_WITH_MSG_AND_ALERT = "allowed-with-msg-and-alert",
+    NOT_ALLOWED_WITH_MSG_AND_ALERT = "not-allowed-with-msg-and-alert",
+    NOT_ALLOWED_WITH_MSG_AND_DISABLE = "not-allowed-with-msg-and-disable",
 }
 
 export interface ITypePresentation {
@@ -46,6 +62,8 @@ export interface IContestPresentation {
     base32_writeins?: boolean
     invalid_vote_policy?: EInvalidVotePolicy
     blank_vote_policy?: EBlankVotePolicy
+    over_vote_policy?: EOverVotePolicy
+    pagination_policy?: String
     cumulative_number_of_checkboxes?: number
     shuffle_categories?: boolean
     shuffle_category_list?: Array<string>
@@ -55,5 +73,5 @@ export interface IContestPresentation {
     candidates_selection_policy?: ECandidatesSelectionPolicy
     types_presentation?: Record<string, ITypePresentation>
     sort_order?: number
-    under_vote_alert?: boolean
+    under_vote_policy?: EUnderVotePolicy
 }

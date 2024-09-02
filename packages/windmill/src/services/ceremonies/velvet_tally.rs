@@ -307,8 +307,7 @@ pub async fn create_election_configs(
 }
 
 #[instrument(err)]
-pub fn call_velvet(base_tally_path: PathBuf) -> Result<State> {
-    //// Run Velvet
+pub fn generate_initial_state(base_tally_path: &PathBuf) -> Result<State> {
     let cli = CliRun {
         stage: "main".to_string(),
         pipe_id: "decode-ballots".to_string(),
@@ -319,15 +318,49 @@ pub fn call_velvet(base_tally_path: PathBuf) -> Result<State> {
 
     let config = cli.validate()?;
 
-    let mut state = State::new(&cli, &config)?;
+    State::new(&cli, &config).map_err(|err| anyhow!("{}", err))
+}
 
-    while let Some(next_stage) = state.get_next() {
-        let stage_name = next_stage.to_string();
-        event!(Level::INFO, "Exec {}", stage_name);
-        state.exec_next()?;
+#[instrument(err)]
+pub async fn call_velvet(base_tally_path: PathBuf) -> Result<State> {
+    let mut state_opt = Some(generate_initial_state(&base_tally_path)?);
+
+    // Use a loop to handle state processing
+    loop {
+        // Extract the next stage, or return an error if not found
+        let next_stage = {
+            let state_ref = state_opt
+                .as_ref()
+                .ok_or_else(|| anyhow!("State should not be None during processing"))?;
+
+            if let Some(stage) = state_ref.get_next() {
+                stage.to_string()
+            } else {
+                break; // Exit loop if no next stage is found
+            }
+        };
+
+        event!(Level::INFO, "Exec {}", next_stage);
+
+        // Move the state into a block for mutable borrow
+        let handle = tokio::task::spawn_blocking({
+            let mut state = state_opt
+                .take()
+                .ok_or_else(|| anyhow!("Failed to take state for execution"))?;
+
+            move || {
+                let result = state.exec_next();
+                (state, result)
+            }
+        });
+
+        // Await the result and handle JoinError explicitly
+        let (new_state, result) = handle.await.map_err(|err| anyhow!("{}", err))?;
+        result?; // Check the result of exec_next()
+        state_opt = Some(new_state); // Restore state for the next iteration
     }
 
-    Ok(state)
+    state_opt.ok_or_else(|| anyhow!("State unexpectedly None at the end of processing"))
 }
 
 async fn get_public_asset_vote_receipts_template() -> Result<String> {
@@ -500,5 +533,5 @@ pub async fn run_velvet_tally(
     )
     .await?;
     create_config_file(base_tally_path.clone(), report_content_template).await?;
-    call_velvet(base_tally_path.clone())
+    call_velvet(base_tally_path.clone()).await
 }

@@ -15,4 +15,7 @@ members = [
     "velvet",
     "windmill",
     "wrap-map-err",
+    "step-cli",
+    "rusty-celery",
+    "lapin"
 ]

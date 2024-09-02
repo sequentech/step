@@ -9,6 +9,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.Response;
 import java.io.IOException;
+import java.text.Collator;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +37,17 @@ import org.keycloak.sessions.AuthenticationSessionModel;
 public class InetumAuthenticator implements Authenticator, AuthenticatorFactory {
   public static final String PROVIDER_ID = "inetum-authenticator";
   private static final InetumAuthenticator SINGLETON = new InetumAuthenticator();
+  private static final String AUTH_NOTE_ATTRIBUTE_ID = "equalAuthnoteAttributeId";
+  private static final String INETUM_ATTRIBUTE_PATH = "inetumAttributePath";
+  private static final String VALIDATION_ATTRIBUTE_TYPE = "type";
+  private static final String VALIDATION_ATTRIBUTE_ERROR = "errorMsg";
+  private static final String INTEGER_MIN_VALUE = "intMinValue";
+  private static final String EQUAL_VALUE = "equalValue";
+  private static final String EQUAL_DATE = "equalDateAuthnoteAttributeId";
+  private static final String VALUE_DATE_FORMAT = "valueDateFormat";
+  private static final String INETUM_DATE_FORMAT = "inetumDateFormat";
+  private static final String EXPIRED_DATE = "isBeforeDateValue";
+  private static final String NOW = "now";
 
   @Override
   public void authenticate(AuthenticationFlowContext context) {
@@ -201,17 +215,17 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
   @Override
   public void action(AuthenticationFlowContext context) {
-    log.info("action()");
-    boolean validated = verifyResults(context);
-    if (!validated) {
+    log.info("action(): start");
+    SimpleHttp.Response result = verifyResults(context);
+    if (result == null) {
       // invalid
       AuthenticationExecutionModel execution = context.getExecution();
       if (execution.isRequired()) {
         // context.failureChallenge(
-        //	AuthenticationFlowError.INVALID_CREDENTIALS,
-        //	getBaseForm(context)
-        //		.setError(Utils.FTL_ERROR_AUTH_INVALID)
-        //		.createForm(Utils.INETUM_ERROR)
+        // AuthenticationFlowError.INVALID_CREDENTIALS,
+        // getBaseForm(context)
+        // .setError(Utils.FTL_ERROR_AUTH_INVALID)
+        // .createForm(Utils.INETUM_ERROR)
         // );
         context.failure(AuthenticationFlowError.INVALID_CREDENTIALS);
         context.attempted();
@@ -223,16 +237,39 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       } else if (execution.isConditional() || execution.isAlternative()) {
         context.attempted();
       }
-    } else {
-      // valid
-      context.success();
+      return;
     }
+
+    String error = validateAttributes(context, result);
+
+    if (error != null) {
+      log.error(
+          "action(): The submitted form data does not correspond with the ones provided by Inetum.");
+      // invalid
+      AuthenticationExecutionModel execution = context.getExecution();
+      if (execution.isRequired()) {
+        context.failure(AuthenticationFlowError.INVALID_CREDENTIALS);
+        context.attempted();
+        Response challenge =
+            getBaseForm(context)
+                .setAttribute(Utils.FTL_ERROR, error)
+                .createForm(Utils.INETUM_ERROR);
+        context.challenge(challenge);
+      } else if (execution.isConditional() || execution.isAlternative()) {
+        context.attempted();
+      }
+      return;
+    }
+
+    log.info("action(): success");
+    // valid
+    context.success();
   }
 
   /*
    * Calls Inetum API results/get and verify results
    */
-  protected boolean verifyResults(AuthenticationFlowContext context) {
+  protected SimpleHttp.Response verifyResults(AuthenticationFlowContext context) {
     log.info("verifyResults: start");
 
     // Get the transaction data from the auth session
@@ -241,7 +278,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     String userId = sessionModel.getAuthNote(Utils.FTL_USER_ID);
     if (tokenDob == null || userId == null) {
       log.info("verifyResults: TRUE; tokenDob == null || userId == null");
-      return false;
+      return null;
     }
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
     Map<String, String> configMap = config.getConfig();
@@ -256,21 +293,22 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
         log.error(
             "verifyResults: Error calling transaction/status, response.asString() = "
                 + response.asString());
-        return false;
+        return null;
       }
 
       int code = response.asJson().get("code").asInt();
       if (code != 0) {
         log.error("verifyResults: Error calling transaction/status, code = " + code);
-        return false;
+        return null;
       }
       String idStatus = response.asJson().get("response").get("idStatus").asText();
       log.info("verifyResults: transaction/status, idStatus = " + idStatus);
       // TODO: I don't know why I'm getting "processing" instead of
       // "verificationOk"
       // if (!idStatus.equals("verificationOk") && !idStatus.equals("processing")) {
-      // 	log.error("verifyResults: Error calling transaction/status, idStatus = " + idStatus);
-      // 	return false;
+      // log.error("verifyResults: Error calling transaction/status, idStatus = " +
+      // idStatus);
+      // return false;
       // }
 
       // The status is verification OK. Now we need to retrieve the
@@ -284,52 +322,297 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
         log.error(
             "verifyResults: Error calling transaction/results, response.asString() = "
                 + response.asString());
-        return false;
+        return null;
       }
 
       code = response.asJson().get("code").asInt();
       if (code != 0) {
         log.error("verifyResults: Error calling transaction/results, code = " + code);
-        return false;
+        return null;
       }
       String responseStr = response.asString();
       log.info("verifyResults: response Str = " + responseStr);
-      String personalNumber = null;
-      try {
-        personalNumber =
-            response.asJson().get("response").get("mrz").get("personal_number").asText();
-        log.info("verifyResults: personalNumber = " + personalNumber);
-      } catch (Exception error) {
-        // ignore, we'll try the ocr
-      }
-      if (personalNumber == null) {
-        // try ocr
-        log.info("verifyResults: personalNumber is null, trying ocr");
 
-        try {
-          personalNumber =
-              response.asJson().get("response").get("ocr").get("personal_number").asText();
-        } catch (Exception error) {
-          log.error("verifyResults: ocr is also null, return false");
-          return false;
-        }
+      log.info("verifyResults: TRUE");
 
-        if (personalNumber == null) {
-          log.error("verifyResults: ocr is also null, return false");
-          return false;
-        }
-      }
-      log.info("verifyResults: TRUE, personalNumber = " + personalNumber);
-
-      sessionModel.setAuthNote(configMap.get(Utils.DOC_ID_ATTRIBUTE), personalNumber);
       sessionModel.setAuthNote(
           configMap.get(Utils.USER_STATUS_ATTRIBUTE), Utils.USER_STATUS_VERIFIED);
 
-      return true;
+      return response;
     } catch (IOException error) {
       log.error("verifyResults(): FALSE; Exception: " + error.toString());
-      return false;
+      return null;
     }
+  }
+
+  private String validateAttributes(
+      AuthenticationFlowContext context, SimpleHttp.Response response) {
+    log.info("validateAttributes: start");
+    AuthenticatorConfigModel config = context.getAuthenticatorConfig();
+    Map<String, String> configMap = config.getConfig();
+
+    String docIdTypeAttributeName = configMap.get(Utils.DOC_ID_TYPE_ATTRIBUTE);
+    String docIdType = context.getAuthenticationSession().getAuthNote(docIdTypeAttributeName);
+
+    String attributesToValidate = configMap.get(Utils.ATTRIBUTES_TO_VALIDATE);
+    log.infov(
+        "validateAttributes: attributes to validate configuration: {0}", attributesToValidate);
+    JsonNode attributesToCheck = null;
+
+    if (attributesToValidate != null) {
+      log.infov("validateAttributes: attributesToValidate {0}", attributesToValidate);
+      log.infov("validateAttributes: docIdType {0}", docIdType);
+
+      try {
+        // Read the attributes to check from the configuration depending on the ID Type
+        attributesToCheck = new ObjectMapper().readTree(attributesToValidate).get(docIdType);
+      } catch (Exception exception) {
+        return Utils.FTL_ERROR_AUTH_INVALID;
+      }
+
+      if (attributesToCheck != null) {
+        for (JsonNode attributeToCheck : attributesToCheck) {
+          // Get inetum path from config
+          String inetumField = attributeToCheck.get(INETUM_ATTRIBUTE_PATH).asText();
+          log.infov("validateAttributes: inetumField {0}", inetumField);
+
+          // Get inetum value from response
+          String inetumValue = getValueFromInetumResponse(response, inetumField);
+
+          if (inetumValue == null) {
+            log.errorv(
+                "validateAttributes: could not find value in inetum response {0}", inetumField);
+            return Utils.FTL_ERROR_AUTH_INVALID;
+          }
+
+          String type = attributeToCheck.get(VALIDATION_ATTRIBUTE_TYPE).asText();
+          log.infov("validateAttributes: type {0}", type);
+
+          if (type == null || type.isBlank()) {
+            return Utils.FTL_ERROR_AUTH_INVALID;
+          }
+
+          String typeError = attributeToCheck.get(VALIDATION_ATTRIBUTE_ERROR).asText();
+          log.infov("validateAttributes: error {0}", typeError);
+
+          if (typeError == null || typeError.isBlank()) {
+            typeError = Utils.FTL_ERROR_AUTH_INVALID;
+          }
+
+          String attribute = attributeToCheck.get(type).asText();
+          log.infov("validateAttributes: attribute {0}", type);
+
+          if (typeError == null || type.isBlank()) {
+            typeError = Utils.FTL_ERROR_AUTH_INVALID;
+          }
+
+          String validationError = null;
+
+          switch (type) {
+            case AUTH_NOTE_ATTRIBUTE_ID:
+              validationError =
+                  checkAuthnoteEquals(
+                      context, attributeToCheck, attribute, typeError, inetumValue, inetumField);
+              break;
+            case INTEGER_MIN_VALUE:
+              validationError =
+                  integerMinValue(
+                      context, attributeToCheck, attribute, typeError, inetumValue, inetumField);
+              break;
+            case EQUAL_VALUE:
+              validationError =
+                  equalValue(
+                      context, attributeToCheck, attribute, typeError, inetumValue, inetumField);
+              break;
+            case EQUAL_DATE:
+              validationError =
+                  equalDate(
+                      context, attributeToCheck, attribute, typeError, inetumValue, inetumField);
+              break;
+            case EXPIRED_DATE:
+              validationError =
+                  isBeforeDate(
+                      context, attributeToCheck, attribute, typeError, inetumValue, inetumField);
+              break;
+            default:
+              log.warnv("validateAttributes: Unknow validation {0}. Ignoring validation.", type);
+          }
+
+          if (validationError != null) {
+            return validationError;
+          }
+        }
+      } else {
+        log.info("validateAttributes: Empty configuration provided. No attributes checked.");
+      }
+    }
+
+    log.info("validateAttributes: success");
+    return null;
+  }
+
+  private String equalDate(
+      AuthenticationFlowContext context,
+      JsonNode attributeToCheck,
+      String attributeId,
+      String typeError,
+      String inetumValue,
+      String inetumField) {
+    log.info("equalDate: start");
+
+    // Get attribute value from authentication notes
+    String attributeValue = context.getAuthenticationSession().getAuthNote(attributeId);
+    log.infov("equalDate: attributeValue {0}", attributeValue);
+
+    if (attributeValue == null) {
+      log.errorv("equalDate: could not find value in auth notes {0}", attributeId);
+      return typeError;
+    }
+
+    LocalDate valueDate = getDate(attributeToCheck, VALUE_DATE_FORMAT, attributeValue);
+    LocalDate inetumDate = getDate(attributeToCheck, INETUM_DATE_FORMAT, inetumValue);
+
+    if (!valueDate.isEqual(inetumDate)) {
+      log.error("equalDate: FALSE");
+      return typeError;
+    }
+
+    log.info("equalDate: success");
+    return null;
+  }
+
+  private String isBeforeDate(
+      AuthenticationFlowContext context,
+      JsonNode attributeToCheck,
+      String attributeValue,
+      String typeError,
+      String inetumValue,
+      String inetumField) {
+    log.info("equalDate: start");
+
+    LocalDate valueDate = null;
+    // If now is provided use current date.
+    if (NOW.equalsIgnoreCase(attributeValue)) {
+      log.info("equalDate: valueDate set to now");
+      valueDate = LocalDate.now();
+    } else {
+      valueDate = getDate(attributeToCheck, VALUE_DATE_FORMAT, attributeValue);
+    }
+    LocalDate inetumDate = getDate(attributeToCheck, INETUM_DATE_FORMAT, inetumValue);
+
+    if (!valueDate.isBefore(inetumDate)) {
+      log.error("equalDate: FALSE");
+      return typeError;
+    }
+
+    log.info("equalDate: success");
+    return null;
+  }
+
+  private LocalDate getDate(JsonNode attributeToCheck, String format, String dateValue) {
+    String valuePattern = attributeToCheck.get(format).asText();
+    log.infov("equalDate: valuePattern {0}", valuePattern);
+    if (valuePattern == null || valuePattern.isBlank()) {
+      valuePattern = Utils.FTL_ERROR_AUTH_INVALID;
+    }
+    DateTimeFormatter valueFormat = DateTimeFormatter.ofPattern(valuePattern);
+    LocalDate valueDate = LocalDate.parse(dateValue, valueFormat);
+    log.infov("equalDate: valueDate {0}", valueDate);
+
+    return valueDate;
+  }
+
+  private String equalValue(
+      AuthenticationFlowContext context,
+      JsonNode attributeToCheck,
+      String attributeValue,
+      String typeError,
+      String inetumValue,
+      String inetumField) {
+    log.info("equalValue: start");
+
+    // Compare and return false if different
+    Collator collator = Collator.getInstance();
+    collator.setDecomposition(2);
+    collator.setStrength(0);
+
+    if (collator.compare(attributeValue.trim(), inetumValue.trim()) != 0) {
+      log.errorv(
+          "equalValue: FALSE; attribute: {0}, inetumField: {1}, attributeValue: {2}, inetumValue: {3}",
+          attributeValue, inetumField, attributeValue, inetumValue);
+      return typeError;
+    }
+
+    log.info("equalValue: success");
+    return null;
+  }
+
+  private String integerMinValue(
+      AuthenticationFlowContext context,
+      JsonNode attributeToCheck,
+      String attributeValue,
+      String typeError,
+      String inetumValue,
+      String inetumField) {
+    log.info("integerMinValue: start");
+
+    int minValue = Integer.parseInt(attributeValue);
+    log.infov("integerMinValue: minValue {0}", minValue);
+
+    int intInetumValue = Integer.parseInt(inetumValue);
+    log.infov("integerMinValue: intInetumValue {0}", minValue);
+
+    if (intInetumValue < minValue) {
+      return typeError;
+    }
+
+    log.info("integerMinValue: success");
+    return null;
+  }
+
+  private String checkAuthnoteEquals(
+      AuthenticationFlowContext context,
+      JsonNode attributeToCheck,
+      String attributeId,
+      String typeError,
+      String inetumValue,
+      Object inetumField) {
+    log.info("checkAuthnoteEquals: start");
+    // Get attribute value from authentication notes
+    String attributeValue = context.getAuthenticationSession().getAuthNote(attributeId);
+    log.infov("checkAuthnoteEquals: attributeValue {0}", attributeValue);
+
+    if (attributeValue == null) {
+      log.errorv("checkAuthnoteEquals: could not find value in auth notes {0}", attributeId);
+      return typeError;
+    }
+
+    // Compare and return false if different
+    Collator collator = Collator.getInstance();
+    collator.setDecomposition(2);
+    collator.setStrength(0);
+
+    if (collator.compare(attributeValue.trim(), inetumValue.trim()) != 0) {
+      log.errorv(
+          "checkAuthnoteEquals: FALSE; attribute: {0}, inetumField: {1}, attributeValue: {2}, inetumValue: {3}",
+          attributeId, inetumField, attributeValue, inetumValue);
+      return typeError;
+    }
+
+    log.info("checkAuthnoteEquals: start");
+    return null;
+  }
+
+  private String getValueFromInetumResponse(SimpleHttp.Response response, String inetumField) {
+    String inetumValue = null;
+    try {
+      inetumValue = response.asJson().at(inetumField).asText();
+    } catch (Exception error) {
+      log.errorv("getValueFromInetumResponse: Could not get value: {0}", error.getMessage());
+    }
+
+    log.infov("getValueFromInetumResponse: {0}: {1}", inetumField, inetumValue);
+    return inetumValue;
   }
 
   protected LoginFormsProvider getBaseForm(AuthenticationFlowContext context) {
@@ -430,6 +713,67 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
             ProviderConfigProperty.STRING_TYPE,
             "sequent.read-only.id-card-number-validated"),
         new ProviderConfigProperty(
+            Utils.ATTRIBUTES_TO_VALIDATE,
+            "Attributes to validate using inetum data",
+            "A Json where it's fields represent every id available. For each id a list of attributes to check need to be provided. With authnoteAttributeId to indicate the user profile attribute and inetumAttributePath to indicate the path to get the attribute from the inetum response.",
+            ProviderConfigProperty.TEXT_TYPE,
+            """
+            {
+                "PhilSys ID": [
+                    {
+                        "type": "equalAuthnoteAttributeId",
+                        "equalAuthnoteAttributeId": "sequent.read-only.id-card-number",
+                        "inetumAttributePath": "/response/mrz/personal_number",
+                        "errorMsg": "attributesInetumError"
+                    },
+                    {
+                        "type": "equalValue",
+                        "equalValue": "Maria",
+                        "inetumAttributePath": "/response/mrz/given_names",
+                        "errorMsg": "attributesInetumError"
+                    },
+                    {
+                        "type": "intMinValue",
+                        "intMinValue": "50",
+                        "inetumAttributePath": "/response/resultData/scoreDocumental",
+                        "errorMsg": "scoringInetumError"
+                    },
+                    {
+                        "type": "equalDateAuthnoteAttributeId",
+                        "equalDateAuthnoteAttributeId": "dateOfBirth",
+                        "valueDateFormat": "yyyy-MM-dd",
+                        "inetumAttributePath": "/response/mrz/date_of_birth",
+                        "inetumDateFormat": "dd/MM/yyyy",
+                        "errorMsg": "attributesInetumError"
+                    },
+                    {
+                        "type": "isBeforeDateValue",
+                        "isBeforeDateValue": "now",
+                        "valueDateFormat": "yyyy-MM-dd",
+                        "inetumAttributePath": "/response/mrz/date_of_expiry",
+                        "inetumDateFormat": "dd/MM/yyyy",
+                        "errorMsg": "attributesInetumError"
+                    }
+                ],
+                "Seaman Book": [
+                    {
+                        "type": "equalAuthnoteAttributeId",
+                        "equalAuthnoteAttributeId": "sequent.read-only.id-card-number",
+                        "inetumAttributePath": "/response/mrz/personal_number",
+                        "errorMsg": "attributesInetumError"
+                    }
+                ],
+                "Philippine Passport": [
+                    {
+                        "type": "equalAuthnoteAttributeId",
+                        "equalAuthnoteAttributeId": "sequent.read-only.id-card-number",
+                        "inetumAttributePath": "/response/mrz/personal_number",
+                        "errorMsg": "attributesInetumError"
+                    }
+                ]
+            }
+                """),
+        new ProviderConfigProperty(
             Utils.SDK_ATTRIBUTE,
             "Configuration for the SDK",
             "-",
@@ -441,30 +785,30 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
             "Uses FreeMarker template, see example",
             ProviderConfigProperty.TEXT_TYPE,
             """
-{
-	environment: 0,
-	customTextsConfig: myStrings,
-	baseAssetsUrl: "../../../",
-	uploadAndCheckIdentifiers: ["ESP"],
-	showLogs: false,
-	logTypes: ['ERROR', 'INFO'],
-	design: design,
-	bamEnabled: true,
-	ocrCountdown: false,
-	videoSelfieShowDNI: true,
-	cancelProcessButton: true,
-	showPermissionsHelp: true,
-	qrEnabled: false,
-	voiceEnabled: true,
-	voiceLanguage: VoiceLanguage.spanishSpain,
-	customIOSBrowsersConfig: [IOSBrowser.safari],
-	otpEmailAddress: 'xxxxxxx@inetum.com',
-	otpPhoneNumber: 'xxxxxxxx',
-	countryCode: CountryCode.españa,
-	applicationId: window.DOB_APP_ID,
-	broadcast: new LocalBroadcastManager()
-}
-				"""),
+                {
+                	environment: 0,
+                	customTextsConfig: myStrings,
+                	baseAssetsUrl: "../../../",
+                	uploadAndCheckIdentifiers: ["ESP"],
+                	showLogs: false,
+                	logTypes: ['ERROR', 'INFO'],
+                	design: design,
+                	bamEnabled: true,
+                	ocrCountdown: false,
+                	videoSelfieShowDNI: true,
+                	cancelProcessButton: true,
+                	showPermissionsHelp: true,
+                	qrEnabled: false,
+                	voiceEnabled: true,
+                	voiceLanguage: VoiceLanguage.spanishSpain,
+                	customIOSBrowsersConfig: [IOSBrowser.safari],
+                	otpEmailAddress: 'xxxxxxx@inetum.com',
+                	otpPhoneNumber: 'xxxxxxxx',
+                	countryCode: CountryCode.españa,
+                	applicationId: window.DOB_APP_ID,
+                	broadcast: new LocalBroadcastManager()
+                }
+                				"""),
         new ProviderConfigProperty(
             Utils.BASE_URL_ATTRIBUTE,
             "Base URL for Inetum API",
@@ -477,28 +821,28 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
             "Uses FreeMarker template, see example",
             ProviderConfigProperty.TEXT_TYPE,
             """
-{
-	"wFtype_Facial": true,
-	"wFtype_OCR": true,
-	"wFtype_Video": false,
-	"wFtype_Anti_Spoofing": false,
-	"wFtype_Sign": false,
-	"wFtype_VerifAvan": false,
-	"wFtype_UECertificate": false,
-	"docID": "${doc_id}",
-	"name": "",
-	"lastname1": "",
-	"lastname2": "",
-	"country": "",
-	"mobilePhone": "",
-	"eMail": "",
-	"priority": 3,
-	"maxRetries": 3,
-	"maxProcessTime": 30,
-	"application": "sequent-keycloak",
-	"clienteID": "${client_id}"
-}
-				"""));
+                {
+                	"wFtype_Facial": true,
+                	"wFtype_OCR": true,
+                	"wFtype_Video": false,
+                	"wFtype_Anti_Spoofing": false,
+                	"wFtype_Sign": false,
+                	"wFtype_VerifAvan": false,
+                	"wFtype_UECertificate": false,
+                	"docID": "${doc_id}",
+                	"name": "",
+                	"lastname1": "",
+                	"lastname2": "",
+                	"country": "",
+                	"mobilePhone": "",
+                	"eMail": "",
+                	"priority": 3,
+                	"maxRetries": 3,
+                	"maxProcessTime": 30,
+                	"application": "sequent-keycloak",
+                	"clienteID": "${client_id}"
+                }
+                				"""));
   }
 
   @Override

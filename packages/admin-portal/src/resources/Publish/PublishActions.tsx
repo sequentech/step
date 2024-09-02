@@ -59,6 +59,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     )
 
     const [showDialog, setShowDialog] = useState(false)
+    const [dialogText, setDialogText] = useState("")
     const [currentCallback, setCurrentCallback] = useState<any>(null)
 
     const IconOrProgress = ({st, Icon}: {st: PublishStatus; Icon: SvgIconComponent}) => {
@@ -103,7 +104,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         </Button>
     )
 
-    const handleEvent = (callback: (status?: number) => void) => {
+    const handleEvent = (callback: (status?: number) => void, dialogText: string) => {
+        setDialogText(dialogText)
         setShowDialog(true)
         setCurrentCallback(() => callback)
     }
@@ -121,9 +123,12 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                             {canChangeStatus && (
                                 <ButtonDisabledOrNot
                                     onClick={() =>
-                                        handleEvent(handleOnChange(ElectionEventStatus.Open))
+                                        handleEvent(
+                                            handleOnChange(ElectionEventStatus.Open),
+                                            t("publish.dialog.startInfo")
+                                        )
                                     }
-                                    label={t("publish.action.start")}
+                                    label={t("publish.action.startVotingPeriod")}
                                     st={PublishStatus.Started}
                                     Icon={PlayCircle}
                                     disabledStatus={[
@@ -137,9 +142,12 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                             {canChangeStatus && (
                                 <ButtonDisabledOrNot
                                     onClick={() =>
-                                        handleEvent(handleOnChange(ElectionEventStatus.Paused))
+                                        handleEvent(
+                                            handleOnChange(ElectionEventStatus.Paused),
+                                            t("publish.dialog.pauseInfo")
+                                        )
                                     }
-                                    label={t("publish.action.pause")}
+                                    label={t("publish.action.pauseVotingPeriod")}
                                     st={PublishStatus.Paused}
                                     Icon={PauseCircle}
                                     disabledStatus={[
@@ -155,9 +163,12 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                             {canChangeStatus && (
                                 <ButtonDisabledOrNot
                                     onClick={() =>
-                                        handleEvent(handleOnChange(ElectionEventStatus.Closed))
+                                        handleEvent(
+                                            handleOnChange(ElectionEventStatus.Closed),
+                                            t("publish.dialog.stopInfo")
+                                        )
                                     }
-                                    label={t("publish.action.stop")}
+                                    label={t("publish.action.stopVotingPeriod")}
                                     st={PublishStatus.Stopped}
                                     Icon={StopCircle}
                                     disabledStatus={[
@@ -187,7 +198,9 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                     disabledStatus={[]}
                                     st={PublishStatus.Generated}
                                     label={t("publish.action.generate")}
-                                    onClick={() => handleEvent(onGenerate)}
+                                    onClick={() =>
+                                        handleEvent(onGenerate, t("publish.dialog.info"))
+                                    }
                                 />
                             )}
                         </>
@@ -210,7 +223,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                 cancel={t("publish.dialog.ko")}
                 variant="info"
             >
-                <Typography variant="body1">{t("publish.dialog.info")}</Typography>
+                <Typography variant="body1">{dialogText}</Typography>
             </Dialog>
         </>
     )

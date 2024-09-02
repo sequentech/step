@@ -1,0 +1,84 @@
+client => {
+    var wrapper = async () => {
+        var test_url = {url};
+        var voter_count = {voter_count};
+        var username_dom = "input[name=username]";
+        var password_dom = "input[name=password]";
+        var submitButton = "*[type=submit]";
+        var candidateDiv = "div.candidates-singles-container div.candidate-item:nth-child(1)";
+
+        // Example of locating elements using CSS selectors
+        var tester = async (i) => {
+            var username = "test" + i;
+            var password = "password" + i;
+
+            console.log(`Starting test ${i}`);
+            // Login
+            await client.url(test_url);
+            await client.waitForElementVisible(username_dom, 20e3);
+            await client
+            .waitForElementVisible(password_dom,20e3)
+            .assert.visible(username_dom)
+            .sendKeys(username_dom, username)
+            .assert.visible(password_dom)
+            .sendKeys(password_dom, password)
+            .assert.visible(submitButton)
+            .click(submitButton)
+            .pause(1000)
+            .takeScreenshot( `start_vote_pre${i}.png`)
+
+            // Get to voting screen
+            .waitForElementVisible("button.click-to-vote-button", 20e3)
+            .takeScreenshot( `see_elections${i}.png`)
+            .assert.visible("button.click-to-vote-button")
+            .click("button.click-to-vote-button")
+            .waitForElementVisible("button.start-voting-button", 20e3)
+            .takeScreenshot( `start_vote${i}.png`)
+            .assert.visible("button.start-voting-button")
+            .click("button.start-voting-button")
+            .takeScreenshot(`select_vote_pre${i}.png`)
+            .pause(500);
+
+            // Vote
+            await client.waitForElementVisible(candidateDiv, 20e3)
+            .takeScreenshot(`select_vote${i}.png`)
+            .assert.visible(candidateDiv)
+            .click(candidateDiv)
+            .assert.visible("button.next-button")
+            .click("button.next-button")
+            .pause(500)
+
+            // Review
+            .waitForElementVisible(candidateDiv, 20e3)
+            .takeScreenshot(`review_vote${i}.png`)
+            .assert.visible(candidateDiv)
+            // navigate to end of ballot casting
+            .assert.visible("button.cast-ballot-button")
+            .click("button.cast-ballot-button")
+            .pause(1000)
+            .takeScreenshot(`cast_vote_pre${i}.png`)
+            .waitForElementVisible("button.finish-button", 20e3)
+            .takeScreenshot(`cast_vote${i}.png`)
+            .assert.visible("button.finish-button")
+            
+            .click("button.logout-button")
+            .pause(300)
+            .click("li.logout-button")
+            .pause(300)
+            .waitForElementVisible("button.ok-button", 20e3)
+            .takeScreenshot(`logout-modal-${i}.png`)
+            .assert.visible("button.ok-button")
+            .click("button.ok-button");
+        }
+        
+        for(let i=1; i<=voter_count; i++) {
+            try {
+                console.log(`test ${i}`)
+                await tester(i);
+            } catch (error) {
+                console.log(`Error ${error}\n`);
+            }
+        }
+    };
+    wrapper();
+}

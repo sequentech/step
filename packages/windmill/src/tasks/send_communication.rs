@@ -8,7 +8,7 @@ use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_statistics::update_election_event_statistics;
 use crate::services::election_statistics::update_election_statistics;
 use crate::services::electoral_log::ElectoralLog;
-use crate::services::users::{list_users, ListUsersFilter};
+use crate::services::users::{list_users, list_users_with_vote_info, ListUsersFilter};
 use crate::tasks::send_communication::get_election_event::GetElectionEventSequentBackendElectionEvent;
 use crate::types::error::Result;
 use crate::util::aws::get_from_env_aws_config;
@@ -25,7 +25,8 @@ use celery::error::TaskError;
 use lettre::message::MultiPart;
 use lettre::Message;
 use sequent_core::serialization::deserialize_with_path::*;
-use sequent_core::services::generate_urls::get_login_url;
+use sequent_core::services::generate_urls::get_auth_url;
+use sequent_core::services::generate_urls::AuthAction;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::services::{keycloak, reports};
 use sequent_core::types::communications::{
@@ -43,6 +44,7 @@ fn get_variables(
     user: &User,
     election_event: Option<GetElectionEventSequentBackendElectionEvent>,
     tenant_id: String,
+    auth_action: AuthAction,
 ) -> Result<Map<String, Value>> {
     let mut variables: Map<String, Value> = Default::default();
     variables.insert(
@@ -65,12 +67,13 @@ fn get_variables(
         );
         variables.insert(
             "vote_url".to_string(),
-            json!(get_login_url(
+            json!(get_auth_url(
                 std::env::var("VOTING_PORTAL_URL")
                     .map_err(|err| anyhow!("VOTING_PORTAL_URL env var missing"))?
                     .as_str(),
                 &tenant_id,
                 &election_event.id,
+                auth_action
             )),
         );
     }
@@ -465,7 +468,6 @@ pub async fn send_communication(
     };
     let user_ids = match audience_selection {
         AudienceSelection::SELECTED => body.audience_voter_ids.clone(),
-        // TODO: managed "not voted" and "voted"
         _ => None,
     };
 
@@ -512,27 +514,49 @@ pub async fn send_communication(
             .transaction()
             .await
             .with_context(|| "Error creating a transaction")?;
-        let (users, total_count) = list_users(
-            &hasura_transaction,
-            &keycloak_transaction,
-            ListUsersFilter {
-                tenant_id: tenant_id.clone(),
-                election_event_id: election_event_id.clone(),
-                election_id: None,
-                area_id: None,
-                realm: realm.clone(),
-                search: None,
-                first_name: None,
-                last_name: None,
-                username: None,
-                email: None,
-                limit: Some(batch_size),
-                offset: Some(processed),
-                user_ids: user_ids.clone(),
-            },
-        )
-        .await?;
-        event!(Level::INFO, "after list_users");
+
+        let filter = ListUsersFilter {
+            tenant_id: tenant_id.clone(),
+            election_event_id: election_event_id.clone(),
+            election_id: None,
+            area_id: None,
+            realm: realm.clone(),
+            search: None,
+            first_name: None,
+            last_name: None,
+            username: None,
+            email: None,
+            limit: Some(batch_size),
+            offset: Some(processed),
+            user_ids: user_ids.clone(),
+        };
+
+        let (users, total_count) = match audience_selection {
+            AudienceSelection::NOT_VOTED | AudienceSelection::VOTED => {
+                list_users_with_vote_info(&hasura_transaction, &keycloak_transaction, filter)
+                    .await
+                    .with_context(|| "Failed to featch list_users_with_vote_info")?
+            }
+            _ => list_users(&hasura_transaction, &keycloak_transaction, filter)
+                .await
+                .with_context(|| "Failed to featch list_users")?,
+        };
+
+        let mut filtered_users = users.clone();
+
+        match audience_selection {
+            AudienceSelection::NOT_VOTED => filtered_users.retain(|user| {
+                user.votes_info
+                    .as_ref()
+                    .map_or(false, |vote_info| vote_info.is_empty())
+            }),
+            AudienceSelection::VOTED => filtered_users.retain(|user| {
+                user.votes_info
+                    .as_ref()
+                    .map_or(false, |vote_info| !vote_info.is_empty())
+            }),
+            _ => {}
+        };
 
         let email_sender = EmailSender::new().await?;
         let sms_sender = SmsSender::new().await?;
@@ -548,15 +572,19 @@ pub async fn send_communication(
             return Err(Error::String("Missing communication method".into()));
         };
 
-        for user in users.iter() {
+        for user in filtered_users.iter() {
             event!(
                 Level::INFO,
                 "Sending communication to user with id={id:?} and email={email:?}",
                 id = user.id,
                 email = user.email,
             );
-            let variables: Map<String, Value> =
-                get_variables(user, election_event.clone(), tenant_id.clone())?;
+            let variables: Map<String, Value> = get_variables(
+                user,
+                election_event.clone(),
+                tenant_id.clone(),
+                AuthAction::Login,
+            )?;
             let success = match communication_method {
                 CommunicationMethod::EMAIL => {
                     let sending_result = send_communication_email(

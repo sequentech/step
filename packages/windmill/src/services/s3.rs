@@ -76,11 +76,18 @@ pub async fn get_s3_client(config: s3::Config) -> Result<s3::Client> {
 #[instrument]
 pub fn get_document_key(
     tenant_id: &str,
-    election_event_id: &str,
+    election_event_id: Option<&str>,
     document_id: &str,
     name: &str,
 ) -> String {
-    format!("tenant-{tenant_id}/event-{election_event_id}/document-{document_id}/{name}")
+    match election_event_id {
+        Some(event_id) => {
+            format!("tenant-{tenant_id}/event-{event_id}/document-{document_id}/{name}")
+        }
+        None => {
+            format!("tenant-{tenant_id}/document-{document_id}/{name}")
+        }
+    }
 }
 
 #[instrument]
@@ -107,14 +114,14 @@ pub async fn get_document_url(key: String, s3_bucket: String) -> Result<String> 
 }
 
 #[instrument(err, ret)]
-pub async fn get_upload_url(key: String, is_public: bool) -> Result<String> {
+pub async fn get_upload_url(key: String, is_public: bool, is_local: bool) -> Result<String> {
     let s3_bucket = match is_public {
         true => get_public_bucket()?,
         false => get_private_bucket()?,
     };
     // We always use the public aws config since we are generating a client-side
     // upload url. is_public is only used to define the upload bucket
-    let config = get_s3_aws_config(/* private = */ false).await?;
+    let config = get_s3_aws_config(/* private = */ is_local).await?;
     let client = get_s3_client(config.clone()).await?;
 
     let presigning_config =
@@ -211,4 +218,34 @@ pub fn get_minio_url() -> Result<String> {
     let bucket = get_public_bucket()?;
 
     Ok(format!("{}/{}", minio_private_uri, bucket))
+}
+
+pub fn get_public_asset_file_path(filename: &str) -> Result<String> {
+    let minio_endpoint_base = get_minio_url().with_context(|| "Error fetching get_minio_url")?;
+    let public_asset_path = env::var("PUBLIC_ASSETS_PATH")
+        .with_context(|| "Error fetching PUBLIC_ASSETS_PATH env var")?;
+
+    Ok(format!(
+        "{}/{}/{}",
+        minio_endpoint_base, public_asset_path, filename
+    ))
+}
+
+#[instrument(err)]
+pub async fn download_s3_file_to_string(file_url: &str) -> Result<String> {
+    let client = reqwest::Client::new();
+
+    info!("Requesting HTTP GET {:?}", file_url);
+    let response = client.get(file_url).send().await?;
+
+    let unwrapped_response = if response.status() != reqwest::StatusCode::OK {
+        return Err(anyhow!(
+            "Error during download_s3_file_to_string: {:?}",
+            response
+        ));
+    } else {
+        response
+    };
+    let bytes = unwrapped_response.bytes().await?;
+    Ok(String::from_utf8(bytes.to_vec())?)
 }

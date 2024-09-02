@@ -30,6 +30,9 @@ export interface AnswersListProps {
     isInvalidWriteIns?: boolean
     isRadioSelection?: boolean
     contest: IContest
+    selectedCoicesSum: number
+    setSelectedCoicesSum: (num: number) => void
+    disableSelect: boolean
 }
 
 const showCategoryOnReview = (category: ICategory, questionState?: IDecodedVoteContest) => {
@@ -59,6 +62,9 @@ export const AnswersList: React.FC<AnswersListProps> = ({
     isInvalidWriteIns,
     isRadioSelection,
     contest,
+    selectedCoicesSum,
+    setSelectedCoicesSum,
+    disableSelect,
 }) => {
     const categoryAnswerId = category.header?.id || ""
     const selectionState = useAppSelector(
@@ -163,6 +169,9 @@ export const AnswersList: React.FC<AnswersListProps> = ({
                                 isReview={isReview}
                                 isInvalidWriteIns={isInvalidWriteIns}
                                 contest={contest}
+                                selectedCoicesSum={selectedCoicesSum}
+                                setSelectedCoicesSum={setSelectedCoicesSum}
+                                disableSelect={disableSelect}
                             />
                         ))}
                     </>
@@ -183,6 +192,9 @@ export const AnswersList: React.FC<AnswersListProps> = ({
                         isReview={isReview}
                         isInvalidWriteIns={isInvalidWriteIns}
                         contest={contest}
+                        selectedCoicesSum={selectedCoicesSum}
+                        setSelectedCoicesSum={setSelectedCoicesSum}
+                        disableSelect={disableSelect}
                     />
                 ))}
         </CandidatesList>

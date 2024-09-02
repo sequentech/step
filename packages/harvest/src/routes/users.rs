@@ -33,6 +33,10 @@ pub struct DeleteUserBody {
     election_event_id: Option<String>,
     user_id: String,
 }
+#[derive(Deserialize, Debug)]
+pub struct ExportTenantUsersBody {
+    tenant_id: String,
+}
 
 #[instrument(skip(claims))]
 #[post("/delete-user", format = "json", data = "<body>")]
@@ -460,21 +464,33 @@ pub async fn export_users_f(
     input: Json<export_users::ExportUsersBody>,
 ) -> Result<Json<export_users::ExportUsersOutput>, (Status, String)> {
     let body = input.into_inner();
-    let required_perm: Permissions = if body.election_event_id.is_some() {
+
+    let required_perm = if body.election_event_id.is_some() {
         Permissions::VOTER_READ
     } else {
         Permissions::USER_READ
     };
+
     authorize(
         &claims,
         true,
         Some(body.tenant_id.clone()),
         vec![required_perm],
     )?;
+
     let document_id = Uuid::new_v4().to_string();
+
     let celery_app = get_celery_app().await;
+
     let task = celery_app
-        .send_task(export_users::export_users::new(body, document_id.clone()))
+        .send_task(export_users::export_users::new(
+            export_users::ExportBody::Users {
+                tenant_id: body.tenant_id,
+                election_event_id: body.election_event_id,
+                election_id: body.election_id,
+            },
+            document_id.clone(),
+        ))
         .await
         .map_err(|error| {
             (
@@ -482,11 +498,54 @@ pub async fn export_users_f(
                 format!("Error sending export_users task: {error:?}"),
             )
         })?;
+
+    let output = export_users::ExportUsersOutput {
+        document_id,
+        task_id: task.task_id.clone(),
+    };
+
+    info!("Sent EXPORT_USERS task {}", task.task_id);
+
+    Ok(Json(output))
+}
+
+#[instrument(skip(claims))]
+#[post("/export-tenant-users", format = "json", data = "<input>")]
+pub async fn export_tenant_users_f(
+    claims: jwt::JwtClaims,
+    input: Json<ExportTenantUsersBody>,
+) -> Result<Json<export_users::ExportUsersOutput>, (Status, String)> {
+    let body = input.into_inner();
+    let required_perm = Permissions::USER_READ;
+    info!("input-users {:?}", body);
+
+    authorize(
+        &claims,
+        true,
+        Some(body.tenant_id.clone()),
+        vec![Permissions::USER_READ],
+    )?;
+    let document_id = Uuid::new_v4().to_string();
+    let celery_app = get_celery_app().await;
+    let task = celery_app
+        .send_task(export_users::export_users::new(
+            export_users::ExportBody::TenantUsers {
+                tenant_id: body.tenant_id,
+            },
+            document_id.clone(),
+        ))
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Error sending export_tenant_users task: {error:?}"),
+            )
+        })?;
     let output = export_users::ExportUsersOutput {
         document_id: document_id,
         task_id: task.task_id.clone(),
     };
-    info!("Sent EXPORT_USERS task {}", task.task_id);
+    info!("Sent EXPORT_TENANT_USERS task {}", task.task_id);
 
     Ok(Json(output))
 }

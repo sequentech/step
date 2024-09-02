@@ -8,9 +8,11 @@ extern crate rocket;
 
 use dotenv::dotenv;
 use sequent_core::util::init_log::init_log;
-use windmill::services::probe::{setup_probe, AppName};
+use windmill::services::{
+    celery_app::set_is_app_active,
+    probe::{setup_probe, AppName},
+};
 
-mod pdf;
 mod routes;
 mod services;
 mod types;
@@ -21,6 +23,7 @@ async fn rocket() -> _ {
     init_log(true);
 
     setup_probe(AppName::HARVEST).await;
+    set_is_app_active(true);
 
     rocket::build()
         .register(
@@ -55,6 +58,7 @@ async fn rocket() -> _ {
                 routes::users::create_user,
                 routes::users::import_users_f,
                 routes::users::export_users_f,
+                routes::users::export_tenant_users_f,
                 routes::users::delete_user,
                 routes::users::get_users,
                 routes::users::get_user,
@@ -83,6 +87,9 @@ async fn rocket() -> _ {
                 routes::tally_sheets::publish_tally_sheet,
                 routes::create_vote_receipt::create_vote_receipt,
                 routes::election_dates::manage_election_dates,
+                routes::miru_plugin::create_transmission_package,
+                routes::miru_plugin::send_transmission_package,
+                routes::miru_plugin::upload_signature,
             ],
         )
 }

@@ -17,6 +17,7 @@ use celery::error::TaskError;
 use chrono::prelude::*;
 use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use tracing::instrument;
 use tracing::{event, info, Level};
 
@@ -46,6 +47,7 @@ pub async fn scheduled_events() -> Result<()> {
     let hasura_transaction = hasura_db_client.transaction().await?;
 
     let scheduled_events = find_all_active_events(&hasura_transaction).await?;
+    info!("Found {} scheduled events", scheduled_events.len());
     let to_be_run_now = scheduled_events
         .iter()
         .filter(|event| {
@@ -55,6 +57,7 @@ pub async fn scheduled_events() -> Result<()> {
             formatted_date < one_minute_later
         })
         .collect::<Vec<_>>();
+    info!("Found {} events to be run now", to_be_run_now.len());
     for scheduled_event in to_be_run_now {
         let Some(event_processor) = scheduled_event.event_processor.clone() else {
             continue;
@@ -75,7 +78,7 @@ pub async fn scheduled_events() -> Result<()> {
                 event!(Level::WARN, "Missing election_event_id");
                 return Ok(());
             };
-            let payload: ManageElectionDatePayload = serde_json::from_value(event_payload)?;
+            let payload: ManageElectionDatePayload = deserialize_value(event_payload)?;
             // create the public keys in async task
             match payload.election_id.clone() {
                 Some(election_id) => {
@@ -87,7 +90,8 @@ pub async fn scheduled_events() -> Result<()> {
                                 scheduled_event.id.clone(),
                                 election_id,
                             )
-                            .with_eta(datetime.with_timezone(&Utc)),
+                            .with_eta(datetime.with_timezone(&Utc))
+                            .with_expires_in(120),
                         )
                         .await?;
                     event!(
@@ -104,7 +108,8 @@ pub async fn scheduled_events() -> Result<()> {
                                 election_event_id.clone(),
                                 scheduled_event.id.clone(),
                             )
-                            .with_eta(datetime.with_timezone(&Utc)),
+                            .with_eta(datetime.with_timezone(&Utc))
+                            .with_expires_in(120),
                         )
                         .await?;
                     event!(

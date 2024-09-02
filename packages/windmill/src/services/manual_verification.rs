@@ -6,19 +6,19 @@
 
 use std::env;
 
-use super::s3;
+use super::s3::{self, get_minio_url};
 use crate::postgres::{self, communication_template, election};
+use crate::services::database::get_hasura_pool;
 use crate::services::{
     documents::upload_and_return_document, temp_path::write_into_named_temp_file,
 };
 use anyhow::{anyhow, Context, Result};
+use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::services::keycloak;
 use sequent_core::services::{pdf, reports};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use tracing::{event, instrument, Level};
-
-use deadpool_postgres::Transaction;
 use uuid::Uuid;
 
 const QR_CODE_TEMPLATE: &'static str = "<div id=\"qrcode\"></div>";
@@ -65,14 +65,6 @@ impl ToMap for ManualVerificationData {
     }
 }
 
-fn get_minio_url() -> Result<String> {
-    let minio_private_uri =
-        env::var("AWS_S3_PRIVATE_URI").map_err(|err| anyhow!("AWS_S3_PRIVATE_URI must be set"))?;
-    let bucket = s3::get_public_bucket()?;
-
-    Ok(format!("{}/{}", minio_private_uri, bucket))
-}
-
 #[instrument(err)]
 async fn get_manual_verification_url(
     tenant_id: &str,
@@ -106,9 +98,8 @@ async fn get_manual_verification_url(
     Ok(response_body.link)
 }
 
-#[instrument(skip(hasura_transaction), err)]
+#[instrument(err)]
 pub async fn get_manual_verification_pdf(
-    hasura_transaction: &Transaction<'_>,
     document_id: &str,
     tenant_id: &str,
     election_event_id: &str,
@@ -226,11 +217,11 @@ pub async fn get_manual_verification_pdf(
         <script>
           const qrcode = new QRCode(document.getElementById("qrcode"), {
             text: "{{data.manual_verification_url}}",
-            width: 180,
-            height: 180,
+            width: 480,
+            height: 480,
             colorDark: '#000000',
             colorLight: '#ffffff',
-            correctLevel: QRCode.CorrectLevel.H,
+            correctLevel: QRCode.CorrectLevel.M,
           });
         </script>
 

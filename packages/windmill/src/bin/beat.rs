@@ -11,6 +11,7 @@ use dotenv::dotenv;
 use sequent_core::util::init_log::init_log;
 use structopt::StructOpt;
 use tokio::time::Duration;
+use windmill::services::celery_app::set_is_app_active;
 use windmill::services::probe::{setup_probe, AppName};
 use windmill::tasks::review_boards::review_boards;
 use windmill::tasks::scheduled_events::scheduled_events;
@@ -54,7 +55,9 @@ async fn main() -> Result<()> {
         ],
     ).await?;
 
+    set_is_app_active(true);
     beat.start().await?;
+    set_is_app_active(false);
 
     Ok(())
 }

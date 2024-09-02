@@ -4,6 +4,9 @@
 
 package sequent.keycloak.inetum_authenticator;
 
+import static java.util.Arrays.asList;
+import static sequent.keycloak.authenticator.Utils.sendConfirmation;
+
 import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.Response;
 import java.util.Collections;
@@ -12,6 +15,7 @@ import java.util.Map;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.Config;
 import org.keycloak.authentication.AuthenticationFlowContext;
+import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.Authenticator;
 import org.keycloak.authentication.AuthenticatorFactory;
 import org.keycloak.authentication.forms.RegistrationPage;
@@ -26,19 +30,30 @@ import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.models.RequiredActionProviderModel;
 import org.keycloak.models.UserCredentialModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.protocol.AuthorizationEndpointBase;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.provider.ProviderConfigProperty;
+import org.keycloak.services.resources.LoginActionsService;
+import sequent.keycloak.authenticator.MessageOTPAuthenticator;
+import sequent.keycloak.authenticator.Utils.MessageCourier;
+import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
+import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
 
 /** Lookups an user using a field */
 @JBossLog
 @AutoService(AuthenticatorFactory.class)
 public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory {
+  public static final String MOBILE_NUMBER_FIELD = "sequent.read-only.mobile-number";
+  private static final String EMAIL_VERIFIED = "Email verified";
 
   public static final String PROVIDER_ID = "lookup-and-update-user";
   public static final String SEARCH_ATTRIBUTES = "search-attributes";
   public static final String UNSET_ATTRIBUTES = "unset-attributes";
   public static final String UPDATE_ATTRIBUTES = "update-attributes";
   public static final String AUTO_LOGIN = "auto-login";
+  private static final String MESSAGE_COURIER_ATTRIBUTE = "messageCourierAttribute";
+  private static final String TEL_USER_ATTRIBUTE = "telUserAttribute";
+  public static final String AUTO_2FA = "auto-2fa";
 
   @Override
   public void authenticate(AuthenticationFlowContext context) {
@@ -52,6 +67,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     String unsetAttributes = configMap.get(UNSET_ATTRIBUTES);
     String updateAttributes = configMap.get(UPDATE_ATTRIBUTES);
     boolean autoLogin = Boolean.parseBoolean(configMap.get(AUTO_LOGIN));
+    boolean auto2FA = Boolean.parseBoolean(configMap.get(AUTO_2FA));
 
     // Parse attributes lists
     List<String> searchAttributesList = parseAttributesList(searchAttributes);
@@ -88,6 +104,16 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     // for other authentication models in the authentication flow
     log.info("authenticate(): updating user attributes..");
     updateUserAttributes(user, context, updateAttributesList);
+
+    // Set email to verified if it was validated
+    if (context.getAuthenticationSession().getAuthNote(EMAIL_VERIFIED) != null
+        && context
+            .getAuthenticationSession()
+            .getAuthNote(EMAIL_VERIFIED)
+            .equalsIgnoreCase("true")) {
+      user.setEmailVerified(true);
+    }
+
     log.info("authenticate(): done");
 
     // Success event, similar to RegistrationUserCreation.java in keycloak
@@ -147,12 +173,51 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     if (authType != null) {
       context.getEvent().detail(Details.AUTH_TYPE, authType);
     }
+
+    if (auto2FA) {
+      // Generate a MessageOTP credential for the user and remove the required
+      // action
+      MessageOTPCredentialProvider credentialProvider = getCredentialProvider(context.getSession());
+      credentialProvider.createCredential(
+          context.getRealm(),
+          context.getUser(),
+          MessageOTPCredentialModel.create(/* isSetup= */ true));
+    }
+
     log.info("authenticate(): success");
 
     if (autoLogin) {
       context.success();
     } else {
       context.clearUser();
+
+      MessageCourier messageCourier =
+          MessageCourier.fromString(config.getConfig().get(MESSAGE_COURIER_ATTRIBUTE));
+      log.infov("authenticate(): messageCourier {0}", messageCourier);
+
+      if (!MessageCourier.NONE.equals(messageCourier)) {
+        try {
+          String telUserAttribute = config.getConfig().get(TEL_USER_ATTRIBUTE);
+          String mobile = user.getFirstAttribute(telUserAttribute);
+
+          sendConfirmation(context.getSession(), context.getRealm(), user, messageCourier, mobile);
+        } catch (Exception error) {
+          log.errorv("there was an error {0}", error);
+          context.failureChallenge(
+              AuthenticationFlowError.INTERNAL_ERROR,
+              context
+                  .form()
+                  .setError("messageNotSent", error.getMessage())
+                  .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+        }
+      }
+
+      // Force redirect to login even if initial flow was registration
+      context
+          .getAuthenticationSession()
+          .setClientNote(
+              AuthorizationEndpointBase.APP_INITIATED_FLOW, LoginActionsService.AUTHENTICATE_PATH);
+
       Response form = context.form().createForm("registration-finish.ftl");
       context.challenge(form);
     }
@@ -281,6 +346,20 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
   @Override
   public List<ProviderConfigProperty> getConfigProperties() {
+    ProviderConfigProperty messageCourier =
+        new ProviderConfigProperty(
+            MESSAGE_COURIER_ATTRIBUTE,
+            "Registration Success Courier",
+            "Send a confirmation notification of registration success.",
+            ProviderConfigProperty.LIST_TYPE,
+            MessageCourier.NONE.name());
+    messageCourier.setOptions(
+        asList(
+            MessageCourier.BOTH.name(),
+            MessageCourier.SMS.name(),
+            MessageCourier.EMAIL.name(),
+            MessageCourier.NONE.name()));
+
     // Define configuration properties
     return List.of(
         new ProviderConfigProperty(
@@ -306,7 +385,20 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
             "Login after registration",
             "If enabled the user will automatically login after registration.",
             ProviderConfigProperty.BOOLEAN_TYPE,
-            true));
+            false),
+        new ProviderConfigProperty(
+            TEL_USER_ATTRIBUTE,
+            "Telephone User Attribute",
+            "Name of the user attribute used to retrieve the mobile telephone number of the user. Please make sure this is a read-only attribute for security reasons.",
+            ProviderConfigProperty.STRING_TYPE,
+            MessageOTPAuthenticator.MOBILE_NUMBER_FIELD),
+        new ProviderConfigProperty(
+            AUTO_2FA,
+            "Automatic 2FA Email/SMS",
+            "If enabled will configure the users 2FA to use the Email or SMS provided during registration.",
+            ProviderConfigProperty.BOOLEAN_TYPE,
+            false),
+        messageCourier);
   }
 
   @Override
@@ -332,5 +424,16 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
   @Override
   public AuthenticationExecutionModel.Requirement[] getRequirementChoices() {
     return REQUIREMENT_CHOICES;
+  }
+
+  public MessageOTPCredentialProvider getCredentialProvider(KeycloakSession session) {
+    log.info("getCredentialProvider()");
+    return new MessageOTPCredentialProvider(session);
+    // TODO: doesn't work - why?
+    // return (MessageOTPCredentialProvider) session
+    // 	.getProvider(
+    // 		CredentialProvider.class,
+    // 		MessageOTPCredentialProviderFactory.PROVIDER_ID
+    // 	);
   }
 }
