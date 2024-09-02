@@ -1,0 +1,566 @@
+{
+  "connection": {
+    "metadata": {
+      "channel0_only": true
+    },
+    "start-ok": {
+      "metadata": {
+        "extra_args": [
+          {
+            "name": "resolver",
+            "type": "PromiseResolver<Connection>"
+          },
+          {
+            "name": "connection",
+            "type": "Connection"
+          },
+          {
+            "name": "credentials",
+            "type": "Credentials"
+          }
+        ],
+        "send_hook": {
+          "params": ["resolver", "connection", "credentials"]
+        }
+      }
+    },
+    "open": {
+      "metadata": {
+        "internal": true,
+        "state": [
+          {
+            "name": "connection",
+            "type": "Connection"
+          }
+        ],
+        "extra_args": [
+          {
+            "name": "connection",
+            "type": "Connection"
+          },
+          {
+            "name": "conn_resolver",
+            "type": "PromiseResolver<Connection>"
+          }
+        ],
+        "send_hook": {
+          "params": ["conn_resolver"]
+        }
+      }
+    },
+    "close": {
+      "metadata": {
+        "channel_deinit": true,
+        "internal": true
+      }
+    },
+    "close-ok": {
+      "metadata": {
+        "channel_deinit": true,
+        "internal": true,
+        "received_hook": true,
+        "extra_args": [
+          {
+            "name": "error",
+            "type": "Error"
+          }
+        ],
+        "end_hook": {
+          "params": ["error"]
+        }
+      }
+    },
+    "blocked": {
+      "metadata": {
+        "internal": true
+      }
+    },
+    "unblocked": {
+      "metadata": {
+        "internal": true
+      }
+    },
+    "update-secret": {
+      "metadata": {
+        "internal": true
+      }
+    }
+  },
+  "channel": {
+    "open": {
+      "metadata": {
+        "internal": true,
+        "channel_init": true,
+        "confirmation": {
+          "type": "Channel"
+        },
+        "state": [
+          {
+            "name": "channel",
+            "type": "Channel"
+          }
+        ],
+        "extra_args": [
+          {
+            "name": "channel",
+            "type": "Channel"
+          }
+        ]
+      }
+    },
+    "open-ok": {
+      "metadata": {
+        "channel_init": true
+      }
+    },
+    "close": {
+      "metadata": {
+        "require_wrapper": true,
+        "start_hook": true
+      }
+    },
+    "close-ok": {
+      "metadata": {
+        "channel_deinit": true,
+        "received_hook": true,
+        "expected_reply_getter": "self.next_expected_close_ok_reply()",
+        "extra_args": [
+          {
+            "name": "error",
+            "type": "Option<Error>"
+          }
+        ],
+        "end_hook": {
+          "params": ["error"]
+        }
+      }
+    },
+    "flow": {
+      "metadata": {
+        "confirmation": {
+          "type": "Boolean"
+        }
+      }
+    },
+    "flow-ok": {
+      "metadata": {
+        "confirmation": {
+          "type": "()"
+        }
+      }
+    }
+  },
+  "confirm": {
+    "select-ok": {
+      "metadata": {
+        "received_hook": true
+      }
+    }
+  },
+  "queue": {
+    "bind": {
+      "metadata": {
+        "init_clones": [
+          {
+            "from": "arguments",
+            "to": "creation_arguments"
+          }
+        ],
+        "state": [
+          {
+            "name": "queue",
+            "type": "ShortString",
+            "use_str_ref": true
+          },
+          {
+            "name": "exchange",
+            "type": "ShortString",
+            "use_str_ref": true
+          },
+          {
+            "name": "routing_key",
+            "type": "ShortString",
+            "use_str_ref": true
+          },
+          {
+            "name": "creation_arguments",
+            "type": "FieldTable"
+          }
+        ],
+        "nowait_hook": true
+      }
+    },
+    "bind-ok": {
+      "metadata": {
+        "received_hook": {
+          "params": ["queue", "exchange", "routing_key", "creation_arguments"]
+        }
+      }
+    },
+    "declare": {
+      "metadata": {
+        "confirmation": {
+          "type": "Queue"
+        },
+        "init_clones": [
+          {
+            "from": "arguments",
+            "to": "creation_arguments"
+          }
+        ],
+        "state": [
+          {
+            "name": "options",
+            "type": "QueueDeclareOptions"
+          },
+          {
+            "name": "creation_arguments",
+            "type": "FieldTable"
+          }
+        ],
+        "nowait_hook": {
+          "fields": ["queue: queue.into()"],
+          "nonexhaustive_args": true
+        }
+      }
+    },
+    "delete": {
+      "metadata": {
+        "state": [
+          {
+            "name": "queue",
+            "type": "ShortString",
+            "use_str_ref": true
+          }
+        ],
+        "confirmation": {
+          "type": "MessageCount"
+        },
+        "nowait_hook": {
+          "nonexhaustive_args": true
+        }
+      }
+    },
+    "purge": {
+      "metadata": {
+        "confirmation": {
+          "type": "MessageCount"
+        }
+      }
+    },
+    "unbind": {
+      "metadata": {
+        "init_clones": [
+          {
+            "from": "arguments",
+            "to": "creation_arguments"
+          }
+        ],
+        "state": [
+          {
+            "name": "queue",
+            "type": "ShortString",
+            "use_str_ref": true
+          },
+          {
+            "name": "exchange",
+            "type": "ShortString",
+            "use_str_ref": true
+          },
+          {
+            "name": "routing_key",
+            "type": "ShortString",
+            "use_str_ref": true
+          },
+          {
+            "name": "creation_arguments",
+            "type": "FieldTable"
+          }
+        ]
+      }
+    },
+    "unbind-ok": {
+      "metadata": {
+        "received_hook": {
+          "params": ["queue", "exchange", "routing_key", "creation_arguments"]
+        }
+      }
+    }
+  },
+  "exchange": {
+    "bind": {
+      "metadata": {
+        "init_clones": [
+          {
+            "from": "arguments",
+            "to": "creation_arguments"
+          }
+        ],
+        "state": [
+          {
+            "name": "destination",
+            "type": "ShortString",
+            "use_str_ref": true
+          },
+          {
+            "name": "source",
+            "type": "ShortString",
+            "use_str_ref": true
+          },
+          {
+            "name": "routing_key",
+            "type": "ShortString",
+            "use_str_ref": true
+          },
+          {
+            "name": "creation_arguments",
+            "type": "FieldTable"
+          }
+        ],
+        "nowait_hook": true
+      }
+    },
+    "bind-ok": {
+      "metadata": {
+        "received_hook": {
+          "params": ["destination", "source", "routing_key", "creation_arguments"]
+        }
+      }
+    },
+    "declare": {
+      "metadata": {
+        "require_wrapper": true,
+        "extra_args": [
+          {
+            "name": "exchange_kind",
+            "type": "ExchangeKind"
+          }
+        ],
+        "confirmation": {
+          "type": "()"
+        },
+        "init_clones": [
+          {
+            "from": "arguments",
+            "to": "creation_arguments"
+          }
+        ],
+        "state": [
+          {
+            "name": "exchange",
+            "type": "ShortString",
+            "use_str_ref": true
+          },
+          {
+            "name": "exchange_kind",
+            "type": "ExchangeKind"
+          },
+          {
+            "name": "options",
+            "type": "ExchangeDeclareOptions"
+          },
+          {
+            "name": "creation_arguments",
+            "type": "FieldTable"
+          }
+        ],
+        "nowait_hook": true
+      }
+    },
+    "declare-ok": {
+      "metadata": {
+        "received_hook": {
+          "params": ["resolver", "exchange", "exchange_kind", "options", "creation_arguments"]
+        }
+      }
+    },
+    "delete": {
+      "metadata": {
+        "state": [
+          {
+            "name": "exchange",
+            "type": "ShortString",
+            "use_str_ref": true
+          }
+        ],
+        "nowait_hook": true
+      }
+    },
+    "delete-ok": {
+      "metadata": {
+        "received_hook": {
+          "params": ["exchange"]
+        }
+      }
+    },
+    "unbind": {
+      "metadata": {
+        "init_clones": [
+          {
+            "from": "arguments",
+            "to": "creation_arguments"
+          }
+        ],
+        "state": [
+          {
+            "name": "destination",
+            "type": "ShortString",
+            "use_str_ref": true
+          },
+          {
+            "name": "source",
+            "type": "ShortString",
+            "use_str_ref": true
+          },
+          {
+            "name": "routing_key",
+            "type": "ShortString",
+            "use_str_ref": true
+          },
+          {
+            "name": "creation_arguments",
+            "type": "FieldTable"
+          }
+        ],
+        "nowait_hook": true
+      }
+    },
+    "unbind-ok": {
+      "metadata": {
+        "received_hook": {
+          "params": ["destination", "source", "routing_key", "creation_arguments"]
+        }
+      }
+    }
+  },
+  "basic": {
+    "consume": {
+      "metadata": {
+        "require_wrapper": true,
+        "init_clones": [
+          {
+            "from": "arguments",
+            "to": "creation_arguments"
+          }
+        ],
+        "extra_args": [
+          {
+            "name": "original",
+            "type": "Option<Consumer>"
+          }
+        ],
+        "state": [
+          {
+            "name": "channel_closer",
+            "provider": "self.channel_closer.clone()",
+            "type": "Option<Arc<ChannelCloser>>"
+          },
+          {
+            "name": "queue",
+            "type": "ShortString",
+            "use_str_ref": true
+          },
+          {
+            "name": "options",
+            "type": "BasicConsumeOptions"
+          },
+          {
+            "name": "creation_arguments",
+            "type": "FieldTable"
+          },
+          {
+            "name": "original",
+            "type": "Option<Consumer>"
+          }
+        ],
+        "confirmation": {
+          "type": "Consumer"
+        },
+        "nowait_hook": {
+          "fields": ["consumer_tag: consumer_tag.into()"]
+        }
+      }
+    },
+    "cancel": {
+      "metadata": {
+        "start_hook": {
+          "params": ["consumer_tag"]
+        },
+        "nowait_hook": {
+          "fields": ["consumer_tag: consumer_tag.into()"]
+        }
+      }
+    },
+    "publish": {
+      "metadata": {
+        "carry_headers": true,
+        "extra_args": [
+          {
+            "name": "payload",
+            "type": "&[u8]"
+          },
+          {
+            "name": "properties",
+            "type": "BasicProperties"
+          }
+        ],
+        "confirmation": {
+          "type": "PublisherConfirm"
+        },
+        "start_hook": {
+            "returns": true
+        }
+      }
+    },
+    "get": {
+      "metadata": {
+        "require_wrapper": true,
+        "extra_args": [
+          {
+            "name": "original",
+            "type": "Option<PromiseResolver<Option<BasicGetMessage>>>"
+          }
+        ],
+        "state": [
+          {
+            "name": "queue",
+            "type": "ShortString",
+            "use_str_ref": true
+          },
+          {
+            "name": "options",
+            "type": "BasicGetOptions"
+          }
+        ],
+        "resolver_hook": "let resolver = original.unwrap_or(resolver);",
+        "confirmation": {
+          "type": "Option<BasicGetMessage>"
+        }
+      }
+    },
+    "ack": {
+      "metadata": {
+        "end_hook": {
+          "params": ["multiple", "delivery_tag"]
+        }
+      }
+    },
+    "recover-async": {
+      "metadata": {
+        "end_hook": true
+      }
+    },
+    "recover-ok": {
+      "metadata": {
+        "received_hook": true
+      }
+    },
+    "nack": {
+      "metadata": {
+        "end_hook": {
+          "params": ["multiple", "delivery_tag"]
+        }
+      }
+    }
+  }
+}
