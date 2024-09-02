@@ -38,6 +38,7 @@
     pkgs.protobuf
     pkgs.iputils
     pkgs.chromium
+    pkgs.chromedriver
 
     # to build the rug backend in strand/braid
     pkgs.gcc
