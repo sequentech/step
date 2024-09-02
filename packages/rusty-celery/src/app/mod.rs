@@ -30,6 +30,7 @@ use crate::protocol::{Message, MessageContentType};
 use crate::routing::Rule;
 use crate::task::{AsyncResult, Signature, Task, TaskEvent, TaskOptions, TaskStatus};
 use trace::{build_tracer, TraceBuilder, TracerTrait};
+use tracing::trace;
 
 struct Config {
     name: String,
@@ -365,10 +366,18 @@ impl Celery {
         delivery: Box<dyn Delivery>,
         event_tx: UnboundedSender<TaskEvent>,
     ) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
+        trace!("FFFF celery::try_handle_delivery() step 0");
         // Coerce the delivery into a protocol message.
         let message = match delivery.try_deserialize_message() {
-            Ok(message) => message,
+            Ok(message) => {
+                trace!(
+                    "FFFF celery::try_handle_delivery() step 1 Ok({:?})",
+                    message
+                );
+                message
+            }
             Err(e) => {
+                trace!("FFFF celery::try_handle_delivery() step 2 Err({:?})", e);
                 // This is a naughty message that we can't handle, so we'll ack it with
                 // the broker so it gets deleted.
                 self.broker
