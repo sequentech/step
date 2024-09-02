@@ -295,23 +295,23 @@ services:
   #       SECONDS_TO_SHOW_ALRET: ${SECONDS_TO_SHOW_ALRET}
 
   # voting-portal:
-    #profiles: ["full"]
-    image: ghcr.io/sequentech/step/yarn:latest
-    container_name: voting-portal
-    # depending on the `admin-portal` container to ensure that the
-    # `sequentech.local/frontend` image is locally build, so that we can reuse
-    # it:
-    depends_on:
-      - admin-portal
-    #restart: always
-    #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
-    #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
-    ports:
-      - 3000:3000
-    stdin_open: true
-    entrypoint: ["./init.sh", "start"]
-    volumes:
-       - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
+  #   #profiles: ["full"]
+  #   image: ghcr.io/sequentech/step/yarn:latest
+  #   container_name: voting-portal
+  #   # depending on the `admin-portal` container to ensure that the
+  #   # `sequentech.local/frontend` image is locally build, so that we can reuse
+  #   # it:
+  #   depends_on:
+  #     - admin-portal
+  #   #restart: always
+  #   #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
+  #   #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
+  #   ports:
+  #     - 3000:3000
+  #   stdin_open: true
+  #   entrypoint: ["./init.sh", "start"]
+  #   volumes:
+  #      - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
 
   immudb:
     #profiles: ["full", "base"]
