@@ -489,21 +489,31 @@ impl Channel {
     }
 
     pub(crate) fn handle_body_frame(&self, payload: Vec<u8>) -> Result<()> {
+        trace!("FF Channel: handle_body_frame. step 0");
         self.status.receive(
             self.id,
             payload.len() as PayloadSize,
-            |delivery_cause, remaining_size, confirm_mode| match delivery_cause {
-                DeliveryCause::Consume(consumer_tag) => {
-                    self.consumers
-                        .handle_body_frame(consumer_tag, remaining_size, payload);
-                }
-                DeliveryCause::Get => {
-                    self.basic_get_delivery
-                        .handle_body_frame(remaining_size, payload);
-                }
-                DeliveryCause::Return => {
-                    self.returned_messages
-                        .handle_body_frame(remaining_size, payload, confirm_mode);
+            |delivery_cause, remaining_size, confirm_mode| {
+                trace!(
+                    "FF Channel: handle_body_frame. (handler) step 1. delivery_cause = {:?}",
+                    delivery_cause
+                );
+                match delivery_cause {
+                    DeliveryCause::Consume(consumer_tag) => {
+                        self.consumers
+                            .handle_body_frame(consumer_tag, remaining_size, payload);
+                    }
+                    DeliveryCause::Get => {
+                        self.basic_get_delivery
+                            .handle_body_frame(remaining_size, payload);
+                    }
+                    DeliveryCause::Return => {
+                        self.returned_messages.handle_body_frame(
+                            remaining_size,
+                            payload,
+                            confirm_mode,
+                        );
+                    }
                 }
             },
             |msg| self.handle_invalid_contents(msg, 0, 0),
