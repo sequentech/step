@@ -359,10 +359,15 @@ impl ConsumerInner {
     }
 
     fn handle_body_frame(&mut self, remaining_size: PayloadSize, payload: Vec<u8>) {
+        trace!("FF (Impl ConsumerInner for consumer) handle_body_frame. step 0");
         if let Some(delivery) = self.current_message.as_mut() {
+            trace!(
+                "FF (Impl ConsumerInner for consumer) handle_body_frame. step 1: receive_content"
+            );
             delivery.receive_content(payload);
         }
         if remaining_size == 0 {
+            trace!("FF (Impl ConsumerInner for consumer) handle_body_frame. step 2: new_delivery_complete");
             self.new_delivery_complete();
         }
     }
@@ -370,7 +375,10 @@ impl ConsumerInner {
     fn new_delivery_complete(&mut self) {
         trace!("FF (Impl ConsumerInner for consumer) new_delivery_complete 0");
         if let Some(delivery) = self.current_message.take() {
-            trace!("FF (Impl ConsumerInner for consumer) new_delivery_complete 1");
+            trace!(
+                "FF (Impl ConsumerInner for consumer) new_delivery_complete 1. delivery = {:?}",
+                delivery
+            );
             trace!(consumer_tag=%self.tag, "new_delivery");
             if let Some(delegate) = self.delegate.as_ref() {
                 trace!("FF (Impl ConsumerInner for consumer) new_delivery_complete 2");
