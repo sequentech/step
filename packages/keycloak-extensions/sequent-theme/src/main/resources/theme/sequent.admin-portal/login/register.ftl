@@ -146,7 +146,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                     initialCountry: "auto",
                     separateDialCode: true,
 					customPlaceholder: function(selectedCountryPlaceholder, selectedCountryData) {
-						return "0000-0000";
+						return selectedCountryPlaceholder.replace(/\d/g, '0');
 					},
                     hiddenInput: () => ({ phone: id, country: "country_code" }),
                     geoIpLookup: function(success, failure) {
