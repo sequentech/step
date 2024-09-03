@@ -96,6 +96,12 @@ const englishTranslation = {
                 labels: "Labels",
                 logs: "Logs",
             },
+            tasksExecution: {
+                EXPORT_ELECTION_EVENT: "Export Election Event",
+                IMPORT_ELECTION_EVENT: "Import Election Event",
+                IMPORT_USERS: "Import Users",
+                IMPORT_CANDIDATES: "Import Candidates",
+            },
         },
         confirmationScreen: {
             title: "Your vote has been cast",

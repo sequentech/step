@@ -98,6 +98,12 @@ const frenchTranslation: TranslationType = {
                 labels: "Étiquettes",
                 logs: "Journaux",
             },
+            tasksExecution: {
+                EXPORT_ELECTION_EVENT: "Exporter l'événement électoral",
+                IMPORT_ELECTION_EVENT: "Importer l'événement électoral",
+                IMPORT_USERS: "Importer des utilisateurs",
+                IMPORT_CANDIDATES: "Importer des candidats",
+            },
         },
         confirmationScreen: {
             title: "Votre vote a été émis",

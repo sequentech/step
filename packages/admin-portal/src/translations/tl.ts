@@ -79,6 +79,31 @@ const tagalogTranslation = {
                 title: "Mga Log ng IAM Database",
             },
         },
+        tasksScreen: {
+            noPermissions: "Wala kang pahintulot na ma-access ang mga log.",
+            title: "Pagpapatupad ng Mga Gawain",
+            subtitle: "Impormasyon tungkol sa mga naisagawang gawain",
+            taskInformation: "Impormasyon ng Gawain",
+            status: "katayuan: {{status}}",
+            column: {
+                id: "Indeks",
+                name: "Pangalan ng Gawain",
+                type: "Uri",
+                execution_status: "Katayuan",
+                start_at: "Oras ng Pagsisimula",
+                end_at: "Oras ng Pagtatapos",
+                executed_by_user: "Tagapagpatupad",
+                annotations: "Mga Anotasyon",
+                labels: "Mga Label",
+                logs: "Mga Log",
+            },
+            tasksExecution: {
+                EXPORT_ELECTION_EVENT: "I-export ang Kaganapan sa Halalan",
+                IMPORT_ELECTION_EVENT: "I-import ang Kaganapan sa Halalan",
+                IMPORT_USERS: "I-import ang mga Gumagamit",
+                IMPORT_CANDIDATES: "I-import ang mga Kandidato",
+            },
+        },
         confirmationScreen: {
             title: "Ang iyong boto ay naibigay na",
             description:

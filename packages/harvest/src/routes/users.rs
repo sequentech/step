@@ -447,7 +447,6 @@ pub async fn import_users_f(
     let task_execution = post(
         &tenant_id,
         &election_event_id,
-        &ETasksExecution::IMPORT_USERS.to_string(),
         ETasksExecution::IMPORT_USERS,
         &executer_name,
     )

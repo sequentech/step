@@ -98,6 +98,12 @@ const catalanTranslation: TranslationType = {
                 labels: "Etiquetes",
                 logs: "Registres",
             },
+            tasksExecution: {
+                EXPORT_ELECTION_EVENT: "Exportar esdeveniment electoral",
+                IMPORT_ELECTION_EVENT: "Importar esdeveniment electoral",
+                IMPORT_USERS: "Importar usuaris",
+                IMPORT_CANDIDATES: "Importar candidats",
+            },
         },
         confirmationScreen: {
             title: "El seu vot ha estat emès",

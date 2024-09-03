@@ -86,7 +86,7 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
                             <Table sx={{minWidth: 650}} aria-label="task details table">
                                 <TableBody>
                                     <TableRow>
-                                        <TableCell sx={{fontWeight: "500", width: '40%'}}>
+                                        <TableCell sx={{fontWeight: "500", width: "40%"}}>
                                             {t("tasksScreen.column.type")}
                                         </TableCell>
                                         <TableCell>{task?.type}</TableCell>

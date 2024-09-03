@@ -84,7 +84,7 @@ export const Logs: React.FC<LogsProps> = ({logs}) => {
                             <Table sx={{maxHeight: 450}} aria-label="simple table">
                                 <TableHead>
                                     <TableRow>
-                                        <TableCell sx={{width: '40%'}}>
+                                        <TableCell sx={{width: "40%"}}>
                                             {t("keysGeneration.ceremonyStep.logsHeader.date")}
                                         </TableCell>
                                         <TableCell align="left">

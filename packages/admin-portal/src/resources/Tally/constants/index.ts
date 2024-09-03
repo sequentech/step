@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {ITallyElectionStatus, ITallyExecutionStatus} from "@/types/ceremonies"
-import { ETaskExecutionStatus } from "@sequentech/ui-core"
+import {ETaskExecutionStatus} from "@sequentech/ui-core"
 import {theme} from "@sequentech/ui-essentials"
 
 export const JSON_MOCK = [
@@ -43,7 +43,10 @@ export const statusColor: (status: string) => string = (status) => {
         return theme.palette.info.main
     } else if (status === ITallyExecutionStatus.SUCCESS) {
         return theme.palette.brandSuccess
-    } else if (status === ITallyExecutionStatus.CANCELLED || status === ETaskExecutionStatus.FAILED) {
+    } else if (
+        status === ITallyExecutionStatus.CANCELLED ||
+        status === ETaskExecutionStatus.FAILED
+    ) {
         return theme.palette.errorColor
     } else {
         return theme.palette.errorColor

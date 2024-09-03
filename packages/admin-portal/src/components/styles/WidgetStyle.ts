@@ -5,25 +5,23 @@
 import styled from "@emotion/styled"
 import {Paper, Box, Typography, IconButton, Table, TableCell, AccordionSummary} from "@mui/material"
 
-export const CustomAccordionSummary = styled(AccordionSummary)(({ theme }) => ({
-    backgroundColor: "#0F054C",
-    color: theme.palette.common.white,
-    borderTopLeftRadius: "6px", 
-    borderTopRightRadius: "6px", 
+export const CustomAccordionSummary = styled(AccordionSummary)(({theme}) => ({
+    "backgroundColor": "#0F054C",
+    "color": theme.palette.common.white,
+    "borderTopLeftRadius": "6px",
+    "borderTopRightRadius": "6px",
     "& .MuiAccordionSummary-expandIconWrapper": {
-      color: theme.palette.common.white,
+        color: theme.palette.common.white,
     },
     "& .MuiAccordionSummary-content": {
-      margin: "0", 
+        margin: "0",
     },
-  }));
-  
+}))
+
 export const WidgetContainer = styled(Paper)({
     display: "flex",
     flexDirection: "column",
-    width: "max-content",
-    maxWidth: 450,
-    minWidth: 350,
+    width: 450,
     position: "fixed",
     bottom: 16,
     right: 16,
@@ -71,8 +69,9 @@ export const LogsBox = styled(Box)({
 
 export const LogTypography = styled(Typography)({
     margin: 0,
-    padding: 0,
+    padding: "3px 14px",
     fontSize: "14px",
+    fontWeight: "500",
 })
 
 export const TransparentTable = styled(Table)({

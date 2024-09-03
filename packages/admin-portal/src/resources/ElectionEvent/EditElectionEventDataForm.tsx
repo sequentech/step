@@ -269,7 +269,7 @@ export const EditElectionEventDataForm: React.FC = () => {
             election_event_id: record.id,
         },
     })
-    const {data: taskData, loading} = useQuery(GET_TASK_BY_ID, {
+    const {data: taskData} = useQuery(GET_TASK_BY_ID, {
         variables: {task_id: taskId},
         skip: !taskId,
         pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
@@ -580,8 +580,6 @@ export const EditElectionEventDataForm: React.FC = () => {
                 return
             }
             setTaskId(data?.import_candidates?.task_execution.id)
-
-            notify("Candidates successfully imported", {type: "success"})
         } catch (err) {
             console.log(err)
             notify("Error importing candidates", {type: "error"})

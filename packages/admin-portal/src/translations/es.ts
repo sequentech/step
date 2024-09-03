@@ -98,6 +98,12 @@ const spanishTranslation: TranslationType = {
                 labels: "Etiquetas",
                 logs: "Registros",
             },
+            tasksExecution: {
+                EXPORT_ELECTION_EVENT: "Exportar evento electoral",
+                IMPORT_ELECTION_EVENT: "Importar evento electoral",
+                IMPORT_USERS: "Importar usuarios",
+                IMPORT_CANDIDATES: "Importar candidatos",
+            },
         },
         confirmationScreen: {
             title: "Su voto ha sido emitido",

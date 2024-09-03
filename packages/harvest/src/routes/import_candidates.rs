@@ -13,7 +13,8 @@ use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use windmill::services::tasks_execution::*;
 use windmill::{
-    tasks::import_candidates::import_candidates_task, types::tasks::ETasksExecution,
+    tasks::import_candidates::import_candidates_task,
+    types::tasks::ETasksExecution,
 };
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -46,7 +47,6 @@ pub async fn import_candidates_route(
     let task_execution = post(
         &tenant_id,
         &election_event_id,
-        &ETasksExecution::IMPORT_CANDIDATES.to_string(),
         ETasksExecution::IMPORT_CANDIDATES,
         &executer_name,
     )

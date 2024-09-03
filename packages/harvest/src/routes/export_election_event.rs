@@ -49,7 +49,6 @@ pub async fn export_election_event_route(
     let task_execution = post(
         &tenant_id,
         &election_event_id,
-        &ETasksExecution::EXPORT_ELECTION_EVENT.to_string(),
         ETasksExecution::EXPORT_ELECTION_EVENT,
         &executer_name,
     )

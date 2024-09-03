@@ -8,12 +8,10 @@ use crate::types::tasks::ETasksExecution;
 use anyhow::{anyhow, Context, Result};
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
-use serde::{Deserialize, Serialize};
 
 pub async fn post(
     tenant_id: &str,
     election_event_id: &str,
-    name: &str,
     task_type: ETasksExecution,
     executed_by_user: &str,
 ) -> Result<TasksExecution, anyhow::Error> {
@@ -22,7 +20,7 @@ pub async fn post(
     let task = insert_tasks_execution(
         tenant_id,
         election_event_id,
-        name,
+        &task_type.to_name(),
         &task_type.to_string(),
         TasksExecutionStatus::IN_PROGRESS,
         None,

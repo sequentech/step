@@ -66,10 +66,19 @@ interface WidgetProps {
     type: ETasksExecution
     status: ETaskExecutionStatus
     onClose: (val: {}) => void
+    onSuccess?: () => void
+    onFailure?: () => void
     logs?: Array<ITaskLog>
 }
 
-export const Widget: React.FC<WidgetProps> = ({type, status, onClose, logs}) => {
+export const Widget: React.FC<WidgetProps> = ({
+    type,
+    status,
+    onClose,
+    onSuccess,
+    onFailure,
+    logs,
+}) => {
     const {t} = useTranslation()
     const navigate = useNavigate()
     const location = useLocation()
@@ -81,6 +90,9 @@ export const Widget: React.FC<WidgetProps> = ({type, status, onClose, logs}) => 
     useEffect(() => {
         if (status === ETaskExecutionStatus.FAILED) {
             setExpanded(true)
+            onFailure && onFailure()
+        } else if (status === ETaskExecutionStatus.SUCCESS) {
+            onSuccess && onSuccess()
         }
     }, [status])
 
@@ -99,7 +111,10 @@ export const Widget: React.FC<WidgetProps> = ({type, status, onClose, logs}) => 
                 >
                     <HeaderBox>
                         <InfoBox>
-                            <TypeTypography>{type}</TypeTypography>
+                            <TypeTypography>
+                                <b>Task: </b>
+                                {t(`tasksScreen.tasksExecution.${type}`)}
+                            </TypeTypography>
                             <StatusChip status={status} />
                             <IconsBox>
                                 <StyledIconButton size="small">
