@@ -18,7 +18,7 @@ use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::tasks_execution::*;
 use windmill::tasks::export_election_event;
-use windmill::types::tasks::ETasks;
+use windmill::types::tasks::ETasksExecution;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ExportElectionEventInput {
@@ -49,7 +49,8 @@ pub async fn export_election_event_route(
     let task_execution = post(
         &tenant_id,
         &election_event_id,
-        ETasks::EXPORT_ELECTION_EVENT,
+        &ETasksExecution::EXPORT_ELECTION_EVENT.to_string(),
+        ETasksExecution::EXPORT_ELECTION_EVENT,
         &executer_name,
     )
     .await
@@ -86,7 +87,7 @@ pub async fn export_election_event_route(
         })?;
 
     let output = ExportElectionEventOutput {
-        document_id: document_id,
+        document_id,
         task_execution: task_execution.clone(),
     };
 

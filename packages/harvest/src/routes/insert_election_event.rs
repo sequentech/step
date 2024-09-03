@@ -20,7 +20,7 @@ use windmill::services::database::get_hasura_pool;
 use windmill::services::tasks_execution::*;
 use windmill::tasks::import_election_event;
 use windmill::tasks::insert_election_event;
-use windmill::types::tasks::ETasks;
+use windmill::types::tasks::ETasksExecution;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateElectionEventOutput {
@@ -123,7 +123,8 @@ pub async fn import_election_event_f(
     let task_execution = post(
         &tenant_id,
         &id,
-        ETasks::IMPORT_ELECTION_EVENT,
+        &ETasksExecution::IMPORT_ELECTION_EVENT.to_string(),
+        ETasksExecution::IMPORT_ELECTION_EVENT,
         &executer_name,
     )
     .await

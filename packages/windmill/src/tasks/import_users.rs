@@ -11,7 +11,6 @@ use crate::services::documents::get_document_as_temp_file;
 use crate::services::s3;
 use crate::services::tasks_execution::*;
 use crate::types::error::{Error, Result};
-use crate::types::tasks::ETasks;
 use anyhow::{anyhow, Context};
 use base64::prelude::*;
 use celery::error::TaskError;

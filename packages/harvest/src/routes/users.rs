@@ -27,7 +27,7 @@ use windmill::services::users::ListUsersFilter;
 use windmill::services::users::{list_users, list_users_with_vote_info};
 use windmill::tasks::export_users;
 use windmill::tasks::import_users::{self, ImportUsersOutput};
-use windmill::types::tasks::ETasks;
+use windmill::types::tasks::ETasksExecution;
 
 #[derive(Deserialize, Debug)]
 pub struct DeleteUserBody {
@@ -447,7 +447,8 @@ pub async fn import_users_f(
     let task_execution = post(
         &tenant_id,
         &election_event_id,
-        ETasks::IMPORT_USERS,
+        &ETasksExecution::IMPORT_USERS.to_string(),
+        ETasksExecution::IMPORT_USERS,
         &executer_name,
     )
     .await

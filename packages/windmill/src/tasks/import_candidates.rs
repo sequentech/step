@@ -6,7 +6,6 @@ use crate::postgres::candidate::insert_candidates;
 use crate::postgres::contest::export_contests;
 use crate::services::tasks_execution::*;
 use crate::types::error::Error;
-use crate::types::tasks::ETasks;
 use crate::{
     postgres::{document::get_document, tasks_execution::insert_tasks_execution},
     services::{database::get_hasura_pool, documents::get_document_as_temp_file},
