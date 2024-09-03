@@ -56,6 +56,10 @@ public class Utils {
   public final String SEND_LINK_EMAIL_SUBJECT = "messageOtp.sendLink.email.subject";
   public final String SEND_LINK_EMAIL_FTL = "send-link-email.ftl";
 
+  public static final String SEND_SUCCESS_SMS_I18N_KEY = "messageSuccessSms";
+  public static final String SEND_SUCCESS_EMAIL_SUBJECT = "messageSuccessEmailSubject";
+  public static final String SEND_SUCCESS_EMAIL_FTL = "success-email.ftl";
+
   public enum MessageCourier {
     SMS,
     EMAIL,
@@ -454,7 +458,7 @@ public class Utils {
           .setUser(user)
           .setAttribute("realmName", realName)
           .setAttribute("username", username)
-          .send(SEND_SUCCESS_SUBJECT, subjAttr, SEND_SUCCESS_EMAIL_FTL, messageAttributes);
+          .send(SEND_SUCCESS_EMAIL_SUBJECT, subjAttr, SEND_SUCCESS_EMAIL_FTL, messageAttributes);
     }
 
     if (mobileNumber != null
