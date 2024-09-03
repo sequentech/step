@@ -676,7 +676,7 @@ services:
       "--ignore",
       "rust-local-target/",
       "-x",
-      "run --bin main consume --acks-late -q short_queue tally_queue beat reports_queue communication_queue import_export_queue"
+      "run --bin main consume --acks-late -q short_queue tally_queue reports_queue beat communication_queue import_export_queue"
     ]
     volumes_from:
       - devcontainer

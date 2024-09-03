@@ -12,7 +12,7 @@ use tracing::{event, Level};
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task]
+#[celery::task(expires = 30)]
 pub async fn review_boards() -> Result<()> {
     let limit: i64 = 100;
     let mut offset: i64 = 0;
