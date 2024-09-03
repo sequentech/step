@@ -20,7 +20,7 @@ import {Typography} from "@mui/material"
 import {SettingsSchedules} from "@/resources/Settings/SettingsSchedules"
 import {SettingsSchedulesCreate} from "@/resources/Settings/SettingsSchedulesCreate"
 import {SettingsTrustees} from "@/resources/Settings/SettingsTrustees"
-import {SettingslookAndFeel} from "@/resources/Settings/SettingslookAndFeel"
+import {SettingsLookAndFeel} from "@/resources/Settings/SettingsLookAndFeel"
 
 export const SettingsScreen: React.FC = () => {
     const {t} = useTranslation()
@@ -80,10 +80,7 @@ export const SettingsScreen: React.FC = () => {
                     {
                         label: t("electionTypeScreen.tabs.lookAndFeel"),
                         component: () => (
-                            <Resource
-                                name="sequent_backend_tenant"
-                                list={SettingslookAndFeel}
-                            />
+                            <Resource name="sequent_backend_tenant" list={SettingsLookAndFeel} />
                         ),
                     },
                     {

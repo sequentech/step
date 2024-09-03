@@ -11,7 +11,7 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {ITenantSettings} from "@sequentech/ui-core"
 import {IPermissions} from "@/types/keycloak"
 
-export const SettingslookAndFeel: React.FC<void> = () => {
+export const SettingsLookAndFeel: React.FC<void> = () => {
     const [tenantId] = useTenantStore()
     const {t, i18n} = useTranslation()
     const authContext = useContext(AuthContext)
