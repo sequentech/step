@@ -257,8 +257,10 @@ services:
       --spi-sms-sender-aws-enabled=false
       --import-realm
     depends_on:
-      - postgres-keycloak
-      - devcontainer
+      devcontainer:
+        condition: service_started
+      postgres-keycloak:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:8090/health/live"]
       interval: 5s
@@ -592,7 +594,7 @@ services:
     volumes_from:
       - devcontainer
     volumes:
-      - /workspaces/step/.devcontianer/keycloak/import:/import:z
+      - /workspaces/step/.devcontainer/keycloak/import:/import:z
     restart: always
     working_dir: /workspaces/step/packages/packages/immu-board
     entrypoint: [
