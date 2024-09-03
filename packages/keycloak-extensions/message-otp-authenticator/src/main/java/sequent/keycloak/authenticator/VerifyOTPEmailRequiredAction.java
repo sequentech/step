@@ -153,6 +153,9 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
           form.setAttribute(
                   "address",
                   Utils.getOtpAddress(Utils.MessageCourier.EMAIL, false, config, authSession, user))
+              .setAttribute("ttl", config.getConfig().get(Utils.CODE_TTL))
+              .setAttribute("codeJustSent", false)
+              .setAttribute("resendTimer", resendTimer)
               .createForm(TPL_CODE));
     } catch (Exception error) {
       log.infov("there was an error {0}", error);

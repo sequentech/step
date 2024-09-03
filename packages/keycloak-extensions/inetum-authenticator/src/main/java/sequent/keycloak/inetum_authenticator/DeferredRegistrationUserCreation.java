@@ -58,6 +58,8 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
   public static final String VERIFIED_VALUE = "VERIFIED";
   public static final String VERIFIED_DEFAULT_ID = "sequent.read-only.id-card-number-validated";
 
+  // TODO fix
+
   @Override
   public String getHelpText() {
     return "Sequent: This action must always be first! Validates the username and user profile of the user in validation phase.  In success phase, this will save the info necessary in auth notes to create the user - or attach to a pre-registered user.";

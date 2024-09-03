@@ -2,14 +2,18 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-version: "3.6"
 services:
   devcontainer:
     #profiles: ["full", "base"]
     image: ghcr.io/cachix/devenv:v1.0.7
     container_name: devcontainer
     volumes:
-      - ../..:/workspaces:cached
+    - type: bind
+      source: ../..
+      target: /workspaces
+      bind:
+        create_host_path: true
+        selinux: z
     # support ptrace-based debuggers like C++, Go, and Rust
     cap_add:
      - SYS_PTRACE
@@ -147,14 +151,13 @@ services:
     ports:
       - "8080:8080"
     restart: always
-    volumes:
-      - ../hasura/metadata/:/hasura-metadata:cached
-      - ../hasura/migrations/:/hasura-migrations:cached
+    volumes_from:
+    - devcontainer
     environment:
       # applies migrations on start
       HASURA_GRAPHQL_MIGRATIONS_SERVER_TIMEOUT: 60
-      HASURA_GRAPHQL_MIGRATIONS_DIR: /hasura-migrations
-      HASURA_GRAPHQL_METADATA_DIR: /hasura-metadata
+      HASURA_GRAPHQL_MIGRATIONS_DIR: /workspaces/step/hasura/migrations
+      HASURA_GRAPHQL_METADATA_DIR: /workspaces/step/hasura/metadata
       ## postgres database to store Hasura metadata
       HASURA_GRAPHQL_METADATA_DATABASE_URL: ${HASURA_GRAPHQL_METADATA_DATABASE_URL}
       ## this env var can be used to add the above postgres database to Hasura as a data source. this can be removed/updated based on your needs
@@ -175,6 +178,8 @@ services:
       ACTIONS_ADMIN_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
       HARVEST_DOMAIN: ${HARVEST_DOMAIN}
     depends_on:
+      devcontainer:
+        condition: service_started
       data-connector-agent:
         condition: service_healthy
       postgres:
@@ -249,7 +254,7 @@ services:
       KC_OTP_RESEND_INTERVAL: ${KC_OTP_RESEND_INTERVAL}
     volumes:
       # https://www.keycloak.org/server/containers#_importing_a_realm_on_startup
-      - ./keycloak/import:/opt/keycloak/data/import
+      - ./keycloak/import:/opt/keycloak/data/import:z
     # Below we're using the dummy email email sender provider but that's just for
     # development, in production we should still use the default SMTP email provider
     #
@@ -350,9 +355,11 @@ services:
     build:
       context: ../packages/
       dockerfile: ./Dockerfile.cargo-packages
-    volumes:
-      - ../packages/:/app
-    working_dir: /app/harvest
+    volumes_from:
+      - devcontainer
+    depends_on:
+      - devcontainer
+    working_dir: /workspaces/step/packages/harvest
     entrypoint: [
       "cargo",
       "watch",
@@ -603,7 +610,7 @@ services:
 
   rabbitmq:
     #profiles: ["full", "base"]
-    image: rabbitmq:management
+    image: rabbitmq:3.12.11-management
     container_name: rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
@@ -623,8 +630,8 @@ services:
     depends_on:
       - harvest
     volumes:
-      - ./keycloak/import:/import
-      - ../packages/:/app
+      - ./keycloak/import:/import:z
+      - ../packages/:/app:z
     restart: always
     working_dir: /app/immu-board
     entrypoint: [
@@ -659,7 +666,7 @@ services:
     # that the `sequentech.local/cargo-packages` image is locally build, so
     # that we can reuse it:
     restart: always
-    working_dir: /app/windmill
+    working_dir: /workspaces/step/packages/windmill
     entrypoint: [
       "cargo",
       "watch",
@@ -669,15 +676,18 @@ services:
       "--ignore",
       "rust-local-target/",
       "-x",
-      "run --bin main consume -q short_queue tally_queue beat reports_queue communication_queue import_export_queue"
+      "run --bin main consume --acks-late -q short_queue tally_queue beat reports_queue communication_queue import_export_queue"
     ]
-    volumes:
-      - ./keycloak/import:/import
-      - ../packages/:/app
+    volumes_from:
+      - devcontainer
+    depends_on:
+      - devcontainer
+      #- postgres
+      #- postgres-keycloak
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
       RUST_BACKTRACE: ${RUST_BACKTRACE}
-      LOG_LEVEL: ${LOG_LEVEL}
+      LOG_LEVEL: trace
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
       HASURA_ENDPOINT: ${HASURA_ENDPOINT}
       AMQP_ADDR: ${AMQP_ADDR}
@@ -751,20 +761,21 @@ services:
       VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE: ${VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE}
        #Demo key
       DEMO_PUBLIC_KEY: ${DEMO_PUBLIC_KEY}
-      MIRU_STATION_ID: ${MIRU_STATION_ID}
-      
 
   beat:
     #profiles: ["full"]
     stdin_open: true
     image: sequentech.local/cargo-packages
     container_name: beat
+    volumes_from:
+      - devcontainer
     # make sure to depend on the `harvest` container to ensure
     # that the `sequentech.local/cargo-packages` image is locally build, so
     # that we can reuse it:
     depends_on:
+      - devcontainer
       - harvest
-    working_dir: /app/windmill
+    working_dir: /workspaces/step/packages/windmill
     entrypoint: [
       "cargo",
       "watch",
@@ -776,9 +787,6 @@ services:
       "-x",
       "run --bin beat"
     ]
-    volumes:
-      - ./keycloak/import:/import
-      - ../packages/:/app
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
       LOG_LEVEL: ${LOG_LEVEL}
