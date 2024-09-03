@@ -306,6 +306,10 @@ impl fmt::Debug for Consumer {
 // This impl is there only to silence warnings
 impl Drop for Consumer {
     fn drop(&mut self) {
+        let tag = if let Some(inner) = self.inner.try_lock() {
+            inner.tag.clone()
+        } else { "".into() };
+        trace!("Consumer::drop() consumer_tag = {}", tag);
         drop(self.consumer_canceler.take());
         drop(self.channel_closer.take());
     }

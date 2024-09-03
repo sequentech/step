@@ -140,6 +140,7 @@ impl Channels {
     }
 
     pub(crate) fn set_connection_error(&self, error: Error) {
+        trace!("FFFF Channels::set_connection_error");
         // Do nothing if we were already in error
         if let ConnectionState::Error = self.connection_status.set_state(ConnectionState::Error) {
             return;

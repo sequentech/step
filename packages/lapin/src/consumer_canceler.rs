@@ -35,6 +35,7 @@ impl ConsumerCanceler {
 
 impl Drop for ConsumerCanceler {
     fn drop(&mut self) {
+        trace!("ConsumerCanceler::drop() consumer_tag = {}", self.consumer_tag);
         trace!("{:?}", Backtrace::new());
         let status = self.status.lock();
         if status.state() == ConsumerState::Active {

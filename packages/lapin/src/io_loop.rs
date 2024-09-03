@@ -28,6 +28,7 @@ use std::{
     time::Duration,
 };
 use tracing::{error, trace};
+use backtrace::Backtrace;
 
 const FRAMES_STORAGE: usize = 32;
 
@@ -201,6 +202,7 @@ impl IoLoop {
     }
 
     fn stop(&mut self) {
+        trace!("FFFF IoLoop::stop");
         self.status = Status::Stop;
         self.heartbeat.cancel();
     }
@@ -255,7 +257,9 @@ impl IoLoop {
     }
 
     fn critical_error(&mut self, error: Error) -> Result<()> {
+        trace!("FFFF IoLoop::critical_error step 0. error = {:?}", error);
         if let Some(resolver) = self.connection_status.connection_resolver() {
+            trace!("FFFF IoLoop::critical_error step 1. resolver = {:?}", resolver);
             resolver.swear(Err(error.clone()));
         }
         self.stop();
@@ -265,6 +269,7 @@ impl IoLoop {
     }
 
     fn clear_serialized_frames(&mut self, error: Error) {
+        trace!("FFFF IoLoop::clear_serialized_frames");
         for (_, resolver) in std::mem::take(&mut self.serialized_frames) {
             if let Some(resolver) = resolver {
                 trace!("We're quitting but had leftover frames, tag them as 'not sent' with current error");
