@@ -451,7 +451,7 @@ export const ContestDataForm: React.FC = () => {
                 EEnableCheckableLists.CANDIDATES_AND_LISTS
 
             newContest.presentation.under_vote_policy =
-                newContest.presentation.under_vote_policy ?? false
+                newContest.presentation.under_vote_policy || EUnderVotePolicy.ALLOWED
 
             newContest.presentation.blank_vote_policy =
                 newContest.presentation.blank_vote_policy || EBlankVotePolicy.ALLOWED

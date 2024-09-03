@@ -15,6 +15,7 @@ use crate::{
     wakers::Wakers,
     BasicProperties, Error, Result,
 };
+use backtrace::Backtrace;
 use executor_trait::FullExecutor;
 use flume::{Receiver, Sender};
 use futures_core::stream::Stream;
@@ -228,6 +229,7 @@ impl Consumer {
     ///
     /// Enables parallel handling of the messages.
     pub fn set_delegate<D: ConsumerDelegate + 'static>(&self, delegate: D) {
+        trace!("FFFF set_delegate");
         let mut inner = self.inner.lock();
         let mut status = self.status.lock();
         while let Some(delivery) = inner.next_delivery() {
@@ -330,6 +332,7 @@ impl ConsumerInner {
     }
 
     fn reset(&mut self, no_ack: bool) {
+        trace!("FFFF reset()  no_ack = {}", no_ack);
         if !no_ack {
             while self.next_delivery().is_some() {}
         }
@@ -337,7 +340,12 @@ impl ConsumerInner {
     }
 
     fn next_delivery(&mut self) -> Option<DeliveryResult> {
-        self.deliveries_out.try_recv().ok()
+        let recv: std::result::Result<
+            std::result::Result<Option<Delivery>, Error>,
+            flume::TryRecvError,
+        > = self.deliveries_out.try_recv();
+        trace!("FFFF next_delivery: {:?}", recv);
+        recv.ok()
     }
 
     fn handle_content_header_frame(&mut self, size: PayloadSize, properties: BasicProperties) {
@@ -352,10 +360,15 @@ impl ConsumerInner {
     }
 
     fn handle_body_frame(&mut self, remaining_size: PayloadSize, payload: Vec<u8>) {
+        trace!("FF (Impl ConsumerInner for consumer) handle_body_frame. step 0");
         if let Some(delivery) = self.current_message.as_mut() {
+            trace!(
+                "FF (Impl ConsumerInner for consumer) handle_body_frame. step 1: receive_content"
+            );
             delivery.receive_content(payload);
         }
         if remaining_size == 0 {
+            trace!("FF (Impl ConsumerInner for consumer) handle_body_frame. step 2: new_delivery_complete");
             self.new_delivery_complete();
         }
     }
@@ -363,7 +376,10 @@ impl ConsumerInner {
     fn new_delivery_complete(&mut self) {
         trace!("FF (Impl ConsumerInner for consumer) new_delivery_complete 0");
         if let Some(delivery) = self.current_message.take() {
-            trace!("FF (Impl ConsumerInner for consumer) new_delivery_complete 1");
+            trace!(
+                "FF (Impl ConsumerInner for consumer) new_delivery_complete 1. delivery = {:?}",
+                delivery
+            );
             trace!(consumer_tag=%self.tag, "new_delivery");
             if let Some(delegate) = self.delegate.as_ref() {
                 trace!("FF (Impl ConsumerInner for consumer) new_delivery_complete 2");
@@ -381,6 +397,7 @@ impl ConsumerInner {
     }
 
     fn drop_prefetched_messages(&mut self) {
+        trace!("FFFF drop_prefetched_messages");
         trace!(consumer_tag=%self.tag, "drop_prefetched_messages");
         if let Some(delegate) = self.delegate.as_ref() {
             let delegate = delegate.clone();
@@ -391,6 +408,7 @@ impl ConsumerInner {
 
     fn cancel(&mut self) {
         trace!(consumer_tag=%self.tag, "cancel");
+        trace!("{:?}", Backtrace::new());
         let mut status = self.status.lock();
         if let Some(delegate) = self.delegate.as_ref() {
             let delegate = delegate.clone();
@@ -423,6 +441,7 @@ impl Stream for Consumer {
     type Item = Result<Delivery>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        trace!("FFFF poll_next() step 0");
         trace!("consumer poll_next");
         let mut inner = self.inner.lock();
         trace!(
@@ -431,8 +450,10 @@ impl Stream for Consumer {
         );
         inner.wakers.register(cx.waker());
         if let Some(delivery) = inner.next_delivery() {
+            trace!("FFFF poll_next() step 1");
             match delivery {
                 Ok(Some(delivery)) => {
+                    trace!("FFFF poll_next() step 2");
                     trace!(
                         consumer_tag=%inner.tag,
                         delivery_tag=?delivery.delivery_tag,
@@ -441,12 +462,17 @@ impl Stream for Consumer {
                     Poll::Ready(Some(Ok(delivery)))
                 }
                 Ok(None) => {
+                    trace!("FFFF poll_next() step 3");
                     trace!(consumer_tag=%inner.tag, "consumer canceled");
                     Poll::Ready(None)
                 }
-                Err(error) => Poll::Ready(Some(Err(error))),
+                Err(error) => {
+                    trace!("FFFF poll_next() step 4");
+                    Poll::Ready(Some(Err(error)))
+                }
             }
         } else {
+            trace!("FFFF poll_next() step 5");
             trace!(consumer_tag=%inner.tag, "delivery; status=NotReady");
             Poll::Pending
         }

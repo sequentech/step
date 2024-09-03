@@ -1494,6 +1494,7 @@ dependencies = [
  "tokio-executor-trait",
  "tokio-reactor-trait",
  "tokio-stream",
+ "tracing",
  "uuid",
 ]
 
@@ -3961,6 +3962,7 @@ dependencies = [
  "async-global-executor-trait",
  "async-reactor-trait",
  "async-trait",
+ "backtrace",
  "executor-trait",
  "flume",
  "futures-core",

@@ -54,6 +54,7 @@ redis = { version = "0.22", features=["connection-manager", "tokio-comp"] }
 tokio-executor-trait = "2.1"
 tokio-reactor-trait = "1.1"
 futures-lite = "1.12"
+tracing = "0.1"
 
 [dev-dependencies]
 rmp-serde = "1.1"

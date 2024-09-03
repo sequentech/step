@@ -66,6 +66,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
   public static final String PASSWORD_NOT_STRONG = "Passwords-Not-Strong-Enough";
 
   public static final String MISSING_FIELDS_ERROR = "error-user-attribute-required";
+
   // TODO fix
 
   @Override
