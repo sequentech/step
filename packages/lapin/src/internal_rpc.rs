@@ -86,6 +86,7 @@ impl InternalRPCHandle {
         consumer_tag: String,
         consumer_status: ConsumerStatus,
     ) {
+        trace!("FFFF internal_rpc::cancel_consumer");
         self.send(InternalCommand::CancelConsumer(
             channel_id,
             consumer_tag,
