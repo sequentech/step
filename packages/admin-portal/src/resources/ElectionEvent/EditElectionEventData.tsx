@@ -55,8 +55,11 @@ export const EditElectionEventData: React.FC = () => {
         const language_conf = {
             enabled_language_codes: enabled_language_codes,
         }
+        // i18n
+        // is all object, no change needed
         delete data.enabled_languages
 
+        // name, alias and description fields
         const presentationI18n = data.presentation?.i18n
 
         let fromPresentationName = ""
@@ -83,6 +86,7 @@ export const EditElectionEventData: React.FC = () => {
         data.name = fromPresentationName
         data.alias = fromPresentationAlias
         data.description = fromPresentationDescription
+        // END name, alias and description fields
 
         return {
             ...data,
