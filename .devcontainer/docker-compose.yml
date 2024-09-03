@@ -574,7 +574,7 @@ services:
       - devcontainer
     restart: always
     entrypoint: ["./init-immudb.sh"]
-    working_dir: /workspaces/step/packages/packages/immu-board
+    working_dir: /workspaces/step/packages/immu-board
     env_file:
       - .env
 
