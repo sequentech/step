@@ -17,6 +17,7 @@ use crate::{
     Configuration, ConnectionStatus, Error, PromiseResolver, Result,
 };
 use amq_protocol::frame::{gen_frame, parse_frame, AMQPFrame, GenError};
+use backtrace::Backtrace;
 use reactor_trait::AsyncIOHandle;
 use std::{
     collections::VecDeque,
@@ -28,7 +29,6 @@ use std::{
     time::Duration,
 };
 use tracing::{error, trace};
-use backtrace::Backtrace;
 
 const FRAMES_STORAGE: usize = 32;
 
@@ -259,7 +259,10 @@ impl IoLoop {
     fn critical_error(&mut self, error: Error) -> Result<()> {
         trace!("FFFF IoLoop::critical_error step 0. error = {:?}", error);
         if let Some(resolver) = self.connection_status.connection_resolver() {
-            trace!("FFFF IoLoop::critical_error step 1. resolver = {:?}", resolver);
+            trace!(
+                "FFFF IoLoop::critical_error step 1. resolver = {:?}",
+                resolver
+            );
             resolver.swear(Err(error.clone()));
         }
         self.stop();
