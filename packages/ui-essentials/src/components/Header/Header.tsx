@@ -63,12 +63,10 @@ export const StyledButtonContainerWrapper = styled.div`
     position: relative;
     padding: 0;
     margin: 0;
-    width: 125px;
-    height: 44px;
+    width: 100%;
 `
 
 export const StyledButtonContainer = styled.div`
-    position: absolute;
     padding: 0;
     margin: 0;
     display: flex;
@@ -84,6 +82,7 @@ export const StyledButton = styled(Button)`
     background: transparent !important;
     border: none;
     display: flex;
+    flex-direction: row;
     width: 100%;
     // border-bottom: ${({theme}) => `2px solid ${theme.palette.brandColor}`} !important;
     outline: "none";
@@ -106,6 +105,7 @@ export type UserProfile = {
     username: string
     email?: string
     openLink?: Function
+    firstName?: string
 }
 
 export enum HeaderErrorVariant {

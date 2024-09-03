@@ -156,7 +156,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                     },
                 }}
             >
-                <StyledButtonContainerWrapper style={{width: 60}}>
+                <StyledButtonContainerWrapper>
                     <StyledButtonContainer className="logout-button-container">
                         <StyledButton
                             className="logout-button"
@@ -171,6 +171,17 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
 								>
 									Profile
 								</Box> */}
+                            {userProfile.firstName && (
+                                <Box
+                                    component="span"
+                                    sx={{
+                                        display: {xs: "none", md: "block"},
+                                        whiteSpace: "pre",
+                                    }}
+                                >
+                                    {userProfile.firstName}
+                                </Box>
+                            )}
                         </StyledButton>
                     </StyledButtonContainer>
 

@@ -46,6 +46,7 @@ export const CustomAppBar: React.FC = () => {
                     username: authContext.username,
                     email: authContext.email,
                     openLink: authContext.openProfileLink,
+                    firstName: authContext.firstName,
                 }}
                 logoutFn={authContext.isAuthenticated ? authContext.logout : undefined}
                 languagesList={langList}

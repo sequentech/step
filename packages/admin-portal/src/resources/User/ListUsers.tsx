@@ -141,6 +141,10 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             tenant_id: tenantId,
         },
     })
+
+    console.log("tenent:", tenantId)
+    console.log("electionEventId:", electionEventId)
+
     const canEditUsers = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_WRITE)
     const canSendCommunications = authContext.isAuthorized(
         true,
