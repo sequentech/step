@@ -393,6 +393,34 @@ pub enum ContestsOrder {
     Alphabetical,
 }
 
+#[allow(non_camel_case_types)]
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+    Default,
+)]
+pub enum AuditButtonCfg {
+    #[strum(serialize = "show")]
+    #[serde(rename = "show")]
+    #[default]
+    SHOW,
+    #[strum(serialize = "not-show")]
+    #[serde(rename = "not-show")]
+    NOT_SHOW,
+    #[strum(serialize = "show_in_help")]
+    #[serde(rename = "show_in_help")]
+    SHOW_IN_HELP,
+}
+
 #[derive(
     Debug,
     BorshSerialize,
@@ -552,7 +580,6 @@ pub struct ElectionEventPresentation {
     pub logo_url: Option<String>,
     pub redirect_finish_url: Option<String>,
     pub css: Option<String>,
-    pub hide_audit: Option<bool>,
     pub skip_election_list: Option<bool>,
     pub show_user_profile: Option<bool>, // default is true
     pub elections_order: Option<ElectionsOrder>,
@@ -751,6 +778,7 @@ pub struct ElectionPresentation {
     pub dates: Option<ElectionDates>,
     pub language_conf: Option<ElectionEventLanguageConf>,
     pub contests_order: Option<ContestsOrder>,
+    pub audit_button_cfg: Option<AuditButtonCfg>,
     pub sort_order: Option<i64>,
     pub cast_vote_confirm: Option<bool>,
 }
