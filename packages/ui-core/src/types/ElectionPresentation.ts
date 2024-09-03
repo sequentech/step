@@ -26,6 +26,6 @@ export interface IElectionPresentation {
 
 export enum EVotingPortalAuditButtonCfg {
     SHOW = "show",
-    NOT_SHOW = "not_show",
-    SHOW_IN_HELP = "show_in_help",
+    NOT_SHOW = "not-show",
+    SHOW_IN_HELP = "show-in-help",
 }
