@@ -7,6 +7,8 @@ use crate::{
     internal_rpc::InternalRPCHandle,
     types::ChannelId,
 };
+use backtrace::Backtrace;
+use tracing::trace;
 
 pub(crate) struct ConsumerCanceler {
     channel_id: ChannelId,
@@ -33,6 +35,7 @@ impl ConsumerCanceler {
 
 impl Drop for ConsumerCanceler {
     fn drop(&mut self) {
+        trace!("{:?}", Backtrace::new());
         let status = self.status.lock();
         if status.state() == ConsumerState::Active {
             self.internal_rpc.cancel_consumer(
