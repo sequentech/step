@@ -7,12 +7,12 @@ FROM node:20-alpine
 # Install Yarn
 RUN apk add --no-cache yarn
 
-# Install dependencies
 WORKDIR /usr/src/app/
 
 #copy only necessary files, exclude source code from the runtime image
 COPY . /
 
+# Install dependencies
 RUN yarn --pure-lockfile --non-interactive
 
 EXPOSE 3002
