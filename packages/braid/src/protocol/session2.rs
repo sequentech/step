@@ -209,7 +209,7 @@ impl SessionSet {
                 
                 match signal.expect("impossible") {
                     SessionSetMessage::REFRESH(boards) => {
-                        info!("Set {}: ({}) received refresh for {} boards", self.name, session_map.len(), boards.len());
+                        // info!("Set {}: ({}) received refresh for {} boards", self.name, session_map.len(), boards.len());
                         for b in boards.iter() {
                             if !session_map.contains_key(b) {
                                 info!("Set {}: adding session '{}'..", self.name, b);

@@ -144,7 +144,6 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
         &self,
         _request: Request<GetBoardsRequest>,
     ) -> Result<Response<GetBoardsReply>, Status> {
-        info!("get_boards");
 
         let c = self.pool.get().await;
         let Ok(c) = c else {
@@ -164,7 +163,9 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
             )));
         };
 
-        let boards = boards.into_iter().map(|b| b.board_name).collect();
+        let boards: Vec<String> = boards.into_iter().map(|b| b.board_name).collect();
+        info!("get_boards returns {} boards", boards.len());
+        
 
         let reply = GetBoardsReply { boards };
         Ok(Response::new(reply))
@@ -180,21 +181,25 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
         let mut total_bytes: u32 = 0;
         for request in &r.requests {
             let ms = self.get_messages_(&request.board, request.last_id).await?;
-            let next_bytes: usize = ms.iter().map(|m| m.message.len()).sum();
-            total_bytes += next_bytes as u32;
-            let k = KeyedMessages {
-                board: request.board.clone(),
-                messages: ms,
-                deferred: false,
-            };
-            keyed.push(k);
+            if ms.len() > 0 {
+                let next_bytes: usize = ms.iter().map(|m| m.message.len()).sum();
+                total_bytes += next_bytes as u32;
+                let k = KeyedMessages {
+                    board: request.board.clone(),
+                    messages: ms,
+                    deferred: false,
+                };
+                keyed.push(k);
+            }
         }
 
-        info!(
-            "get_messages_multi: returning {} keyed messages, size = {:.2} MB",
-            keyed.len(),
-            f64::from(total_bytes) / (1024.0 * 1024.0)
-        );
+        if keyed.len() > 0 {
+            info!(
+                "get_messages_multi: returning {} keyed messages, size = {:.2} MB",
+                keyed.len(),
+                f64::from(total_bytes) / (1024.0 * 1024.0)
+            );
+        }
 
         let reply = GetMessagesMultiReply { messages: keyed };
         Ok(Response::new(reply))

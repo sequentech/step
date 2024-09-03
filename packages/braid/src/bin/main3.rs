@@ -208,15 +208,16 @@ impl SessionSetRing {
 
     async fn refresh(&mut self, boards: Vec<String>) -> Result<()> {        
         
+        info!("Refreshing {} sets with {} boards", self.session_sets.len(), boards.len());
         for board in boards {
             let index = self.hash(&board);
             // Assign boards to session sets
             self.session_sets[index].boards.push(board);
         }
-
+        
         for (i, h) in self.session_sets.iter_mut().enumerate() {
             let boards = std::mem::replace(&mut h.boards, vec![]);
-            info!("Refreshing set {} with {} boards", i, boards.len());
+            
 
             if h.sender.is_closed() {
                 warn!("Sender was closed, rebuilding set..");

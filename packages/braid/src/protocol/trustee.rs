@@ -159,7 +159,7 @@ impl<C: Ctx> Trustee<C> {
         // Show the latest message received
         if messages.len() > 0 {
             let (last_message, id) = messages.get(messages.len() - 1).expect("impossible");
-            info!(
+            trace!(
                 "Update: last message is {:?} ({})",
                 last_message.statement.get_kind(),
                 id

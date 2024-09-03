@@ -240,7 +240,7 @@ fn compute_pk_<C: Ctx>(
                         j, i
                     )));
                 }
-                info!("Trustee {} verified share received from {}", j, i);
+                trace!("Trustee {} verified share received from {}", j, i);
             }
         }
     }
