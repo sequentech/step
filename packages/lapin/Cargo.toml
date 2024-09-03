@@ -67,6 +67,7 @@ parking_lot = "^0.12"
 pinky-swear = "^6.1"
 reactor-trait = "^1.1"
 waker-fn = "^1.1"
+backtrace = "0.3"
 
 [dev-dependencies]
 async-global-executor = "^2.0"

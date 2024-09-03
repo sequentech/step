@@ -10,6 +10,7 @@ use crate::{
     types::{PayloadSize, ShortString},
     BasicProperties, Error,
 };
+use backtrace::Backtrace;
 use parking_lot::Mutex;
 use std::{borrow::Borrow, collections::HashMap, fmt, hash::Hash, sync::Arc};
 use tracing::trace;
@@ -26,6 +27,8 @@ impl Consumers {
     where
         ShortString: Borrow<S>,
     {
+        trace!("FFFF Consumers::deregister");
+        trace!("{:?}", Backtrace::new());
         if let Some(consumer) = self.0.lock().remove(consumer_tag) {
             consumer.cancel();
         }
@@ -35,6 +38,8 @@ impl Consumers {
     where
         ShortString: Borrow<S>,
     {
+        trace!("FFFF Consumers::start_cancel_one");
+        trace!("{:?}", Backtrace::new());
         if let Some(consumer) = self.0.lock().get(consumer_tag) {
             consumer.start_cancel();
         }
@@ -81,18 +86,24 @@ impl Consumers {
     }
 
     pub(crate) fn drop_prefetched_messages(&self) {
+        trace!("FFFF Consumers::drop_prefetched_messages");
+        trace!("{:?}", Backtrace::new());
         for consumer in self.0.lock().values() {
             consumer.drop_prefetched_messages();
         }
     }
 
     pub(crate) fn start_cancel(&self) {
+        trace!("FFFF Consumers::start_cancel");
+        trace!("{:?}", Backtrace::new());
         for consumer in self.0.lock().values() {
             consumer.start_cancel();
         }
     }
 
     pub(crate) fn cancel(&self) {
+        trace!("FFFF Consumers::cancel");
+        trace!("{:?}", Backtrace::new());
         for (_, consumer) in self.0.lock().drain() {
             consumer.cancel();
         }

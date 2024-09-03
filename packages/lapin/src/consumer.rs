@@ -15,6 +15,7 @@ use crate::{
     wakers::Wakers,
     BasicProperties, Error, Result,
 };
+use backtrace::Backtrace;
 use executor_trait::FullExecutor;
 use flume::{Receiver, Sender};
 use futures_core::stream::Stream;
@@ -407,6 +408,7 @@ impl ConsumerInner {
 
     fn cancel(&mut self) {
         trace!(consumer_tag=%self.tag, "cancel");
+        trace!("{:?}", Backtrace::new());
         let mut status = self.status.lock();
         if let Some(delegate) = self.delegate.as_ref() {
             let delegate = delegate.clone();
