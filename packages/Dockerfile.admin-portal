@@ -14,5 +14,7 @@ COPY . /
 
 # Install dependencies
 RUN yarn --pure-lockfile --non-interactive
+RUN yarn build:ui-core
+RUN yarn build:ui-essentials
 
 EXPOSE 3002
