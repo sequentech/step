@@ -4,7 +4,6 @@
 
 services:
   devcontainer:
-    #profiles: ["full", "base"]
     image: ghcr.io/cachix/devenv:v1.0.8
     container_name: devcontainer
     volumes:
@@ -28,7 +27,6 @@ services:
 
   # Needed to set up proper permissions for non root user in postgres
   postgres-volume-init:
-    #profiles: ["full", "base"]
     image: alpine
     container_name: postgres-volume-init
     volumes: 
@@ -40,7 +38,6 @@ services:
     command: chown -R 999:999 /logs /keycloak_logs
 
   postgres:
-    #profiles: ["full", "base"]
     image: ghcr.io/sequentech/step/postgres:latest
     container_name: postgres
     restart: unless-stopped
@@ -60,7 +57,6 @@ services:
       - postgres-volume-init
 
   minio:
-    #profiles: ["full", "base"]
     container_name: minio
     image: minio/minio
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
@@ -86,7 +82,6 @@ services:
   
   # used to add headers to minio
   minio-proxy:
-    #profiles: ["full", "base"]
     container_name: minio-proxy
     image: nginx:latest
     ports:
@@ -97,7 +92,6 @@ services:
       - minio
   
   configure-minio:
-    #profiles: ["full", "base"]
     container_name: configure-minio
     image: ghcr.io/sequentech/step/minio:latest
     depends_on:
@@ -114,7 +108,6 @@ services:
 
   # hashicorp vault to store secrets
   vault:
-    #profiles: ["full", "base"]
     container_name: vault
     image: ghcr.io/sequentech/step/vault:latest
     restart: on-failure:10
@@ -137,7 +130,6 @@ services:
     entrypoint: /opt/vault/entrypoint.sh
 
   graphql-engine:
-    #profiles: ["full", "base"]
     image: hasura/graphql-engine:v2.33.1.cli-migrations-v3
     container_name: hasura
     ports:
@@ -178,7 +170,6 @@ services:
         condition: service_healthy
 
   data-connector-agent:
-    #profiles: ["full", "base"]
     container_name: data-connector-agent
     image: hasura/graphql-data-connector:v2.31.0
     restart: always
@@ -197,7 +188,6 @@ services:
       start_period: 5s
 
   postgres-keycloak:
-    #profiles: ["full", "base"]
     image: ghcr.io/sequentech/step/postgres:latest
     container_name: postgres-keycloak
     restart: unless-stopped
@@ -220,7 +210,6 @@ services:
       - postgres
 
   keycloak:
-    #profiles: ["full", "base"]
     container_name: keycloak
     image: ghcr.io/sequentech/step/keycloak:latest
     restart: always
@@ -314,7 +303,6 @@ services:
   #      - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
 
   immudb:
-    #profiles: ["full", "base"]
     container_name: immudb
     image: ghcr.io/sequentech/step/immudb:latest
     restart: always
@@ -333,7 +321,6 @@ services:
       - immudb-init
   
   harvest:
-    #profiles: ["full", "base"]
     stdin_open: true
     image: sequentech.local/cargo-packages
     container_name: harvest
@@ -493,7 +480,6 @@ services:
 
   # Create collection in immudb
   immudb-log-audit-init:
-    #profiles: ["full", "base"]
     image: ghcr.io/sequentech/step/immudb-log-audit:latest
     container_name: immudb-log-audit-init
     command: >
@@ -511,7 +497,6 @@ services:
 
   # Send audit logs to immudb
   immudb-log-audit:
-    #profiles: ["full", "base"]
     image: ghcr.io/sequentech/step/immudb-log-audit:latest
     container_name: immudb-log-audit
     command: >
@@ -541,7 +526,6 @@ services:
 
   # Create collection in immudb
   immudb-log-audit-init-keycloak:
-    #profiles: ["full", "base"]
     image: ghcr.io/sequentech/step/immudb-log-audit:latest
     container_name: immudb-log-audit-init-keycloak
     command: >
@@ -560,7 +544,6 @@ services:
 
   # Send audit logs to immudb
   immudb-log-audit-keycloak:
-    #profiles: ["full", "base"]
     image: ghcr.io/sequentech/step/immudb-log-audit:latest
     container_name: immudb-log-audit-keycloak
     command: >
@@ -586,7 +569,6 @@ services:
       - immudb-log-audit-init-keycloak
 
   rabbitmq:
-    #profiles: ["full", "base"]
     image: rabbitmq:3.12.11-management
     container_name: rabbitmq
     environment:
@@ -597,7 +579,6 @@ services:
       - "15672:15672"
 
   immudb-init:
-    #profiles: ["full", "base"]
     stdin_open: true
     image: sequentech.local/cargo-packages
     container_name: immudb-init
@@ -635,7 +616,6 @@ services:
       - .env
 
   windmill:
-    #profiles: ["full", "base"]
     stdin_open: true
     image: ghcr.io/sequentech/step/cargo-packages:latest
     container_name: windmill
@@ -739,40 +719,39 @@ services:
        #Demo key
       DEMO_PUBLIC_KEY: ${DEMO_PUBLIC_KEY}
 
-  # beat:
-  #   #profiles: ["full"]
-  #   stdin_open: true
-  #   image: sequentech.local/cargo-packages
-  #   container_name: beat
-  #   volumes_from:
-  #     - devcontainer
-  #   # make sure to depend on the `harvest` container to ensure
-  #   # that the `sequentech.local/cargo-packages` image is locally build, so
-  #   # that we can reuse it:
-  #   depends_on:
-  #     - devcontainer
-  #     - harvest
-  #   working_dir: /workspaces/step/packages/windmill
-  #   entrypoint: [
-  #     "cargo",
-  #     "watch",
-  #     "--why",
-  #     # ignoring rust-local-target/ since it's used for local builds and
-  #     # otherwise triggers a rebuild all the time (probably rust analyzer)
-  #     "--ignore",
-  #     "rust-local-target/",
-  #     "-x",
-  #     "run --bin beat"
-  #   ]
-  #   environment:
-  #     RUSTFLAGS: ${RUSTFLAGS}
-  #     LOG_LEVEL: ${LOG_LEVEL}
-  #     CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
-  #     HASURA_ENDPOINT: ${HASURA_ENDPOINT}
-  #     AMQP_ADDR: ${AMQP_ADDR}
-  #     BEAT_PROBE_ADDR: ${BEAT_PROBE_ADDR}
-  #     BEAT_PROBE_LIVE_PATH: ${BEAT_PROBE_LIVE_PATH}
-  #     BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
+  beat:
+    stdin_open: true
+    image: ghcr.io/sequentech/step/cargo-packages:latest
+    container_name: beat
+    volumes_from:
+      - devcontainer
+    # make sure to depend on the `harvest` container to ensure
+    # that the `sequentech.local/cargo-packages` image is locally build, so
+    # that we can reuse it:
+    depends_on:
+      - devcontainer
+      - harvest
+    working_dir: /workspaces/step/packages/windmill
+    entrypoint: [
+      "cargo",
+      "watch",
+      "--why",
+      # ignoring rust-local-target/ since it's used for local builds and
+      # otherwise triggers a rebuild all the time (probably rust analyzer)
+      "--ignore",
+      "rust-local-target/",
+      "-x",
+      "run --bin beat"
+    ]
+    environment:
+      RUSTFLAGS: ${RUSTFLAGS}
+      LOG_LEVEL: ${LOG_LEVEL}
+      CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
+      HASURA_ENDPOINT: ${HASURA_ENDPOINT}
+      AMQP_ADDR: ${AMQP_ADDR}
+      BEAT_PROBE_ADDR: ${BEAT_PROBE_ADDR}
+      BEAT_PROBE_LIVE_PATH: ${BEAT_PROBE_LIVE_PATH}
+      BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
 
 volumes:
   db_data:
