@@ -322,11 +322,8 @@ services:
   
   harvest:
     stdin_open: true
-    image: sequentech.local/cargo-packages
+    image: ghcr.io/sequentech/step/cargo-packages:latest
     container_name: harvest
-    build:
-      context: ../packages/
-      dockerfile: ./Dockerfile.cargo-packages
     volumes_from:
       - devcontainer
     depends_on:
@@ -580,18 +577,20 @@ services:
 
   immudb-init:
     stdin_open: true
-    image: sequentech.local/cargo-packages
+    image: ghcr.io/sequentech/step/cargo-packages:latest
     container_name: immudb-init
     # make sure to depend on the `harvest` container to ensure
     # that the `sequentech.local/cargo-packages` image is locally build, so
     # that we can reuse it:
     depends_on:
       - harvest
+      - devcontainer
     volumes:
       - ./keycloak/import:/import:z
-      - ../packages/:/app:z
+    volumes_from:
+      - devcontainer
     restart: always
-    working_dir: /app/immu-board
+    working_dir: /workspaces/step/packages/packages/immu-board
     entrypoint: [
       "cargo",
       "run",
