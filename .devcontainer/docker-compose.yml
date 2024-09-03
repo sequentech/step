@@ -257,9 +257,8 @@ services:
       --spi-sms-sender-aws-enabled=false
       --import-realm
     depends_on:
+      - postgres-keycloak
       - devcontainer
-      - postgres-keycloak:
-          condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:8090/health/live"]
       interval: 5s
