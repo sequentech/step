@@ -814,6 +814,19 @@ const tagalogTranslation = {
                 "custom": "Pasadya",
                 "alphabetical": "Alpabetikal",
             },
+            auditButtonConfig: {
+                "label": "Audit Button Display Options",
+                "show": "Show",
+                "not_show": "Not Show",
+                "show_in_help": "Show In Help Dialog",
+            },
+            underVotePolicy: {
+                "label": "Under Vote Policy",
+                "allowed": "Allowed",
+                "warn-only-in-review": "Warn in Review",
+                "warn": "Warn",
+                "warn-and-alert": "Warn and Alert",
+            },
             invalidVotePolicy: {
                 "allowed": "Pinapayagan",
                 "warn": "Magbigay ng Babala",
@@ -832,6 +845,15 @@ const tagalogTranslation = {
                 "allowed": "Pinapayagan",
                 "warn": "Magbigay ng Babala",
                 "not-allowed": "Hindi Pinapayagan",
+            },
+            overVotePolicy: {
+                "label": "Over Vote Policy",
+                "allowed": "Allowed",
+                "allowed-with-msg": "Allowed with Warning Message",
+                "allowed-with-msg-and-alert": "Allowed with Warning message and Alert",
+                "not-allowed-with-msg-and-alert": "Not Allowed with Warning message and Alert",
+                "not-allowed-with-msg-and-disable":
+                    "Not Allowed with Warning message and Disable further selections",
             },
             paginationPolicy: {
                 label: "Pangalan ng Pahina",

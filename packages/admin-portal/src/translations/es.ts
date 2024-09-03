@@ -813,6 +813,12 @@ const spanishTranslation: TranslationType = {
                 "custom": "Personalizado",
                 "alphabetical": "Alfabético",
             },
+            auditButtonConfig: {
+                "label": "Audit Button Display Options",
+                "show": "Show",
+                "not_show": "Not Show",
+                "show_in_help": "Show In Help Dialog",
+            },
             underVotePolicy: {
                 "label": "Política de Subvoto",
                 "allowed": "Permitido",

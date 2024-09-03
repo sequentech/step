@@ -809,6 +809,12 @@ const englishTranslation = {
                 "custom": "Custom",
                 "alphabetical": "Alphabetical",
             },
+            auditButtonConfig: {
+                "label": "Audit Button Display Options",
+                "show": "Show",
+                "not_show": "Not Show",
+                "show_in_help": "Show In Help Dialog",
+            },
             underVotePolicy: {
                 "label": "Under Vote Policy",
                 "allowed": "Allowed",

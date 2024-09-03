@@ -816,6 +816,12 @@ const frenchTranslation: TranslationType = {
                 "custom": "Personnalisé",
                 "alphabetical": "Alphabétique",
             },
+            auditButtonConfig: {
+                "label": "Audit Button Display Options",
+                "show": "Show",
+                "not_show": "Not Show",
+                "show_in_help": "Show In Help Dialog",
+            },
             underVotePolicy: {
                 "label": "Politique de Sous-Vote",
                 "allowed": "Autorisé",
