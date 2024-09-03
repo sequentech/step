@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useState} from "react"
 
-import styled from "@emotion/styled"
 import {useTranslation} from "react-i18next"
 import {SimpleForm, TextInput, useEditController, Toolbar, SaveButton} from "react-admin"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -29,6 +28,8 @@ export const SettingsLookAndFeel: React.FC<void> = () => {
         (record?.settings as ITenantSettings | undefined)?.logo_url
     )
 
+    console.log("logoUrl :>> ", logoUrl)
+
     const onSave = async () => {
         const newRecord = {...record}
         if (logoUrl === "") {
@@ -37,7 +38,6 @@ export const SettingsLookAndFeel: React.FC<void> = () => {
             newRecord.settings = {...newRecord.settings, logo_url: logoUrl}
         }
         console.log("onSave :>> ", newRecord?.settings?.logo_url)
-        console.log("save :>> ")
         save!({
             settings: {
                 ...((newRecord?.settings as ITenantSettings | undefined) ?? {}),
@@ -49,9 +49,6 @@ export const SettingsLookAndFeel: React.FC<void> = () => {
 
     return (
         <SimpleForm
-            // defaultValues={{electionsOrder: sortedElections}}
-            // validate={formValidator}
-            // record={parsedValue}
             toolbar={
                 <Toolbar>
                     {canEdit ? (
@@ -69,7 +66,7 @@ export const SettingsLookAndFeel: React.FC<void> = () => {
                 resettable={true}
                 source={"settings.logo_url"}
                 label={t("electionTypeScreen.common.logoUrl")}
-                onChange={(event) => setLogoUrl(event.target.value)}
+                onBlur={(event) => setLogoUrl(event.target.value)}
             />
             <TextInput
                 resettable={true}
