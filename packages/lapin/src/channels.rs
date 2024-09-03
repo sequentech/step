@@ -183,6 +183,7 @@ impl Channels {
     }
 
     pub(crate) fn handle_frame(&self, f: AMQPFrame) -> Result<()> {
+        trace!("FFFF Channels::handle_frame");
         if let Err(err) = self.do_handle_frame(f) {
             self.set_connection_error(err.clone());
             Err(err)
