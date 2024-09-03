@@ -63,7 +63,6 @@ export const StyledButtonContainerWrapper = styled.div`
     position: relative;
     padding: 0;
     margin: 0;
-    width: 100%;
 `
 
 export const StyledButtonContainer = styled.div`
@@ -84,6 +83,7 @@ export const StyledButton = styled(Button)`
     display: flex;
     flex-direction: row;
     width: 100%;
+    height: 44px;
     // border-bottom: ${({theme}) => `2px solid ${theme.palette.brandColor}`} !important;
     outline: "none";
     box-sizing: "border-box";
