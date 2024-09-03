@@ -8,6 +8,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import java.io.IOException;
+import java.net.URI;
 import java.text.MessageFormat;
 import java.util.List;
 import java.util.Locale;
@@ -16,6 +17,16 @@ import java.util.Optional;
 import java.util.Properties;
 import lombok.experimental.UtilityClass;
 import lombok.extern.jbosslog.JBossLog;
+import jakarta.ws.rs.core.UriBuilder;
+import jakarta.ws.rs.core.UriInfo;
+
+import org.keycloak.common.util.Time;
+import org.keycloak.models.Constants;
+import org.keycloak.services.Urls;
+import org.keycloak.services.resources.LoginActionsService;
+import org.keycloak.services.resources.RealmsResource;
+import org.keycloak.sessions.AuthenticationSessionCompoundId;
+import org.keycloak.authentication.actiontoken.DefaultActionToken;
 import org.keycloak.common.util.SecretGenerator;
 import org.keycloak.email.EmailException;
 import org.keycloak.email.EmailSenderProvider;
@@ -33,6 +44,7 @@ import org.keycloak.theme.Theme;
 import org.keycloak.theme.beans.MessageFormatterMethod;
 import org.keycloak.theme.freemarker.FreeMarkerProvider;
 import sequent.keycloak.authenticator.gateway.SmsSenderProvider;
+import sequent.keycloak.authenticator.otl.OTLActionToken;
 
 @UtilityClass
 @JBossLog
@@ -43,6 +55,7 @@ public class Utils {
   public final String SENDER_ID = "senderId";
   public final String ONE_TIME_LINK = "one-time-link";
   public final String OTL_VISITED = "one-time-link.visited";
+  public static final String USER_ID = "userId";
   public final String TEL_USER_ATTRIBUTE = "telUserAttribute";
   public final String MESSAGE_COURIER_ATTRIBUTE = "messageCourierAttribute";
   public final String DEFERRED_USER_ATTRIBUTE = "deferredUserAttribute";
@@ -113,7 +126,7 @@ public class Utils {
 
     // Handle OTL/OTP
     if (isOtl) {
-      code = "LINK HERE";
+      code = generateOTL(authSession, session, ttl);
       authSession.setAuthNote(Utils.OTL_VISITED, "false");
     } else {
       code = SecretGenerator.getInstance().randomString(length, SecretGenerator.DIGITS);
@@ -208,6 +221,50 @@ public class Utils {
     log.infov("getMobile(): telUserAttribute={0}, mobile={1}", telUserAttribute, mobile);
     return mobile;
   }
+
+  public static String linkFromActionToken(
+      KeycloakSession session, RealmModel realm, DefaultActionToken token) {
+    UriInfo uriInfo = session.getContext().getUri();
+    UriBuilder builder =
+        actionTokenBuilder(
+            uriInfo.getBaseUri(), token.serialize(session, realm, uriInfo), token.getIssuedFor());
+    return builder.build(realm.getName()).toString();
+  }
+
+  UriBuilder actionTokenBuilder(URI baseUri, String tokenString, String clientId) {
+    log.infof("actionTokenBuilder(): baseUri: %s, tokenString: %s, clientId: %s", baseUri, tokenString, clientId);
+    return Urls.realmBase(baseUri)
+        .path(RealmsResource.class, "getLoginActionsService")
+        .path(LoginActionsService.class, "executeActionToken")
+        .queryParam(Constants.KEY, tokenString)
+        .queryParam(Constants.CLIENT_ID, clientId);
+  }
+
+  String generateOTL(
+    AuthenticationSessionModel authSession,
+    KeycloakSession session,
+    int ttl
+  ) {
+    // Get necessary components from the context
+    AuthenticationSessionCompoundId compoundId = 
+      AuthenticationSessionCompoundId.fromAuthSession(authSession);
+    String sessionId = compoundId.getEncodedId();
+    String userId = authSession.getAuthenticatedUser() == null
+      ? authSession.getAuthNote(USER_ID)
+      : authSession.getAuthenticatedUser().getId();
+    RealmModel realm = authSession.getRealm();
+
+    // Create the OTLActionToken with the necessary information
+    OTLActionToken token = new OTLActionToken(
+      userId,    // User ID
+      Time.currentTime() + ttl,       // Expiration time in seconds
+      sessionId, // Original compound session ID
+      authSession.getClient().getClientId()
+    );
+
+    // Generate the OTL link
+    return linkFromActionToken(session, realm, token);
+  };
 
   Optional<AuthenticatorConfigModel> getConfig(RealmModel realm) {
     // Using streams to find the first matching configuration
