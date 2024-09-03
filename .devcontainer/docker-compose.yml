@@ -231,9 +231,13 @@ services:
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
       KC_OTP_RESEND_INTERVAL: ${KC_OTP_RESEND_INTERVAL}
+    volumes_from:
+      - devcontainer
+    depends_on:
+      - devcontainer
     volumes:
       # https://www.keycloak.org/server/containers#_importing_a_realm_on_startup
-      - ./keycloak/import:/opt/keycloak/data/import:z
+      - /workspaces/step/.devcontainer/keycloak/import:/opt/keycloak/data/import:z
     # Below we're using the dummy email email sender provider but that's just for
     # development, in production we should still use the default SMTP email provider
     #
@@ -284,24 +288,25 @@ services:
         SECONDS_TO_SHOW_COUNTDOWN: ${SECONDS_TO_SHOW_COUNTDOWN}
         SECONDS_TO_SHOW_ALRET: ${SECONDS_TO_SHOW_ALRET}
 
-  # voting-portal:
-  #   #profiles: ["full"]
-  #   image: ghcr.io/sequentech/step/yarn:latest
-  #   container_name: voting-portal
-  #   # depending on the `admin-portal` container to ensure that the
-  #   # `sequentech.local/frontend` image is locally build, so that we can reuse
-  #   # it:
-  #   depends_on:
-  #     - admin-portal
-  #   #restart: always
-  #   #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
-  #   #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
-  #   ports:
-  #     - 3000:3000
-  #   stdin_open: true
-  #   entrypoint: ["./init.sh", "start"]
-  #   volumes:
-  #      - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
+  voting-portal:
+    image: ghcr.io/sequentech/step/admin-portal:latest
+    container_name: voting-portal
+    # depending on the `admin-portal` container to ensure that the
+    # `sequentech.local/frontend` image is locally build, so that we can reuse
+    # it:
+    depends_on:
+      - admin-portal
+      - devcontainer
+    restart: always
+    #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
+    #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
+    ports:
+      - 3000:3000
+    stdin_open: true
+    entrypoint: ["yarn start:voting-portal"]
+    volumes_from:
+      - devcontainer
+    working_dir: /workspaces/step/packages
 
   immudb:
     container_name: immudb
@@ -586,10 +591,10 @@ services:
     depends_on:
       - harvest
       - devcontainer
-    volumes:
-      - ./keycloak/import:/import:z
     volumes_from:
       - devcontainer
+    volumes:
+      - /workspaces/step/.devcontianer/keycloak/import:/import:z
     restart: always
     working_dir: /workspaces/step/packages/packages/immu-board
     entrypoint: [
