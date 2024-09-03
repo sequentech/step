@@ -2,10 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useState} from "react"
+import React, {useEffect, useState} from "react"
 import {
     Accordion,
-    AccordionSummary,
     AccordionDetails,
     Divider,
     LinearProgress,
@@ -19,11 +18,12 @@ import {
     HeaderBox,
     InfoBox,
     TypeTypography,
-    StatusBox,
+    IconsBox,
     StyledIconButton,
     StyledProgressBar,
     LogTypography,
     LogsBox,
+    CustomAccordionSummary,
 } from "./styles/WidgetStyle"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import CloseIcon from "@mui/icons-material/Close"
@@ -78,6 +78,12 @@ export const Widget: React.FC<WidgetProps> = ({type, status, onClose, logs}) => 
         {created_date: new Date().toLocaleString(), log_text: "Task started"},
     ]
 
+    useEffect(() => {
+        if (status === ETaskExecutionStatus.FAILED) {
+            setExpanded(true)
+        }
+    }, [status])
+
     const handleNavigateNext = () => {
         const baseUrl = location.pathname.split("/").slice(0, 3).join("/")
         const newUrl = `${baseUrl}/8`
@@ -87,19 +93,22 @@ export const Widget: React.FC<WidgetProps> = ({type, status, onClose, logs}) => 
     return (
         <WidgetContainer>
             <Accordion expanded={expanded} onChange={() => setExpanded(!expanded)}>
-                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <CustomAccordionSummary
+                    expandIcon={<ExpandMoreIcon />}
+                    sx={{backgroundColor: "#0F054C"}}
+                >
                     <HeaderBox>
                         <InfoBox>
                             <TypeTypography>{type}</TypeTypography>
-                            <StatusBox>
-                                <StatusChip status={status} />
+                            <StatusChip status={status} />
+                            <IconsBox>
                                 <StyledIconButton size="small">
                                     <Visibility onClick={handleNavigateNext} />
                                 </StyledIconButton>
                                 <StyledIconButton size="small">
                                     <CloseIcon onClick={onClose} />
                                 </StyledIconButton>
-                            </StatusBox>
+                            </IconsBox>
                         </InfoBox>
                         {status === ETaskExecutionStatus.IN_PROGRESS && (
                             <StyledProgressBar>
@@ -107,7 +116,7 @@ export const Widget: React.FC<WidgetProps> = ({type, status, onClose, logs}) => 
                             </StyledProgressBar>
                         )}
                     </HeaderBox>
-                </AccordionSummary>
+                </CustomAccordionSummary>
                 <AccordionDetails>
                     <LogTypography>{t("widget.logs")}</LogTypography>
                     <Divider />
