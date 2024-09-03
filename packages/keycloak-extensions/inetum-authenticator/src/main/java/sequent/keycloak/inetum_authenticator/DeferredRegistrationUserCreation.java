@@ -62,8 +62,8 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
   public static final String ID_NUMBER = "sequent.read-only.id-card-number";
   public static final String PHONE_NUMBER = "sequent.read-only.mobile-number";
   public static final String MISSING_FIELDS = "MissingFields";
-  public static final String PASSWORD_NOT_MATCHED = "PasswordsNotMatched";
-  public static final String PASSWORD_NOT_STRONG = "PasswordsNotStrongEnough";
+  public static final String PASSWORD_NOT_MATCHED = "Passwords-Not-Matched";
+  public static final String PASSWORD_NOT_STRONG = "Passwords-Not-Strong-Enough";
 
   public static final String MISSING_FIELDS_ERROR = "error-user-attribute-required";
   // TODO fix
@@ -214,7 +214,6 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     if (user == null) {
       String sessionId = context.getAuthenticationSession().getParentSession().getId();
       log.errorv("validate(): User could not be found. Error code: {0}", sessionId);
-
       // Display what the user set in formData for the search attributes
       for (String attribute : searchAttributesList) {
         log.errorv(
@@ -226,6 +225,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       context.validationError(formData, errors);
       return;
     }
+    context.getEvent().user(user.getId());
 
     // Check if the voter has already been validated
     log.infov("validate: Is user validated id {0}", verifiedAttributeId);
@@ -323,7 +323,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       if(formMessage.getField() == RegistrationPage.FIELD_PASSWORD_CONFIRM)  {
         context.error(PASSWORD_NOT_MATCHED);
       }  else if (formMessage.getField() == RegistrationPage.FIELD_PASSWORD) {
-        context.error(PASSWORD_NOT_STRONG + formMessage.getMessage());
+        context.error(PASSWORD_NOT_STRONG + ": " + formMessage.getMessage());
       } else {
         context.error(Errors.INVALID_REGISTRATION);
       }
@@ -407,6 +407,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
   @Override
   public void success(FormContext context) {
     log.info("DeferredRegistrationUserCreation: start");
+    context.getEvent().success();
 
     checkNotOtherUserAuthenticating(context);
 
