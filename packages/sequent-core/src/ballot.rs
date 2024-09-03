@@ -416,8 +416,8 @@ pub enum AuditButtonCfg {
     #[strum(serialize = "not-show")]
     #[serde(rename = "not-show")]
     NOT_SHOW,
-    #[strum(serialize = "show_in_help")]
-    #[serde(rename = "show_in_help")]
+    #[strum(serialize = "show-in-help")]
+    #[serde(rename = "show-in-help")]
     SHOW_IN_HELP,
 }
 

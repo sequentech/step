@@ -272,7 +272,6 @@ const spanishTranslation: TranslationType = {
                 materialActivated: "Materiales de Soporte activados",
                 materialTitle: "Titulo",
                 materialSubTitle: "Subtitulo",
-                hideAudit: "Deshabilitar Soporte de Auditoría de la Papeleta",
                 logoUrl: "Logo URL",
                 redirectFinishUrl: "URL de redirección al finalizar",
                 css: "CSS personalizado",
@@ -814,10 +813,10 @@ const spanishTranslation: TranslationType = {
                 "alphabetical": "Alfabético",
             },
             auditButtonConfig: {
-                "label": "Audit Button Display Options",
-                "show": "Show",
-                "not_show": "Not Show",
-                "show_in_help": "Show In Help Dialog",
+                "label": "Opciones de visualización del botón de auditoría",
+                "show": "Mostrar",
+                "not-show": "No mostrar",
+                "show-in-help": "Mostrar en el cuadro de diálogo de ayuda",
             },
             underVotePolicy: {
                 "label": "Política de Subvoto",

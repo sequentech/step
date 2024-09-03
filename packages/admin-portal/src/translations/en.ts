@@ -270,7 +270,6 @@ const englishTranslation = {
                 materialActivated: "Support Materials Activated",
                 materialTitle: "Title",
                 materialSubTitle: "Subtitle",
-                hideAudit: "Disable Ballot Audit Support",
                 logoUrl: "Logo URL",
                 redirectFinishUrl: "Redirect Finish URL",
                 css: "Custom CSS",
@@ -812,8 +811,8 @@ const englishTranslation = {
             auditButtonConfig: {
                 "label": "Audit Button Display Options",
                 "show": "Show",
-                "not_show": "Not Show",
-                "show_in_help": "Show In Help Dialog",
+                "not-show": "Not Show",
+                "show-in-help": "Show In Help Dialog",
             },
             underVotePolicy: {
                 "label": "Under Vote Policy",
