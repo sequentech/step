@@ -81,7 +81,6 @@ export const StyledButton = styled(Button)`
     background: transparent !important;
     border: none;
     display: flex;
-    flex-direction: row;
     width: 100%;
     height: 44px;
     // border-bottom: ${({theme}) => `2px solid ${theme.palette.brandColor}`} !important;

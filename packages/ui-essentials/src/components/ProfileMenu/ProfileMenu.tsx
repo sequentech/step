@@ -173,10 +173,10 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
 								</Box> */}
                             {userProfile.firstName && (
                                 <Box
-                                    component="span"
+                                    component="p"
                                     sx={{
                                         display: {xs: "none", md: "block"},
-                                        whiteSpace: "pre",
+                                        fontSize: "14px",
                                     }}
                                 >
                                     {userProfile.firstName}
