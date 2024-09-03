@@ -1,0 +1,211 @@
+# SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: CI
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  # schedule:
+  #   - cron: '0 10 * * *' # run at 10 AM UTC
+
+jobs:
+  changelog:
+    name: CHANGELOG
+    runs-on: ubuntu-latest
+    # Only run this on pull requests.
+    if: github.event_name == 'pull_request'
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-deptch: 0
+
+    - name: Check if source files have changed
+      run: |
+        git diff --name-only $(git merge-base origin/main HEAD) | grep 'src/' && echo "source_files_changed=true" >> $GITHUB_ENV || echo "source_files_changed=false" >> $GITHUB_ENV
+
+    - name: Check that CHANGELOG has been updated
+      if: env.source_files_changed == 'true'
+      run: |
+        # If this step fails, this means you haven't updated the CHANGELOG.md
+        # file with notes on your contribution.
+        git diff --name-only $(git merge-base origin/main HEAD) | grep '^CHANGELOG.md$' && echo "Thanks for helping keep our CHANGELOG up-to-date!"
+
+  build_checks:
+    name: ${{ matrix.task.name }} (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    env:
+      RUST_BACKTRACE: full
+      RUSTC_WRAPPER: sccache
+      RUSTV: ${{ matrix.rust }}
+      SCCACHE_CACHE_SIZE: 1G
+      CACHE_PREFIX: v0
+      AMQP_ADDR: amqp://127.0.0.1:5672//
+      REDIS_ADDR: redis://127.0.0.1:6379/
+    services: ${{ matrix.services }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        rust: [stable]
+        task:
+          - name: Lint
+            run: make check-clippy
+
+        include:
+          - os: ubuntu-latest
+            rust: stable
+            services: {}
+            task:
+              name: Format
+              run: make check-fmt
+
+          - os: ubuntu-latest
+            rust: nightly
+            services: {}
+            task:
+              name: Build docs
+              run: make build-docs
+
+          - os: ubuntu-latest
+            rust: stable
+            services:
+              rabbitmq:
+                image: rabbitmq
+                ports:
+                  - 5672:5672
+              redis:
+                image: redis
+                ports:
+                  - 6379:6379
+            task:
+              name: Run tests
+              run: make run-all-tests
+
+          - os: ubuntu-latest
+            services: {}
+
+          - os: macos-latest
+            services: {}
+
+          - os: ubuntu-latest
+            rust: nightly
+            services: {}
+            task:
+              name: Check minimal versions
+              run: make check-minimal-versions   
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Prepare environment (ubuntu-latest)
+        run: |
+          echo "SCCACHE_DIR=$HOME/.cache/sccache" >> $GITHUB_ENV
+
+      - name: Prepare environment (macos-latest)
+        run: |
+          echo "SCCACHE_DIR=$HOME/Library/Caches/Mozilla.sccache" >> $GITHUB_ENV
+
+      - name: Install sccache (ubuntu-latest)
+        if: matrix.os == 'ubuntu-latest'
+        env:
+          LINK: https://github.com/mozilla/sccache/releases/download
+          SCCACHE_VERSION: v0.2.15
+        run: |
+          SCCACHE_FILE=sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl
+          URL="$LINK/$SCCACHE_VERSION/$SCCACHE_FILE.tar.gz"
+          echo "Downloading sccache from $URL"
+          mkdir -p $HOME/.local/bin
+          curl -L $URL | tar xz
+          mv -f $SCCACHE_FILE/sccache $HOME/.local/bin/sccache
+          chmod +x $HOME/.local/bin/sccache
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install sccache (macos-latest)
+        if: matrix.os == 'macos-latest'
+        run: |
+          # brew update  # takes forever
+          brew install sccache
+
+      - name: Install Rust ${{ matrix.rust }}
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.rust }}
+          profile: minimal
+          override: true
+
+      - name: Install Musl Tools
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        run: |
+          sudo apt install -y musl-tools
+          sudo ln -s /usr/bin/musl-gcc /usr/local/bin/x86_64-linux-musl-gcc
+          echo "TARGET_CC=musl-gcc" | tee -a $GITHUB_ENV
+          rustup target add x86_64-unknown-linux-musl
+
+      - name: Cache cargo registry and sccache
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ${{ env.SCCACHE_DIR }}
+          key: ${{ env.CACHE_PREFIX }}-${{ runner.os }}-${{ matrix.task.name }}-${{ hashFiles('**/Cargo.toml') }}
+          restore-keys: |
+            ${{ env.CACHE_PREFIX }}-${{ runner.os }}-${{ matrix.task.name }}-
+
+      - name: Start sccache server
+        run: sccache --start-server
+
+      - name: ${{ matrix.task.name }}
+        run: ${{ matrix.task.run }}
+
+      - name: Stop sccache server
+        run: sccache --stop-server || true
+
+  test_python_example:
+    name: Check python example
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.9
+
+    - name: Cache pip
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip # This path is specific to Ubuntu
+        key: pip ${{ runner.os }} ${{ env.pythonLocation }} ${{ hashFiles('requirements.txt') }} ${{ hashFiles('dev-requirements.txt') }}
+
+    - name: Install requirements
+      run: |
+        pip install -r requirements.txt -r dev-requirements.txt
+
+    - name: Check formatting
+      if: always()
+      run: |
+        black --check examples/
+
+    - name: Lint
+      if: always()
+      run: |
+        flake8 examples/
+
+    - name: Typecheck
+      if: always()
+      run: |
+        mypy --ignore-missing-imports examples/
