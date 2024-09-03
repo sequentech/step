@@ -20,8 +20,6 @@ COPY ./sequent-core ./sequent-core
 COPY ./windmill ./windmill
 COPY ./wrap-map-err ./wrap-map-err
 COPY ./velvet ./velvet
-COPY ./rusty-celery ./rusty-celery
-COPY ./lapin ./lapin
 COPY ./Cargo.lock ./Cargo.lock
 
 RUN cp /app/windmill/external-bin/ecies-tool.jar /usr/local/bin/
