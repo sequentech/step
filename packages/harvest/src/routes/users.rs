@@ -21,6 +21,7 @@ use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::env;
+use strand::hash::info;
 use tracing::instrument;
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
@@ -140,6 +141,7 @@ pub struct GetUsersBody {
     limit: Option<i32>,
     offset: Option<i32>,
     show_votes_info: Option<bool>,
+    attributes: Option<HashMap<String, String>>,
 }
 
 #[instrument(skip(claims), ret)]
@@ -197,6 +199,7 @@ pub async fn get_users(
             )
         })?;
 
+    info!("THE ATTRIBUTES: {:?}", &input.attributes);
     let filter = ListUsersFilter {
         tenant_id: input.tenant_id.clone(),
         election_event_id: input.election_event_id.clone(),
@@ -211,6 +214,7 @@ pub async fn get_users(
         limit: input.limit,
         offset: input.offset,
         user_ids: None,
+        attributes: input.attributes,
     };
 
     let (users, count) = match input.show_votes_info.unwrap_or(false) {

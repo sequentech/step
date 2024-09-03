@@ -488,6 +488,7 @@ input GetUsersInput {
   limit : Int
   offset : Int
   show_votes_info : Boolean
+  attributes : jsonb
 }
 
 input CreateKeysCeremonyInput {

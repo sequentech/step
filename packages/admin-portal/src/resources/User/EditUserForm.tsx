@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, { useEffect, useState } from "react"
+import React, {useEffect, useState} from "react"
 import {
+    DateTimeInput,
     SaveButton,
     SimpleForm,
     useGetList,
@@ -10,11 +11,11 @@ import {
     useNotify,
     useRefresh,
 } from "react-admin"
-import { useMutation, useQuery } from "@apollo/client"
-import { PageHeaderStyles } from "../../components/styles/PageHeaderStyles"
-import { useTranslation } from "react-i18next"
-import { useTenantStore } from "@/providers/TenantContextProvider"
-import { IRole, IUser } from "@sequentech/ui-core"
+import {useMutation, useQuery} from "@apollo/client"
+import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
+import {useTranslation} from "react-i18next"
+import {useTenantStore} from "@/providers/TenantContextProvider"
+import {IRole, IUser} from "@sequentech/ui-core"
 import {
     FormControl,
     MenuItem,
@@ -23,8 +24,10 @@ import {
     FormControlLabel,
     Checkbox,
     InputLabel,
+    FormGroup,
+    FormLabel,
 } from "@mui/material"
-import { ElectionHeaderStyles } from "@/components/styles/ElectionHeaderStyles"
+import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {
     DeleteUserRoleMutation,
     EditUsersInput,
@@ -33,13 +36,13 @@ import {
     SetUserRoleMutation,
     UserProfileAttribute,
 } from "@/gql/graphql"
-import { EDIT_USER } from "@/queries/EditUser"
-import { LIST_USER_ROLES } from "@/queries/ListUserRoles"
-import { DataGrid, GridColDef, GridRenderCellParams } from "@mui/x-data-grid"
-import { isUndefined } from "@sequentech/ui-core"
-import { DELETE_USER_ROLE } from "@/queries/DeleteUserRole"
-import { SET_USER_ROLE } from "@/queries/SetUserRole"
-import { FormStyles } from "@/components/styles/FormStyles"
+import {EDIT_USER} from "@/queries/EditUser"
+import {LIST_USER_ROLES} from "@/queries/ListUserRoles"
+import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
+import {isUndefined} from "@sequentech/ui-core"
+import {DELETE_USER_ROLE} from "@/queries/DeleteUserRole"
+import {SET_USER_ROLE} from "@/queries/SetUserRole"
+import {FormStyles} from "@/components/styles/FormStyles"
 
 interface ListUserRolesProps {
     userId: string
@@ -55,7 +58,7 @@ export const ListUserRoles: React.FC<ListUserRolesProps> = ({
     refetch,
 }) => {
     const [tenantId] = useTenantStore()
-    const { t } = useTranslation()
+    const {t} = useTranslation()
     const [deleteUserRole] = useMutation<DeleteUserRoleMutation>(DELETE_USER_ROLE)
     const [setUserRole] = useMutation<SetUserRoleMutation>(SET_USER_ROLE)
     const refresh = useRefresh()
@@ -63,7 +66,7 @@ export const ListUserRoles: React.FC<ListUserRolesProps> = ({
 
     const activeRoleIds = userRoles?.list_user_roles.map((role) => role.id || "")
 
-    let rows: Array<IRole & { id: string; active: boolean }> = rolesList.map((role) => ({
+    let rows: Array<IRole & {id: string; active: boolean}> = rolesList.map((role) => ({
         ...role,
         id: role.id || "",
         active: activeRoleIds?.includes(role.id || "") || false,
@@ -76,7 +79,7 @@ export const ListUserRoles: React.FC<ListUserRolesProps> = ({
         }
 
         // remove/add permission to role
-        const { errors } = await (props.value ? deleteUserRole : setUserRole)({
+        const {errors} = await (props.value ? deleteUserRole : setUserRole)({
             variables: {
                 tenantId: tenantId,
                 roleId: role.id,
@@ -152,16 +155,16 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     userAttributes,
     createMode = false,
 }) => {
-    const { t } = useTranslation()
-    const { data, isLoading } = useListContext<IUser & { id: string }>()
+    const {t} = useTranslation()
+    const {data, isLoading} = useListContext<IUser & {id: string}>()
     let userOriginal: IUser | undefined = data?.find((element) => element.id === id)
-    const [user, setUser] = useState<IUser | undefined>(createMode ? { enabled: true } : userOriginal)
+    const [user, setUser] = useState<IUser | undefined>(createMode ? {enabled: true} : userOriginal)
     const [tenantId] = useTenantStore()
     const refresh = useRefresh()
     const notify = useNotify()
 
     const [edit_user] = useMutation<EditUsersInput>(EDIT_USER)
-    const { data: userRoles, refetch } = useQuery<ListUserRolesQuery>(LIST_USER_ROLES, {
+    const {data: userRoles, refetch} = useQuery<ListUserRolesQuery>(LIST_USER_ROLES, {
         variables: {
             tenantId: tenantId,
             userId: id!,
@@ -169,10 +172,9 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         },
     })
 
-
-    const { data: areas } = useGetList<Sequent_Backend_Area>("sequent_backend_area", {
-        pagination: { page: 1, perPage: 9999 },
-        filter: { election_event_id: electionEventId, tenant_id: tenantId },
+    const {data: areas} = useGetList<Sequent_Backend_Area>("sequent_backend_area", {
+        pagination: {page: 1, perPage: 9999},
+        filter: {election_event_id: electionEventId, tenant_id: tenantId},
     })
 
     useEffect(() => {
@@ -184,7 +186,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
     const onSubmit = async () => {
         try {
-            let { data } = await edit_user({
+            let {data} = await edit_user({
                 variables: {
                     body: {
                         user_id: user?.id,
@@ -204,26 +206,24 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     },
                 },
             })
-            notify(t("usersAndRolesScreen.voters.errors.editSuccess"), { type: "success" })
+            notify(t("usersAndRolesScreen.voters.errors.editSuccess"), {type: "success"})
             refresh()
             close?.()
         } catch (error) {
-            notify(t("usersAndRolesScreen.voters.errors.editError"), { type: "error" })
+            notify(t("usersAndRolesScreen.voters.errors.editError"), {type: "error"})
             close?.()
         }
     }
 
     const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target
-        let newUser = { ...user, [name]: value }
-        console.log(`newUser = `)
-        console.log(newUser)
+        const {name, value} = e.target
+        let newUser = {...user, [name]: value}
         setUser(newUser)
     }
 
     const handleAttrChange =
         (attrName: string) => async (e: React.ChangeEvent<HTMLInputElement>) => {
-            const { value } = e.target
+            const {value} = e.target
             let newUser = {
                 ...user,
                 attributes: {
@@ -253,74 +253,99 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         })
     }
 
+    const handleCheckboxChange = (attrName: string) => (choiseId: string) => {
+        let checkedItems = [choiseId]
+        if (user && user?.attributes && user?.attributes[attrName]) {
+            const currentChecked = user.attributes[attrName]
+            checkedItems = currentChecked.includes(choiseId)
+                ? currentChecked.filter((ab: any) => ab !== choiseId)
+                : [...currentChecked, choiseId]
+        }
+        setUser((prev) => {
+            return {
+                ...prev,
+                attributes: {
+                    ...prev?.attributes,
+                    [attrName]: checkedItems,
+                },
+            }
+        })
+    }
+
     const validatePassword = (value: any) => {
         /*TODO: we should validate only to the extent that these policies are 
         in place in keycloak
         if (!value || value.length == 0) {
             return
         }
-    
+     
         const hasEnoughChars = value.length < 8
         const hasUpperCase = /[A-Z]/.test(value)
         const hasLowerCase = /[a-z]/.test(value)
         const hasDigit = /\d/.test(value)
         const hasSpecialChar = /[^a-zA-Z\d]/.test(value)
-    
+     
         if (hasEnoughChars) {
             return t("usersAndRolesScreen.users.fields.passwordLengthValidate")
         }
-    
+     
         if (!hasUpperCase) {
             return t("usersAndRolesScreen.users.fields.passwordUppercaseValidate")
         }
-    
+     
         if (!hasLowerCase) {
             return t("usersAndRolesScreen.users.fields.passwordLowercaseValidate")
         }
-    
+     
         if (!hasDigit) {
             return t("usersAndRolesScreen.users.fields.passwordDigitValidate")
         }
-    
+     
         if (!hasSpecialChar) {
             return t("usersAndRolesScreen.users.fields.passwordSpecialCharValidate")
         }*/
     }
 
-    const equalToPassword = (value: any, allValues: any) => {
-        if (!allValues.password || allValues.password.length == 0) {
-            return
-        }
-        if (value !== allValues.password) {
-            return t("usersAndRolesScreen.users.fields.passwordMismatch")
-        }
-    }
+    // const equalToPassword = (value: any, allValues: any) => {
+    //     if (!allValues.password || allValues.password.length == 0) {
+    //         return
+    //     }
+    //     if (value !== allValues.password) {
+    //         return t("usersAndRolesScreen.users.fields.passwordMismatch")
+    //     }
+    // }
 
-    const getFormFiledLabel = (attr: UserProfileAttribute) => {
-        if (attr.display_name?.includes("$")) {
-            return attr.name?.replace(/([a-z])([A-Z])/g, '$1 $2')  // Add space between lowercase and uppercase letters
-                .replace(/^./, (match) => match.toUpperCase()) ?? '';
-
+    const getFormFiledLabel = (displayName: string, name: string) => {
+        if (displayName?.includes("$")) {
+            return (
+                name
+                    .replace(/([a-z])([A-Z])/g, "$1 $2") // Add space between lowercase and uppercase letters
+                    .replace(/^./, (match) => match.toUpperCase()) ?? ""
+            )
         }
-        return attr.display_name ?? '';
+        return displayName ?? ""
     }
+    console.log("USER::::", user)
 
     const renderFormField = (attr: UserProfileAttribute) => {
         if (attr.name) {
-            const isCustomAttribute = user?.attributes && Object.keys(user.attributes).includes(attr.name);
-            const value = isCustomAttribute ? user?.attributes?.[attr.name] : user && user[attr.name as keyof IUser]
-            if (attr.annotations?.inputType === 'select') {
+            const isCustomAttribute =
+                user?.attributes && Object.keys(user.attributes).includes(attr.name)
+            const value = isCustomAttribute
+                ? user?.attributes?.[attr.name]
+                : user && user[attr.name as keyof IUser]
+            const displayName = attr.display_name ?? ""
+            if (attr.annotations?.inputType === "select") {
                 return (
                     <FormControl fullWidth>
                         <InputLabel id="demo-simple-select-label">{attr.display_name}</InputLabel>
                         <Select
-                            name={attr.display_name ?? ''}
+                            name={displayName}
                             defaultValue={value}
                             labelId="demo-simple-select-label"
                             label={attr.display_name}
                             value={value}
                             onChange={handleSelectChange(attr.name)}
-
                         >
                             {attr.validations.options.options?.map((area: string) => (
                                 <MenuItem key={area} value={area}>
@@ -330,14 +355,67 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         </Select>
                     </FormControl>
                 )
+            } else if (
+                attr.annotations?.inputType === "multiselect-checkboxes" &&
+                attr.annotations?.inputOptionLabels
+            ) {
+                const choices = Object.entries(attr.annotations?.inputOptionLabels).map(
+                    ([key, value]) => {
+                        return {id: key, name: getFormFiledLabel(value as string, key)}
+                    }
+                )
+                return (
+                    <FormControl component="fieldset">
+                        <FormLabel component="legend">
+                            {getFormFiledLabel(displayName, attr.name)}
+                        </FormLabel>
+                        <FormGroup row>
+                            {choices.map((choice) => {
+                                return (
+                                    <FormControlLabel
+                                        key={choice.id}
+                                        control={
+                                            <Checkbox
+                                                checked={value && value.includes(choice.id)}
+                                                onChange={() =>
+                                                    handleCheckboxChange(attr.name ?? "")(choice.id)
+                                                }
+                                            />
+                                        }
+                                        label={choice.name}
+                                    />
+                                )
+                            })}
+                        </FormGroup>
+                    </FormControl>
+                )
+            } else if (attr.annotations?.inputType === "html5-date") {
+                return (
+                    <FormStyles.DateInput
+                        source={`attributes.${attr.name}`}
+                        onChange={handleAttrChange(attr.name)}
+                        label={attr.name}
+                    />
+                )
             }
-            return <FormStyles.TextInput
-                key={attr.display_name}
-                label={getFormFiledLabel(attr)}
-                source={attr.name}
-                onChange={isCustomAttribute ? handleAttrChange(attr.name) : handleChange}
-                value={value}
-            />
+            return (
+                <>
+                    {isCustomAttribute ? (
+                        <FormStyles.TextField
+                            label={attr.display_name}
+                            value={value}
+                            onChange={handleAttrChange(attr.name)}
+                        />
+                    ) : (
+                        <FormStyles.TextInput
+                            key={attr.display_name}
+                            label={getFormFiledLabel(attr.display_name ?? "", attr.name)}
+                            onChange={handleChange}
+                            source={attr.name}
+                        />
+                    )}
+                </>
+            )
         }
     }
 
@@ -350,17 +428,13 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 sanitizeEmptyValues
             >
                 <>
-
                     <PageHeaderStyles.Title>
                         {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.title`)}
                     </PageHeaderStyles.Title>
                     <PageHeaderStyles.SubTitle>
                         {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.subtitle`)}
                     </PageHeaderStyles.SubTitle>
-                    {userAttributes?.map(attr =>
-                        attr.name && (
-                            renderFormField(attr)
-                        ))}
+                    {userAttributes?.map((attr) => attr.name && renderFormField(attr))}
 
                     {/* <FormStyles.TextInput
                         label={t("usersAndRolesScreen.users.fields.first_name")}
@@ -404,7 +478,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             <Checkbox
                                 checked={user?.enabled || false}
                                 onChange={(event: any) => {
-                                    setUser({ ...user, enabled: event.target.checked })
+                                    setUser({...user, enabled: event.target.checked})
                                 }}
                             />
                         }

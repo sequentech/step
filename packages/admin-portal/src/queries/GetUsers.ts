@@ -4,6 +4,8 @@
 import {gql} from "@apollo/client"
 
 export const getUsers = (fields: any) => {
+    console.log("fields", fields)
+
     let electionEventId = fields.filter?.election_event_id
         ? `"${fields.filter?.election_event_id}"`
         : "null"
@@ -18,6 +20,11 @@ export const getUsers = (fields: any) => {
             ? (fields.pagination.page - 1) * fields.pagination.perPage
             : null
     let limit: number | null = fields.pagination?.perPage ? fields.pagination?.perPage : null
+    let attributes = fields.filter?.attributes
+        ? `"${fields.filter?.attributes.toString()}"`
+        : "null"
+    console.log("attributes:::", attributes)
+
     return gql`
         query getUsers(
             $tenant_id: uuid! = "${fields.filter.tenant_id}"
@@ -30,6 +37,7 @@ export const getUsers = (fields: any) => {
             $limit: Int = ${limit}
             $offset: Int = ${offset}
             $showVotesInfo: Boolean = ${showVotesInfo}
+            $attributes: jsonb = ${attributes}
         ) {
             get_users(body: {
                 tenant_id: $tenant_id,
@@ -42,6 +50,7 @@ export const getUsers = (fields: any) => {
                 limit: $limit,
                 offset: $offset,
                 show_votes_info: $showVotesInfo
+                attributes: $attributes
             }) {
                 items {
                     id

@@ -10,7 +10,10 @@ use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use futures::stream::Filter;
 use sequent_core::types::keycloak::*;
-use std::{collections::HashSet, convert::From};
+use std::{
+    collections::{HashMap, HashSet},
+    convert::From,
+};
 use tokio_postgres::row::Row;
 use tokio_postgres::types::ToSql;
 use tracing::{event, instrument, Level};
@@ -145,6 +148,7 @@ pub struct ListUsersFilter {
     pub limit: Option<i32>,
     pub offset: Option<i32>,
     pub user_ids: Option<Vec<String>>,
+    pub attributes: Option<HashMap<String, String>>,
 }
 
 #[instrument(skip(hasura_transaction, keycloak_transaction), err)]
@@ -188,6 +192,30 @@ pub async fn list_users(
         filter.area_id.clone(),
     )
     .await?;
+
+    let mut dynamic_attribute_conditions = String::new();
+
+    let mut params: Vec<&(dyn ToSql + Sync)> = vec![
+        &filter.realm,
+        &query_limit,
+        &query_offset,
+        &email_pattern,
+        &first_name_pattern,
+        &last_name_pattern,
+        &username_pattern,
+        &filter.user_ids,
+    ];
+
+    if let Some(attributes) = &filter.attributes {
+        for (key, value) in attributes.iter() {
+            dynamic_attribute_conditions.push_str(&format!(
+            " AND EXISTS (SELECT 1 FROM json_array_elements_text(attr.value) AS elem WHERE attr.name = ${} AND elem = ${})"
+        ));
+            params.push(key);
+            params.push(value);
+        }
+    }
+
     let statement = keycloak_transaction.prepare(format!(r#"
         SELECT
             u.id,
@@ -216,20 +244,12 @@ pub async fn list_users(
             ($7::VARCHAR IS NULL OR username ILIKE $7) AND
             (u.id = ANY($8) OR $8 IS NULL)
             {area_ids_where_clause}
+            {dynamic_attribute_conditions}
         GROUP BY
             u.id
         LIMIT $2 OFFSET $3;
     "#).as_str()).await?;
-    let mut params: Vec<&(dyn ToSql + Sync)> = vec![
-        &filter.realm,
-        &query_limit,
-        &query_offset,
-        &email_pattern,
-        &first_name_pattern,
-        &last_name_pattern,
-        &username_pattern,
-        &filter.user_ids,
-    ];
+
     if area_ids.is_some() {
         params.push(&area_ids);
     }

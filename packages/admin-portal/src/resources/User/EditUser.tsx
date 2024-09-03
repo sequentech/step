@@ -1,12 +1,12 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, { useEffect, useState } from "react"
-import { List, useListContext } from "react-admin"
-import { useTenantStore } from "@/providers/TenantContextProvider"
-import { IRole, IUser } from "@sequentech/ui-core"
-import { EditUserForm } from "./EditUserForm"
-import { UserProfileAttribute } from "@/gql/graphql"
+import React, {useEffect, useState} from "react"
+import {List, useListContext} from "react-admin"
+import {useTenantStore} from "@/providers/TenantContextProvider"
+import {IRole, IUser} from "@sequentech/ui-core"
+import {EditUserForm} from "./EditUserForm"
+import {UserProfileAttribute} from "@/gql/graphql"
 
 interface EditUserProps {
     id?: string
@@ -16,8 +16,14 @@ interface EditUserProps {
     userAttributes: UserProfileAttribute[]
 }
 
-export const EditUser: React.FC<EditUserProps> = ({ id, close, electionEventId, rolesList, userAttributes }) => {
-    const { data, isLoading } = useListContext()
+export const EditUser: React.FC<EditUserProps> = ({
+    id,
+    close,
+    electionEventId,
+    rolesList,
+    userAttributes,
+}) => {
+    const {data, isLoading} = useListContext()
 
     const [tenantId] = useTenantStore()
 
@@ -33,8 +39,8 @@ export const EditUser: React.FC<EditUserProps> = ({ id, close, electionEventId, 
         return (
             <List
                 resource="user"
-                filter={{ tenant_id: tenantId, election_event_id: electionEventId }}
-                sx={{ padding: "16px" }}
+                filter={{tenant_id: tenantId, election_event_id: electionEventId}}
+                sx={{padding: "16px"}}
                 actions={false}
             >
                 <EditUserForm
