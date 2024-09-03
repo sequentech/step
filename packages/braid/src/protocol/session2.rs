@@ -71,7 +71,7 @@ impl<C: Ctx> Session2<C> {
         if let Err(err) = step_result {
             return Err(err);
         }
-        // let (send_messages, _actions, last_id) = step_result.expect("impossible");
+        
         let step_result = step_result.expect("impossible");
         // last_id is the largest message id that was successfully updated to the trustee's board in memory
         // in the event that there are holes, a session reset will eventually load missing messages
@@ -180,8 +180,6 @@ pub struct SessionSet {
     b3_url: String,
     inbox: Receiver<SessionSetMessage>
 }
-
-
 impl SessionSet {
     pub fn new(name: &str, session_factory: &SessionFactory, b3_url: &str, inbox: mpsc::Receiver<SessionSetMessage>) -> Result<Self> {
         Ok(SessionSet {
@@ -261,7 +259,6 @@ impl SessionSet {
                         continue;
                     };
 
-                    // info!("Set {}: board {}, external_last_id: {}", self.name, session.board_name, last_id);
                     requests.push((session.board_name.to_string(), last_id));
                 }
                 info!("Set {}: gathered {} requests", self.name, requests.len());
@@ -316,37 +313,6 @@ impl SessionSet {
                         post_messages.push((k.clone(), messages));
                     }
                 }
-        
-                /*for km in responses {
-        
-                    let s = session_map.get_mut(&km.board);
-                    let Some(s) = s else {
-                        error!("Could not retrieve session with name: '{}'", km.board);
-                        continue;
-                    };
-                    // println!("Step for {} with {} messages", km.board, km.messages.len());
-                    let messages = s.step(&km.messages);
-        
-                    let Ok(messages) = messages else {
-                        let _ = messages.inspect_err(|error| {
-                            error!(
-                                "Error executing step for board '{}': '{:?}'",
-                                km.board, error
-                            );
-                        });
-        
-                        continue;
-                    };
-        
-                    if messages.len() > 0 {
-                        let next_bytes: usize = messages
-                            .iter()
-                            .map(|m| m.artifact.as_ref().map(|v| v.len()).unwrap_or(0))
-                            .sum();
-                        total_bytes += next_bytes as u32;
-                        post_messages.push((km.board, messages));
-                    }
-                }*/
 
                 if post_messages.len() > 0 {
                     info!(
@@ -363,11 +329,10 @@ impl SessionSet {
                     info!("No messages to post on this step");
                 }
             }
-            std::process::exit(1);
+            // std::process::exit(1);
 
         });
 
-        // std::process::exit(1);
         handler
     }
 }

@@ -55,20 +55,6 @@ fn get_ignored_boards() -> HashSet<String> {
 /*
 Entry point for a braid mixnet trustee.
 
-Example run command
-
-cargo run --release --bin main  -- --server-url http://immudb:3322 --board-index defaultboardindex--trustee-config trustee.toml
-
-A mixnet trustee will periodically:
-
-    1) Poll the board index for active protocol boards
-    2) For each protocol board
-        a) Poll the protocol board for new messages
-        b) Update the local store with new messages
-        c) Execute the protocol with the existing messages in the local store
-
-The process will loop indefinitely unless an error is encountered and the 'strict'
-command line option is set to true.
 */
 #[tokio::main]
 #[instrument]
