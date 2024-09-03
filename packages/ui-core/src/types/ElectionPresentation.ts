@@ -20,5 +20,12 @@ export interface IElectionPresentation {
     contests_order?: ContestsOrder
     sort_order?: number
     cast_vote_confirm?: boolean
+    audit_button_cfg?: EVotingPortalAuditButtonCfg
     // more missing
+}
+
+export enum EVotingPortalAuditButtonCfg {
+    SHOW = "show",
+    NOT_SHOW = "not_show",
+    SHOW_IN_HELP = "show_in_help",
 }

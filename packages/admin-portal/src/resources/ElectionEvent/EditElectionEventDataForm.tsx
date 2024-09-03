@@ -748,11 +748,6 @@ export const EditElectionEventDataForm: React.FC = () => {
                                 <AccordionDetails>
                                     <BooleanInput
                                         disabled={!canEdit}
-                                        source={"presentation.hide_audit"}
-                                        label={t(`electionEventScreen.field.hideAudit`)}
-                                    />
-                                    <BooleanInput
-                                        disabled={!canEdit}
                                         source={"presentation.skip_election_list"}
                                         label={t(`electionEventScreen.field.skipElectionList`)}
                                     />

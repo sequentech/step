@@ -28,6 +28,7 @@ import {
     EVotingStatus,
     IElectionEventStatus,
     IAuditableBallot,
+    EVotingPortalAuditButtonCfg,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -313,7 +314,8 @@ export const ReviewScreen: React.FC = () => {
     const {tenantId, eventId} = useParams<TenantEventType>()
     const [errorMsg, setErrorMsg] = useState<CastBallotsErrorType>()
 
-    const hideAudit = ballotStyle?.ballot_eml?.election_event_presentation?.hide_audit ?? false
+    const auditButtonCfg = ballotStyle?.ballot_eml?.election_presentation?.audit_button_cfg ?? EVotingPortalAuditButtonCfg.SHOW
+    const hideAudit =  auditButtonCfg != EVotingPortalAuditButtonCfg.SHOW
     const castVoteConfirmModal =
         ballotStyle?.ballot_eml?.election_presentation?.cast_vote_confirm ?? false
     const ballotId = auditableBallot && hashBallot(auditableBallot)
