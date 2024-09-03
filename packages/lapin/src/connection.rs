@@ -29,7 +29,7 @@ use async_trait::async_trait;
 use executor_trait::FullExecutor;
 use reactor_trait::IOHandle;
 use std::{fmt, io, sync::Arc};
-use tracing::{level_enabled, Level};
+use tracing::{level_enabled, trace, Level};
 
 /// A TCP connection to the AMQP server.
 ///
@@ -306,6 +306,7 @@ impl Connection {
         connect: Box<dyn FnOnce(&AMQPUri) -> HandshakeResult + Send + Sync>,
         mut options: ConnectionProperties,
     ) -> Result<Connection> {
+        trace!("FFFF Connection::connector");
         let executor = options
             .executor
             .take()

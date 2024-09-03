@@ -48,6 +48,7 @@ impl SocketState {
     }
 
     pub(crate) fn wait(&mut self) {
+        trace!("FFFF SocketEvent::wait");
         self.handle_event(self.events.recv().expect("waiting for socket event failed"))
     }
 
@@ -89,12 +90,14 @@ impl SocketState {
     }
 
     pub(crate) fn poll_events(&mut self) {
+        trace!("FFFF SocketState::poll_events");
         while let Ok(event) = self.events.try_recv() {
             self.handle_event(event);
         }
     }
 
     fn handle_event(&mut self, event: SocketEvent) {
+        trace!("FFFF SocketState::handle_event");
         trace!(?event, "Got event for socket");
         match event {
             SocketEvent::Readable => self.readable = true,

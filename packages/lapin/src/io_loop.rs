@@ -17,6 +17,7 @@ use crate::{
     Configuration, ConnectionStatus, Error, PromiseResolver, Result,
 };
 use amq_protocol::frame::{gen_frame, parse_frame, AMQPFrame, GenError};
+use backtrace::Backtrace;
 use reactor_trait::AsyncIOHandle;
 use std::{
     collections::VecDeque,
@@ -137,18 +138,22 @@ impl IoLoop {
     }
 
     fn can_write(&mut self) -> bool {
+        trace!("FFFF IoLoop::can_write");
         self.socket_state.writable() && self.has_data() && !self.connection_status.blocked()
     }
 
     fn can_read(&mut self) -> bool {
+        trace!("FFFF IoLoop::can_read");
         self.socket_state.readable() && self.receive_buffer.available_space() > 0
     }
 
     fn can_parse(&self) -> bool {
+        trace!("FFFF IoLoop::can_parse");
         self.receive_buffer.available_data() > 0
     }
 
     fn should_continue(&self) -> bool {
+        trace!("FFFF IoLoop::should_continue status = {:?}", self.status);
         match self.status {
             Status::Initial => !self.connection_status.errored(),
             Status::Stop => false,
@@ -201,15 +206,18 @@ impl IoLoop {
     }
 
     fn stop(&mut self) {
+        trace!("FFFF IoLoop::stop");
         self.status = Status::Stop;
         self.heartbeat.cancel();
     }
 
     fn poll_socket_events(&mut self) {
+        trace!("FFFF IoLoop::poll_socket_events");
         self.socket_state.poll_events();
     }
 
     fn check_connection_state(&mut self) {
+        trace!("FFFF IoLoop::check_connection_state");
         if self.connection_status.closed() {
             self.stop();
         }
@@ -255,7 +263,12 @@ impl IoLoop {
     }
 
     fn critical_error(&mut self, error: Error) -> Result<()> {
+        trace!("FFFF IoLoop::critical_error step 0. error = {:?}", error);
         if let Some(resolver) = self.connection_status.connection_resolver() {
+            trace!(
+                "FFFF IoLoop::critical_error step 1. resolver = {:?}",
+                resolver
+            );
             resolver.swear(Err(error.clone()));
         }
         self.stop();
@@ -265,6 +278,7 @@ impl IoLoop {
     }
 
     fn clear_serialized_frames(&mut self, error: Error) {
+        trace!("FFFF IoLoop::clear_serialized_frames");
         for (_, resolver) in std::mem::take(&mut self.serialized_frames) {
             if let Some(resolver) = resolver {
                 trace!("We're quitting but had leftover frames, tag them as 'not sent' with current error");
@@ -274,11 +288,13 @@ impl IoLoop {
     }
 
     fn attempt_flush(&mut self, writable_context: &mut Context<'_>) -> Result<()> {
+        trace!("FFFF IoLoop::attempt_flush");
         let res = self.flush(writable_context);
         self.handle_io_result(res)
     }
 
     fn handle_io_result(&mut self, result: Result<()>) -> Result<()> {
+        trace!("FFFF IoLoop::handle_io_result");
         if let Err(e) = self.socket_state.handle_io_result(result) {
             error!(error=?e, "error doing IO");
             self.critical_error(e)?;
@@ -293,6 +309,7 @@ impl IoLoop {
     }
 
     fn write(&mut self, writable_context: &mut Context<'_>) -> Result<()> {
+        trace!("FFFF IoLoop::write");
         while self.can_write() {
             let res = self.write_to_stream(writable_context);
             self.handle_io_result(res)?;
@@ -301,6 +318,7 @@ impl IoLoop {
     }
 
     fn read(&mut self, readable_context: &mut Context<'_>) -> Result<()> {
+        trace!("FFFF IoLoop::read");
         while self.can_read() {
             let res = self.read_from_stream(readable_context);
             self.handle_io_result(res)?;
@@ -417,10 +435,14 @@ impl IoLoop {
     }
 
     fn handle_frames(&mut self) -> Result<()> {
+        trace!("FFFF IoLoop::handle_frames step 0");
         while self.can_parse() {
+            trace!("FFFF IoLoop::handle_frames step 1");
             if let Some(frame) = self.parse()? {
+                trace!("FFFF IoLoop::handle_frames step 2");
                 self.channels.handle_frame(frame)?;
             } else {
+                trace!("FFFF IoLoop::handle_frames step 3");
                 break;
             }
         }
