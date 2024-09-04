@@ -848,11 +848,12 @@ const tagalogTranslation = {
             overVotePolicy: {
                 "label": "Patakaran sa Sobra sa Pagboto",
                 "allowed": "Tinogotan",
-                "allowed-with-msg" : "Tinutugot sa Mensahe nin Patanid",
-                "allowed-with-msg-and-alert" : "Tinutugotan sa mensahe nin Patanid asin Alerto",
-                "not-allowed-with-msg-and-alert" : "Dai Tinotogotan an mensahe nin Patanid asin Alerto",
+                "allowed-with-msg": "Tinutugot sa Mensahe nin Patanid",
+                "allowed-with-msg-and-alert": "Tinutugotan sa mensahe nin Patanid asin Alerto",
+                "not-allowed-with-msg-and-alert":
+                    "Dai Tinotogotan an mensahe nin Patanid asin Alerto",
                 "not-allowed-with-msg-and-disable":
-                     "Dai Tinutugutan an mensahe nin Patanid asin I-disable an mga dugang pang pagpili",
+                    "Dai Tinutugutan an mensahe nin Patanid asin I-disable an mga dugang pang pagpili",
             },
             paginationPolicy: {
                 label: "Pangalan ng Pahina",
