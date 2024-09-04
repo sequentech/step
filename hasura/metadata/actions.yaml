@@ -415,6 +415,7 @@ actions:
         template_engine: Kriti
         version: 2
     permissions:
+      - role: document-download
       - role: admin-user
   - name: get_user
     definition:

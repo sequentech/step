@@ -960,6 +960,19 @@ const spanishTranslation: TranslationType = {
                 description:
                     "Te permite exportar un Paquete de Transmisión a los Servidores de Destino o descargarlo.",
                 actions: {
+                    sign: {
+                        title: "Regenerar",
+                        dialog: {
+                            title: "¿Desea firmar el paquete de transmisión?",
+                            description:
+                                "Por favor, confirme que desea regenerar el paquete de transmisión para el área `{{name}}`",
+                            confirm: "Firmar paquete de transmisión",
+                            cancel: "Cerrar",
+                            input: {
+                                placeholder: "Ingrese su contraseña",
+                            },
+                        },
+                    },
                     send: {
                         title: "Enviar",
                         dialog: {
@@ -967,6 +980,16 @@ const spanishTranslation: TranslationType = {
                             description:
                                 "Por favor, confirma que deseas enviar el Paquete de Transmisión para el Área '{{name}}' a los Servidores de Destino.",
                             confirm: "Enviar Paquete de Transmisión",
+                            cancel: "Cerrar",
+                        },
+                    },
+                    regenerate: {
+                        title: "Regenerar",
+                        dialog: {
+                            title: "¿Desea regenerar el paquete de transmisión?",
+                            description:
+                                "Por favor confirme que desea regenerar el paquete de transmisión para el área `{{name}}`",
+                            confirm: "Regenerar paquete de transmisión",
                             cancel: "Cerrar",
                         },
                     },
@@ -1228,6 +1251,12 @@ const spanishTranslation: TranslationType = {
                 census: "Censo",
             },
             common: {
+                tallyCeremony: {
+                    manage: "Gestionar la Ceremonia de Cómputo",
+                    view: "Ver la Ceremonia de Cómputo",
+                    cancel: "Cancelar la Ceremonia de Cómputo",
+                    addKey: "Agregar Clave de Cómputo",
+                },
                 edit: "Editar",
                 confirm: "Confirmar",
                 back: "Atras",
