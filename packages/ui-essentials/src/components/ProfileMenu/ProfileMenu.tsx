@@ -137,15 +137,6 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
     return (
         <Box>
             <Box style={{display: "flex", gap: "5px", alignItems: "center"}}>
-                <Typography
-                    sx={{
-                        fontWeight: 500,
-                        color: theme.palette.brandColor,
-                    }}
-                    title={userProfile.username}
-                >
-                    {userProfile.username.split(" ")[0]}
-                </Typography>
                 <StyledButtonTooltip
                     disableHoverListener={
                         !expiry || (expiry.countdownAt ? timeLeft > expiry?.countdownAt : true)
@@ -166,21 +157,30 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                         },
                     }}
                 >
-                    <StyledButtonContainerWrapper style={{width: 60}}>
-                        <StyledButtonContainer className="logout-button-container">
+                    <StyledButtonContainerWrapper>
+                        <StyledButtonContainer
+                            style={{position: "initial"}}
+                            className="logout-button-container"
+                        >
                             <StyledButton
                                 className="logout-button"
                                 aria-label="log out button"
                                 onClick={handleMenu}
                             >
                                 <AccountCircle sx={{fontSize: 40}} />
-                                {/* <Box
-									sx={{
-										display: {xs: "none", sm: "block"},
-									}}
-								>
-									Profile
-								</Box> */}
+                                <Box
+                                    className="user-first-name"
+                                    sx={{
+                                        display: {xs: "none", sm: "block"},
+                                        maxWidth: "70px",
+                                        textOverflow: "ellipsis",
+                                        whiteSpace: "nowrap",
+                                        overflowX: "clip",
+                                    }}
+                                    title={userProfile.firstName ?? userProfile.username}
+                                >
+                                    {userProfile.firstName ?? userProfile.username}
+                                </Box>
                             </StyledButton>
                         </StyledButtonContainer>
 

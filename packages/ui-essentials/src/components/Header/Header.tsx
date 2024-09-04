@@ -63,7 +63,6 @@ export const StyledButtonContainerWrapper = styled.div`
     position: relative;
     padding: 0;
     margin: 0;
-    width: 125px;
     height: 44px;
 `
 
@@ -84,10 +83,7 @@ export const StyledButton = styled(Button)`
     background: transparent !important;
     border: none;
     display: flex;
-    width: 100%;
-    // border-bottom: ${({theme}) => `2px solid ${theme.palette.brandColor}`} !important;
     outline: "none";
-    box-sizing: "border-box";
 
     &:hover,
     &:focus,
@@ -103,6 +99,7 @@ type ApplicationVersion = {
 }
 
 export type UserProfile = {
+    firstName?: string
     username: string
     email?: string
     openLink?: Function
