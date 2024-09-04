@@ -86,6 +86,7 @@ const spanishTranslation: TranslationType = {
             subtitle: "Información sobre las tareas ejecutadas",
             taskInformation: "Información de la tarea",
             status: "estado: {{status}}",
+            ok: "Aceptar",
             column: {
                 id: "Índice",
                 name: "Nombre de la tarea",

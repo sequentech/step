@@ -86,6 +86,7 @@ const catalanTranslation: TranslationType = {
             subtitle: "Informació sobre les tasques executades",
             taskInformation: "Informació de la tasca",
             status: "estat: {{status}}",
+            ok: "D'acord",
             column: {
                 id: "Índex",
                 name: "Nom de la tasca",

@@ -24,6 +24,7 @@ import {
     LogTypography,
     LogsBox,
     CustomAccordionSummary,
+    ViewTaskTypography,
 } from "./styles/WidgetStyle"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import CloseIcon from "@mui/icons-material/Close"
@@ -132,12 +133,15 @@ export const Widget: React.FC<WidgetProps> = ({
                         )}
                     </HeaderBox>
                 </CustomAccordionSummary>
-                <AccordionDetails>
+                <AccordionDetails
+                    sx={{display: "flex", flexDirection: "column", padding: "8px 16px"}}
+                >
                     <LogTypography>{t("widget.logs")}</LogTypography>
                     <Divider />
                     <LogsBox>
                         <LogTable logs={logs || initialLog} />
                     </LogsBox>
+                    <ViewTaskTypography>View Task</ViewTaskTypography>
                 </AccordionDetails>
             </Accordion>
         </WidgetContainer>

@@ -86,6 +86,7 @@ const frenchTranslation: TranslationType = {
             subtitle: "Informations sur les tâches exécutées et les journaux de progression",
             taskInformation: "Informations sur la tâche",
             status: "statut : {{status}}",
+            ok: "D'accord",
             column: {
                 id: "Index",
                 name: "Nom de la tâche",

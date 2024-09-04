@@ -74,6 +74,15 @@ export const LogTypography = styled(Typography)({
     fontWeight: "500",
 })
 
+export const ViewTaskTypography = styled(TypeTypography)({
+    margin: 0,
+    padding: 0,
+    color: "#0F054C",
+    cursor: "pointer",
+    width: "max-content",
+    alignSelf: "flex-end"
+})
+
 export const TransparentTable = styled(Table)({
     "backgroundColor": "transparent",
     "& th, & td": {

@@ -84,6 +84,7 @@ const englishTranslation = {
             subtitle: "Information about the executed tasks",
             taskInformation: "Task Information",
             status: "status: {{status}}",
+            ok: "Ok",
             column: {
                 id: "Index",
                 name: "Task name",

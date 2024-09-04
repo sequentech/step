@@ -85,6 +85,7 @@ const tagalogTranslation = {
             subtitle: "Impormasyon tungkol sa mga naisagawang gawain",
             taskInformation: "Impormasyon ng Gawain",
             status: "katayuan: {{status}}",
+            ok: "Sige",
             column: {
                 id: "Indeks",
                 name: "Pangalan ng Gawain",
