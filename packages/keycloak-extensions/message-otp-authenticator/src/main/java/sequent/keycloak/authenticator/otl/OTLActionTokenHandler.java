@@ -6,8 +6,10 @@ package sequent.keycloak.authenticator.otl;
 
 import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.Response;
-
 import lombok.extern.jbosslog.JBossLog;
+
+import java.net.URI;
+
 import org.keycloak.TokenVerifier.Predicate;
 import org.keycloak.authentication.AuthenticationProcessor;
 import org.keycloak.authentication.actiontoken.AbstractActionTokenHandler;
@@ -18,14 +20,21 @@ import org.keycloak.events.Details;
 import org.keycloak.events.Errors;
 import org.keycloak.events.EventBuilder;
 import org.keycloak.events.EventType;
+import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.models.ClientModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
+import org.keycloak.protocol.AuthorizationEndpointBase;
 import org.keycloak.services.managers.AuthenticationSessionManager;
 import org.keycloak.services.messages.Messages;
+import org.keycloak.services.resources.LoginActionsService;
+import org.keycloak.services.util.AuthenticationFlowURLHelper;
 import org.keycloak.sessions.AuthenticationSessionCompoundId;
 import org.keycloak.sessions.AuthenticationSessionModel;
+import org.keycloak.sessions.CommonClientSessionModel.ExecutionStatus;
+
 import sequent.keycloak.authenticator.Utils;
+import sequent.keycloak.authenticator.smart_link.SmartLinkActionToken;
 
 /**
  * Handles an OTLActionToken. It looks up the session that initiated the OTL
@@ -61,6 +70,12 @@ public class OTLActionTokenHandler
   }
 
   @Override
+  public AuthenticationSessionModel startFreshAuthenticationSession(
+      OTLActionToken token, ActionTokenContext<OTLActionToken> tokenContext) {
+    return tokenContext.createAuthenticationSessionForClient(token.getIssuedFor());
+  }
+
+  @Override
   public Response handleToken(
       OTLActionToken token, ActionTokenContext<OTLActionToken> tokenContext
   ) {
@@ -76,8 +91,7 @@ public class OTLActionTokenHandler
         .detail(Details.CONTEXT, "originUserId = " + originUserId);
     event.success();
 
-    tokenContext.getEvent().success();
-    tokenContext.setEvent(tokenContext.getEvent().clone().event(EventType.VERIFY_EMAIL));
+    log.infov("handleToken(): tokenContext.isAuthenticationSessionFresh() = {0}", tokenContext.isAuthenticationSessionFresh());
 
     AuthenticationSessionManager asm = new AuthenticationSessionManager(session);
 
@@ -92,29 +106,43 @@ public class OTLActionTokenHandler
         compoundId.getTabId()
       );
 
-    // Check if the session is fresh or needs to be recreated
-    if (tokenContext.isAuthenticationSessionFresh()) {
-      log.debug("tokenContext.isAuthenticationSessionFresh()");
-    }
-
     // Copy all relevant data from originalSession to targetSession
-    originalSession.getClientNotes().forEach(authSession::setClientNote);
-    originalSession.getUserSessionNotes().forEach(authSession::setUserSessionNote);
-    // TODO:
+    String originalFlowPath = originalSession.getAuthNote(AuthenticationProcessor.CURRENT_FLOW_PATH);
+    originalSession.getClientNotes()
+      .forEach((String name, String note) -> {
+        log.infov("setClientNote name={0}", name);
+        authSession.setClientNote(name, note);
+      });
+    originalSession.getUserSessionNotes()
+      .forEach((String name, String note) -> {
+        log.infov("setting setUserSessionNote name={0}", name);
+        authSession.setUserSessionNote(name, note);
+      });
+    // TODO: no way to list auth notes? we could just specify the one we need 
+    // in the authenticator config though
     // originalSession.getAuthNotes().forEach(authSession::setAuthNote);
-    originalSession.getExecutionStatus().forEach(authSession::setExecutionStatus);
+    originalSession.getExecutionStatus()
+      .forEach((String authenticator, ExecutionStatus status) -> {
+        log.infov("setting setUserSessionNote authenticator={0}", authenticator);
+        authSession.setExecutionStatus(authenticator, status);
+      });
+    log.infov("setting redirectUri={0}", originalSession.getRedirectUri());
+    authSession.setRedirectUri(originalSession.getRedirectUri());
+
+    // TODO: so far, the execution id doesn't seem to be restored or used
+    log.infov("setting executionId={0}", originalSession.getAuthNote(AuthenticationProcessor.LAST_PROCESSED_EXECUTION));
+    tokenContext.setExecutionId(originalSession.getAuthNote(AuthenticationProcessor.LAST_PROCESSED_EXECUTION));
 
     authSession.setAuthNote(Utils.OTL_VISITED, "true");
+    // we will asume we're using the "deferred registration authenticator"
+    authSession.setAuthenticatedUser(null);
 
     // Once everything is copied, then we remove the original auth session
-    asm.removeAuthenticationSession(realm, authSession, true);
+    asm.removeAuthenticationSession(realm, originalSession, true);
 
-    // redirect to the current flow path
-    return tokenContext.brokerFlow(
-      null,
-      null,
-      authSession.getAuthNote(AuthenticationProcessor.CURRENT_FLOW_PATH)
-    );
+    AuthenticationFlowURLHelper helper = new AuthenticationFlowURLHelper(session, realm, tokenContext.getUriInfo());
+    URI redirectUri = helper.getLastExecutionUrl(authSession);
+    return Response.status(Response.Status.FOUND).location(redirectUri).build();
   }
 
   // to execute again, you will need a new token. it's a one time token
