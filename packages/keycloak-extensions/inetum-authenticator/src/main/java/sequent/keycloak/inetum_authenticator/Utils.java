@@ -69,6 +69,8 @@ public class Utils {
   public final String FTL_DOC_ID_TYPE = "doc_id_type";
   public final String FTL_ERROR_INTERNAL = "internalInetumError";
   public final String FTL_ERROR_AUTH_INVALID = "internalInetumError";
+  public final String FTL_ERROR_INVALID_SCORE = "scoringInetumError";
+  public final String FTL_ERROR_INVALID_ATTRIBUTES = "attributesInetumError";
 
   private static final String KEYS_USERDATA = "keyUserdata";
   private static final String KEYS_USERDATA_SEPARATOR = ";";
