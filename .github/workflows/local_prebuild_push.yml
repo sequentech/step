@@ -5,8 +5,7 @@
 name: Local images Prebuild and Push
 
 on:
-  push:
-    branches: [main]
+  pull_request:
     paths: 
       - '.devcontainer/postgresql/**'
       - '.devcontainer/minio/**'
@@ -113,4 +112,13 @@ jobs:
         context: packages/.
         file: packages/Dockerfile.admin-portal
         tags: ghcr.io/${{ github.repository }}/admin-portal
+        push: true
+
+    - name: Build and push trustee
+      uses: docker/build-push-action@v6
+      with:
+        platforms: linux/${{ matrix.architecture }}
+        context: packages/.
+        file: packages/braid/Dockerfile
+        tags: ghcr.io/${{ github.repository }}/trustee
         push: true
