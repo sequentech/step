@@ -202,7 +202,7 @@ public class MessageOTPAuthenticator
         log.info("allowResend IS FALSE");
       }
 
-      if ((!resend && (code == null || ttl == null)) || (resend && allowResend)) {
+      if ((!resend && ((code == null && !isOtl) || ttl == null)) || (resend && allowResend)) {
         Utils.sendCode(
             config,
             session,
