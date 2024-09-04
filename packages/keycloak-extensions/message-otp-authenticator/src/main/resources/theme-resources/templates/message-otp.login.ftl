@@ -62,7 +62,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                     >
                         <input
                             class="${properties.kcButtonClass!} ${properties.kcButtonPrimaryClass!} ${properties.kcButtonBlockClass!} ${properties.kcButtonLargeClass!}"
-                            type="button"
+                            type="submit"
                             value="${msg("doSubmit")}"
                             onclick="handleOtpInput()"
                         />
@@ -180,7 +180,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                             resendBtn.innerText = resendButtonI18n;
                         }
                     }
-                    
+
                     function handleOtpInput() {
                     const form = document.getElementById('kc-message-code-login-form');
                     const code = document.getElementById('code');
