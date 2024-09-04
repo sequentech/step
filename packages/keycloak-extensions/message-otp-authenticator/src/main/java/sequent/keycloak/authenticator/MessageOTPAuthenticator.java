@@ -112,6 +112,7 @@ public class MessageOTPAuthenticator
       // invalid
       boolean deferredUser = config.getConfig().get(Utils.DEFERRED_USER_ATTRIBUTE).equals("true");
       AuthenticationExecutionModel execution = context.getExecution();
+      String codeLength = config.getConfig().get(Utils.CODE_LENGTH);
       UserModel user = context.getUser();
       String resendTimer = config.getConfig().get(Utils.RESEND_ACTIVATION_TIMER);
       if (resendTimer == null) {
@@ -132,6 +133,7 @@ public class MessageOTPAuthenticator
                     Utils.getOtpAddress(messageCourier, deferredUser, config, authSession, user))
                 .setAttribute("resendTimer", config.getConfig().get(Utils.RESEND_ACTIVATION_TIMER))
                 .setAttribute("ttl", config.getConfig().get(Utils.CODE_TTL))
+                .setAttribute("codeLength", codeLength)
                 .createForm(TPL_CODE));
       } else if (execution.isConditional() || execution.isAlternative()) {
         context.attempted();
@@ -149,7 +151,8 @@ public class MessageOTPAuthenticator
     boolean codeJustSent = false;
 
     // handle OTL
-    boolean isOtl = config.getConfig().get(Utils.ONE_TIME_LINK).equals("true");
+    // boolean isOtl = config.getConfig().get(Utils.ONE_TIME_LINK).equals("true");
+    boolean isOtl = false;
     String otlAuthNotesToRestore = config.getConfig().get(Utils.OTL_RESTORED_AUTH_NOTES_ATTRIBUTE);
     String[] otlAuthNoteNames =
         otlAuthNotesToRestore == null ? new String[0] : otlAuthNotesToRestore.split(",");
@@ -177,6 +180,7 @@ public class MessageOTPAuthenticator
       String resendTimer = config.getConfig().get(Utils.RESEND_ACTIVATION_TIMER);
       String configTtl = config.getConfig().get(Utils.CODE_TTL);
       String ttl = authSession.getAuthNote(Utils.CODE_TTL);
+      String codeLength = config.getConfig().get(Utils.CODE_LENGTH);
       long currentTime = System.currentTimeMillis();
       log.info(
           "code="
@@ -226,6 +230,7 @@ public class MessageOTPAuthenticator
                   Utils.getOtpAddress(messageCourier, deferredUser, config, authSession, user))
               .setAttribute("resendTimer", config.getConfig().get(Utils.RESEND_ACTIVATION_TIMER))
               .setAttribute("codeJustSent", codeJustSent)
+              .setAttribute("codeLength", codeLength)
               .createForm(TPL_CODE));
     } catch (Exception error) {
       log.error("Error resending OTP", error);
