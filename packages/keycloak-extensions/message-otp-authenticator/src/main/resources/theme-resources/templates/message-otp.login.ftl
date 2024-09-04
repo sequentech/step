@@ -9,21 +9,36 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<#if section = "header">
         <div>
             <div>
-            <#if address??>
-            <div>
-                ${msg("messageOtp.auth.address")}
-            </div>
-            <div>
-                ${address}
-            </div>
+                <#if address??>
+                    <div>
+                        <#if isOtl>
+                            ${msg("messageOtp.otl.address")}
+                        <#else>
+                            ${msg("messageOtp.auth.address")}
+                        </#if>
+                    </div>
+                    <div>
+                        ${address}
+                    </div>
                 <#else>
-                    ${msg("messageOtp.auth.title", realm.displayName)}
+                    <#if isOtl>
+                        ${msg("messageOtp.otl.title", realm.displayName)}
+                    <#else>
+                        ${msg("messageOtp.auth.title", realm.displayName)}
+                    </#if>
                 </#if>
             </div>
         </div>
     <#elseif section = "show-username">
-        <h1>${msg("messageOtp.auth.title", realm.displayName)}</h1>
+        <h1>
+            <#if isOtl>
+                ${msg("messageOtp.otl.title", realm.displayName)}
+            <#else>
+                ${msg("messageOtp.auth.title", realm.displayName)}
+            </#if>
+        </h1>
 	<#elseif section = "form">
+        <#if !isOtl>
 		<form
 			id="kc-message-code-login-form"
 			class="${properties.kcFormClass!}"
@@ -138,6 +153,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </script>
 
 		</form>
+        </#if>
 	<#elseif section = "info">
         <p class="kc-message-otl-instructions">
             <#if isOtl>
@@ -173,7 +189,11 @@ SPDX-License-Identifier: AGPL-3.0-only
                 <#assign ttlMinutes = ttlSeconds / 60>
                 <#assign roundedMinutes = (ttlMinutes)?round>
                     <span>
-                        ${msg("messageOtp.auth.ttlTime",roundedMinutes)}
+                        <#if isOtl>
+                            ${msg("messageOtp.otl.ttlTime",roundedMinutes)}
+                        <#else>
+                            ${msg("messageOtp.auth.ttlTime",roundedMinutes)}
+                        </#if>
                     </span>
             </div>
         </#if>
