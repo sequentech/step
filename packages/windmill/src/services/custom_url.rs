@@ -7,7 +7,7 @@ use rocket::futures::stream::Forward;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fmt;
-use tracing::{error, info};
+use tracing::{error, info, instrument};
 
 #[derive(Debug, Deserialize)]
 pub struct PageRule {
@@ -96,6 +96,7 @@ impl fmt::Display for CloudflareError {
 
 impl Error for CloudflareError {}
 
+#[instrument]
 pub async fn get_page_rule(target_value: &str) -> Result<Option<PageRule>, Box<dyn Error>> {
     info!("target_value {:?}", target_value);
     let page_rules = get_all_page_rules().await?;
@@ -103,6 +104,7 @@ pub async fn get_page_rule(target_value: &str) -> Result<Option<PageRule>, Box<d
     Ok(find_matching_target(page_rules, target_value))
 }
 
+#[instrument]
 pub async fn set_custom_url(
     origin: &str,
     redirect_to: &str,
@@ -156,6 +158,7 @@ pub async fn set_custom_url(
     Ok(())
 }
 
+#[instrument]
 fn get_cloudflare_vars() -> Result<(String, String, String), Box<dyn Error>> {
     let cloudflare_zone = std::env::var("CLOUDFLARE_ZONE")
         .map_err(|_e| "Missing cloudflare env variable".to_string())?;
@@ -167,6 +170,7 @@ fn get_cloudflare_vars() -> Result<(String, String, String), Box<dyn Error>> {
     Ok((cloudflare_zone, cloudflare_api_email, cloudflare_api_key))
 }
 
+#[instrument]
 async fn get_all_page_rules() -> Result<Vec<PageRule>, Box<dyn Error>> {
     let (zone_id, api_email, api_key) = get_cloudflare_vars()?;
     info!("zone_id {:?}", zone_id);
@@ -206,6 +210,7 @@ async fn get_all_page_rules() -> Result<Vec<PageRule>, Box<dyn Error>> {
     }
 }
 
+#[instrument]
 fn find_matching_target(rules: Vec<PageRule>, expected_redirect_url: &str) -> Option<PageRule> {
     for rule in rules {
         for action in &rule.actions {
@@ -218,6 +223,7 @@ fn find_matching_target(rules: Vec<PageRule>, expected_redirect_url: &str) -> Op
     None
 }
 
+#[instrument]
 fn create_payload(origin: &str, redirect_to: &str) -> CreatePageRuleRequest {
     let targets = vec![Target {
         constraint: Constraint {
@@ -242,6 +248,7 @@ fn create_payload(origin: &str, redirect_to: &str) -> CreatePageRuleRequest {
     }
 }
 
+#[instrument]
 fn create_dns_payload(redirect_to: &str, origin: &str) -> CreateDNSRecordRequest {
     CreateDNSRecordRequest {
         name: origin.to_string(),
