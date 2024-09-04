@@ -41,11 +41,11 @@ public class ManualVerificationTokenHandler
 
   public ManualVerificationTokenHandler() {
     super(
-        /* id = */ ManualVerificationToken.TOKEN_TYPE,
-        /* tokenClass = */ ManualVerificationToken.class,
-        /* defaultErrorMessage = */ Messages.INVALID_CODE,
-        /* defaultEventType = */ EventType.RESET_PASSWORD,
-        /* defaultEventError = */ Errors.NOT_ALLOWED);
+        /* id= */ ManualVerificationToken.TOKEN_TYPE,
+        /* tokenClass= */ ManualVerificationToken.class,
+        /* defaultErrorMessage= */ Messages.INVALID_CODE,
+        /* defaultEventType= */ EventType.RESET_PASSWORD,
+        /* defaultEventError= */ Errors.NOT_ALLOWED);
 
     log.info("ManualVerificationTokenHandler");
   }
