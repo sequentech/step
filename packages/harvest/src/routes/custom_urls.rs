@@ -52,17 +52,26 @@ pub async fn update_custom_url(
 
     info!("Authorization succeeded, processing URL update");
 
-    match set_custom_url(&body.redirect_to, &body.origin, &body.dns_prefix).await {
+    match set_custom_url(&body.redirect_to, &body.origin, &body.dns_prefix)
+        .await
+    {
         Ok(message) => {
             info!("Custom URL successfully updated");
             let success_message = format!("Success updating custom URL");
-            Ok(Json(UpdateCustomUrlOutput { success:true, message:success_message }))
+            Ok(Json(UpdateCustomUrlOutput {
+                success: true,
+                message: success_message,
+            }))
         }
         Err(error) => {
-            let error_message = format!("Error updating custom URL: {:?}", error);
+            let error_message =
+                format!("Error updating custom URL: {:?}", error);
             error!("{}", error_message);
 
-            Ok(Json(UpdateCustomUrlOutput { success:false, message: error_message }))
+            Ok(Json(UpdateCustomUrlOutput {
+                success: false,
+                message: error_message,
+            }))
         }
     }
 }

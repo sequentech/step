@@ -136,12 +136,14 @@ pub async fn set_custom_url(
         let error_message = format!("Failed to create DNS record: Check if A record with the same settings already exists.");
         info!("{}", error_message);
     }
-    
+
     info!("DNS record created successfully.");
-    
+
     match current_page_rule {
         Some(page_rule) => {
-            if let Err(e) = update_page_rule(&page_rule.id, redirect_to, origin).await {
+            if let Err(e) =
+                update_page_rule(&page_rule.id, redirect_to, origin).await
+            {
                 let error_message = format!("Failed to update page rule");
                 info!("{}", error_message);
                 return Err(error_message.into());
