@@ -204,11 +204,16 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                     onSubmit={onSubmit}
                     toolbar={
                         <WizardStyles.Toolbar>
-                            <WizardStyles.BackButton color="info" onClick={goBack}>
+                            <WizardStyles.BackButton
+                                color="info"
+                                onClick={goBack}
+                                className="keys-back-button"
+                            >
                                 <ArrowBackIosIcon />
                                 {t("common.label.back")}
                             </WizardStyles.BackButton>
                             <WizardStyles.CreateButton
+                                className="keys-create-button"
                                 icon={<ArrowForwardIosIcon />}
                                 label={t("keysGeneration.configureStep.create")}
                             />
@@ -244,10 +249,11 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                                 optionText="name"
                                 optionValue="name"
                                 row={false}
+                                className="keys-trustees-input"
                             />
                         ) : null}
                         {errors ? (
-                            <WizardStyles.ErrorMessage variant="body2">
+                            <WizardStyles.ErrorMessage variant="body2" className="keys-error">
                                 {errors}
                             </WizardStyles.ErrorMessage>
                         ) : null}
