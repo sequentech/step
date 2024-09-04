@@ -272,7 +272,6 @@ const frenchTranslation: TranslationType = {
                 materialActivated: "Matériaux de Support activés",
                 materialTitle: "Titre",
                 materialSubTitle: "Sous-titre",
-                hideAudit: "Désactiver le Support d'Audit du Bulletin",
                 logoUrl: "URL du Logo",
                 redirectFinishUrl: "URL de redirection à la fin",
                 css: "CSS personnalisé",
@@ -815,6 +814,12 @@ const frenchTranslation: TranslationType = {
                 "random": "Aléatoire",
                 "custom": "Personnalisé",
                 "alphabetical": "Alphabétique",
+            },
+            auditButtonConfig: {
+                "label": "Options d'affichage du bouton d'audit",
+                "show": "Afficher",
+                "not-show": "Ne pas afficher",
+                "show-in-help": "Afficher dans la boîte de dialogue d'aide",
             },
             underVotePolicy: {
                 "label": "Politique de Sous-Vote",

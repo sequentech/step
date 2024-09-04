@@ -21,6 +21,7 @@ export interface DialogProps extends PropsWithChildren {
     open: boolean
     title: string
     cancel?: string
+    middleActions?: React.ReactElement[]
     ok: string
     okEnabled?: () => boolean
     variant?: "warning" | "info" | "action" | "softwarning"
@@ -33,6 +34,7 @@ const Dialog: React.FC<DialogProps> = ({
     open,
     title,
     cancel,
+    middleActions,
     ok,
     okEnabled,
     variant,
@@ -90,6 +92,10 @@ const Dialog: React.FC<DialogProps> = ({
                         {cancel}
                     </Button>
                 ) : undefined}
+                {middleActions &&
+                    middleActions.map((action, index) => (
+                        <React.Fragment key={index}>{action}</React.Fragment>
+                    ))}
                 <Button
                     className="ok-button"
                     disabled={okEnabled ? !okEnabled() : undefined}
