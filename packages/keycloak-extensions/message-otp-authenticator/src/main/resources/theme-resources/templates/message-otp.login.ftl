@@ -49,8 +49,16 @@ SPDX-License-Identifier: AGPL-3.0-only
                       <div class="otp-container" id="otp-inputs">
                     <#assign otpLength = codeLength?number> 
                     <#list 1..otpLength as i>
-                        <input type="text" id="otp-${i}" name="otp${i}" maxlength="1" class="otp-input"
-                        <#if i == 1> autofocus="autofocus" </#if> />
+                        <input
+                            autocomplete="off"
+                            type="text"
+                            inputmode="numeric"
+                            pattern="\d"
+                            id="otp-${i}"
+                            name="otp${i}"
+                            maxlength="1"
+                            class="otp-input"
+                            <#if i == 1> autofocus="autofocus" </#if> />
                     </#list>
                 </div>
                 </div>
@@ -61,6 +69,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                         class="${properties.kcFormButtonsClass!}"
                     >
                         <input
+                            id="kc-form-submit"
                             class="${properties.kcButtonClass!} ${properties.kcButtonPrimaryClass!} ${properties.kcButtonBlockClass!} ${properties.kcButtonLargeClass!}"
                             type="submit"
                             value="${msg("doSubmit")}"
@@ -117,28 +126,52 @@ SPDX-License-Identifier: AGPL-3.0-only
                         input.addEventListener('input', (e) => {
                             if (input.value.length === 1 && index < otpInputs.length - 1) {
                                 otpInputs[index + 1].focus();
+                                otpInputs[index + 1].select();
+                            }
+                            else if (index === otpInputs.length - 1) {
+                                document.getElementById('kc-form-submit').focus();
                             }
                         });
 
                         input.addEventListener('keydown', (e) => {
                             if (e.key === 'Backspace' && input.value.length === 0 && index > 0) {
                                 otpInputs[index - 1].focus();
+                                otpInputs[index - 1].select();
+                            } else if (e.key === 'Backspace' && input.value.length === 1 && index > 0) {
+                                otpInputs[index].value = '';
+                                otpInputs[index - 1].focus();
+                                otpInputs[index - 1].select();
+                            } else if (e.key === 'Backspace' && input.value.length === 1 && index === 0) {
+                                otpInputs[index].value = '';
                             }
-                            if (e.key === 'ArrowLeft' && index > 0) {
+                            else if (e.key === 'ArrowLeft' && index > 0) {
                                 otpInputs[index - 1].focus();
                             }
-                            if (e.key === 'ArrowRight' && index < otpInputs.length - 1) {
+                            else if (e.key === 'ArrowRight' && index < otpInputs.length - 1) {
                                 otpInputs[index + 1].focus();
+                            }
+                            else if (e.key === 'ArrowRight' && index === otpInputs.length - 1) {
+                                document.getElementById('kc-form-submit').focus();
                             }
                         });
 
                         input.addEventListener('paste', (e) => {
-                        const pasteData = e.clipboardData.getData('text').substring(0, otpInputs.length);
-                        pasteData.split('').forEach((char, i) => {
-                            if (otpInputs[i]) {
-                                otpInputs[i].value = char;
+                            const pasteDataTrim = e.clipboardData
+                                .getData('text')
+                                .trim();
+                            const pasteData = pasteDataTrim
+                                .substring(0, otpInputs.length);
+                            pasteData.split('').forEach((char, i) => {
+                                if (i < otpInputs.length) {
+                                    otpInputs[i].value = char;
+                                }
+                            });
+                            if (pasteDataTrim.length >= otpInputs.length) {
+                                document.getElementById('kc-form-submit').focus();
+                            } else {
+                                otpInputs[pasteDataTrim.length + 1].focus();
+                                otpInputs[pasteDataTrim.length + 1].select();
                             }
-                        });
                     });
                     });
 
@@ -206,7 +239,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
     .otp-input {
         width: 40px;
-        height: 40px;
+        height: 50px;
         font-size: 18px;
         text-align: center;
         border: 1px solid #ccc;
