@@ -43,6 +43,7 @@ export const CustomAppBar: React.FC = () => {
             <Header
                 appVersion={{main: globalSettings.APP_VERSION}}
                 userProfile={{
+                    firstName: authContext.firstName,
                     username: authContext.username,
                     email: authContext.email,
                     openLink: authContext.openProfileLink,

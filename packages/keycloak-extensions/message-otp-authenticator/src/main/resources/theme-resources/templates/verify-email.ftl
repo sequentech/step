@@ -7,9 +7,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 <#import "template.ftl" as layout>
 <@layout.registrationLayout displayInfo=true; section>
 	<#if section = "header">
-		${msg("messageOtpAuthTitle", realm.displayName)}
+		${msg("messageOtp.auth.title", realm.displayName)}
 	<#elseif section = "show-username">
-		<h1>${msg("messageOtpAuthTitle", realm.displayName)}</h1>
+		<h1>${msg("messageOtp.auth.title", realm.displayName)}</h1>
 	<#elseif section = "form">
 		<form
 			id="kc-message-code-login-form"
@@ -23,7 +23,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						for="code"
 						class="${properties.kcLabelClass!}"
 					>
-						${msg("messageOtpAuthLabel")}
+						${msg("messageOtp.auth.label")}
 					</label>
 				</div>
 				<div class="${properties.kcInputWrapperClass!}">
@@ -52,11 +52,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<#elseif section = "info" >
 		<#if courier??>
 			<#if courier = "SMS">
-				${msg("messageOtpAuthInstructionSms")}
+				${msg("messageOtp.auth.instructionSms")}
 			<#elseif courier = "EMAIL" >
-				${msg("messageOtpAuthInstructionEmail")}
+				${msg("messageOtp.auth.instructionEmail")}
 			<#elseif courier = "BOTH" >
-				${msg("messageOtpAuthInstruction")}
+				${msg("messageOtp.auth.instruction")}
 			</#if>
 		</#if>
 	</#if>
