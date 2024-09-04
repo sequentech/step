@@ -21,6 +21,7 @@ export interface Action {
     icon: React.ReactNode
     action: (id: Identifier) => void
     showAction?: (id: Identifier) => boolean
+    className?: string
 }
 
 interface ActionsColumnProps {
@@ -45,7 +46,11 @@ export const ActionsColumn: React.FC<ActionsColumnProps> = (props) => {
         <>
             {filteredActions && filteredActions.length > 0
                 ? filteredActions.map((action, index) => (
-                      <StyledIconButton key={index} onClick={() => action.action(record.id)}>
+                      <StyledIconButton
+                          className={action.className ?? ""}
+                          key={index}
+                          onClick={() => action.action(record.id)}
+                      >
                           {action.icon}
                       </StyledIconButton>
                   ))

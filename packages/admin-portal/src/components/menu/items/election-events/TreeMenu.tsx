@@ -242,9 +242,10 @@ function TreeMenuItem({
                 {hasNext && canCreateElectionEvent ? (
                     <MenuStyles.TreeMenuIconContaier onClick={onClick}>
                         {open ? (
-                            <ExpandMoreIcon />
+                            <ExpandMoreIcon className="menu-item-expanded" />
                         ) : (
                             <ChevronRightIcon
+                                className="menu-item-collapsed"
                                 style={{
                                     transform:
                                         i18n.dir(i18n.language) === "rtl"
@@ -260,8 +261,9 @@ function TreeMenuItem({
                 {isOpenSidebar && (
                     <MenuStyles.StyledSideBarNavLink
                         title={name}
-                        id={"StyledSideBarNavLink"}
-                        className={({isActive}) => (isActive ? "active" : "")}
+                        className={({isActive}) =>
+                            isActive ? `active menu-item-${treeResourceNames[0]}` : ``
+                        }
                         to={`/${treeResourceNames[0]}/${id}`}
                         style={{textAlign: i18n.dir(i18n.language) === "rtl" ? "end" : "start"}}
                     >
