@@ -961,18 +961,19 @@ const catalanTranslation: TranslationType = {
                 description:
                     "Et permet exportar un Paquet de Transmissió als Servidors de Destinació o descarregar-lo.",
                 actions: {
-					sign: {
-						"title": "Regenerar",
-						"dialog": {
-							"title": "Vols signar el paquet de transmissió?",
-							"description": "Si us plau, confirma que vols regenerar el paquet de transmissió per a l'àrea `{{name}}`",
-							"confirm": "Signar el paquet de transmissió",
-							"cancel": "Tancar",
-							"input": {
-								"placeholder": "Introdueix la teva contrasenya"
-							}
-						}
-					},
+                    sign: {
+                        title: "Regenerar",
+                        dialog: {
+                            title: "Vols signar el paquet de transmissió?",
+                            description:
+                                "Si us plau, confirma que vols regenerar el paquet de transmissió per a l'àrea `{{name}}`",
+                            confirm: "Signar el paquet de transmissió",
+                            cancel: "Tancar",
+                            input: {
+                                placeholder: "Introdueix la teva contrasenya",
+                            },
+                        },
+                    },
                     send: {
                         title: "Enviar",
                         dialog: {

@@ -967,18 +967,19 @@ const frenchTranslation: TranslationType = {
                 description:
                     "Vous permet d'exporter un Paquet de Transmission vers des Serveurs de Destination ou de le télécharger.",
                 actions: {
-					sign: {
-						"title": "Régénérer",
-						"dialog": {
-							"title": "Voulez-vous signer le paquet de transmission ?",
-							"description": "Veuillez confirmer que vous souhaitez régénérer le paquet de transmission pour la zone `{{name}}`",
-							"confirm": "Signer le paquet de transmission",
-							"cancel": "Fermer",
-							"input": {
-								"placeholder": "Entrez votre mot de passe"
-							}
-						}
-					},
+                    sign: {
+                        title: "Régénérer",
+                        dialog: {
+                            title: "Voulez-vous signer le paquet de transmission ?",
+                            description:
+                                "Veuillez confirmer que vous souhaitez régénérer le paquet de transmission pour la zone `{{name}}`",
+                            confirm: "Signer le paquet de transmission",
+                            cancel: "Fermer",
+                            input: {
+                                placeholder: "Entrez votre mot de passe",
+                            },
+                        },
+                    },
                     send: {
                         title: "Envoyer",
                         dialog: {

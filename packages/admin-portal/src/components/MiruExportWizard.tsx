@@ -55,7 +55,7 @@ import {ElectionHeaderStyles} from "./styles/ElectionHeaderStyles"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {CREATE_TRANSMISSION_PACKAGE} from "@/queries/CreateTransmissionPackage"
-import { GET_UPLOAD_URL } from "@/queries/GetUploadUrl"
+import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 
 interface IMiruExportWizardProps {}
 
@@ -65,8 +65,8 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
     const {globalSettings} = useContext(SettingsContext)
     const {
         tallyId,
-		electionEventId,
-		setElectionEventId,
+        electionEventId,
+        setElectionEventId,
         setMiruAreaId,
         selectedTallySessionData,
         setSelectedTallySessionData,
@@ -80,18 +80,18 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
     const [uploading, setUploading] = useState<boolean>(false)
     const [errors, setErrors] = useState<String | null>(null)
     const [tally, setTally] = useState<Sequent_Backend_Tally_Session>()
-	const [passwordState, setPasswordState] = useState<string>("")
-	const [signatureId, setSignatureId] = useState<string>("")
+    const [passwordState, setPasswordState] = useState<string>("")
+    const [signatureId, setSignatureId] = useState<string>("")
     const authContext = useContext(AuthContext)
     console.log({authContext})
     const isTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_CEREMONY)
-	const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL, {
-		context: {
-			headers: {
-				"x-hasura-role": IPermissions.TALLY_WRITE,
-			},
-		},
-	})
+    const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.TALLY_WRITE,
+            },
+        },
+    })
 
     const [uploadSignature] = useMutation<UploadSignatureMutation>(UPLOAD_SIGNATURE, {
         context: {
@@ -101,52 +101,58 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
         },
     })
 
-	const handleUploadSignature =async ({doc_id, password}: {doc_id: string, password:string}) => {
-		const { data, errors } = await uploadSignature({
-						variables: {
-							electionId: selectedTallySessionData?.election_id,
-							tallySessionId: tally?.id,
-							areaId: selectedTallySessionData?.area_id,
-							document_id: doc_id,
-							password: password
-						}
-					})
-					setUploading(false)
-					setSignatureId("")
-		notify(t("Signing Successful"), { type: "success" })
+    const handleUploadSignature = async ({
+        doc_id,
+        password,
+    }: {
+        doc_id: string
+        password: string
+    }) => {
+        const {data, errors} = await uploadSignature({
+            variables: {
+                electionId: selectedTallySessionData?.election_id,
+                tallySessionId: tally?.id,
+                areaId: selectedTallySessionData?.area_id,
+                document_id: doc_id,
+                password: password,
+            },
+        })
+        setUploading(false)
+        setSignatureId("")
+        notify(t("Signing Successful"), {type: "success"})
 
-					if (errors) {
-						setErrors(t("tally.errorUploadingSignature", { error: errors.toString() }))
-						return
-					}
-	}
+        if (errors) {
+            setErrors(t("tally.errorUploadingSignature", {error: errors.toString()}))
+            return
+        }
+    }
 
-	const handleFiles = async (files: FileList | null) => {
-		// https://fullstackdojo.medium.com/s3-upload-with-presigned-url-react-and-nodejs-b77f348d54cc
+    const handleFiles = async (files: FileList | null) => {
+        // https://fullstackdojo.medium.com/s3-upload-with-presigned-url-react-and-nodejs-b77f348d54cc
 
-		const theFile = files?.[0]
-		console.log({theFile, selectedTallySessionData})
+        const theFile = files?.[0]
+        console.log({theFile, selectedTallySessionData})
 
-		if (theFile) {
-			let { data, errors } = await getUploadUrl({
-				variables: {
-					name: theFile.name,
-					media_type: theFile.type,
-					size: theFile.size,
-					is_public: false,
-					election_event_id: electionEventId
-				},
-			})
-			console.log({data, errors})
-			if (data?.get_upload_url?.document_id) {
-				setSignatureId(data?.get_upload_url?.document_id)
-				// handleUploadSignature({doc_id: data?.get_upload_url?.document_id, password: '1234'})// for testing
-
-			} else {
-				setUploading(false)
-				setErrors(t("keysGeneration.checkStep.errorUploading"))			}
-		}
-	}
+        if (theFile) {
+            let {data, errors} = await getUploadUrl({
+                variables: {
+                    name: theFile.name,
+                    media_type: theFile.type,
+                    size: theFile.size,
+                    is_public: false,
+                    election_event_id: electionEventId,
+                },
+            })
+            console.log({data, errors})
+            if (data?.get_upload_url?.document_id) {
+                setSignatureId(data?.get_upload_url?.document_id)
+                // handleUploadSignature({doc_id: data?.get_upload_url?.document_id, password: '1234'})// for testing
+            } else {
+                setUploading(false)
+                setErrors(t("keysGeneration.checkStep.errorUploading"))
+            }
+        }
+    }
 
     const [expandedExports, setExpandedDataExports] = useState<IExpanded>({
         "tally-miru-upload": true,
@@ -558,7 +564,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
                         </Box>
                     </AccordionSummary>
                     <WizardStyles.AccordionDetails style={{zIndex: 100}}>
-						<DropFile handleFiles={handleFiles} />
+                        <DropFile handleFiles={handleFiles} />
                         <WizardStyles.StatusBox>
                             {uploading ? <WizardStyles.DownloadProgress /> : null}
                             {errors ? (
@@ -693,22 +699,22 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
             <Dialog
                 variant="info"
                 open={!!signatureId}
-				ok={t("tally.transmissionPackage.actions.sign.dialog.confirm")}
-				cancel={t("tally.transmissionPackage.actions.regenerate.dialog.cancel")}
-				title={t("tally.transmissionPackage.actions.sign.dialog.title")}
+                ok={t("tally.transmissionPackage.actions.sign.dialog.confirm")}
+                cancel={t("tally.transmissionPackage.actions.regenerate.dialog.cancel")}
+                title={t("tally.transmissionPackage.actions.sign.dialog.title")}
                 handleClose={(result: boolean) => {
-					handleUploadSignature({ doc_id: signatureId, password: passwordState })
+                    handleUploadSignature({doc_id: signatureId, password: passwordState})
                 }}
             >
                 <Box>
-					<TextField
-                                dir={i18n.dir(i18n.language)}
-						label={t("tally.transmissionPackage.actions.sign.dialog.input.placeholder")}
-                                size="small"
-                                value={passwordState}
-                                onChange={(e) => setPasswordState(e.target.value)}
-                            />
-				</Box>
+                    <TextField
+                        dir={i18n.dir(i18n.language)}
+                        label={t("tally.transmissionPackage.actions.sign.dialog.input.placeholder")}
+                        size="small"
+                        value={passwordState}
+                        onChange={(e) => setPasswordState(e.target.value)}
+                    />
+                </Box>
             </Dialog>
         </>
     )

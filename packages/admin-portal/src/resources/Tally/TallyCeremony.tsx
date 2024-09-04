@@ -100,7 +100,7 @@ export const TallyCeremony: React.FC = () => {
         tallyId,
         setTallyId,
         setCreatingFlag,
-		setElectionEventId,
+        setElectionEventId,
         setMiruAreaId,
         selectedTallySessionData,
         setSelectedTallySessionData,
@@ -258,7 +258,7 @@ export const TallyCeremony: React.FC = () => {
         )
         if (found && JSON.stringify(found) !== JSON.stringify(selectedTallySessionData)) {
             setSelectedTallySessionData(found ?? null)
-			setElectionEventId(record?.id)
+            setElectionEventId(record?.id)
         }
     }, [tallySessionData, selectedTallySessionData])
 
@@ -423,7 +423,7 @@ export const TallyCeremony: React.FC = () => {
         //set new page status(navigate to miru wizard)
         if (e.existingPackage) {
             setSelectedTallySessionData(e.existingPackage)
-			setElectionEventId(record?.id)
+            setElectionEventId(record?.id)
             setMiruAreaId(e.existingPackage.area_id)
             setTransmissionLoading(false)
         } else {
@@ -446,7 +446,7 @@ export const TallyCeremony: React.FC = () => {
                     packageData = found
                     clearInterval(intervalId)
                     setSelectedTallySessionData(packageData)
-					setElectionEventId(record?.id)
+                    setElectionEventId(record?.id)
                     setMiruAreaId(packageData.area_id)
                     setTransmissionLoading(false)
                 } else {

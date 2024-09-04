@@ -960,18 +960,19 @@ const spanishTranslation: TranslationType = {
                 description:
                     "Te permite exportar un Paquete de Transmisión a los Servidores de Destino o descargarlo.",
                 actions: {
-					sign: {
-						"title": "Regenerar",
-						"dialog": {
-							"title": "¿Desea firmar el paquete de transmisión?",
-							"description": "Por favor, confirme que desea regenerar el paquete de transmisión para el área `{{name}}`",
-							"confirm": "Firmar paquete de transmisión",
-							"cancel": "Cerrar",
-							"input": {
-								"placeholder": "Ingrese su contraseña"
-							}
-						}
-					},
+                    sign: {
+                        title: "Regenerar",
+                        dialog: {
+                            title: "¿Desea firmar el paquete de transmisión?",
+                            description:
+                                "Por favor, confirme que desea regenerar el paquete de transmisión para el área `{{name}}`",
+                            confirm: "Firmar paquete de transmisión",
+                            cancel: "Cerrar",
+                            input: {
+                                placeholder: "Ingrese su contraseña",
+                            },
+                        },
+                    },
                     send: {
                         title: "Enviar",
                         dialog: {
