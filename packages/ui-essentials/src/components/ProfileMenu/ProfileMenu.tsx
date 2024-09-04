@@ -136,49 +136,60 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
 
     return (
         <Box>
-            <StyledButtonTooltip
-                disableHoverListener={
-                    !expiry || (expiry.countdownAt ? timeLeft > expiry?.countdownAt : true)
-                }
-                arrow
-                placement="bottom-end"
-                title={<CountdownTooltipContent timeLeft={timeLeftText} />}
-                slotProps={{
-                    popper: {
-                        modifiers: [
-                            {
-                                name: "offset",
-                                options: {
-                                    offset: [-0, 10],
+            <Box style={{display: "flex", gap: "5px", alignItems: "center"}}>
+                <StyledButtonTooltip
+                    disableHoverListener={
+                        !expiry || (expiry.countdownAt ? timeLeft > expiry?.countdownAt : true)
+                    }
+                    arrow
+                    placement="bottom-end"
+                    title={<CountdownTooltipContent timeLeft={timeLeftText} />}
+                    slotProps={{
+                        popper: {
+                            modifiers: [
+                                {
+                                    name: "offset",
+                                    options: {
+                                        offset: [-0, 10],
+                                    },
                                 },
-                            },
-                        ],
-                    },
-                }}
-            >
-                <StyledButtonContainerWrapper style={{width: 60}}>
-                    <StyledButtonContainer className="logout-button-container">
-                        <StyledButton
-                            className="logout-button"
-                            aria-label="log out button"
-                            onClick={handleMenu}
+                            ],
+                        },
+                    }}
+                >
+                    <StyledButtonContainerWrapper>
+                        <StyledButtonContainer
+                            style={{position: "initial"}}
+                            className="logout-button-container"
                         >
-                            <AccountCircle sx={{fontSize: 40}} />
-                            {/* <Box
-									sx={{
-										display: {xs: "none", sm: "block"},
-									}}
-								>
-									Profile
-								</Box> */}
-                        </StyledButton>
-                    </StyledButtonContainer>
+                            <StyledButton
+                                className="logout-button"
+                                aria-label="log out button"
+                                onClick={handleMenu}
+                            >
+                                <AccountCircle sx={{fontSize: 40}} />
+                                <Box
+                                    className="user-first-name"
+                                    sx={{
+                                        display: {xs: "none", sm: "block"},
+                                        maxWidth: "70px",
+                                        textOverflow: "ellipsis",
+                                        whiteSpace: "nowrap",
+                                        overflowX: "clip",
+                                    }}
+                                    title={userProfile.firstName ?? userProfile.username}
+                                >
+                                    {userProfile.firstName ?? userProfile.username}
+                                </Box>
+                            </StyledButton>
+                        </StyledButtonContainer>
 
-                    {expiry && timeLeft > 0 && timeLeft < totalDuration && (
-                        <CountdownTimer progress={(timeLeft / totalDuration) * 100} />
-                    )}
-                </StyledButtonContainerWrapper>
-            </StyledButtonTooltip>
+                        {expiry && timeLeft > 0 && timeLeft < totalDuration && (
+                            <CountdownTimer progress={(timeLeft / totalDuration) * 100} />
+                        )}
+                    </StyledButtonContainerWrapper>
+                </StyledButtonTooltip>
+            </Box>
             <Menu
                 id="menu-appbar"
                 anchorEl={anchorEl}
@@ -195,8 +206,8 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                 open={Boolean(anchorEl)}
                 onClose={handleClose}
             >
-                {(!!userProfile.username || !!userProfile.email) && (
-                    <MenuItem>
+                {(!!userProfile.firstName || !!userProfile.username || !!userProfile.email) && (
+                    <MenuItem className="user-details">
                         <Box
                             sx={{
                                 textOverflow: "ellipsis",
@@ -206,18 +217,26 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                         >
                             {!!userProfile.username && (
                                 <>
-                                    <span title={userProfile.username}>{userProfile.username}</span>
+                                    <span
+                                        className="firstname-or-username"
+                                        title={userProfile.firstName ?? userProfile.username}
+                                    >
+                                        {userProfile.firstName ?? userProfile.username}
+                                    </span>
                                     <br />
                                 </>
                             )}
                             {!!userProfile.email && (
-                                <Span title={userProfile.email}>{userProfile.email}</Span>
+                                <Span className="email" title={userProfile.email}>
+                                    {userProfile.email}
+                                </Span>
                             )}
                         </Box>
                     </MenuItem>
                 )}
                 {userProfile.openLink && (
                     <MenuItem
+                        className="profile"
                         onClick={() => {
                             handleClose()
                             userProfile?.openLink?.()
