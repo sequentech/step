@@ -31,7 +31,7 @@ public class OTLActionToken extends DefaultActionToken {
       String[] authNoteNames,
       String clientId) {
     super(userId, TOKEN_TYPE, absoluteExpirationInSecs, null, null);
-    log.info(
+    log.debug(
         "OTLActionToken: userId="
             + userId
             + ", absoluteExpirationInSecs="
@@ -49,32 +49,32 @@ public class OTLActionToken extends DefaultActionToken {
 
   OTLActionToken() {
     super();
-    log.info("OTLActionToken private");
+    log.debug("OTLActionToken private");
   }
 
   @Override
   public boolean isActive() {
-    log.info("OTLActionToken isActive() => true");
+    log.debug("OTLActionToken isActive() => true");
     return true;
   }
 
   public String getOriginalCompoundSessionId() {
-    log.info("getOriginalCompoundSessionId(): " + originalCompoundSessionId);
+    log.debug("getOriginalCompoundSessionId(): " + originalCompoundSessionId);
     return originalCompoundSessionId;
   }
 
   public void setOriginalCompoundSessionId(String originalCompoundSessionId) {
-    log.info("setOriginalCompoundSessionId() = " + originalCompoundSessionId);
+    log.debug("setOriginalCompoundSessionId() = " + originalCompoundSessionId);
     this.originalCompoundSessionId = originalCompoundSessionId;
   }
 
   public String[] getAuthNoteNames() {
-    log.info("getAuthNoteNames(): " + authNoteNames);
+    log.debug("getAuthNoteNames(): " + authNoteNames);
     return authNoteNames;
   }
 
   public void setAuthNoteNames(String[] authNoteNames) {
-    log.info("setAuthNoteNames() = " + authNoteNames);
+    log.debug("setAuthNoteNames() = " + authNoteNames);
     this.authNoteNames = authNoteNames;
   }
 }
