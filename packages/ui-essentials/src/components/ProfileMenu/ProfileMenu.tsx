@@ -206,8 +206,8 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                 open={Boolean(anchorEl)}
                 onClose={handleClose}
             >
-                {(!!userProfile.username || !!userProfile.email) && (
-                    <MenuItem>
+                {(!!userProfile.firstName || !!userProfile.username || !!userProfile.email) && (
+                    <MenuItem className="user-details">
                         <Box
                             sx={{
                                 textOverflow: "ellipsis",
@@ -217,18 +217,26 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                         >
                             {!!userProfile.username && (
                                 <>
-                                    <span title={userProfile.username}>{userProfile.username}</span>
+                                    <span
+                                        className="firstname-or-username"
+                                        title={userProfile.firstName ?? userProfile.username}
+                                    >
+                                        {userProfile.firstName ?? userProfile.username}
+                                    </span>
                                     <br />
                                 </>
                             )}
                             {!!userProfile.email && (
-                                <Span title={userProfile.email}>{userProfile.email}</Span>
+                                <Span className="email" title={userProfile.email}>
+                                    {userProfile.email}
+                                </Span>
                             )}
                         </Box>
                     </MenuItem>
                 )}
                 {userProfile.openLink && (
                     <MenuItem
+                        className="profile"
                         onClick={() => {
                             handleClose()
                             userProfile?.openLink?.()
