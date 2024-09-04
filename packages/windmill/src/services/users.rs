@@ -193,7 +193,7 @@ pub async fn list_users(
     )
     .await?;
 
-    let mut dynamic_attribute_conditions = String::new();
+    // let mut dynamic_attribute_conditions = String::new();
 
     let mut params: Vec<&(dyn ToSql + Sync)> = vec![
         &filter.realm,
@@ -206,15 +206,15 @@ pub async fn list_users(
         &filter.user_ids,
     ];
 
-    if let Some(attributes) = &filter.attributes {
-        for (key, value) in attributes.iter() {
-            dynamic_attribute_conditions.push_str(&format!(
-            " AND EXISTS (SELECT 1 FROM json_array_elements_text(attr.value) AS elem WHERE attr.name = ${} AND elem = ${})"
-        ));
-            params.push(key);
-            params.push(value);
-        }
-    }
+    // if let Some(attributes) = &filter.attributes {
+    //     for (key, value) in attributes.iter() {
+    //         dynamic_attribute_conditions.push_str(&format!(
+    //         " AND EXISTS (SELECT 1 FROM json_array_elements_text(attr.value) AS elem WHERE attr.name = ${} AND elem = ${})"
+    //     ));
+    //         params.push(key);
+    //         params.push(value);
+    //     }
+    // }
 
     let statement = keycloak_transaction.prepare(format!(r#"
         SELECT
@@ -244,7 +244,6 @@ pub async fn list_users(
             ($7::VARCHAR IS NULL OR username ILIKE $7) AND
             (u.id = ANY($8) OR $8 IS NULL)
             {area_ids_where_clause}
-            {dynamic_attribute_conditions}
         GROUP BY
             u.id
         LIMIT $2 OFFSET $3;

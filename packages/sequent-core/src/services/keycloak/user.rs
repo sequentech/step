@@ -283,7 +283,7 @@ impl KeycloakAdminClient {
 
     #[instrument(skip(self), err)]
     pub async fn create_user(
-        self,
+        self: &KeycloakAdminClient,
         realm: &str,
         user: &User,
         attributes: Option<HashMap<String, Vec<String>>>,
@@ -337,6 +337,15 @@ impl KeycloakAdminClient {
         match response.attributes {
             Some(attributes) => Ok(attributes.clone().into()),
             None => Ok(vec![]),
+        }
+    }
+
+    pub fn get_attribute_name(&self, name: &Option<String>) -> Option<String> {
+        match name.as_deref() {
+            Some(FIRST_NAME) => Some("first_name".to_string()),
+            Some(LAST_NAME) => Some("last_name".to_string()),
+            Some(other) => Some(other.to_string()),
+            None => None,
         }
     }
 }

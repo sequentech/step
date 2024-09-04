@@ -12,6 +12,10 @@ export const FormStyles = {
         input {
             padding: 16.50px 14px;
         }
+        
+        label {
+            top: 8px;
+        }
     `,
     TextField: muiStyled(TextField)`
         input {

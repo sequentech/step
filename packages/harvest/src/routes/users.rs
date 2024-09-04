@@ -5,8 +5,10 @@
 use crate::services::authorization::authorize;
 use crate::types::optional::OptionalId;
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
-use anyhow::Result;
+use anyhow::{Context, Result};
 use deadpool_postgres::Client as DbClient;
+use rocket::futures::future::join_all;
+use rocket::futures::TryFutureExt;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
@@ -14,7 +16,7 @@ use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::keycloak::{
     UPAttributePermissions, UPAttributeRequired, UPAttributeSelector, User,
-    UserProfileAttribute, TENANT_ID_ATTR_NAME,
+    UserProfileAttribute, PERMISSION_TO_EDIT, TENANT_ID_ATTR_NAME,
 };
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
@@ -199,7 +201,6 @@ pub async fn get_users(
             )
         })?;
 
-    info!("THE ATTRIBUTES: {:?}", &input.attributes);
     let filter = ListUsersFilter {
         tenant_id: input.tenant_id.clone(),
         election_event_id: input.election_event_id.clone(),
@@ -261,6 +262,7 @@ pub struct CreateUserBody {
     tenant_id: String,
     election_event_id: Option<String>,
     user: User,
+    user_roles_ids: Option<Vec<String>>,
 }
 
 #[instrument(skip(claims))]
@@ -313,6 +315,18 @@ pub async fn create_user(
         .create_user(&realm, &input.user, attributes, groups)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    match (user.id.clone(), &input.user_roles_ids) {
+        (Some(id), Some(user_roles_ids)) => {
+            let res: Vec<_> = user_roles_ids
+                .into_iter()
+                .map(|role_id| client.set_user_role(&realm, &id, &role_id))
+                .collect();
+
+            join_all(res).await;
+        }
+        _ => (),
+    };
 
     Ok(Json(user))
 }
@@ -585,16 +599,11 @@ pub async fn get_user_profile_attributes(
 
     let realm = match input.election_event_id {
         Some(election_event_id) => {
-            info!("ELECTION ID: {}", &election_event_id);
             get_event_realm(&input.tenant_id, &election_event_id)
         }
-        None => {
-            info!("NONE ELECTION ID");
-            get_tenant_realm(&input.tenant_id)
-        }
+        None => get_tenant_realm(&input.tenant_id),
     };
 
-    info!("REALM ID: {}", &realm);
     let client = KeycloakAdminClient::new()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
@@ -606,12 +615,20 @@ pub async fn get_user_profile_attributes(
 
     let user_profile_attributes = attributes_res
         .iter()
+        .filter(|attr| {
+            attr.permissions
+                .as_ref()
+                .and_then(|p| p.edit.as_ref())
+                .map_or(true, |edit| {
+                    edit.contains(&PERMISSION_TO_EDIT.to_string())
+                })
+        })
         .map(|attr| UserProfileAttribute {
             annotations: attr.annotations.clone(),
             display_name: attr.display_name.clone(),
             group: attr.group.clone(),
             multivalued: attr.multivalued,
-            name: attr.name.clone(),
+            name: client.get_attribute_name(&attr.name),
             required: match attr.required.clone() {
                 Some(required) => Some(UPAttributeRequired {
                     roles: required.roles,

@@ -55,6 +55,7 @@ type Mutation {
     tenant_id: String!
     election_event_id: String
     user: KeycloakUser2!
+    user_roles_ids: [String!]
   ): KeycloakUser!
 }
 

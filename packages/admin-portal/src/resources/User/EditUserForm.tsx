@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState} from "react"
+import React, {useCallback, useEffect, useMemo, useState} from "react"
 import {
     DateTimeInput,
     SaveButton,
@@ -29,6 +29,7 @@ import {
 } from "@mui/material"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {
+    CreateUserMutationVariables,
     DeleteUserRoleMutation,
     EditUsersInput,
     ListUserRolesQuery,
@@ -43,12 +44,16 @@ import {isUndefined} from "@sequentech/ui-core"
 import {DELETE_USER_ROLE} from "@/queries/DeleteUserRole"
 import {SET_USER_ROLE} from "@/queries/SetUserRole"
 import {FormStyles} from "@/components/styles/FormStyles"
+import {CREATE_USER} from "@/queries/CreateUser"
 
 interface ListUserRolesProps {
-    userId: string
-    userRoles: ListUserRolesQuery
+    userId?: string
+    userRoles?: ListUserRolesQuery
     rolesList: Array<IRole>
     refetch: () => void
+    createMode?: boolean
+    setUserRoles?: (id: string) => void
+    selectedRolesOnCreate?: string[]
 }
 
 export const ListUserRoles: React.FC<ListUserRolesProps> = ({
@@ -56,6 +61,9 @@ export const ListUserRoles: React.FC<ListUserRolesProps> = ({
     rolesList,
     userId,
     refetch,
+    createMode,
+    setUserRoles,
+    selectedRolesOnCreate,
 }) => {
     const [tenantId] = useTenantStore()
     const {t} = useTranslation()
@@ -64,7 +72,9 @@ export const ListUserRoles: React.FC<ListUserRolesProps> = ({
     const refresh = useRefresh()
     const notify = useNotify()
 
-    const activeRoleIds = userRoles?.list_user_roles.map((role) => role.id || "")
+    const activeRoleIds = createMode
+        ? selectedRolesOnCreate
+        : userRoles?.list_user_roles.map((role) => role.id || "")
 
     let rows: Array<IRole & {id: string; active: boolean}> = rolesList.map((role) => ({
         ...role,
@@ -77,28 +87,33 @@ export const ListUserRoles: React.FC<ListUserRolesProps> = ({
         if (!role?.name) {
             return
         }
+        if (createMode && setUserRoles && role.id) {
+            setUserRoles(role.id)
+        }
 
         // remove/add permission to role
-        const {errors} = await (props.value ? deleteUserRole : setUserRole)({
-            variables: {
-                tenantId: tenantId,
-                roleId: role.id,
-                userId: userId,
-            },
-        })
-        if (errors) {
-            notify(t(`usersAndRolesScreen.roles.notifications.permissionEditError`), {
-                type: "error",
+        if (!createMode && userId) {
+            const {errors} = await (props.value ? deleteUserRole : setUserRole)({
+                variables: {
+                    tenantId: tenantId,
+                    roleId: role.id,
+                    userId: userId,
+                },
             })
-            console.log(`Error editing permission: ${errors}`)
-            return
-        }
-        notify(t(`usersAndRolesScreen.roles.notifications.permissionEditSuccess`), {
-            type: "success",
-        })
-        refresh()
-        if (refetch) {
-            refetch()
+            if (errors) {
+                notify(t(`usersAndRolesScreen.roles.notifications.permissionEditError`), {
+                    type: "error",
+                })
+                console.log(`Error editing permission: ${errors}`)
+                return
+            }
+            notify(t(`usersAndRolesScreen.roles.notifications.permissionEditSuccess`), {
+                type: "success",
+            })
+            refresh()
+            if (refetch) {
+                refetch()
+            }
         }
     }
 
@@ -106,13 +121,12 @@ export const ListUserRoles: React.FC<ListUserRolesProps> = ({
         {
             field: "name",
             headerName: "Role",
-            width: 350,
+            width: 250,
             editable: false,
         },
         {
             field: "active",
             headerName: "Active",
-            width: 70,
             editable: false,
             renderCell: (props: GridRenderCellParams<any, boolean>) => (
                 <Checkbox checked={props.value} onClick={editRolePermission(props)} />
@@ -133,6 +147,7 @@ export const ListUserRoles: React.FC<ListUserRolesProps> = ({
                     },
                 }}
                 pageSizeOptions={[10, 20, 50, 100]}
+                style={{width: "100%"}}
             />
         </>
     )
@@ -159,10 +174,11 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const {data, isLoading} = useListContext<IUser & {id: string}>()
     let userOriginal: IUser | undefined = data?.find((element) => element.id === id)
     const [user, setUser] = useState<IUser | undefined>(createMode ? {enabled: true} : userOriginal)
+    const [selectedRolesOnCreate, setSelectedRolesOnCreate] = useState<string[]>([])
     const [tenantId] = useTenantStore()
     const refresh = useRefresh()
     const notify = useNotify()
-
+    const [createUser] = useMutation<CreateUserMutationVariables>(CREATE_USER)
     const [edit_user] = useMutation<EditUsersInput>(EDIT_USER)
     const {data: userRoles, refetch} = useQuery<ListUserRolesQuery>(LIST_USER_ROLES, {
         variables: {
@@ -178,40 +194,83 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     })
 
     useEffect(() => {
-        if (!isLoading && data) {
+        if (!createMode && !isLoading && data) {
             let userOriginal: IUser | undefined = data?.find((element) => element.id === id)
             setUser(userOriginal)
         }
     }, [isLoading, data, id])
 
-    const onSubmit = async () => {
+    const handleSelectedRolesOnCreate = useCallback(
+        (id: string) => {
+            const existId = selectedRolesOnCreate.find((roleId) => id === roleId)
+            if (existId) {
+                setSelectedRolesOnCreate((prev) => prev.filter((roleId) => id !== roleId))
+            } else {
+                setSelectedRolesOnCreate((prev) => [...prev, id])
+            }
+        },
+        [setSelectedRolesOnCreate, selectedRolesOnCreate]
+    )
+
+    const onSubmitCreateUser = async () => {
         try {
-            let {data} = await edit_user({
+            let {errors} = await createUser({
                 variables: {
-                    body: {
-                        user_id: user?.id,
-                        tenant_id: tenantId,
-                        election_event_id: electionEventId,
-                        first_name: user?.first_name,
-                        last_name: user?.last_name,
-                        enabled: user?.enabled,
-                        password:
-                            user?.password && user?.password.length > 0 ? user.password : undefined,
-                        email: user?.email,
-                        attributes: {
-                            "area-id": user?.attributes?.["area-id"],
-                            "sequent.read-only.mobile-number":
-                                user?.attributes?.["sequent.read-only.mobile-number"],
-                        },
-                    },
+                    tenantId,
+                    electionEventId,
+                    user,
+                    userRolesIds: selectedRolesOnCreate,
                 },
             })
-            notify(t("usersAndRolesScreen.voters.errors.editSuccess"), {type: "success"})
-            refresh()
             close?.()
+            if (errors) {
+                notify(t("usersAndRolesScreen.voters.errors.createError"), {type: "error"})
+                console.log(`Error creating user: ${errors}`)
+            } else {
+                notify(t("usersAndRolesScreen.voters.errors.createSuccess"), {type: "success"})
+                refresh()
+            }
         } catch (error) {
-            notify(t("usersAndRolesScreen.voters.errors.editError"), {type: "error"})
             close?.()
+            notify(t("usersAndRolesScreen.voters.errors.createError"), {type: "error"})
+            console.log(`Error creating user: ${error}`)
+        }
+    }
+
+    const onSubmit = async () => {
+        if (createMode) {
+            onSubmitCreateUser()
+        } else {
+            try {
+                let {data} = await edit_user({
+                    variables: {
+                        body: {
+                            user_id: user?.id,
+                            tenant_id: tenantId,
+                            election_event_id: electionEventId,
+                            first_name: user?.first_name,
+                            last_name: user?.last_name,
+                            enabled: user?.enabled,
+                            password:
+                                user?.password && user?.password.length > 0
+                                    ? user.password
+                                    : undefined,
+                            email: user?.email,
+                            attributes: {
+                                "area-id": user?.attributes?.["area-id"],
+                                "sequent.read-only.mobile-number":
+                                    user?.attributes?.["sequent.read-only.mobile-number"],
+                            },
+                        },
+                    },
+                })
+                notify(t("usersAndRolesScreen.voters.errors.editSuccess"), {type: "success"})
+                refresh()
+                close?.()
+            } catch (error) {
+                notify(t("usersAndRolesScreen.voters.errors.editError"), {type: "error"})
+                close?.()
+            }
         }
     }
 
@@ -315,17 +374,37 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     //     }
     // }
 
-    const getFormFiledLabel = (displayName: string, name: string) => {
+    const getFormFiledLabel = (displayName: string) => {
         if (displayName?.includes("$")) {
             return (
-                name
-                    .replace(/([a-z])([A-Z])/g, "$1 $2") // Add space between lowercase and uppercase letters
+                displayName
+                    .replace(/^\${|}$/g, "")
+                    .trim()
+                    .replace(/([a-z])([A-Z])/g, "$1 $2")
                     .replace(/^./, (match) => match.toUpperCase()) ?? ""
             )
         }
         return displayName ?? ""
     }
-    console.log("USER::::", user)
+
+    const AreaSelect = (displayName: string, name: string) => (
+        <FormControl fullWidth>
+            <InputLabel id="demo-simple-select-label">{displayName}</InputLabel>
+            <Select
+                name={displayName}
+                defaultValue={defaultAreaId}
+                value={defaultAreaId}
+                onChange={handleSelectChange(name)}
+                label={displayName}
+            >
+                {areas?.map((area: Sequent_Backend_Area) => (
+                    <MenuItem key={area.id} value={area.id}>
+                        {area.name}
+                    </MenuItem>
+                ))}
+            </Select>
+        </FormControl>
+    )
 
     const renderFormField = (attr: UserProfileAttribute) => {
         if (attr.name) {
@@ -361,13 +440,13 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             ) {
                 const choices = Object.entries(attr.annotations?.inputOptionLabels).map(
                     ([key, value]) => {
-                        return {id: key, name: getFormFiledLabel(value as string, key)}
+                        return {id: key, name: getFormFiledLabel(value as string)}
                     }
                 )
                 return (
                     <FormControl component="fieldset">
-                        <FormLabel component="legend">
-                            {getFormFiledLabel(displayName, attr.name)}
+                        <FormLabel component="legend" style={{margin: 0}}>
+                            {getFormFiledLabel(displayName)}
                         </FormLabel>
                         <FormGroup row>
                             {choices.map((choice) => {
@@ -397,6 +476,8 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         label={attr.name}
                     />
                 )
+            } else if (attr.name.toLowerCase().includes("area")) {
+                return AreaSelect(displayName, attr.name)
             }
             return (
                 <>
@@ -409,7 +490,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     ) : (
                         <FormStyles.TextInput
                             key={attr.display_name}
-                            label={getFormFiledLabel(attr.display_name ?? "", attr.name)}
+                            label={getFormFiledLabel(attr.display_name ?? "")}
                             onChange={handleChange}
                             source={attr.name}
                         />
@@ -435,43 +516,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.subtitle`)}
                     </PageHeaderStyles.SubTitle>
                     {userAttributes?.map((attr) => attr.name && renderFormField(attr))}
-
-                    {/* <FormStyles.TextInput
-                        label={t("usersAndRolesScreen.users.fields.first_name")}
-                        source="first_name"
-                        onChange={handleChange}
-                    />
-                    <FormStyles.TextInput
-                        label={t("usersAndRolesScreen.users.fields.last_name")}
-                        source="last_name"
-                        onChange={handleChange}
-                    />
-                    <FormStyles.TextInput
-                        label={t("usersAndRolesScreen.users.fields.email")}
-                        source="email"
-                        onChange={handleChange}
-                    />
-                    <FormStyles.TextInput
-                        label={t("usersAndRolesScreen.users.fields.username")}
-                        source="username"
-                        onChange={handleChange}
-                    />
-                    <FormStyles.TextField
-                        label={t("usersAndRolesScreen.common.mobileNumber")}
-                        value={user?.attributes?.["sequent.read-only.mobile-number"]}
-                        onChange={handleAttrChange("sequent.read-only.mobile-number")}
-                    /> */}
-                    {/* <FormStyles.PasswordInput
-                        label={t("usersAndRolesScreen.users.fields.password")}
-                        source="password"
-                        onChange={handleChange}
-                    />
-                    <FormStyles.PasswordInput
-                        label={t("usersAndRolesScreen.users.fields.repeatPassword")}
-                        source="repeat_password"
-                        validate={equalToPassword}
-                        onChange={handleChange}
-                    /> */}
                     <FormStyles.CheckboxControlLabel
                         label={t("usersAndRolesScreen.users.fields.enabled")}
                         control={
@@ -483,32 +527,15 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             />
                         }
                     />
-                    {electionEventId ? (
-                        <FormControl fullWidth>
-                            <ElectionHeaderStyles.Title>
-                                {t("usersAndRolesScreen.users.fields.area")}
-                            </ElectionHeaderStyles.Title>
-
-                            <Select
-                                name="area"
-                                defaultValue={defaultAreaId}
-                                value={defaultAreaId}
-                                onChange={handleSelectChange("area-id")}
-                            >
-                                {areas?.map((area: Sequent_Backend_Area) => (
-                                    <MenuItem key={area.id} value={area.id}>
-                                        {area.name}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-                    ) : null}
-                    {isUndefined(electionEventId) && !isUndefined(userRoles) && !isUndefined(id) ? (
+                    {isUndefined(electionEventId) ? (
                         <ListUserRoles
                             userRoles={userRoles}
                             rolesList={rolesList}
                             userId={id}
                             refetch={() => refetch()}
+                            createMode={createMode}
+                            setUserRoles={createMode ? handleSelectedRolesOnCreate : undefined}
+                            selectedRolesOnCreate={selectedRolesOnCreate}
                         />
                     ) : null}
                 </>

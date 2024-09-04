@@ -100,7 +100,7 @@ impl KeycloakAdminClient {
 
     #[instrument(skip(self), err)]
     pub async fn set_user_role(
-        self,
+        self: &KeycloakAdminClient,
         realm: &str,
         user_id: &str,
         role_id: &str,
