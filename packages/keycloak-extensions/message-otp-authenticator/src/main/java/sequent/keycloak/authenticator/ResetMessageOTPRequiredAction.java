@@ -132,7 +132,8 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
           authSession,
           Utils.MessageCourier.BOTH,
           /* deferredUser */ false,
-          isOtl);
+          isOtl,
+          new String[0]);
     } catch (Exception error) {
       StringWriter sw = new StringWriter();
       error.printStackTrace(new PrintWriter(sw));

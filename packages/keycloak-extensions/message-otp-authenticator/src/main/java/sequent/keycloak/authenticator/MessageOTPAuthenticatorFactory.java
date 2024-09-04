@@ -119,6 +119,12 @@ public class MessageOTPAuthenticatorFactory
             ProviderConfigProperty.BOOLEAN_TYPE,
             "false"),
         new ProviderConfigProperty(
+            Utils.OTL_RESTORED_AUTH_NOTES_ATTRIBUTE,
+            "Comma Separated Names of the Auth Notes to Restore",
+            "When loading an OTL, these are the Auth Notes that will be restored from the previous session",
+            ProviderConfigProperty.STRING_TYPE,
+            ""),
+        new ProviderConfigProperty(
             Utils.RESEND_ACTIVATION_TIMER,
             "Seconds to activate resend",
             "Time in seconds the resend code gets re activated",

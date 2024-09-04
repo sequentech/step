@@ -148,7 +148,8 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
           authSession,
           Utils.MessageCourier.EMAIL,
           /* deferred user */ false,
-          isOtl);
+          isOtl,
+          new String[0]);
       context.challenge(
           form.setAttribute(
                   "address",

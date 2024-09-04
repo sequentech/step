@@ -150,8 +150,12 @@ public class MessageOTPAuthenticator
 
     // handle OTL
     boolean isOtl = config.getConfig().get(Utils.ONE_TIME_LINK).equals("true");
+    String otlAuthNotesToRestore = config.getConfig().get(Utils.OTL_RESTORED_AUTH_NOTES_ATTRIBUTE);
+    String[] otlAuthNoteNames =
+        otlAuthNotesToRestore == null ? new String[0] : otlAuthNotesToRestore.split(",");
     String otlVisited = authSession.getAuthNote(Utils.OTL_VISITED);
     if (!resend && isOtl && otlVisited != null && otlVisited.equals("true")) {
+      log.info("OTL visited = true -> context.success()");
       context.success();
       return;
     }
@@ -199,7 +203,15 @@ public class MessageOTPAuthenticator
       }
 
       if ((!resend && (code == null || ttl == null)) || (resend && allowResend)) {
-        Utils.sendCode(config, session, user, authSession, messageCourier, deferredUser, isOtl);
+        Utils.sendCode(
+            config,
+            session,
+            user,
+            authSession,
+            messageCourier,
+            deferredUser,
+            isOtl,
+            otlAuthNoteNames);
         codeJustSent = true;
         // after sending the code, we have a new ttl
         ttl = authSession.getAuthNote(Utils.CODE_TTL);

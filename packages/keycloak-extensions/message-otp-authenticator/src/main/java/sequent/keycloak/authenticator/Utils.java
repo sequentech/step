@@ -7,6 +7,8 @@ package sequent.keycloak.authenticator;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
+import jakarta.ws.rs.core.UriBuilder;
+import jakarta.ws.rs.core.UriInfo;
 import java.io.IOException;
 import java.net.URI;
 import java.text.MessageFormat;
@@ -17,27 +19,24 @@ import java.util.Optional;
 import java.util.Properties;
 import lombok.experimental.UtilityClass;
 import lombok.extern.jbosslog.JBossLog;
-import jakarta.ws.rs.core.UriBuilder;
-import jakarta.ws.rs.core.UriInfo;
-
-import org.keycloak.common.util.Time;
-import org.keycloak.models.Constants;
-import org.keycloak.services.Urls;
-import org.keycloak.services.resources.LoginActionsService;
-import org.keycloak.services.resources.RealmsResource;
-import org.keycloak.sessions.AuthenticationSessionCompoundId;
 import org.keycloak.authentication.actiontoken.DefaultActionToken;
 import org.keycloak.common.util.SecretGenerator;
+import org.keycloak.common.util.Time;
 import org.keycloak.email.EmailException;
 import org.keycloak.email.EmailSenderProvider;
 import org.keycloak.email.EmailTemplateProvider;
 import org.keycloak.email.freemarker.beans.ProfileBean;
 import org.keycloak.forms.login.freemarker.model.UrlBean;
 import org.keycloak.models.AuthenticatorConfigModel;
+import org.keycloak.models.Constants;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakUriInfo;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.services.Urls;
+import org.keycloak.services.resources.LoginActionsService;
+import org.keycloak.services.resources.RealmsResource;
+import org.keycloak.sessions.AuthenticationSessionCompoundId;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.theme.FreeMarkerException;
 import org.keycloak.theme.Theme;
@@ -59,6 +58,7 @@ public class Utils {
   public final String TEL_USER_ATTRIBUTE = "telUserAttribute";
   public final String MESSAGE_COURIER_ATTRIBUTE = "messageCourierAttribute";
   public final String DEFERRED_USER_ATTRIBUTE = "deferredUserAttribute";
+  public final String OTL_RESTORED_AUTH_NOTES_ATTRIBUTE = "otlRestoredAuthNotesAttribute";
 
   public final String SEND_CODE_SMS_I18N_KEY = "messageOtp.sendCode.sms.text";
   public final String SEND_CODE_EMAIL_SUBJECT = "messageOtp.sendCode.email.subject";
@@ -100,7 +100,8 @@ public class Utils {
       AuthenticationSessionModel authSession,
       MessageCourier messageCourier,
       boolean deferredUser,
-      boolean isOtl)
+      boolean isOtl,
+      String[] otlAuthNotesNames)
       throws IOException, EmailException {
     log.info("sendCode(): start");
     String mobileNumber = null;
@@ -126,7 +127,7 @@ public class Utils {
 
     // Handle OTL/OTP
     if (isOtl) {
-      code = generateOTL(authSession, session, ttl);
+      code = generateOTL(authSession, session, ttl, otlAuthNotesNames);
       authSession.setAuthNote(Utils.OTL_VISITED, "false");
     } else {
       code = SecretGenerator.getInstance().randomString(length, SecretGenerator.DIGITS);
@@ -232,7 +233,9 @@ public class Utils {
   }
 
   UriBuilder actionTokenBuilder(URI baseUri, String tokenString, String clientId) {
-    log.infof("actionTokenBuilder(): baseUri: %s, tokenString: %s, clientId: %s", baseUri, tokenString, clientId);
+    log.infof(
+        "actionTokenBuilder(): baseUri: %s, tokenString: %s, clientId: %s",
+        baseUri, tokenString, clientId);
     return Urls.realmBase(baseUri)
         .path(RealmsResource.class, "getLoginActionsService")
         .path(LoginActionsService.class, "executeActionToken")
@@ -241,30 +244,33 @@ public class Utils {
   }
 
   String generateOTL(
-    AuthenticationSessionModel authSession,
-    KeycloakSession session,
-    int ttl
-  ) {
+      AuthenticationSessionModel authSession,
+      KeycloakSession session,
+      int ttl,
+      String[] otlAuthNotesNames) {
     // Get necessary components from the context
-    AuthenticationSessionCompoundId compoundId = 
-      AuthenticationSessionCompoundId.fromAuthSession(authSession);
+    AuthenticationSessionCompoundId compoundId =
+        AuthenticationSessionCompoundId.fromAuthSession(authSession);
     String sessionId = compoundId.getEncodedId();
-    String userId = authSession.getAuthenticatedUser() == null
-      ? authSession.getAuthNote(USER_ID)
-      : authSession.getAuthenticatedUser().getId();
+    String userId =
+        authSession.getAuthenticatedUser() == null
+            ? authSession.getAuthNote(USER_ID)
+            : authSession.getAuthenticatedUser().getId();
     RealmModel realm = authSession.getRealm();
 
     // Create the OTLActionToken with the necessary information
-    OTLActionToken token = new OTLActionToken(
-      userId,    // User ID
-      Time.currentTime() + ttl,       // Expiration time in seconds
-      sessionId, // Original compound session ID
-      authSession.getClient().getClientId()
-    );
+    OTLActionToken token =
+        new OTLActionToken(
+            userId,
+            Time.currentTime() + ttl,
+            sessionId, // Original compound session ID
+            otlAuthNotesNames,
+            authSession.getClient().getClientId());
 
     // Generate the OTL link
     return linkFromActionToken(session, realm, token);
-  };
+  }
+  ;
 
   Optional<AuthenticatorConfigModel> getConfig(RealmModel realm) {
     // Using streams to find the first matching configuration
