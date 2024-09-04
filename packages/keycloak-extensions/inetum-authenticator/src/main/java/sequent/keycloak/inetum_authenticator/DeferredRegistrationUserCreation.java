@@ -192,7 +192,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         } else if (!pve.hasError(Messages.EMAIL_EXISTS)) {
           context.error(Errors.INVALID_EMAIL);
         } else {
-            context.error(Errors.INVALID_REGISTRATION);
+          context.error(Errors.INVALID_REGISTRATION);
         }
         log.info(errors);
         context.validationError(formData, errors);
