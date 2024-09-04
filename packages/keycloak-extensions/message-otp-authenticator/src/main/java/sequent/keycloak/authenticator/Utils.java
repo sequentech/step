@@ -475,6 +475,7 @@ public class Utils {
     String idNumber = authSession.getAuthNote(ID_NUMBER);
     String userId = context.getAuthenticationSession().getAuthNote(USER_ID);
     String phoneNumber = context.getAuthenticationSession().getAuthNote(PHONE_NUMBER_ATTRIBUTE);
+
     context.getEvent().user(userId);
     context.getEvent().detail(Details.EMAIL, email);
     context.getEvent().detail(ID_NUMBER, idNumber);

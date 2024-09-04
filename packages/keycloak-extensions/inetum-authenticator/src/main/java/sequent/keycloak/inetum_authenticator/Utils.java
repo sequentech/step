@@ -85,6 +85,8 @@ public class Utils {
   public static final String ERROR_USER_ATTRIBUTES_NOT_UNIQUE = "userAttributesNotUnique";
   public static final String PHONE_NUMBER = "phone_number";
   public static final String PHONE_NUMBER_ATTRIBUTE = "sequent.read-only.id-mobile-number";
+  public static final String ID_NUMBER_ATTRIBUTE = "sequent.read-only.id-card-number";
+  public static final String ID_NUMBER = "ID_number";
 
   /**
    * We store the user data entered in the registration form in the session notes. This information
@@ -263,7 +265,9 @@ public class Utils {
     String lastName = authSession.getAuthNote(UserModel.LAST_NAME);
     String phoneNumber = authSession.getAuthNote(PHONE_NUMBER_ATTRIBUTE);
     String userId = context.getAuthenticationSession().getAuthNote(USER_ID);
+    String idNumber = authSession.getAuthNote(ID_NUMBER);
 
+    context.getEvent().detail(ID_NUMBER, idNumber);
     context.getEvent().user(userId);
     context.getEvent().detail(Details.EMAIL, email);
     context.getEvent().detail(Details.FIRST_NAME, firstName);

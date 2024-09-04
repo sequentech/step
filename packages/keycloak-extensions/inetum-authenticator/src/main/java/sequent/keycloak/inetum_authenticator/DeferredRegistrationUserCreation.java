@@ -120,7 +120,6 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     List<String> searchAttributesList = parseAttributesList(searchAttributes);
     List<String> unsetAttributesList = parseAttributesList(unsetAttributes);
     List<String> uniqueAttributesList = parseAttributesList(uniqueAttributes);
-    log.info("uniqueAttributesList: " + uniqueAttributesList);
     // Get the form data
     MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
     context.getEvent().detail(Details.REGISTER_METHOD, "form");
@@ -138,8 +137,8 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     context.getEvent().detail(Details.USERNAME, username);
     context.getEvent().detail(Details.FIRST_NAME, firstName);
     context.getEvent().detail(Details.LAST_NAME, lastName);
-    context.getEvent().detail("phone_number", phoneNumber);
-    context.getEvent().detail("ID_number", IDNumber);
+    context.getEvent().detail(Utils.PHONE_NUMBER, phoneNumber);
+    context.getEvent().detail(Utils.ID_NUMBER, IDNumber);
 
     if (context.getRealm().isRegistrationEmailAsUsername()) {
       context.getEvent().detail(Details.USERNAME, email);
@@ -312,7 +311,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         }
       }
     }
-    log.info("errors formMessages" + errors);
+
     if (errors.size() > 0) {
       for (FormMessage formMessage : errors) {
         if (formMessage.getField() == RegistrationPage.FIELD_PASSWORD_CONFIRM) {
