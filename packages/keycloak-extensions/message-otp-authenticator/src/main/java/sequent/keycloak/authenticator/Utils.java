@@ -80,7 +80,6 @@ public class Utils {
   public static final String ID_NUMBER = "ID_number";
   public static final String PHONE_NUMBER = "Phone_number";
 
-
   public enum MessageCourier {
     SMS,
     EMAIL,

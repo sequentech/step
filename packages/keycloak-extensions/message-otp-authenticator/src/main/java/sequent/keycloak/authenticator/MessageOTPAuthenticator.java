@@ -118,7 +118,7 @@ public class MessageOTPAuthenticator
       }
     } else {
       // invalid
-      
+
       context
           .getEvent()
           .error(INVALID_CODE + " code input: " + enteredCode + " code should be: " + code);
@@ -225,12 +225,12 @@ public class MessageOTPAuthenticator
             deferredUser,
             isOtl,
             otlAuthNoteNames);
-context
-.getEvent()
-.detail("action", "send_code via " + messageCourier)
-.detail("is_resend", String.valueOf(resend))
-.success();        
-codeJustSent = true;
+        context
+            .getEvent()
+            .detail("action", "send_code via " + messageCourier)
+            .detail("is_resend", String.valueOf(resend))
+            .success();
+        codeJustSent = true;
         // after sending the code, we have a new ttl
         ttl = authSession.getAuthNote(Utils.CODE_TTL);
         log.info("OTP resent successfully");
