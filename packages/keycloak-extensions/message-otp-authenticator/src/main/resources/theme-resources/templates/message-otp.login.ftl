@@ -7,23 +7,38 @@ SPDX-License-Identifier: AGPL-3.0-only
 <#import "template.ftl" as layout>
 <@layout.registrationLayout displayInfo=true; section>
 	<#if section = "header">
-<div>
-    <div>
-     <#if address??>
-     <div>
-		${msg("messageOtpAuthTitleAddress")}
-     </div>
-     <div>
-        ${address}
-     </div>
-        <#else>
-        ${msg("messageOtpAuthTitle")}
-        </#if>
-    </div>
-    </div>
+        <div>
+            <div>
+                <#if address??>
+                    <div>
+                        <#if isOtl>
+                            ${msg("messageOtp.otl.address")}
+                        <#else>
+                            ${msg("messageOtp.auth.address")}
+                        </#if>
+                    </div>
+                    <div>
+                        ${address}
+                    </div>
+                <#else>
+                    <#if isOtl>
+                        ${msg("messageOtp.otl.title", realm.displayName)}
+                    <#else>
+                        ${msg("messageOtp.auth.title", realm.displayName)}
+                    </#if>
+                </#if>
+            </div>
+        </div>
     <#elseif section = "show-username">
-        <h1>${msg("messageOtpAuthTitle", realm.displayName)}</h1>
+        <h1>
+            <#if isOtl>
+                ${msg("messageOtp.otl.title", realm.displayName)}
+            <#else>
+                ${msg("messageOtp.auth.title", realm.displayName)}
+            </#if>
+        </h1>
 	<#elseif section = "form">
+        <#if !isOtl>
 		<form
 			id="kc-message-code-login-form"
 			class="${properties.kcFormClass!}"
@@ -36,7 +51,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						for="code"
 						class="${properties.kcLabelClass!}"
 					>
-						${msg("messageOtpAuthLabel")}
+						${msg("messageOtp.auth.label")}
 					</label>
 				</div>
 				<div class="${properties.kcInputWrapperClass!}">
@@ -74,9 +89,9 @@ SPDX-License-Identifier: AGPL-3.0-only
             </div>
 
 <script>
-    let resendTimerI18n = "${msg("resendOtpTimer")}"
+    let resendTimerI18n = "${msg("messageOtp.auth.resend.timer")}"
     let resendTimerTimeout = ${(resendTimer)};
-    let resendButtonI18n = "${msg("resendOtpButton")}"
+    let resendButtonI18n = "${msg("messageOtp.auth.resend.button")}"
     let codeJustSent = "${(codeJustSent?string('true', 'false'))}"
     <#noparse>
     function resendOtp(resendTimerTimeout) {
@@ -138,23 +153,47 @@ SPDX-License-Identifier: AGPL-3.0-only
 </script>
 
 		</form>
-	<#elseif section = "info" >
-		<#if courier??>
-			<#if courier = "SMS">
-				${msg("messageOtpAuthInstructionSms")}
-			<#elseif courier = "EMAIL" >
-				${msg("messageOtpAuthInstructionEmail")}
-			<#elseif courier = "BOTH" >
-				${msg("messageOtpAuthInstruction")}
+        </#if>
+	<#elseif section = "info">
+        <p class="kc-message-otl-instructions">
+            <#if isOtl>
+                    <#if courier??>
+                        <#if courier = "SMS">
+                            ${msg("messageOtp.otl.instructionSms")}
+                        <#elseif courier = "EMAIL" >
+                            ${msg("messageOtp.otl.instructionEmail")}
+                        <#elseif courier = "BOTH" >
+                            ${msg("messageOtp.otl.instructionBoth")}
+                        </#if>
+                    <#else>
+                        ${msg("messageOtp.otl.instructionBoth")}
+                    </#if>
+                </p>
+            <#else>
+                <#if courier??>
+                    <#if courier = "SMS">
+                        ${msg("messageOtp.auth.instructionSms")}
+                    <#elseif courier = "EMAIL" >
+                        ${msg("messageOtp.auth.instructionEmail")}
+                    <#elseif courier = "BOTH" >
+                        ${msg("messageOtp.auth.instructionBoth")}
+                    </#if>
+                <#else>
+                    ${msg("messageOtp.auth.instructionBoth")}
+                </#if>
 			</#if>
-		</#if>
+        </p>
         <#if ttl??>
             <div>
                 <#assign ttlSeconds = ttl?number>
                 <#assign ttlMinutes = ttlSeconds / 60>
                 <#assign roundedMinutes = (ttlMinutes)?round>
                     <span>
-                        ${msg("messageOtpAuthTTLTime",roundedMinutes)}
+                        <#if isOtl>
+                            ${msg("messageOtp.otl.ttlTime",roundedMinutes)}
+                        <#else>
+                            ${msg("messageOtp.auth.ttlTime",roundedMinutes)}
+                        </#if>
                     </span>
             </div>
         </#if>
