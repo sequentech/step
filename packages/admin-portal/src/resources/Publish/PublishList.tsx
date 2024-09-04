@@ -66,7 +66,7 @@ export const PublishList: React.FC<TPublishList> = ({
             </Typography>
             {canWrite && (
                 <>
-                    <Button onClick={onGenerate}>
+                    <Button onClick={onGenerate} className="publish-add-button">
                         <IconButton icon={faPlus} fontSize="24px" />
                         {t("publish.empty.action")}
                     </Button>
@@ -84,7 +84,7 @@ export const PublishList: React.FC<TPublishList> = ({
 
     const actions: Action[] = [
         {
-            icon: <Visibility />,
+            icon: <Visibility className="publish-visibility-icon" />,
             action: setBallotPublicationId,
         },
     ]
