@@ -26,6 +26,8 @@ public class MessageOTPAuthenticator
   public static final String MOBILE_NUMBER_FIELD = "sequent.read-only.mobile-number";
   private static final String TPL_CODE = "message-otp.login.ftl";
   private static final String EMAIL_VERIFIED = "Email verified";
+  public static final String INVALID_CODE = "invalid otp Code";
+  public static final String EXPITED_CODE = "Code expired";
 
   @Override
   public MessageOTPCredentialProvider getCredentialProvider(KeycloakSession session) {
@@ -47,7 +49,11 @@ public class MessageOTPAuthenticator
   @Override
   public void action(AuthenticationFlowContext context) {
     log.info("action() called");
+
     String resend = context.getHttpRequest().getDecodedFormParameters().getFirst("resend");
+    UserModel user = context.getUser();
+    Utils.buildEventDetails(context);
+
     if (resend != null && resend.equals("true")) {
       intiateForm(context, /*resend*/ true);
       return;
@@ -91,6 +97,7 @@ public class MessageOTPAuthenticator
       context.getAuthenticationSession().removeAuthNote(Utils.CODE);
       if (Long.parseLong(ttl) < System.currentTimeMillis()) {
         // expired
+        context.getEvent().error(EXPITED_CODE);
         context.failureChallenge(
             AuthenticationFlowError.EXPIRED_CODE,
             context
@@ -106,13 +113,18 @@ public class MessageOTPAuthenticator
         }
 
         // valid
+        context.getEvent().success();
         context.success();
       }
     } else {
       // invalid
+
+      context
+          .getEvent()
+          .error(INVALID_CODE + " code input: " + enteredCode + " code should be: " + code);
+
       boolean deferredUser = config.getConfig().get(Utils.DEFERRED_USER_ATTRIBUTE).equals("true");
       AuthenticationExecutionModel execution = context.getExecution();
-      UserModel user = context.getUser();
       String resendTimer = config.getConfig().get(Utils.RESEND_ACTIVATION_TIMER);
       if (resendTimer == null) {
         resendTimer = System.getenv("KC_OTP_RESEND_INTERVAL");
@@ -146,7 +158,10 @@ public class MessageOTPAuthenticator
     Utils.MessageCourier messageCourier =
         Utils.MessageCourier.fromString(config.getConfig().get(Utils.MESSAGE_COURIER_ATTRIBUTE));
     boolean deferredUser = config.getConfig().get(Utils.DEFERRED_USER_ATTRIBUTE).equals("true");
+    log.info("defferedUser: " + deferredUser);
     boolean codeJustSent = false;
+    UserModel user = context.getUser();
+    Utils.buildEventDetails(context);
 
     // handle OTL
     boolean isOtl = config.getConfig().get(Utils.ONE_TIME_LINK).equals("true");
@@ -169,8 +184,6 @@ public class MessageOTPAuthenticator
             .setAttribute("ttl", config.getConfig().get(Utils.CODE_TTL));
 
     try {
-      UserModel user = context.getUser();
-
       // if we have a code in the session and it has not expired, then we don't
       // resend the message
       String code = authSession.getAuthNote(Utils.CODE);
@@ -212,6 +225,11 @@ public class MessageOTPAuthenticator
             deferredUser,
             isOtl,
             otlAuthNoteNames);
+        context
+            .getEvent()
+            .detail("action", "send_code via " + messageCourier)
+            .detail("is_resend", String.valueOf(resend))
+            .success();
         codeJustSent = true;
         // after sending the code, we have a new ttl
         ttl = authSession.getAuthNote(Utils.CODE_TTL);
