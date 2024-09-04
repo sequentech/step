@@ -96,9 +96,7 @@ impl fmt::Display for CloudflareError {
 
 impl Error for CloudflareError {}
 
-pub async fn get_page_rule(
-    target_value: &str,
-) -> Result<Option<PageRule>, Box<dyn Error>> {
+pub async fn get_page_rule(target_value: &str) -> Result<Option<PageRule>, Box<dyn Error>> {
     info!("target_value {:?}", target_value);
     let page_rules = get_all_page_rules().await?;
     info!("get_page_rules: {:?}", page_rules);
@@ -113,19 +111,13 @@ pub async fn set_custom_url(
     info!("Origin: {:?}", origin);
     info!("Redirect to: {:?}", redirect_to);
 
-    if std::env::var("CLOUDFLARE_ENV").is_err() {
-        info!("CLOUDFLARE_ENV environment variable is not set.");
-        return Err("CLOUDFLARE_ENV environment variable is not set.".into());
-    }
-
     let current_page_rule = match get_page_rule(origin).await {
         Ok(page_rule) => {
             info!("Current page rule found: {:?}", page_rule);
             page_rule
         }
         Err(e) => {
-            let error_message =
-                format!("Failed to get page rule for {}: {}", origin, e);
+            let error_message = format!("Failed to get page rule for {}: {}", origin, e);
             info!("{}", error_message);
             return Err(error_message.into());
         }
@@ -134,7 +126,9 @@ pub async fn set_custom_url(
     info!("DNS Prefix: {:?}", dns_prefix);
 
     if let Err(e) = create_dns_record(redirect_to, dns_prefix).await {
-        let error_message = format!("Failed to create DNS record: Check if A record with the same settings already exists.");
+        let error_message = format!(
+            "Failed to create DNS record: Check if A record with the same settings already exists."
+        );
         info!("{}", error_message);
     }
 
@@ -142,9 +136,7 @@ pub async fn set_custom_url(
 
     match current_page_rule {
         Some(page_rule) => {
-            if let Err(e) =
-                update_page_rule(&page_rule.id, redirect_to, origin).await
-            {
+            if let Err(e) = update_page_rule(&page_rule.id, redirect_to, origin).await {
                 let error_message = format!("Failed to update page rule");
                 info!("{}", error_message);
                 return Err(error_message.into());
@@ -196,21 +188,16 @@ async fn get_all_page_rules() -> Result<Vec<PageRule>, Box<dyn Error>> {
         .map_err(|e| CloudflareError::new(&format!("Request error: {}", e)))?;
 
     if response.status().is_success() {
-        let api_response: ApiResponse<Vec<PageRule>> =
-            response.json().await.map_err(|e| {
-                CloudflareError::new(&format!(
-                    "Failed to parse response: {}",
-                    e
-                ))
-            })?;
+        let api_response: ApiResponse<Vec<PageRule>> = response
+            .json()
+            .await
+            .map_err(|e| CloudflareError::new(&format!("Failed to parse response: {}", e)))?;
         Ok(api_response.result)
     } else {
-        let error_text = response.text().await.map_err(|e| {
-            CloudflareError::new(&format!(
-                "Failed to read error response: {}",
-                e
-            ))
-        })?;
+        let error_text = response
+            .text()
+            .await
+            .map_err(|e| CloudflareError::new(&format!("Failed to read error response: {}", e)))?;
         info!("Error response: {}", error_text);
         Err(Box::new(CloudflareError::new(&format!(
             "Failed to get page rules: {}",
@@ -219,10 +206,7 @@ async fn get_all_page_rules() -> Result<Vec<PageRule>, Box<dyn Error>> {
     }
 }
 
-fn find_matching_target(
-    rules: Vec<PageRule>,
-    expected_redirect_url: &str,
-) -> Option<PageRule> {
+fn find_matching_target(rules: Vec<PageRule>, expected_redirect_url: &str) -> Option<PageRule> {
     for rule in rules {
         for action in &rule.actions {
             let forward = &action.value;
@@ -258,35 +242,23 @@ fn create_payload(origin: &str, redirect_to: &str) -> CreatePageRuleRequest {
     }
 }
 
-fn create_dns_payload(
-    redirect_to: &str,
-    origin: &str,
-) -> CreateDNSRecordRequest {
-    let cloudflare_ip_dns_content = std::env::var("CUSTOM_URLS_IP_DNS_CONTENT")
-        .unwrap_or_else(|_| "default.ip.address".to_string());
+fn create_dns_payload(redirect_to: &str, origin: &str) -> CreateDNSRecordRequest {
     CreateDNSRecordRequest {
         name: origin.to_string(),
         record_type: "A".to_string(),
-        content: cloudflare_ip_dns_content,
+        content: redirect_to.to_string(),
         ttl: 3600,
         proxied: false,
     }
 }
 
-pub async fn create_dns_record(
-    redirect_to: &str,
-    dns_prefix: &str,
-) -> Result<(), Box<dyn Error>> {
+pub async fn create_dns_record(redirect_to: &str, dns_prefix: &str) -> Result<(), Box<dyn Error>> {
     let client = Client::new();
     let (zone_id, api_email, api_key) = match get_cloudflare_vars() {
         Ok(vars) => vars,
         Err(e) => {
             error!("Failed to get Cloudflare environment variables: {}", e);
-            return Err(format!(
-                "Failed to get Cloudflare environment variables: {}",
-                e
-            )
-            .into());
+            return Err(format!("Failed to get Cloudflare environment variables: {}", e).into());
         }
     };
 
@@ -320,9 +292,7 @@ pub async fn create_dns_record(
             Ok(text) => text,
             Err(e) => {
                 error!("Failed to read error response: {}", e);
-                return Err(
-                    format!("Failed to read error response: {}", e).into()
-                );
+                return Err(format!("Failed to read error response: {}", e).into());
             }
         };
         Err(format!("Failed to create DNS record: {}", body).into())
@@ -365,10 +335,7 @@ async fn update_page_rule(
     }
 }
 
-async fn create_page_rule(
-    redirect_to: &str,
-    origin: &str,
-) -> Result<(), Box<dyn Error>> {
+async fn create_page_rule(redirect_to: &str, origin: &str) -> Result<(), Box<dyn Error>> {
     let (zone_id, api_email, api_key) = get_cloudflare_vars()?;
     let client = Client::new();
     info!("create_page_rule");
@@ -390,12 +357,10 @@ async fn create_page_rule(
         info!("Page rule created successfully");
         Ok(())
     } else {
-        let error_text = response.text().await.map_err(|e| {
-            CloudflareError::new(&format!(
-                "Failed to read error response: {}",
-                e
-            ))
-        })?;
+        let error_text = response
+            .text()
+            .await
+            .map_err(|e| CloudflareError::new(&format!("Failed to read error response: {}", e)))?;
         Err(Box::new(CloudflareError::new(&format!(
             "Failed to create page rule: {}",
             error_text

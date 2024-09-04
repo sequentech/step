@@ -572,7 +572,7 @@ export const EditElectionEventDataForm: React.FC = () => {
             const urlEntries = [
                 {
                     key: "login",
-                    origin: `https://${customUrlsValues.login}.${process.env.CUSTOM_URLS_DOMAIN_NAME}/login`,
+                    origin: `https://${customUrlsValues.login}.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}/login`,
                     redirect_to: getAuthUrl(
                         globalSettings.VOTING_PORTAL_URL,
                         tenantId ?? "",
@@ -583,7 +583,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                 },
                 {
                     key: "enrollment",
-                    origin: `https://${customUrlsValues.enrollment}.${process.env.CUSTOM_URLS_DOMAIN_NAME}/enrollment`,
+                    origin: `https://${customUrlsValues.enrollment}.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}/enrollment`,
                     redirect_to: getAuthUrl(
                         globalSettings.VOTING_PORTAL_URL,
                         tenantId ?? "",
@@ -943,7 +943,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                                                     })
                                                 }
                                             />
-                                            <p>{`.${process.env.CUSTOM_URLS_DOMAIN_NAME}/login`}</p>
+                                            <p>{`.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}/login`}</p>
                                             {isCustomUrlLoading ? (
                                                 <WizardStyles.DownloadProgress size={18} />
                                             ) : (
@@ -978,7 +978,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                                                     })
                                                 }
                                             />
-                                            <p>{`.${process.env.CUSTOM_URLS_DOMAIN_NAME}/enrollment`}</p>
+                                            <p>{`.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}/enrollment`}</p>
                                             {isCustomUrlLoading ? (
                                                 <WizardStyles.DownloadProgress size={18} />
                                             ) : (

@@ -20,6 +20,7 @@ export interface GlobalSettings {
     PUBLIC_BUCKET_URL: string
     VOTING_PORTAL_URL: string
     ACTIVATE_MIRU_EXPORT: boolean
+    CUSTOM_URLS_DOMAIN_NAME: string
 }
 
 interface SettingsContextValues {
@@ -81,6 +82,7 @@ const defaultSettingsValues: SettingsContextValues = {
         PUBLIC_BUCKET_URL: "http://127.0.0.1:9002/public/",
         VOTING_PORTAL_URL: "http://localhost:3000",
         ACTIVATE_MIRU_EXPORT: false,
+        CUSTOM_URLS_DOMAIN_NAME: "google.com",
     },
 }
 
