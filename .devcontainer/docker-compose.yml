@@ -595,7 +595,7 @@ services:
       "--ignore",
       "rust-local-target/",
       "-x",
-      "run --bin main consume --acks-late -q short_queue tally_queue beat reports_queue communication_queue import_export_queue"
+      "run --bin main consume -q short_queue tally_queue reports_queue beat communication_queue import_export_queue"
     ]
     volumes_from:
       - devcontainer
@@ -606,7 +606,7 @@ services:
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
       RUST_BACKTRACE: ${RUST_BACKTRACE}
-      LOG_LEVEL: trace
+      LOG_LEVEL: ${LOG_LEVEL}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
       HASURA_ENDPOINT: ${HASURA_ENDPOINT}
       AMQP_ADDR: ${AMQP_ADDR}
