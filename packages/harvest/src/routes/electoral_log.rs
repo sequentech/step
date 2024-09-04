@@ -16,7 +16,7 @@ use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::election_event_board::get_election_event_board;
 use windmill::services::electoral_log::{
-    list_electoral_log as get_logs, ElectoralLogRow, GetElectoralLogBody
+    list_electoral_log as get_logs, ElectoralLogRow, GetElectoralLogBody,
 };
 use windmill::types::resources::DataList;
 
@@ -65,20 +65,33 @@ pub async fn create_electoral_log(
     )?;
 
     let mut hasura_db_client: DbClient = get_hasura_pool()
-    .await
-    .get()
-    .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .await
+        .get()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     let hasura_transaction = hasura_db_client
-    .transaction()
+        .transaction()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    let election_event = get_election_event_by_id(
+        &hasura_transaction,
+        &claims.hasura_claims.tenant_id,
+        &input.election_event_id,
+    )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-
-    let election_event = get_election_event_by_id(&hasura_transaction, &claims.hasura_claims.tenant_id, &input.election_event_id).await.map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
-        .with_context(|| "error getting election event")
-        .map_err(|e| (rocket::http::Status::InternalServerError, format!("{:?}", e)))?;
+    let board_name = get_election_event_board(
+        election_event.bulletin_board_reference.clone(),
+    )
+    .with_context(|| "error getting election event")
+    .map_err(|e| {
+        (
+            rocket::http::Status::InternalServerError,
+            format!("{:?}", e),
+        )
+    })?;
     info!("electoral logs success");
 
     Ok(Json(LogEventOutput {

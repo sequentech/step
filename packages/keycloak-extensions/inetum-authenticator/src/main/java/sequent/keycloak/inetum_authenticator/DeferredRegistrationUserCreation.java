@@ -4,6 +4,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package sequent.keycloak.inetum_authenticator;
 
+import com.google.auto.service.AutoService;
+import jakarta.ws.rs.core.MultivaluedHashMap;
+import jakarta.ws.rs.core.MultivaluedMap;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -12,7 +15,7 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
+import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.Config;
 import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.AuthenticationFlowException;
@@ -42,12 +45,6 @@ import org.keycloak.userprofile.UserProfile;
 import org.keycloak.userprofile.UserProfileContext;
 import org.keycloak.userprofile.UserProfileProvider;
 import org.keycloak.userprofile.ValidationException;
-
-import com.google.auto.service.AutoService;
-
-import jakarta.ws.rs.core.MultivaluedHashMap;
-import jakarta.ws.rs.core.MultivaluedMap;
-import lombok.extern.jbosslog.JBossLog;
 
 @JBossLog
 @AutoService(FormActionFactory.class)
@@ -118,7 +115,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     String uniqueAttributes = configMap.get(UNIQUE_ATTRIBUTES);
     String verifiedAttributeId =
         Optional.ofNullable(configMap.get(UNIQUE_ATTRIBUTES)).orElse(VERIFIED_DEFAULT_ID);
-        
+
     // Parse attributes lists
     List<String> searchAttributesList = parseAttributesList(searchAttributes);
     List<String> unsetAttributesList = parseAttributesList(unsetAttributes);
@@ -138,13 +135,11 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     String lastName = attributes.getFirst(UserModel.LAST_NAME);
 
     context.getEvent().detail(Details.EMAIL, email);
-
     context.getEvent().detail(Details.USERNAME, username);
     context.getEvent().detail(Details.FIRST_NAME, firstName);
     context.getEvent().detail(Details.LAST_NAME, lastName);
     context.getEvent().detail("phone_number", phoneNumber);
     context.getEvent().detail("ID_number", IDNumber);
-
 
     if (context.getRealm().isRegistrationEmailAsUsername()) {
       context.getEvent().detail(Details.USERNAME, email);
@@ -162,7 +157,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         errors.add(new FormMessage(RegistrationPage.FIELD_EMAIL, Messages.INVALID_EMAIL));
         context.validationError(formData, errors);
         return;
-      } 
+      }
     } catch (ValidationException pve) {
 
       // Filter email exists and username exists - this is to be expected
@@ -193,13 +188,12 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
 
         // if errors is not empty, show them
       } else {
-        if(chcekMissingFields(context, errors)) {
+        if (chcekMissingFields(context, errors)) {
           log.error("some missing fields");
-        }
-        else if (!pve.hasError(Messages.EMAIL_EXISTS)) {
+        } else if (!pve.hasError(Messages.EMAIL_EXISTS)) {
           context.error(Errors.INVALID_EMAIL);
         } else {
-          if(!chcekMissingFields(context, errors)) {
+          if (!chcekMissingFields(context, errors)) {
             context.error(Errors.INVALID_REGISTRATION);
           }
         }
@@ -275,8 +269,8 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     } else if (!formData
         .getFirst(RegistrationPage.FIELD_PASSWORD)
         .equals(formData.getFirst(RegistrationPage.FIELD_PASSWORD_CONFIRM))) {
-        context.error(PASSWORD_NOT_MATCHED);
-        errors.add(
+      context.error(PASSWORD_NOT_MATCHED);
+      errors.add(
           new FormMessage(
               RegistrationPage.FIELD_PASSWORD_CONFIRM, Messages.INVALID_PASSWORD_CONFIRM));
     }
@@ -320,15 +314,15 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     }
     log.info("errors formMessages" + errors);
     if (errors.size() > 0) {
-    for (FormMessage formMessage : errors) {
-      if(formMessage.getField() == RegistrationPage.FIELD_PASSWORD_CONFIRM)  {
-        context.error(PASSWORD_NOT_MATCHED);
-      }  else if (formMessage.getField() == RegistrationPage.FIELD_PASSWORD) {
-        context.error(PASSWORD_NOT_STRONG + ": " + formMessage.getMessage());
-      } else {
-        context.error(Errors.INVALID_REGISTRATION);
+      for (FormMessage formMessage : errors) {
+        if (formMessage.getField() == RegistrationPage.FIELD_PASSWORD_CONFIRM) {
+          context.error(PASSWORD_NOT_MATCHED);
+        } else if (formMessage.getField() == RegistrationPage.FIELD_PASSWORD) {
+          context.error(PASSWORD_NOT_STRONG + ": " + formMessage.getMessage());
+        } else {
+          context.error(Errors.INVALID_REGISTRATION);
+        }
       }
-    }
       formData.remove(RegistrationPage.FIELD_PASSWORD);
       formData.remove(RegistrationPage.FIELD_PASSWORD_CONFIRM);
       context.validationError(formData, errors);
@@ -372,13 +366,15 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
   }
 
   private Optional<String> checkUniqueAttributes(
-    ValidationContext context, List<String> attributes, MultivaluedMap<String, String> formData) {
+      ValidationContext context, List<String> attributes, MultivaluedMap<String, String> formData) {
     log.info("lookupUserByFormData(): checkUniqueAttributes start" + attributes);
     KeycloakSession session = context.getSession();
     RealmModel realm = context.getRealm();
     for (String attribute : attributes) {
       String value = formData.getFirst(attribute);
-      log.infov("lookupUserByFormData(): checkUniqueAttributes attribute {0} with value {1}", attribute, value);
+      log.infov(
+          "lookupUserByFormData(): checkUniqueAttributes attribute {0} with value {1}",
+          attribute, value);
       if (value != null) {
         Stream<UserModel> currentStream =
             session
@@ -387,7 +383,10 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
 
         // Invalid if there's more than one user with specified attributes.
         if (currentStream.count() > 1) {
-          String formattedErrorMessage = String.format("Unique attribute %s with value=%s present in more than one user", attribute, value);
+          String formattedErrorMessage =
+              String.format(
+                  "Unique attribute %s with value=%s present in more than one user",
+                  attribute, value);
           log.infov(
               "lookupUserByFormData(): checkUniqueAttributes attribute {0} with value {0} present in other users",
               attribute, value);
@@ -548,12 +547,13 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
           && userAttributes.get(attributeName).size() > 0
           && userAttributes.get(attributeName).get(0) != null
           && !userAttributes.get(attributeName).get(0).isBlank()) {
-          String formattedErrorMessage = "User has attribute "
+        String formattedErrorMessage =
+            "User has attribute "
                 + attributeName
                 + " with value="
                 + userAttributes.get(attributeName)
                 + " but it should be unset";
-          log.info(formattedErrorMessage);
+        log.info(formattedErrorMessage);
         return Optional.of(formattedErrorMessage);
       }
     }
@@ -561,18 +561,18 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
   }
 
   private boolean chcekMissingFields(ValidationContext context, List<FormMessage> errors) {
-      List<String> missingFields = new ArrayList<>();
-      for (FormMessage error : errors) {
-          if (error.getMessage().equals(MISSING_FIELDS_ERROR)) {
-              missingFields.add(error.getField());
-          }
+    List<String> missingFields = new ArrayList<>();
+    for (FormMessage error : errors) {
+      if (error.getMessage().equals(MISSING_FIELDS_ERROR)) {
+        missingFields.add(error.getField());
       }
-      if (missingFields.isEmpty()) {
-          return false;
-      }
-      log.info("chcekMissingFields(): missingFields = " + missingFields);
-      String missingFieldsErrorMessage = MISSING_FIELDS + ": " + String.join(", ", missingFields);
-      context.error(missingFieldsErrorMessage);
-      return true;
+    }
+    if (missingFields.isEmpty()) {
+      return false;
+    }
+    log.info("chcekMissingFields(): missingFields = " + missingFields);
+    String missingFieldsErrorMessage = MISSING_FIELDS + ": " + String.join(", ", missingFields);
+    context.error(missingFieldsErrorMessage);
+    return true;
   }
 }

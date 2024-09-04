@@ -48,27 +48,33 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
   private static final String INETUM_DATE_FORMAT = "inetumDateFormat";
   private static final String EXPIRED_DATE = "isBeforeDateValue";
   private static final String NOW = "now";
+  public static final String ERROR_FAILED_TO_LOAD_INETUM_FORM = "failedToLoadInetumForm";
+  public static final String ERROR_TO_CREATE_INETUM_FORM = "failedToCreateTransaction";
 
   @Override
   public void authenticate(AuthenticationFlowContext context) {
     // Authentication is successful if the user already has the user's
     // validation status attribute set to true, otherwise initiate a new
     // flow and show form
-    log.info("authenticate()");
+    log.info("authenticate() intetum-authenticator");
 
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
     Map<String, String> configMap = config.getConfig();
     UserModel user = context.getUser();
+    Utils.buildEventDetails(context);
 
     if (user != null) {
       String statusAttributeName = configMap.get(Utils.USER_STATUS_ATTRIBUTE);
       String statusAttributeValue = user.getFirstAttribute(statusAttributeName);
       log.info("checking statusAttributeValue=" + statusAttributeValue);
       boolean validated = (statusAttributeValue != null && statusAttributeValue.equals("TRUE"));
-
       log.info("validated=" + validated);
       if (validated) {
         log.info("validated IS TRUE, pass");
+        context
+            .getEvent()
+            .detail("action", "InetumAuthenticator: User already validated")
+            .success();
         context.success();
         return;
       }
@@ -90,6 +96,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
               .createForm(Utils.INETUM_FORM);
       context.challenge(challenge);
     } catch (IOException error) {
+      context.getEvent().error(ERROR_FAILED_TO_LOAD_INETUM_FORM);
       context.failure(AuthenticationFlowError.INTERNAL_ERROR);
       context.attempted();
       Response challenge =
@@ -186,6 +193,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
               configMap.get(Utils.TRANSACTION_NEW_ATTRIBUTE), configMap, authNotesMap);
     } catch (Exception error) {
       log.error("newTransaction: Error rendering template", error);
+      context.getEvent().error(ERROR_FAILED_TO_LOAD_INETUM_FORM);
       throw new IOException(error);
     }
 
@@ -215,7 +223,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
   @Override
   public void action(AuthenticationFlowContext context) {
-    log.info("action(): start");
+    log.info("action(): start inetum-authenticator");
     SimpleHttp.Response result = verifyResults(context);
     if (result == null) {
       // invalid
@@ -263,6 +271,11 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
     log.info("action(): success");
     // valid
+    context
+        .getEvent()
+        .detail("action", "InetumAuthenticator: User validated successfully")
+        .success();
+    ;
     context.success();
   }
 
@@ -724,13 +737,13 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
                         "type": "equalAuthnoteAttributeId",
                         "equalAuthnoteAttributeId": "sequent.read-only.id-card-number",
                         "inetumAttributePath": "/response/mrz/personal_number",
-                        "errorMsg": "attributesInetumError"
+                        "errorMsg": "attributesInetumError: Card number does not match"
                     },
                     {
                         "type": "equalValue",
                         "equalValue": "Maria",
                         "inetumAttributePath": "/response/mrz/given_names",
-                        "errorMsg": "attributesInetumError"
+                        "errorMsg": "attributesInetumError: Given names does not match"
                     },
                     {
                         "type": "intMinValue",
@@ -744,7 +757,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
                         "valueDateFormat": "yyyy-MM-dd",
                         "inetumAttributePath": "/response/mrz/date_of_birth",
                         "inetumDateFormat": "dd/MM/yyyy",
-                        "errorMsg": "attributesInetumError"
+                        "errorMsg": "attributesInetumError: Date of birth does not match"
                     },
                     {
                         "type": "isBeforeDateValue",
@@ -760,7 +773,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
                         "type": "equalAuthnoteAttributeId",
                         "equalAuthnoteAttributeId": "sequent.read-only.id-card-number",
                         "inetumAttributePath": "/response/mrz/personal_number",
-                        "errorMsg": "attributesInetumError"
+                        "errorMsg": "attributesInetumError: Card number does not match"
                     }
                 ],
                 "Philippine Passport": [
@@ -768,7 +781,8 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
                         "type": "equalAuthnoteAttributeId",
                         "equalAuthnoteAttributeId": "sequent.read-only.id-card-number",
                         "inetumAttributePath": "/response/mrz/personal_number",
-                        "errorMsg": "attributesInetumError"
+                        "errorMsg": "attributesInetumError: Card number does not match"
+
                     }
                 ]
             }

@@ -80,8 +80,11 @@ public class Utils {
   public static final String MULTIVALUE_SEPARATOR = "##";
   public static final String ATTRIBUTE_TO_VALIDATE_SEPARATOR = ":";
   public static final String ERROR_USER_NOT_FOUND = "userNotFound";
+  public static final String ERROR_USER_HAS_CREDENTIALS = "userHasCredentials";
   public static final String ERROR_USER_ATTRIBUTES_NOT_UNSET = "userAttributesNotUnset";
   public static final String ERROR_USER_ATTRIBUTES_NOT_UNIQUE = "userAttributesNotUnique";
+  public static final String PHONE_NUMBER = "phone_number";
+  public static final String PHONE_NUMBER_ATTRIBUTE = "sequent.read-only.id-mobile-number";
 
   /**
    * We store the user data entered in the registration form in the session notes. This information
@@ -251,5 +254,20 @@ public class Utils {
     String userId = context.getAuthenticationSession().getAuthNote(USER_ID);
 
     return context.getSession().users().getUserById(context.getRealm(), userId);
+  }
+
+  public void buildEventDetails(AuthenticationFlowContext context) {
+    AuthenticationSessionModel authSession = context.getAuthenticationSession();
+    String email = authSession.getAuthNote(Details.EMAIL);
+    String firstName = authSession.getAuthNote(UserModel.FIRST_NAME);
+    String lastName = authSession.getAuthNote(UserModel.LAST_NAME);
+    String phoneNumber = authSession.getAuthNote(PHONE_NUMBER_ATTRIBUTE);
+    String userId = context.getAuthenticationSession().getAuthNote(USER_ID);
+
+    context.getEvent().user(userId);
+    context.getEvent().detail(Details.EMAIL, email);
+    context.getEvent().detail(Details.FIRST_NAME, firstName);
+    context.getEvent().detail(Details.LAST_NAME, lastName);
+    context.getEvent().detail(PHONE_NUMBER, phoneNumber);
   }
 }

@@ -8,103 +8,113 @@ import java.net.http.HttpResponse;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-
+import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.events.Event;
 import org.keycloak.events.EventListenerProvider;
 import org.keycloak.events.admin.AdminEvent;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.util.JsonSerialization;
 
-import com.fasterxml.jackson.databind.util.JSONPObject;
-import com.google.gson.Gson;
-import lombok.extern.jbosslog.JBossLog;
-
 @JBossLog
 public class CustomEventListereProvider implements EventListenerProvider {
-    
-    private final KeycloakSession session;
-    private String keycloakUrl = System.getenv("KEYCLOAK_URL");
-    private String tenantId = System.getenv("SUPER_ADMIN_TENANT_ID");
-    private String clientId = System.getenv("KEYCLOAK_CLIENT_ID");
-    private String clientSecret = System.getenv("KEYCLOAK_CLIENT_SECRET");
-    private String harvestUrl = System.getenv("HARVEST_DOMAIN");
-    private String access_token;
-    public CustomEventListereProvider(KeycloakSession session) {
-        this.session = session;
-        authenticate();
-    }
-    @Override
-    public void close() {}
 
-    @Override
-    public void onEvent(Event event) {
-        if (this.access_token == null) {
-            authenticate();
-        }
-        log.info("access token: " + this.access_token);
-        logEvent();
-    }
+  private final KeycloakSession session;
+  private String keycloakUrl = System.getenv("KEYCLOAK_URL");
+  private String tenantId = System.getenv("SUPER_ADMIN_TENANT_ID");
+  private String clientId = System.getenv("KEYCLOAK_CLIENT_ID");
+  private String clientSecret = System.getenv("KEYCLOAK_CLIENT_SECRET");
+  private String harvestUrl = System.getenv("HARVEST_DOMAIN");
+  private String access_token;
 
-    public void authenticate() {
-            HttpClient client = HttpClient.newHttpClient();
-            String url = this.keycloakUrl + "/realms/"+ getTenantRealmName(this.tenantId) + "/protocol/openid-connect/token";
-            Map<Object, Object> data = new HashMap<>();
-            data.put("client_id", this.clientId);
-            data.put("scope", "openid");
-            data.put("client_secret", this.clientSecret);
-            data.put("grant_type", "client_credentials");
-    
-            String form = data.entrySet()
-                    .stream()
-                    .map(entry -> entry.getKey() + "=" + entry.getValue())
-                    .reduce((entry1, entry2) -> entry1 + "&" + entry2)
-                    .orElse("");
-            log.info(form);
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(url))
-                    .header("Content-Type", "application/x-www-form-urlencoded")
-                    .POST(HttpRequest.BodyPublishers.ofString(form))
-                    .build();
-    
-            CompletableFuture<HttpResponse<String>> responseFuture;
-                responseFuture = client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
-                    String responseBody = responseFuture.join().body();
-                    Object accessToken;
-                    try {
-                        accessToken = JsonSerialization.readValue(responseBody, Map.class).get("access_token");
-                        log.info("authenticate " + accessToken.toString());
-                        this.access_token = accessToken.toString();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-        }
+  public CustomEventListereProvider(KeycloakSession session) {
+    this.session = session;
+    authenticate();
+  }
 
-    @Override
-    public void onEvent(AdminEvent event, boolean includeRepresentation) {
-        log.info("an admin event was fired, realmName: ");
-    }
+  @Override
+  public void close() {}
 
-    private String getTenantRealmName(String realmName) {
-        return  "tenant-" + tenantId;
+  @Override
+  public void onEvent(Event event) {
+    if (this.access_token == null) {
+      authenticate();
     }
+    log.info("access token: " + this.access_token);
+    logEvent();
+  }
 
-    private void logEvent() {
-        HttpClient client = HttpClient.newHttpClient();
-        String url = "http://" + this.harvestUrl + "/immudb/log-event";
-        log.info("url: " + url);
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .header("Content-Type", "application/json")
-                .header("Authorization", "Bearer " + this.access_token)
-                .POST(HttpRequest.BodyPublishers.ofString("{\"election_event_id\": \"test\", \"messageType\": \"testMessageType\"}"))
-                .build();
-        CompletableFuture<HttpResponse<String>> response = client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
-        response.thenAccept(res -> {    
-            log.info("success");
-        }).exceptionally(e -> {
-            log.error(e);
-            return null;
-        });
+  public void authenticate() {
+    HttpClient client = HttpClient.newHttpClient();
+    String url =
+        this.keycloakUrl
+            + "/realms/"
+            + getTenantRealmName(this.tenantId)
+            + "/protocol/openid-connect/token";
+    Map<Object, Object> data = new HashMap<>();
+    data.put("client_id", this.clientId);
+    data.put("scope", "openid");
+    data.put("client_secret", this.clientSecret);
+    data.put("grant_type", "client_credentials");
+
+    String form =
+        data.entrySet().stream()
+            .map(entry -> entry.getKey() + "=" + entry.getValue())
+            .reduce((entry1, entry2) -> entry1 + "&" + entry2)
+            .orElse("");
+    log.info(form);
+    HttpRequest request =
+        HttpRequest.newBuilder()
+            .uri(URI.create(url))
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .POST(HttpRequest.BodyPublishers.ofString(form))
+            .build();
+
+    CompletableFuture<HttpResponse<String>> responseFuture;
+    responseFuture = client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+    String responseBody = responseFuture.join().body();
+    Object accessToken;
+    try {
+      accessToken = JsonSerialization.readValue(responseBody, Map.class).get("access_token");
+      log.info("authenticate " + accessToken.toString());
+      this.access_token = accessToken.toString();
+    } catch (IOException e) {
+      e.printStackTrace();
     }
-     
-} 
+  }
+
+  @Override
+  public void onEvent(AdminEvent event, boolean includeRepresentation) {
+    log.info("an admin event was fired, realmName: ");
+  }
+
+  private String getTenantRealmName(String realmName) {
+    return "tenant-" + tenantId;
+  }
+
+  private void logEvent() {
+    HttpClient client = HttpClient.newHttpClient();
+    String url = "http://" + this.harvestUrl + "/immudb/log-event";
+    log.info("url: " + url);
+    HttpRequest request =
+        HttpRequest.newBuilder()
+            .uri(URI.create(url))
+            .header("Content-Type", "application/json")
+            .header("Authorization", "Bearer " + this.access_token)
+            .POST(
+                HttpRequest.BodyPublishers.ofString(
+                    "{\"election_event_id\": \"test\", \"messageType\": \"testMessageType\"}"))
+            .build();
+    CompletableFuture<HttpResponse<String>> response =
+        client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+    response
+        .thenAccept(
+            res -> {
+              log.info("success");
+            })
+        .exceptionally(
+            e -> {
+              log.error(e);
+              return null;
+            });
+  }
+}
