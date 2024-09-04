@@ -83,8 +83,7 @@ const tagalogTranslation = {
                 ballotTooLarge: "Ang balota ay mas malaki kaysa sa inaasahan",
             },
             implicit: {
-                selectedMax:
-                    "Bilang ng mga napili {{numSelected}} ay higit sa maximum {{max}}",
+                selectedMax: "Bilang ng mga napili {{numSelected}} ay higit sa maximum {{max}}",
                 selectedMin:
                     "Bilang ng mga napili {{numSelected}} ay mas mababa sa minimum {{min}}",
             },

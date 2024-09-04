@@ -24,8 +24,7 @@ const tagalogTranslation = {
         startScreen: {
             startButton: "Simulan ang Pagboto",
             instructionsTitle: "Mga Tagubilin",
-            instructionsDescription:
-                "Sundin ang mga hakbang na ito para bumoto:",
+            instructionsDescription: "Sundin ang mga hakbang na ito para bumoto:",
             step1Title: "1. Piliin ang iyong mga sagot",
             step1Description:
                 "Sagutin ang mga tanong ng halalan isa-isa habang ipinapakita ang mga ito. Sa ganitong paraan, maisasama ang iyong mga napili sa iyong balota.",
@@ -45,8 +44,7 @@ const tagalogTranslation = {
             auditButton: "Siyasatin ang balota",
             reviewScreenHelpDialog: {
                 title: "Impormasyon: Suriin ang Screen",
-                content:
-                    "Dito maaring suriin ang iyong mga pinili bago i-submit ang iyong balota.",
+                content: "Dito maaring suriin ang iyong mga pinili bago i-submit ang iyong balota.",
                 ok: "OK",
             },
             ballotIdHelpDialog: {
@@ -285,10 +283,8 @@ const tagalogTranslation = {
                     COUNTDOWN_WITH_ALERT: "Countdown na may alerto",
                     sectionTitle: "Portal ng Pagboto",
                     policyLabel: "Patakaran sa Countdown ng Portal ng Pagboto",
-                    coundownSecondsLabel:
-                        "Segundo bago mag-expire para ipakita ang countdown",
-                    alertSecondsLabel:
-                        "Segundo bago mag-expire para ipakita ang Logout alert",
+                    coundownSecondsLabel: "Segundo bago mag-expire para ipakita ang countdown",
+                    alertSecondsLabel: "Segundo bago mag-expire para ipakita ang Logout alert",
                 },
             },
             error: {
