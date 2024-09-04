@@ -51,6 +51,11 @@ pub struct ScalarS(pub(crate) Scalar);
 cfg_if::cfg_if! {
     if #[cfg(any(feature = "openssl_core", feature="openssl_full"))] {
 
+#[cfg(feature = "rayon")]
+use rayon::prelude::*;
+#[cfg(feature = "rayon")]
+use crate::util::Par;
+
 impl RistrettoCtx {
     fn generators_shake(
         &self,
@@ -59,22 +64,32 @@ impl RistrettoCtx {
     ) -> Result<Vec<RistrettoPointS>, StrandError> {
         let seed_ = seed.to_vec();
 
-        let mut ret: Vec<RistrettoPointS> = Vec::with_capacity(size);
         let reader = crate::hash::hash_xof(64 * size, &seed_)?;
         let mut uniform_bytes = [0u8; 64];
+        let mut bytes = vec![];
         for _ in 0..size {
             let bytes_read = std::io::Read::read(&mut reader.as_slice(), &mut uniform_bytes)
                 .expect("impossible: we are reading from a byte slice, any out of bounds programming error should panic");
             assert_eq!(bytes_read, 64);
-            let g = RistrettoPoint::from_uniform_bytes(&uniform_bytes);
-            ret.push(RistrettoPointS(g));
+            bytes.push(uniform_bytes);
         }
+
+        let ret: Vec<RistrettoPointS> = bytes.par().map(|b| {
+            let g = RistrettoPoint::from_uniform_bytes(&b);
+            RistrettoPointS(g)
+        }).collect();
+
         Ok(ret)
     }
 }
 } else {
 
 use crate::hash::{ExtendableOutput, Update, XofReader};
+
+#[cfg(feature = "rayon")]
+use rayon::prelude::*;
+#[cfg(feature = "rayon")]
+use crate::util::Par;
 
 impl RistrettoCtx {
     // https://docs.rs/bulletproofs/4.0.0/src/bulletproofs/generators.rs.html
@@ -85,17 +100,25 @@ impl RistrettoCtx {
     ) -> Result<Vec<RistrettoPointS>, StrandError> {
         let seed_ = seed.to_vec();
 
-        let mut ret: Vec<RistrettoPointS> = Vec::with_capacity(size);
+        // let mut ret: Vec<RistrettoPointS> = Vec::with_capacity(size);
         let mut shake = crate::hash::hasher_xof();
         shake.update(&seed_);
 
         let mut reader = shake.finalize_xof();
         let mut uniform_bytes = [0u8; 64];
+        let mut bytes = vec![];
+
         for _ in 0..size {
             reader.read(&mut uniform_bytes);
-            let g = RistrettoPoint::from_uniform_bytes(&uniform_bytes);
-            ret.push(RistrettoPointS(g));
+            // let g = RistrettoPoint::from_uniform_bytes(&uniform_bytes);
+            // ret.push(RistrettoPointS(g));
+            bytes.push(uniform_bytes);
         }
+
+        let ret: Vec<RistrettoPointS> = bytes.par().map(|b| {
+            let g = RistrettoPoint::from_uniform_bytes(&b);
+            RistrettoPointS(g)
+        }).collect();
 
         Ok(ret)
     }
@@ -551,7 +574,7 @@ mod tests {
         let ctx = RistrettoCtx;
         test_product_shuffle_generic(&ctx);
     }
-
+ 
     #[cfg(not(feature = "wasm"))]
     #[test]
     fn test_shuffle_serialization() {

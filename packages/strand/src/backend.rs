@@ -36,6 +36,7 @@ pub(crate) mod tests {
     use crate::elgamal::*;
     use crate::serialization::StrandDeserialize;
     use crate::serialization::StrandSerialize;
+    use std::time::Instant;
 
     use crate::shuffler_product::StrandRectangle;
     use crate::util;
@@ -257,20 +258,31 @@ pub(crate) mod tests {
     pub(crate) fn test_shuffle_generic<C: Ctx>(ctx: &C) {
         let sk = PrivateKey::gen(ctx);
         let pk = sk.get_pk();
-
-        let es = util::random_ciphertexts(10, ctx);
+        println!("Computing ciphertexts..");
+        let es = util::random_ciphertexts(1000, ctx);
         let seed = vec![];
+        let now = Instant::now(); println!("* generators..");
         let hs = ctx.generators(es.len() + 1, &seed).unwrap();
+        println!("* generators {}", now.elapsed().as_millis());
         let shuffler = Shuffler {
             pk: &pk,
             generators: &hs,
             ctx: (*ctx).clone(),
         };
 
+        let beg = Instant::now();
+        
+        let now = Instant::now(); println!("* gen shuffle..");
         let (e_primes, rs, perm) = shuffler.gen_shuffle(&es);
+        println!("* gen shuffle {}", now.elapsed().as_millis());
+        let now = Instant::now();println!("* gen proof..");
         let proof = shuffler.gen_proof(&es, &e_primes, rs, &perm, &[]).unwrap();
-
+        println!("* gen proof {}", now.elapsed().as_millis());
+        let now = Instant::now(); println!("* check proof..");
         let ok = shuffler.check_proof(&proof, &es, &e_primes, &[]).unwrap();
+        println!("* check proof {}", now.elapsed().as_millis());
+
+        println!("All shuffle {}", beg.elapsed().as_millis());
 
         assert!(ok);
     }
