@@ -166,8 +166,7 @@ public class MessageOTPAuthenticator
     Utils.buildEventDetails(context);
 
     // handle OTL
-    // boolean isOtl = config.getConfig().get(Utils.ONE_TIME_LINK).equals("true");
-    boolean isOtl = false;
+    boolean isOtl = config.getConfig().get(Utils.ONE_TIME_LINK).equals("true");
     String otlAuthNotesToRestore = config.getConfig().get(Utils.OTL_RESTORED_AUTH_NOTES_ATTRIBUTE);
     String[] otlAuthNoteNames =
         otlAuthNotesToRestore == null ? new String[0] : otlAuthNotesToRestore.split(",");
