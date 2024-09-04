@@ -12,6 +12,7 @@ import jakarta.ws.rs.core.Response;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.Config;
 import org.keycloak.authentication.AuthenticationFlowContext;
@@ -76,25 +77,40 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
     // Lookup user by attributes in authNotes
     UserModel user = lookupUserByAuthNotes(context, searchAttributesList);
+    Utils.buildEventDetails(context);
 
     // check user was found
     if (user == null) {
       log.error("authenticate(): user not found");
+      context.getEvent().error(Utils.ERROR_USER_NOT_FOUND);
       context.attempted();
       return;
     }
     // check user has no credentials yet
     else if (user.credentialManager().getStoredCredentialsStream().count() > 0) {
       log.error("authenticate(): user found but already has credentials");
+      context.getEvent().error(Utils.ERROR_USER_HAS_CREDENTIALS);
       context.attempted();
       return;
     }
+    String email = user.getEmail();
+    String username = user.getUsername();
+
+    context
+        .getEvent()
+        .detail(Details.USERNAME, username)
+        .detail(Details.REGISTER_METHOD, "form")
+        .detail(Details.EMAIL, email);
 
     // check that the user doesn't have set any of the unset attributes
-    boolean unsetAttributesChecked = checkUnsetAttributes(user, context, unsetAttributesList);
+    Optional<String> unsetAttributesChecked =
+        checkUnsetAttributes(user, context, unsetAttributesList);
 
-    if (!unsetAttributesChecked) {
+    if (unsetAttributesChecked.isPresent()) {
       log.error("authenticate(): some user unset attributes are set");
+      context
+          .getEvent()
+          .error(Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET + ": " + unsetAttributesChecked.get());
       context.attempted();
       return;
     }
@@ -117,18 +133,11 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     log.info("authenticate(): done");
 
     // Success event, similar to RegistrationUserCreation.java in keycloak
-    String email = user.getEmail();
-    String username = user.getUsername();
 
     if (context.getRealm().isRegistrationEmailAsUsername()) {
       username = email;
     }
 
-    context
-        .getEvent()
-        .detail(Details.USERNAME, username)
-        .detail(Details.REGISTER_METHOD, "form")
-        .detail(Details.EMAIL, email);
     user.setEnabled(true);
 
     if ("on".equals(context.getAuthenticationSession().getAuthNote("termsAccepted"))) {
@@ -184,9 +193,9 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
           MessageOTPCredentialModel.create(/* isSetup= */ true));
     }
 
-    log.info("authenticate(): success");
-
     if (autoLogin) {
+      context.getEvent().detail("auto_login", "true");
+      context.getEvent().success();
       context.success();
     } else {
       context.clearUser();
@@ -230,7 +239,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     return Utils.lookupUserByAuthNotes(context);
   }
 
-  private boolean checkUnsetAttributes(
+  private Optional<String> checkUnsetAttributes(
       UserModel user, AuthenticationFlowContext context, List<String> attributes) {
     Map<String, List<String>> userAttributes = user.getAttributes();
     for (String attributeName : attributes) {
@@ -238,7 +247,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
         // Only assume email is valid if it's verified
         if (user.isEmailVerified() && user.getEmail() != null && !user.getEmail().isBlank()) {
           log.info("checkUnsetAttributes(): user has email=" + user.getEmail());
-          return false;
+          return Optional.of("User has email attribute set but it should be unset");
         }
       } else {
         if (userAttributes.containsKey(attributeName)
@@ -246,16 +255,18 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
             && userAttributes.get(attributeName).size() > 0
             && userAttributes.get(attributeName).get(0) != null
             && !userAttributes.get(attributeName).get(0).isBlank()) {
-          log.info(
-              "checkUnsetAttributes(): user has attribute "
+          String formattedErrorMessage =
+              "User has attribute "
                   + attributeName
                   + " with value="
-                  + userAttributes.get(attributeName));
-          return false;
+                  + userAttributes.get(attributeName)
+                  + " but it should be unset";
+          log.error(formattedErrorMessage);
+          return Optional.of(formattedErrorMessage);
         }
       }
     }
-    return true;
+    return Optional.empty();
   }
 
   private void updateUserAttributes(
