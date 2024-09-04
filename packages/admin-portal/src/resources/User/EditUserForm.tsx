@@ -14,7 +14,7 @@ import {useMutation, useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {IRole, IUser} from "sequent-core"
+import {IRole, IUser} from "@sequentech/ui-core"
 import {
     FormControl,
     MenuItem,
@@ -34,7 +34,7 @@ import {
 import {EDIT_USER} from "@/queries/EditUser"
 import {LIST_USER_ROLES} from "@/queries/ListUserRoles"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
-import {isUndefined} from "@sequentech/ui-essentials"
+import {isUndefined} from "@sequentech/ui-core"
 import {DELETE_USER_ROLE} from "@/queries/DeleteUserRole"
 import {SET_USER_ROLE} from "@/queries/SetUserRole"
 import {FormStyles} from "@/components/styles/FormStyles"
@@ -357,6 +357,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
                             <Select
                                 name="area"
+                                className="select-voter-area"
                                 defaultValue={defaultAreaId}
                                 value={defaultAreaId}
                                 onChange={handleSelectArea}

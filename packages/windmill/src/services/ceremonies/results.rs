@@ -12,6 +12,7 @@ use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::services::connection;
 use sequent_core::services::keycloak;
+use sequent_core::types::hasura::core::Area;
 use std::cmp;
 use std::path::PathBuf;
 use tracing::{event, instrument, Level};
@@ -51,6 +52,8 @@ pub async fn save_results(
 
         for contest in &election.reports {
             let total_votes_percent: f64 = contest.contest_result.percentage_total_votes / 100.0;
+            let auditable_votes_percent: f64 =
+                contest.contest_result.percentage_auditable_votes / 100.0;
             let total_valid_votes_percent: f64 =
                 contest.contest_result.percentage_total_valid_votes / 100.0;
             let total_invalid_votes_percent: f64 =
@@ -61,7 +64,7 @@ pub async fn save_results(
                 contest.contest_result.percentage_invalid_votes_implicit / 100.0;
             let total_blank_votes_percent: f64 =
                 contest.contest_result.percentage_total_blank_votes / 100.0;
-            if let Some(area_id) = &contest.area_id {
+            if let Some(area) = &contest.area {
                 idx += 1;
                 if idx % 200 == 0 {
                     auth_headers = keycloak::get_client_credentials().await?;
@@ -72,11 +75,13 @@ pub async fn save_results(
                     election_event_id,
                     &election.election_id,
                     &contest.contest.id,
-                    area_id,
+                    &area.id,
                     results_event_id,
                     Some(contest.contest_result.census as i64),
                     Some(contest.contest_result.total_votes as i64),
                     Some(total_votes_percent.clamp(0.0, 1.0)),
+                    Some(contest.contest_result.auditable_votes as i64),
+                    Some(auditable_votes_percent.clamp(0.0, 1.0)),
                     Some(contest.contest_result.total_valid_votes as i64),
                     Some(total_valid_votes_percent.clamp(0.0, 1.0)),
                     Some(contest.contest_result.total_invalid_votes as i64),
@@ -109,7 +114,7 @@ pub async fn save_results(
                         election_event_id,
                         &election.election_id,
                         &contest.contest.id,
-                        area_id,
+                        &area.id,
                         &candidate.candidate.id,
                         results_event_id,
                         Some(candidate.total_count as i64),
@@ -134,6 +139,8 @@ pub async fn save_results(
                     Some(contest.contest_result.census as i64),
                     Some(contest.contest_result.total_votes as i64),
                     Some(total_votes_percent.clamp(0.0, 1.0)),
+                    Some(contest.contest_result.auditable_votes as i64),
+                    Some(auditable_votes_percent.clamp(0.0, 1.0)),
                     Some(contest.contest_result.total_valid_votes as i64),
                     Some(total_valid_votes_percent.clamp(0.0, 1.0)),
                     Some(contest.contest_result.total_invalid_votes as i64),
@@ -233,6 +240,7 @@ pub async fn populate_results_tables(
     election_event_id: &str,
     session_ids: Option<Vec<i64>>,
     previous_execution: GetLastTallySessionExecutionSequentBackendTallySessionExecution,
+    areas: &Vec<Area>,
 ) -> Result<Option<String>> {
     let mut auth_headers = keycloak::get_client_credentials().await?;
     let results_event_id_opt = generate_results_id_if_necessary(
@@ -246,7 +254,7 @@ pub async fn populate_results_tables(
     .await?;
 
     if let (Some(results_event_id), Some(state)) = (results_event_id_opt.clone(), state_opt) {
-        if let Ok(results) = state.get_results() {
+        if let Ok(results) = state.get_results(false) {
             save_results(
                 results.clone(),
                 tenant_id,
@@ -261,6 +269,7 @@ pub async fn populate_results_tables(
                 election_event_id,
                 &results_event_id,
                 base_tally_path,
+                areas,
             )
             .await?;
         }

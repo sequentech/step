@@ -27,7 +27,8 @@ import {useMutation} from "@apollo/client"
 import {useTranslation} from "react-i18next"
 import {CREATE_KEYS_CEREMONY} from "@/queries/CreateKeysCeremony"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {isNull, Dialog} from "@sequentech/ui-essentials"
+import {Dialog} from "@sequentech/ui-essentials"
+import {isNull} from "@sequentech/ui-core"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 
 export interface ConfigureStepProps {
@@ -203,11 +204,16 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                     onSubmit={onSubmit}
                     toolbar={
                         <WizardStyles.Toolbar>
-                            <WizardStyles.BackButton color="info" onClick={goBack}>
+                            <WizardStyles.BackButton
+                                color="info"
+                                onClick={goBack}
+                                className="keys-back-button"
+                            >
                                 <ArrowBackIosIcon />
                                 {t("common.label.back")}
                             </WizardStyles.BackButton>
                             <WizardStyles.CreateButton
+                                className="keys-create-button"
                                 icon={<ArrowForwardIosIcon />}
                                 label={t("keysGeneration.configureStep.create")}
                             />
@@ -243,10 +249,11 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                                 optionText="name"
                                 optionValue="name"
                                 row={false}
+                                className="keys-trustees-input"
                             />
                         ) : null}
                         {errors ? (
-                            <WizardStyles.ErrorMessage variant="body2">
+                            <WizardStyles.ErrorMessage variant="body2" className="keys-error">
                                 {errors}
                             </WizardStyles.ErrorMessage>
                         ) : null}

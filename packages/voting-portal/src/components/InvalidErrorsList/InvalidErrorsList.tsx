@@ -2,15 +2,24 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useMemo, useState} from "react"
-import {WarnBox, IContest} from "@sequentech/ui-essentials"
+import {WarnBox} from "@sequentech/ui-essentials"
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
 import {provideBallotService} from "../../services/BallotService"
 import {useAppSelector} from "../../store/hooks"
 import {selectBallotSelectionByElectionId} from "../../store/ballotSelections/ballotSelectionsSlice"
 import {useTranslation} from "react-i18next"
-import {IDecodedVoteContest, IInvalidPlaintextError} from "sequent-core"
+import {
+    IDecodedVoteContest,
+    IInvalidPlaintextError,
+    IContest,
+    EBlankVotePolicy,
+    EUnderVotePolicy,
+} from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {Box} from "@mui/material"
+import {isVotedByElectionId} from "../../store/extra/extraSlice"
+import {useParams} from "react-router-dom"
+import {error} from "console"
 
 const ErrorWrapper = styled(Box)`
     display: flex;
@@ -21,6 +30,7 @@ const ErrorWrapper = styled(Box)`
 export interface IInvalidErrorsListProps {
     ballotStyle: IBallotStyle
     question: IContest
+    hasWriteIns: boolean
     isInvalidWriteIns: boolean
     setIsInvalidWriteIns: (input: boolean) => void
     setDecodedContests: (input: IDecodedVoteContest) => void
@@ -30,13 +40,15 @@ export interface IInvalidErrorsListProps {
 export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     ballotStyle,
     question,
+    hasWriteIns,
     isInvalidWriteIns,
     setIsInvalidWriteIns,
     setDecodedContests,
     isReview,
 }) => {
     const {t} = useTranslation()
-    const [isTouched, setIsTouched] = useState(false)
+    // Note that if we have reviewed, then we can asume we have touched
+    const [isTouched, setIsTouched] = useState(isReview)
     const [decodedContestSelection, setDecodedContestSelection] = useState<
         IDecodedVoteContest | undefined
     >(undefined)
@@ -46,11 +58,108 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     const selectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle.election_id)
     )
+    const {electionId} = useParams<{electionId?: string}>()
+    const isVotedState = useAppSelector(isVotedByElectionId(electionId))
     const {interpretContestSelection, getWriteInAvailableCharacters} = provideBallotService()
     const contestSelection = useMemo(
         () => selectionState?.find((contest) => contest.contest_id === question.id),
         [selectionState]
     )
+
+    let under_vote_policy = question?.presentation?.under_vote_policy ?? ""
+    let blank_vote_policy = question?.presentation?.blank_vote_policy ?? ""
+
+    const containsError = (state: IDecodedVoteContest | undefined, message: string) => {
+        if (!state) return false
+        return (
+            state.invalid_alerts.find((error) => error.message === message) ||
+            state.invalid_errors.find((error) => error.message === message)
+        )
+    }
+
+    const filterErrorList = (state: IDecodedVoteContest | undefined) => {
+        if (!state) return undefined
+        var ret = {
+            ...state,
+            invalid_errors:
+                state?.invalid_errors.filter(
+                    // !() is used so that function instead of behaving like
+                    // "show error when this happens" behaves more like "hide
+                    // error when this happens"
+                    (error) => {
+                        let ret = !(
+                            // If no interaction is made and not in review screen,
+                            // filter out selectedMin & blank vote errors
+                            (
+                                ["errors.implicit.selectedMin", "errors.implicit.blankVote"].find(
+                                    (e) => e === error.message
+                                ) &&
+                                !isReview &&
+                                !isTouched &&
+                                !isVotedState
+                            )
+                        )
+                        if (!ret) {
+                            console.log(`invalid_errors: filtering out error: ${error.message}`)
+                        } else {
+                            console.log(`invalid_errors: NOT filtering out error: ${error.message}`)
+                        }
+                        return ret
+                    }
+                ) || [],
+            invalid_alerts:
+                state?.invalid_alerts.filter(
+                    // !() is used so that function instead of behaving like
+                    // "show error when this happens" behaves more like "hide
+                    // error when this happens"
+                    (error) => {
+                        let ret = !(
+                            ("errors.implicit.selectedMin" === error.message &&
+                                !isReview &&
+                                !isTouched &&
+                                !isVotedState) ||
+                            ("errors.implicit.underVote" === error.message &&
+                                ((!isReview && !isTouched && !isVotedState) ||
+                                    (!isReview &&
+                                        under_vote_policy ===
+                                            EUnderVotePolicy.WARN_ONLY_IN_REVIEW) ||
+                                    under_vote_policy === EUnderVotePolicy.ALLOWED)) ||
+                            ("errors.implicit.blankVote" === error.message &&
+                                ((!isReview && !isTouched && !isVotedState) ||
+                                    (!isReview &&
+                                        blank_vote_policy ===
+                                            EBlankVotePolicy.WARN_ONLY_IN_REVIEW) ||
+                                    blank_vote_policy === EBlankVotePolicy.ALLOWED)) ||
+                            (error.message === "errors.implicit.overVoteDisabled" && isReview)
+                        )
+                        if (!ret) {
+                            console.log(`
+                                invalid_alerts: filtering out alert: ${error.message}.
+                                - error.message: ${error.message}
+                                - isReview: ${isReview}
+                                - isTouched: ${isTouched}
+                                - isVotedState: ${isVotedState}
+                                - under_vote_policy: ${under_vote_policy}
+                                - blank_vote_policy: ${blank_vote_policy}
+                            `)
+                        } else {
+                            console.log(`invalid_alerts: NOT filtering out error: ${error.message}`)
+                        }
+                        return ret
+                    }
+                ) || [],
+        }
+
+        // remove duplicates, if there's blank vote, remove underVote
+        ret.invalid_alerts = ret.invalid_alerts.filter(
+            (error) =>
+                !(
+                    "errors.implicit.underVote" === error.message &&
+                    containsError(ret, "errors.implicit.blankVote")
+                )
+        )
+        return ret
+    }
 
     useEffect(() => {
         if (isTouched || !contestSelection) {
@@ -63,31 +172,15 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     }, [contestSelection, isTouched])
 
     useEffect(() => {
-        const state =
+        let state =
             contestSelection && interpretContestSelection(contestSelection, ballotStyle.ballot_eml)
         setDecodedContestSelection(state)
-        setFilteredSelection(state)
+        setFilteredSelection((_) => filterErrorList(state))
     }, [contestSelection])
 
     useEffect(() => {
-        if (!isReview && !isTouched) {
-            // Filter min selection error in case where no user interaction was yet made
-            setFilteredSelection((prev) => {
-                if (!prev) return undefined
-                return {
-                    ...prev,
-                    invalid_errors:
-                        prev?.invalid_errors.filter(
-                            (error) => error.message !== "errors.implicit.selectedMin"
-                        ) || [],
-                    invalid_alerts:
-                        prev?.invalid_alerts.filter(
-                            (error) => error.message !== "errors.implicit.underVote"
-                        ) || [],
-                }
-            })
-        }
-    }, [isReview, isTouched])
+        setFilteredSelection(filterErrorList)
+    }, [isReview, isTouched, isVotedState])
 
     useEffect(() => {
         if (decodedContestSelection) {
@@ -95,9 +188,10 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
         }
     }, [decodedContestSelection])
 
-    const numAvailableChars = contestSelection
-        ? getWriteInAvailableCharacters(contestSelection, ballotStyle.ballot_eml)
-        : 0
+    const numAvailableChars =
+        hasWriteIns && contestSelection
+            ? getWriteInAvailableCharacters(contestSelection, ballotStyle.ballot_eml)
+            : 0
 
     useEffect(() => {
         let newInvalid = numAvailableChars < 0

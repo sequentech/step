@@ -6,8 +6,9 @@ use crate::services::authorization::authorize_voter;
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
-use sequent_core::services::jwt::JwtClaims;
+use sequent_core::types::date_time::DateFormat;
 use sequent_core::types::permissions::VoterPermissions;
+use sequent_core::{services::jwt::JwtClaims, types::date_time::TimeZone};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::time::Instant;
@@ -22,6 +23,8 @@ pub struct CreateVoteReceiptInput {
     tenant_id: String,
     election_event_id: String,
     election_id: String,
+    time_zone: Option<TimeZone>,
+    date_format: Option<DateFormat>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -54,6 +57,8 @@ pub async fn create_vote_receipt(
                 input.election_id,
                 area_id,
                 voter_id,
+                input.time_zone,
+                input.date_format,
             ),
         )
         .await

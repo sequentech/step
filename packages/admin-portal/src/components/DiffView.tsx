@@ -2,13 +2,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useEffect, useState} from "react"
+import React, {useCallback, useEffect, useMemo, useState} from "react"
 
 import styled from "@emotion/styled"
 
 import {diffLines} from "diff"
 import {CircularProgress} from "@mui/material"
 import {useTranslation} from "react-i18next"
+import {convertToNumber} from "@/lib/helpers"
+import {Button} from "react-admin"
+import {Dialog} from "@sequentech/ui-essentials"
+import {debounce} from "lodash"
 
 const DiffViewStyled = {
     Header: styled.span`
@@ -32,12 +36,14 @@ const DiffViewStyled = {
         width: 100%;
     `,
     Block: styled.div`
+        position: relative;
         display: flex;
+        flex-direction: column;
+        gap: 1rem;
         background-color: #f5f5f5;
         padding: 16px;
         height: 100%;
         width: 100%;
-        overflow-x: scroll;
         max-height: 500px;
     `,
     Json: styled.div`
@@ -74,10 +80,14 @@ type TDiffView<T> = {
     currentTitle: string
     current: T
     modify: T
+    fetchAllPublishChanges: () => Promise<void>
 }
 
-// TODO: Make this configurable
-const MAX_DIFF_LINES = 500
+enum TRUNCATION_STATE {
+    NOT_NEEDED = 0,
+    TRUNCATED = 1,
+    UNTRUNCATED = 2,
+}
 
 // Truncate the strings if they are too long
 const truncateLines = (str: string, maxLines: number) => {
@@ -89,26 +99,89 @@ const truncateLines = (str: string, maxLines: number) => {
 }
 
 const DiffViewMemo = React.memo(
-    <T extends {}>({current, currentTitle, modify, diffTitle, type = "modify"}: TDiffView<T>) => {
+    <T extends {}>({
+        current,
+        currentTitle,
+        modify,
+        diffTitle,
+        type = "modify",
+        fetchAllPublishChanges,
+    }: TDiffView<T>) => {
+        const MAX_DIFF_LINES = convertToNumber(process.env.MAX_DIFF_LINES) ?? 500
         const [diff, setDiff] = useState<any>("")
         const {t} = useTranslation()
         const [oldJsonString, setOldJsonString] = useState<string>("")
         const [newJsonString, setNewJsonString] = useState<string>("")
+        const [showDialog, setShowDialog] = useState<boolean>(false)
+        const [loading, setLoading] = useState<boolean>(false)
+
+        const [truncationState, setTruncationState] = useState<TRUNCATION_STATE>(
+            TRUNCATION_STATE.NOT_NEEDED
+        )
+
+        const memoizedModify = useMemo(
+            () => (modify ? JSON.stringify(modify, null, 2) : ""),
+            [modify]
+        )
+        const memoizedCurrent = useMemo(
+            () => (current ? JSON.stringify(current, null, 2) : ""),
+            [current]
+        )
+        useEffect(() => {
+            if (!memoizedModify || truncationState !== TRUNCATION_STATE.NOT_NEEDED) return
+            const lines = memoizedModify.split("\n")
+            if (lines.length < MAX_DIFF_LINES) return
+            setTruncationState(TRUNCATION_STATE.TRUNCATED)
+        }, [memoizedModify, MAX_DIFF_LINES, truncationState])
 
         useEffect(() => {
-            setNewJsonString(truncateLines(JSON.stringify(modify, null, 2), MAX_DIFF_LINES))
-            setOldJsonString(truncateLines(JSON.stringify(current, null, 2), MAX_DIFF_LINES))
-        }, [modify, current])
-
-        useEffect(() => {
-            if (oldJsonString && newJsonString) {
-                const diffText: any = diffLines(oldJsonString, newJsonString)
-
-                console.log(diffText)
-
-                setDiff(diffText)
+            if (truncationState === TRUNCATION_STATE.TRUNCATED) {
+                setNewJsonString(truncateLines(memoizedModify, MAX_DIFF_LINES))
+                setOldJsonString(truncateLines(memoizedCurrent, MAX_DIFF_LINES))
+            } else {
+                setNewJsonString(memoizedModify)
+                setOldJsonString(memoizedCurrent)
             }
-        }, [oldJsonString, newJsonString])
+        }, [truncationState, memoizedCurrent, memoizedModify, MAX_DIFF_LINES])
+
+        const calculateDiff = useCallback(
+            debounce(() => {
+                if (newJsonString || oldJsonString) {
+                    const diffText: any = diffLines(oldJsonString, newJsonString)
+                    setDiff(diffText)
+                }
+            }, 100),
+            [oldJsonString, newJsonString]
+        )
+
+        useEffect(() => {
+            calculateDiff()
+            return () => {
+                calculateDiff.cancel()
+            }
+        }, [calculateDiff])
+
+        const handleDialogClose = useCallback(
+            async (result: boolean) => {
+                if (result) {
+                    let shouldUpdateData = false
+                    setTruncationState((prev) => {
+                        if (prev === TRUNCATION_STATE.TRUNCATED) {
+                            shouldUpdateData = true
+                            return TRUNCATION_STATE.UNTRUNCATED
+                        }
+                        return TRUNCATION_STATE.TRUNCATED
+                    })
+                    if (shouldUpdateData) {
+                        setLoading(true)
+                        await fetchAllPublishChanges()
+                        setLoading(false)
+                    }
+                }
+                setShowDialog(false)
+            },
+            [fetchAllPublishChanges]
+        )
 
         if (!diff) {
             return (
@@ -119,41 +192,18 @@ const DiffViewMemo = React.memo(
         }
 
         return (
-            <DiffViewStyled.Container>
-                <DiffViewStyled.Content>
-                    <DiffViewStyled.Header>{currentTitle}</DiffViewStyled.Header>
-                    <DiffViewStyled.Block>
-                        <DiffViewStyled.Json>
-                            {diff.map((line: any, index: number) =>
-                                !line.added ? (
-                                    line.removed && type === "modify" ? (
-                                        <DiffViewStyled.Removed key={index}>
-                                            {line.value}
-                                        </DiffViewStyled.Removed>
-                                    ) : (
-                                        <DiffViewStyled.Line key={index}>
-                                            {line.value === "null"
-                                                ? t("common.label.loadingData")
-                                                : line.value}
-                                        </DiffViewStyled.Line>
-                                    )
-                                ) : null
-                            )}
-                        </DiffViewStyled.Json>
-                    </DiffViewStyled.Block>
-                </DiffViewStyled.Content>
-
-                {type === "modify" && (
+            <>
+                <DiffViewStyled.Container>
                     <DiffViewStyled.Content>
-                        <DiffViewStyled.Header>{diffTitle}</DiffViewStyled.Header>
+                        <DiffViewStyled.Header>{currentTitle}</DiffViewStyled.Header>
                         <DiffViewStyled.Block>
                             <DiffViewStyled.Json>
-                                {diff.map((line: any, index: number) =>
-                                    !line.removed ? (
-                                        line.added ? (
-                                            <DiffViewStyled.Added key={index}>
+                                {diff?.map((line: any, index: number) =>
+                                    !line.added ? (
+                                        line.removed && type === "modify" ? (
+                                            <DiffViewStyled.Removed key={index}>
                                                 {line.value}
-                                            </DiffViewStyled.Added>
+                                            </DiffViewStyled.Removed>
                                         ) : (
                                             <DiffViewStyled.Line key={index}>
                                                 {line.value === "null"
@@ -164,10 +214,105 @@ const DiffViewMemo = React.memo(
                                     ) : null
                                 )}
                             </DiffViewStyled.Json>
+                            {truncationState !== TRUNCATION_STATE.NOT_NEEDED && (
+                                <Button
+                                    onClick={() => {
+                                        if (truncationState === TRUNCATION_STATE.UNTRUNCATED) {
+                                            setTruncationState(TRUNCATION_STATE.TRUNCATED)
+                                        } else {
+                                            setShowDialog(true)
+                                        }
+                                    }}
+                                    label={
+                                        truncationState === TRUNCATION_STATE.TRUNCATED
+                                            ? t("electionEventScreen.common.showMore")
+                                            : t("electionEventScreen.common.showLess")
+                                    }
+                                    style={{
+                                        color: "#fff",
+                                        width: "fit-content",
+                                        minHeight: "unset",
+                                        fontSize: "0.8rem",
+                                        position: "absolute",
+                                        right: "0.5rem",
+                                        bottom: "0.5rem",
+                                    }}
+                                    aria-expanded={truncationState !== TRUNCATION_STATE.TRUNCATED}
+                                    aria-controls="diff-content"
+                                />
+                            )}
                         </DiffViewStyled.Block>
                     </DiffViewStyled.Content>
-                )}
-            </DiffViewStyled.Container>
+
+                    {type === "modify" && (
+                        <DiffViewStyled.Content>
+                            <DiffViewStyled.Header>{diffTitle}</DiffViewStyled.Header>
+                            <DiffViewStyled.Block>
+                                <DiffViewStyled.Json>
+                                    {diff?.map((line: any, index: number) =>
+                                        !line.removed ? (
+                                            line.added ? (
+                                                <DiffViewStyled.Added key={index}>
+                                                    {line.value}
+                                                </DiffViewStyled.Added>
+                                            ) : (
+                                                <DiffViewStyled.Line key={index}>
+                                                    {line.value === "null"
+                                                        ? t("common.label.loadingData")
+                                                        : line.value}
+                                                </DiffViewStyled.Line>
+                                            )
+                                        ) : null
+                                    )}
+                                </DiffViewStyled.Json>
+                                {truncationState !== TRUNCATION_STATE.NOT_NEEDED && (
+                                    <Button
+                                        onClick={() => {
+                                            if (truncationState === TRUNCATION_STATE.UNTRUNCATED) {
+                                                setTruncationState(TRUNCATION_STATE.TRUNCATED)
+                                            } else {
+                                                setShowDialog(true)
+                                            }
+                                        }}
+                                        label={
+                                            truncationState === TRUNCATION_STATE.TRUNCATED
+                                                ? t("electionEventScreen.common.showMore")
+                                                : t("electionEventScreen.common.showLess")
+                                        }
+                                        style={{
+                                            color: "#fff",
+                                            width: "fit-content",
+                                            minHeight: "unset",
+                                            fontSize: "0.8rem",
+                                            position: "absolute",
+                                            right: "0.5rem",
+                                            bottom: "0.5rem",
+                                        }}
+                                        aria-expanded={
+                                            truncationState !== TRUNCATION_STATE.TRUNCATED
+                                        }
+                                        aria-controls="diff-content"
+                                    />
+                                )}
+                            </DiffViewStyled.Block>
+                        </DiffViewStyled.Content>
+                    )}
+                </DiffViewStyled.Container>
+                <Dialog
+                    variant="warning"
+                    open={showDialog}
+                    ok={t("publish.dialog.ok")}
+                    cancel={t("publish.dialog.ko")}
+                    title={t("publish.dialog.title")}
+                    handleClose={handleDialogClose}
+                    okEnabled={() => !loading}
+                >
+                    <DiffViewStyled.Content>
+                        {t("publish.dialog.diff")}
+                        {loading && <CircularProgress />}
+                    </DiffViewStyled.Content>
+                </Dialog>
+            </>
         )
     }
 )

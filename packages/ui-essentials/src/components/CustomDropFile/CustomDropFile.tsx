@@ -5,7 +5,7 @@ import React, {PropsWithChildren, useState, DragEventHandler, ChangeEventHandler
 import styledEmotion from "@emotion/styled"
 import {styled} from "@mui/material/styles"
 import Box from "@mui/material/Box"
-import {useForwardedRef} from "../../utils/ref"
+import {useForwardedRef} from "@sequentech/ui-core"
 import {Typography} from "@mui/material"
 import theme from "../../services/theme"
 
@@ -104,7 +104,8 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
                 <StyledForm
                     onDragEnter={handleDrag}
                     onSubmit={(e) => e.preventDefault()}
-                    className="drop-file-form"
+                    // className="drop-file-form"
+                    className="drop-file-dropzone"
                 >
                     <StyledInput
                         className="drop-input-file"

@@ -26,10 +26,11 @@ import MenuActions from "./MenuActions"
 import {useActionPermissions} from "../use-tree-menu-hook"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
-import {adminTheme, translate, translateElection} from "@sequentech/ui-essentials"
+import {adminTheme} from "@sequentech/ui-essentials"
+import {translateElection} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {Box} from "@mui/material"
-import {MenuStyles} from "@/components/styles/Menu"
+import {MenuStyles, TreeMenuItemContainer} from "@/components/styles/Menu"
 
 export const mapAddResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "createResource.electionEvent",
@@ -200,6 +201,8 @@ function TreeMenuItem({
     }, [lastCreatedResource, setLastCreatedResource, resource.id])
 
     const menuItemRef = useRef<HTMLDivElement | null>(null)
+    const [anchorEl, setAnchorEl] = React.useState<HTMLParagraphElement | null>(null)
+    const isClicked = anchorEl ? true : false
 
     const [tenantId] = useTenantStore()
 
@@ -235,13 +238,14 @@ function TreeMenuItem({
 
     return (
         <Box sx={{backgroundColor: adminTheme.palette.white}}>
-            <MenuStyles.TreeMenuItemContainer ref={menuItemRef}>
+            <TreeMenuItemContainer ref={menuItemRef} isClicked={isClicked}>
                 {hasNext && canCreateElectionEvent ? (
                     <MenuStyles.TreeMenuIconContaier onClick={onClick}>
                         {open ? (
-                            <ExpandMoreIcon />
+                            <ExpandMoreIcon className="menu-item-expanded" />
                         ) : (
                             <ChevronRightIcon
+                                className="menu-item-collapsed"
                                 style={{
                                     transform:
                                         i18n.dir(i18n.language) === "rtl"
@@ -257,7 +261,9 @@ function TreeMenuItem({
                 {isOpenSidebar && (
                     <MenuStyles.StyledSideBarNavLink
                         title={name}
-                        className={({isActive}) => (isActive ? "active" : "")}
+                        className={({isActive}) =>
+                            isActive ? `active menu-item-${treeResourceNames[0]}` : ``
+                        }
                         to={`/${treeResourceNames[0]}/${id}`}
                         style={{textAlign: i18n.dir(i18n.language) === "rtl" ? "end" : "start"}}
                     >
@@ -273,10 +279,12 @@ function TreeMenuItem({
                             resourceType={treeResourceNames[0]}
                             parentData={superParentData}
                             menuItemRef={menuItemRef}
+                            setAnchorEl={setAnchorEl}
+                            anchorEl={anchorEl}
                         ></MenuActions>
                     ) : null}
                 </MenuStyles.MenuActionContainer>
-            </MenuStyles.TreeMenuItemContainer>
+            </TreeMenuItemContainer>
             {open && (
                 <div className="">
                     {hasNext && (

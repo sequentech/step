@@ -25,7 +25,7 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {INSERT_AREA_CONTESTS} from "../../queries/InsertAreaContest"
 import {DELETE_AREA_CONTESTS} from "@/queries/DeleteAreaContest"
 import {Sequent_Backend_Area} from "@/gql/graphql"
-import {keyBy} from "@sequentech/ui-essentials"
+import {keyBy} from "@sequentech/ui-core"
 
 interface EditAreaProps {
     id?: Identifier | undefined
@@ -213,6 +213,7 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
 
                                         {contests ? (
                                             <AutocompleteArrayInput
+                                                className="area-contest"
                                                 label={t("areas.sequent_backend_area_contest")}
                                                 source="area_contest_ids"
                                                 choices={contests}

@@ -43,14 +43,12 @@ import {useMutation} from "@apollo/client"
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {
-    DropFile,
     ICandidatePresentation,
     IElectionEventPresentation,
     ILanguageConf,
     ICandidateUrl,
-    Icon,
     IElectionPresentation,
-} from "@sequentech/ui-essentials"
+} from "@sequentech/ui-core"
 import {CandidateStyles} from "../../components/styles/CandidateStyles"
 import {CANDIDATE_TYPES} from "./constants"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
@@ -58,7 +56,7 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {cloneDeep} from "lodash"
 import {faTrash} from "@fortawesome/free-solid-svg-icons"
 import styled from "@emotion/styled"
-import {adminTheme} from "@sequentech/ui-essentials"
+import {DropFile, Icon, adminTheme} from "@sequentech/ui-essentials"
 
 const StyledIconButton = styled(IconButton)`
     color: ${adminTheme.palette.brandColor};
@@ -416,6 +414,10 @@ export const CandidateDataForm: React.FC<{
                                 <BooleanInput
                                     source={`presentation.is_explicit_invalid`}
                                     label={t("candidateScreen.edit.isExplicitInvalid")}
+                                />
+                                <BooleanInput
+                                    source={`presentation.is_explicit_blank`}
+                                    label={t("candidateScreen.edit.isExplicitBlank")}
                                 />
                                 <BooleanInput
                                     source={`presentation.is_category_list`}

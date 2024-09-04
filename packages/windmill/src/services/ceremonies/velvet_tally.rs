@@ -1,35 +1,33 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::hasura::tally_session_execution::get_last_tally_session_execution::{
-    GetLastTallySessionExecutionSequentBackendTallySessionContest, ResponseData,
-};
+use crate::hasura::tally_session_execution::get_last_tally_session_execution::GetLastTallySessionExecutionSequentBackendTallySessionContest;
+use crate::postgres::area::get_event_areas;
 use crate::postgres::election::export_elections;
 use crate::services::cast_votes::ElectionCastVotes;
 use crate::services::database::get_hasura_pool;
 use crate::services::s3;
+use crate::services::tally_sheets::tally::create_tally_sheets_map;
 use anyhow::{anyhow, Context, Result};
-use deadpool_postgres::Transaction;
+use deadpool_postgres::Client as DbClient;
 use sequent_core::ballot::{BallotStyle, Contest};
 use sequent_core::ballot_codec::PlaintextCodec;
-use sequent_core::services::area_tree::TreeNode;
-use sequent_core::types::hasura::core::{Area, Election, TallySheet};
+use sequent_core::services::area_tree::TreeNodeArea;
+use sequent_core::types::hasura::core::{Area, Election, TallySessionConfiguration, TallySheet};
 use serde::Serialize;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::PathBuf;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
-use tokio::task;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use velvet::cli::state::State;
 use velvet::cli::CliRun;
+use velvet::config::generate_reports::PipeConfigGenerateReports;
 use velvet::config::vote_receipt::PipeConfigVoteReceipts;
 use velvet::pipes::pipe_inputs::{AreaConfig, ElectionConfig};
 use velvet::pipes::pipe_name::PipeName;
-
-use deadpool_postgres::Client as DbClient;
 
 #[derive(Debug, Clone)]
 pub struct AreaContestDataType {
@@ -39,6 +37,7 @@ pub struct AreaContestDataType {
     pub ballot_style: BallotStyle,
     pub eligible_voters: u64,
     pub area: Area,
+    pub auditable_votes: u64,
 }
 
 #[instrument(skip_all)]
@@ -76,24 +75,6 @@ fn decode_plantexts_to_biguints(
             }
         })
         .collect::<Vec<_>>()
-}
-
-// Returns a Map<(area_id,contest_id), Vec<tally_sheet>>
-#[instrument(skip_all)]
-fn create_tally_sheets_map(
-    tally_sheets: &Vec<TallySheet>,
-) -> HashMap<(String, String), Vec<TallySheet>> {
-    let mut area_contest_tally_sheet_map: HashMap<(String, String), Vec<TallySheet>> =
-        HashMap::new();
-    for tally_sheet in tally_sheets {
-        area_contest_tally_sheet_map
-            .entry((tally_sheet.area_id.clone(), tally_sheet.contest_id.clone()))
-            .and_modify(|tally_sheets_vec| {
-                tally_sheets_vec.push(tally_sheet.clone());
-            })
-            .or_insert_with(|| vec![tally_sheet.clone()]);
-    }
-    area_contest_tally_sheet_map
 }
 
 #[instrument(skip_all, err)]
@@ -140,10 +121,12 @@ pub fn prepare_tally_for_area_contest(
 
     let area_config = AreaConfig {
         id: Uuid::parse_str(&area_id)?,
+        name: area_contest.area.name.clone().unwrap_or("".into()),
         tenant_id: Uuid::parse_str(&area_contest.contest.tenant_id)?,
         election_event_id: Uuid::parse_str(&area_contest.contest.election_event_id)?,
         election_id: Uuid::parse_str(&election_id)?,
         census: area_contest.eligible_voters as u64,
+        auditable_votes: area_contest.auditable_votes as u64,
         parent_id: area_contest
             .area
             .parent_id
@@ -192,6 +175,7 @@ pub fn create_election_configs_blocking(
     area_contests: &Vec<AreaContestDataType>,
     cast_votes_count: &Vec<ElectionCastVotes>,
     elections_single_map: HashMap<String, Election>,
+    areas: Vec<TreeNodeArea>,
 ) -> Result<()> {
     let mut elections_map: HashMap<String, ElectionConfig> = HashMap::new();
     for area_contest in area_contests {
@@ -219,6 +203,7 @@ pub fn create_election_configs_blocking(
                     .map(|data| data.cast_votes as u64)
                     .unwrap_or(0),
                 ballot_styles: vec![],
+                areas: areas.clone(),
             },
         };
 
@@ -268,6 +253,7 @@ pub async fn create_election_configs(
     base_tempdir: PathBuf,
     area_contests: &Vec<AreaContestDataType>,
     cast_votes_count: &Vec<ElectionCastVotes>,
+    basic_areas: &Vec<TreeNodeArea>,
 ) -> Result<()> {
     // aggregate all ballot styles for each election
     event!(
@@ -303,6 +289,8 @@ pub async fn create_election_configs(
     let area_contests_r = area_contests.clone();
     let cast_votes_count_r = cast_votes_count.clone();
 
+    let areas_clone = basic_areas.clone();
+
     // Spawn the task
     let handle = tokio::task::spawn_blocking(move || {
         create_election_configs_blocking(
@@ -310,6 +298,7 @@ pub async fn create_election_configs(
             &area_contests_r,
             &cast_votes_count_r,
             elections_single_map.clone(),
+            areas_clone.clone(),
         )
     });
 
@@ -318,8 +307,7 @@ pub async fn create_election_configs(
 }
 
 #[instrument(err)]
-pub fn call_velvet(base_tally_path: PathBuf) -> Result<State> {
-    //// Run Velvet
+pub fn generate_initial_state(base_tally_path: &PathBuf) -> Result<State> {
     let cli = CliRun {
         stage: "main".to_string(),
         pipe_id: "decode-ballots".to_string(),
@@ -330,15 +318,49 @@ pub fn call_velvet(base_tally_path: PathBuf) -> Result<State> {
 
     let config = cli.validate()?;
 
-    let mut state = State::new(&cli, &config)?;
+    State::new(&cli, &config).map_err(|err| anyhow!("{}", err))
+}
 
-    while let Some(next_stage) = state.get_next() {
-        let stage_name = next_stage.to_string();
-        event!(Level::INFO, "Exec {}", stage_name);
-        state.exec_next()?;
+#[instrument(err)]
+pub async fn call_velvet(base_tally_path: PathBuf) -> Result<State> {
+    let mut state_opt = Some(generate_initial_state(&base_tally_path)?);
+
+    // Use a loop to handle state processing
+    loop {
+        // Extract the next stage, or return an error if not found
+        let next_stage = {
+            let state_ref = state_opt
+                .as_ref()
+                .ok_or_else(|| anyhow!("State should not be None during processing"))?;
+
+            if let Some(stage) = state_ref.get_next() {
+                stage.to_string()
+            } else {
+                break; // Exit loop if no next stage is found
+            }
+        };
+
+        event!(Level::INFO, "Exec {}", next_stage);
+
+        // Move the state into a block for mutable borrow
+        let handle = tokio::task::spawn_blocking({
+            let mut state = state_opt
+                .take()
+                .ok_or_else(|| anyhow!("Failed to take state for execution"))?;
+
+            move || {
+                let result = state.exec_next();
+                (state, result)
+            }
+        });
+
+        // Await the result and handle JoinError explicitly
+        let (new_state, result) = handle.await.map_err(|err| anyhow!("{}", err))?;
+        result?; // Check the result of exec_next()
+        state_opt = Some(new_state); // Restore state for the next iteration
     }
 
-    Ok(state)
+    state_opt.ok_or_else(|| anyhow!("State unexpectedly None at the end of processing"))
 }
 
 async fn get_public_asset_vote_receipts_template() -> Result<String> {
@@ -382,7 +404,10 @@ struct VelvetTemplateData {
 }
 
 #[instrument(skip_all, err)]
-pub async fn create_config_file(base_tally_path: PathBuf) -> Result<()> {
+pub async fn create_config_file(
+    base_tally_path: PathBuf,
+    report_content_template: Option<String>,
+) -> Result<()> {
     let public_asset_path = std::env::var("PUBLIC_ASSETS_PATH")
         .map_err(|err| anyhow!("error loading PUBLIC_ASSETS_PATH var: {}", err))?;
     let file_logo = std::env::var("PUBLIC_ASSETS_LOGO_IMG")
@@ -419,6 +444,13 @@ pub async fn create_config_file(base_tally_path: PathBuf) -> Result<()> {
         enable_pdfs: false,
     };
 
+    let gen_report_pipe_config = PipeConfigGenerateReports {
+        enable_pdfs: false,
+        report_content_template,
+        time_zone: None,
+        date_format: None,
+    };
+
     let stages_def = {
         let mut map = HashMap::new();
         map.insert(
@@ -448,7 +480,7 @@ pub async fn create_config_file(base_tally_path: PathBuf) -> Result<()> {
                     velvet::config::PipeConfig {
                         id: "gen-report".to_string(),
                         pipe: PipeName::GenerateReports,
-                        config: Some(serde_json::Value::Null),
+                        config: Some(serde_json::to_value(gen_report_pipe_config)?),
                     },
                 ],
             },
@@ -484,13 +516,22 @@ pub async fn run_velvet_tally(
     area_contests: &Vec<AreaContestDataType>,
     cast_votes_count: &Vec<ElectionCastVotes>,
     tally_sheets: &Vec<TallySheet>,
+    report_content_template: Option<String>,
+    areas: &Vec<Area>,
 ) -> Result<State> {
+    let basic_areas: Vec<TreeNodeArea> = areas.into_iter().map(|area| area.into()).collect();
     // map<(area_id,contest_id), tally_sheet>
     let tally_sheet_map = create_tally_sheets_map(tally_sheets);
     for area_contest in area_contests {
         prepare_tally_for_area_contest(base_tally_path.clone(), area_contest, &tally_sheet_map)?;
     }
-    create_election_configs(base_tally_path.clone(), area_contests, cast_votes_count).await?;
-    create_config_file(base_tally_path.clone()).await?;
-    call_velvet(base_tally_path.clone())
+    create_election_configs(
+        base_tally_path.clone(),
+        area_contests,
+        cast_votes_count,
+        &basic_areas,
+    )
+    .await?;
+    create_config_file(base_tally_path.clone(), report_content_template).await?;
+    call_velvet(base_tally_path.clone()).await
 }

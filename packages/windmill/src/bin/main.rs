@@ -8,15 +8,16 @@
 
 extern crate lazy_static;
 
-use anyhow::Result;
+use std::collections::HashMap;
+
+use anyhow::{anyhow, Result};
 use sequent_core::util::init_log::init_log;
 
 use dotenv::dotenv;
-use sequent_core::services::probe::ProbeHandler;
 use structopt::StructOpt;
 use tracing::{event, Level};
 use windmill::services::celery_app::*;
-use windmill::services::database::*;
+use windmill::services::probe::{setup_probe, AppName};
 extern crate chrono;
 
 #[derive(Debug, StructOpt)]
@@ -37,8 +38,30 @@ enum CeleryOpt {
         acks_late: bool,
         #[structopt(short, long, default_value = "4")]
         task_max_retries: u32,
+        #[structopt(short, long, default_value = "5")]
+        broker_connection_max_retries: u32,
+        #[structopt(short, long, default_value = "10")]
+        heartbeat: u16,
     },
     Produce,
+}
+
+fn find_duplicates(input: Vec<&str>) -> Vec<&str> {
+    let mut occurrences = HashMap::new();
+    let mut duplicates = Vec::new();
+
+    for &item in &input {
+        let count = occurrences.entry(item).or_insert(0);
+        *count += 1;
+    }
+
+    for (&item, &count) in &occurrences {
+        if count > 1 {
+            duplicates.push(item);
+        }
+    }
+
+    duplicates
 }
 
 #[tokio::main]
@@ -46,7 +69,7 @@ async fn main() -> Result<()> {
     dotenv().ok();
     init_log(true);
 
-    setup_probe();
+    setup_probe(AppName::WINDMILL).await;
 
     let opt = CeleryOpt::from_args();
 
@@ -56,16 +79,27 @@ async fn main() -> Result<()> {
             prefetch_count,
             acks_late,
             task_max_retries,
+            broker_connection_max_retries,
+            heartbeat,
         } => {
             set_prefetch_count(prefetch_count);
             set_acks_late(acks_late);
             set_task_max_retries(task_max_retries);
+            set_broker_connection_max_retries(broker_connection_max_retries);
+            set_heartbeat(heartbeat);
             let celery_app = get_celery_app().await;
             celery_app.display_pretty().await;
 
             let vec_str: Vec<&str> = queues.iter().map(AsRef::as_ref).collect();
 
+            let duplicates = find_duplicates(vec_str.clone());
+            if duplicates.len() > 0 {
+                return Err(anyhow!("Found duplicate queues: {:?}", duplicates));
+            }
+
+            set_is_app_active(true);
             celery_app.consume_from(&vec_str[..]).await?;
+            set_is_app_active(false);
             celery_app.close().await?;
         }
         CeleryOpt::Produce => {
@@ -74,23 +108,5 @@ async fn main() -> Result<()> {
             celery_app.close().await?;
         }
     };
-
     Ok(())
-}
-
-fn setup_probe() {
-    let addr_s = std::env::var("WINDMILL_PROBE_ADDR").unwrap_or("0.0.0.0:3030".to_string());
-    let live_path = std::env::var("WINDMILL_PROBE_LIVE_PATH").unwrap_or("live".to_string());
-    let ready_path = std::env::var("WINDMILL_PROBE_READY_PATH").unwrap_or("ready".to_string());
-
-    let addr: Result<std::net::SocketAddr, _> = addr_s.parse();
-
-    if let Ok(addr) = addr {
-        let mut ph = ProbeHandler::new(&live_path, &ready_path, addr);
-        let f = ph.future();
-        ph.set_live(move || true);
-        tokio::spawn(f);
-    } else {
-        tracing::warn!("Could not parse address for probe '{}'", addr_s);
-    }
 }

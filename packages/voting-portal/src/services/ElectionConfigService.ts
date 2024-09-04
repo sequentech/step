@@ -7,7 +7,7 @@ import {
     IContest,
     ECandidatesSelectionPolicy,
     EEnableCheckableLists,
-} from "@sequentech/ui-essentials"
+} from "@sequentech/ui-core"
 
 export const findUrlByTitle = (answer: ICandidate, urlTitle: string): string | undefined =>
     answer.presentation?.urls?.find((url) => urlTitle === url.title)?.url
@@ -25,6 +25,9 @@ export const checkIsWriteIn = (answer: ICandidate): boolean =>
 
 export const checkIsInvalidVote = (answer: ICandidate): boolean =>
     answer.presentation?.is_explicit_invalid || false
+
+export const checkIsExplicitBlankVote = (answer: ICandidate): boolean =>
+    answer.presentation?.is_explicit_blank || false
 
 export const checkPositionIsTop = (answer: ICandidate): boolean =>
     "top" === answer.presentation?.invalid_vote_position

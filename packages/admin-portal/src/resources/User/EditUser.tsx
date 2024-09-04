@@ -4,7 +4,7 @@
 import React, {useEffect, useState} from "react"
 import {List, useListContext} from "react-admin"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {IRole, IUser} from "sequent-core"
+import {IRole, IUser} from "@sequentech/ui-core"
 import {EditUserForm} from "./EditUserForm"
 
 interface EditUserProps {

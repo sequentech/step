@@ -5,15 +5,12 @@
 use crate::services::temp_path::generate_temp_file;
 use crate::types::error::Result;
 use anyhow::Context;
+use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
 use flate2::Compression;
-use std::fs;
-use std::io::Read;
-use std::io::{BufWriter, Write};
+use std::fs::File;
 use std::path::Path;
-use std::{fs::File, path::PathBuf};
-use tar;
-use tempfile::TempPath;
+use tempfile::{tempdir, TempDir, TempPath};
 use tracing::{event, instrument, Level};
 
 // Generates a .tar.gz file, returning its path and file size
@@ -26,10 +23,16 @@ pub fn compress_folder(folder_path: &Path) -> Result<(TempPath, String, u64)> {
         .with_context(|| "Couldn't reopen file for writing")?;
     let tar_file_temp_path = tar_temp_file.into_temp_path();
     let tar_file_str = tar_file_temp_path.to_string_lossy().to_string();
-    event!(Level::INFO, " Path: {tar_file_str}");
+    if !folder_path.is_dir() {
+        return Err(format!(
+            "Path doesn't exist or it's not a folder: {}",
+            folder_path.display()
+        )
+        .into());
+    }
     let enc = GzEncoder::new(&file2, Compression::default());
     let mut tar_builder = tar::Builder::new(enc);
-    tar_builder.append_dir_all(".", folder_path)?;
+    tar_builder.append_dir_all("", folder_path)?;
 
     // Finish writing the .tar.gz file and get the file (temporary file in this
     // case)
@@ -38,4 +41,33 @@ pub fn compress_folder(folder_path: &Path) -> Result<(TempPath, String, u64)> {
     event!(Level::INFO, " Tar file size: {file_size}");
 
     Ok((tar_file_temp_path, tar_file_str, file_size))
+}
+
+// Decompresses a .tar.gz file into a temporary directory, returning the directory path
+#[instrument(err)]
+pub fn decompress_file(file_path: &Path) -> Result<TempDir> {
+    // Create a temporary directory
+    let temp_dir = tempdir().with_context(|| "Error generating temp directory")?;
+    let temp_dir_path = temp_dir.path().to_path_buf();
+
+    // Open the .tar.gz file
+    let file = File::open(file_path)
+        .with_context(|| format!("Couldn't open file: {}", file_path.display()))?;
+    let dec = GzDecoder::new(file);
+
+    // Create a tar archive reader
+    let mut archive = tar::Archive::new(dec);
+
+    // Unpack the archive into the temporary directory
+    archive
+        .unpack(&temp_dir_path)
+        .with_context(|| "Error unpacking the tar archive")?;
+
+    event!(
+        Level::INFO,
+        "Decompressed into directory: {}",
+        temp_dir_path.display()
+    );
+
+    Ok(temp_dir)
 }

@@ -7,10 +7,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Sequent Voting Platform
 
-WARNING: This is a work-in-progress - not usable yet.
-
 This is a mono-repo project encompasing the whole second generation of Sequent
-Voting Platform.
+Voting Platform. 
 
 Implemented using:
 
@@ -70,7 +68,7 @@ To launch the `admin-portal` in development mode, execute (the first time):
 
 ```bash
 cd /workspaces/step/packages/
-yarn && yarn build:ui-essentials # only needed the first time
+yarn && yarn build:ui-core && yarn build:ui-essentials # only needed the first time
 yarn start:admin-portal
 ```
 
@@ -296,6 +294,26 @@ Note that you can insert rows as a migration by clicking on the
 
 ## admin-portal
 
+## ui-essentials
+
+Contains all the components used across the various portals i.e admin, voting, ballot etc.
+Has storybook configured for component documentation and easy update of existing components or building new ones
+
+To start storybook,
+```bash
+cd /workspaces/step/packages/
+yarn storybook:ui-essentials
+```
+
+After updating any component in ui-essentials, run the following commands to build the current state.
+
+```bash
+cd /workspaces/step/packages/
+yarn prettify:fix:ui-essentials && yarn build:ui-essentials
+```
+
+This is done to allow portals to fetch and use the latest versions of components
+
 ## Update graphql JSON schema
 
 The file `packages/admin-portal/graphql.schema.json` contains the GraphQL/Hasura
@@ -448,7 +466,7 @@ of packages/ directory:
   version "0.1.0"
   resolved "file:./admin-portal/rust/sequent-core-0.1.0.tgz#01a1bb936433ef529b9132c783437534db75f67d"
 
-"sequent-core@file:./ballot-verifier/rust/pkg/sequent-core-0.1.0.tgz":
+"sequent-core@file:./ballot-verifier/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
   resolved "file:./ballot-verifier/rust/pkg/sequent-core-0.1.0.tgz#01a1bb936433ef529b9132c783437534db75f67d"
 
@@ -461,17 +479,30 @@ Then you need to execute some further updates:
 
 ```bash
 cd /workspaces/step/packages/
-rm ./admin-portal/rust/sequent-core-0.1.0.tgz ./voting-portal/rust/sequent-core-0.1.0.tgz ./ballot-verifier/rust/sequent-core-0.1.0.tgz
+rm ./ui-core/rust/sequent-core-0.1.0.tgz ./admin-portal/rust/sequent-core-0.1.0.tgz ./voting-portal/rust/sequent-core-0.1.0.tgz ./ballot-verifier/rust/sequent-core-0.1.0.tgz
+cp sequent-core/pkg/sequent-core-0.1.0.tgz ./ui-core/rust/sequent-core-0.1.0.tgz
 cp sequent-core/pkg/sequent-core-0.1.0.tgz ./admin-portal/rust/sequent-core-0.1.0.tgz
 cp sequent-core/pkg/sequent-core-0.1.0.tgz ./voting-portal/rust/sequent-core-0.1.0.tgz
 cp sequent-core/pkg/sequent-core-0.1.0.tgz ./ballot-verifier/rust/sequent-core-0.1.0.tgz
 
-rm -rf node_modules voting-portal/node_modules ballot-verifier/node_modules admin-portal/node_modules
+rm -rf node_modules ui-core/node_modules voting-portal/node_modules ballot-verifier/node_modules admin-portal/node_modules
 
-yarn && yarn build:ui-essentials
+yarn && yarn build:ui-core && yarn build:ui-essentials && yarn build:voting-portal && yarn build:admin-portal
 ```
 
-And then everything should work and be updated.
+And then everything should work and be updated. 
+
+### Troubleshooting
+
+If the typescript (TS, TSX) files suddently don't have correct autocompletion in
+VSCode after this, the recommendation is to run the `Developer: Reload Window`
+task in VSCode.
+
+After running these commands, you need to stop any ui and relaunch. For some
+reason craco is not going to be available, so you need run first
+`Tasks: Run Task` > `start.build.admin-portal` which install it and all its
+dependencies. Then you can launch also for example the `start.voting-portal`
+task.
 
 ## Create election event
 
@@ -486,7 +517,7 @@ docker compose up -d --no-deps harvest && \   # brings up the contaner
 docker compose logs -f --tail 100 harvest     # tails the logs of the container
 ```
 
-1. Run the vault:
+2. Run the vault:
 
 ```bash
 cd /workspaces/step/.devcontainer
@@ -632,3 +663,16 @@ Examples:
  
 These assets are located here: `step/.devcontainer/minio/public-assets` and are uploaded to `minio` using the `configure-minio` container.
 
+## Nightwatch e2e
+
+### Running nightwatch(Admin-Portal)
+
+Requires running both codespace instance as well as local instance at least for the client side.
+ - run codespace
+ - run local instance of client application to test
+ - change directory to specific client application
+ - npx nightwatch path/to/testfile.test.ts e.g `admin-portal% npx nightwatch test/e2e/voter.test.ts`
+ 
+ ### Running Nightwatch(Voting-Portal)
+ refer to voting-portal/test/readme
+ 

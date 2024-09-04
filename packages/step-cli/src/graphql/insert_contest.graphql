@@ -1,0 +1,28 @@
+mutation InsertContest(
+  $tenant_id: uuid!,
+  $election_event_id: uuid!,
+  $election_id: uuid!,
+  $name: String!,
+  $description: String,
+  $max_votes: Int,
+  $min_votes: Int,
+  $winning_candidates_num: Int,
+  $presentation: jsonb,
+) {
+  insert_sequent_backend_contest(objects: {
+    tenant_id: $tenant_id,
+    election_event_id: $election_event_id,
+    election_id: $election_id,
+    name: $name,
+    description: $description,
+    max_votes: $max_votes,
+    min_votes: $min_votes,
+    winning_candidates_num: $winning_candidates_num,
+    presentation: $presentation
+  }) {
+    affected_rows
+    returning {
+      id
+    }
+  }
+}

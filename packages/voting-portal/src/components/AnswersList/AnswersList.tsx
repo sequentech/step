@@ -2,16 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState} from "react"
-import {
-    CandidatesList,
-    isUndefined,
-    IContest,
-    sortCandidatesInContest,
-    translate,
-    keyBy,
-    IContestPresentation,
-} from "@sequentech/ui-essentials"
-import {IDecodedVoteContest} from "sequent-core"
+import {CandidatesList} from "@sequentech/ui-essentials"
+import {IDecodedVoteContest, isUndefined, IContest, translate, keyBy} from "@sequentech/ui-core"
 import {Answer} from "../Answer/Answer"
 import {useAppDispatch, useAppSelector} from "../../store/hooks"
 import {
@@ -24,6 +16,7 @@ import {ICategory} from "../../services/CategoryService"
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
 import {useTranslation} from "react-i18next"
 import {sortBy} from "lodash"
+import {sortCandidatesInContest} from "@sequentech/ui-core"
 
 export interface AnswersListProps {
     title: string
@@ -37,6 +30,9 @@ export interface AnswersListProps {
     isInvalidWriteIns?: boolean
     isRadioSelection?: boolean
     contest: IContest
+    selectedCoicesSum: number
+    setSelectedCoicesSum: (num: number) => void
+    disableSelect: boolean
 }
 
 const showCategoryOnReview = (category: ICategory, questionState?: IDecodedVoteContest) => {
@@ -66,6 +62,9 @@ export const AnswersList: React.FC<AnswersListProps> = ({
     isInvalidWriteIns,
     isRadioSelection,
     contest,
+    selectedCoicesSum,
+    setSelectedCoicesSum,
+    disableSelect,
 }) => {
     const categoryAnswerId = category.header?.id || ""
     const selectionState = useAppSelector(
@@ -170,6 +169,9 @@ export const AnswersList: React.FC<AnswersListProps> = ({
                                 isReview={isReview}
                                 isInvalidWriteIns={isInvalidWriteIns}
                                 contest={contest}
+                                selectedCoicesSum={selectedCoicesSum}
+                                setSelectedCoicesSum={setSelectedCoicesSum}
+                                disableSelect={disableSelect}
                             />
                         ))}
                     </>
@@ -190,6 +192,9 @@ export const AnswersList: React.FC<AnswersListProps> = ({
                         isReview={isReview}
                         isInvalidWriteIns={isInvalidWriteIns}
                         contest={contest}
+                        selectedCoicesSum={selectedCoicesSum}
+                        setSelectedCoicesSum={setSelectedCoicesSum}
+                        disableSelect={disableSelect}
                     />
                 ))}
         </CandidatesList>

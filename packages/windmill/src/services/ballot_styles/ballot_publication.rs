@@ -223,12 +223,14 @@ async fn get_publication_json(
     election_event_id: String,
     ballot_publication_id: String,
     election_id: Option<String>,
+    limit: Option<usize>,
 ) -> Result<Value> {
     let ballot_style_strings: Vec<Option<String>> = get_publication_ballot_styles(
         auth_headers,
         tenant_id,
         election_event_id,
         ballot_publication_id,
+        limit,
     )
     .await?
     .data
@@ -271,6 +273,7 @@ pub async fn get_ballot_publication_diff(
     tenant_id: String,
     election_event_id: String,
     ballot_publication_id: String,
+    limit: Option<usize>,
 ) -> Result<PublicationDiff> {
     let auth_headers = get_client_credentials().await?;
 
@@ -316,6 +319,7 @@ pub async fn get_ballot_publication_diff(
         election_event_id.clone(),
         ballot_publication.id.clone(),
         ballot_publication.election_id.clone(),
+        limit,
     )
     .await?;
 
@@ -331,6 +335,7 @@ pub async fn get_ballot_publication_diff(
             election_event_id.clone(),
             previous_publication_id.clone(),
             ballot_publication.election_id.clone(),
+            limit,
         )
         .await?;
 

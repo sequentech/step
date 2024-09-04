@@ -1,29 +1,32 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useState} from "react"
+import React, {useEffect, useState} from "react"
 import {Box} from "@mui/material"
 import {
-    theme,
     stringToHtml,
     splitList,
     keyBy,
     translate,
     IContest,
-    sortCandidatesInContest,
     CandidatesOrder,
-    BlankAnswer,
-} from "@sequentech/ui-essentials"
+    EOverVotePolicy,
+} from "@sequentech/ui-core"
+import {theme, BlankAnswer} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
 import {Answer} from "../Answer/Answer"
 import {AnswersList} from "../AnswersList/AnswersList"
 import {
+    checkIsExplicitBlankVote,
+    checkIsInvalidVote,
     checkIsRadioSelection,
     checkPositionIsTop,
     checkShuffleCategories,
     checkShuffleCategoryList,
     getCheckableOptions,
+    checkAllowWriteIns,
+    checkIsWriteIn,
 } from "../../services/ElectionConfigService"
 import {
     CategoriesMap,
@@ -33,10 +36,10 @@ import {
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
 import {InvalidErrorsList} from "../InvalidErrorsList/InvalidErrorsList"
 import {useTranslation} from "react-i18next"
-import {IDecodedVoteContest, IInvalidPlaintextError} from "sequent-core"
+import {IDecodedVoteContest, IInvalidPlaintextError} from "@sequentech/ui-core"
 import {useAppSelector} from "../../store/hooks"
 import {selectBallotSelectionQuestion} from "../../store/ballotSelections/ballotSelectionsSlice"
-import {checkIsBlank} from "../../services/BallotService"
+import {sortCandidatesInContest, checkIsBlank} from "@sequentech/ui-core"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -87,20 +90,50 @@ export const Question: React.FC<IQuestionProps> = ({
     setDisableNext,
     setDecodedContests,
 }) => {
+    // THIS IS A CONTEST COMPONENT
     const {i18n} = useTranslation()
-
     let [candidatesOrder, setCandidatesOrder] = useState<Array<string> | null>(null)
     let [categoriesMapOrder, setCategoriesMapOrder] = useState<CategoriesMap | null>(null)
     let [isInvalidWriteIns, setIsInvalidWriteIns] = useState(false)
-    let {invalidCandidates, noCategoryCandidates, categoriesMap} = categorizeCandidates(question)
+    let [selectedCoicesSum, setSelectedCoicesSum] = useState(0)
+    let [disableSelect, setDisableSelect] = useState(false)
+    let {invalidOrBlankCandidates, noCategoryCandidates, categoriesMap} =
+        categorizeCandidates(question)
+    let hasBlankCandidate = invalidOrBlankCandidates.some((candidate) =>
+        checkIsExplicitBlankVote(candidate)
+    )
     const contestState = useAppSelector(
         selectBallotSelectionQuestion(ballotStyle.election_id, question.id)
     )
     const {checkableLists, checkableCandidates} = getCheckableOptions(question)
     let [invalidBottomCandidates, invalidTopCandidates] = splitList(
-        invalidCandidates,
+        invalidOrBlankCandidates,
         checkPositionIsTop
     )
+    let hasWriteIns = checkAllowWriteIns(question) && !!question.candidates.find(checkIsWriteIn)
+
+    useEffect(() => {
+        // Calculating the number of selected candidates
+        let selectedChoicesCount = 0
+        contestState?.choices.forEach((choice) => {
+            choice.selected === 0 && selectedChoicesCount++
+        })
+        setSelectedCoicesSum(selectedChoicesCount)
+    }, [contestState])
+
+    const maxVotesNum = question.max_votes
+    const overVoteDisbleMode =
+        question.presentation?.over_vote_policy === EOverVotePolicy.NOT_ALLOWED_WITH_MSG_AND_DISABLE
+
+    useEffect(() => {
+        if (overVoteDisbleMode) {
+            if (selectedCoicesSum >= maxVotesNum) {
+                setDisableSelect(true)
+            } else {
+                setDisableSelect(false)
+            }
+        }
+    }, [selectedCoicesSum])
 
     // do the shuffling
     const candidatesOrderType = question.presentation?.candidates_order
@@ -136,11 +169,16 @@ export const Question: React.FC<IQuestionProps> = ({
     // when isRadioChecked is true, clicking on another option works as a radio button:
     // it deselects the previously selected option to select the new one
     const isRadioSelection = checkIsRadioSelection(question)
-    const isBlank = isReview && contestState && checkIsBlank(contestState)
+    const isBlank = isReview && contestState && checkIsBlank(contestState) && !hasBlankCandidate
 
     return (
         <Box>
-            <StyledTitle className="contest-title" variant="h5">
+            <StyledTitle
+                className="contest-title"
+                variant="h5"
+                data-min={question.min_votes}
+                data-max={question.max_votes}
+            >
                 {translate(question, "name", i18n.language) || ""}
             </StyledTitle>
             {question.description ? (
@@ -151,6 +189,7 @@ export const Question: React.FC<IQuestionProps> = ({
             <InvalidErrorsList
                 ballotStyle={ballotStyle}
                 question={question}
+                hasWriteIns={hasWriteIns}
                 isInvalidWriteIns={isInvalidWriteIns}
                 setIsInvalidWriteIns={onSetIsInvalidWriteIns}
                 setDecodedContests={setDecodedContests}
@@ -167,9 +206,13 @@ export const Question: React.FC<IQuestionProps> = ({
                         index={answerIndex}
                         isActive={!isReview}
                         isReview={isReview}
-                        isInvalidVote={true}
+                        isInvalidVote={checkIsInvalidVote(answer)}
+                        isExplicitBlankVote={checkIsExplicitBlankVote(answer)}
                         isRadioSelection={isRadioSelection}
                         contest={question}
+                        selectedCoicesSum={selectedCoicesSum}
+                        setSelectedCoicesSum={setSelectedCoicesSum}
+                        disableSelect={disableSelect}
                     />
                 ))}
                 <CandidateListsWrapper className="candidates-lists-container">
@@ -189,6 +232,10 @@ export const Question: React.FC<IQuestionProps> = ({
                                     isInvalidWriteIns={isInvalidWriteIns}
                                     isRadioSelection={isRadioSelection}
                                     contest={question}
+                                    selectedCoicesSum={selectedCoicesSum}
+                                    setSelectedCoicesSum={setSelectedCoicesSum}
+                                    disableSelect={disableSelect}
+                                    //
                                 />
                             )
                         )}
@@ -208,6 +255,9 @@ export const Question: React.FC<IQuestionProps> = ({
                                 isReview={isReview}
                                 isRadioSelection={isRadioSelection}
                                 contest={question}
+                                selectedCoicesSum={selectedCoicesSum}
+                                setSelectedCoicesSum={setSelectedCoicesSum}
+                                disableSelect={disableSelect}
                             />
                         ))}
                 </CandidatesSingleWrapper>
@@ -220,10 +270,14 @@ export const Question: React.FC<IQuestionProps> = ({
                         key={answerIndex}
                         isActive={!isReview}
                         isReview={isReview}
-                        isInvalidVote={true}
+                        isInvalidVote={checkIsInvalidVote(answer)}
+                        isExplicitBlankVote={checkIsExplicitBlankVote(answer)}
                         isInvalidWriteIns={false}
                         isRadioSelection={isRadioSelection}
                         contest={question}
+                        selectedCoicesSum={selectedCoicesSum}
+                        setSelectedCoicesSum={setSelectedCoicesSum}
+                        disableSelect={disableSelect}
                     />
                 ))}
             </CandidatesWrapper>

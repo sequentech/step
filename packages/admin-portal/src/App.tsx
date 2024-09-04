@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Admin, CustomRoutes, DataProvider, Resource, useGetOne} from "react-admin"
-import React, {useContext, useEffect, useMemo, useState} from "react"
+import {Admin, CustomRoutes, DataProvider, Resource} from "react-admin"
+import React, {useContext, useEffect, useState} from "react"
 import {ElectionEventBaseTabs} from "./resources/ElectionEvent/ElectionEventBaseTabs"
 
 import {CreateArea} from "./resources/Area/CreateArea"

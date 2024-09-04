@@ -22,11 +22,23 @@ import {
     RecordContext,
     NumberInput,
     useGetList,
+    FormDataConsumer,
+    required,
 } from "react-admin"
-import {Accordion, AccordionDetails, AccordionSummary, Tabs, Tab, Grid, Box} from "@mui/material"
+import {
+    Accordion,
+    AccordionDetails,
+    AccordionSummary,
+    Tabs,
+    Tab,
+    Grid,
+    Box,
+    Typography,
+} from "@mui/material"
 import {
     GetUploadUrlMutation,
     Sequent_Backend_Communication_Template,
+    Sequent_Backend_Contest,
     Sequent_Backend_Document,
     Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
@@ -41,10 +53,13 @@ import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {ElectionStyles} from "../../components/styles/ElectionStyles"
 import {
-    DropFile,
+    ContestsOrder,
+    IContestPresentation,
+    IElectionDates,
     IElectionEventPresentation,
     IElectionPresentation,
-} from "@sequentech/ui-essentials"
+} from "@sequentech/ui-core"
+import {DropFile} from "@sequentech/ui-essentials"
 import FileJsonInput from "../../components/FileJsonInput"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -53,13 +68,32 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import styled from "@emotion/styled"
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {ManageElectionDatesMutation} from "@/gql/graphql"
+import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
 
 const LangsWrapper = styled(Box)`
     margin-top: 46px;
 `
+const ContestRows = styled.div`
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    cursor: pointer;
+    margin-bottom: 0.1rem;
+    padding: 1rem;
+`
+
+const ListWrapper = styled.div`
+    display: flex;
+    flex-direction: column;
+    border-radius: 4px;
+    border: 1px solid #777;
+    padding: 8px;
+    margin-bottom: 4px;
+`
 
 export type Sequent_Backend_Election_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
+    contestsOrder?: Array<Sequent_Backend_Contest>
 } & Sequent_Backend_Election
 
 export const ElectionDataForm: React.FC = () => {
@@ -75,6 +109,8 @@ export const ElectionDataForm: React.FC = () => {
     const [expanded, setExpanded] = useState("election-data-general")
     const [languageSettings, setLanguageSettings] = useState<Array<string>>(["en"])
     const {globalSettings} = useContext(SettingsContext)
+    const [startDateValue, setStartDateValue] = useState<string | undefined>(undefined)
+    const [endDateValue, setEndDateValue] = useState<string | undefined>(undefined)
 
     const [manageElectionDates] = useMutation<ManageElectionDatesMutation>(MANAGE_ELECTION_DATES)
 
@@ -84,6 +120,14 @@ export const ElectionDataForm: React.FC = () => {
 
     const {data: tenantData} = useGetOne<Sequent_Backend_Tenant>("sequent_backend_tenant", {
         id: record.tenant_id || tenantId,
+    })
+
+    const {data: contests} = useGetList<Sequent_Backend_Contest>("sequent_backend_contest", {
+        filter: {
+            election_id: record.id,
+            tenant_id: record.tenant_id,
+            election_event_id: record.election_event_id,
+        },
     })
 
     const {data: imageData, refetch: refetchImage} = useGetOne<Sequent_Backend_Document>(
@@ -105,6 +149,24 @@ export const ElectionDataForm: React.FC = () => {
     )
 
     const [updateImage] = useUpdate()
+
+    useEffect(() => {
+        let dates = record.dates as IElectionDates | undefined
+        if (dates?.start_date && !startDateValue) {
+            setStartDateValue(dates.start_date)
+        }
+        if (dates?.end_date && !endDateValue) {
+            setEndDateValue(dates.end_date)
+        }
+    }, [
+        record.dates,
+        record.dates?.start_date,
+        record.dates?.end_date,
+        startDateValue,
+        setStartDateValue,
+        endDateValue,
+        setEndDateValue,
+    ])
 
     useEffect(() => {
         if (!data || !record) {
@@ -184,6 +246,9 @@ export const ElectionDataForm: React.FC = () => {
                 temp.scheduledClosing = temp.presentation?.dates?.scheduled_closing
             }
 
+            temp.presentation.contests_order =
+                temp.presentation.contests_order || ContestsOrder.ALPHABETICAL
+
             const votingSettings = data?.voting_channels || tenantData?.voting_channels
 
             // set english first lang always
@@ -206,8 +271,14 @@ export const ElectionDataForm: React.FC = () => {
             }
 
             // name, alias and description fields
-            if (!temp.presentation || !temp.presentation?.i18n) {
-                temp.presentation = {i18n: {en: {}}}
+            if (!temp.presentation) {
+                temp.presentation = {}
+            }
+            if (!temp.presentation?.i18n) {
+                temp.presentation.i18n = {}
+            }
+            if (!temp.presentation?.i18n?.en) {
+                temp.presentation.i18n.en = {}
             }
             temp.presentation.i18n.en.name = temp.name
             temp.presentation.i18n.en.alias = temp.alias
@@ -236,16 +307,16 @@ export const ElectionDataForm: React.FC = () => {
         [data, tenantData?.voting_channels]
     )
 
-    const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
-        setValue(newValue)
-    }
-
     const formValidator = (values: any): any => {
         const errors: any = {dates: {}}
         if (values?.dates?.start_date && values?.dates?.end_date <= values?.dates?.start_date) {
-            errors.dates.end_date = t("electionEventScreen.error.endDate")
+            errors.dates.end_date = t("electionScreen.error.endDate")
         }
         return errors
+    }
+
+    const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
+        setValue(newValue)
     }
 
     const renderLangs = (parsedValue: Sequent_Backend_Election_Extended) => {
@@ -389,6 +460,26 @@ export const ElectionDataForm: React.FC = () => {
         }))
     }
 
+    const sortedContests = (contests ?? []).sort((a, b) => {
+        let presentationA = a.presentation as IContestPresentation | undefined
+        let presentationB = b.presentation as IContestPresentation | undefined
+        let sortOrderA = presentationA?.sort_order ?? -1
+        let sortOrderB = presentationB?.sort_order ?? -1
+        return sortOrderA - sortOrderB
+    })
+
+    interface EnumChoice<T> {
+        id: T
+        name: string
+    }
+
+    const orderAnswerChoices = (): Array<EnumChoice<ContestsOrder>> => {
+        return Object.values(ContestsOrder).map((value) => ({
+            id: value,
+            name: t(`contestScreen.options.${value.toLowerCase()}`),
+        }))
+    }
+
     return data ? (
         <RecordContext.Consumer>
             {(incoming) => {
@@ -397,41 +488,29 @@ export const ElectionDataForm: React.FC = () => {
                     languageSettings
                 )
 
-                const onScheduledOpening: React.MouseEventHandler<HTMLButtonElement> &
-                    React.MouseEventHandler<HTMLDivElement> = async (event) => {
-                    let isUnset = incoming.presentation.dates.scheduled_opening
-
-                    const {data} = await manageElectionDates({
+                const onSave = async () => {
+                    await manageElectionDates({
                         variables: {
                             electionEventId: parsedValue.election_event_id,
                             electionId: parsedValue.id,
-                            isStart: true,
-                            isUnset: !!isUnset,
-                        },
-                    })
-                }
-
-                const onScheduledClosing: React.MouseEventHandler<HTMLButtonElement> &
-                    React.MouseEventHandler<HTMLDivElement> = async (event) => {
-                    let isUnset = incoming.presentation.dates.scheduled_closing
-
-                    const {data} = await manageElectionDates({
-                        variables: {
-                            electionEventId: parsedValue.election_event_id,
-                            electionId: parsedValue.id,
-                            isStart: false,
-                            isUnset: !!isUnset,
+                            start_date: startDateValue,
+                            end_date: endDateValue,
                         },
                     })
                 }
 
                 return (
                     <SimpleForm
-                        validate={formValidator}
+                        defaultValues={{contestsOrder: sortedContests}}
                         record={parsedValue}
+                        validate={formValidator}
                         toolbar={
                             <Toolbar>
-                                <SaveButton />
+                                <SaveButton
+                                    onClick={() => {
+                                        onSave()
+                                    }}
+                                />
                             </Toolbar>
                         }
                     >
@@ -472,31 +551,48 @@ export const ElectionDataForm: React.FC = () => {
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
+                                <Typography
+                                    variant="body1"
+                                    component="span"
+                                    sx={{
+                                        fontWeight: "bold",
+                                        margin: 0,
+                                        display: {xs: "none", sm: "block"},
+                                    }}
+                                >
+                                    {t("electionScreen.edit.votingPeriod")}
+                                </Typography>
                                 <Grid container spacing={4}>
                                     <Grid item xs={12} md={6}>
-                                        <BooleanInput
-                                            source={`scheduledOpening`}
-                                            label={t(`electionScreen.field.scheduledOpening`)}
-                                            helperText={false}
-                                            onClick={onScheduledOpening}
-                                        />
                                         <DateTimeInput
-                                            source={`presentation.dates.start_date`}
+                                            source={`dates.start_date`}
                                             label={t("electionScreen.field.startDateTime")}
-                                            parse={(value) => new Date(value).toISOString()}
+                                            parse={(value) =>
+                                                value && new Date(value).toISOString()
+                                            }
+                                            onChange={(value) => {
+                                                setStartDateValue(
+                                                    value.target.value !== ""
+                                                        ? new Date(value.target.value).toISOString()
+                                                        : undefined
+                                                )
+                                            }}
                                         />
                                     </Grid>
                                     <Grid item xs={12} md={6}>
-                                        <BooleanInput
-                                            source={`scheduledClosing`}
-                                            label={t(`electionScreen.field.scheduledClosing`)}
-                                            helperText={false}
-                                            onClick={onScheduledClosing}
-                                        />
                                         <DateTimeInput
-                                            source="presentation.dates.end_date"
+                                            source="dates.end_date"
                                             label={t("electionScreen.field.endDateTime")}
-                                            parse={(value) => new Date(value).toISOString()}
+                                            parse={(value) =>
+                                                value && new Date(value).toISOString()
+                                            }
+                                            onChange={(value) => {
+                                                setEndDateValue(
+                                                    value.target.value !== ""
+                                                        ? new Date(value.target.value).toISOString()
+                                                        : undefined
+                                                )
+                                            }}
                                         />
                                     </Grid>
                                 </Grid>
@@ -547,6 +643,55 @@ export const ElectionDataForm: React.FC = () => {
                                         {renderVotingChannels(parsedValue)}
                                     </Grid>
                                 </Grid>
+                            </AccordionDetails>
+                        </Accordion>
+
+                        <Accordion
+                            sx={{width: "100%"}}
+                            expanded={expanded === "contest-data-design"}
+                            onChange={() => setExpanded("contest-data-design")}
+                        >
+                            <AccordionSummary
+                                expandIcon={<ExpandMoreIcon id="contest-data-design" />}
+                            >
+                                <ElectionStyles.Wrapper>
+                                    <ElectionStyles.Title>
+                                        {t("contestScreen.edit.design")}
+                                    </ElectionStyles.Title>
+                                </ElectionStyles.Wrapper>
+                            </AccordionSummary>
+                            <AccordionDetails>
+                                <SelectInput
+                                    source="presentation.contests_order"
+                                    choices={orderAnswerChoices()}
+                                    validate={required()}
+                                />
+                                <FormDataConsumer>
+                                    {({formData, ...rest}) => {
+                                        return (
+                                            formData?.presentation as
+                                                | IElectionPresentation
+                                                | undefined
+                                        )?.contests_order === ContestsOrder.CUSTOM ? (
+                                            <ContestRows>
+                                                <Typography
+                                                    variant="body1"
+                                                    component="span"
+                                                    sx={{
+                                                        padding: "0.5rem 1rem",
+                                                        fontWeight: "bold",
+                                                        margin: 0,
+                                                        display: {xs: "none", sm: "block"},
+                                                    }}
+                                                >
+                                                    {t("electionScreen.edit.reorder")}
+                                                </Typography>
+                                                <CustomOrderInput source="contestsOrder" />
+                                                <Box sx={{width: "100%", height: "180px"}}></Box>
+                                            </ContestRows>
+                                        ) : null
+                                    }}
+                                </FormDataConsumer>
                             </AccordionDetails>
                         </Accordion>
 
@@ -649,12 +794,15 @@ export const ElectionDataForm: React.FC = () => {
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
+                                <BooleanInput
+                                    source={"presentation.cast_vote_confirm"}
+                                    label={t(`electionScreen.edit.castVoteConfirm`)}
+                                />
                                 <NumberInput
                                     source="num_allowed_revotes"
                                     label={t("electionScreen.edit.numAllowedVotes")}
                                     min={0}
                                 />
-
                                 <FileJsonInput
                                     parsedValue={parsedValue}
                                     fileSource="configuration"

@@ -10,7 +10,6 @@ use crate::ballot::{
 };
 use anyhow::{anyhow, Result};
 use serde::Deserialize;
-
 #[derive(PartialEq, Eq, Debug, Clone, Deserialize)]
 pub struct VotingChannels {
     pub online: Option<bool>,

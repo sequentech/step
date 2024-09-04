@@ -278,8 +278,9 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                 ] as IEmail
                 setEmail(newEmail, value)
             } else {
-                let newSms = selectedReceipt[0]["template"][selectedMethod.toLowerCase()] as string
-                let newSMSCommunication = {...communication}
+                let newSms = selectedReceipt[0]["template"][selectedMethod.toLowerCase()]
+                    .message as string
+                let newSMSCommunication = {...newCommunication}
                 let a = newSMSCommunication.i18n?.["en"]
                 if (a?.sms?.message) {
                     a.sms.message = newSms

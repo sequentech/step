@@ -14,10 +14,10 @@ pub fn get_candidate_0(
 ) -> Candidate {
     Candidate {
         id: "0".to_string(),
-        tenant_id: tenant_id.to_string(),
-        election_event_id: election_event_id.to_string(),
-        election_id: election_id.to_string(),
-        contest_id: contest_id.to_string(),
+        tenant_id: (tenant_id.to_string()),
+        election_event_id: (election_event_id.to_string()),
+        election_id: (election_id.to_string()),
+        contest_id: (contest_id.to_string()),
         name: Some("José Rabano Pimiento".into()),
         name_i18n: None,
         description: None,
@@ -28,6 +28,7 @@ pub fn get_candidate_0(
         presentation: Some(CandidatePresentation {
             i18n: None,
             is_explicit_invalid: Some(false),
+            is_explicit_blank: Some(false),
             is_disabled: Some(false),
             is_write_in: Some(false),
             sort_order: Some(0),
@@ -36,6 +37,7 @@ pub fn get_candidate_0(
             is_category_list: Some(false),
             subtype: None,
         }),
+        annotations: None,
     }
 }
 
@@ -48,10 +50,10 @@ pub fn get_candidate_1(
 ) -> Candidate {
     Candidate {
         id: "1".to_string(),
-        tenant_id: tenant_id.to_string(),
-        election_event_id: election_event_id.to_string(),
-        election_id: election_id.to_string(),
-        contest_id: contest_id.to_string(),
+        tenant_id: (tenant_id.to_string()),
+        election_event_id: (election_event_id.to_string()),
+        election_id: (election_id.to_string()),
+        contest_id: (contest_id.to_string()),
         name: Some("Miguel Pimentel Inventado".into()),
         name_i18n: None,
         description: None,
@@ -62,6 +64,7 @@ pub fn get_candidate_1(
         presentation: Some(CandidatePresentation {
             i18n: None,
             is_explicit_invalid: Some(false),
+            is_explicit_blank: Some(false),
             is_disabled: Some(false),
             is_write_in: Some(false),
             sort_order: Some(1),
@@ -70,6 +73,7 @@ pub fn get_candidate_1(
             is_category_list: Some(false),
             subtype: None,
         }),
+        annotations: None,
     }
 }
 
@@ -82,10 +86,10 @@ pub fn get_candidate_2(
 ) -> Candidate {
     Candidate {
         id: "2".to_string(),
-        tenant_id: tenant_id.to_string(),
-        election_event_id: election_event_id.to_string(),
-        election_id: election_id.to_string(),
-        contest_id: contest_id.to_string(),
+        tenant_id: (tenant_id.to_string()),
+        election_event_id: (election_event_id.to_string()),
+        election_id: (election_id.to_string()),
+        contest_id: (contest_id.to_string()),
         name: Some("Juan Iglesias Torquemada".into()),
         name_i18n: None,
         description: None,
@@ -96,6 +100,7 @@ pub fn get_candidate_2(
         presentation: Some(CandidatePresentation {
             i18n: None,
             is_explicit_invalid: Some(false),
+            is_explicit_blank: Some(false),
             is_disabled: Some(false),
             is_write_in: Some(false),
             sort_order: Some(2),
@@ -104,6 +109,7 @@ pub fn get_candidate_2(
             is_category_list: Some(false),
             subtype: None,
         }),
+        annotations: None,
     }
 }
 
@@ -116,10 +122,10 @@ pub fn get_candidate_3(
 ) -> Candidate {
     Candidate {
         id: "3".to_string(),
-        tenant_id: tenant_id.to_string(),
-        election_event_id: election_event_id.to_string(),
-        election_id: election_id.to_string(),
-        contest_id: contest_id.to_string(),
+        tenant_id: (tenant_id.to_string()),
+        election_event_id: (election_event_id.to_string()),
+        election_id: (election_id.to_string()),
+        contest_id: (contest_id.to_string()),
         name: Some("Mari Pili Hernández Ordoñez".into()),
         name_i18n: None,
         description: None,
@@ -130,6 +136,7 @@ pub fn get_candidate_3(
         presentation: Some(CandidatePresentation {
             i18n: None,
             is_explicit_invalid: Some(false),
+            is_explicit_blank: Some(false),
             is_disabled: Some(false),
             is_write_in: Some(false),
             sort_order: Some(3),
@@ -138,6 +145,7 @@ pub fn get_candidate_3(
             is_category_list: Some(false),
             subtype: None,
         }),
+        annotations: None,
     }
 }
 
@@ -150,10 +158,10 @@ pub fn get_candidate_4(
 ) -> Candidate {
     Candidate {
         id: "4".to_string(),
-        tenant_id: tenant_id.to_string(),
-        election_event_id: election_event_id.to_string(),
-        election_id: election_id.to_string(),
-        contest_id: contest_id.to_string(),
+        tenant_id: (tenant_id.to_string()),
+        election_event_id: (election_event_id.to_string()),
+        election_id: (election_id.to_string()),
+        contest_id: (contest_id.to_string()),
         name: Some("Juan Y Medio".into()),
         name_i18n: None,
         description: None,
@@ -164,6 +172,7 @@ pub fn get_candidate_4(
         presentation: Some(CandidatePresentation {
             i18n: None,
             is_explicit_invalid: Some(false),
+            is_explicit_blank: Some(false),
             is_disabled: Some(false),
             is_write_in: Some(false),
             sort_order: Some(4),
@@ -172,6 +181,7 @@ pub fn get_candidate_4(
             is_category_list: Some(false),
             subtype: None,
         }),
+        annotations: None,
     }
 }
 
@@ -198,6 +208,7 @@ pub fn get_candidate_5(
         presentation: Some(CandidatePresentation {
             i18n: None,
             is_explicit_invalid: Some(false),
+            is_explicit_blank: Some(false),
             is_disabled: Some(false),
             is_write_in: Some(false),
             sort_order: Some(5),
@@ -206,5 +217,6 @@ pub fn get_candidate_5(
             is_category_list: Some(false),
             subtype: None,
         }),
+        annotations: None,
     }
 }

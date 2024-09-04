@@ -43,7 +43,6 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
         secondCheckbox: false,
     })
     const handleCheckboxChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        console.log(`checkbox: ${event.target.name}: ${event.target.checked}`)
         setCheckboxState({
             ...checkboxState,
             [event.target.name]: event.target.checked,
@@ -107,19 +106,29 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                             values={{name: authContext.username}}
                         ></Trans>
                     </Typography>
-                    <WizardStyles.DownloadButton color="primary" onClick={download}>
+                    <WizardStyles.DownloadButton
+                        color="primary"
+                        onClick={download}
+                        className="keys-download-download-button"
+                    >
                         <DownloadIcon />
                         {t("keysGeneration.downloadStep.downloadButton")}
                     </WizardStyles.DownloadButton>
                     <WizardStyles.StatusBox>
                         {downloading ? <WizardStyles.DownloadProgress /> : null}
                         {downloaded ? (
-                            <WizardStyles.SucessMessage variant="body1">
+                            <WizardStyles.SucessMessage
+                                variant="body1"
+                                className="keys-download-success"
+                            >
                                 {t("keysGeneration.checkStep.downloaded")}
                             </WizardStyles.SucessMessage>
                         ) : null}
                         {errors ? (
-                            <WizardStyles.ErrorMessage variant="body2">
+                            <WizardStyles.ErrorMessage
+                                variant="body2"
+                                className="keys-download-error"
+                            >
                                 {errors}
                             </WizardStyles.ErrorMessage>
                         ) : null}
@@ -128,7 +137,11 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
             </WizardStyles.ContentBox>
 
             <WizardStyles.Toolbar>
-                <WizardStyles.BackButton color="info" onClick={goBack}>
+                <WizardStyles.BackButton
+                    color="info"
+                    onClick={goBack}
+                    className="keys-download-back-button"
+                >
                     <ArrowBackIosIcon />
                     {t("common.label.back")}
                 </WizardStyles.BackButton>
@@ -136,6 +149,7 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                     disabled={!downloaded}
                     color="info"
                     onClick={() => setOpenConfirmationModal(true)}
+                    className="keys-download-next-button"
                 >
                     <ArrowForwardIosIcon />
                     {t("common.label.next")}
@@ -165,6 +179,7 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                                 checked={firstCheckbox}
                                 onChange={handleCheckboxChange}
                                 name="firstCheckbox"
+                                className="keys-download-first-checkbox"
                             />
                         }
                         label={t("keysGeneration.downloadStep.confirmdDialog.firstCopy")}
@@ -176,6 +191,7 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                                 checked={secondCheckbox}
                                 onChange={handleCheckboxChange}
                                 name="secondCheckbox"
+                                className="keys-download-second-checkbox"
                             />
                         }
                         label={t("keysGeneration.downloadStep.confirmdDialog.secondCopy")}

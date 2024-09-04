@@ -17,6 +17,7 @@
     "@mui/x-data-grid": "6.18.2",
     "@react-page/react-admin": "5.4.4",
     "@reduxjs/toolkit": "1.9.5",
+    "@sequentech/ui-core": "*",
     "@sequentech/ui-essentials": "*",
     "@tinymce/tinymce-react": "^4.3.2",
     "@types/diff": "^5.0.8",

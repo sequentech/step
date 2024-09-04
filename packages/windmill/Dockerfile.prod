@@ -20,6 +20,9 @@ COPY ./sequent-core ./sequent-core
 COPY ./windmill ./windmill
 COPY ./wrap-map-err ./wrap-map-err
 COPY ./velvet ./velvet
+COPY ./Cargo.lock ./Cargo.lock
+
+RUN cp /app/windmill/external-bin/ecies-tool.jar /usr/local/bin/
 
 WORKDIR /app/windmill
 RUN cargo build --release
@@ -28,12 +31,18 @@ RUN cargo build --release
 
 FROM debian:bookworm
 # Install any necessary runtime dependencies for production
-RUN apt-get update && apt-get install -y --no-install-recommends libssl3 chromium ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends libssl3 chromium ca-certificates wget software-properties-common && rm -rf /var/lib/apt/lists/*
 RUN update-ca-certificates
+RUN wget https://download.java.net/java/GA/jdk22.0.2/c9ecb94cd31b495da20a27d4581645e8/9/GPL/openjdk-22.0.2_linux-x64_bin.tar.gz \
+    && tar xvf openjdk-22.0.2_linux-x64_bin.tar.gz \
+    && mv jdk-22.0.2  /usr/local/ \
+    && update-alternatives --install /usr/bin/java java /usr/local/jdk-22.0.2/bin/java 1 \
+    && update-alternatives --install /usr/bin/javac javac /usr/local/jdk-22.0.2/bin/javac 1
 # Copy the compiled binaries from the builder stage (beat + windmill:main)
 COPY --from=builder /app/windmill/target/release/main /usr/local/bin/main
 COPY --from=builder /app/windmill/target/release/beat /usr/local/bin/beat
+COPY --from=builder /usr/local/bin/ecies-tool.jar /usr/local/bin/ecies-tool.jar
 VOLUME /import
 WORKDIR /usr/local/bin
 # Run the windmill binary, it's possible to run 'beat' as well
-CMD ["main", "consume", "-q", "short_queue", "tally_queue", "beat", "reports_queue", "beat", "communication_queue", "import_export_queue"]
+CMD ["main", "consume", "-q", "short_queue", "tally_queue", "beat", "reports_queue", "communication_queue", "import_export_queue"]

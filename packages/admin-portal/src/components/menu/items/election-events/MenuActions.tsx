@@ -45,6 +45,8 @@ interface Props {
     resourceType: ResourceName
     parentData: DataTreeMenuType
     menuItemRef: RefObject<HTMLDivElement | null>
+    setAnchorEl: (val: HTMLParagraphElement | null) => void
+    anchorEl: HTMLParagraphElement | null
 }
 
 export default function MenuAction({
@@ -54,6 +56,8 @@ export default function MenuAction({
     resourceType,
     parentData,
     menuItemRef,
+    setAnchorEl,
+    anchorEl,
 }: Props) {
     const {t, i18n} = useTranslation()
 
@@ -74,8 +78,6 @@ export default function MenuAction({
         action: Action
         payload: ActionPayload
     } | null>(null)
-
-    const [anchorEl, setAnchorEl] = React.useState<HTMLParagraphElement | null>(null)
 
     const isItemElectionEventType = resourceType === "sequent_backend_election_event"
 
@@ -204,7 +206,7 @@ export default function MenuAction({
     return (
         <>
             <StyledIconContainer onClick={handleOpenItemActions}>
-                <MoreHorizIcon />
+                <MoreHorizIcon id={"MoreHorizIcon"} />
             </StyledIconContainer>
             <Popover
                 id={idActionMenu}
@@ -221,6 +223,7 @@ export default function MenuAction({
                         <MenuItem
                             dir={i18n.dir(i18n.language)}
                             key={Action.Add}
+                            className={`menu-action-add-${resourceType}`}
                             onClick={() =>
                                 handleAction(Action.Add, {
                                     id: resourceId,
@@ -244,6 +247,7 @@ export default function MenuAction({
                         <MenuItem
                             dir={i18n.dir(i18n.language)}
                             key={Action.Archive}
+                            className={`menu-action-archive-${resourceType}`}
                             onClick={() =>
                                 handleAction(isArchivedTab ? Action.Unarchive : Action.Archive, {
                                     id: resourceId,

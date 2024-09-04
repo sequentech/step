@@ -5,7 +5,7 @@ import React, {useContext} from "react"
 
 import Keycloak, {KeycloakConfig, KeycloakInitOptions} from "keycloak-js"
 import {createContext, useEffect, useState} from "react"
-import {isArray, isNull, isString, sleep} from "@sequentech/ui-essentials"
+import {isArray, isNull, isString, sleep} from "@sequentech/ui-core"
 import {IPermissions} from "@/types/keycloak"
 import {SettingsContext} from "./SettingsContextProvider"
 

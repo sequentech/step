@@ -84,7 +84,7 @@
                 "bash",
                 "--",
                 "-c",
-                "cd packages && yarn && yarn build:ui-essentials && yarn start:admin-portal",
+                "cd packages && yarn && yarn build:ui-core && yarn build:ui-essentials && yarn start:admin-portal",
             ],
             "presentation": {
                 "echo": true,
@@ -492,11 +492,36 @@
             "problemMatcher": []
         },
         {
+            "label": "init.cli",
+            "command": "devenv",
+            "args": [
+                "shell",
+                "bash",
+                "--",
+                "-c",
+                "cd /workspaces/step/packages/step-cli && cargo build --release && /workspaces/step/.devcontainer/scripts/config-cli.sh"
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
             "label": "update.vscode.settings",
             "command": "devenv",
             "args": [
                 "shell",
                 "bash",
+                "--",
                 "-c",
                 "./.devcontainer/scripts/fix-vscode-settings-nix.sh",
             ],
@@ -520,6 +545,7 @@
             "args": [
                 "shell",
                 "bash",
+                "--",
                 "-c",
                 "./.devcontainer/scripts/update-graphql.sh",
             ],
@@ -545,7 +571,7 @@
                 "bash",
                 "--",
                 "-c",
-                "cd packages/ && cargo fmt && yarn lint:fix && yarn prettify:fix",
+                "cd packages/ && cargo fmt && yarn lint:fix && yarn prettify:fix && cd ./keycloak-extensions && mvn clean install && mvn invoker:run@run-spotless-apply",
             ],
             "presentation": {
                 "echo": true,

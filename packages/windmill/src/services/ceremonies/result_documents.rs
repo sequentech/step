@@ -9,20 +9,28 @@ use crate::{
         results_event::update_results_event_documents,
     },
     services::{
-        compress::compress_folder, documents::upload_and_return_document, temp_path::get_file_size,
+        compress::compress_folder,
+        documents::{upload_and_return_document, upload_and_return_document_postgres},
+        folders::copy_to_temp_dir,
+        temp_path::get_file_size,
     },
 };
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::services::keycloak;
 use sequent_core::{services::connection::AuthHeaders, types::results::ResultDocuments};
-use std::path::{Path, PathBuf};
+use sequent_core::{services::keycloak, types::hasura::core::Area};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 use tokio::task;
 use tracing::instrument;
 use velvet::pipes::generate_reports::{
     ElectionReportDataComputed, ReportDataComputed, OUTPUT_HTML, OUTPUT_JSON, OUTPUT_PDF,
 };
 use velvet::pipes::vote_receipts::OUTPUT_FILE_PDF as OUTPUT_RECEIPT_PDF;
+
+use super::renamer::rename_folders;
 
 pub const MIME_PDF: &str = "application/pdf";
 pub const MIME_JSON: &str = "application/json";
@@ -133,6 +141,7 @@ pub trait GenerateResultDocuments {
         hasura_transaction: &Transaction<'_>,
         document_paths: &ResultDocumentPaths,
         results_event_id: &str,
+        rename_map: Option<HashMap<String, String>>,
     ) -> Result<ResultDocuments>;
 }
 
@@ -147,6 +156,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             pdf: None,
             html: None,
             tar_gz: Some(base_path.display().to_string()),
+            tar_gz_original: None,
             vote_receipts_pdf: None,
         }
     }
@@ -158,14 +168,49 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
         hasura_transaction: &Transaction<'_>,
         document_paths: &ResultDocumentPaths,
         results_event_id: &str,
+        rename_map: Option<HashMap<String, String>>,
     ) -> Result<ResultDocuments> {
         if let Some(tar_gz_path) = document_paths.clone().tar_gz {
             // compressed file with the tally
+            // PART 1: original zip
+            // Spawn the task
+            let tar_gz_path_clone = tar_gz_path.clone();
+            let original_handle = tokio::task::spawn_blocking(move || {
+                let path = Path::new(&tar_gz_path_clone);
+                compress_folder(&path)
+            });
 
+            // Await the result
+            let original_result = original_handle.await??;
+
+            let (_original_tarfile_temp_path, original_tarfile_path, original_tarfile_size) =
+                original_result;
+
+            let contest = &self[0].reports[0].contest;
+
+            // upload binary data into a document (s3 and hasura)
+            let original_document = upload_and_return_document_postgres(
+                hasura_transaction,
+                &original_tarfile_path,
+                original_tarfile_size,
+                "application/gzip",
+                &contest.tenant_id,
+                &contest.election_event_id,
+                "tally.tar.gz",
+                None,
+                false,
+            )
+            .await?;
+
+            // PART 2: renamed folders zip
             // Spawn the task
             let handle = tokio::task::spawn_blocking(move || {
                 let path = Path::new(&tar_gz_path);
-                compress_folder(path)
+                let temp_dir = copy_to_temp_dir(&path.to_path_buf())?;
+                let temp_dir_path = temp_dir.path().to_path_buf();
+                let renames = rename_map.unwrap_or(HashMap::new());
+                rename_folders(&renames, &temp_dir_path)?;
+                compress_folder(&temp_dir_path)
             });
 
             // Await the result
@@ -173,17 +218,15 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
 
             let (_tarfile_temp_path, tarfile_path, tarfile_size) = result;
 
-            let contest = &self[0].reports[0].contest;
-
             // upload binary data into a document (s3 and hasura)
-            let document = upload_and_return_document(
-                tarfile_path.clone(),
+            let document = upload_and_return_document_postgres(
+                hasura_transaction,
+                &tarfile_path,
                 tarfile_size,
-                "application/gzip".to_string(),
-                auth_headers.clone(),
-                contest.tenant_id.clone(),
-                contest.election_event_id.clone(),
-                "tally.tar.gz".into(),
+                "application/gzip",
+                &contest.tenant_id,
+                &contest.election_event_id,
+                "tally.tar.gz",
                 None,
                 false,
             )
@@ -194,6 +237,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 pdf: None,
                 html: None,
                 tar_gz: Some(document.id),
+                tar_gz_original: Some(original_document.id),
                 vote_receipts_pdf: None,
             };
 
@@ -213,6 +257,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 pdf: None,
                 html: None,
                 tar_gz: None,
+                tar_gz_original: None,
                 vote_receipts_pdf: None,
             })
         }
@@ -250,6 +295,7 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
                 None
             },
             tar_gz: None,
+            tar_gz_original: None,
             vote_receipts_pdf: None,
         }
     }
@@ -261,6 +307,7 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
         hasura_transaction: &Transaction<'_>,
         document_paths: &ResultDocumentPaths,
         results_event_id: &str,
+        rename_map: Option<HashMap<String, String>>,
     ) -> Result<ResultDocuments> {
         let contest = self
             .reports
@@ -344,6 +391,7 @@ impl GenerateResultDocuments for ReportDataComputed {
                 None
             },
             tar_gz: None,
+            tar_gz_original: None,
             vote_receipts_pdf: vote_receipts_pdf,
         }
     }
@@ -355,6 +403,7 @@ impl GenerateResultDocuments for ReportDataComputed {
         hasura_transaction: &Transaction<'_>,
         document_paths: &ResultDocumentPaths,
         results_event_id: &str,
+        rename_map: Option<HashMap<String, String>>,
     ) -> Result<ResultDocuments> {
         let documents = generic_save_documents(
             auth_headers,
@@ -364,7 +413,7 @@ impl GenerateResultDocuments for ReportDataComputed {
         )
         .await?;
 
-        if let Some(area_id) = self.area_id.clone() {
+        if let Some(area) = self.area.clone() {
             update_results_area_contest_documents(
                 hasura_transaction,
                 &self.contest.tenant_id,
@@ -372,7 +421,7 @@ impl GenerateResultDocuments for ReportDataComputed {
                 &self.contest.election_event_id,
                 &self.contest.election_id,
                 &self.contest.id,
-                &area_id,
+                &area.id,
                 &documents,
             )
             .await?;
@@ -393,6 +442,46 @@ impl GenerateResultDocuments for ReportDataComputed {
     }
 }
 
+#[instrument(skip(results), err)]
+pub fn generate_ids_map(
+    results: &Vec<ElectionReportDataComputed>,
+    areas: &Vec<Area>,
+) -> Result<HashMap<String, String>> {
+    let mut rename_map: HashMap<String, String> = HashMap::new();
+    let election_reports = results
+        .into_iter()
+        .map(|result| result.reports.clone())
+        .flat_map(|inner_vec| inner_vec)
+        .collect::<Vec<ReportDataComputed>>();
+
+    for election_report in election_reports {
+        rename_map.insert(
+            election_report.contest.election_id.clone(),
+            format!(
+                "{}__{}",
+                election_report.election_name, election_report.contest.election_id
+            ),
+        );
+
+        let Some(contest_name) = election_report.contest.name.clone() else {
+            continue;
+        };
+        rename_map.insert(
+            election_report.contest.id.clone(),
+            format!("{}__{}", contest_name, election_report.contest.id),
+        );
+    }
+
+    for area in areas {
+        let Some(name) = area.name.clone() else {
+            continue;
+        };
+        rename_map.insert(area.id.clone(), format!("{}__{}", name, area.id));
+    }
+
+    Ok(rename_map)
+}
+
 #[instrument(skip(hasura_transaction, results), err)]
 pub async fn save_result_documents(
     hasura_transaction: &Transaction<'_>,
@@ -401,9 +490,11 @@ pub async fn save_result_documents(
     election_event_id: &str,
     results_event_id: &str,
     base_tally_path: &PathBuf,
+    areas: &Vec<Area>,
 ) -> Result<()> {
     let mut auth_headers = keycloak::get_client_credentials().await?;
     let mut idx: usize = 0;
+    let rename_map = generate_ids_map(&results, areas)?;
     let event_document_paths = results.get_document_paths(None, base_tally_path);
     results
         .save_documents(
@@ -411,12 +502,15 @@ pub async fn save_result_documents(
             hasura_transaction,
             &event_document_paths,
             results_event_id,
+            Some(rename_map),
         )
         .await?;
 
     for election_report in results {
-        let document_paths =
-            election_report.get_document_paths(election_report.area_id.clone(), base_tally_path);
+        let document_paths = election_report.get_document_paths(
+            election_report.area.clone().map(|value| value.id),
+            base_tally_path,
+        );
         idx += 1;
         if idx % 200 == 0 {
             auth_headers = keycloak::get_client_credentials().await?;
@@ -427,11 +521,14 @@ pub async fn save_result_documents(
                 hasura_transaction,
                 &document_paths,
                 results_event_id,
+                None,
             )
             .await?;
         for contest_report in election_report.reports {
-            let contest_document_paths =
-                contest_report.get_document_paths(contest_report.area_id.clone(), base_tally_path);
+            let contest_document_paths = contest_report.get_document_paths(
+                contest_report.area.clone().map(|value| value.id),
+                base_tally_path,
+            );
             idx += 1;
             if idx % 200 == 0 {
                 auth_headers = keycloak::get_client_credentials().await?;
@@ -442,6 +539,7 @@ pub async fn save_result_documents(
                     hasura_transaction,
                     &contest_document_paths,
                     results_event_id,
+                    None,
                 )
                 .await?;
         }

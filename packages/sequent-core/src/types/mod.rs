@@ -1,9 +1,10 @@
-// SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2022-2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 pub mod ceremonies;
 pub mod communications;
+pub mod date_time;
 pub mod hasura;
 pub mod keycloak;
 pub mod permissions;

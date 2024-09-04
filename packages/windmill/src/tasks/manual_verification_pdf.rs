@@ -3,12 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::manual_verification;
-use crate::{services::database::get_hasura_pool, types::error::Result};
+use crate::types::error::Error;
+use crate::types::error::Result;
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use tracing::instrument;
-
-use deadpool_postgres::{Client as DbClient, Transaction};
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
@@ -19,26 +18,27 @@ pub async fn get_manual_verification_pdf(
     election_event_id: String,
     voter_id: String,
 ) -> Result<()> {
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|err| anyhow!("{}", err))?;
+    // Spawn the task using an async block
+    let handle = tokio::task::spawn_blocking({
+        move || {
+            tokio::runtime::Handle::current().block_on(async move {
+                manual_verification::get_manual_verification_pdf(
+                    &document_id,
+                    &tenant_id,
+                    &election_event_id,
+                    &voter_id,
+                )
+                .await
+                .map_err(|err| anyhow!("{}", err))
+            })
+        }
+    });
 
-    let hasura_transaction: Transaction<'_> = hasura_db_client
-        .transaction()
-        .await
-        .map_err(|err| anyhow!("{}", err))?;
-
-    manual_verification::get_manual_verification_pdf(
-        &hasura_transaction,
-        &document_id,
-        &tenant_id,
-        &election_event_id,
-        &voter_id,
-    )
-    .await
-    .map_err(|err| anyhow!("{}", err))?;
+    // Await the result and handle JoinError explicitly
+    match handle.await {
+        Ok(inner_result) => inner_result.map_err(|err| Error::from(err.context("Task failed"))),
+        Err(join_error) => Err(Error::from(anyhow!("Task panicked: {}", join_error))),
+    }?;
 
     Ok(())
 }

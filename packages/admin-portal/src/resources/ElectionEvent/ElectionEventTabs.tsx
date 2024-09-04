@@ -20,13 +20,15 @@ import {useLocation, useNavigate} from "react-router"
 import {Publish} from "@/resources/Publish/Publish"
 import {EPublishType} from "../Publish/EPublishType"
 import {ElectoralLog} from "./ElectoralLog"
+import EditElectionEventTextData from "./EditElectionEventTextData"
+import {v4 as uuidv4} from "uuid"
 
 export const ElectionEventTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const authContext = useContext(AuthContext)
     const showVoters = authContext.isAuthorized(true, authContext.tenantId, IPermissions.VOTER_READ)
     const [showKeysList, setShowKeysList] = React.useState<string | null>(null)
-
+    const [tabKey, setTabKey] = React.useState<string>(uuidv4())
     const location = useLocation()
     const navigate = useNavigate()
 
@@ -38,6 +40,11 @@ export const ElectionEventTabs: React.FC = () => {
         IPermissions.ADMIN_DASHBOARD_VIEW
     )
     const showData = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.ELECTION_EVENT_WRITE
+    )
+    const showTextData = authContext.isAuthorized(
         true,
         authContext.tenantId,
         IPermissions.ELECTION_EVENT_WRITE
@@ -85,6 +92,7 @@ export const ElectionEventTabs: React.FC = () => {
                 {showDashboard ? (
                     <TabbedShowLayout.Tab
                         label={t("electionEventScreen.tabs.dashboard")}
+                        className="election-event-dashboard-tab"
                         onClick={() => {
                             setLoadedChildren(0)
                         }}
@@ -96,23 +104,38 @@ export const ElectionEventTabs: React.FC = () => {
                     </TabbedShowLayout.Tab>
                 ) : null}
                 {showData ? (
-                    <TabbedShowLayout.Tab label={t("electionEventScreen.tabs.data")}>
+                    <TabbedShowLayout.Tab
+                        label={t("electionEventScreen.tabs.data")}
+                        className="election-event-data-tab"
+                    >
                         <EditElectionEventData />
                     </TabbedShowLayout.Tab>
                 ) : null}
+                {showTextData ? (
+                    <TabbedShowLayout.Tab label={t("electionEventScreen.tabs.localization")}>
+                        <EditElectionEventTextData />
+                    </TabbedShowLayout.Tab>
+                ) : null}
                 {showVoters ? (
-                    <TabbedShowLayout.Tab label={t("electionEventScreen.tabs.voters")}>
+                    <TabbedShowLayout.Tab
+                        label={t("electionEventScreen.tabs.voters")}
+                        className="election-event-voter-tab"
+                    >
                         <EditElectionEventUsers electionEventId={record?.id} />
                     </TabbedShowLayout.Tab>
                 ) : null}
                 {showAreas ? (
-                    <TabbedShowLayout.Tab label={t("electionEventScreen.tabs.areas")}>
+                    <TabbedShowLayout.Tab
+                        label={t("electionEventScreen.tabs.areas")}
+                        className="election-event-area-tab"
+                    >
                         <EditElectionEventAreas />
                     </TabbedShowLayout.Tab>
                 ) : null}
                 {showKeys ? (
                     <TabbedShowLayout.Tab
                         label={t("electionEventScreen.tabs.keys")}
+                        className="election-keys-tab"
                         onClick={() => {
                             setShowKeysList(Date.now().toString())
                         }}
@@ -126,6 +149,7 @@ export const ElectionEventTabs: React.FC = () => {
                 {showTally ? (
                     <TabbedShowLayout.Tab
                         label={t("electionEventScreen.tabs.tally")}
+                        className="election-event-tally-tab"
                         onClick={() => {
                             setTallyId(null)
                             setCreatingFlag(false)
@@ -135,12 +159,19 @@ export const ElectionEventTabs: React.FC = () => {
                     </TabbedShowLayout.Tab>
                 ) : null}
                 {showPublish ? (
-                    <TabbedShowLayout.Tab label={t("electionEventScreen.tabs.publish")}>
+                    <TabbedShowLayout.Tab
+                        label={t("electionEventScreen.tabs.publish")}
+                        onClick={() => setTabKey(uuidv4())}
+                        className="election-event-publish-tab"
+                    >
                         <Publish electionEventId={record?.id} type={EPublishType.Event} />
                     </TabbedShowLayout.Tab>
                 ) : null}
                 {showLogs ? (
-                    <TabbedShowLayout.Tab label={t("electionEventScreen.tabs.logs")}>
+                    <TabbedShowLayout.Tab
+                        label={t("electionEventScreen.tabs.logs")}
+                        className="election-event-logs-tab"
+                    >
                         <ElectoralLog />
                     </TabbedShowLayout.Tab>
                 ) : null}

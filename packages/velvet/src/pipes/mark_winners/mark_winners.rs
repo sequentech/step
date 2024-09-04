@@ -2,13 +2,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use std::path::PathBuf;
 use std::{cmp::Ordering, fs};
 
 use sequent_core::ballot::Candidate;
+use sequent_core::util::path::list_subfolders;
 use serde::Serialize;
 use tracing::{event, instrument, Level};
 
-use crate::pipes::do_tally::list_tally_sheet_subfolders;
+use crate::pipes::do_tally::{list_tally_sheet_subfolders, OUTPUT_BREAKDOWNS_FOLDER};
 use crate::pipes::error::{Error, Result};
 use crate::pipes::{
     do_tally::{
@@ -55,6 +57,32 @@ impl MarkWinners {
                 winning_position: index + 1,
             })
             .collect()
+    }
+
+    fn create_breakdown_winners(
+        &self,
+        base_input_path: &PathBuf,
+        base_output_path: &PathBuf,
+    ) -> Result<()> {
+        let base_input_breakdown_path = base_input_path.join(OUTPUT_BREAKDOWNS_FOLDER);
+        let base_output_breakdown_path = base_output_path.join(OUTPUT_BREAKDOWNS_FOLDER);
+        let subfolders = list_subfolders(&base_input_breakdown_path);
+        for subfolder in subfolders {
+            let contest_results_file_path = subfolder.join(OUTPUT_CONTEST_RESULT_FILE);
+            let contest_results_file = fs::File::open(&contest_results_file_path)
+                .map_err(|e| Error::FileAccess(contest_results_file_path.clone(), e))?;
+            let contest_result: ContestResult = parse_file(contest_results_file)?;
+
+            let winners = self.get_winners(&contest_result);
+
+            let subfolder_name = subfolder.file_name().unwrap();
+            let output_subfolder = base_output_breakdown_path.join(subfolder_name);
+            fs::create_dir_all(&output_subfolder)?;
+            let winners_file_path = output_subfolder.join(OUTPUT_WINNERS);
+            let winners_file = fs::File::create(winners_file_path)?;
+            serde_json::to_writer(winners_file, &winners)?;
+        }
+        Ok(())
     }
 }
 
@@ -159,13 +187,13 @@ impl Pipe for MarkWinners {
                     serde_json::to_writer(winners_file, &winners)?;
                 }
 
-                let contest_result_file = PipeInputs::build_path(
+                let contest_result_path = PipeInputs::build_path(
                     &input_dir,
                     &contest_input.election_id,
                     Some(&contest_input.id),
                     None,
-                )
-                .join(OUTPUT_CONTEST_RESULT_FILE);
+                );
+                let contest_result_file = contest_result_path.join(OUTPUT_CONTEST_RESULT_FILE);
 
                 let f = fs::File::open(&contest_result_file)
                     .map_err(|e| Error::FileAccess(contest_result_file.clone(), e))?;
@@ -173,18 +201,21 @@ impl Pipe for MarkWinners {
 
                 let winner = self.get_winners(&contest_result);
 
-                let mut file = PipeInputs::build_path(
+                let winner_folder = PipeInputs::build_path(
                     &output_dir,
                     &contest_input.election_id,
                     Some(&contest_input.id),
                     None,
                 );
 
-                fs::create_dir_all(&file)?;
-                file.push(OUTPUT_WINNERS);
-                let file = fs::File::create(file)?;
+                fs::create_dir_all(&winner_folder)?;
+                let winner_file_path = winner_folder.join(OUTPUT_WINNERS);
+                let winner_file = fs::File::create(winner_file_path)?;
 
-                serde_json::to_writer(file, &winner)?;
+                serde_json::to_writer(winner_file, &winner)?;
+
+                // do breakdown winners
+                self.create_breakdown_winners(&contest_result_path, &winner_folder)?;
             }
         }
 

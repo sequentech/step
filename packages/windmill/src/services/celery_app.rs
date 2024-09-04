@@ -18,8 +18,11 @@ use crate::tasks::import_election_event::import_election_event;
 use crate::tasks::import_users::import_users;
 use crate::tasks::insert_election_event::insert_election_event_t;
 use crate::tasks::insert_tenant::insert_tenant;
-use crate::tasks::manage_election_date::manage_election_date;
+use crate::tasks::manage_election_dates::manage_election_date;
+use crate::tasks::manage_election_event_date::manage_election_event_date;
 use crate::tasks::manual_verification_pdf::get_manual_verification_pdf;
+use crate::tasks::miru_plugin_tasks::create_transmission_package_task;
+use crate::tasks::miru_plugin_tasks::send_transmission_package_task;
 use crate::tasks::process_board::process_board;
 use crate::tasks::render_report::render_report;
 use crate::tasks::review_boards::review_boards;
@@ -31,6 +34,9 @@ use crate::tasks::update_election_event_ballot_styles::update_election_event_bal
 static mut PREFETCH_COUNT_S: u16 = 100;
 static mut ACKS_LATE_S: bool = true;
 static mut TASK_MAX_RETRIES: u32 = 4;
+static mut IS_APP_ACTIVE: bool = true;
+static mut BROKER_CONNECTION_MAX_RETRIES: u32 = 5;
+static mut HEARTBEAT_SECS: u16 = 10;
 
 pub fn set_prefetch_count(new_val: u16) {
     unsafe {
@@ -51,14 +57,41 @@ pub fn set_task_max_retries(new_val: u32) {
 }
 
 #[instrument]
+pub fn set_is_app_active(new_val: bool) {
+    unsafe {
+        IS_APP_ACTIVE = new_val;
+    }
+}
+
+pub fn set_broker_connection_max_retries(new_val: u32) {
+    unsafe {
+        BROKER_CONNECTION_MAX_RETRIES = new_val;
+    }
+}
+
+pub fn set_heartbeat(new_val: u16) {
+    unsafe {
+        HEARTBEAT_SECS = new_val;
+    }
+}
+
+pub fn get_is_app_active() -> bool {
+    unsafe { IS_APP_ACTIVE }
+}
+
+#[instrument]
 pub async fn generate_celery_app() -> Arc<Celery> {
     let prefetch_count: u16;
     let acks_late: bool;
     let task_max_retries: u32;
+    let broker_connection_max_retries: u32;
+    let heartbeat: u16;
     unsafe {
         prefetch_count = PREFETCH_COUNT_S;
         acks_late = ACKS_LATE_S;
         task_max_retries = TASK_MAX_RETRIES;
+        broker_connection_max_retries = BROKER_CONNECTION_MAX_RETRIES;
+        heartbeat = HEARTBEAT_SECS;
     }
     event!(
         Level::INFO,
@@ -85,9 +118,12 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             import_election_event,
             get_manual_verification_pdf,
             scheduled_events,
+            manage_election_event_date,
             manage_election_date,
             export_election_event,
             export_election_event_logs,
+            create_transmission_package_task,
+            send_transmission_package_task,
         ],
         // Route certain tasks to certain queues based on glob matching.
         task_routes = [
@@ -110,12 +146,16 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             "export_election_event_logs" => "import_export_queue",
             "import_election_event" => "import_export_queue",
             "scheduled_events" => "beat",
-            "manage_election_date" => "beat"
+            "manage_election_date" => "beat",
+            "manage_election_event_date" => "beat",
+            "create_transmission_package_task" => "short_queue",
+            "send_transmission_package_task" => "short_queue",
         ],
         prefetch_count = prefetch_count,
         acks_late = acks_late,
         task_max_retries = task_max_retries,
-        heartbeat = Some(10),
+        heartbeat = Some(heartbeat),
+        broker_connection_max_retries = broker_connection_max_retries,
     ).await.unwrap()
 }
 

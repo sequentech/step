@@ -6,13 +6,18 @@ import React, {PropsWithChildren, ReactNode} from "react"
 import {styled} from "@mui/material/styles"
 import {theme} from "../../services/theme"
 import {Checkbox} from "@mui/material"
-import {faInfoCircle} from "@fortawesome/free-solid-svg-icons"
+import {faBan, faInfoCircle} from "@fortawesome/free-solid-svg-icons"
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 import emotionStyled from "@emotion/styled"
 import {useTranslation} from "react-i18next"
-import {isString} from "@root/utils/typechecks"
+import {isString} from "@sequentech/ui-core"
 
-const BorderBox = styled(Box)<{isactive: string; hascategory: string; isinvalidvote: string}>`
+const BorderBox = styled(Box)<{
+    isactive: string
+    hascategory: string
+    isinvalidvote: string
+    isdisabled: string
+}>`
     border: 2px solid
         ${({hascategory, isactive, theme}) =>
             isactive === "true" && hascategory === "true"
@@ -31,6 +36,7 @@ const BorderBox = styled(Box)<{isactive: string; hascategory: string; isinvalidv
     gap: 10px;
     align-items: center;
     flex-grow: 2;
+    ${({isdisabled}) => (isdisabled === "true" ? `opacity: 50%;` : "")}
     ${({isactive, hascategory, theme}) =>
         isactive === "true"
             ? hascategory === "true"
@@ -91,6 +97,7 @@ export interface CandidateProps extends PropsWithChildren {
     setWriteInText?: (value: string) => void
     isInvalidWriteIn?: boolean
     index?: number
+    shouldDisable?: boolean
 }
 
 const Candidate: React.FC<CandidateProps> = ({
@@ -107,12 +114,13 @@ const Candidate: React.FC<CandidateProps> = ({
     setWriteInText,
     isInvalidWriteIn,
     children,
+    shouldDisable,
     index,
 }) => {
     const {t} = useTranslation()
     const onClick: React.MouseEventHandler<HTMLDivElement> = (event) => {
         event.stopPropagation()
-        if (setChecked) {
+        if (!shouldDisable && setChecked) {
             setChecked(!checked)
         }
     }
@@ -136,6 +144,7 @@ const Candidate: React.FC<CandidateProps> = ({
             isactive={String(!!isActive)}
             hascategory={String(!!hasCategory)}
             isinvalidvote={String(!!isInvalidVote)}
+            isdisabled={String(!!shouldDisable)}
             onClick={onClick}
             className="candidate-item"
         >
@@ -193,6 +202,7 @@ const Candidate: React.FC<CandidateProps> = ({
                         "className": "candidate-input",
                         "aria-label": isString(title) ? title : "",
                     }}
+                    disabled={shouldDisable}
                     checked={checked}
                     onChange={handleChange}
                 />

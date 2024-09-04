@@ -4,7 +4,11 @@
 
 import {useMutation} from "@apollo/client"
 import React, {useContext, useEffect, useState} from "react"
-import {CreateElectionEventMutation, ImportElectionEventMutation} from "@/gql/graphql"
+import {
+    CreateElectionEventMutation,
+    ImportElectionEventMutation,
+    Sequent_Backend_Election_Event,
+} from "@/gql/graphql"
 import {v4} from "uuid"
 import {
     BooleanInput,
@@ -20,12 +24,13 @@ import {
     Button,
     RaRecord,
     Identifier,
+    useGetList,
 } from "react-admin"
 import {JsonInput} from "react-admin-json-view"
 import {INSERT_ELECTION_EVENT} from "../../queries/InsertElectionEvent"
 import {Box, CircularProgress, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
-import {IElectionEventPresentation, ITenantSettings, isNull} from "@sequentech/ui-essentials"
+import {IElectionEventPresentation, ITenantSettings, isNull} from "@sequentech/ui-core"
 import {useNavigate} from "react-router"
 import {useTenantStore} from "../../providers/TenantContextProvider"
 import UploadIcon from "@mui/icons-material/Upload"
@@ -36,7 +41,6 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {IMPORT_ELECTION_EVENT} from "@/queries/ImportElectionEvent"
 import {ExportButton} from "@/components/tally/ExportElectionMenu"
-import {Sequent_Backend_Election_Event_Extended} from "./EditElectionEventDataForm"
 import {addDefaultTranslationsToElement} from "@/services/i18n"
 
 const Hidden = styled(Box)`
@@ -61,6 +65,35 @@ interface IElectionEventSubmit {
     tenant_id: string
     presentation: IElectionEventPresentation
 }
+interface IPullChecker<T extends RaRecord> {
+    id: string
+    resource: string
+    dependencies: any[]
+    onResolved: (result: {data: T[] | undefined; isLoading: boolean; error: any}) => void
+}
+
+const PullChecker = <T extends RaRecord>({
+    id,
+    resource,
+    dependencies,
+    onResolved,
+}: IPullChecker<T>) => {
+    const {globalSettings} = useContext(SettingsContext)
+
+    const {data, isLoading, error} = useGetList<T>(
+        resource,
+        {filter: {id: id}},
+        {
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+        }
+    )
+
+    useEffect(() => {
+        onResolved({data, isLoading, error})
+    }, [isLoading, data, error, id, ...dependencies])
+
+    return <div />
+}
 
 export const CreateElectionList: React.FC = () => {
     const [insertElectionEvent] = useMutation<CreateElectionEventMutation>(INSERT_ELECTION_EVENT)
@@ -76,17 +109,6 @@ export const CreateElectionList: React.FC = () => {
 
     const postDefaultValues = () => ({id: v4()})
 
-    const {
-        data: newElectionEvent,
-        isLoading: isOneLoading,
-        error,
-    } = useGetOne(
-        "sequent_backend_election_event",
-        {id: newId},
-        {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-        }
-    )
     const {data: tenant} = useGetOne("sequent_backend_tenant", {
         id: tenantId,
     })
@@ -101,23 +123,32 @@ export const CreateElectionList: React.FC = () => {
         }
     }, [tenant])
 
-    useEffect(() => {
+    const handleElectionCreated = ({
+        error,
+        isLoading: isOneLoading,
+        data: newElectionEvent,
+    }: {
+        data: Sequent_Backend_Election_Event[] | undefined
+        isLoading: boolean
+        error: any
+    }) => {
         if (isNull(newId)) {
             return
         }
+
         if (isLoading && error && !isOneLoading) {
             setIsLoading(false)
             notify(t("electionEventScreen.createElectionEventError"), {type: "error"})
             refresh()
             return
         }
-        if (isLoading && !error && !isOneLoading && newElectionEvent) {
+        if (isLoading && !error && !isOneLoading && newElectionEvent!.length) {
             setIsLoading(false)
             notify(t("electionEventScreen.createElectionEventSuccess"), {type: "success"})
             refresh()
             navigate(`/sequent_backend_election_event/${newId}`)
         }
-    }, [isLoading, newElectionEvent, isOneLoading, error])
+    }
 
     const handleSubmit = async (values: any): Promise<void> => {
         let electionSubmit = values as IElectionEventSubmit
@@ -139,8 +170,6 @@ export const CreateElectionList: React.FC = () => {
             presentation,
         }
 
-        console.log("electionSubmit :: ", electionSubmit)
-
         try {
             let {data, errors} = await insertElectionEvent({
                 variables: {
@@ -149,7 +178,6 @@ export const CreateElectionList: React.FC = () => {
             })
 
             const newId = data?.insertElectionEvent?.id ?? null
-
             if (newId) {
                 setNewId(newId)
                 setLastCreatedResource({id: newId, type: "sequent_backend_election_event"})
@@ -221,6 +249,14 @@ export const CreateElectionList: React.FC = () => {
 
     return (
         <>
+            {newId && (
+                <PullChecker<Sequent_Backend_Election_Event>
+                    id={newId}
+                    resource="sequent_backend_election_event"
+                    dependencies={[isLoading, newId]}
+                    onResolved={handleElectionCreated}
+                />
+            )}
             <SimpleForm
                 defaultValues={postDefaultValues}
                 onSubmit={handleSubmit}
@@ -321,7 +357,7 @@ export const CreateElectionList: React.FC = () => {
                 closeDrawer={closeImportDrawer}
                 title="electionEventScreen.import.eetitle"
                 subtitle="electionEventScreen.import.eesubtitle"
-                paragraph={t("electionEventScreen.import.electionEventParagraph")}
+                paragraph={"electionEventScreen.import.electionEventParagraph"}
                 doImport={handleImportElectionEvent}
                 uploadCallback={uploadCallback}
                 errors={errors}

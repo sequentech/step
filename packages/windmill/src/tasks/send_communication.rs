@@ -8,12 +8,13 @@ use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_statistics::update_election_event_statistics;
 use crate::services::election_statistics::update_election_statistics;
 use crate::services::electoral_log::ElectoralLog;
-use crate::services::users::{list_users, ListUsersFilter};
+use crate::services::users::{list_users, list_users_with_vote_info, ListUsersFilter};
 use crate::tasks::send_communication::get_election_event::GetElectionEventSequentBackendElectionEvent;
 use crate::types::error::Result;
 use crate::util::aws::get_from_env_aws_config;
 
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
+use crate::types::error::Error;
 use deadpool_postgres::{Client as DbClient, Transaction};
 
 use anyhow::{anyhow, Context};
@@ -21,23 +22,21 @@ use aws_sdk_sesv2::types::{Body, Content, Destination, EmailContent, Message as 
 use aws_sdk_sesv2::Client as AwsSesClient;
 use aws_sdk_sns::{types::MessageAttributeValue, Client as AwsSnsClient};
 use celery::error::TaskError;
-use handlebars::RenderError;
 use lettre::message::MultiPart;
 use lettre::Message;
 use sequent_core::serialization::deserialize_with_path::*;
+use sequent_core::services::generate_urls::get_auth_url;
+use sequent_core::services::generate_urls::AuthAction;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::services::{keycloak, reports};
 use sequent_core::types::communications::{
-    AudienceSelection, CommunicationMethod, CommunicationType, EmailConfig, SendCommunicationBody,
-    SmsConfig,
+    AudienceSelection, CommunicationMethod, EmailConfig, SendCommunicationBody, SmsConfig,
 };
 use sequent_core::types::keycloak::{User, UserArea};
-use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::default::Default;
-use strum_macros::{Display, EnumString};
 use tracing::{event, instrument, Level};
 
 #[instrument(err)]
@@ -45,6 +44,7 @@ fn get_variables(
     user: &User,
     election_event: Option<GetElectionEventSequentBackendElectionEvent>,
     tenant_id: String,
+    auth_action: AuthAction,
 ) -> Result<Map<String, Value>> {
     let mut variables: Map<String, Value> = Default::default();
     variables.insert(
@@ -67,12 +67,13 @@ fn get_variables(
         );
         variables.insert(
             "vote_url".to_string(),
-            json!(format!(
-                "{base_url}/tenant/{tenant_id}/event/{event_id}/login",
-                base_url = std::env::var("VOTING_PORTAL_URL")
-                    .map_err(|err| anyhow!("VOTING_PORTAL_URL env var missing"))?,
-                tenant_id = tenant_id,
-                event_id = election_event.id,
+            json!(get_auth_url(
+                std::env::var("VOTING_PORTAL_URL")
+                    .map_err(|err| anyhow!("VOTING_PORTAL_URL env var missing"))?
+                    .as_str(),
+                &tenant_id,
+                &election_event.id,
+                auth_action
             )),
         );
     }
@@ -333,6 +334,7 @@ fn update_metrics_unit(metrics_unit: &mut MetricsUnit, communication_method: &Co
         &CommunicationMethod::SMS => {
             metrics_unit.num_sms_sent += 1;
         }
+        &CommunicationMethod::DOCUMENT => {}
     };
 }
 
@@ -461,9 +463,11 @@ pub async fn send_communication(
         .map_err(|err| anyhow!("{}", err))?;
     let batch_size = PgConfig::from_env()?.default_sql_batch_size;
 
-    let user_ids = match body.audience_selection {
+    let Some(audience_selection) = body.audience_selection.clone() else {
+        return Err(Error::String(format!("Missing audience selection")));
+    };
+    let user_ids = match audience_selection {
         AudienceSelection::SELECTED => body.audience_voter_ids.clone(),
-        // TODO: managed "not voted" and "voted"
         _ => None,
     };
 
@@ -510,27 +514,49 @@ pub async fn send_communication(
             .transaction()
             .await
             .with_context(|| "Error creating a transaction")?;
-        let (users, total_count) = list_users(
-            &hasura_transaction,
-            &keycloak_transaction,
-            ListUsersFilter {
-                tenant_id: tenant_id.clone(),
-                election_event_id: election_event_id.clone(),
-                election_id: None,
-                area_id: None,
-                realm: realm.clone(),
-                search: None,
-                first_name: None,
-                last_name: None,
-                username: None,
-                email: None,
-                limit: Some(batch_size),
-                offset: Some(processed),
-                user_ids: user_ids.clone(),
-            },
-        )
-        .await?;
-        event!(Level::INFO, "after list_users");
+
+        let filter = ListUsersFilter {
+            tenant_id: tenant_id.clone(),
+            election_event_id: election_event_id.clone(),
+            election_id: None,
+            area_id: None,
+            realm: realm.clone(),
+            search: None,
+            first_name: None,
+            last_name: None,
+            username: None,
+            email: None,
+            limit: Some(batch_size),
+            offset: Some(processed),
+            user_ids: user_ids.clone(),
+        };
+
+        let (users, total_count) = match audience_selection {
+            AudienceSelection::NOT_VOTED | AudienceSelection::VOTED => {
+                list_users_with_vote_info(&hasura_transaction, &keycloak_transaction, filter)
+                    .await
+                    .with_context(|| "Failed to featch list_users_with_vote_info")?
+            }
+            _ => list_users(&hasura_transaction, &keycloak_transaction, filter)
+                .await
+                .with_context(|| "Failed to featch list_users")?,
+        };
+
+        let mut filtered_users = users.clone();
+
+        match audience_selection {
+            AudienceSelection::NOT_VOTED => filtered_users.retain(|user| {
+                user.votes_info
+                    .as_ref()
+                    .map_or(false, |vote_info| vote_info.is_empty())
+            }),
+            AudienceSelection::VOTED => filtered_users.retain(|user| {
+                user.votes_info
+                    .as_ref()
+                    .map_or(false, |vote_info| !vote_info.is_empty())
+            }),
+            _ => {}
+        };
 
         let email_sender = EmailSender::new().await?;
         let sms_sender = SmsSender::new().await?;
@@ -542,16 +568,24 @@ pub async fn send_communication(
             metrics_by_election_id: Default::default(),
         };
 
-        for user in users.iter() {
+        let Some(communication_method) = body.communication_method.clone() else {
+            return Err(Error::String("Missing communication method".into()));
+        };
+
+        for user in filtered_users.iter() {
             event!(
                 Level::INFO,
                 "Sending communication to user with id={id:?} and email={email:?}",
                 id = user.id,
                 email = user.email,
             );
-            let variables: Map<String, Value> =
-                get_variables(user, election_event.clone(), tenant_id.clone())?;
-            let success = match body.communication_method {
+            let variables: Map<String, Value> = get_variables(
+                user,
+                election_event.clone(),
+                tenant_id.clone(),
+                AuthAction::Login,
+            )?;
+            let success = match communication_method {
                 CommunicationMethod::EMAIL => {
                     let sending_result = send_communication_email(
                         /* receiver */ &user.email,
@@ -582,12 +616,16 @@ pub async fn send_communication(
                         Ok(())
                     }
                 }
+                CommunicationMethod::DOCUMENT => {
+                    //nothing to do
+                    Ok(())
+                }
             };
             update_metrics(
                 &mut metrics,
                 &elections_by_area,
                 &user,
-                /* communication_method */ &body.communication_method,
+                /* communication_method */ &communication_method,
                 /* success */ success.is_ok(),
             );
         }

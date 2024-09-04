@@ -77,6 +77,44 @@ const spanishTranslation: TranslationType = {
                 ok: "Si, quiero INVALIDAR mi papeleta para AUDITARLA",
                 cancel: "Cancelar",
             },
+            confirmCastVoteDialog: {
+                title: "¿Está seguro de que quiere emitir su voto?",
+                content: "Su voto no se podrá editar una vez confirmado.",
+                ok: "Sí, quiero EMITIR mi voto",
+                cancel: "Cancelar",
+            },
+            error: {
+                NETWORK_ERROR:
+                    "Hubo un problema de red. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
+                UNABLE_TO_FETCH_DATA:
+                    "Hubo un problema al recuperar los datos. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
+                LOAD_ELECTION_EVENT:
+                    "No se puede cargar el evento electoral. Por favor, inténtalo de nuevo más tarde.",
+                CAST_VOTE:
+                    "Hubo un error con GraphQL al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
+                NO_BALLOT_SELECTION:
+                    "El estado de selección para esta elección no está presente. Asegúrate de haber seleccionado correctamente tus opciones o contacta con el soporte.",
+                NO_BALLOT_STYLE:
+                    "El estilo de la papeleta no está disponible. Por favor, contacta con el soporte.",
+                NO_AUDITABLE_BALLOT:
+                    "No hay una papeleta verificable disponible. Por favor, contacta con el soporte.",
+                INCONSISTENT_HASH:
+                    "Hubo un error relacionado con el proceso de hash de la papeleta. El BallotId: {{ballotId}} no es coherente con el Hash de la Papeleta Verificable: {{auditableBallotHash}}. Por favor, informa de este problema al soporte.",
+                ELECTION_EVENT_NOT_OPEN:
+                    "El evento electoral está cerrado. Por favor, contacta con el soporte.",
+                PARSE_ERROR:
+                    "Hubo un error al analizar la papeleta. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
+                DESERIALIZE_AUDITABLE_ERROR:
+                    "Hubo un error al deserializar la papeleta verificable. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
+                DESERIALIZE_HASHABLE_ERROR:
+                    "Hubo un error al deserializar la papeleta hashable. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
+                CONVERT_ERROR:
+                    "Hubo un error al convertir la papeleta. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
+                SERIALIZE_ERROR:
+                    "Hubo un error al serializar la papeleta. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
+                UNKNOWN_ERROR:
+                    "Hubo un error. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
+            },
         },
         confirmationScreen: {
             title: "Su voto ha sido emitido",
@@ -94,17 +132,34 @@ const spanishTranslation: TranslationType = {
                     "Esta pantalla muestra que su voto se ha emitido correctamente. La información proporcionada en esta página le permite verificar que la papeleta ha sido almacenada en la urna , este proceso puede ser ejecutado en cualquier momento durante el periodo de votación y después de que la elección haya sido cerrada.",
                 ok: "OK",
             },
+            demoPrintDialog: {
+                title: "Impresión de la papeleta de votación",
+                content: "La impresión está desactivada en modo de demostración",
+                ok: "Aceptar",
+            },
+            demoBallotUrlDialog: {
+                title: "Rastreador de Boletas",
+                content: "No se puede usar el código, deshabilitado en modo de demostración.",
+                ok: "OK",
+            },
             ballotIdHelpDialog: {
                 title: "Información: Localizador del Voto",
                 content:
                     "El Localizador del Voto de papeleta es un código que le permite encontrar su papeleta en la urna, este Localizador es único y no contiene información sobre sus selecciones.",
                 ok: "OK",
             },
+            ballotIdDemoHelpDialog: {
+                title: "Información: Identificación de la papeleta",
+                content:
+                    "<p>La identificación de la papeleta es un código que te permite encontrar tu papeleta en la urna. Este identificador es único y no contiene información sobre tus selecciones.</p><p><b>Aviso:</b> Esta cabina de votación es solo para fines de demostración. Tu voto NO ha sido emitido.</p>",
+                ok: "Aceptar",
+            },
             errorDialogPrintVoteReceipt: {
                 title: "Error",
                 content: "Ha ocurrido un error, por favor intenta de nuevo",
                 ok: "Aceptar",
             },
+            demoQRText: "El rastreador de boletas está deshabilitado en modo de demostración",
         },
         auditScreen: {
             printButton: "Imprimir",
@@ -149,8 +204,26 @@ const spanishTranslation: TranslationType = {
                     "Está entrando en una cabina de votación de demostración. <strong>Su voto NO será registrado.</strong> Esta cabina de votación es solo para fines de demostración.",
                 ok: "Acepto que mi voto NO será registrado",
             },
-            noVotingAreaError:
-                "Área de votación no asignada al votante. Por favor, contacte con su administrador para obtener asistencia.",
+            errors: {
+                noVotingArea:
+                    "Área electoral no asignada al votante. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                networkError:
+                    "Hubo un problema de red. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                unableToFetchData:
+                    "Hubo un problema al obtener los datos. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                noElectionEvent:
+                    "El evento electoral no existe. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                ballotStylesEmlError:
+                    "Hubo un error con la publicación del estilo de la papeleta. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                obtainingElectionFromID:
+                    "Hubo un error al obtener las elecciones asociadas con los siguientes IDs de elecciones: {{electionIds}}. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+            },
+            alerts: {
+                noElections:
+                    "No hay elecciones en las que pueda votar. Esto podría deberse a que el área no tiene ningún concurso asociado. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
+                electionEventNotPublished:
+                    "El evento electoral aún no ha sido publicado. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
+            },
         },
         errors: {
             encoding: {
@@ -172,6 +245,9 @@ const spanishTranslation: TranslationType = {
                     "El número de opciones seleccionadas {{numSelected}} para la lista {{type}} es mayor que el máximo {{max}}",
                 underVote:
                     "Subvoto: El número de opciones seleccionadas {{numSelected}} es menor que el máximo permitido de {{max}}",
+                overVoteDisabled:
+                    "Máximo alcanzado: Has seleccionado el máximo de {{numSelected}} opciones. Para cambiar tu selección, por favor, desmarca primero otra opción.",
+                blankVote: "Voto en Blanco: 0 opciones seleccionadas",
             },
             explicit: {
                 notAllowed:

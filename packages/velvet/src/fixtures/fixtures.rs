@@ -1,10 +1,12 @@
 // SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Result;
 use sequent_core::ballot::Contest;
 use std::collections::HashMap;
+use std::env;
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
@@ -52,8 +54,32 @@ impl TestFixture {
     }
 
     #[instrument]
-    pub fn create_election_config(&self, election_event_id: &Uuid) -> Result<ElectionConfig> {
-        let election = super::elections::get_election_config_1(election_event_id);
+    pub fn create_election_config(
+        &self,
+        election_event_id: &Uuid,
+        areas: Vec<Uuid>,
+    ) -> Result<ElectionConfig> {
+        let election = super::elections::get_election_config_1(election_event_id, areas);
+
+        let mut path = self
+            .input_dir_configs
+            .join(format!("election__{}", election.id));
+        fs::create_dir_all(path.as_path())?;
+
+        path.push("election-config.json");
+        let mut file = fs::File::create(path)?;
+        writeln!(file, "{}", serde_json::to_string(&election)?)?;
+
+        Ok(election)
+    }
+
+    #[instrument]
+    pub fn create_election_config_2(
+        &self,
+        election_event_id: &Uuid,
+        areas: Vec<(Uuid, Option<Uuid>)>,
+    ) -> Result<ElectionConfig> {
+        let election = super::elections::get_election_config_3(election_event_id, areas);
 
         let mut path = self
             .input_dir_configs
@@ -125,14 +151,18 @@ impl TestFixture {
         election_id: &Uuid,
         contest_id: &Uuid,
         census: u64,
+        auditable_votes: u64,
         parent_id: Option<Uuid>,
+        area_id: Option<String>,
     ) -> Result<AreaConfig> {
         let area_config = super::areas::get_area_config(
             tenant_id,
             election_event_id,
             election_id,
             census,
+            auditable_votes,
             parent_id,
+            area_id,
         );
 
         let dir_configs = self
@@ -157,8 +187,10 @@ impl TestFixture {
 
 impl Drop for TestFixture {
     fn drop(&mut self) {
-        fs::remove_file(&self.config_path).unwrap();
-        fs::remove_dir_all(&self.root_dir).unwrap();
+        if env::var("CLEANUP_FILES").unwrap_or("true".to_string()) == "true" {
+            fs::remove_file(&self.config_path).unwrap();
+            fs::remove_dir_all(&self.root_dir).unwrap();
+        }
     }
 }
 
