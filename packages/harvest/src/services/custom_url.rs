@@ -133,31 +133,27 @@ pub async fn set_custom_url(
     info!("DNS Prefix: {:?}", dns_prefix);
 
     if let Err(e) = create_dns_record(redirect_to, dns_prefix).await {
-        let error_message = format!("Failed to create DNS record: {}", e);
+        let error_message = format!("Failed to create DNS record: Check if A record with the same settings already exists.");
         info!("{}", error_message);
     }
-
+    
+    info!("DNS record created successfully.");
+    
     match current_page_rule {
         Some(page_rule) => {
-            if let Err(e) =
-                update_page_rule(&page_rule.id, redirect_to, origin).await
-            {
-                let error_message =
-                    format!("Failed to update page rule: {}", e);
+            if let Err(e) = update_page_rule(&page_rule.id, redirect_to, origin).await {
+                let error_message = format!("Failed to update page rule");
                 info!("{}", error_message);
                 return Err(error_message.into());
             }
-
             info!("Page rule updated successfully.");
         }
         None => {
             if let Err(e) = create_page_rule(redirect_to, origin).await {
-                let error_message =
-                    format!("Failed to create page rule: {}", e);
+                let error_message = format!("Failed to create page rule");
                 info!("{}", error_message);
                 return Err(error_message.into());
             }
-
             info!("Page rule created successfully.");
         }
     }
