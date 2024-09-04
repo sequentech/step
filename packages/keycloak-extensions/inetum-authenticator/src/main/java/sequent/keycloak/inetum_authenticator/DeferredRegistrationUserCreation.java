@@ -187,14 +187,12 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
 
         // if errors is not empty, show them
       } else {
-        if (chcekMissingFields(context, errors)) {
+        if (checkMissingFields(context, errors)) {
           log.error("some missing fields");
         } else if (!pve.hasError(Messages.EMAIL_EXISTS)) {
           context.error(Errors.INVALID_EMAIL);
         } else {
-          if (!chcekMissingFields(context, errors)) {
             context.error(Errors.INVALID_REGISTRATION);
-          }
         }
         log.info(errors);
         context.validationError(formData, errors);
@@ -559,7 +557,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     return Optional.empty();
   }
 
-  private boolean chcekMissingFields(ValidationContext context, List<FormMessage> errors) {
+  private boolean checkMissingFields(ValidationContext context, List<FormMessage> errors) {
     List<String> missingFields = new ArrayList<>();
     for (FormMessage error : errors) {
       if (error.getMessage().equals(MISSING_FIELDS_ERROR)) {
@@ -569,7 +567,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     if (missingFields.isEmpty()) {
       return false;
     }
-    log.info("chcekMissingFields(): missingFields = " + missingFields);
+    log.info("checkMissingFields(): missingFields = " + missingFields);
     String missingFieldsErrorMessage = MISSING_FIELDS + ": " + String.join(", ", missingFields);
     context.error(missingFieldsErrorMessage);
     return true;

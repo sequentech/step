@@ -426,7 +426,7 @@ export type KeycloakUserArea = {
 
 export type LogEventOutput = {
   __typename?: 'LogEventOutput';
-  id?: Maybe<Scalars['String']['output']>;
+  electionEventId?: Maybe<Scalars['String']['output']>;
 };
 
 export type ManageElectionDatesOutput = {
@@ -920,8 +920,6 @@ export type Mutation_Root = {
   insert_sequent_backend_trustee?: Maybe<Sequent_Backend_Trustee_Mutation_Response>;
   /** insert a single row into the table: "sequent_backend.trustee" */
   insert_sequent_backend_trustee_one?: Maybe<Sequent_Backend_Trustee>;
-  /** log a message to the event log */
-  log_event?: Maybe<LogEventOutput>;
   manage_election_dates?: Maybe<ManageElectionDatesOutput>;
   publish_ballot?: Maybe<PublishBallotOutput>;
   /** publish_tally_sheet */
@@ -1694,6 +1692,7 @@ export type Mutation_RootGet_Private_KeyArgs = {
 /** mutation root */
 export type Mutation_RootGet_Upload_UrlArgs = {
   election_event_id?: InputMaybe<Scalars['String']['input']>;
+  is_local?: InputMaybe<Scalars['Boolean']['input']>;
   is_public: Scalars['Boolean']['input'];
   media_type: Scalars['String']['input'];
   name: Scalars['String']['input'];
@@ -2176,13 +2175,6 @@ export type Mutation_RootInsert_Sequent_Backend_TrusteeArgs = {
 export type Mutation_RootInsert_Sequent_Backend_Trustee_OneArgs = {
   object: Sequent_Backend_Trustee_Insert_Input;
   on_conflict?: InputMaybe<Sequent_Backend_Trustee_On_Conflict>;
-};
-
-
-/** mutation root */
-export type Mutation_RootLog_EventArgs = {
-  election_event_id: Scalars['String']['input'];
-  message_type: Scalars['String']['input'];
 };
 
 
@@ -3240,6 +3232,8 @@ export type Query_Root = {
   /** List PostgreSQL audit logs */
   listPgaudit?: Maybe<DataListPgAudit>;
   list_user_roles: Array<KeycloakRole>;
+  /** log an event in immudb */
+  logEvent?: Maybe<LogEventOutput>;
   /** fetch data from the table: "sequent_backend.area" */
   sequent_backend_area: Array<Sequent_Backend_Area>;
   /** fetch aggregated fields from the table: "sequent_backend.area" */
@@ -3476,6 +3470,12 @@ export type Query_RootList_User_RolesArgs = {
   election_event_id?: InputMaybe<Scalars['String']['input']>;
   tenant_id: Scalars['String']['input'];
   user_id: Scalars['String']['input'];
+};
+
+
+export type Query_RootLogEventArgs = {
+  electionEventId: Scalars['String']['input'];
+  messageType: Scalars['String']['input'];
 };
 
 

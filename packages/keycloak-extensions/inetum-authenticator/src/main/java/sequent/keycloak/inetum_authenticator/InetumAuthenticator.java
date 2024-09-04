@@ -737,13 +737,13 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
                         "type": "equalAuthnoteAttributeId",
                         "equalAuthnoteAttributeId": "sequent.read-only.id-card-number",
                         "inetumAttributePath": "/response/mrz/personal_number",
-                        "errorMsg": "attributesInetumError: Card number does not match"
+                        "errorMsg": "attributesInetumError"
                     },
                     {
                         "type": "equalValue",
                         "equalValue": "Maria",
                         "inetumAttributePath": "/response/mrz/given_names",
-                        "errorMsg": "attributesInetumError: Given names does not match"
+                        "errorMsg": "attributesInetumError"
                     },
                     {
                         "type": "intMinValue",
@@ -757,7 +757,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
                         "valueDateFormat": "yyyy-MM-dd",
                         "inetumAttributePath": "/response/mrz/date_of_birth",
                         "inetumDateFormat": "dd/MM/yyyy",
-                        "errorMsg": "attributesInetumError: Date of birth does not match"
+                        "errorMsg": "attributesInetumError"
                     },
                     {
                         "type": "isBeforeDateValue",
@@ -773,7 +773,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
                         "type": "equalAuthnoteAttributeId",
                         "equalAuthnoteAttributeId": "sequent.read-only.id-card-number",
                         "inetumAttributePath": "/response/mrz/personal_number",
-                        "errorMsg": "attributesInetumError: Card number does not match"
+                        "errorMsg": "attributesInetumError"
                     }
                 ],
                 "Philippine Passport": [
@@ -781,7 +781,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
                         "type": "equalAuthnoteAttributeId",
                         "equalAuthnoteAttributeId": "sequent.read-only.id-card-number",
                         "inetumAttributePath": "/response/mrz/personal_number",
-                        "errorMsg": "attributesInetumError: Card number does not match"
+                        "errorMsg": "attributesInetumError"
 
                     }
                 ]
