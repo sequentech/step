@@ -168,7 +168,7 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
         const {data: exportElectionEventData, errors} = await exportElectionEvent({
             variables: {electionEventId},
         })
-        
+
         const documentId = exportElectionEventData?.export_election_event?.document_id
         if (errors || !documentId) {
             setWidget({
@@ -1033,6 +1033,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                     }
                     logs={taskData?.sequent_backend_tasks_execution[0].logs || openWidget.logs}
                     onClose={() => setWidget(undefined)}
+                    id={taskId}
                 />
             )}
         </>

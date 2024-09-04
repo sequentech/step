@@ -33,17 +33,17 @@ export const statusColor: (status: string) => string = (status) => {
 }
 
 export interface ViewTaskProps {
-    currTaskId: Identifier | null
-    electionEventRecord: Sequent_Backend_Election_Event
+    currTaskId: Identifier | String | null
     goBack: () => void
+    electionEventRecord?: Sequent_Backend_Election_Event
     isModal?: boolean
 }
 
 export const ViewTask: React.FC<ViewTaskProps> = ({
     currTaskId,
-    electionEventRecord,
     goBack,
-    isModal = true,
+    electionEventRecord,
+    isModal = false,
 }) => {
     const {t} = useTranslation()
     const [progressExpanded, setProgressExpanded] = useState(true)
@@ -86,7 +86,9 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
                                     <TableCell sx={{fontWeight: "500", width: "40%"}}>
                                         {t("tasksScreen.column.type")}
                                     </TableCell>
-                                    <TableCell>{task?.type && t(`tasksScreen.tasksExecution.${task.type}`)}</TableCell>
+                                    <TableCell>
+                                        {task?.type && t(`tasksScreen.tasksExecution.${task.type}`)}
+                                    </TableCell>
                                 </TableRow>
                                 <TableRow>
                                     <TableCell align="left" sx={{fontWeight: "500"}}>
@@ -123,7 +125,7 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
     if (isModal) {
         return (
             <Dialog
-                open={true} 
+                open={true}
                 variant="info"
                 handleClose={goBack}
                 title={t("tasksScreen.taskInformation")}

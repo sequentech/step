@@ -40,7 +40,7 @@ export const EditElectionEventTasks: React.FC = () => {
                 <ViewTask
                     currTaskId={currTaskId}
                     electionEventRecord={electionEventRecord}
-                    onViewList={onViewList}
+                    goBack={onViewList}
                 />
             )}
         </>

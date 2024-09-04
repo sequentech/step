@@ -391,6 +391,7 @@ export const CreateElectionList: React.FC = () => {
                     }
                     logs={taskData?.sequent_backend_tasks_execution[0].logs || openWidget.logs}
                     onClose={() => setWidget(undefined)}
+                    id={taskId}
                 />
             )}
         </>

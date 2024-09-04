@@ -31,10 +31,10 @@ import CloseIcon from "@mui/icons-material/Close"
 import {Visibility} from "@mui/icons-material"
 import {ETaskExecutionStatus} from "@sequentech/ui-core"
 import {ETasksExecution} from "@/types/tasksExecution"
-import {useLocation, useNavigate} from "react-router-dom"
 import {StatusChip} from "./StatusChip"
 import {IKeysCeremonyLog as ITaskLog} from "@/services/KeyCeremony"
 import {useTranslation} from "react-i18next"
+import {ViewTask} from "@/resources/Tasks/ViewTask"
 
 interface LogTableProps {
     logs: ITaskLog[]
@@ -70,6 +70,7 @@ interface WidgetProps {
     onSuccess?: () => void
     onFailure?: () => void
     logs?: Array<ITaskLog>
+    id?: String
 }
 
 export const Widget: React.FC<WidgetProps> = ({
@@ -79,11 +80,12 @@ export const Widget: React.FC<WidgetProps> = ({
     onSuccess,
     onFailure,
     logs,
+    id,
 }) => {
     const {t} = useTranslation()
-    const navigate = useNavigate()
-    const location = useLocation()
     const [expanded, setExpanded] = useState(false)
+    const [openTaskModal, setOpenTaskModal] = useState(false)
+
     const initialLog: ITaskLog[] = [
         {created_date: new Date().toLocaleString(), log_text: "Task started"},
     ]
@@ -97,53 +99,57 @@ export const Widget: React.FC<WidgetProps> = ({
         }
     }, [status])
 
-    const handleNavigateNext = () => {
-        const baseUrl = location.pathname.split("/").slice(0, 3).join("/")
-        const newUrl = `${baseUrl}/8`
-        navigate(newUrl)
+    const onSetViewTask = (event: React.ChangeEvent<{}>) => {
+        event.stopPropagation()
+        setOpenTaskModal(!openTaskModal)
     }
 
     return (
-        <WidgetContainer>
-            <Accordion expanded={expanded} onChange={() => setExpanded(!expanded)}>
-                <CustomAccordionSummary
-                    expandIcon={<ExpandMoreIcon />}
-                    sx={{backgroundColor: "#0F054C"}}
-                >
-                    <HeaderBox>
-                        <InfoBox>
-                            <TypeTypography>
-                                <b>Task: </b>
-                                {t(`tasksScreen.tasksExecution.${type}`)}
-                            </TypeTypography>
-                            <StatusChip status={status} />
-                            <IconsBox>
-                                <StyledIconButton size="small">
-                                    <Visibility onClick={handleNavigateNext} />
-                                </StyledIconButton>
-                                <StyledIconButton size="small">
-                                    <CloseIcon onClick={onClose} />
-                                </StyledIconButton>
-                            </IconsBox>
-                        </InfoBox>
-                        {status === ETaskExecutionStatus.IN_PROGRESS && (
-                            <StyledProgressBar>
-                                <LinearProgress />
-                            </StyledProgressBar>
-                        )}
-                    </HeaderBox>
-                </CustomAccordionSummary>
-                <AccordionDetails
-                    sx={{display: "flex", flexDirection: "column", padding: "8px 16px"}}
-                >
-                    <LogTypography>{t("widget.logs")}</LogTypography>
-                    <Divider />
-                    <LogsBox>
-                        <LogTable logs={logs || initialLog} />
-                    </LogsBox>
-                    <ViewTaskTypography>View Task</ViewTaskTypography>
-                </AccordionDetails>
-            </Accordion>
-        </WidgetContainer>
+        <>
+            <WidgetContainer>
+                <Accordion expanded={expanded} onChange={() => setExpanded(!expanded)}>
+                    <CustomAccordionSummary
+                        expandIcon={<ExpandMoreIcon />}
+                        sx={{backgroundColor: "#0F054C"}}
+                    >
+                        <HeaderBox>
+                            <InfoBox>
+                                <TypeTypography>
+                                    <b>Task: </b>
+                                    {t(`tasksScreen.tasksExecution.${type}`)}
+                                </TypeTypography>
+                                <StatusChip status={status} />
+                                <IconsBox>
+                                    <StyledIconButton size="small">
+                                        <Visibility onClick={(event) => onSetViewTask(event)} />
+                                    </StyledIconButton>
+                                    <StyledIconButton size="small">
+                                        <CloseIcon onClick={onClose} />
+                                    </StyledIconButton>
+                                </IconsBox>
+                            </InfoBox>
+                            {status === ETaskExecutionStatus.IN_PROGRESS && (
+                                <StyledProgressBar>
+                                    <LinearProgress />
+                                </StyledProgressBar>
+                            )}
+                        </HeaderBox>
+                    </CustomAccordionSummary>
+                    <AccordionDetails
+                        sx={{display: "flex", flexDirection: "column", padding: "8px 16px"}}
+                    >
+                        <LogTypography>{t("widget.logs")}</LogTypography>
+                        <Divider />
+                        <LogsBox>
+                            <LogTable logs={logs || initialLog} />
+                        </LogsBox>
+                        <ViewTaskTypography onClick={onSetViewTask}>View Task</ViewTaskTypography>
+                    </AccordionDetails>
+                </Accordion>
+            </WidgetContainer>
+            {openTaskModal && id && (
+                <ViewTask currTaskId={id} goBack={() => setOpenTaskModal(false)} isModal={true} />
+            )}
+        </>
     )
 }

@@ -80,7 +80,7 @@ export const ViewTaskTypography = styled(TypeTypography)({
     color: "#0F054C",
     cursor: "pointer",
     width: "max-content",
-    alignSelf: "flex-end"
+    alignSelf: "flex-end",
 })
 
 export const TransparentTable = styled(Table)({

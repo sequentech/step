@@ -780,6 +780,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     }
                     logs={taskData?.sequent_backend_tasks_execution[0].logs || openWidget.logs}
                     onClose={() => setWidget(undefined)}
+                    id={taskId}
                 />
             )}
         </>
