@@ -60,6 +60,7 @@ const HeaderWithContext: React.FC = () => {
                 username: authContext.username,
                 email: authContext.email,
                 openLink: showUserProfile ? authContext.openProfileLink : undefined,
+                firstName: authContext.firstName,
             }}
             languagesList={languagesList}
             logoutFn={authContext.isAuthenticated ? authContext.logout : undefined}
