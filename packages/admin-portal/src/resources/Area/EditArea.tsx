@@ -25,8 +25,7 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {INSERT_AREA_CONTESTS} from "../../queries/InsertAreaContest"
 import {DELETE_AREA_CONTESTS} from "@/queries/DeleteAreaContest"
 import {Sequent_Backend_Area} from "@/gql/graphql"
-import {keyBy} from "@sequentech/ui-core"
-
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 interface EditAreaProps {
     id?: Identifier | undefined
     electionEventId: Identifier | undefined
@@ -65,6 +64,12 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
             areaId: id,
         },
     })
+
+    const aliasRenderer = useAliasRenderer()
+
+    const contestMatcher = (filter: string, contest: any) => {
+        return contest.alias.match(filter) || (!contest.alias && contest.name.match(filter))
+    }
 
     const areaFilterToQuery = (searchText: string) => {
         if (!searchText || searchText.length == 0) {
@@ -217,7 +222,8 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
                                                 label={t("areas.sequent_backend_area_contest")}
                                                 source="area_contest_ids"
                                                 choices={contests}
-                                                optionText="name"
+                                                optionText={aliasRenderer}
+                                                matchSuggestion={contestMatcher}
                                                 optionValue="id"
                                                 fullWidth
                                             />
