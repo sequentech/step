@@ -47,11 +47,19 @@ export const StartStep: React.FC<ConfigureStepProps> = ({goNext, goBack}) => {
             </WizardStyles.ContentBox>
 
             <WizardStyles.Toolbar>
-                <WizardStyles.BackButton color="info" onClick={goBack}>
+                <WizardStyles.BackButton
+                    color="info"
+                    onClick={goBack}
+                    className="keys-start-back-button"
+                >
                     <ArrowBackIosIcon />
                     {t("common.label.back")}
                 </WizardStyles.BackButton>
-                <WizardStyles.NextButton color="info" onClick={goNext}>
+                <WizardStyles.NextButton
+                    color="info"
+                    onClick={goNext}
+                    className="keys-start-next-button"
+                >
                     <ArrowForwardIosIcon />
                     {t("common.label.next")}
                 </WizardStyles.NextButton>

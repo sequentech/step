@@ -83,6 +83,12 @@ public class MessageOTPAuthenticatorFactory
             Utils.MessageCourier.EMAIL.name()));
     return List.of(
         new ProviderConfigProperty(
+            Utils.ONE_TIME_LINK,
+            "Use OTL instead of OTP",
+            "Send One Time Link instead of One Time Password.",
+            ProviderConfigProperty.BOOLEAN_TYPE,
+            false),
+        new ProviderConfigProperty(
             Utils.CODE_LENGTH,
             "Code length",
             "The number of digits of the generated code.",
@@ -112,6 +118,12 @@ public class MessageOTPAuthenticatorFactory
             "If enabled, there won't be a need to have a valid user when using this authenticator",
             ProviderConfigProperty.BOOLEAN_TYPE,
             "false"),
+        new ProviderConfigProperty(
+            Utils.OTL_RESTORED_AUTH_NOTES_ATTRIBUTE,
+            "Comma Separated Names of the Auth Notes to Restore",
+            "When loading an OTL, these are the Auth Notes that will be restored from the previous session",
+            ProviderConfigProperty.STRING_TYPE,
+            ""),
         new ProviderConfigProperty(
             Utils.RESEND_ACTIVATION_TIMER,
             "Seconds to activate resend",
