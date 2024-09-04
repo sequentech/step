@@ -68,7 +68,7 @@ import {ElectionStyles} from "@/components/styles/ElectionStyles"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {DownloadDocument} from "../User/DownloadDocument"
 import {EXPORT_ELECTION_EVENT} from "@/queries/ExportElectionEvent"
-import {useMutation} from "@apollo/client"
+import {FetchResult, useMutation} from "@apollo/client"
 import {IMPORT_CANDIDTATES} from "@/queries/ImportCandidates"
 import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
 import {useWatch} from "react-hook-form"
@@ -233,6 +233,12 @@ export const EditElectionEventDataForm: React.FC = () => {
     const defaultSecondsForAlret = convertToNumber(process.env.SECONDS_TO_SHOW_AlERT) ?? 180
     const [manageElectionDates] = useMutation<ManageElectionDatesMutation>(MANAGE_ELECTION_DATES)
     const [customUrlsValues, setCustomUrlsValues] = useState({login: "", enrollment: ""})
+    const [customLoginRes, setCustomLoginRes] = useState<FetchResult<SetCustomUrlsMutation>>()
+    const [customEnrollmentRes, setCustomEnrollmentRes] =
+        useState<FetchResult<SetCustomUrlsMutation>>()
+    const [isCustomUrlLoading, setIsCustomUrlLoading] = useState(false)
+    const [isCustomizeUrl, setIsCustomizeUrl] = useState(false)
+
     const [manageCustomUrls, response] = useMutation<SetCustomUrlsMutation>(SET_CUSTOM_URLS, {
         context: {
             headers: {
@@ -587,7 +593,9 @@ export const EditElectionEventDataForm: React.FC = () => {
                     dns_prefix: customUrlsValues.enrollment,
                 },
             ]
-            await Promise.all(
+            setIsCustomUrlLoading(true)
+            setIsCustomizeUrl(true)
+            const [loginResponse, enrollmentResponse] = await Promise.all(
                 urlEntries.map((item) =>
                     manageCustomUrls({
                         variables: {
@@ -598,15 +606,12 @@ export const EditElectionEventDataForm: React.FC = () => {
                     })
                 )
             )
+            setCustomLoginRes(loginResponse)
+            setCustomEnrollmentRes(enrollmentResponse)
         } catch (err: any) {
-            if (err.networkError) {
-                console.log("Network error occurred, please try again")
-            } else if (err.graphQLErrors) {
-                const graphqlErrors = "One of the URLS has invalid or already used DNS name"
-                console.log(graphqlErrors)
-            } else {
-                console.log(`"Server error"`)
-            }
+            console.error(err)
+        } finally {
+            setIsCustomUrlLoading(false)
         }
     }
 
@@ -923,50 +928,79 @@ export const EditElectionEventDataForm: React.FC = () => {
                                 </AccordionSummary>
                                 <AccordionDetails>
                                     <CustomUrlsStyle.InputWrapper>
-                                        <p>https://</p>
-                                        <TextInput
-                                            variant="standard"
-                                            helperText={false}
-                                            sx={{width: "300px"}}
-                                            source={`presentation.custom_urls.login`}
-                                            label={""}
-                                            onChange={(e) =>
-                                                setCustomUrlsValues({
-                                                    ...customUrlsValues,
-                                                    login: e.target.value,
-                                                })
-                                            }
-                                        />
-                                        <p>{`.${process.env.CUSTOM_URLS_DOMAIN_NAME}/login`}</p>
-                                        {response.loading && (
-                                            <WizardStyles.DownloadProgress size={18} />
-                                        )}
-                                        {!response.error && !response.loading && (
-                                            <StatusChip status="SUCCESS" />
-                                        )}
+                                        <CustomUrlsStyle.InputLabelWrapper>
+                                            <p>https://</p>
+                                            <TextInput
+                                                variant="standard"
+                                                helperText={false}
+                                                sx={{width: "300px"}}
+                                                source={`presentation.custom_urls.login`}
+                                                label={""}
+                                                onChange={(e) =>
+                                                    setCustomUrlsValues({
+                                                        ...customUrlsValues,
+                                                        login: e.target.value,
+                                                    })
+                                                }
+                                            />
+                                            <p>{`.${process.env.CUSTOM_URLS_DOMAIN_NAME}/login`}</p>
+                                            {isCustomUrlLoading ? (
+                                                <WizardStyles.DownloadProgress size={18} />
+                                            ) : (
+                                                isCustomizeUrl &&
+                                                (customLoginRes?.data?.set_custom_urls?.success ? (
+                                                    <StatusChip status="SUCCESS" />
+                                                ) : (
+                                                    <StatusChip status="ERROR" />
+                                                ))
+                                            )}
+                                        </CustomUrlsStyle.InputLabelWrapper>
+                                        {customLoginRes &&
+                                            !customLoginRes?.data?.set_custom_urls?.success && (
+                                                <CustomUrlsStyle.ErrorText>
+                                                    {customLoginRes?.data?.set_custom_urls?.message}
+                                                </CustomUrlsStyle.ErrorText>
+                                            )}
                                     </CustomUrlsStyle.InputWrapper>
                                     <CustomUrlsStyle.InputWrapper>
-                                        <p>https://</p>
-                                        <TextInput
-                                            variant="standard"
-                                            helperText={false}
-                                            sx={{width: "300px"}}
-                                            source={`presentation.custom_urls.enrollment`}
-                                            label={""}
-                                            onChange={(e) =>
-                                                setCustomUrlsValues({
-                                                    ...customUrlsValues,
-                                                    enrollment: e.target.value,
-                                                })
-                                            }
-                                        />
-                                        <p>{`.${process.env.CUSTOM_URLS_DOMAIN_NAME}/enrollment`}</p>
-                                        {response.loading && (
-                                            <WizardStyles.DownloadProgress size={18} />
-                                        )}
-                                        {!response.error && !response.loading && (
-                                            <StatusChip status="SUCCESS" />
-                                        )}
+                                        <CustomUrlsStyle.InputLabelWrapper>
+                                            <p>https://</p>
+                                            <TextInput
+                                                variant="standard"
+                                                helperText={false}
+                                                sx={{width: "300px"}}
+                                                source={`presentation.custom_urls.enrollment`}
+                                                label={""}
+                                                onChange={(e) =>
+                                                    setCustomUrlsValues({
+                                                        ...customUrlsValues,
+                                                        enrollment: e.target.value,
+                                                    })
+                                                }
+                                            />
+                                            <p>{`.${process.env.CUSTOM_URLS_DOMAIN_NAME}/enrollment`}</p>
+                                            {isCustomUrlLoading ? (
+                                                <WizardStyles.DownloadProgress size={18} />
+                                            ) : (
+                                                isCustomizeUrl &&
+                                                (customEnrollmentRes?.data?.set_custom_urls
+                                                    ?.success ? (
+                                                    <StatusChip status="SUCCESS" />
+                                                ) : (
+                                                    <StatusChip status="ERROR" />
+                                                ))
+                                            )}
+                                        </CustomUrlsStyle.InputLabelWrapper>
+                                        {customEnrollmentRes &&
+                                            !customEnrollmentRes?.data?.set_custom_urls
+                                                ?.success && (
+                                                <CustomUrlsStyle.ErrorText>
+                                                    {
+                                                        customEnrollmentRes?.data?.set_custom_urls
+                                                            ?.message
+                                                    }
+                                                </CustomUrlsStyle.ErrorText>
+                                            )}
                                     </CustomUrlsStyle.InputWrapper>
                                 </AccordionDetails>
                             </Accordion>

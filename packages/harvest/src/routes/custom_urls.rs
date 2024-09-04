@@ -27,9 +27,9 @@ pub struct GetCustomUrlInput {
 }
 
 #[derive(Serialize)]
-struct GraphQLError {
+struct UpdateCustomUrlOutput {
+    success: bool,
     message: String,
-    extensions: Option<serde_json::Value>,
 }
 
 // TODO: Add env for cloudflare auth + for local / remote
@@ -38,7 +38,7 @@ struct GraphQLError {
 pub async fn update_custom_url(
     claims: JwtClaims,
     input: Json<UpdateCustomUrlInput>,
-) -> Result<Json<String>, (Status, String)> {
+) -> Result<Json<UpdateCustomUrlOutput>, (Status, String)> {
     let body = input.into_inner();
     if let Err(err) = authorize(
         &claims,
@@ -52,33 +52,17 @@ pub async fn update_custom_url(
 
     info!("Authorization succeeded, processing URL update");
 
-    match set_custom_url(&body.redirect_to, &body.origin, &body.dns_prefix)
-        .await
-    {
-        Ok(_) => {
+    match set_custom_url(&body.redirect_to, &body.origin, &body.dns_prefix).await {
+        Ok(message) => {
             info!("Custom URL successfully updated");
-            Ok(Json("Successfully Updated".to_string()))
+            let success_message = format!("Success updating custom URL");
+            Ok(Json(UpdateCustomUrlOutput { success:true, message:success_message }))
         }
         Err(error) => {
-            let error_message =
-                format!("Error updating custom URL: {:?}", error);
+            let error_message = format!("Error updating custom URL: {:?}", error);
             error!("{}", error_message);
 
-            // Create a GraphQL error response
-            let graphql_error = GraphQLError {
-                message: error_message.clone(),
-                extensions: None, /* You can add more structured information
-                                   * if needed */
-            };
-
-            // Serialize the error response to a JSON string
-            let graphql_error_response = serde_json::to_string(&graphql_error)
-                .unwrap_or_else(|_| {
-                    "Failed to serialize GraphQL error".to_string()
-                });
-
-            // Return the error in the expected format (Status, String)
-            Err((Status::InternalServerError, graphql_error_response))
+            Ok(Json(UpdateCustomUrlOutput { success:false, message: error_message }))
         }
     }
 }
