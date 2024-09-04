@@ -4,8 +4,8 @@
 
 use crate::services::{
     authorization::authorize,
-    custom_url::{get_page_rule, set_custom_url, PageRule, Target},
 };
+use windmill::services::custom_url::{get_page_rule, set_custom_url, PageRule, Target};
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;

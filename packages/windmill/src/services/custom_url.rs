@@ -7,6 +7,7 @@ use rocket::futures::stream::Forward;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fmt;
+use tracing::{error, info};
 
 #[derive(Debug, Deserialize)]
 pub struct PageRule {
@@ -280,7 +281,7 @@ pub async fn create_dns_record(
     let (zone_id, api_email, api_key) = match get_cloudflare_vars() {
         Ok(vars) => vars,
         Err(e) => {
-            eprintln!("Failed to get Cloudflare environment variables: {}", e);
+            error!("Failed to get Cloudflare environment variables: {}", e);
             return Err(format!(
                 "Failed to get Cloudflare environment variables: {}",
                 e
@@ -306,7 +307,7 @@ pub async fn create_dns_record(
     {
         Ok(resp) => resp,
         Err(e) => {
-            eprintln!("HTTP request failed: {}", e);
+            error!("HTTP request failed: {}", e);
             return Err(format!("HTTP request failed: {}", e).into());
         }
     };
@@ -318,7 +319,7 @@ pub async fn create_dns_record(
         let body = match response.text().await {
             Ok(text) => text,
             Err(e) => {
-                eprintln!("Failed to read error response: {}", e);
+                error!("Failed to read error response: {}", e);
                 return Err(
                     format!("Failed to read error response: {}", e).into()
                 );
@@ -352,7 +353,7 @@ async fn update_page_rule(
         .await?;
 
     if response.status().is_success() {
-        println!("Page rule updated successfully");
+        info!("Page rule updated successfully");
         Ok(())
     } else {
         let error_text = response.text().await?;
@@ -386,7 +387,7 @@ async fn create_page_rule(
         .map_err(|e| CloudflareError::new(&format!("Request error: {}", e)))?;
 
     if response.status().is_success() {
-        println!("Page rule created successfully");
+        info!("Page rule created successfully");
         Ok(())
     } else {
         let error_text = response.text().await.map_err(|e| {
