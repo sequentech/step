@@ -45,6 +45,7 @@ const HeaderWithContext: React.FC = () => {
         <Header
             appVersion={{main: "10.4.2"}}
             userProfile={{
+                firstName: authContext.firstName,
                 username: authContext.username,
                 email: authContext.email,
                 openLink: showUserProfile ? authContext.openProfileLink : undefined,
