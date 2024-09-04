@@ -961,6 +961,19 @@ const catalanTranslation: TranslationType = {
                 description:
                     "Et permet exportar un Paquet de Transmissió als Servidors de Destinació o descarregar-lo.",
                 actions: {
+                    sign: {
+                        title: "Regenerar",
+                        dialog: {
+                            title: "Vols signar el paquet de transmissió?",
+                            description:
+                                "Si us plau, confirma que vols regenerar el paquet de transmissió per a l'àrea `{{name}}`",
+                            confirm: "Signar el paquet de transmissió",
+                            cancel: "Tancar",
+                            input: {
+                                placeholder: "Introdueix la teva contrasenya",
+                            },
+                        },
+                    },
                     send: {
                         title: "Enviar",
                         dialog: {
@@ -968,6 +981,16 @@ const catalanTranslation: TranslationType = {
                             description:
                                 "Si us plau, confirma que vols enviar el Paquet de Transmissió per a l'Àrea '{{name}}' als Servidors de Destinació.",
                             confirm: "Enviar Paquet de Transmissió",
+                            cancel: "Tancar",
+                        },
+                    },
+                    regenerate: {
+                        title: "Regenerar",
+                        dialog: {
+                            title: "Vol regenerar el paquet de transmissió?",
+                            description:
+                                "Si us plau, confirmi que vol regenerar el paquet de transmissió per a l'àrea `{{name}}`",
+                            confirm: "Regenerar paquet de transmissió",
                             cancel: "Tancar",
                         },
                     },
@@ -1229,6 +1252,12 @@ const catalanTranslation: TranslationType = {
                 census: "Cens",
             },
             common: {
+                tallyCeremony: {
+                    manage: "Gestionar la Cerimònia de Còmput",
+                    view: "Veure la Cerimònia de Còmput",
+                    cancel: "Cancel·lar la Cerimònia de Còmput",
+                    addKey: "Afegir Clau de Còmput",
+                },
                 edit: "Editar",
                 confirm: "Confirmar",
                 back: "Enrere",

@@ -28,7 +28,7 @@ export const TallyStyles = {
         display: flex;
         flex-direction: row;
         justify-content: space-between;
-        margin-top: -25px;
+        margin-bottom: 25px;
     `,
     MiruToolbar: muiStyled(Toolbar)`
         background-color: none;

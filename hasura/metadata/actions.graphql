@@ -381,7 +381,8 @@ type Mutation {
     election_id: uuid!
     area_id: uuid!
     tally_session_id: uuid!
-    private_key: String!
+    document_id: uuid!
+    password: String!
   ): OptionalId
 }
 
