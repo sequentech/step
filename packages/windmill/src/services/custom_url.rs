@@ -249,11 +249,11 @@ fn create_payload(origin: &str, redirect_to: &str) -> CreatePageRuleRequest {
 }
 
 #[instrument]
-fn create_dns_payload(redirect_to: &str, origin: &str) -> CreateDNSRecordRequest {
+fn create_dns_payload(origin: &str) -> CreateDNSRecordRequest {
     CreateDNSRecordRequest {
         name: origin.to_string(),
         record_type: "A".to_string(),
-        content: redirect_to.to_string(),
+        content: "3.92.181.13".to_string(),
         ttl: 3600,
         proxied: false,
     }
@@ -274,7 +274,7 @@ pub async fn create_dns_record(redirect_to: &str, dns_prefix: &str) -> Result<()
         zone_id
     );
 
-    let request_dns_body = create_dns_payload(redirect_to, dns_prefix);
+    let request_dns_body = create_dns_payload(dns_prefix);
     info!("dns prefixxxxxxx {:?}", dns_prefix);
     let response = match client
         .post(&url)

@@ -430,10 +430,9 @@ services:
       AWS_REGION: ${AWS_REGION}
       AWS_S3_MAX_UPLOAD_BYTES: ${AWS_S3_MAX_UPLOAD_BYTES}
 
-      CLOUDFLARE_ENV: ${CLOUDFLARE_ENV}
-      CLOUDFLARE_ZONE: ${CLOUDFLARE_ZONE}
-      CLOUDFLARE_API_EMAIL: ${CLOUDFLARE_API_EMAIL}
-      CLOUDFLARE_API_KEY: ${CLOUDFLARE_API_KEY}
+      CLOUDFLARE_ZONE: 4cdea8a1ab10db2e13b4b47d82784dfe
+      CLOUDFLARE_API_EMAIL: felrobelv@gmail.com
+      CLOUDFLARE_API_KEY: Vr0ea73Xs4PFKesCVWOnO2gccOtVEZpn39loWEGY
 
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
