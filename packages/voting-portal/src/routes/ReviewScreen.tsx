@@ -113,6 +113,30 @@ const AuditButton: React.FC<AuditButtonProps> = ({onClick}) => {
     )
 }
 
+interface AuditBallotHelpDialogProps {
+    auditBallotHelp: boolean
+    handleClose: (value: boolean) => void
+}
+
+const AuditBallotHelpDialog: React.FC<AuditBallotHelpDialogProps> = ({
+    auditBallotHelp,
+    handleClose,
+}) => {
+    const {t} = useTranslation()
+
+    return (
+        <Dialog
+            handleClose={handleClose}
+            open={auditBallotHelp}
+            title={t("reviewScreen.auditBallotHelpDialog.title")}
+            ok={t("reviewScreen.auditBallotHelpDialog.ok")}
+            cancel={t("reviewScreen.auditBallotHelpDialog.cancel")}
+            variant="warning"
+        >
+            {stringToHtml(t("reviewScreen.auditBallotHelpDialog.content"))}
+        </Dialog>
+    )
+}
 interface ActionButtonProps {
     ballotStyle: IBallotStyle
     auditableBallot: IAuditableBallot
@@ -252,33 +276,24 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
         }
     }
 
+    console.log("auditButtonCfg", auditButtonCfg)
+
     return (
         <Box sx={{marginBottom: "10px", marginTop: "10px"}}>
-            {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW ? (
-                <StyledButton
-                    sx={{display: {xs: "flex", sm: "none"}, marginBottom: "2px", width: "100%"}}
-                    variant="warning"
-                    onClick={() => setAuditBallotHelp(true)}
-                >
-                    <Icon icon={faFire} size="sm" />
-                    <Box>{t("reviewScreen.auditButton")}</Box>
-                </StyledButton>
-            ) : null}
-            <Dialog
-                handleClose={handleClose}
-                open={auditBallotHelp}
-                title={t("reviewScreen.auditBallotHelpDialog.title")}
-                ok={t("reviewScreen.auditBallotHelpDialog.ok")}
-                middleActions={
-                    auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP
-                        ? [<AuditButton onClick={() => setAuditBallotHelp(true)} />]
-                        : []
-                }
-                cancel={t("reviewScreen.auditBallotHelpDialog.cancel")}
+            <StyledButton
+                sx={{display: {xs: "flex", sm: "none"}, marginBottom: "2px", width: "100%"}}
                 variant="warning"
+                onClick={() => setAuditBallotHelp(true)}
             >
-                {stringToHtml(t("reviewScreen.auditBallotHelpDialog.content"))}
-            </Dialog>
+                <Icon icon={faFire} size="sm" />
+                <Box>{t("reviewScreen.auditButton")}</Box>
+            </StyledButton>
+            {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW ? (
+                <AuditBallotHelpDialog
+                    auditBallotHelp={auditBallotHelp}
+                    handleClose={handleClose}
+                />
+            ) : null}
             <ActionsContainer>
                 <StyledLink
                     to={`/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/vote${location.search}`}
@@ -289,9 +304,9 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                         <Box>{t("reviewScreen.backButton")}</Box>
                     </StyledButton>
                 </StyledLink>
-                {auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW ? null : (
+                {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW ? (
                     <AuditButton onClick={() => setAuditBallotHelp(true)} />
-                )}
+                ) : null}
                 <StyledButton
                     className="cast-ballot-button"
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
@@ -321,7 +336,9 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
 export const ReviewScreen: React.FC = () => {
     const {electionId} = useParams<{electionId?: string}>()
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
+    const location = useLocation()
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
+    const [auditBallotHelp, setAuditBallotHelp] = useState<boolean>(false)
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openReviewScreenHelp, setReviewScreenHelp] = useState(false)
     const {t} = useTranslation()
@@ -351,7 +368,16 @@ export const ReviewScreen: React.FC = () => {
         selectBallotSelectionByElectionId(ballotStyle?.election_id ?? "")
     )
 
-    function handleCloseDialog(val: boolean) {
+    const handleCloseDialogAuditHelp = (value: boolean) => {
+        setAuditBallotHelp(false)
+        if (value) {
+            navigate(
+                `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle?.election_id}/audit${location.search}`
+            )
+        }
+    }
+
+    function handleCloseDialogIdHelp(val: boolean) {
         setOpenBallotIdHelp(false)
 
         if (val) {
@@ -410,15 +436,31 @@ export const ReviewScreen: React.FC = () => {
                 <BallotHash hash={ballotId || ""} onHelpClick={() => setOpenBallotIdHelp(true)} />
             )}
             <Dialog
-                handleClose={handleCloseDialog}
+                handleClose={handleCloseDialogIdHelp}
                 open={openBallotIdHelp}
                 title={t("reviewScreen.ballotIdHelpDialog.title")}
                 ok={t("reviewScreen.ballotIdHelpDialog.ok")}
+                middleActions={
+                    auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP
+                        ? [
+                              <AuditButton
+                                  key={"audit-button"}
+                                  onClick={() => setAuditBallotHelp(true)}
+                              />,
+                          ]
+                        : []
+                }
                 cancel={t("reviewScreen.ballotIdHelpDialog.cancel")}
                 variant="info"
             >
                 {stringToHtml(t("reviewScreen.ballotIdHelpDialog.content"))}
             </Dialog>
+            {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP ? (
+                <AuditBallotHelpDialog
+                    auditBallotHelp={auditBallotHelp}
+                    handleClose={handleCloseDialogAuditHelp}
+                />
+            ) : null}
             <Box marginTop="48px">
                 <Stepper selected={2} />
             </Box>
