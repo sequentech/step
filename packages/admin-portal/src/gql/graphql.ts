@@ -615,6 +615,7 @@ export enum Cursor_Ordering {
 export type DocumentTaskOutput = {
   __typename?: 'documentTaskOutput';
   document_id: Scalars['String']['output'];
+  error_msg?: Maybe<Scalars['String']['output']>;
   task_execution: Tasks_Execution_Type;
 };
 

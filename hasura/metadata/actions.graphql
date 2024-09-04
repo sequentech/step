@@ -951,6 +951,7 @@ type taskOutput {
 }
 
 type documentTaskOutput {
+  error_msg : String
   task_execution : tasks_execution_type!
   document_id : String!
 }

@@ -146,7 +146,7 @@ pub async fn import_election_event_f(
     }
 
     let celery_app = get_celery_app().await;
-    let celery_task = celery_app
+    let celery_task = match celery_app
         .send_task(import_election_event::import_election_event::new(
             input.clone(),
             id.clone(),
@@ -154,12 +154,17 @@ pub async fn import_election_event_f(
             task_execution.clone(),
         ))
         .await
-        .map_err(|err| {
-            (
-                Status::InternalServerError,
-                format!("Error sending import_election_event task: {:?}", err),
-            )
-        })?;
+        {
+            Ok(celery_task) => celery_task,
+            Err(err) => {
+                return Ok(Json(ImportElectionEventOutput {
+                    id: Some(id),
+                    message: Some(format!("Error sending Import Election Event task: ${err}")),
+                    error: None,
+                    task_execution: Some(task_execution.clone()),
+                }));
+            }
+        };
 
     info!("Sent IMPORT_ELECTION_EVENT task {}", task_execution.id);
 

@@ -561,9 +561,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
 
             refresh()
 
-            if (!errors) {
-                notify(t("electionEventScreen.import.importVotersSuccess"), {type: "success"})
-            } else {
+            if (errors) {
                 setWidget({
                     type: ETasksExecution.IMPORT_USERS,
                     status: ETaskExecutionStatus.FAILED,

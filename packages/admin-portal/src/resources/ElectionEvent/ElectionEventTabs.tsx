@@ -66,12 +66,11 @@ export const ElectionEventTabs: React.FC = () => {
     )
     const showLogs = authContext.isAuthorized(true, authContext.tenantId, IPermissions.LOGS_READ)
 
-    const showTasksExecution = true //TODO: fix and understand why false
-    // authContext.isAuthorized(
-    //     true,
-    //     authContext.tenantId,
-    //     IPermissions.TASKS_READ
-    // )
+    const showTasksExecution = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.TASKS_READ
+    )
 
     const {t} = useTranslation()
     const {setTallyId, setCreatingFlag} = useElectionEventTallyStore()

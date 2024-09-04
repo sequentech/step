@@ -25,6 +25,7 @@ pub struct ImportCandidatesInput {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ImportCandidatesOutput {
+    error_msg: Option<String>,
     document_id: String,
     task_execution: TasksExecution,
 }
@@ -65,21 +66,26 @@ pub async fn import_candidates_route(
         vec![Permissions::ADMIN_USER],
     )?;
 
-    import_candidates_task(
+    match import_candidates_task(
         claims.hasura_claims.tenant_id.clone(),
         election_event_id,
         body.document_id.clone(),
         task_execution.clone(),
     )
     .await
-    .map_err(|error| {
-        (
-            Status::InternalServerError,
-            format!("Error importing areas: {error:?}"),
-        )
-    })?;
+    {
+        Ok(_) => (),
+        Err(err) => {
+            return Ok(Json(ImportCandidatesOutput {
+                error_msg: Some(err.to_string()),
+                document_id: body.document_id.clone(),
+                task_execution: task_execution.clone(),
+            }));
+        }
+    };
 
     let output = ImportCandidatesOutput {
+        error_msg: None,
         document_id: body.document_id.clone(),
         task_execution: task_execution.clone(),
     };

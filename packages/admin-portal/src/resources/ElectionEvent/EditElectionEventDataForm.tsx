@@ -159,24 +159,22 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
 
     const confirmExportAction = async () => {
         console.log("CONFIRM EXPORT")
+        setOpenExport(false)
         setTaskId(undefined)
         setWidget({
             type: ETasksExecution.EXPORT_ELECTION_EVENT,
             status: ETaskExecutionStatus.IN_PROGRESS,
         })
-
         const {data: exportElectionEventData, errors} = await exportElectionEvent({
             variables: {electionEventId},
         })
-
+        
         const documentId = exportElectionEventData?.export_election_event?.document_id
         if (errors || !documentId) {
-            setOpenExport(false)
             setWidget({
                 type: ETasksExecution.EXPORT_ELECTION_EVENT,
                 status: ETaskExecutionStatus.FAILED,
             })
-            notify(t("electionEventScreen.exportError"), {type: "error"})
             console.log(`Error exporting users: ${errors}`)
             return
         }
@@ -189,29 +187,26 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
     const onDownloadDocument = () => {
         console.log("onDownload called")
         setExportDocumentId(undefined)
-        setOpenExport(false)
     }
 
     return (
-        <Dialog
-            variant="info"
-            open={openExport}
-            ok={t("common.label.export")}
-            cancel={t("common.label.cancel")}
-            title={t("common.label.export")}
-            handleClose={(result: boolean) => {
-                if (result) {
-                    confirmExportAction()
-                } else {
-                    setOpenExport(false)
-                    setWidget({
-                        type: ETasksExecution.EXPORT_ELECTION_EVENT,
-                        status: ETaskExecutionStatus.FAILED,
-                    })
-                }
-            }}
-        >
-            {t("common.export")}
+        <>
+            <Dialog
+                variant="info"
+                open={openExport}
+                ok={t("common.label.export")}
+                cancel={t("common.label.cancel")}
+                title={t("common.label.export")}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        confirmExportAction()
+                    } else {
+                        setOpenExport(false)
+                    }
+                }}
+            >
+                {t("common.export")}
+            </Dialog>
             {exportDocumentId ? (
                 <>
                     <FormStyles.ShowProgress />
@@ -223,7 +218,7 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
                     />
                 </>
             ) : null}
-        </Dialog>
+        </>
     )
 }
 
@@ -581,7 +576,6 @@ export const EditElectionEventDataForm: React.FC = () => {
             }
             setTaskId(data?.import_candidates?.task_execution.id)
         } catch (err) {
-            console.log(err)
             notify("Error importing candidates", {type: "error"})
             setWidget({
                 type: ETasksExecution.IMPORT_CANDIDATES,

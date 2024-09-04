@@ -469,18 +469,21 @@ pub async fn import_users_f(
         .clone()
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
     let celery_app = get_celery_app().await;
-    let celery_task = celery_app
+    let celery_task = match celery_app
         .send_task(import_users::import_users::new(
             input,
             task_execution.clone(),
         ))
         .await
-        .map_err(|e| {
-            (
-                Status::InternalServerError,
-                format!("Error sending import_users task: {:?}", e),
-            )
-        })?;
+        {
+            Ok(celery_task) => celery_task,
+            Err(_) => {
+                return Ok(Json(ImportUsersOutput {
+                    task_execution: task_execution.clone(),
+                }));
+            }
+        };
+
     info!("Sent IMPORT_USERS task {}", task_execution.id);
 
     let output = ImportUsersOutput {
