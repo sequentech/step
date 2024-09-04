@@ -475,14 +475,14 @@ pub async fn import_users_f(
             task_execution.clone(),
         ))
         .await
-        {
-            Ok(celery_task) => celery_task,
-            Err(_) => {
-                return Ok(Json(ImportUsersOutput {
-                    task_execution: task_execution.clone(),
-                }));
-            }
-        };
+    {
+        Ok(celery_task) => celery_task,
+        Err(_) => {
+            return Ok(Json(ImportUsersOutput {
+                task_execution: task_execution.clone(),
+            }));
+        }
+    };
 
     info!("Sent IMPORT_USERS task {}", task_execution.id);
 

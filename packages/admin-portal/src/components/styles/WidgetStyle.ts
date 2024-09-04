@@ -49,11 +49,17 @@ export const TypeTypography = styled(Typography)({
     fontSize: "14px",
     margin: "0px",
     color: "white",
+    fontWeight: "500",
 })
 
 export const StyledIconButton = styled(IconButton)({
-    marginLeft: 3,
-    color: "white",
+    "marginLeft": 3,
+    "color": "white",
+    ":hover": {
+        backgroundColor: "rgba(255, 255, 255, 0.8)",
+        borderRadius: "50%",
+        color: "rgba(15, 5, 76, 0.8)",
+    },
 })
 
 export const StyledProgressBar = styled(Box)({
@@ -63,8 +69,9 @@ export const StyledProgressBar = styled(Box)({
 
 export const LogsBox = styled(Box)({
     display: "flex",
-    alignItems: "center",
     flexDirection: "column",
+    maxHeight: "101px",
+    overflowY: "auto",
 })
 
 export const LogTypography = styled(Typography)({
@@ -75,12 +82,18 @@ export const LogTypography = styled(Typography)({
 })
 
 export const ViewTaskTypography = styled(TypeTypography)({
-    margin: 0,
-    padding: 0,
-    color: "#0F054C",
-    cursor: "pointer",
-    width: "max-content",
-    alignSelf: "flex-end",
+    "margin": 0,
+    "padding": "3px",
+    "color": "#0F054C",
+    "cursor": "pointer",
+    "width": "max-content",
+    "alignSelf": "flex-end",
+    "fontWeight": 400,
+    ":hover": {
+        backgroundColor: "rgba(15, 5, 76, 0.8)",
+        borderRadius: "10%",
+        color: "rgba(255, 255, 255, 0.8)",
+    },
 })
 
 export const TransparentTable = styled(Table)({

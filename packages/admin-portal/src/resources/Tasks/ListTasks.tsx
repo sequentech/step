@@ -62,7 +62,7 @@ export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRe
             >
                 <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
                     <TextField source="id" />
-                    <TextField source="type" />
+                    <TextField source="name" />
                     <DateField
                         source="start_at"
                         showTime={true}

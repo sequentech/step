@@ -138,9 +138,9 @@ export const Widget: React.FC<WidgetProps> = ({
                     <AccordionDetails
                         sx={{display: "flex", flexDirection: "column", padding: "8px 16px"}}
                     >
-                        <LogTypography>{t("widget.logs")}</LogTypography>
-                        <Divider />
                         <LogsBox>
+                            <LogTypography>{t("widget.logs")}</LogTypography>
+                            <Divider />
                             <LogTable logs={logs || initialLog} />
                         </LogsBox>
                         <ViewTaskTypography onClick={onSetViewTask}>View Task</ViewTaskTypography>

@@ -34,7 +34,7 @@ const StyledChipLabel = styled.div`
     font-family: Roboto;
     font-size: 12px;
     font-style: normal;
-    font-weight: 400;
+    font-weight: 500;
     line-height: 18px;
 `
 

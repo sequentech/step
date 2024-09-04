@@ -154,17 +154,19 @@ pub async fn import_election_event_f(
             task_execution.clone(),
         ))
         .await
-        {
-            Ok(celery_task) => celery_task,
-            Err(err) => {
-                return Ok(Json(ImportElectionEventOutput {
-                    id: Some(id),
-                    message: Some(format!("Error sending Import Election Event task: ${err}")),
-                    error: None,
-                    task_execution: Some(task_execution.clone()),
-                }));
-            }
-        };
+    {
+        Ok(celery_task) => celery_task,
+        Err(err) => {
+            return Ok(Json(ImportElectionEventOutput {
+                id: Some(id),
+                message: Some(format!(
+                    "Error sending Import Election Event task: ${err}"
+                )),
+                error: None,
+                task_execution: Some(task_execution.clone()),
+            }));
+        }
+    };
 
     info!("Sent IMPORT_ELECTION_EVENT task {}", task_execution.id);
 
