@@ -114,7 +114,9 @@ public class OTLActionTokenHandler extends AbstractActionTokenHandler<OTLActionT
     Arrays.stream(authNoteNames)
         .forEach(
             (String name) -> {
-              log.debugv("setting setAuthNote name={0}, value={1}", name, originalSession.getAuthNote(name));
+              log.debugv(
+                  "setting setAuthNote name={0}, value={1}",
+                  name, originalSession.getAuthNote(name));
               authSession.setAuthNote(name, originalSession.getAuthNote(name));
             });
     originalSession
