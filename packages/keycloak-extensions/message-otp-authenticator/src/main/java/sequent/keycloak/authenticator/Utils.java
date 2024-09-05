@@ -19,6 +19,7 @@ import java.util.Optional;
 import java.util.Properties;
 import lombok.experimental.UtilityClass;
 import lombok.extern.jbosslog.JBossLog;
+import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.actiontoken.DefaultActionToken;
 import org.keycloak.common.util.SecretGenerator;
 import org.keycloak.common.util.Time;
@@ -26,6 +27,7 @@ import org.keycloak.email.EmailException;
 import org.keycloak.email.EmailSenderProvider;
 import org.keycloak.email.EmailTemplateProvider;
 import org.keycloak.email.freemarker.beans.ProfileBean;
+import org.keycloak.events.Details;
 import org.keycloak.forms.login.freemarker.model.UrlBean;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.Constants;
@@ -72,6 +74,11 @@ public class Utils {
   public static final String SEND_SUCCESS_SMS_I18N_KEY = "messageSuccessSms";
   public static final String SEND_SUCCESS_EMAIL_SUBJECT = "messageSuccessEmailSubject";
   public static final String SEND_SUCCESS_EMAIL_FTL = "success-email.ftl";
+  public static final String ID_NUMBER_ATTRIBUTE = "sequent.read-only.id-card-number";
+  public static final String PHONE_NUMBER_ATTRIBUTE = "sequent.read-only.id-mobile-number";
+
+  public static final String ID_NUMBER = "ID_number";
+  public static final String PHONE_NUMBER = "Phone_number";
 
   public enum MessageCourier {
     SMS,
@@ -538,5 +545,24 @@ public class Utils {
       smsSenderProvider.send(
           mobileNumber.trim(), SEND_SUCCESS_SMS_I18N_KEY, smsAttributes, realm, user, session);
     }
+  }
+
+  public void buildEventDetails(AuthenticationFlowContext context) {
+    AuthenticationSessionModel authSession = context.getAuthenticationSession();
+    String email = authSession.getAuthNote(Details.EMAIL);
+    String firstName = authSession.getAuthNote(UserModel.FIRST_NAME);
+    String lastName = authSession.getAuthNote(UserModel.LAST_NAME);
+    String idNumber = authSession.getAuthNote(ID_NUMBER);
+    String userId = context.getAuthenticationSession().getAuthNote(USER_ID);
+    String phoneNumber = context.getAuthenticationSession().getAuthNote(PHONE_NUMBER_ATTRIBUTE);
+
+    context.getEvent().user(userId);
+    context.getEvent().detail(Details.EMAIL, email);
+    context.getEvent().detail(ID_NUMBER, idNumber);
+    context.getEvent().detail(Details.FIRST_NAME, firstName);
+    context.getEvent().detail(Details.LAST_NAME, lastName);
+    context.getEvent().detail(PHONE_NUMBER, phoneNumber);
+
+    context.getEvent().getEvent();
   }
 }
