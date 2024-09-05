@@ -40,8 +40,8 @@ export const SettingsLookAndFeel: React.FC<void> = () => {
         console.log("onSave logoUrl: ", logoUrlToSave)
         console.log("onSave cssContent: ", cssContentToSave)
         save!({
-            settings: {
-                ...((record?.annotaions as ITenantTheme | undefined) ?? {}),
+            annotations: {
+                ...((record?.annotations as ITenantTheme | undefined) ?? {}),
                 logo_url: logoUrlToSave,
                 css: cssContentToSave,
             },
