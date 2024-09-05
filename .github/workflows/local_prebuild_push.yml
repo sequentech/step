@@ -39,6 +39,15 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
+    - name: Build and push admin-portal
+      uses: docker/build-push-action@v6
+      with:
+        platforms: linux/amd64,linux/arm64
+        context: packages/.
+        file: packages/Dockerfile.admin-portal
+        tags: ghcr.io/${{ github.repository }}/admin-portal
+        push: true
+  
     - name: Build and push Keycloak
       uses: docker/build-push-action@v6
       with:
@@ -100,15 +109,6 @@ jobs:
         context: vendor/immudb-log-audit/.
         file: vendor/immudb-log-audit/Dockerfile.immudb
         tags: ghcr.io/${{ github.repository }}/immudb-log-audit
-        push: true
-
-    - name: Build and push admin-portal
-      uses: docker/build-push-action@v6
-      with:
-        platforms: linux/amd64,linux/arm64
-        context: packages/.
-        file: packages/Dockerfile.admin-portal
-        tags: ghcr.io/${{ github.repository }}/admin-portal
         push: true
 
     - name: Build and push trustee
