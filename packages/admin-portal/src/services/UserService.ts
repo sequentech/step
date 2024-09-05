@@ -12,3 +12,16 @@ export const getAttributeLabel = (displayName: string) => {
 }
 
 export const userBasicInfo = ["first_name", "last_name", "email", "username"]
+
+export const formatUserAtributes = (attributes: any) => {
+    const newUserAttributesObject: Record<string, any> = {}
+    if (attributes) {
+        Object.entries(attributes).forEach(([key, value]) => {
+            if (key !== "tenant-id") {
+                newUserAttributesObject[`${key}`] = value
+            }
+        })
+        return newUserAttributesObject
+    }
+    return null
+}

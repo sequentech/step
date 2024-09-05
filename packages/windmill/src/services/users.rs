@@ -157,6 +157,8 @@ pub async fn list_users(
     keycloak_transaction: &Transaction<'_>,
     filter: ListUsersFilter,
 ) -> Result<(Vec<User>, i32)> {
+    println!("filter:::: {:?}", &filter);
+
     let low_sql_limit = PgConfig::from_env()?.low_sql_limit;
     let default_sql_limit = PgConfig::from_env()?.default_sql_limit;
     let query_limit: i64 =
@@ -193,7 +195,8 @@ pub async fn list_users(
     )
     .await?;
 
-    // let mut dynamic_attribute_conditions = String::new();
+    // let mut dynamic_attr_conditions: Vec<String> = Vec::new();
+    // let mut dynamic_attr_params: Vec<Option<String>> = vec![];
 
     let mut params: Vec<&(dyn ToSql + Sync)> = vec![
         &filter.realm,
@@ -207,15 +210,22 @@ pub async fn list_users(
     ];
 
     // if let Some(attributes) = &filter.attributes {
-    //     for (key, value) in attributes.iter() {
-    //         dynamic_attribute_conditions.push_str(&format!(
-    //         " AND EXISTS (SELECT 1 FROM json_array_elements_text(attr.value) AS elem WHERE attr.name = ${} AND elem = ${})"
-    //     ));
-    //         params.push(key);
-    //         params.push(value);
+    //     for (key, value) in attributes {
+    //         dynamic_attr_conditions.push(format!("(attr.name = ${{}} AND attr.value ILIKE ${{}})"));
+    //         let val = Some(format!("%{value}%"));
+
+    //         dynamic_attr_params.push(Some(key.clone()));
+    //         dynamic_attr_params.push(val.clone());
     //     }
     // }
 
+    // let dynamic_attr_clause = if !dynamic_attr_conditions.is_empty() {
+    //     format!("AND ({})", dynamic_attr_conditions.join(" OR "))
+    // } else {
+    //     "".to_string()
+    // };
+
+    //TODO: add {dynamic_attr_clause} after {area_ids_where_clause}}
     let statement = keycloak_transaction.prepare(format!(r#"
         SELECT
             u.id,
@@ -252,6 +262,9 @@ pub async fn list_users(
     if area_ids.is_some() {
         params.push(&area_ids);
     }
+    // for value in &dynamic_attr_params {
+    //     params.push(value);
+    // }
     let rows: Vec<Row> = keycloak_transaction
         .query(&statement, &params.as_slice())
         .await

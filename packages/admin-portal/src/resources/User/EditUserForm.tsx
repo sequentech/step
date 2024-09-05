@@ -45,7 +45,7 @@ import {DELETE_USER_ROLE} from "@/queries/DeleteUserRole"
 import {SET_USER_ROLE} from "@/queries/SetUserRole"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {CREATE_USER} from "@/queries/CreateUser"
-import {getAttributeLabel, userBasicInfo} from "@/services/UserService"
+import {formatUserAtributes, getAttributeLabel, userBasicInfo} from "@/services/UserService"
 
 interface ListUserRolesProps {
     userId?: string
@@ -213,20 +213,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         [setSelectedRolesOnCreate, selectedRolesOnCreate]
     )
 
-    const formatUserAtributes = () => {
-        const newUserAttributesObject: Record<string, any> = {}
-        if (user?.attributes) {
-            Object.entries(user?.attributes).forEach(([key, value]) => {
-                if (String(key) !== "tenant-id") {
-                    const newKey = String(key)
-                    newUserAttributesObject[newKey] = value
-                }
-            })
-            return newUserAttributesObject
-        }
-        return null
-    }
-
     const onSubmitCreateUser = async () => {
         try {
             let {errors} = await createUser({
@@ -240,7 +226,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         enabled: user?.enabled,
                         email: user?.email,
                         username: user?.username,
-                        attributes: formatUserAtributes(),
+                        attributes: formatUserAtributes(user?.attributes),
                     },
                     userRolesIds: selectedRolesOnCreate,
                 },
@@ -279,7 +265,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                     ? user.password
                                     : undefined,
                             email: user?.email,
-                            attributes: formatUserAtributes(),
+                            attributes: formatUserAtributes(user?.attributes),
                         },
                     },
                 })

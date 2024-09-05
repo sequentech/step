@@ -66,13 +66,6 @@ import CustomDateField from "./CustomDateField"
 
 const OMIT_FIELDS: Array<string> = ["email_verified"]
 
-const Filters: Array<ReactElement> = [
-    <TextInput key="email" source="email" />,
-    <TextInput key="first_name" source="first_name" />,
-    <TextInput key="last_name" source="last_name" />,
-    <TextInput key="username" source="username" />,
-]
-
 export interface ListUsersProps {
     aside?: ReactElement
     electionEventId?: string
@@ -139,6 +132,14 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             },
         }
     )
+    const Filters: Array<ReactElement> = [
+        <TextInput key="email" source="email" />,
+        <TextInput key="first_name" source="first_name" />,
+        <TextInput key="last_name" source="last_name" />,
+        <TextInput key="username" source="username" />,
+        <TextInput key="country" source="attributes.country" label="Country" />,
+        <TextInput key="embassy" source={`attributes.embassy`} label="Post/Embassy" />,
+    ]
 
     console.log("userAttributes ", userAttributes)
 
