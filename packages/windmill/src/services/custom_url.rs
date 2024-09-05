@@ -250,10 +250,12 @@ fn create_payload(origin: &str, redirect_to: &str) -> CreatePageRuleRequest {
 
 #[instrument]
 fn create_dns_payload(origin: &str) -> CreateDNSRecordRequest {
+    let cloudflare_ip_dns_content = std::env::var("CUSTOM_URLS_IP_DNS_CONTENT")
+        .unwrap_or_else(|_| "default.ip.address".to_string());
     CreateDNSRecordRequest {
         name: origin.to_string(),
         record_type: "A".to_string(),
-        content: "3.92.181.13".to_string(),
+        content: cloudflare_ip_dns_content,
         ttl: 3600,
         proxied: false,
     }
