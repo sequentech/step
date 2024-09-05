@@ -13,7 +13,7 @@ WORKDIR /usr/src/app/
 COPY . /
 
 # Install dependencies
-RUN yarn install
+RUN yarn --pure-lockfile --non-interactive
 RUN yarn build:ui-core
 RUN yarn build:ui-essentials
 
