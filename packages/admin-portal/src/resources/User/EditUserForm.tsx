@@ -45,6 +45,7 @@ import {DELETE_USER_ROLE} from "@/queries/DeleteUserRole"
 import {SET_USER_ROLE} from "@/queries/SetUserRole"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {CREATE_USER} from "@/queries/CreateUser"
+import {getAttributeLabel, userBasicInfo} from "@/services/UserService"
 
 interface ListUserRolesProps {
     userId?: string
@@ -212,13 +213,35 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         [setSelectedRolesOnCreate, selectedRolesOnCreate]
     )
 
+    const formatUserAtributes = () => {
+        const newUserAttributesObject: Record<string, any> = {}
+        if (user?.attributes) {
+            Object.entries(user?.attributes).forEach(([key, value]) => {
+                if (String(key) !== "tenant-id") {
+                    const newKey = String(key)
+                    newUserAttributesObject[newKey] = value
+                }
+            })
+            return newUserAttributesObject
+        }
+        return null
+    }
+
     const onSubmitCreateUser = async () => {
         try {
             let {errors} = await createUser({
                 variables: {
                     tenantId,
                     electionEventId,
-                    user,
+                    user: {
+                        id: user?.id,
+                        first_name: user?.first_name,
+                        last_name: user?.last_name,
+                        enabled: user?.enabled,
+                        email: user?.email,
+                        username: user?.username,
+                        attributes: formatUserAtributes(),
+                    },
                     userRolesIds: selectedRolesOnCreate,
                 },
             })
@@ -256,11 +279,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                     ? user.password
                                     : undefined,
                             email: user?.email,
-                            attributes: {
-                                "area-id": user?.attributes?.["area-id"],
-                                "sequent.read-only.mobile-number":
-                                    user?.attributes?.["sequent.read-only.mobile-number"],
-                            },
+                            attributes: formatUserAtributes(),
                         },
                     },
                 })
@@ -331,6 +350,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         })
     }
 
+    //TODO: move when handle paswword
     const validatePassword = (value: any) => {
         /*TODO: we should validate only to the extent that these policies are 
         in place in keycloak
@@ -374,42 +394,9 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     //     }
     // }
 
-    const getFormFiledLabel = (displayName: string) => {
-        if (displayName?.includes("$")) {
-            return (
-                displayName
-                    .replace(/^\${|}$/g, "")
-                    .trim()
-                    .replace(/([a-z])([A-Z])/g, "$1 $2")
-                    .replace(/^./, (match) => match.toUpperCase()) ?? ""
-            )
-        }
-        return displayName ?? ""
-    }
-
-    const AreaSelect = (displayName: string, name: string) => (
-        <FormControl fullWidth>
-            <InputLabel id="demo-simple-select-label">{displayName}</InputLabel>
-            <Select
-                name={displayName}
-                defaultValue={defaultAreaId}
-                value={defaultAreaId}
-                onChange={handleSelectChange(name)}
-                label={displayName}
-            >
-                {areas?.map((area: Sequent_Backend_Area) => (
-                    <MenuItem key={area.id} value={area.id}>
-                        {area.name}
-                    </MenuItem>
-                ))}
-            </Select>
-        </FormControl>
-    )
-
     const renderFormField = (attr: UserProfileAttribute) => {
         if (attr.name) {
-            const isCustomAttribute =
-                user?.attributes && Object.keys(user.attributes).includes(attr.name)
+            const isCustomAttribute = !userBasicInfo.includes(attr.name)
             const value = isCustomAttribute
                 ? user?.attributes?.[attr.name]
                 : user && user[attr.name as keyof IUser]
@@ -440,13 +427,13 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             ) {
                 const choices = Object.entries(attr.annotations?.inputOptionLabels).map(
                     ([key, value]) => {
-                        return {id: key, name: getFormFiledLabel(value as string)}
+                        return {id: key, name: getAttributeLabel(value as string)}
                     }
                 )
                 return (
                     <FormControl component="fieldset">
                         <FormLabel component="legend" style={{margin: 0}}>
-                            {getFormFiledLabel(displayName)}
+                            {getAttributeLabel(displayName)}
                         </FormLabel>
                         <FormGroup row>
                             {choices.map((choice) => {
@@ -477,7 +464,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     />
                 )
             } else if (attr.name.toLowerCase().includes("area")) {
-                return AreaSelect(displayName, attr.name)
+                return
             }
             return (
                 <>
@@ -490,7 +477,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     ) : (
                         <FormStyles.TextInput
                             key={attr.display_name}
-                            label={getFormFiledLabel(attr.display_name ?? "")}
+                            label={getAttributeLabel(attr.display_name ?? "")}
                             onChange={handleChange}
                             source={attr.name}
                         />
@@ -527,6 +514,26 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             />
                         }
                     />
+                    {electionEventId ? (
+                        <FormControl fullWidth>
+                            <ElectionHeaderStyles.Title>
+                                {t("usersAndRolesScreen.users.fields.area")}
+                            </ElectionHeaderStyles.Title>
+
+                            <Select
+                                name="area"
+                                defaultValue={defaultAreaId}
+                                value={defaultAreaId}
+                                onChange={handleSelectChange("area-id")}
+                            >
+                                {areas?.map((area: Sequent_Backend_Area) => (
+                                    <MenuItem key={area.id} value={area.id}>
+                                        {area.name}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    ) : null}
                     {isUndefined(electionEventId) ? (
                         <ListUserRoles
                             userRoles={userRoles}

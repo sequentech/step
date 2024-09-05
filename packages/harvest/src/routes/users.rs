@@ -292,7 +292,7 @@ pub async fn create_user(
     let client = KeycloakAdminClient::new()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    let (attributes, groups) = if input.election_event_id.is_some() {
+    let (tenant_id_attribute, groups) = if input.election_event_id.is_some() {
         let voter_group_name = env::var("KEYCLOAK_VOTER_GROUP_NAME")
             .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
         (
@@ -311,8 +311,28 @@ pub async fn create_user(
             None,
         )
     };
+
+    let user_attributes =
+        match (&tenant_id_attribute, input.user.attributes.clone()) {
+            (Some(tenant_id_attribute), Some(user_attributes)) => {
+                let mut attributes = tenant_id_attribute.clone();
+                for (key, mut values) in user_attributes {
+                    attributes
+                        .entry(key.clone())
+                        .or_insert_with(Vec::new)
+                        .append(&mut values);
+                }
+                Some(attributes)
+            }
+            (Some(tenant_id_attribute), None) => {
+                Some(tenant_id_attribute.clone())
+            }
+            (None, Some(user_attributes)) => Some(user_attributes.clone()),
+            (None, None) => None,
+        };
+
     let user = client
-        .create_user(&realm, &input.user, attributes, groups)
+        .create_user(&realm, &input.user, user_attributes, groups)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 

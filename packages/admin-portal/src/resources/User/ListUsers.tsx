@@ -18,6 +18,7 @@ import {
     FunctionField,
     Button as ReactAdminButton,
     useRecordContext,
+    DateField,
 } from "react-admin"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -60,6 +61,8 @@ import {EXPORT_TENANT_USERS} from "@/queries/ExportTenantUsers"
 import {DownloadDocument} from "./DownloadDocument"
 import {IMPORT_USERS} from "@/queries/ImportUsers"
 import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
+import {getAttributeLabel, userBasicInfo} from "@/services/UserService"
+import CustomDateField from "./CustomDateField"
 
 const OMIT_FIELDS: Array<string> = ["email_verified"]
 
@@ -609,43 +612,64 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 aside={aside}
                 filters={Filters}
             >
-                <DatagridConfigurable bulkActionButtons={<BulkActions />}>
-                    <TextField source="id" />
-                    <TextField source="email" />
-                    <BooleanField source="email_verified" />
-                    <BooleanField source="enabled" />
-                    <TextField source="first_name" />
-                    <TextField
-                        label={t("usersAndRolesScreen.common.mobileNumber")}
-                        source="attributes['sequent.read-only.mobile-number']"
-                    />
-                    <TextField source="last_name" />
-                    <TextField source="username" />
-                    {electionEventId && (
-                        <FunctionField
-                            label={t("usersAndRolesScreen.users.fields.area")}
-                            render={(record: IUser) =>
-                                record?.area?.name ? <Chip label={record?.area?.name ?? ""} /> : "-"
+                {userAttributes?.get_user_profile_attributes && (
+                    <DatagridConfigurable bulkActionButtons={<BulkActions />}>
+                        <TextField source="id" />
+                        <BooleanField source="email_verified" />
+                        <BooleanField source="enabled" />
+                        {userAttributes?.get_user_profile_attributes.map((attr) => {
+                            if (attr.annotations?.inputType === "html5-date") {
+                                return (
+                                    <CustomDateField
+                                        key={attr.name}
+                                        source={`${attr.name}`}
+                                        label={getAttributeLabel(attr.display_name ?? "")}
+                                        emptyText=""
+                                    />
+                                )
                             }
-                        />
-                    )}
-                    {electionEventId && (
-                        <FunctionField
-                            source="has_voted"
-                            label={t("usersAndRolesScreen.users.fields.has_voted")}
-                            render={(record: IUser, source: string | undefined) => {
-                                let newRecord = {
-                                    has_voted: (record?.votes_info?.length ?? 0) > 0,
-                                    ...record,
+                            return (
+                                <TextField
+                                    key={attr.name}
+                                    source={
+                                        attr.name && userBasicInfo.includes(attr.name)
+                                            ? attr.name
+                                            : `attributes['${attr.name}']`
+                                    }
+                                    label={getAttributeLabel(attr.display_name ?? "")}
+                                />
+                            )
+                        })}
+                        {electionEventId && (
+                            <FunctionField
+                                label={t("usersAndRolesScreen.users.fields.area")}
+                                render={(record: IUser) =>
+                                    record?.area?.name ? (
+                                        <Chip label={record?.area?.name ?? ""} />
+                                    ) : (
+                                        "-"
+                                    )
                                 }
-                                return <BooleanField record={newRecord} source={source} />
-                            }}
-                        />
-                    )}
-                    <WrapperField source="actions" label="Actions">
-                        <ActionsColumn actions={actions} />
-                    </WrapperField>
-                </DatagridConfigurable>
+                            />
+                        )}
+                        {electionEventId && (
+                            <FunctionField
+                                source="has_voted"
+                                label={t("usersAndRolesScreen.users.fields.has_voted")}
+                                render={(record: IUser, source: string | undefined) => {
+                                    let newRecord = {
+                                        has_voted: (record?.votes_info?.length ?? 0) > 0,
+                                        ...record,
+                                    }
+                                    return <BooleanField record={newRecord} source={source} />
+                                }}
+                            />
+                        )}
+                        <WrapperField source="actions" label="Actions">
+                            <ActionsColumn actions={actions} />
+                        </WrapperField>
+                    </DatagridConfigurable>
+                )}
             </List>
             <ResourceListStyles.Drawer anchor="right" open={open} onClose={handleClose}>
                 <EditUser
