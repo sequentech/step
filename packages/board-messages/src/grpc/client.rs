@@ -113,6 +113,7 @@ impl B3Client {
         board: &str,
         messages: &[Message],
     ) -> Result<PutMessagesRequest> {
+        let now = std::time::Instant::now();
         let messages: Result<Vec<GrpcB3Message>> = messages
             .into_par_iter()
             .map(|m| {
@@ -125,6 +126,8 @@ impl B3Client {
                 Ok(message)
             })
             .collect();
+        
+        println!("put_messages_request: serialization in {}ms ", now.elapsed().as_millis());
 
         Ok(PutMessagesRequest {
             board: board.to_string(),

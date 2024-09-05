@@ -4,9 +4,10 @@
 
 use anyhow::Result;
 
-use braid::protocol::board::grpc2::GrpcB3Index;
+use braid::protocol::board::grpc_m::GrpcB3Index;
 use clap::Parser;
 use log::warn;
+use std::io::Write;
 use std::collections::HashSet;
 use std::fs;
 use std::hash::Hasher;
@@ -20,7 +21,7 @@ use rustc_hash::FxHasher;
 
 use tokio::sync::mpsc::{Sender, Receiver};
 
-use braid::protocol::session2::{SessionFactory, SessionSet, SessionSetMessage};
+use braid::protocol::session::session_m::{SessionFactory, SessionSet, SessionSetMessage};
 use braid::protocol::trustee::TrusteeConfig;
 
 cfg_if::cfg_if! {
@@ -39,12 +40,6 @@ struct Cli {
 
     #[arg(short, long)]
     trustee_config: PathBuf,
-
-    #[arg(long, default_value_t = false)]
-    strict: bool,
-
-    #[arg(long, default_value_t = 300)]
-    session_reset_period: u64,
 }
 
 fn get_ignored_boards() -> HashSet<String> {
@@ -52,13 +47,38 @@ fn get_ignored_boards() -> HashSet<String> {
     HashSet::from_iter(boards_str.split(',').map(|s| s.to_string()))
 }
 
+
+fn main() -> Result<()> {
+    // let runtime = tokio::runtime::Builder::new_current_thread()
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+    // .worker_threads(1)
+    // .max_blocking_threads(10)
+    .enable_all()
+    .build()
+    .unwrap();
+    
+    runtime.block_on(async { 
+        run().await
+    })
+}
+
 /*
 Entry point for a braid mixnet trustee.
 
+Example run command
+
+cargo run --release --bin main_m -- --server-url http://immudb:3322 --trustee-config trustee.toml
+
+A mixnet trustee will periodically:
+
+    1) Poll the board index for active protocol boards
+    2) For each protocol board
+        a) Poll the protocol board for new messages
+        b) Update the local store with new messages
+        c) Execute the protocol with the existing messages in the local store
 */
-#[tokio::main]
 #[instrument]
-async fn main() -> Result<()> {
+async fn run() -> Result<()> {
     braid::util::init_log(true);
 
     let default_panic = std::panic::take_hook();
@@ -95,15 +115,11 @@ async fn main() -> Result<()> {
     let trustee_name = std::env::var("TRUSTEE_NAME").unwrap_or_else(|_| "Self".to_string());
 
     let factory = SessionFactory::new(&trustee_name, tc, store_root)?;
-    let mut ring = SessionSetRing::new(&args.server_url, factory, 10)?;
+    let mut master = SessionMaster::new(&args.server_url, factory, 1)?;
 
-    
-    let mut loop_count: u64 = 0;
     loop {
-        info!("{} >", loop_count);
-
+        
         let b3index = GrpcB3Index::new(&args.server_url);
-
         let boards_result = b3index.get_boards().await;
 
         let Ok(mut boards) = boards_result else {
@@ -118,7 +134,7 @@ async fn main() -> Result<()> {
 
         boards.retain(|b| !ignored_boards.contains(b));
         
-        ring.refresh(boards).await?;
+        master.refresh_sets(boards).await?;
 
         cfg_if::cfg_if! {
             if #[cfg(feature = "jemalloc")] {
@@ -135,9 +151,8 @@ async fn main() -> Result<()> {
             }
         }
 
-        loop_count = (loop_count + 1) % u64::MAX;
-        println!("");
-        sleep(Duration::from_millis(1000)).await;
+        let _ = std::io::stdout().flush();
+        sleep(Duration::from_millis(5000)).await;
     }
 }
 
@@ -154,12 +169,12 @@ impl SessionSetHandle {
     }
 }
 
-struct SessionSetRing {
+struct SessionMaster {
     session_sets: Vec<SessionSetHandle>,
     b3_url: String,
     session_factory: SessionFactory,
 }
-impl SessionSetRing {
+impl SessionMaster {
     fn new(b3_url: &str, session_factory: SessionFactory, size: usize) -> Result<Self> {
         
         let mut session_sets = vec![];
@@ -177,7 +192,7 @@ impl SessionSetRing {
         info!("* Starting {} session sets..", runners.len());
         runners.into_iter().for_each(|r| {r.run();});
         
-        Ok(SessionSetRing {
+        Ok(SessionMaster {
             b3_url: b3_url.to_string(),
             session_factory,
             session_sets,
@@ -192,9 +207,10 @@ impl SessionSetRing {
         ret as usize
     }
 
-    async fn refresh(&mut self, boards: Vec<String>) -> Result<()> {        
+    async fn refresh_sets(&mut self, boards: Vec<String>) -> Result<()> {        
         
-        info!("Refreshing {} sets with {} boards", self.session_sets.len(), boards.len());
+        // info!("Refreshing {} sets with {} boards", self.session_sets.len(), boards.len());
+        
         for board in boards {
             let index = self.hash(&board);
             // Assign boards to session sets
@@ -214,7 +230,8 @@ impl SessionSetRing {
                 
                 session_set.run();
             }
-            h.sender.send(SessionSetMessage::REFRESH(boards)).await?;
+            // The only error we care about is checked above with sender.is_closed
+            let _ = h.sender.try_send(SessionSetMessage::REFRESH(boards));
         }
 
         Ok(())

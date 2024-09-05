@@ -590,6 +590,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
 
         // let now = Instant::now();
         // COST
+        println!("strand: gen_commitment_chain..");
         for i in 0..us.len() {
             let c_temp = if i == 0 { initial } else { &cs[i - 1] };
 
@@ -598,6 +599,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
 
             cs.push(c);
         }
+        println!("strand: gen_commitment_chain: complete");
 
         // println!("v9 {}", now.elapsed().as_millis());
 

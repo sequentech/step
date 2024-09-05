@@ -5,7 +5,7 @@ use bb8_postgres::bb8::Pool;
 use bb8_postgres::PostgresConnectionManager;
 use tokio_postgres::{config::Config, NoTls};
 use tonic::{Request, Response, Status};
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 use crate::grpc::{
     GetBoardsReply, GetBoardsRequest, GetMessagesMultiReply, GetMessagesMultiRequest,
@@ -22,6 +22,7 @@ use crate::grpc::pgsql::ZPgsqlB3Client;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 
 const BB8_POOL_SIZE: u32 = 20;
+const MAX_MESSAGE_SIZE: usize = 1024 * 1024 * 1024;
 
 pub struct PgsqlB3Server {
     pool: Pool<PostgresConnectionManager<NoTls>>,
@@ -57,7 +58,7 @@ impl PgsqlB3Server {
             )));
         };
 
-        let messages: Vec<GrpcB3Message> = messages
+        let mut messages: Vec<GrpcB3Message> = messages
             .into_iter()
             .map(|m| GrpcB3Message {
                 id: m.id,
@@ -65,6 +66,8 @@ impl PgsqlB3Server {
                 version: m.version,
             })
             .collect();
+
+        messages.sort_unstable_by_key(|m| m.id);
 
         Ok(messages)
     }
@@ -164,7 +167,7 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
         };
 
         let boards: Vec<String> = boards.into_iter().map(|b| b.board_name).collect();
-        info!("get_boards returns {} boards", boards.len());
+        // info!("get_boards returns {} boards", boards.len());
         
 
         let reply = GetBoardsReply { boards };
@@ -178,30 +181,52 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
         let r: &GetMessagesMultiRequest = request.get_ref();
 
         let mut keyed: Vec<KeyedMessages> = vec![];
-        let mut total_bytes: u32 = 0;
+        let mut total_bytes: usize = 0;
+        let mut truncated = false;
+        
         for request in &r.requests {
             let ms = self.get_messages_(&request.board, request.last_id).await?;
             if ms.len() > 0 {
-                let next_bytes: usize = ms.iter().map(|m| m.message.len()).sum();
-                total_bytes += next_bytes as u32;
+                
+                let mut send: Vec<GrpcB3Message> = vec![];
+                for m in ms.into_iter() {
+                    let next_bytes: usize = m.message.len();
+                    if next_bytes > MAX_MESSAGE_SIZE {
+                        error!("get_messages_multi: encountered single message exceeding limit {} > {}", next_bytes, MAX_MESSAGE_SIZE);
+                        return Err(Status::internal(format!("get_messages_multi: encountered single message exceeding limit {} > {}", next_bytes, MAX_MESSAGE_SIZE)));
+                    }
+                    total_bytes += next_bytes;
+                    if total_bytes > MAX_MESSAGE_SIZE {
+                        warn!("get_messages_multi: truncating response to respect limit {} > {}", total_bytes, MAX_MESSAGE_SIZE);
+                        total_bytes -= next_bytes;
+                        truncated = true;
+                        break;
+                    }
+                    send.push(m);
+                }
+                // let next_bytes: usize = ms.iter().map(|m| m.message.len()).sum();
+                // total_bytes += next_bytes as u32;
                 let k = KeyedMessages {
                     board: request.board.clone(),
-                    messages: ms,
-                    deferred: false,
+                    messages: send,
                 };
                 keyed.push(k);
+
+                if truncated {
+                    break;
+                }
             }
         }
 
         if keyed.len() > 0 {
             info!(
-                "get_messages_multi: returning {} keyed messages, size = {:.2} MB",
+                "get_messages_multi: returning {} keyed messages, size = {:.3} MB",
                 keyed.len(),
-                f64::from(total_bytes) / (1024.0 * 1024.0)
+                f64::from(total_bytes as u32) / (1024.0 * 1024.0)
             );
         }
 
-        let reply = GetMessagesMultiReply { messages: keyed };
+        let reply = GetMessagesMultiReply { messages: keyed, truncated };
         Ok(Response::new(reply))
     }
 
@@ -211,10 +236,15 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
     ) -> Result<Response<PutMessagesMultiReply>, Status> {
         let r = request.get_ref();
 
+        let mut total_bytes: u32 = 0;
         for request in &r.requests {
+            let bytes: usize = request.messages.iter().map(|m| m.message.len()).sum();
+            total_bytes += bytes as u32;
             self.put_messages_(&request.board, &request.messages)
                 .await?;
         }
+
+        info!("post_messages_multi: received post with {} messages, size = {:.3} MB", r.requests.len(), f64::from(total_bytes) / (1024.0 * 1024.0));
 
         let reply = PutMessagesMultiReply {};
         Ok(Response::new(reply))

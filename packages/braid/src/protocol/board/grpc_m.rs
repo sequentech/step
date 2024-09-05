@@ -5,7 +5,7 @@ use board_messages::grpc::KeyedMessages;
 use board_messages::braid::message::Message;
 use board_messages::grpc::client::B3Client;
 
-const MAX_MESSAGE_SIZE: usize = 1024 * 1024 * 1024;
+const MAX_MESSAGE_SIZE: usize = 10 * 1024 * 1024 * 1024;
 const GRPC_TIMEOUT: u64 = 5 * 60;
 
 impl BoardMulti for GrpcB3 {
@@ -14,11 +14,11 @@ impl BoardMulti for GrpcB3 {
     async fn get_messages_multi(
         &self,
         requests: &Vec<(String, i64)>,
-    ) -> Result<Vec<KeyedMessages>> {
+    ) -> Result<(Vec<KeyedMessages>, bool)> {
         let response = self.client.get_messages_multi(requests).await?;
         let response = response.into_inner();
 
-        Ok(response.messages)
+        Ok((response.messages, response.truncated))
     }
 
     async fn insert_messages_multi(&self, requests: Vec<(String, Vec<Message>)>) -> Result<()> {
@@ -82,8 +82,7 @@ pub trait BoardMulti: Sized {
     fn get_messages_multi(
         &self,
         requests: &Vec<(String, i64)>,
-    ) -> impl std::future::Future<Output = Result<Vec<KeyedMessages>>> + Send;
-    // ) -> impl std::future::Future<Output = Result<Vec<(String, Vec<GrpcB3Message>)>>> + Send;
+    ) -> impl std::future::Future<Output = Result<(Vec<KeyedMessages>, bool)>> + Send;
 
     fn insert_messages_multi(
         &self,

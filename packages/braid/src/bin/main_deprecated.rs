@@ -5,7 +5,7 @@
 use anyhow::Result;
 use board_messages::braid::message::Message;
 use board_messages::grpc::GrpcB3Message;
-use braid::protocol::board::grpc2::{
+use braid::protocol::board::grpc_m::{
     BoardFactoryMulti, BoardMulti, GrpcB3BoardParams, GrpcB3Index,
 };
 use clap::Parser;
@@ -18,7 +18,7 @@ use tracing::{error, info};
 
 use rayon::prelude::*;
 
-use braid::protocol::session2::Session2;
+use braid::protocol::session::SessionM;
 use braid::protocol::trustee::Trustee;
 use braid::protocol::trustee::TrusteeConfig;
 
@@ -65,24 +65,6 @@ fn get_ignored_boards() -> Vec<String> {
     boards_str.split(',').map(|s| s.to_string()).collect()
 }
 
-/*
-Entry point for a braid mixnet trustee.
-
-Example run command
-
-cargo run --release --bin main  -- --server-url http://immudb:3322 --board-index defaultboardindex--trustee-config trustee.toml
-
-A mixnet trustee will periodically:
-
-    1) Poll the board index for active protocol boards
-    2) For each protocol board
-        a) Poll the protocol board for new messages
-        b) Update the local store with new messages
-        c) Execute the protocol with the existing messages in the local store
-
-The process will loop indefinitely unless an error is encountered and the 'strict'
-command line option is set to true.
-*/
 #[tokio::main]
 #[instrument]
 async fn main() -> Result<()> {
@@ -109,13 +91,13 @@ async fn main() -> Result<()> {
     let bytes = braid::util::decode_base64(&tc.encryption_key)?;
     let ek = symm::sk_from_bytes(&bytes)?;
 
-    let mut ignored_boards = get_ignored_boards();
+    let ignored_boards = get_ignored_boards();
     info!("ignored boards {:?}", ignored_boards);
 
     let store_root = std::env::current_dir().unwrap().join("message_store");
     braid::util::ensure_directory(store_root.clone())?;
 
-    let mut session_map: HashMap<String, Session2<RistrettoCtx>> = HashMap::new();
+    let mut session_map: HashMap<String, SessionM<RistrettoCtx>> = HashMap::new();
     let mut loop_count: u64 = 0;
     loop {
         info!("{} >", loop_count);
@@ -161,7 +143,7 @@ async fn main() -> Result<()> {
                     ek.clone(),
                 );
 
-                let mut session = Session2::new(&board_name, trustee, &store_root)?;
+                let mut session = SessionM::new(&board_name, trustee, &store_root)?;
                 let last_id = session.get_last_external_id()?;
 
                 session_map.insert(board_name.clone(), session);
@@ -185,14 +167,14 @@ async fn main() -> Result<()> {
             sleep(Duration::from_millis(1000)).await;
             continue;
         };
-        info!("received {} keyed messages", responses.len());
+        info!("received {} keyed messages", responses.0.len());
 
-        let response_map: HashMap<String, Vec<GrpcB3Message>> = responses
+        let response_map: HashMap<String, Vec<GrpcB3Message>> = responses.0
             .into_iter()
             .map(|km| (km.board, km.messages))
             .collect();
 
-        let mut pairs: Vec<(&mut Session2<RistrettoCtx>, &Vec<GrpcB3Message>)> = session_map
+        let mut pairs: Vec<(&mut SessionM<RistrettoCtx>, &Vec<GrpcB3Message>)> = session_map
             .iter_mut()
             .map(|(k, v)| (v, response_map.get(k).unwrap()))
             .collect();

@@ -195,12 +195,13 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         let (e_primes, rs): (Vec<Vec<Ciphertext<C>>>, Vec<Vec<C::X>>) = product_ciphertexts.rows()
             .par()
             .map(|cs| {
-                // It is idiomatic to unwrap on lock
-                let mut rng_ = rng.lock().unwrap();
                 let mut rs = vec![];
 
                 let e_primes_: Vec<Ciphertext<C>> = cs.iter().map(|c| {
+                    // It is idiomatic to unwrap on lock
+                    let mut rng_ = rng.lock().unwrap();
                     let r = ctx.rnd_exp(&mut rng_);
+                    drop(rng_);
 
                     let a =
                         c.mhr.mul(&ctx.emod_pow(&self.pk.element, &r)).modp(ctx);
@@ -722,6 +723,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
                 // It is idiomatic to unwrap on lock
                 let mut rng_ = rng.lock().unwrap();
                 let r = ctx.rnd_exp(&mut rng_);
+                drop(rng_);
                 let c = h.mul(&ctx.gmod_pow(&r)).modp(ctx);
 
                 (c, r)
@@ -755,6 +757,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
                 // It is idiomatic to unwrap on lock
                 let mut rng_ = rng.lock().unwrap();
                 let r = ctx.rnd_exp(&mut rng_);
+                drop(rng_);
                 // let first = ctx.gmod_pow(&r).modulo(ctx.modulus());
                 let first = ctx.gmod_pow(&r);
 

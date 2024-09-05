@@ -155,12 +155,13 @@ async fn main() -> Result<()> {
             let c =
                 PgsqlConnectionParams::new(&args.host, args.port, &args.username, &args.password);
             info!("Using connection string '{}'", c.connection_string());
-            pgsql::drop_database(&c, PG_DATABASE).await?;
+            // pgsql::drop_database(&c, PG_DATABASE).await?;
 
-            pgsql::create_database(&c, PG_DATABASE).await?;
+            let _ = pgsql::create_database(&c, PG_DATABASE).await;
 
             let c = c.with_database(PG_DATABASE);
             let mut client = XPgsqlB3Client::new(&c).await?;
+            client.clear_database().await?;
             client.create_index_ine().await?;
 
             for i in 0..args.board_count {

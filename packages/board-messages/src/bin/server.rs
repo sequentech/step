@@ -13,7 +13,7 @@ const PG_PASSW: &'static str = "postgrespw";
 const PG_PORT: u32 = 49154;
 const BIND: &'static str = "127.0.0.1:50051";
 
-const MAX_MESSAGE_SIZE: usize = 1024 * 1024 * 1024;
+const MAX_MESSAGE_SIZE: usize = 10 * 1024 * 1024 * 1024;
 
 #[derive(Parser)]
 struct Cli {

@@ -118,7 +118,7 @@ impl<C: Ctx> Trustee<C> {
 
     #[instrument(name = "Trustee::update_local_board", skip_all, level = "trace")]
     // Takes a vector of (message, message_id) pairs as input, returns a pair of (updated messages count, last message id added)
-    fn update_local_board(
+    pub(crate) fn update_local_board(
         &mut self,
         messages: Vec<(Message, i64)>,
     ) -> Result<(i64, i64), ProtocolError> {
@@ -282,10 +282,6 @@ impl<C: Ctx> Trustee<C> {
             Predicate::get_verifier_bootstrap_predicate(&configuration)
         };
 
-        /* let configuration_p = configuration_p.ok_or(ProtocolError::InvalidConfiguration(
-            format!("Self authority not found in configuration"),
-        ))?;*/
-
         trace!("Adding bootstrap predicate {:?}", configuration_p);
         predicates.push(configuration_p?);
 
@@ -356,6 +352,7 @@ impl<C: Ctx> Trustee<C> {
                     error!("Action {:?} returned error {:?} (propagating)", a, m);
                     m.add_context(&format!("When executing Action {:?}", a))
                 } else {
+                    info!("Completed action");
                     m
                 }
             })

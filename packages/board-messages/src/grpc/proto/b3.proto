@@ -48,12 +48,12 @@ message GetMessagesMultiRequest {
 
 message GetMessagesMultiReply {
   repeated KeyedMessages messages = 1;
+  bool truncated = 2;
 }
 
 message KeyedMessages {
   string board = 1;
   repeated GrpcB3Message messages = 2;
-  bool deferred = 3;
 }
 
 message PutMessagesMultiRequest {

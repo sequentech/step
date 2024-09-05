@@ -64,7 +64,7 @@ Entry point for a braid mixnet trustee.
 
 Example run command
 
-cargo run --release --bin main  -- --server-url http://immudb:3322 --board-index defaultboardindex--trustee-config trustee.toml
+cargo run --release --bin main  -- --server-url http://immudb:3322 --trustee-config trustee.toml
 
 A mixnet trustee will periodically:
 
@@ -185,7 +185,7 @@ async fn main() -> Result<()> {
             // use std::io::Write;
             // print!("{} ", i); std::io::stdout().flush();
 
-            let (session, result) = s.step(loop_count).await;
+            let (session, result) = s.step().await;
             match result {
                 Ok(_) => (),
                 Err(error) => {
