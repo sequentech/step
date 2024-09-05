@@ -7,7 +7,7 @@ import {useTranslation} from "react-i18next"
 import {SimpleForm, TextInput, useEditController, Toolbar, SaveButton} from "react-admin"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {AuthContext} from "@/providers/AuthContextProvider"
-import {ITenantSettings} from "@sequentech/ui-core"
+import {ITenantTheme} from "@sequentech/ui-core"
 import {IPermissions} from "@/types/keycloak"
 
 export const SettingsLookAndFeel: React.FC<void> = () => {
@@ -25,22 +25,25 @@ export const SettingsLookAndFeel: React.FC<void> = () => {
     const canEdit = authContext.isAuthorized(true, authContext.tenantId, IPermissions.TENANT_WRITE)
 
     const [logoUrl, setLogoUrl] = useState<string | undefined>(
-        (record?.settings as ITenantSettings | undefined)?.logo_url
+        (record?.annotations as ITenantTheme | undefined)?.logo_url
     )
 
-    console.log("logoUrl :>> ", logoUrl)
+    const [cssContent, setCssContent] = useState<string | undefined>(
+        (record?.annotations as ITenantTheme | undefined)?.css
+    )
 
     const onSave = async () => {
-        const newRecord = {...record}
-        if (logoUrl === "") {
-            newRecord.settings = {...newRecord.settings, logo_url: null}
-        } else {
-            newRecord.settings = {...newRecord.settings, logo_url: logoUrl}
-        }
-        console.log("onSave :>> ", newRecord?.settings?.logo_url)
+
+        const logoUrlToSave = logoUrl === "" ? null : logoUrl
+        const cssContentToSave = cssContent === "" ? null : cssContent
+
+        console.log("onSave logoUrl: ", logoUrlToSave)
+        console.log("onSave cssContent: ", cssContentToSave)
         save!({
             settings: {
-                ...((newRecord?.settings as ITenantSettings | undefined) ?? {}),
+                ...((record?.annotaions as ITenantTheme | undefined) ?? {}),
+                logo_url: logoUrlToSave,
+                css: cssContentToSave,
             },
         })
     }
@@ -64,15 +67,16 @@ export const SettingsLookAndFeel: React.FC<void> = () => {
         >
             <TextInput
                 resettable={true}
-                source={"settings.logo_url"}
+                source={"annotations.logo_url"}
                 label={t("electionTypeScreen.common.logoUrl")}
                 onBlur={(event) => setLogoUrl(event.target.value)}
             />
             <TextInput
                 resettable={true}
                 multiline={true}
-                source={"settings.css"}
+                source={"annotations.css"}
                 label={t("electionTypeScreen.common.css")}
+                onBlur={(event) => setCssContent(event.target.value)}
             />
         </SimpleForm>
     )

@@ -16,6 +16,4 @@ export interface ITenantSettings {
     mail?: boolean
     schedules?: Array<ITenantScheduledEvent>
     schedulesIds?: Array<string>
-    logo_url?: string
-    css?: string
 }

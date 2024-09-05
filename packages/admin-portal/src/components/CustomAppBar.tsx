@@ -5,7 +5,7 @@ import {Header, adminTheme} from "@sequentech/ui-essentials"
 import React, {useContext, useEffect} from "react"
 import {AppBar, useGetOne} from "react-admin"
 import {AuthContext} from "../providers/AuthContextProvider"
-import {ITenantSettings} from "@sequentech/ui-core"
+import {ITenantSettings, ITenantTheme} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {TenantContext} from "@/providers/TenantContextProvider"
 import {Sequent_Backend_Tenant} from "@/gql/graphql"
@@ -29,7 +29,7 @@ export const CustomAppBar: React.FC = () => {
     const langList = (tenant?.settings as ITenantSettings | undefined)?.language_conf
         ?.enabled_language_codes ?? ["en"]
 
-    const logUrl = (tenant?.settings as ITenantSettings | undefined)?.logo_url
+    const logUrl = (tenant?.annotations as ITenantTheme | undefined)?.logo_url
 
     console.log("CustomAppBar: logUrl :: ", logUrl)
     const logoImg = logUrl === undefined ? BlankLogoImg : logUrl === null ? SequentLogo : logUrl
