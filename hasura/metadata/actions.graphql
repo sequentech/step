@@ -305,6 +305,13 @@ type Query {
   ): [KeycloakRole!]!
 }
 
+type Query {
+  logEvent (
+    electionEventId: String!
+    messageType: String!
+  ): LogEventOutput
+}
+
 type Mutation {
   manage_election_dates (
     election_event_id: String!
@@ -954,5 +961,9 @@ type documentTaskOutput {
   error_msg : String
   task_execution : tasks_execution_type!
   document_id : String!
+}
+
+type LogEventOutput {
+  electionEventId : String
 }
 

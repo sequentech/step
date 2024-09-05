@@ -431,6 +431,11 @@ export type KeycloakUserArea = {
   name?: Maybe<Scalars['String']['output']>;
 };
 
+export type LogEventOutput = {
+  __typename?: 'LogEventOutput';
+  electionEventId?: Maybe<Scalars['String']['output']>;
+};
+
 export type ManageElectionDatesOutput = {
   __typename?: 'ManageElectionDatesOutput';
   something?: Maybe<Scalars['String']['output']>;
@@ -3334,6 +3339,8 @@ export type Query_Root = {
   /** List PostgreSQL audit logs */
   listPgaudit?: Maybe<DataListPgAudit>;
   list_user_roles: Array<KeycloakRole>;
+  /** log an event in immudb */
+  logEvent?: Maybe<LogEventOutput>;
   /** fetch data from the table: "sequent_backend.area" */
   sequent_backend_area: Array<Sequent_Backend_Area>;
   /** fetch aggregated fields from the table: "sequent_backend.area" */
@@ -3576,6 +3583,12 @@ export type Query_RootList_User_RolesArgs = {
   election_event_id?: InputMaybe<Scalars['String']['input']>;
   tenant_id: Scalars['String']['input'];
   user_id: Scalars['String']['input'];
+};
+
+
+export type Query_RootLogEventArgs = {
+  electionEventId: Scalars['String']['input'];
+  messageType: Scalars['String']['input'];
 };
 
 

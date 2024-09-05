@@ -129,6 +129,8 @@ pub enum Permissions {
     SUPPORT_MATERIAL_READ,
     #[strum(serialize = "support-material-write")]
     SUPPORT_MATERIAL_WRITE,
+    #[strum(serialize = "service-account")]
+    SERVICE_ACCOUNT,
 }
 
 #[allow(non_camel_case_types)]
