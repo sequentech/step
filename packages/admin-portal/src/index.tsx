@@ -25,6 +25,7 @@ import {
     ApolloWrapper,
     defaultApolloContextValues,
 } from "./providers/ApolloContextProvider"
+import {WidgetsContextProvider} from "./providers/WidgetsContextProvider"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
@@ -47,7 +48,9 @@ root.render(
                                                         role={defaultApolloContextValues.role}
                                                     >
                                                         <ApolloWrapper>
-                                                            <App />
+                                                            <WidgetsContextProvider>
+                                                                <App />
+                                                            </WidgetsContextProvider>
                                                         </ApolloWrapper>
                                                     </ApolloContextProvider>
                                                 </ThemeProvider>

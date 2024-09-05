@@ -6,7 +6,7 @@ import styled from "@emotion/styled"
 import {Paper, Box, Typography, IconButton, Table, TableCell, AccordionSummary} from "@mui/material"
 
 export const CustomAccordionSummary = styled(AccordionSummary)(({theme}) => ({
-    "backgroundColor": "#0F054C",
+    "backgroundColor": theme.palette.customGrey.main,
     "color": theme.palette.common.white,
     "borderTopLeftRadius": "6px",
     "borderTopRightRadius": "6px",
@@ -25,6 +25,7 @@ export const WidgetContainer = styled(Paper)({
     position: "fixed",
     bottom: 16,
     right: 16,
+    zIndex: 15000,
 })
 
 export const HeaderBox = styled(Box)({
@@ -45,22 +46,22 @@ export const IconsBox = styled(Box)({
     alignItems: "center",
 })
 
-export const TypeTypography = styled(Typography)({
+export const TypeTypography = styled(Typography)(({theme}) => ({
     fontSize: "14px",
     margin: "0px",
-    color: "white",
+    color: theme.palette.common.white,
     fontWeight: "500",
-})
+}))
 
-export const StyledIconButton = styled(IconButton)({
+export const StyledIconButton = styled(IconButton)(({theme}) => ({
     "marginLeft": 3,
-    "color": "white",
+    "color": theme.palette.common.white,
     ":hover": {
         backgroundColor: "rgba(255, 255, 255, 0.8)",
         borderRadius: "50%",
         color: "rgba(15, 5, 76, 0.8)",
     },
-})
+}))
 
 export const StyledProgressBar = styled(Box)({
     width: "100%",
@@ -81,20 +82,19 @@ export const LogTypography = styled(Typography)({
     fontWeight: "500",
 })
 
-export const ViewTaskTypography = styled(TypeTypography)({
+export const ViewTaskTypography = styled(TypeTypography)(({theme}) => ({
     "margin": 0,
     "padding": "3px",
-    "color": "#0F054C",
+    "color": theme.palette.brandColor,
     "cursor": "pointer",
     "width": "max-content",
     "alignSelf": "flex-end",
     "fontWeight": 400,
     ":hover": {
-        backgroundColor: "rgba(15, 5, 76, 0.8)",
+        backgroundColor: theme.palette.customGrey.light,
         borderRadius: "10%",
-        color: "rgba(255, 255, 255, 0.8)",
     },
-})
+}))
 
 export const TransparentTable = styled(Table)({
     "backgroundColor": "transparent",

@@ -41,12 +41,11 @@ import {styled} from "@mui/material/styles"
 import {useTreeMenuData} from "@/components/menu/items/use-tree-menu-hook"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {IMPORT_ELECTION_EVENT} from "@/queries/ImportElectionEvent"
 import {ExportButton} from "@/components/tally/ExportElectionMenu"
 import {addDefaultTranslationsToElement} from "@/services/i18n"
-import {GET_TASK_BY_ID} from "@/queries/GetTaskById"
-import {Widget, WidgetStateProps} from "@/components/Widget"
 import {ETasksExecution} from "@/types/tasksExecution"
 
 const Hidden = styled(Box)`
@@ -112,22 +111,15 @@ export const CreateElectionList: React.FC = () => {
     const {t} = useTranslation()
     const navigate = useNavigate()
     const refresh = useRefresh()
-    const [taskId, setTaskId] = useState<String | undefined>(undefined)
-    const [openWidget, setWidget] = useState<WidgetStateProps | undefined>(undefined)
+    const [widgetState, setWidgetState, taskId, setTaskId] = useWidgetStore()
+    const {setLastCreatedResource} = useContext(NewResourceContext)
+    const {refetch: refetchTreeMenu} = useTreeMenuData(false)
 
     const postDefaultValues = () => ({id: v4()})
 
     const {data: tenant} = useGetOne("sequent_backend_tenant", {
         id: tenantId,
     })
-    const {data: taskData, loading} = useQuery(GET_TASK_BY_ID, {
-        variables: {task_id: taskId},
-        skip: !taskId,
-        pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-    })
-
-    const {setLastCreatedResource} = useContext(NewResourceContext)
-    const {refetch: refetchTreeMenu} = useTreeMenuData(false)
 
     useEffect(() => {
         if (tenant) {
@@ -247,7 +239,7 @@ export const CreateElectionList: React.FC = () => {
                 documentId,
             },
         })
-        setWidget({
+        setWidgetState({
             type: ETasksExecution.IMPORT_ELECTION_EVENT,
             status: ETaskExecutionStatus.IN_PROGRESS,
         })
@@ -381,19 +373,6 @@ export const CreateElectionList: React.FC = () => {
                 uploadCallback={uploadCallback}
                 errors={errors}
             />
-
-            {openWidget && (
-                <Widget
-                    type={taskData?.sequent_backend_tasks_execution[0].type || openWidget.type}
-                    status={
-                        taskData?.sequent_backend_tasks_execution[0].execution_status ||
-                        openWidget.status
-                    }
-                    logs={taskData?.sequent_backend_tasks_execution[0].logs || openWidget.logs}
-                    onClose={() => setWidget(undefined)}
-                    id={taskId}
-                />
-            )}
         </>
     )
 }

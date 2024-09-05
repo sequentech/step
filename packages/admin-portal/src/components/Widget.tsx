@@ -61,6 +61,7 @@ export interface WidgetStateProps {
     type: ETasksExecution
     status: ETaskExecutionStatus
     logs?: Array<ITaskLog>
+    id?: String
 }
 
 interface WidgetProps {

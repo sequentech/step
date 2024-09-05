@@ -67,18 +67,16 @@ import {ElectionStyles} from "@/components/styles/ElectionStyles"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {DownloadDocument} from "../User/DownloadDocument"
 import {EXPORT_ELECTION_EVENT} from "@/queries/ExportElectionEvent"
-import {useLazyQuery, useMutation, useQuery} from "@apollo/client"
+import {useMutation} from "@apollo/client"
 import {IMPORT_CANDIDTATES} from "@/queries/ImportCandidates"
 import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
 import {useWatch} from "react-hook-form"
 import {convertToNumber} from "@/lib/helpers"
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {ETasksExecution} from "@/types/tasksExecution"
-import {Widget, WidgetStateProps} from "@/components/Widget"
+import {WidgetStateProps} from "@/components/Widget"
 import {ETaskExecutionStatus} from "@sequentech/ui-core"
-import {GET_TASK_BY_ID} from "@/queries/GetTaskById"
-import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {set} from "lodash"
+import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -135,7 +133,7 @@ interface ExportWrapperProps {
     exportDocumentId: string | undefined
     setExportDocumentId: (val: string | undefined) => void
     setWidget: (val: WidgetStateProps) => void
-    setTaskId: (val: String | undefined) => void
+    setTaskId: (val: string | undefined) => void
 }
 
 const ExportWrapper: React.FC<ExportWrapperProps> = ({
@@ -224,7 +222,7 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
 
 export const EditElectionEventDataForm: React.FC = () => {
     const {t} = useTranslation()
-    const {globalSettings} = useContext(SettingsContext)
+    const [widgetState, setWidgetState, taskId, setTaskId] = useWidgetStore()
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -240,18 +238,16 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [valueMaterials, setValueMaterials] = useState(0)
     const [expanded, setExpanded] = useState("election-event-data-general")
     const [languageSettings, setLanguageSettings] = useState<Array<string>>(["en"])
-    const [openWidget, setWidget] = useState<WidgetStateProps | undefined>(undefined)
-    const [openExport, setOpenExport] = React.useState(false)
-    const [exportDocumentId, setExportDocumentId] = React.useState<string | undefined>()
+    const [openExport, setOpenExport] = useState(false)
+    const [exportDocumentId, setExportDocumentId] = useState<string | undefined>()
     const [openDrawer, setOpenDrawer] = useState<boolean>(false)
-    const [openImportCandidates, setOpenImportCandidates] = React.useState(false)
+    const [openImportCandidates, setOpenImportCandidates] = useState(false)
     const [importCandidates] = useMutation<ImportCandidatesMutation>(IMPORT_CANDIDTATES)
     const defaultSecondsForCountdown = convertToNumber(process.env.SECONDS_TO_SHOW_COUNTDOWN) ?? 60
     const defaultSecondsForAlret = convertToNumber(process.env.SECONDS_TO_SHOW_AlERT) ?? 180
     const [manageElectionDates] = useMutation<ManageElectionDatesMutation>(MANAGE_ELECTION_DATES)
     const [startDate, setStartDate] = useState<string | undefined>(undefined)
     const [endDate, setEndDate] = useState<string | undefined>(undefined)
-    const [taskId, setTaskId] = useState<String | undefined>(undefined)
     const {record: tenant} = useEditController({
         resource: "sequent_backend_tenant",
         id: tenantId,
@@ -263,11 +259,6 @@ export const EditElectionEventDataForm: React.FC = () => {
             tenant_id: record.tenant_id,
             election_event_id: record.id,
         },
-    })
-    const {data: taskData} = useQuery(GET_TASK_BY_ID, {
-        variables: {task_id: taskId},
-        skip: !taskId,
-        pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
     })
 
     const [votingSettings] = useState<TVotingSetting>({
@@ -554,7 +545,7 @@ export const EditElectionEventDataForm: React.FC = () => {
         setOpenImportCandidates(false)
         try {
             setTaskId(undefined)
-            setWidget({
+            setWidgetState({
                 type: ETasksExecution.IMPORT_CANDIDATES,
                 status: ETaskExecutionStatus.IN_PROGRESS,
             })
@@ -568,7 +559,7 @@ export const EditElectionEventDataForm: React.FC = () => {
             if (errors) {
                 console.log(errors)
                 notify("Error importing candidates", {type: "error"})
-                setWidget({
+                setWidgetState({
                     type: ETasksExecution.IMPORT_CANDIDATES,
                     status: ETaskExecutionStatus.FAILED,
                 })
@@ -577,7 +568,7 @@ export const EditElectionEventDataForm: React.FC = () => {
             setTaskId(data?.import_candidates?.task_execution.id)
         } catch (err) {
             notify("Error importing candidates", {type: "error"})
-            setWidget({
+            setWidgetState({
                 type: ETasksExecution.IMPORT_CANDIDATES,
                 status: ETaskExecutionStatus.FAILED,
             })
@@ -1015,22 +1006,9 @@ export const EditElectionEventDataForm: React.FC = () => {
                 setOpenExport={setOpenExport}
                 exportDocumentId={exportDocumentId}
                 setExportDocumentId={setExportDocumentId}
-                setWidget={setWidget}
+                setWidget={setWidgetState}
                 setTaskId={setTaskId}
             />
-
-            {openWidget && (
-                <Widget
-                    type={taskData?.sequent_backend_tasks_execution[0].type || openWidget.type}
-                    status={
-                        taskData?.sequent_backend_tasks_execution[0].execution_status ||
-                        openWidget.status
-                    }
-                    logs={taskData?.sequent_backend_tasks_execution[0].logs || openWidget.logs}
-                    onClose={() => setWidget(undefined)}
-                    id={taskId}
-                />
-            )}
         </>
     )
 }

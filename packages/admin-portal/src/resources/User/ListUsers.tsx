@@ -59,8 +59,7 @@ import {EXPORT_TENANT_USERS} from "@/queries/ExportTenantUsers"
 import {DownloadDocument} from "./DownloadDocument"
 import {IMPORT_USERS} from "@/queries/ImportUsers"
 import {ETasksExecution} from "@/types/tasksExecution"
-import {Widget, WidgetStateProps} from "@/components/Widget"
-import {GET_TASK_BY_ID} from "@/queries/GetTaskById"
+import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 
 const OMIT_FIELDS: Array<string> = ["id", "email_verified"]
 
@@ -112,7 +111,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [getDocument, {data: documentData}] = useLazyQuery<GetDocumentQuery>(GET_DOCUMENT)
     const documentUrlRef = React.useRef(documentUrl)
     const {getDocumentUrl} = useGetPublicDocumentUrl()
-    const [openWidget, setWidget] = useState<WidgetStateProps | undefined>(undefined)
+    const [widgetState, setWidgetState, taskId, setTaskId] = useWidgetStore()
 
     const [openSendCommunication, setOpenSendCommunication] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
@@ -123,7 +122,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
     const [openImportDrawer, setOpenImportDrawer] = React.useState<boolean>(false)
     const [recordIds, setRecordIds] = React.useState<Array<Identifier>>([])
-    const [taskId, setTaskId] = useState<String | undefined>(undefined)
     const authContext = useContext(AuthContext)
     const refresh = useRefresh()
     const [deleteUser] = useMutation<DeleteUserMutation>(DELETE_USER)
@@ -136,11 +134,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 "x-hasura-role": IPermissions.USER_READ,
             },
         },
-    })
-    const {data: taskData, loading} = useQuery(GET_TASK_BY_ID, {
-        variables: {task_id: taskId},
-        skip: !taskId,
-        pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
     })
 
     const notify = useNotify()
@@ -546,7 +539,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setOpenImportDrawer(false)
         setTaskId(undefined)
         try {
-            setWidget({
+            setWidgetState({
                 type: ETasksExecution.IMPORT_USERS,
                 status: ETaskExecutionStatus.IN_PROGRESS,
             })
@@ -563,14 +556,14 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             refresh()
 
             if (errors) {
-                setWidget({
+                setWidgetState({
                     type: ETasksExecution.IMPORT_USERS,
                     status: ETaskExecutionStatus.FAILED,
                 })
                 notify(t("electionEventScreen.import.importVotersError"), {type: "error"})
             }
         } catch (err) {
-            setWidget({
+            setWidgetState({
                 type: ETasksExecution.IMPORT_USERS,
                 status: ETaskExecutionStatus.FAILED,
             })
@@ -771,18 +764,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     ) : null}
                 </FormStyles.ReservedProgressSpace>
             </Dialog>
-            {openWidget && (
-                <Widget
-                    type={taskData?.sequent_backend_tasks_execution[0].type || openWidget.type}
-                    status={
-                        taskData?.sequent_backend_tasks_execution[0].execution_status ||
-                        openWidget.status
-                    }
-                    logs={taskData?.sequent_backend_tasks_execution[0].logs || openWidget.logs}
-                    onClose={() => setWidget(undefined)}
-                    id={taskId}
-                />
-            )}
         </>
     )
 }
