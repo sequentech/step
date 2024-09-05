@@ -275,7 +275,6 @@ const catalanTranslation: TranslationType = {
                 materialActivated: "Materials de Suport activats",
                 materialTitle: "Títol",
                 materialSubTitle: "Subtítol",
-                hideAudit: "Deshabilitar Suport d'Auditoria de la Papereta",
                 logoUrl: "URL del Logotip",
                 redirectFinishUrl: "URL de redirecció en finalitzar",
                 css: "CSS personalitzat",
@@ -816,6 +815,12 @@ const catalanTranslation: TranslationType = {
                 "random": "Aleatòries",
                 "custom": "Personalitzat",
                 "alphabetical": "Alfabètic",
+            },
+            auditButtonConfig: {
+                "label": "Opció de visualització del botó d'auditoria",
+                "show": "Mostrar",
+                "not-show": "No mostrar",
+                "show-in-help": "Mostra al diàleg d'ajuda",
             },
             underVotePolicy: {
                 "label": "Política de Votació Inferior",

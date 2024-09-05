@@ -54,6 +54,7 @@ import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {ElectionStyles} from "../../components/styles/ElectionStyles"
 import {
     ContestsOrder,
+    EVotingPortalAuditButtonCfg,
     IContestPresentation,
     IElectionDates,
     IElectionEventPresentation,
@@ -480,6 +481,13 @@ export const ElectionDataForm: React.FC = () => {
         }))
     }
 
+    const auditButtonConfigChoices = (): Array<EnumChoice<EVotingPortalAuditButtonCfg>> => {
+        return Object.values(EVotingPortalAuditButtonCfg).map((value) => ({
+            id: value,
+            name: t(`contestScreen.auditButtonConfig.${value.toLowerCase()}`),
+        }))
+    }
+
     return data ? (
         <RecordContext.Consumer>
             {(incoming) => {
@@ -661,6 +669,13 @@ export const ElectionDataForm: React.FC = () => {
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
+                                <SelectInput
+                                    source={`presentation.audit_button_cfg`}
+                                    choices={auditButtonConfigChoices()}
+                                    label={t(`contestScreen.auditButtonConfig.label`)}
+                                    defaultValue={EVotingPortalAuditButtonCfg.SHOW}
+                                    validate={required()}
+                                />
                                 <SelectInput
                                     source="presentation.contests_order"
                                     choices={orderAnswerChoices()}
