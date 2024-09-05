@@ -19,9 +19,6 @@ on:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        architecture: [amd64]
     permissions:
       contents: read
       packages: write
@@ -45,7 +42,7 @@ jobs:
     - name: Build and push Keycloak
       uses: docker/build-push-action@v6
       with:
-        platforms: linux/${{ matrix.architecture }}
+        platforms: linux/amd64,linux/arm64
         context: packages/.
         file: packages/Dockerfile.keycloak
         tags: ghcr.io/${{ github.repository }}/keycloak
@@ -54,7 +51,7 @@ jobs:
     - name: Build and push Postgres
       uses: docker/build-push-action@v6
       with:
-        platforms: linux/${{ matrix.architecture }}
+        platforms: linux/amd64,linux/arm64
         context: .devcontainer/postgresql/.
         file: .devcontainer/postgresql/Dockerfile
         tags: ghcr.io/${{ github.repository }}/postgres
@@ -63,7 +60,7 @@ jobs:
     - name: Build and push Minio
       uses: docker/build-push-action@v6
       with:
-        platforms: linux/${{ matrix.architecture }}
+        platforms: linux/amd64,linux/arm64
         context: .devcontainer/minio/.
         file: .devcontainer/minio/Dockerfile
         tags: ghcr.io/${{ github.repository }}/minio
@@ -72,7 +69,7 @@ jobs:
     - name: Build and push Vault
       uses: docker/build-push-action@v6
       with:
-        platforms: linux/${{ matrix.architecture }}
+        platforms: linux/amd64,linux/arm64
         context: .devcontainer/vault/.
         file: .devcontainer/vault/Dockerfile
         tags: ghcr.io/${{ github.repository }}/vault
@@ -81,7 +78,7 @@ jobs:
     - name: Build and push cargo packages
       uses: docker/build-push-action@v6
       with:
-        platforms: linux/${{ matrix.architecture }}
+        platforms: linux/amd64,linux/arm64
         context: packages/.
         file: packages/Dockerfile.cargo-packages
         tags: ghcr.io/${{ github.repository }}/cargo-packages
@@ -90,7 +87,7 @@ jobs:
     - name: Build and push immudb
       uses: docker/build-push-action@v6
       with:
-        platforms: linux/${{ matrix.architecture }}
+        platforms: linux/amd64,linux/arm64
         context: packages/.
         file: packages/Dockerfile.immudb
         tags: ghcr.io/${{ github.repository }}/immudb
@@ -99,7 +96,7 @@ jobs:
     - name: Build and push immudb-log-audit
       uses: docker/build-push-action@v6
       with:
-        platforms: linux/${{ matrix.architecture }}
+        platforms: linux/amd64,linux/arm64
         context: vendor/immudb-log-audit/.
         file: vendor/immudb-log-audit/Dockerfile.immudb
         tags: ghcr.io/${{ github.repository }}/immudb-log-audit
@@ -108,7 +105,7 @@ jobs:
     - name: Build and push admin-portal
       uses: docker/build-push-action@v6
       with:
-        platforms: linux/${{ matrix.architecture }}
+        platforms: linux/amd64,linux/arm64
         context: packages/.
         file: packages/Dockerfile.admin-portal
         tags: ghcr.io/${{ github.repository }}/admin-portal
@@ -117,7 +114,7 @@ jobs:
     - name: Build and push trustee
       uses: docker/build-push-action@v6
       with:
-        platforms: linux/${{ matrix.architecture }}
+        platforms: linux/amd64,linux/arm64
         context: packages/.
         file: packages/braid/Dockerfile
         tags: ghcr.io/${{ github.repository }}/trustee
