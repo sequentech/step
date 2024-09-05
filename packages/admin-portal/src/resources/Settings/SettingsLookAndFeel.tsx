@@ -33,7 +33,6 @@ export const SettingsLookAndFeel: React.FC<void> = () => {
     )
 
     const onSave = async () => {
-
         const logoUrlToSave = logoUrl === "" ? null : logoUrl
         const cssContentToSave = cssContent === "" ? null : cssContent
 
