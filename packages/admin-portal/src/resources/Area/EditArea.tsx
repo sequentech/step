@@ -68,7 +68,7 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
     const aliasRenderer = useAliasRenderer()
 
     const contestMatcher = (filter: string, contest: any) => {
-        return contest.alias.match(filter) || (!contest.alias && contest.name.match(filter))
+        return contest?.alias?.match(filter) || (!contest.alias && contest.name.match(filter))
     }
 
     const areaFilterToQuery = (searchText: string) => {
