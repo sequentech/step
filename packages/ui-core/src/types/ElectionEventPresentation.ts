@@ -27,7 +27,6 @@ export interface IElectionEventPresentation {
     logo_url?: string
     redirect_finish_url?: string
     css?: string
-    hide_audit?: boolean
     skip_election_list?: boolean
     show_user_profile?: boolean
     elections_order?: ElectionsOrder

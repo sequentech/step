@@ -118,6 +118,7 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
   private Response createForm(
       RequiredActionContext context, Consumer<LoginFormsProvider> formConsumer) {
     Optional<AuthenticatorConfigModel> config = Utils.getConfig(context.getRealm());
+    String codeLength = config.get().getConfig().get(Utils.CODE_LENGTH);
     KeycloakSession session = context.getSession();
     UserModel user = context.getUser();
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
@@ -149,6 +150,7 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
         .setAttribute("ttl", config.get().getConfig().get(Utils.CODE_TTL))
         .setAttribute("codeJustSent", true)
         .setAttribute("isOtl", isOtl)
+        .setAttribute("codeLength", codeLength)
         .setAttribute("resendTimer", resendTimer);
 
     if (formConsumer != null) {

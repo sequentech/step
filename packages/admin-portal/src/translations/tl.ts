@@ -276,7 +276,6 @@ const tagalogTranslation = {
                 materialActivated: "Mga Karagdagang Materyales na Gumagana",
                 materialTitle: "Pamagat",
                 materialSubTitle: "Subtitle",
-                hideAudit: "I-disable ang Suporta sa Pag-audit ng Balota",
                 logoUrl: "URL ng Logo",
                 redirectFinishUrl: "Redirect Finish URL",
                 css: "Custom CSS",
@@ -815,6 +814,19 @@ const tagalogTranslation = {
                 "custom": "Pasadya",
                 "alphabetical": "Alpabetikal",
             },
+            auditButtonConfig: {
+                "label": "Mga Opsyon sa Pagpahiling kan Buton nin Pag-audit",
+                "show": "Ipahiling",
+                "not-show": "Dai Ipahiling",
+                "show-in-help": "Ipahiling an Help Dialog",
+            },
+            underVotePolicy: {
+                "label": "Sa irarom kan Patakaran sa Pagboto",
+                "allowed": "Tinogotan",
+                "warn-only-in-review": "Warn in Review",
+                "warn": "Patanid",
+                "warn-and-alert": "Patanid asin Alerto",
+            },
             invalidVotePolicy: {
                 "allowed": "Pinapayagan",
                 "warn": "Magbigay ng Babala",
@@ -833,6 +845,16 @@ const tagalogTranslation = {
                 "allowed": "Pinapayagan",
                 "warn": "Magbigay ng Babala",
                 "not-allowed": "Hindi Pinapayagan",
+            },
+            overVotePolicy: {
+                "label": "Patakaran sa Sobra sa Pagboto",
+                "allowed": "Tinogotan",
+                "allowed-with-msg": "Tinutugot sa Mensahe nin Patanid",
+                "allowed-with-msg-and-alert": "Tinutugotan sa mensahe nin Patanid asin Alerto",
+                "not-allowed-with-msg-and-alert":
+                    "Dai Tinotogotan an mensahe nin Patanid asin Alerto",
+                "not-allowed-with-msg-and-disable":
+                    "Dai Tinutugutan an mensahe nin Patanid asin I-disable an mga dugang pang pagpili",
             },
             paginationPolicy: {
                 label: "Pangalan ng Pahina",

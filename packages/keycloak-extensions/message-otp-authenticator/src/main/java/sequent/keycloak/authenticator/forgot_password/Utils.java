@@ -47,6 +47,7 @@ public class Utils {
   public static final List<String> USERNAME_ATTRIBUTES_DEFAULT =
       Collections.unmodifiableList(Arrays.asList("username"));
   public final String ATTEMPTED_EMAIL = "ATTEMPTED_EMAIL";
+  public final String DISABLE_PASSWORD_ATTRIBUTE = "disablePassword";
   public final String PASSWORD_CHARS = "passwordChars";
   public final String PASSWORD_CHARS_DEFAULT =
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.-!¡?¿*:;&()=@#$%";
