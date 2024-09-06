@@ -14,7 +14,7 @@
     "@mui/material": "6.0.2",
     "@mui/styles": "^5.14.19",
     "@mui/utils": "^5.14.19",
-    "@mui/x-data-grid": "6.18.2",
+    "@mui/x-data-grid": "7.15.0",
     "@react-page/react-admin": "5.4.4",
     "@reduxjs/toolkit": "1.9.5",
     "@sequentech/ui-core": "*",
