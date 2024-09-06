@@ -53,10 +53,22 @@ module.exports = {
             },
 
             desiredCapabilities: {
-                "browserName": "firefox",
-                "acceptInsecureCerts": true,
-                "moz:firefoxOptions": {
-                    args: ["--headless"],
+            //     "browserName": "firefox",
+            //     "acceptInsecureCerts": true,
+            //     "moz:firefoxOptions": {
+            //         args: ["--headless"],
+			// },
+                browserName: "chrome",
+                chromeOptions: {
+                    prefs: {
+                        download: {
+                            prompt_for_download: false,
+                            default_directory: require("path").resolve(
+                                __dirname + "/test/e2e/downloads"
+                            ),
+                        },
+                    },
+                    // args: ["headless"],
                 },
             },
 
