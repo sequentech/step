@@ -676,3 +676,67 @@ Requires running both codespace instance as well as local instance at least for 
  ### Running Nightwatch(Voting-Portal)
  refer to voting-portal/test/readme
  
+## Debug keycloak
+
+### Keycloak log level
+
+In keycloak services enviroment variables add the following line:
+
+KC_LOG_LEVEL: DEBUG
+
+### Keycloak remote attach
+
+In Keycloak services ports add the port 8787
+
+```
+    ports:
+      - 8090:8090
+      - 8787:8787
+```
+
+In enviroment valiables add these 2 environment variables
+
+```
+      DEBUG: "true"
+      DEBUG_PORT: "*:8787"
+```
+
+### Vscode configuration
+
+In .vscode/launch.json add the following configuration
+
+```
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Debug (Attach)",
+            "projectName": "MyApplication",
+            "request": "attach",
+            "hostName": "keycloak",
+            "port": 8787
+        }
+    ]
+}
+```
+
+### Keycloak extensions keycloak version
+
+In the pom.xml of all keycloak maven modules make sure that keycloak version is aligned with the version you want to debug. Otherwise the code will not align correctly while debugging.
+
+For keycloak version 24.0.5 we should use version 24.0.3
+```
+	<properties>
+
+    ...
+
+		<keycloak.version>24.0.3</keycloak.version>
+
+    ...
+
+	</properties>
+```
