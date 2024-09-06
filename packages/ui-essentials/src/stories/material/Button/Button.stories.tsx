@@ -7,7 +7,7 @@ import Button, {ButtonProps} from "@mui/material/Button"
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 import {faPrint} from "@fortawesome/free-solid-svg-icons"
 import VerticalBox from "../../../components/VerticalBox/VerticalBox"
-import { IconProp } from "@fortawesome/fontawesome-svg-core"
+import {IconProp} from "@fortawesome/fontawesome-svg-core"
 
 const Template: React.FC<ButtonProps> = (args) => (
     <VerticalBox maxWidth="210px">

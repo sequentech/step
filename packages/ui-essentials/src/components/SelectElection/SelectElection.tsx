@@ -10,7 +10,7 @@ import {faTimes, faCheck} from "@fortawesome/free-solid-svg-icons"
 import theme from "../../services/theme"
 import {isUndefined} from "@sequentech/ui-core"
 import {useTranslation} from "react-i18next"
-import { IconProp } from "@fortawesome/fontawesome-svg-core"
+import {IconProp} from "@fortawesome/fontawesome-svg-core"
 
 const BorderBox = styled(Box)<{isopen: string; isactive: string}>`
     display: flex;

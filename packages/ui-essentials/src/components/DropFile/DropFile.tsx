@@ -9,7 +9,7 @@ import CustomDropFile from "../CustomDropFile/CustomDropFile"
 import Icon from "../Icon/Icon"
 import {Box, Typography} from "@mui/material"
 import {theme} from "../../services/theme"
-import { IconProp } from "@fortawesome/fontawesome-svg-core"
+import {IconProp} from "@fortawesome/fontawesome-svg-core"
 
 interface DropFileProps {
     handleFiles: (files: FileList) => void | Promise<void>

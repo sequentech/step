@@ -10,7 +10,7 @@ import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 import {faLanguage, faCaretDown} from "@fortawesome/free-solid-svg-icons"
 import {styled} from "@mui/material/styles"
 import {Box} from "@mui/material"
-import { IconProp } from "@fortawesome/fontawesome-svg-core"
+import {IconProp} from "@fortawesome/fontawesome-svg-core"
 
 interface ButtonProps {
     isactive?: string

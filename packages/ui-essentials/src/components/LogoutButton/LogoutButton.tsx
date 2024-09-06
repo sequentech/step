@@ -8,7 +8,7 @@ import {Box} from "@mui/material"
 import {faArrowRightFromBracket} from "@fortawesome/free-solid-svg-icons"
 import {useTranslation} from "react-i18next"
 import Dialog from "../Dialog/Dialog"
-import { IconProp } from "@fortawesome/fontawesome-svg-core"
+import {IconProp} from "@fortawesome/fontawesome-svg-core"
 
 export interface LogoutButtonProps {
     logoutFn: () => void
