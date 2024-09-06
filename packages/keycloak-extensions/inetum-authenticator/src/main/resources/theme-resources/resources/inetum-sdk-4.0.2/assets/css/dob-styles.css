@@ -114,7 +114,7 @@ body {
  * ------------
  */
 .dob-sdk-root-container {
-  height: max(80vh, 572px);
+  height: max(85vh, 572px);
   width: 1170px;
   position: relative;
   margin: 0 auto;
@@ -124,7 +124,7 @@ body {
 
 @media (max-width: 1200px) {
   .dob-sdk-root-container {
-    height: max(80vh, 572px);
+    height: max(85vh, 572px);
     width: 100%;
     position: relative;
     max-width: 1170px;
