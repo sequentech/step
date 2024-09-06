@@ -254,6 +254,9 @@ services:
 
   admin-portal:
     image: ghcr.io/sequentech/step/admin-portal:latest
+    build:
+      context: ../packages/
+      dockerfile: Dockerfile.admin-portal
     container_name: admin-portal
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
