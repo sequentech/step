@@ -25,7 +25,7 @@ on:
       useLocal:
         description: 'generate local env for testing?'
         type: boolean
-        default: "true"
+        default: "false"
   pull_request:
   push:
       branches: [ 'main' ]
