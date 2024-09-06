@@ -53,11 +53,11 @@ module.exports = {
             },
 
             desiredCapabilities: {
-            //     "browserName": "firefox",
-            //     "acceptInsecureCerts": true,
-            //     "moz:firefoxOptions": {
-            //         args: ["--headless"],
-			// },
+                //     "browserName": "firefox",
+                //     "acceptInsecureCerts": true,
+                //     "moz:firefoxOptions": {
+                //         args: ["--headless"],
+                // },
                 browserName: "chrome",
                 chromeOptions: {
                     prefs: {

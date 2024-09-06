@@ -56,9 +56,9 @@ describe("publish tests", function () {
                 browser.assert
                     .enabled("button.publish-publish-button")
                     .click("button.publish-publish-button")
-                    // .pause(pause.short)
-                    // .assert.not.enabled("button.publish-action-pause-button")
-                    // .assert.not.enabled("button.publish-action-stop-button")
+                // .pause(pause.short)
+                // .assert.not.enabled("button.publish-action-pause-button")
+                // .assert.not.enabled("button.publish-action-stop-button")
             }
         )
     })

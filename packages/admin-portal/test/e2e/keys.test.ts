@@ -26,7 +26,7 @@ describe("keys tests", function () {
         deleteElectionEvent.deleteElection(browser)
         deleteElectionEvent.deleteElectionEvent(browser)
 
-		browser.assert.urlContains("sequent_backend_candidate")
+        browser.assert.urlContains("sequent_backend_candidate")
         // Logout
         browser.logout()
     })
