@@ -50,7 +50,7 @@ pub struct Trustee<C: Ctx> {
     pub(crate) name: String,
     pub(crate) signing_key: StrandSignatureSk,
     pub(crate) encryption_key: symm::SymmetricKey,
-    local_board: LocalBoard<C>,
+    pub(crate) local_board: LocalBoard<C>,
 }
 
 impl<C: Ctx> board_messages::braid::message::Signer for Trustee<C> {
@@ -388,12 +388,6 @@ impl<C: Ctx> Trustee<C> {
         self.local_board
             .get_configuration(hash)
             .ok_or(ProtocolError::MissingArtifact(StatementType::Configuration))
-        // .ok_or(anyhow!("Could not retrieve configuration",))
-    }
-
-    // FIXME Used by dbg::status, remove
-    pub(crate) fn copy_local_board(&self) -> LocalBoard<C> {
-        self.local_board.clone()
     }
 
     pub(crate) fn get_channel(
@@ -425,7 +419,7 @@ impl<C: Ctx> Trustee<C> {
         hash: &CiphertextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<Ballots<C>, ProtocolError> {
+    ) -> Result<&Ballots<C>, ProtocolError> {
         self.local_board.get_ballots(hash, batch, signer_position)
     }
 
@@ -434,7 +428,7 @@ impl<C: Ctx> Trustee<C> {
         hash: &CiphertextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<Mix<C>, ProtocolError> {
+    ) -> Result<&Mix<C>, ProtocolError> {
         self.local_board.get_mix(hash, batch, signer_position)
     }
 
@@ -443,7 +437,7 @@ impl<C: Ctx> Trustee<C> {
         hash: &DecryptionFactorsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<DecryptionFactors<C>, ProtocolError> {
+    ) -> Result<&DecryptionFactors<C>, ProtocolError> {
         self.local_board
             .get_decryption_factors(hash, batch, signer_position)
     }
@@ -453,7 +447,7 @@ impl<C: Ctx> Trustee<C> {
         hash: &PlaintextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<Plaintexts<C>, ProtocolError> {
+    ) -> Result<&Plaintexts<C>, ProtocolError> {
         self.local_board
             .get_plaintexts(hash, batch, signer_position)
     }

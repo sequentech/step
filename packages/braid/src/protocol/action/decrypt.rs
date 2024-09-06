@@ -66,7 +66,7 @@ pub(super) fn compute_decryption_factors<C: Ctx>(
     let result: Result<Vec<(C::E, ChaumPedersen<C>)>, ProtocolError> = ciphertexts
         .ciphertexts
         .0
-        .into_par_iter()
+        .par_iter()
         .map(|c| {
             let (base, proof) =
                 strand::threshold::decryption_factor(&c, &secret, &vk, &label, &zkp, &ctx)?;
@@ -233,8 +233,8 @@ fn compute_plaintexts_<C: Ctx>(
             let it = dfactors
                 .factors
                 .0
-                .into_par_iter()
-                .zip(dfactors.proofs.0.into_par_iter());
+                .par_iter()
+                .zip(dfactors.proofs.0.par_iter());
             let it2 = it.zip(ciphertexts.0.into_par_iter());
 
             let suffix = format!("decryption_factor{}", ts[t] - 1);
@@ -273,7 +273,7 @@ fn compute_plaintexts_<C: Ctx>(
     let ps = mix
         .ciphertexts
         .0
-        .into_par_iter()
+        .par_iter()
         .enumerate()
         .map(|(index, c)| {
             let decrypted = c.mhr.divp(&divider[index], &ctx).modp(&ctx);

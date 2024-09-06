@@ -22,7 +22,7 @@ use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
 use crate::protocol::action::Action;
-use crate::protocol::board::local::LocalBoard;
+use crate::protocol::board::local::{ArtifactEntryIdentifier, StatementEntryIdentifier};
 use board_messages::braid::artifact::Ballots;
 use board_messages::braid::artifact::Configuration;
 use board_messages::braid::message::Message;
@@ -106,7 +106,9 @@ struct ReplContext<C: Ctx> {
 
 struct Status<C: Ctx> {
     cfg: Configuration<C>,
-    locals: Vec<LocalBoard<C>>,
+    // locals: Vec<LocalBoard<C>>,
+    statement_keys: Vec<Vec<StatementEntryIdentifier>>,
+    artifact_keys: Vec<Vec<ArtifactEntryIdentifier>>,
     remote: VectorBoard,
     last_messages: Vec<Message>,
     last_actions: HashSet<Action>,
@@ -114,14 +116,16 @@ struct Status<C: Ctx> {
 impl<C: Ctx> Status<C> {
     fn new(
         cfg: Configuration<C>,
-        locals: Vec<LocalBoard<C>>,
+        statement_keys: Vec<Vec<StatementEntryIdentifier>>,
+        artifact_keys: Vec<Vec<ArtifactEntryIdentifier>>,
         remote: VectorBoard,
         last_messages: Vec<Message>,
         last_actions: HashSet<Action>,
     ) -> Status<C> {
         Status {
             cfg,
-            locals,
+            statement_keys,
+            artifact_keys,
             remote,
             last_messages,
             last_actions,
@@ -131,7 +135,7 @@ impl<C: Ctx> Status<C> {
         let mut boards = vec![];
 
         boards.push("Trustees".to_string());
-        for (i, b) in self.locals.iter().enumerate() {
+        for (i, _) in self.statement_keys.iter().enumerate() {
             let mut ascii_table = AsciiTable::default();
             ascii_table.set_max_width(205);
             ascii_table
@@ -139,14 +143,10 @@ impl<C: Ctx> Status<C> {
                 .set_header(format!("trustee {}", i.to_string()))
                 .set_align(Align::Left);
 
-            let data1: Vec<String> = b
-                .statements
-                .keys()
+            let data1: Vec<String> = self.statement_keys[i].iter()
                 .map(|k| format!("{}-{}", k.kind.to_string(), k.signer_position))
                 .collect();
-            let data2: Vec<String> = b
-                .artifacts
-                .keys()
+            let data2: Vec<String> = self.artifact_keys[i].iter()
                 .map(|k| {
                     format!(
                         "{}-{}",
@@ -154,13 +154,10 @@ impl<C: Ctx> Status<C> {
                     )
                 })
                 .collect();
-            let mut data3 = vec![format!("{:?}", b.configuration)];
-
-            data3.insert(0, "cfg:".to_string());
+            
             let data: Vec<Vec<String>> = vec![
                 vec!["stm:".to_string(), data1.join(" ")],
                 vec!["art:".to_string(), data2.join(" ")],
-                data3,
             ];
 
             boards.push(ascii_table.format(data));
@@ -328,11 +325,18 @@ fn quit<T>(_args: ArgMatches, _context: &mut T) -> Result<Option<String>> {
 }
 
 fn status<C: Ctx>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
-    let locals: Vec<LocalBoard<C>> = context
+    let stmt_keys: Vec<Vec<StatementEntryIdentifier>> = context
         .trustees
         .iter()
-        .map(|t| t.copy_local_board())
+        .map(|t| t.local_board.statements.keys().cloned().collect())
         .collect();
+
+    let art_keys: Vec<Vec<ArtifactEntryIdentifier>> = context
+        .trustees
+        .iter()
+        .map(|t| t.local_board.artifacts.keys().cloned().collect())
+        .collect();
+
     let mut messages = vec![];
     for m in &context.last_messages {
         messages.push(m.try_clone().unwrap());
@@ -342,7 +346,8 @@ fn status<C: Ctx>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result<Opt
 
     let status = Status::new(
         context.cfg.clone(),
-        locals,
+        stmt_keys,
+        art_keys,
         context.remote.clone(),
         messages,
         actions,

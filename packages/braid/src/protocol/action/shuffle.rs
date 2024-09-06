@@ -33,7 +33,7 @@ pub(crate) fn mix<C: Ctx>(
             dbg_hash(&source_h.0),
             ballots.ciphertexts.0.len()
         );
-        ballots.ciphertexts
+        &ballots.ciphertexts
     } else {
         // First mix ciphertexts come from ballots, second from first mix, third from second, etc.
         // mix_no is 1-based, but trustees[] is 0-based, so the previous mixer is
@@ -52,7 +52,7 @@ pub(crate) fn mix<C: Ctx>(
             mix.ciphertexts.0.len()
         );
 
-        mix.ciphertexts
+        &mix.ciphertexts
     };
 
     // Null mix
@@ -113,7 +113,7 @@ pub(crate) fn sign_mix<C: Ctx>(
             dbg_hash(&cipher_h.0),
             ballots.ciphertexts.0.len()
         );
-        ballots.ciphertexts
+        &ballots.ciphertexts
     } else {
         let mix = trustee
             .get_mix(source_h, *batch, signers_t)
@@ -125,7 +125,7 @@ pub(crate) fn sign_mix<C: Ctx>(
             dbg_hash(&cipher_h.0),
             mix.ciphertexts.0.len()
         );
-        mix.ciphertexts
+        &mix.ciphertexts
     };
 
     let target = trustee.get_mix(cipher_h, *batch, signert_t);
@@ -155,7 +155,7 @@ pub(crate) fn sign_mix<C: Ctx>(
 
     let label = cfg.label(*batch, format!("shuffle{mix_number}"));
     let ok = shuffler.check_proof(
-        &mix.proof.expect("Should not be a null mix"),
+        mix.proof.as_ref().expect("Should not be a null mix"),
         &source_cs.0,
         &mix.ciphertexts.0,
         &label,

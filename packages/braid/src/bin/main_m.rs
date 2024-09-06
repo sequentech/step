@@ -51,8 +51,8 @@ fn get_ignored_boards() -> HashSet<String> {
 fn main() -> Result<()> {
     // let runtime = tokio::runtime::Builder::new_current_thread()
     let runtime = tokio::runtime::Builder::new_multi_thread()
-    // .worker_threads(1)
-    // .max_blocking_threads(10)
+    .worker_threads(1)
+    .max_blocking_threads(10)
     .enable_all()
     .build()
     .unwrap();
@@ -97,7 +97,7 @@ async fn run() -> Result<()> {
 
     let args = Cli::parse();
 
-    let contents = fs::read_to_string(args.trustee_config)
+    let contents = fs::read_to_string(args.trustee_config.clone())
         .expect("Should have been able to read the trustee configuration file");
 
     info!("{}", strand::info_string());
@@ -112,7 +112,8 @@ async fn run() -> Result<()> {
 
     let store_root = std::env::current_dir().unwrap().join("message_store");
     
-    let trustee_name = std::env::var("TRUSTEE_NAME").unwrap_or_else(|_| "Self".to_string());
+    let trustee_name = std::env::var("TRUSTEE_NAME")
+        .unwrap_or(args.trustee_config.into_os_string().into_string().unwrap());
 
     let factory = SessionFactory::new(&trustee_name, tc, store_root)?;
     let mut master = SessionMaster::new(&args.server_url, factory, 1)?;

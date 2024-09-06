@@ -240,6 +240,8 @@ impl SessionSet {
                 sleep(Duration::from_millis(1000)).await;
                 let signal = self.inbox.try_recv();
 
+                print!(".");
+                
                 match signal {
                     Ok(SessionSetMessage::REFRESH(boards)) => {
                         // info!("Set {}: ({}) received refresh for {} boards", self.name, session_map.len(), boards.len());
@@ -302,6 +304,12 @@ impl SessionSet {
 
                     requests.push((session.board_name.to_string(), last_id));
                 }
+ 
+if (self.session_factory.trustee_name == "trustee1.toml".to_string()) && (loop_count > 5) && (requests[0].1 == 16 || requests[0].1 == 26) {
+    println!("*** Remove this code!");
+    std::process::exit(0);
+} 
+
                 
                 let board = GrpcB3BoardParams::new(&self.b3_url);
                 let board = board.get_board();    
@@ -394,7 +402,7 @@ impl SessionSet {
 
 #[derive(Clone)]
 pub struct SessionFactory {
-    trustee_name: String,
+    pub(crate) trustee_name: String,
     signing_key: StrandSignatureSk,
     symm_key: SymmetricKey,
     store_root: PathBuf,
