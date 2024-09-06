@@ -171,17 +171,16 @@ let myStrings = {
   'attach_default_error': 'The attachment does not appear to meet the required criteria',
   'attach_error_button_text': 'RETRY',
   'attach_not_supported_file': 'Not supported file type',
-  // TODO: Translate texts to english
-  'attach_title_doc': 'Adjuntar documento',
-  'attach_title_video': 'Adjuntar vídeo',
-  'attach_title_face': 'Adjuntar selfie',
-  'attach_description_doc_front': 'Sube la parte delantera',
-  'attach_description_doc_back': 'Sube la parte trasera',
-  'attach_description_doc_passport': 'Sube la parte delantera',
-  'attach_description_doc_certificate': 'Sube la parte delantera',
-  'attach_description_video': 'Sube un vídeo',
-  'attach_description_face': 'Sube un seflie',
-  'attach_button_text': 'Buscar el archivo',
+  'attach_title_doc': 'Attach document',
+  'attach_title_video': 'Attach video',
+  'attach_title_face': 'Attach selfie',
+  'attach_description_doc_front': 'Upload the front',
+  'attach_description_doc_back': 'Upload the back',
+  'attach_description_doc_passport': 'Upload the front',
+  'attach_description_doc_certificate': 'Upload the back',
+  'attach_description_video': 'Upload a video',
+  'attach_description_face': 'Upload a selfie',
+  'attach_button_text': 'Search a file',
   // OTP STEP
   'otp_verification_title': 'OTP Verification',
   'otp_verification_email': 'We have sent you the access code by email for verification.',
@@ -191,8 +190,7 @@ let myStrings = {
   'otp_verification_resended_sms': 'A new OTP code has been sent to your mobile number.',
   'otp_verification_invalid': 'OTP code is invalid',
   'otp_verification_expired': 'OTP code has expired',
-  // TODO: Translate texts to english
-  'otp_button': 'Continuar',
+  'otp_button': 'Continue',
   // END STEP
   'end_title': 'Digital ID',
   'end_description': 'The identification process is very simple. You just need to have your identity document on hand and capture the following with your mobile camera:',
@@ -202,9 +200,8 @@ let myStrings = {
   'intro_row_obverse': 'Front of document',
   'intro_row_reverse': 'Reverse of document',
   'intro_row_face': 'Face and Identity',
-  // TODO: Translate texts to english
-  'intro_row_passport': 'Pasaporte',
-  'intro_row_residence_certificate': 'Certificado de residencia',
+  'intro_row_passport': 'Passport',
+  'intro_row_residence_certificate': 'Residence certificate',
   // EXCEPTION VIEW
   'exception_button_text_retry': 'Retry',
   'exception_button_text_go_init': 'Return',
@@ -440,9 +437,8 @@ let myStrings = {
   'otp_configuration_progress_description': 'Loading configuration...',
   'otp_forwarding_progress_description': 'Sending OTP...',
   'otp_verification_progress_description': 'Verifying OTP...',
-  // TODO Translate to english
-  'media_device_progress_description': 'Obteniendo multimedia...',
-  'background_progress_description': 'Toca la pantalla para continuar...',
+  'media_device_progress_description': 'Obtaining media device...',
+  'background_progress_description': 'Touch the screen to continue...',
   // TOOLBAR COMPONENT
   'secondarytoolbar_identification_error': 'Identification error',
   'secondarytoolbar_obverse': 'Document front',
@@ -451,10 +447,9 @@ let myStrings = {
   'secondarytoolbar_passport': 'Passport',
   'secondarytoolbar_certificate': 'Residency certificate',
   'secondarytoolbar_exit_button': 'Exit',
-  // TOOLTIP COMPONENT TODO: Translate to english
-  'dob_tooltip_show_help': 'Ver ayuda',
-  'dob_tooltip_leave_process': 'Salir',
-  'dob_tootltip_take_photo': '¡Haz una foto!',  
+  'dob_tooltip_show_help': 'Show Help',
+  'dob_tooltip_leave_process': 'Leave',
+  'dob_tootltip_take_photo': '¡Make a photo!',  
   // INFOBAR COMPONENT
   'card_detector_verifying': 'Verifying document...',
   'infobar_start_text': 'Configuring scanner',
