@@ -77,7 +77,7 @@ describe("voters tests", function () {
                 )
                 //voter details is for some reason
                 browser.assert.visible(
-                    `//span[contains(@class, 'username') and text()='${voterDetails.email}']`
+                    `//span[contains(@class, 'username') and text()='${voterDetails.username}']`
                 )
 
                 browser.useCss()

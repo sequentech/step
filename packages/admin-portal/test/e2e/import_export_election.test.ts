@@ -91,6 +91,7 @@ describe("import/export election event  tests", function () {
         browser
             .useXpath()
             .click(`//button[normalize-space()="Yes, Import without Integrity Check"]`)
+			.pause(pause.short)
 
         // browser.useXpath().click(`//span[normalize-space()="${createElectionEvent.config.electionEvent.name}"]`).click('//a[normalize-space()="Data"]').click('//button[normalize-space()="Export"]').click('//button[contains(@class,"ok-button")]')
     })
