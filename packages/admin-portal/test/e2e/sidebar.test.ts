@@ -4,15 +4,15 @@
 
 import {NightwatchAPI} from "nightwatch"
 import {contestLink, electionEventLink, electionLink, pause} from ".."
-import { createElectionEvent } from "../commands/election-event/create"
+import {createElectionEvent} from "../commands/election-event/create"
 
 describe("sidebar tests", function () {
     before(function (browser) {
         browser.login()
-		createElectionEvent.createElectionEvent(browser)
-		createElectionEvent.createElection(browser)
-		createElectionEvent.createContest(browser)
-		createElectionEvent.createCandidates(browser)
+        createElectionEvent.createElectionEvent(browser)
+        createElectionEvent.createElection(browser)
+        createElectionEvent.createContest(browser)
+        createElectionEvent.createCandidates(browser)
     })
 
     after(async function (browser) {
@@ -26,8 +26,8 @@ describe("sidebar tests", function () {
     //     // case no asserts create election is visible
     //     browser.isPresent(
     //         {
-	// 			// locateStrategy: "xpath",
-	// 			selector: `a[title='${createElectionEvent.config.electionEvent.name}']`,
+    // 			// locateStrategy: "xpath",
+    // 			selector: `a[title='${createElectionEvent.config.electionEvent.name}']`,
     //             supressNotFoundErrors: true,
     //             timeout: 1000,
     //         },
@@ -35,9 +35,9 @@ describe("sidebar tests", function () {
     //             if (result.value) {
     //                 // opens election menu
     //                 browser.assert
-	// 					.visible(`a[title='${createElectionEvent.config.election.name}']`)
+    // 					.visible(`a[title='${createElectionEvent.config.election.name}']`)
     //                     .click(
-	// 						`a[title='${createElectionEvent.config.election.name}']`
+    // 						`a[title='${createElectionEvent.config.election.name}']`
     //                     )
 
     //                 // checks if has contest menu
@@ -45,7 +45,7 @@ describe("sidebar tests", function () {
     //                 // case no asserts create contest is visible
     //                 browser.isPresent(
     //                     {
-	// 						selector: `a[title='${createElectionEvent.config.contest.name}']`,
+    // 						selector: `a[title='${createElectionEvent.config.contest.name}']`,
     //                         supressNotFoundErrors: true,
     //                         timeout: 1000,
     //                     },
@@ -53,22 +53,22 @@ describe("sidebar tests", function () {
     //                         if (result.value) {
     //                             // opens contest menu
     //                             browser.assert
-	// 								.visible(`a[title='${createElectionEvent.config.contest.name}']`)
+    // 								.visible(`a[title='${createElectionEvent.config.contest.name}']`)
     //                                 .click(
-	// 									`a[title='${createElectionEvent.config.contest.name}']`
+    // 									`a[title='${createElectionEvent.config.contest.name}']`
     //                                 )
     //                         } else {
     //                             // check has new
-	// 							browser.assert.visible(`a[title='${createElectionEvent.config.contest.name}']`)
+    // 							browser.assert.visible(`a[title='${createElectionEvent.config.contest.name}']`)
     //                         }
     //                     }
     //                 )
 
     //                 // closes election menu
     //                 browser.assert
-	// 					.visible(`a[title='${createElectionEvent.config.election.name}']`)
+    // 					.visible(`a[title='${createElectionEvent.config.election.name}']`)
     //                     .click(
-	// 						`a[title='${createElectionEvent.config.election.name}']`
+    // 						`a[title='${createElectionEvent.config.election.name}']`
     //                     )
 
     //                 // closes ee menu

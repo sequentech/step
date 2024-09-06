@@ -5,7 +5,9 @@
 import {pause} from ".."
 
 exports.command = function () {
-	this.useXpath().click(`//button[@aria-label="log out button"]`).useCss()
+    this.useXpath()
+        .click(`//button[@aria-label="log out button"]`)
+        .useCss()
         .click("li.logout-button")
         .click("button.ok-button")
         .pause(pause.medium)
