@@ -67,6 +67,7 @@ export const SettingsLookAndFeel: React.FC<void> = () => {
             <TextInput
                 resettable={true}
                 source={"annotations.logo_url"}
+                defaultValue={logoUrl}
                 label={t("electionTypeScreen.common.logoUrl")}
                 onBlur={(event) => setLogoUrl(event.target.value)}
             />
@@ -74,6 +75,7 @@ export const SettingsLookAndFeel: React.FC<void> = () => {
                 resettable={true}
                 multiline={true}
                 source={"annotations.css"}
+                defaultValue={cssContent}
                 label={t("electionTypeScreen.common.css")}
                 onBlur={(event) => setCssContent(event.target.value)}
             />
