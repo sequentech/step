@@ -5,7 +5,9 @@
 import {pause} from ".."
 
 exports.command = function () {
-    this.click("header [data-testid='AccountCircleIcon']")
+    this.useXpath()
+        .click(`//button[@aria-label="log out button"]`)
+        .useCss()
         .click("li.logout-button")
         .click("button.ok-button")
         .pause(pause.medium)
