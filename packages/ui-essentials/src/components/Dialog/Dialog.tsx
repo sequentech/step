@@ -11,6 +11,7 @@ import {faTimesCircle, faInfoCircle, faExclamationTriangle} from "@fortawesome/f
 import styledEmotion from "@emotion/styled"
 import Icon from "../Icon/Icon"
 import IconButton from "../IconButton/IconButton"
+import { IconProp } from "@fortawesome/fontawesome-svg-core"
 
 const StyledBackdrop = styledEmotion(Backdrop)`
     opacity: 0.5 !important;
@@ -60,7 +61,7 @@ const Dialog: React.FC<DialogProps> = ({
             <DialogTitle className="dialog-title">
                 <Icon
                     variant={infoVariant}
-                    icon={faIcon}
+                    icon={faIcon as IconProp}
                     fontSize="24px"
                     className="dialog-icon-info"
                 />
@@ -74,7 +75,7 @@ const Dialog: React.FC<DialogProps> = ({
                     {title}
                 </Box>
                 <IconButton
-                    icon={faTimesCircle}
+                    icon={faTimesCircle as IconProp}
                     variant="primary"
                     onClick={closeDialog}
                     className="dialog-icon-close"

@@ -9,6 +9,7 @@ import CustomDropFile from "../CustomDropFile/CustomDropFile"
 import Icon from "../Icon/Icon"
 import {Box, Typography} from "@mui/material"
 import {theme} from "../../services/theme"
+import { IconProp } from "@fortawesome/fontawesome-svg-core"
 
 interface DropFileProps {
     handleFiles: (files: FileList) => void | Promise<void>
@@ -37,7 +38,7 @@ const DropFile: React.FC<DropFileProps> = ({handleFiles}) => {
                     alignItems: "center",
                 }}
             >
-                <Icon variant="info" icon={faCloudArrowUp} fontSize="50px" />
+                <Icon variant="info" icon={faCloudArrowUp as IconProp} fontSize="50px" />
                 <Box
                     sx={{
                         display: "flex",

@@ -8,6 +8,7 @@ import IconButton from "../IconButton/IconButton"
 import {useTranslation} from "react-i18next"
 import {faCircleQuestion, faCheck} from "@fortawesome/free-solid-svg-icons"
 import theme from "../../services/theme"
+import { IconProp } from "@fortawesome/fontawesome-svg-core"
 
 const HashContainer = styled(Box)`
     display: flex;
@@ -40,7 +41,7 @@ const BallotHash: React.FC<BallotHashProps> = ({hash, onHelpClick}) => {
     return (
         <HashContainer className="hash-container">
             <IconButton
-                icon={faCheck}
+                icon={faCheck as IconProp}
                 sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
                 fontSize="14px"
             />
@@ -48,7 +49,7 @@ const BallotHash: React.FC<BallotHashProps> = ({hash, onHelpClick}) => {
                 {t("ballotHash", {ballotId: hash})}
             </BallotHashText>
             <IconButton
-                icon={faCircleQuestion}
+                icon={faCircleQuestion as IconProp}
                 sx={{
                     fontSize: "unset",
                     lineHeight: "unset",

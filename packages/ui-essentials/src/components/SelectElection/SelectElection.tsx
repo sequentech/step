@@ -10,6 +10,7 @@ import {faTimes, faCheck} from "@fortawesome/free-solid-svg-icons"
 import theme from "../../services/theme"
 import {isUndefined} from "@sequentech/ui-core"
 import {useTranslation} from "react-i18next"
+import { IconProp } from "@fortawesome/fontawesome-svg-core"
 
 const BorderBox = styled(Box)<{isopen: string; isactive: string}>`
     display: flex;
@@ -214,7 +215,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                 </Box>
                 {hasVoted ? (
                     <VotedContainer hasvoted={String(!!hasVoted)} color={theme.palette.errorColor}>
-                        <FontAwesomeIcon icon={faCheck} size="sm" />
+                        <FontAwesomeIcon icon={faCheck as IconProp} size="sm" />
                         <Typography fontSize="14px" margin={0}>
                             {t("selectElection.voted")}
                         </Typography>
@@ -224,7 +225,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                         hasvoted={String(!!hasVoted)}
                         color={theme.palette.brandSuccess}
                     >
-                        <FontAwesomeIcon icon={faTimes} size="sm" />
+                        <FontAwesomeIcon icon={faTimes as IconProp} size="sm" />
                         <Typography fontSize="14px" margin={0}>
                             {t("selectElection.notVoted")}
                         </Typography>

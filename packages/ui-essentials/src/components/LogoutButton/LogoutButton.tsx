@@ -8,6 +8,7 @@ import {Box} from "@mui/material"
 import {faArrowRightFromBracket} from "@fortawesome/free-solid-svg-icons"
 import {useTranslation} from "react-i18next"
 import Dialog from "../Dialog/Dialog"
+import { IconProp } from "@fortawesome/fontawesome-svg-core"
 
 export interface LogoutButtonProps {
     logoutFn: () => void
@@ -21,7 +22,7 @@ const LogoutButton: React.FC<LogoutButtonProps> = ({logoutFn}) => {
     return (
         <>
             <Button variant="actionbar" onClick={() => setOpen(true)}>
-                <FontAwesomeIcon icon={faArrowRightFromBracket} size="lg" />
+                <FontAwesomeIcon icon={faArrowRightFromBracket as IconProp} size="lg" />
                 <Box component="span" sx={{display: {xs: "none", md: "block"}}}>
                     {t("logout.buttonText")}
                 </Box>

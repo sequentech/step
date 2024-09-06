@@ -8,6 +8,7 @@ import Box from "@mui/material/Box"
 import {faWarning, faTimes} from "@fortawesome/free-solid-svg-icons"
 import IconButton from "../IconButton/IconButton"
 import Icon from "../Icon/Icon"
+import { IconProp } from "@fortawesome/fontawesome-svg-core"
 
 const WarnContainer = styled(Paper)`
     padding: 17px;
@@ -26,9 +27,9 @@ interface WarnBoxProps {
 
 const WarnBox: React.FC<PropsWithChildren<WarnBoxProps>> = ({onClose, variant, children}) => (
     <WarnContainer variant={variant}>
-        <Icon icon={faWarning} size="lg" />
+        <Icon icon={faWarning as IconProp} size="lg" />
         <Box flexGrow={2}>{children}</Box>
-        {onClose ? <IconButton icon={faTimes} onClick={onClose} /> : undefined}
+        {onClose ? <IconButton icon={faTimes as IconProp} onClick={onClose} /> : undefined}
     </WarnContainer>
 )
 

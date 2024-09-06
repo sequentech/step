@@ -7,27 +7,28 @@ import Button, {ButtonProps} from "@mui/material/Button"
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 import {faPrint} from "@fortawesome/free-solid-svg-icons"
 import VerticalBox from "../../../components/VerticalBox/VerticalBox"
+import { IconProp } from "@fortawesome/fontawesome-svg-core"
 
 const Template: React.FC<ButtonProps> = (args) => (
     <VerticalBox maxWidth="210px">
         <Button className="normal" {...args}>
-            <FontAwesomeIcon icon={faPrint} size="sm" />
+            <FontAwesomeIcon icon={faPrint as IconProp} size="sm" />
             <span>Label</span>
         </Button>
         <Button disabled {...args}>
-            <FontAwesomeIcon icon={faPrint} size="sm" />
+            <FontAwesomeIcon icon={faPrint as IconProp} size="sm" />
             <span>Label</span>
         </Button>
         <Button className="hover" {...args}>
-            <FontAwesomeIcon icon={faPrint} size="sm" />
+            <FontAwesomeIcon icon={faPrint as IconProp} size="sm" />
             <span>Label</span>
         </Button>
         <Button className="active" {...args}>
-            <FontAwesomeIcon icon={faPrint} size="sm" />
+            <FontAwesomeIcon icon={faPrint as IconProp} size="sm" />
             <span>Label</span>
         </Button>
         <Button className="focus" {...args}>
-            <FontAwesomeIcon icon={faPrint} size="sm" />
+            <FontAwesomeIcon icon={faPrint as IconProp} size="sm" />
             <span>Label</span>
         </Button>
     </VerticalBox>

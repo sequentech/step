@@ -8,6 +8,7 @@ import {INITIAL_VIEWPORTS} from "@storybook/addon-viewport"
 import {faBank} from "@fortawesome/free-solid-svg-icons"
 import Icon from "../../Icon/Icon"
 import {styled} from "@mui/material/styles"
+import { IconProp } from "@fortawesome/fontawesome-svg-core"
 
 const StyledIcon = styled(Icon)`
     margin-right: 8px;
@@ -74,7 +75,7 @@ export const TreeComponents: Story = {
             {
                 label: (
                     <>
-                        <StyledIcon icon={faBank} />
+                        <StyledIcon icon={faBank as IconProp} />
                         <i>Parent</i>
                     </>
                 ),

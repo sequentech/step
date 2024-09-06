@@ -10,6 +10,7 @@ import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 import {faLanguage, faCaretDown} from "@fortawesome/free-solid-svg-icons"
 import {styled} from "@mui/material/styles"
 import {Box} from "@mui/material"
+import { IconProp } from "@fortawesome/fontawesome-svg-core"
 
 interface ButtonProps {
     isactive?: string
@@ -56,11 +57,11 @@ const LanguageMenu: React.FC<{languagesList?: Array<string>; label?: string}> = 
                 onClick={handleClick}
                 isactive={String(open)}
             >
-                <FontAwesomeIcon icon={faLanguage} size="lg" />
+                <FontAwesomeIcon icon={faLanguage as IconProp} size="lg" />
                 <Box component="span" sx={{display: {xs: "none", md: "block"}}}>
                     {t("language")}
                 </Box>
-                <FontAwesomeIcon icon={faCaretDown} size="lg" />
+                <FontAwesomeIcon icon={faCaretDown as IconProp} size="lg" />
             </StyledButton>
             <Menu
                 id="lang-menu"
