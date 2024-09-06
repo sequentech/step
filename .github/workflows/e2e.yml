@@ -69,7 +69,7 @@ jobs:
       if: ${{ github.event.inputs.useLocal == 'true' }}
       run: |
         cd .devcontainer
-        source .env.development
+        cp .env.development .env
         docker compose build
         docker compose up
         export TEST_URL='http://localhost:3002'
