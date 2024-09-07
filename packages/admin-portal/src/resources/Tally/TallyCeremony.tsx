@@ -131,25 +131,6 @@ export const TallyCeremony: React.FC = () => {
     const [UpdateTallyCeremonyMutation] =
         useMutation<UpdateTallyCeremonyMutation>(UPDATE_TALLY_CEREMONY)
 
-    const [SendTransmissionPackage] = useMutation<SendTransmissionPackageMutation>(
-        SEND_TRANSMISSION_PACKAGE,
-        {
-            context: {
-                headers: {
-                    "x-hasura-role": IPermissions.MIRU_SEND,
-                },
-            },
-        }
-    )
-
-    const [uploadSignature] = useMutation<UploadSignatureMutation>(UPLOAD_SIGNATURE, {
-        context: {
-            headers: {
-                "x-hasura-role": IPermissions.MIRU_SIGN,
-            },
-        },
-    })
-
     const tallyData = useAtomValue(tallyQueryData)
 
     const area: Sequent_Backend_Area | null = useMemo(

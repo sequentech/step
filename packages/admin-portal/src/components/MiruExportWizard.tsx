@@ -88,7 +88,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL, {
         context: {
             headers: {
-                "x-hasura-role": IPermissions.TALLY_WRITE,
+                "x-hasura-role": IPermissions.DOCUMENT_UPLOAD,
             },
         },
     })
