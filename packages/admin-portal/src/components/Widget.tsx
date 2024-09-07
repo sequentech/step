@@ -164,6 +164,7 @@ export const Widget: React.FC<WidgetProps> = ({
                     </AccordionDetails>
                 </Accordion>
             </WidgetContainer>
+            
             {openTaskModal && taskId && (
                 <ViewTask
                     currTaskId={taskId}

@@ -30,7 +30,7 @@ export const StackContainer = styled(Box)({
     position: "fixed",
     bottom: 16,
     right: 16,
-    zIndex: 15000,
+    zIndex: 1000,
     gap: "10px",
     maxHeight: "80vh",
     overflowY: "auto",

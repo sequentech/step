@@ -8,8 +8,11 @@ export const GET_TASK_BY_ID = gql`
         sequent_backend_tasks_execution(where: {id: {_eq: $task_id}}) {
             id
             execution_status
-            logs
             type
+            start_at
+            end_at
+            logs
+            executed_by_user
         }
     }
 `

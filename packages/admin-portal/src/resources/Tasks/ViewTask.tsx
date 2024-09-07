@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {Sequent_Backend_Election_Event, Sequent_Backend_Tasks_Execution} from "@/gql/graphql"
-import React, {useState} from "react"
+import {Sequent_Backend_Election_Event} from "@/gql/graphql"
+import React, {useContext, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {theme, Dialog} from "@sequentech/ui-essentials"
 import {WizardStyles} from "@/components/styles/WizardStyles"
@@ -14,9 +14,12 @@ import TableCell from "@mui/material/TableCell"
 import TableContainer from "@mui/material/TableContainer"
 import TableRow from "@mui/material/TableRow"
 import Paper from "@mui/material/Paper"
-import {Identifier, useGetOne} from "react-admin"
+import {Identifier} from "react-admin"
 import {Logs} from "@/components/Logs"
 import {ETaskExecutionStatus} from "@sequentech/ui-core"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {useQuery} from "@apollo/client"
+import {GET_TASK_BY_ID} from "@/queries/GetTaskById"
 
 export const statusColor: (status: string) => string = (status) => {
     if (status === ETaskExecutionStatus.STARTED) {
@@ -47,13 +50,15 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
 }) => {
     const {t} = useTranslation()
     const [progressExpanded, setProgressExpanded] = useState(true)
+    const {globalSettings} = useContext(SettingsContext)
 
-    const {data: task} = useGetOne<Sequent_Backend_Tasks_Execution>(
-        "sequent_backend_tasks_execution",
-        {
-            id: currTaskId,
-        }
-    )
+    const {data: taskData} = useQuery(GET_TASK_BY_ID, {
+        variables: {task_id: currTaskId},
+        skip: !currTaskId,
+        pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+    })
+
+    const task = taskData.sequent_backend_tasks_execution[0]
 
     const Content = (
         <>
