@@ -22,10 +22,18 @@ export const WidgetContainer = styled(Paper)({
     display: "flex",
     flexDirection: "column",
     width: 450,
+})
+
+export const StackContainer = styled(Box)({
+    display: "flex",
+    flexDirection: "column",
     position: "fixed",
     bottom: 16,
     right: 16,
     zIndex: 15000,
+    gap: "10px",
+    maxHeight: "80vh",
+    overflowY: "auto",
 })
 
 export const HeaderBox = styled(Box)({

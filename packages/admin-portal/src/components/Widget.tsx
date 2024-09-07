@@ -1,8 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
-//
-// SPDX-License-Identifier: AGPL-3.0-only
-
-import React, {useEffect, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {
     Accordion,
     AccordionDetails,
@@ -35,6 +31,9 @@ import {StatusChip} from "./StatusChip"
 import {IKeysCeremonyLog as ITaskLog} from "@/services/KeyCeremony"
 import {useTranslation} from "react-i18next"
 import {ViewTask} from "@/resources/Tasks/ViewTask"
+import {SettingsContext} from "../providers/SettingsContextProvider"
+import {GET_TASK_BY_ID} from "@/queries/GetTaskById"
+import {useQuery} from "@apollo/client"
 
 interface LogTableProps {
     logs: ITaskLog[]
@@ -57,39 +56,53 @@ export const LogTable: React.FC<LogTableProps> = ({logs}) => {
     )
 }
 
-export interface WidgetStateProps {
+export interface WidgetProps {
+    identifier: string
     type: ETasksExecution
     status: ETaskExecutionStatus
-    logs?: Array<ITaskLog>
-    id?: String
-}
-
-interface WidgetProps {
-    type: ETasksExecution
-    status: ETaskExecutionStatus
-    onClose: (val: {}) => void
+    onClose: (taskId: string) => void
     onSuccess?: () => void
     onFailure?: () => void
     logs?: Array<ITaskLog>
-    id?: String
+    taskId?: string
 }
 
 export const Widget: React.FC<WidgetProps> = ({
+    identifier,
     type,
     status,
     onClose,
     onSuccess,
     onFailure,
     logs,
-    id,
+    taskId,
 }) => {
     const {t} = useTranslation()
+    const {globalSettings} = useContext(SettingsContext)
     const [expanded, setExpanded] = useState(false)
     const [openTaskModal, setOpenTaskModal] = useState(false)
+    const [taskDataType, setTaskDataType] = useState<ETasksExecution | undefined>(type)
+    const [taskDataStatus, setTaskDataStatus] = useState<ETaskExecutionStatus | undefined>(status)
+    const [taskDataLogs, setTaskDataLogs] = useState<Array<ITaskLog>>(logs || [])
 
     const initialLog: ITaskLog[] = [
         {created_date: new Date().toLocaleString(), log_text: "Task started"},
     ]
+
+    const {data: taskData} = useQuery(GET_TASK_BY_ID, {
+        variables: {task_id: taskId},
+        skip: !taskId,
+        pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+    })
+
+    useEffect(() => {
+        if (taskData && taskData.sequent_backend_tasks_execution.length > 0) {
+            const task = taskData.sequent_backend_tasks_execution[0]
+            setTaskDataType(task.type)
+            setTaskDataStatus(task.execution_status)
+            setTaskDataLogs(task.logs)
+        }
+    }, [taskData])
 
     useEffect(() => {
         if (status === ETaskExecutionStatus.FAILED) {
@@ -98,9 +111,9 @@ export const Widget: React.FC<WidgetProps> = ({
         } else if (status === ETaskExecutionStatus.SUCCESS) {
             onSuccess && onSuccess()
         }
-    }, [status])
+    }, [status, onFailure, onSuccess])
 
-    const onSetViewTask = (event: React.ChangeEvent<{}>) => {
+    const onSetViewTask = (event: React.MouseEvent<HTMLElement>) => {
         event.stopPropagation()
         setOpenTaskModal(!openTaskModal)
     }
@@ -117,19 +130,22 @@ export const Widget: React.FC<WidgetProps> = ({
                             <InfoBox>
                                 <TypeTypography>
                                     <b>Task: </b>
-                                    {t(`tasksScreen.tasksExecution.${type}`)}
+                                    {t(`tasksScreen.tasksExecution.${taskDataType || type}`)}
                                 </TypeTypography>
-                                <StatusChip status={status} />
+                                <StatusChip status={taskDataStatus || status} />
                                 <IconsBox>
-                                    <StyledIconButton size="small">
-                                        <Visibility onClick={(event) => onSetViewTask(event)} />
+                                    <StyledIconButton size="small" onClick={onSetViewTask}>
+                                        <Visibility />
                                     </StyledIconButton>
-                                    <StyledIconButton size="small">
-                                        <CloseIcon onClick={onClose} />
+                                    <StyledIconButton
+                                        size="small"
+                                        onClick={() => onClose(identifier)}
+                                    >
+                                        <CloseIcon />
                                     </StyledIconButton>
                                 </IconsBox>
                             </InfoBox>
-                            {status === ETaskExecutionStatus.IN_PROGRESS && (
+                            {taskDataStatus === ETaskExecutionStatus.IN_PROGRESS && (
                                 <StyledProgressBar>
                                     <LinearProgress />
                                 </StyledProgressBar>
@@ -142,14 +158,18 @@ export const Widget: React.FC<WidgetProps> = ({
                         <LogsBox>
                             <LogTypography>{t("widget.logs")}</LogTypography>
                             <Divider />
-                            <LogTable logs={logs || initialLog} />
+                            <LogTable logs={taskDataLogs.length > 0 ? taskDataLogs : initialLog} />
                         </LogsBox>
                         <ViewTaskTypography onClick={onSetViewTask}>View Task</ViewTaskTypography>
                     </AccordionDetails>
                 </Accordion>
             </WidgetContainer>
-            {openTaskModal && id && (
-                <ViewTask currTaskId={id} goBack={() => setOpenTaskModal(false)} isModal={true} />
+            {openTaskModal && taskId && (
+                <ViewTask
+                    currTaskId={taskId}
+                    goBack={() => setOpenTaskModal(false)}
+                    isModal={true}
+                />
             )}
         </>
     )

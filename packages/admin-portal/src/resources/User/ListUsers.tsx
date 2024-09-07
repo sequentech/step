@@ -111,7 +111,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [getDocument, {data: documentData}] = useLazyQuery<GetDocumentQuery>(GET_DOCUMENT)
     const documentUrlRef = React.useRef(documentUrl)
     const {getDocumentUrl} = useGetPublicDocumentUrl()
-    const [widgetState, setWidgetState, taskId, setTaskId] = useWidgetStore()
+    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
 
     const [openSendCommunication, setOpenSendCommunication] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
@@ -537,12 +537,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
 
     const handleImportVoters = async (documentId: string, sha256: string) => {
         setOpenImportDrawer(false)
-        setTaskId(undefined)
+        const currWidget = addWidget(ETasksExecution.IMPORT_USERS)
         try {
-            setWidgetState({
-                type: ETasksExecution.IMPORT_USERS,
-                status: ETaskExecutionStatus.IN_PROGRESS,
-            })
             let {data, errors} = await importUsers({
                 variables: {
                     tenantId,
@@ -551,22 +547,16 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 },
             })
             const task_id = data?.import_users?.task_execution.id
-            setTaskId(task_id)
+            setWidgetTaskId(currWidget.identifier, task_id)
 
             refresh()
 
             if (errors) {
-                setWidgetState({
-                    type: ETasksExecution.IMPORT_USERS,
-                    status: ETaskExecutionStatus.FAILED,
-                })
+                updateWidgetFail(currWidget.identifier)
                 notify(t("electionEventScreen.import.importVotersError"), {type: "error"})
             }
         } catch (err) {
-            setWidgetState({
-                type: ETasksExecution.IMPORT_USERS,
-                status: ETaskExecutionStatus.FAILED,
-            })
+            updateWidgetFail(currWidget.identifier)
         }
     }
 

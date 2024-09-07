@@ -111,7 +111,7 @@ export const CreateElectionList: React.FC = () => {
     const {t} = useTranslation()
     const navigate = useNavigate()
     const refresh = useRefresh()
-    const [widgetState, setWidgetState, taskId, setTaskId] = useWidgetStore()
+    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const {setLastCreatedResource} = useContext(NewResourceContext)
     const {refetch: refetchTreeMenu} = useTreeMenuData(false)
 
@@ -233,28 +233,33 @@ export const CreateElectionList: React.FC = () => {
     const handleImportElectionEvent = async (documentId: string, sha256: string) => {
         closeImportDrawer()
         setErrors(null)
-        let {data, errors} = await importElectionEvent({
-            variables: {
-                tenantId,
-                documentId,
-            },
-        })
-        setWidgetState({
-            type: ETasksExecution.IMPORT_ELECTION_EVENT,
-            status: ETaskExecutionStatus.IN_PROGRESS,
-        })
+        const currWidget = addWidget(ETasksExecution.IMPORT_ELECTION_EVENT)
 
-        if (data?.import_election_event?.error) {
-            setErrors(data.import_election_event.error)
-            return
-        }
+        try {
+            let {data, errors} = await importElectionEvent({
+                variables: {
+                    tenantId,
+                    documentId,
+                },
+            })
+            if (data?.import_election_event?.error) {
+                setErrors(data.import_election_event.error)
+                updateWidgetFail(currWidget.identifier)
+                return
+            }
 
-        let id = data?.import_election_event?.id
-        if (id) {
-            setTaskId(data?.import_election_event?.task_execution?.id)
-            setNewId(id)
-            setLastCreatedResource({id, type: "sequent_backend_election_event"})
-            setIsLoading(true)
+            let id = data?.import_election_event?.id
+            if (id) {
+                setWidgetTaskId(
+                    currWidget.identifier,
+                    data?.import_election_event?.task_execution?.id
+                )
+                setNewId(id)
+                setLastCreatedResource({id, type: "sequent_backend_election_event"})
+                setIsLoading(true)
+            }
+        } catch (err) {
+            updateWidgetFail(currWidget.identifier)
         }
     }
 

@@ -74,8 +74,6 @@ import {useWatch} from "react-hook-form"
 import {convertToNumber} from "@/lib/helpers"
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {ETasksExecution} from "@/types/tasksExecution"
-import {WidgetStateProps} from "@/components/Widget"
-import {ETaskExecutionStatus} from "@sequentech/ui-core"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
@@ -132,8 +130,6 @@ interface ExportWrapperProps {
     setOpenExport: (val: boolean) => void
     exportDocumentId: string | undefined
     setExportDocumentId: (val: string | undefined) => void
-    setWidget: (val: WidgetStateProps) => void
-    setTaskId: (val: string | undefined) => void
 }
 
 const ExportWrapper: React.FC<ExportWrapperProps> = ({
@@ -142,11 +138,10 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
     setOpenExport,
     exportDocumentId,
     setExportDocumentId,
-    setWidget,
-    setTaskId,
 }) => {
-    const notify = useNotify()
     const {t} = useTranslation()
+    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
+
     const [exportElectionEvent] = useMutation<ExportElectionEventMutation>(EXPORT_ELECTION_EVENT, {
         context: {
             headers: {
@@ -158,27 +153,20 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
     const confirmExportAction = async () => {
         console.log("CONFIRM EXPORT")
         setOpenExport(false)
-        setTaskId(undefined)
-        setWidget({
-            type: ETasksExecution.EXPORT_ELECTION_EVENT,
-            status: ETaskExecutionStatus.IN_PROGRESS,
-        })
+        const currWidget = addWidget(ETasksExecution.EXPORT_ELECTION_EVENT)
         const {data: exportElectionEventData, errors} = await exportElectionEvent({
             variables: {electionEventId},
         })
 
         const documentId = exportElectionEventData?.export_election_event?.document_id
         if (errors || !documentId) {
-            setWidget({
-                type: ETasksExecution.EXPORT_ELECTION_EVENT,
-                status: ETaskExecutionStatus.FAILED,
-            })
+            updateWidgetFail(currWidget.identifier)
             console.log(`Error exporting users: ${errors}`)
             return
         }
 
         const task_id = exportElectionEventData?.export_election_event?.task_execution.id
-        setTaskId(task_id)
+        setWidgetTaskId(currWidget.identifier, task_id)
         setExportDocumentId(documentId)
     }
 
@@ -222,7 +210,7 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
 
 export const EditElectionEventDataForm: React.FC = () => {
     const {t} = useTranslation()
-    const [widgetState, setWidgetState, taskId, setTaskId] = useWidgetStore()
+    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -543,12 +531,8 @@ export const EditElectionEventDataForm: React.FC = () => {
 
     const handleImportCandidates = async (documentId: string, sha256: string) => {
         setOpenImportCandidates(false)
+        const currWidget = addWidget(ETasksExecution.IMPORT_CANDIDATES)
         try {
-            setTaskId(undefined)
-            setWidgetState({
-                type: ETasksExecution.IMPORT_CANDIDATES,
-                status: ETaskExecutionStatus.IN_PROGRESS,
-            })
             let {data, errors} = await importCandidates({
                 variables: {
                     documentId,
@@ -559,19 +543,13 @@ export const EditElectionEventDataForm: React.FC = () => {
             if (errors) {
                 console.log(errors)
                 notify("Error importing candidates", {type: "error"})
-                setWidgetState({
-                    type: ETasksExecution.IMPORT_CANDIDATES,
-                    status: ETaskExecutionStatus.FAILED,
-                })
+                updateWidgetFail(currWidget.identifier)
                 return
             }
-            setTaskId(data?.import_candidates?.task_execution.id)
+            setWidgetTaskId(currWidget.identifier, data?.import_candidates?.task_execution.id)
         } catch (err) {
             notify("Error importing candidates", {type: "error"})
-            setWidgetState({
-                type: ETasksExecution.IMPORT_CANDIDATES,
-                status: ETaskExecutionStatus.FAILED,
-            })
+            updateWidgetFail(currWidget.identifier)
         }
     }
 
@@ -1006,8 +984,6 @@ export const EditElectionEventDataForm: React.FC = () => {
                 setOpenExport={setOpenExport}
                 exportDocumentId={exportDocumentId}
                 setExportDocumentId={setExportDocumentId}
-                setWidget={setWidgetState}
-                setTaskId={setTaskId}
             />
         </>
     )

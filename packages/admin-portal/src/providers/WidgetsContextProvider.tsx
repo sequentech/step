@@ -1,70 +1,80 @@
-import {Widget, WidgetStateProps} from "@/components/Widget"
-import {GET_TASK_BY_ID} from "@/queries/GetTaskById"
-import {useQuery} from "@apollo/client"
-import React, {createContext, useContext, useEffect, useState} from "react"
-import {SettingsContext} from "./SettingsContextProvider"
-import { ETasksExecution } from "@/types/tasksExecution"
-import { ETaskExecutionStatus } from "@sequentech/ui-core"
+import React, {createContext, useContext, useState} from "react"
+import {ETasksExecution} from "@/types/tasksExecution"
+import {ETaskExecutionStatus} from "@sequentech/ui-core"
+import {WidgetsStack} from "@/components/WidgetsStack"
+import {WidgetProps} from "@/components/Widget"
 
 interface WidgetContextProps {
-    widgetState: WidgetStateProps | undefined
-    setWidgetState: (val: WidgetStateProps | undefined) => void
-    taskId: string | undefined
-    setTaskId: (val: string | undefined) => void
+    addWidget: (type: ETasksExecution) => WidgetProps
+    setWidgetTaskId: (widgetIdentifier: string, taskId: string) => void
+    updateWidgetFail: (widgetIdentifier: string) => void
 }
 
 const WidgetContext = createContext<WidgetContextProps>({
-    widgetState: undefined,
-    setWidgetState: () => {},
-    taskId: undefined,
-    setTaskId: () => {},
+    addWidget: () => ({} as WidgetProps),
+    setWidgetTaskId: () => {},
+    updateWidgetFail: () => {},
 })
 
 export const WidgetsContextProvider: React.FC<{children: React.ReactNode}> = ({children}) => {
-    const {globalSettings} = useContext(SettingsContext)
-    const [widgetState, setWidgetState] = useState<WidgetStateProps | undefined>(undefined)
-    const [taskId, setTaskId] = useState<string | undefined>(undefined)
+    const [widgetsState, setWidgetsState] = useState<Map<string, WidgetProps>>(new Map())
 
-    const {data: taskData} = useQuery(GET_TASK_BY_ID, {
-        variables: {task_id: taskId},
-        skip: !taskId,
-        pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-    })
+    const generateWidgetId = (): string => {
+        const now = new Date()
+        const formattedDate = now.toISOString().replace(/[-:.TZ]/g, "")
+        return `widget_${formattedDate}`
+    }
 
-    useEffect(() => {
-        console.log("task data", taskData)
-        if (taskData) {
-            setWidgetState({
-                type: taskData?.sequent_backend_tasks_execution[0].type,
-                status: taskData?.sequent_backend_tasks_execution[0].execution_status,
-                logs: taskData?.sequent_backend_tasks_execution[0].logs,
-                id: taskId,
-            })
+    const addWidget = (type: ETasksExecution): WidgetProps => {
+        const newWidget: WidgetProps = {
+            type,
+            status: ETaskExecutionStatus.IN_PROGRESS,
+            onClose: onClose,
+            identifier: generateWidgetId(),
         }
-    }, [taskData])
 
-    const onCloseWidget = () => {
-        setWidgetState(undefined)
-        setTaskId(undefined)
+        setWidgetsState((prevState) => new Map(prevState.set(newWidget.identifier, newWidget)))
+        return newWidget
+    }
+
+    const setWidgetTaskId = (widgetIdentifier: string, taskId: string) => {
+        setWidgetsState((prevState) => {
+            const widget = prevState.get(widgetIdentifier)
+            if (widget) {
+                widget.taskId = taskId
+                prevState.set(widgetIdentifier, widget)
+            }
+            return new Map(prevState)
+        })
+    }
+
+    const updateWidgetFail = (widgetIdentifier: string) => {
+        setWidgetsState((prevState) => {
+            const widget = prevState.get(widgetIdentifier)
+            if (widget) {
+                widget.status = ETaskExecutionStatus.FAILED
+                prevState.set(widgetIdentifier, widget)
+            }
+            return new Map(prevState)
+        })
+    }
+
+    const onClose = (widgetIdentifier: string) => {
+        setWidgetsState((prevState) => {
+            prevState.delete(widgetIdentifier)
+            return new Map(prevState)
+        })
     }
 
     return (
-        <WidgetContext.Provider value={{widgetState, setWidgetState, taskId: taskId, setTaskId}}>
+        <WidgetContext.Provider value={{addWidget, setWidgetTaskId, updateWidgetFail}}>
             {children}
-            {widgetState && (
-                <Widget
-                    type={widgetState.type|| ETasksExecution.EXPORT_ELECTION_EVENT}
-                    status={widgetState.status || ETaskExecutionStatus.CANCELLED}
-                    logs={widgetState.logs}
-                    onClose={onCloseWidget}
-                    id={taskId}
-                />
-            )}
+            {widgetsState.size > 0 && <WidgetsStack widgetsMap={widgetsState} />}
         </WidgetContext.Provider>
     )
 }
 
 export const useWidgetStore = () => {
-    const {widgetState, setWidgetState, taskId, setTaskId} = useContext(WidgetContext)
-    return [widgetState, setWidgetState, taskId, setTaskId] as const
+    const {addWidget, setWidgetTaskId, updateWidgetFail} = useContext(WidgetContext)
+    return [addWidget, setWidgetTaskId, updateWidgetFail] as const
 }
