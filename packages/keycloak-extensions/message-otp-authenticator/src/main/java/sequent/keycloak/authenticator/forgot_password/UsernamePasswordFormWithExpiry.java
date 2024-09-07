@@ -31,6 +31,7 @@ import org.keycloak.models.ModelDuplicateException;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.credential.PasswordCredentialModel;
+import org.keycloak.models.utils.FormMessage;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.services.ServicesLogger;
@@ -115,10 +116,15 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
       // validateUserAndPassword() already does that
       return false;
     }
+    // If we reach here, password was validated. But now we need to check if
+    // there's an user expiration attribute and if so, if it has expired
+    // already. But of course, this only makese sense if password is not
+    // disabled.
+    boolean disablePassword = getDisablePassword(context);
+    if (disablePassword) {
+      return true;
+    }
 
-    // If we reach here, password was validated. But now we need to check
-    // if there's an user expiration attribute and if so, if it has expired
-    // already
     UserModel user = getUser(context, formData);
     if (user == null) {
       // should not happen. We have validated the form, so we should have
@@ -171,8 +177,11 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
     UserModel user = getUser(context, inputData);
     boolean shouldClearUserFromCtxAfterBadPassword =
         !isUserAlreadySetBeforeUsernamePasswordAuth(context);
+    boolean disablePassword = getDisablePassword(context);
+
     return user != null
-        && validatePassword(context, user, inputData, shouldClearUserFromCtxAfterBadPassword)
+        && (disablePassword
+            || validatePassword(context, user, inputData, shouldClearUserFromCtxAfterBadPassword))
         && validateUser(context, user, inputData);
   }
 
@@ -336,14 +345,47 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
 
   protected Response challenge(
       AuthenticationFlowContext context, MultivaluedMap<String, String> formData) {
-    LoginFormsProvider forms = context.form();
+    boolean disablePassword = getDisablePassword(context);
+
+    LoginFormsProvider form = context.form();
     Utils.addRecaptchaChallenge(context, formData);
 
     if (formData.size() > 0) {
-      forms.setFormData(formData);
+      form.setFormData(formData);
     }
 
-    return forms.createLoginUsernamePassword();
+    if (disablePassword) {
+      return form.createPasswordReset();
+    } else {
+      return form.createLoginUsernamePassword();
+    }
+  }
+
+  protected boolean getDisablePassword(AuthenticationFlowContext context) {
+    Map<String, String> config = context.getAuthenticatorConfig().getConfig();
+    String disablePasswordString = config.get(Utils.DISABLE_PASSWORD_ATTRIBUTE);
+    return disablePasswordString != null && disablePasswordString.equals("true");
+  }
+
+  @Override
+  protected Response challenge(AuthenticationFlowContext context, String error, String field) {
+    boolean disablePassword = getDisablePassword(context);
+
+    LoginFormsProvider form = context.form().setExecution(context.getExecution().getId());
+
+    if (error != null) {
+      if (field != null) {
+        form.addError(new FormMessage(field, error));
+      } else {
+        form.setError(error);
+      }
+    }
+
+    if (disablePassword) {
+      return form.createPasswordReset();
+    } else {
+      return form.createLoginUsernamePassword();
+    }
   }
 
   @Override
@@ -416,6 +458,12 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
             "User attribute to use storing the Password Expiration Date. Should be read-only.",
             ProviderConfigProperty.STRING_TYPE,
             Utils.PASSWORD_EXPIRATION_USER_ATTRIBUTE_DEFAULT),
+        new ProviderConfigProperty(
+            Utils.DISABLE_PASSWORD_ATTRIBUTE,
+            "Disable Password Field",
+            "Just enter the username field. Used for example as the form in Forgot Password",
+            ProviderConfigProperty.BOOLEAN_TYPE,
+            false),
         new ProviderConfigProperty(
             Utils.RECAPTCHA_SITE_KEY_ATTRIBUTE,
             "reCAPTCHA v3 Site Key",

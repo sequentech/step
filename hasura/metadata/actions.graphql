@@ -299,6 +299,13 @@ type Query {
   ): [KeycloakRole!]!
 }
 
+type Query {
+  logEvent(
+    electionEventId: String!
+    messageType: String!
+  ): LogEventOutput
+}
+
 type Mutation {
   manage_election_dates(
     election_event_id: String!
@@ -892,5 +899,9 @@ type ExportAllUsersOutput {
 type ExportTenantUsersOutput {
   task_id: String!
   document_id: String!
+}
+
+type LogEventOutput {
+  electionEventId: String
 }
 

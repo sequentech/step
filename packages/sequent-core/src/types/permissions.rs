@@ -135,6 +135,8 @@ pub enum Permissions {
     MIRU_SEND,
     #[strum(serialize = "miru-sign")]
     MIRU_SIGN,
+    #[strum(serialize = "service-account")]
+    SERVICE_ACCOUNT,
 }
 
 #[allow(non_camel_case_types)]

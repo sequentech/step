@@ -615,6 +615,19 @@ actions:
         version: 2
     permissions:
       - role: admin-user
+  - name: logEvent
+    definition:
+      kind: ""
+      handler: http://{{HARVEST_DOMAIN}}/immudb/log-event
+      request_transform:
+        body:
+          action: transform
+          template: '{{$body.input}}'
+        template_engine: Kriti
+        version: 2
+    permissions:
+      - role: service-account
+    comment: log an event in immudb
   - name: manage_election_dates
     definition:
       kind: synchronous
@@ -878,4 +891,5 @@ custom_types:
     - name: ExportLogsOutput
     - name: ExportAllUsersOutput
     - name: ExportTenantUsersOutput
+    - name: LogEventOutput
   scalars: []
