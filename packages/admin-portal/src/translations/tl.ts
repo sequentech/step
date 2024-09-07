@@ -640,7 +640,6 @@ const tagalogTranslation = {
                 "miru-download": "Miru I-download",
                 "miru-send": "Miru Ipadala",
                 "miru-sign": "Miru Lagdaan",
-
             },
         },
         generalSettingsScreen: {
