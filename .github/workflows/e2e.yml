@@ -58,28 +58,28 @@ jobs:
         yarn
         npm install @nightwatch/browserstack
     - name: Run admin-portal tests against env
-      if: ${{ github.event.inputs.useLocal == 'false' }}
+      # if: ${{ github.event.inputs.useLocal == 'false' }}
       run: |
         cd packages/admin-portal/node_modules
         cp -r ../../node_modules/@nightwatch .
         cp -r ../../node_modules/nightwatch .
         cd ..
         xvfb-run --auto-servernum npx nightwatch test/e2e/*.ts -c nightwatch.conf-ghaction.js  --env ${{ matrix.browser }}
-    - name: Run admin-portal tests against local
-      if: ${{ github.event.inputs.useLocal == 'true' }}
-      run: |
-        cd .devcontainer
-        cp .env.development .env
-        docker compose build
-        docker compose up
-        export TEST_URL='http://localhost:3002'
-        export ADMIN_PORTAL_TEST_USERNAME='admin'
-        export ADMIN_PORTAL_TEST_PASSWORD='admin'
-        cd packages/admin-portal/node_modules
-        cp -r ../../node_modules/@nightwatch .
-        cp -r ../../node_modules/nightwatch .
-        cd ..
-        xvfb-run --auto-servernum npx nightwatch test/e2e/*.ts -c nightwatch.conf-ghaction.js  --env ${{ matrix.browser }}
+    # - name: Run admin-portal tests against local
+    #   if: ${{ github.event.inputs.useLocal == 'true' }}
+    #   run: |
+    #     cd .devcontainer
+    #     cp .env.development .env
+    #     docker compose build
+    #     docker compose up
+    #     export TEST_URL='http://localhost:3002'
+    #     export ADMIN_PORTAL_TEST_USERNAME='admin'
+    #     export ADMIN_PORTAL_TEST_PASSWORD='admin'
+    #     cd packages/admin-portal/node_modules
+    #     cp -r ../../node_modules/@nightwatch .
+    #     cp -r ../../node_modules/nightwatch .
+    #     cd ..
+    #     xvfb-run --auto-servernum npx nightwatch test/e2e/*.ts -c nightwatch.conf-ghaction.js  --env ${{ matrix.browser }}
         # env:
         #   TEST_URL: ${{ github.event.inputs.urlTest }}
         #   ADMIN_PORTAL_TEST_USERNAME: ${{ github.event.inputs.adminUser }}
