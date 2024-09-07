@@ -639,6 +639,10 @@ const spanishTranslation: TranslationType = {
                 "document-write": "Editar Documentos",
                 "support-material-read": "Leer Materiales de Soporte",
                 "support-material-write": "Editar Materiales de Soporte",
+                "miru-create": "Miru Create",
+                "miru-download": "Miru Download",
+                "miru-send": "Miru Send",
+                "miru-sign": "Miru Sign",
             },
         },
         generalSettingsScreen: {

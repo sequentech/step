@@ -638,6 +638,10 @@ const englishTranslation = {
                 "document-write": "Edit Documents",
                 "support-material-read": "Read Support Materials",
                 "support-material-write": "Edit Support Materials",
+                "miru-create": "Miru Create",
+                "miru-download": "Miru Download",
+                "miru-send": "Miru Send",
+                "miru-sign": "Miru Sign",
             },
         },
         generalSettingsScreen: {

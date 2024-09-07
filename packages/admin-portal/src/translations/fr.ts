@@ -642,6 +642,10 @@ const frenchTranslation: TranslationType = {
                 "document-write": "Éditer Documents",
                 "support-material-read": "Lire Matériaux de Support",
                 "support-material-write": "Éditer Matériaux de Support",
+                "miru-create": "Miru Create",
+                "miru-download": "Miru Download",
+                "miru-send": "Miru Send",
+                "miru-sign": "Miru Sign",
             },
         },
         generalSettingsScreen: {

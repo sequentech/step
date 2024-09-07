@@ -640,6 +640,10 @@ const catalanTranslation: TranslationType = {
                 "document-write": "Editar Documents",
                 "support-material-read": "Llegir Materials de Suport",
                 "support-material-write": "Editar Materials de Suport",
+                "miru-create": "Miru Create",
+                "miru-download": "Miru Download",
+                "miru-send": "Miru Send",
+                "miru-sign": "Miru Sign",
             },
         },
         generalSettingsScreen: {

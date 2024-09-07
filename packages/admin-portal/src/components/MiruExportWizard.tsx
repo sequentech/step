@@ -377,7 +377,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
         {
             context: {
                 headers: {
-                    "x-hasura-role": IPermissions.TALLY_WRITE,
+                    "x-hasura-role": IPermissions.MIRU_CREATE,
                 },
             },
         }

@@ -636,6 +636,11 @@ const tagalogTranslation = {
                 "document-write": "I-edit ang Mga Dokumento",
                 "support-material-read": "Basahin ang Suportang Materyal",
                 "support-material-write": "I-edit ang Suportang Materyal",
+                "miru-create": "Miru Lumikha",
+                "miru-download": "Miru I-download",
+                "miru-send": "Miru Ipadala",
+                "miru-sign": "Miru Lagdaan",
+
             },
         },
         generalSettingsScreen: {
