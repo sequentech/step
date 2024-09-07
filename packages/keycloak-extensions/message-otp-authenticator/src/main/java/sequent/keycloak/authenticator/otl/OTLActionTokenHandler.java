@@ -74,6 +74,7 @@ public class OTLActionTokenHandler extends AbstractActionTokenHandler<OTLActionT
     final String originalCompoundSessionId = token.getOriginalCompoundSessionId();
     final String originUserId = token.getUserId();
     final String[] authNoteNames = token.getAuthNoteNames();
+    final boolean isDeferredUser = token.getIsDeferredUser();
     final RealmModel realm = tokenContext.getRealm();
     final KeycloakSession session = tokenContext.getSession();
 
@@ -135,9 +136,11 @@ public class OTLActionTokenHandler extends AbstractActionTokenHandler<OTLActionT
     tokenContext.setExecutionId(
         originalSession.getAuthNote(AuthenticationProcessor.LAST_PROCESSED_EXECUTION));
 
+    if (isDeferredUser) {
+        authSession.setAuthenticatedUser(null);
+    }
+
     authSession.setAuthNote(Utils.OTL_VISITED, "true");
-    // we will asume we're using the "deferred registration authenticator"
-    authSession.setAuthenticatedUser(null);
 
     // Once everything is copied, then we remove the original auth session
     asm.removeAuthenticationSession(realm, originalSession, true);
