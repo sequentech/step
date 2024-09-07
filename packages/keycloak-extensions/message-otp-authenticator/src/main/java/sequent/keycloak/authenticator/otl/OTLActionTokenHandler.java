@@ -137,7 +137,7 @@ public class OTLActionTokenHandler extends AbstractActionTokenHandler<OTLActionT
         originalSession.getAuthNote(AuthenticationProcessor.LAST_PROCESSED_EXECUTION));
 
     if (isDeferredUser) {
-        authSession.setAuthenticatedUser(null);
+      authSession.setAuthenticatedUser(null);
     }
 
     authSession.setAuthNote(Utils.OTL_VISITED, "true");
