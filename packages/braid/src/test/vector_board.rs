@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use board_messages::braid::{message::Message, statement::StatementType};
+use board_messages::{braid::{message::Message, statement::StatementType}, grpc::GrpcB3Message};
 
 ///////////////////////////////////////////////////////////////////////////
 // VectorBoard
@@ -30,17 +30,19 @@ Persistence implementation:
 
 */
 
+use strand::serialization::{StrandDeserialize, StrandSerialize};
+
 // #[derive(Clone)]
 pub struct VectorBoard {
     session_id: u128,
-    pub(crate) messages: Vec<(Message, i64)>,
+    pub(crate) messages: Vec<GrpcB3Message>,
 }
 
 impl Clone for VectorBoard {
     fn clone(&self) -> Self {
         let mut ms = vec![];
-        for (m, id) in &self.messages {
-            ms.push((m.try_clone().unwrap(), id.clone()));
+        for m in &self.messages {
+            ms.push(m.clone());
         }
         VectorBoard {
             session_id: self.session_id,
@@ -61,16 +63,21 @@ impl VectorBoard {
 
     pub fn add(&mut self, message: Message) {
         let last_id: i64 = self.messages.len() as i64;
-        self.messages.push((message, last_id + 1));
+        let m = message.strand_serialize().unwrap();
+        self.messages.push(GrpcB3Message {
+            id: last_id,
+            message: m,
+            version: "".to_string(),
+        });
     }
 
-    pub fn get(&self, last_message: i64) -> Vec<(Message, i64)> {
+    pub fn get(&self, last_message: i64) -> Vec<GrpcB3Message> {
         let next: usize = (last_message + 1) as usize;
 
         let mut ret = vec![];
         let slice = &self.messages[next..self.messages.len()];
-        for (m, id) in slice {
-            ret.push((m.try_clone().unwrap(), id.clone()));
+        for m in slice {
+            ret.push(m.clone());
         }
 
         ret
@@ -83,12 +90,14 @@ impl VectorBoard {
 // Debug
 ///////////////////////////////////////////////////////////////////////////
 
+
 impl std::fmt::Debug for VectorBoard {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let types: Vec<(StatementType, bool)> = self
             .messages
             .iter()
-            .map(|m| (m.0.statement.get_kind(), m.0.artifact.is_some()))
+            .map(|m| Message::strand_deserialize(&m.message).unwrap())
+            .map(|m| (m.statement.get_kind(), m.artifact.is_some()))
             .collect();
         write!(
             f,

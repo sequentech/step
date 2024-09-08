@@ -28,19 +28,19 @@ use board_messages::grpc::pgsql::B3MessageRow;
 use board_messages::grpc::pgsql::PgsqlConnectionParams;
 use board_messages::grpc::pgsql::{self, XPgsqlB3Client};
 
-use crate::protocol::board::grpc::GrpcB3;
-use crate::protocol::board::grpc::GrpcB3BoardParams;
+use crate::protocol::board::grpc_m::GrpcB3;
+use crate::protocol::board::grpc_m::GrpcB3BoardParams;
 
 use crate::protocol::session::Session;
-use crate::protocol::trustee::Trustee;
+use crate::protocol::trustee2::Trustee;
 
-const B3_URL: &'static str = "http://[::1]:50051";
+const B3_URL: &'static str = "http://127.0.0.1:50051";
 const TEST_BOARD: &'static str = "protocoltest";
 const PG_HOST: &'static str = "localhost";
 const PG_DATABASE: &'static str = "protocoldb";
 const PG_USER: &'static str = "postgres";
-const PG_PASSW: &'static str = "postgrespw";
-const PG_PORT: u32 = 49153;
+const PG_PASSW: &'static str = "password";
+const PG_PORT: u32 = 5432;
 
 pub async fn run<C: Ctx + 'static>(ciphertexts: u32, batches: usize, ctx: C) {
     let n_trustees = rand::thread_rng().gen_range(2..13);
@@ -100,7 +100,7 @@ async fn run_protocol_test_grpc<C: Ctx + 'static>(
         .collect();
 
     for t in test.trustees.into_iter() {
-        let board_params = GrpcB3BoardParams::new(B3_URL, TEST_BOARD, None);
+        let board_params = GrpcB3BoardParams::new(B3_URL);
         let session: Session<C, GrpcB3> = Session::new(TEST_BOARD, t, board_params);
         sessions.push(session);
     }
@@ -118,19 +118,11 @@ async fn run_protocol_test_grpc<C: Ctx + 'static>(
     for i in 0..40 {
         info!("Cycle {}", i);
 
-        // See https://stackoverflow.com/questions/63434977/how-can-i-spawn-asynchronous-methods-in-a-loop
-        let handles: Vec<_> = sessions
-            .into_iter()
-            .map(|s| tokio::spawn(async { s.step().await }))
-            .collect();
-
-        sessions = vec![];
-        for h in handles {
-            let (session, result) = h.await.unwrap();
+        for s in sessions.iter_mut() {
+            let result = s.step().await;
             if result.is_err() {
                 warn!("Step returned err: {:?}", result);
             }
-            sessions.push(session);
         }
 
         dkg_pk_message = b
@@ -189,18 +181,11 @@ async fn run_protocol_test_grpc<C: Ctx + 'static>(
     for i in 0..150 {
         info!("Cycle {}", i);
 
-        let handles: Vec<_> = sessions
-            .into_iter()
-            .map(|s| tokio::spawn(async { s.step().await }))
-            .collect();
-
-        sessions = vec![];
-        for h in handles {
-            let (session, result) = h.await.unwrap();
+        for s in sessions.iter_mut() {
+            let result = s.step().await;
             if result.is_err() {
                 warn!("Step returned err: {:?}", result);
             }
-            sessions.push(session);
         }
 
         plaintexts_out = b
@@ -256,7 +241,7 @@ pub async fn create_protocol_test<C: Ctx>(
             // let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
             let encryption_key = strand::symm::gen_key();
             let pk = StrandSignaturePk::from_sk(&sk).unwrap();
-            (Trustee::new(i.to_string(), sk, encryption_key), pk)
+            (Trustee::new(i.to_string(), sk, encryption_key, None, true), pk)
         })
         .unzip();
 

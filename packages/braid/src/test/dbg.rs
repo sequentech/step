@@ -18,11 +18,11 @@ use tracing_subscriber::reload::Handle;
 
 use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
-use strand::serialization::StrandSerialize;
+use strand::serialization::{StrandSerialize, StrandDeserialize};
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
 use crate::protocol::action::Action;
-use crate::protocol::board::local::{ArtifactEntryIdentifier, StatementEntryIdentifier};
+use crate::protocol::board::local2::{ArtifactEntryIdentifier, StatementEntryIdentifier};
 use board_messages::braid::artifact::Ballots;
 use board_messages::braid::artifact::Configuration;
 use board_messages::braid::message::Message;
@@ -30,7 +30,7 @@ use board_messages::braid::newtypes::PublicKeyHash;
 use board_messages::braid::newtypes::NULL_TRUSTEE;
 use board_messages::braid::protocol_manager::ProtocolManager;
 
-use crate::protocol::trustee::Trustee;
+use crate::protocol::trustee2::Trustee;
 use crate::test::vector_board::VectorBoard;
 use board_messages::braid::newtypes::MAX_TRUSTEES;
 
@@ -213,7 +213,8 @@ impl<C: Ctx> Status<C> {
             .set_header("batch")
             .set_align(Align::Left);
         let mut data: Vec<Vec<String>> = vec![];
-        for (m, _id) in self.remote.messages.iter() {
+        for m in self.remote.messages.iter() {
+            let m = Message::strand_deserialize(&m.message).unwrap();
             let sender = self.cfg.get_trustee_position(&m.sender.pk).unwrap();
             data.push(vec![
                 format!("{:?}", m.statement.get_kind()),
@@ -248,7 +249,7 @@ fn mk_context<C: Ctx>(ctx: C, n_trustees: u8, threshold: &[usize]) -> ReplContex
             let kp = StrandSignatureSk::gen().unwrap();
             // let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
             let encryption_key = strand::symm::gen_key();
-            Trustee::new(i.to_string(), kp, encryption_key)
+            Trustee::new(i.to_string(), kp, encryption_key, None, true)
         })
         .collect();
 
@@ -334,7 +335,15 @@ fn status<C: Ctx>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result<Opt
     let art_keys: Vec<Vec<ArtifactEntryIdentifier>> = context
         .trustees
         .iter()
-        .map(|t| t.local_board.artifacts.keys().cloned().collect())
+        .map(|t| {
+            let mut ret: Vec<ArtifactEntryIdentifier> = t.local_board.artifacts_memory.keys().cloned().collect();
+            ret.extend(t.local_board.ballots.keys().cloned());
+            ret.extend(t.local_board.mixes.keys().cloned());
+            ret.extend(t.local_board.decryption_factors.keys().cloned());
+            ret.extend(t.local_board.plaintexts.keys().cloned());
+
+            ret
+        })
         .collect();
 
     let mut messages = vec![];
@@ -430,7 +439,7 @@ fn decrypted<C: Ctx>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result<
             .map(|p| context.ctx.encode(p).unwrap())
             .collect();
 
-        let set1: HashSet<C::P> = HashSet::from_iter(plaintexts.0 .0);
+        let set1: HashSet<C::P> = HashSet::from_iter(plaintexts.0 .0.clone());
         let set2 = HashSet::from_iter(context.plaintexts.iter().cloned());
 
         Ok(Some(format!(
@@ -487,7 +496,7 @@ fn step<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option
         let trustee_: Option<&mut Trustee<C>> = context.trustees.get_mut(t as usize);
         if let Some(trustee) = trustee_ {
             // let (messages, actions, _last_id) = trustee.step(context.remote.get(-1)).unwrap();
-            let step_result = trustee.step(context.remote.get(-1)).unwrap();
+            let step_result = trustee.step(&context.remote.get(-1)).unwrap();
             send(&step_result.messages, &mut context.remote);
             context.last_messages = step_result.messages;
             context.last_actions = step_result.actions;
@@ -502,7 +511,7 @@ fn step<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option
                 position.unwrap()
             );
             //let (mut messages, actions, _last_id) = t.step(context.remote.get(-1)).unwrap();
-            let mut step_result =  t.step(context.remote.get(-1)).unwrap();
+            let mut step_result =  t.step(&context.remote.get(-1)).unwrap();
             send(&step_result.messages, &mut context.remote);
             context.last_messages.append(&mut step_result.messages);
             context.last_actions.extend(&step_result.actions);

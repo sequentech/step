@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::protocol::trustee::Trustee;
+use crate::protocol::trustee2::Trustee;
 use crate::test::vector_board::VectorBoard;
 use board_messages::braid::artifact::{DkgPublicKey, Plaintexts};
 use board_messages::braid::message::Message;
@@ -39,7 +39,7 @@ impl<C: Ctx> VectorSession<C> {
 
         // let (send_messages, _actions) = self.trustee.step(messages);
         let count = messages.len() as i64;
-        let result = self.trustee.step(messages);
+        let result = self.trustee.step(&messages);
         self.last_message += count;
         // if let Ok((send_messages, _actions, _last_id)) = result {
         if let Ok(step_result) = result {
@@ -54,7 +54,7 @@ impl<C: Ctx> VectorSession<C> {
         &self,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Option<Plaintexts<C>> {
+    ) -> Option<&Plaintexts<C>> {
         self.trustee.get_plaintexts_nohash(batch, signer_position)
     }
     pub(crate) fn get_dkg_public_key_nohash(&self) -> Option<DkgPublicKey<C>> {

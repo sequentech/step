@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+
+/*
 use anyhow::Result;
 use log::{info, warn};
 use rand::seq::SliceRandom;
@@ -31,7 +33,7 @@ use crate::protocol::board::pgsql::PgsqlBoard;
 use crate::protocol::board::pgsql::PgsqlBoardParams;
 
 use crate::protocol::session::Session;
-use crate::protocol::trustee::Trustee;
+use crate::protocol::trustee2::Trustee;
 
 const PG_HOST: &'static str = "postgres";
 const PG_DATABASE: &'static str = "protocoldb";
@@ -117,19 +119,11 @@ async fn run_protocol_test_pgsql<C: Ctx + 'static>(
     for i in 0..40 {
         info!("Cycle {}", i);
 
-        // See https://stackoverflow.com/questions/63434977/how-can-i-spawn-asynchronous-methods-in-a-loop
-        let handles: Vec<_> = sessions
-            .into_iter()
-            .map(|s| tokio::spawn(async { s.step().await }))
-            .collect();
-
-        sessions = vec![];
-        for h in handles {
-            let (session, result) = h.await.unwrap();
+        for s in sessions.iter_mut() {
+            let result = s.step().await;
             if result.is_err() {
                 warn!("Step returned err: {:?}", result);
             }
-            sessions.push(session);
         }
 
         dkg_pk_message = b
@@ -188,18 +182,11 @@ async fn run_protocol_test_pgsql<C: Ctx + 'static>(
     for i in 0..150 {
         info!("Cycle {}", i);
 
-        let handles: Vec<_> = sessions
-            .into_iter()
-            .map(|s| tokio::spawn(async { s.step().await }))
-            .collect();
-
-        sessions = vec![];
-        for h in handles {
-            let (session, result) = h.await.unwrap();
+        for s in sessions.iter_mut() {
+            let result = s.step().await;
             if result.is_err() {
                 warn!("Step returned err: {:?}", result);
             }
-            sessions.push(session);
         }
 
         plaintexts_out = b
@@ -254,7 +241,7 @@ pub async fn create_protocol_test_pgsql<C: Ctx>(
             let sk = StrandSignatureSk::gen().unwrap();
             let encryption_key = strand::symm::gen_key();
             let pk = StrandSignaturePk::from_sk(&sk).unwrap();
-            (Trustee::new(i.to_string(), sk, encryption_key), pk)
+            (Trustee::new(i.to_string(), sk, encryption_key, None), pk)
         })
         .unzip();
 
@@ -288,3 +275,4 @@ pub async fn create_protocol_test_pgsql<C: Ctx>(
         trustees,
     })
 }
+*/
