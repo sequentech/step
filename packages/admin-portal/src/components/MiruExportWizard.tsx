@@ -109,7 +109,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
         password: string
     }) => {
         try {
-            const {data, errors} = await uploadSignature({
+            const {errors} = await uploadSignature({
                 variables: {
                     electionId: selectedTallySessionData?.election_id,
                     tallySessionId: tally?.id,
@@ -120,13 +120,18 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
             })
             setUploading(false)
             setSignatureId("")
-            notify(t("Signing Successful"), {type: "success"})
+            setPasswordState("")
 
             if (errors) {
                 setErrors(t("tally.errorUploadingSignature", {error: errors.toString()}))
+            } else {
+                notify(t("Signing Successful"), {type: "success"})
             }
         } catch (errors) {
             setErrors(t("tally.errorUploadingSignature", {error: String(errors)}))
+            setPasswordState("")
+            setUploading(false)
+            setSignatureId("")
         }
     }
 
@@ -136,24 +141,38 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
         const theFile = files?.[0]
         console.log({theFile, selectedTallySessionData})
 
-        if (theFile) {
-            let {data, errors} = await getUploadUrl({
-                variables: {
-                    name: theFile.name,
-                    media_type: theFile.type,
-                    size: theFile.size,
-                    is_public: false,
-                    election_event_id: electionEventId,
-                },
-            })
-            console.log({data, errors})
-            if (data?.get_upload_url?.document_id) {
-                setSignatureId(data?.get_upload_url?.document_id)
-                // handleUploadSignature({doc_id: data?.get_upload_url?.document_id, password: '1234'})// for testing
-            } else {
-                setUploading(false)
-                setErrors(t("keysGeneration.checkStep.errorUploading"))
+        try {
+            if (theFile) {
+                let {data, errors} = await getUploadUrl({
+                    variables: {
+                        name: theFile.name,
+                        media_type: theFile.type,
+                        size: theFile.size,
+                        is_public: false,
+                        election_event_id: electionEventId,
+                    },
+                })
+                console.log({data, errors})
+                if (data?.get_upload_url?.document_id && data?.get_upload_url?.url) {
+                    await fetch(data.get_upload_url.url, {
+                        method: "PUT",
+                        headers: {
+                            "Content-Type": theFile.type,
+                        },
+                        body: theFile,
+                    })
+
+                    setSignatureId(data?.get_upload_url?.document_id)
+                    // handleUploadSignature({doc_id: data?.get_upload_url?.document_id, password: '1234'})// for testing
+                } else {
+                    setUploading(false)
+                    setErrors(t("keysGeneration.checkStep.errorUploading"))
+                }
             }
+        } catch (error) {
+            console.log(error)
+            setUploading(false)
+            setErrors(t("keysGeneration.checkStep.errorUploading"))
         }
     }
 
@@ -706,6 +725,11 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
                 cancel={t("tally.transmissionPackage.actions.regenerate.dialog.cancel")}
                 title={t("tally.transmissionPackage.actions.sign.dialog.title")}
                 handleClose={(result: boolean) => {
+                    if (!result || !signatureId || !passwordState) {
+                        setSignatureId("")
+                        setUploading(false)
+                        return
+                    }
                     handleUploadSignature({documentId: signatureId, password: passwordState})
                 }}
             >
