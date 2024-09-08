@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Result;
-use braid::protocol::board::grpc::{GrpcB3, GrpcB3BoardParams, GrpcB3Index};
+use braid::protocol::board::grpc_m::{GrpcB3, GrpcB3BoardParams, GrpcB3Index};
 use clap::Parser;
 use std::collections::HashMap;
 use std::fs;
@@ -12,10 +12,9 @@ use tokio::time::{sleep, Duration};
 use tracing::instrument;
 use tracing::{error, info};
 
-use braid::protocol::board::BoardFactory;
 use braid::protocol::session::Session;
-use braid::protocol::trustee::Trustee;
-use braid::protocol::trustee::TrusteeConfig;
+use braid::protocol::trustee2::Trustee;
+use braid::protocol::trustee2::TrusteeConfig;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;
 use strand::symm;
@@ -153,12 +152,14 @@ async fn main() -> Result<()> {
                 std::env::var("TRUSTEE_NAME").unwrap_or_else(|_| "Self".to_string()),
                 sk.clone(),
                 ek.clone(),
+                Some(store_root.join(board_name)),
+                true
             );
             let board =
-                GrpcB3BoardParams::new(&args.server_url, &board_name, Some(store_root.clone()));
+                GrpcB3BoardParams::new(&args.server_url);
 
             // Try to connect to detect errors early
-            let board_result = board.get_board().await;
+            /*let board_result = board.get_board();
             match board_result {
                 Ok(_) => (),
                 Err(error) => {
@@ -169,23 +170,22 @@ async fn main() -> Result<()> {
                     );
                     continue;
                 }
-            };
+            };*/
 
             let session = Session::new(&board_name, trustee, board);
             session_map.insert(board_name.clone(), session);
         }
 
-        let mut session_map_next = HashMap::new();
         // This code is currently sequential, see protocol_test_grpc for an example of
         // handling sessions in parallel by spawning threads.
-        for s in session_map.into_values() {
-            let board_name = s.name.clone();
+        for s in session_map.values_mut() {
+            let board_name = s.board_name.clone();
             // info!("* Running trustee for board '{}'..", board_name);
             // PRINT
             // use std::io::Write;
             // print!("{} ", i); std::io::stdout().flush();
 
-            let (session, result) = s.step().await;
+            let result = s.step().await;
             match result {
                 Ok(_) => (),
                 Err(error) => {
@@ -203,9 +203,9 @@ async fn main() -> Result<()> {
                     }
                 }
             };
-            session_map_next.insert(session.name.clone(), session);
+            // session_map_next.insert(session.name.clone(), session);
         }
-        session_map = session_map_next;
+        // session_map = session_map_next;
 
         if args.strict && step_error {
             break;

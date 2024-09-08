@@ -21,8 +21,7 @@ use board_messages::braid::statement::StatementType;
 use board_messages::grpc::pgsql;
 use board_messages::grpc::pgsql::PgsqlConnectionParams;
 use board_messages::grpc::pgsql::XPgsqlB3Client;
-use braid::protocol::trustee::Trustee;
-use braid::protocol::trustee::TrusteeConfig;
+use braid::protocol::trustee2::TrusteeConfig;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
 use strand::serialization::StrandDeserialize;
@@ -245,12 +244,13 @@ fn gen_configs<C: Ctx>(n_trustees: usize, threshold: &[usize]) -> Result<()> {
         signing_key: pmkey,
         phantom: PhantomData,
     };
-    let (trustees, trustee_pks): (Vec<Trustee<C>>, Vec<StrandSignaturePk>) = (0..n_trustees)
-        .map(|i| {
+    let (trustees, trustee_pks): (Vec<TrusteeConfig>, Vec<StrandSignaturePk>) = (0..n_trustees)
+        .map(|_| {
             let sk = StrandSignatureSk::gen().unwrap();
             let pk = StrandSignaturePk::from_sk(&sk).unwrap();
             let encryption_key: symm::SymmetricKey = symm::gen_key();
-            (Trustee::new(i.to_string(), sk, encryption_key), pk)
+            let tc = TrusteeConfig::new_from_objects(sk, encryption_key);
+            (tc, pk)
         })
         .unzip();
 
@@ -273,8 +273,7 @@ fn gen_configs<C: Ctx>(n_trustees: usize, threshold: &[usize]) -> Result<()> {
     let mut file = File::create(Path::new(DEMO_DIR).join(PROTOCOL_MANAGER))?;
     file.write_all(toml.as_bytes()).unwrap();
 
-    for (i, t) in trustees.iter().enumerate() {
-        let tc = TrusteeConfig::from(t);
+    for (i, tc) in trustees.iter().enumerate() {
         let toml = toml::to_string(&tc)?;
         let path = Path::new(DEMO_DIR).join((i + 1).to_string());
         fs::create_dir_all(&path)?;

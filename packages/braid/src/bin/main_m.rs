@@ -22,7 +22,7 @@ use rustc_hash::FxHasher;
 use tokio::sync::mpsc::{Sender, Receiver};
 
 use braid::protocol::session::session_m::{SessionFactory, SessionSet, SessionSetMessage};
-use braid::protocol::trustee::TrusteeConfig;
+use braid::protocol::trustee2::TrusteeConfig;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "jemalloc")] {
