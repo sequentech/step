@@ -41,6 +41,7 @@ public class ECIESEncryptionTool {
             System.out.println("  sign-rsa <p12-private-key-file> <plaintext-file> <p12-password>");
             System.out.println("  verify-rsa <public-key-file> <plaintext-file> <signature-base64>");
             System.out.println("  public-key <p12-private-key-file> <p12-password>");
+            System.exit(1);
 
             return;
         }
@@ -50,6 +51,7 @@ public class ECIESEncryptionTool {
             case "create-keys":
                 if (args.length != 3) {
                     System.out.println("Usage: create-keys <public-key-file> <private-key-file>");
+                    System.exit(1);
                     return;
                 }
                 createKeys(args[1], args[2]);
@@ -58,6 +60,7 @@ public class ECIESEncryptionTool {
             case "encrypt":
                 if (args.length != 3) {
                     System.out.println("Usage: encrypt <public-key-file> <plaintext-base64>");
+                    System.exit(1);
                     return;
                 }
                 String encryptedText = encryptText(args[1], args[2]);
@@ -67,6 +70,7 @@ public class ECIESEncryptionTool {
             case "decrypt":
                 if (args.length != 3) {
                     System.out.println("Usage: decrypt <private-key-file> <encrypted-text>");
+                    System.exit(1);
                     return;
                 }
                 String decryptedText = decryptText(args[1], args[2]);
@@ -76,6 +80,7 @@ public class ECIESEncryptionTool {
             case "sign":
                 if (args.length != 3) {
                     System.out.println("Usage: sign <private-key-file> <plaintext-file>");
+                    System.exit(1);
                     return;
                 }
                 String signature = signText(args[1], args[2], true);
@@ -85,6 +90,7 @@ public class ECIESEncryptionTool {
             case "verify":
                 if (args.length != 4) {
                     System.out.println("Usage: verify <public-key-file> <plaintext-file> <signature-base64>");
+                    System.exit(1);
                     return;
                 }
                 boolean isValid = verifyText(args[1], args[2], args[3], true);
@@ -94,6 +100,7 @@ public class ECIESEncryptionTool {
             case "sign-rsa":
                 if (args.length != 4) {
                     System.out.println("Usage: sign-rsa <p12-private-key-file> <plaintext-file> <p12-password>");
+                    System.exit(1);
                     return;
                 }
                 String rsaSignature = signTextP12(args[1], args[2], false, args[3]);
@@ -103,6 +110,7 @@ public class ECIESEncryptionTool {
             case "verify-rsa":
                 if (args.length != 4) {
                     System.out.println("Usage: verify-rsa <public-key-file> <plaintext-file> <signature-base64>");
+                    System.exit(1);
                     return;
                 }
                 boolean isValidRsa = verifyText(args[1], args[2], args[3], false);
@@ -112,6 +120,7 @@ public class ECIESEncryptionTool {
             case "public-key":
                 if (args.length != 3) {
                     System.out.println("Usage: public-key <p12-private-key-file> <p12-password>");
+                    System.exit(1);
                     return;
                 }
                 String publicKey = publicKeyPemFromP12(args[1], args[2]);
@@ -120,6 +129,7 @@ public class ECIESEncryptionTool {
 
             default:
                 System.out.println("Unknown command: " + command);
+                System.exit(1);
                 break;
         }
     }
