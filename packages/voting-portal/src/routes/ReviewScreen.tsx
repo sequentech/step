@@ -440,6 +440,7 @@ export const ReviewScreen: React.FC = () => {
                 open={openBallotIdHelp}
                 title={t("reviewScreen.ballotIdHelpDialog.title")}
                 ok={t("reviewScreen.ballotIdHelpDialog.ok")}
+                maxWidth="md"
                 middleActions={
                     auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP
                         ? [

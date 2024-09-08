@@ -589,7 +589,6 @@ let MuiDialog: Components["MuiDialog"] = {
         paper: ({ownerState}) => {
             return {
                 border: `2px solid ${palette.black}`,
-                maxWidth: ownerState.fullWidth ? "100vw" : "750px",
             }
         },
     },
