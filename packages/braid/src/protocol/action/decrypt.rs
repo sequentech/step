@@ -233,14 +233,14 @@ fn compute_plaintexts_<C: Ctx>(
             // filled in trustees.
             let lagrange = strand::threshold::lagrange(ts[t], &ts[0..*threshold], &ctx);
 
-            let ciphertexts = mix.ciphertexts.clone();
+            // let ciphertexts = mix.ciphertexts.clone();
 
             let it = dfactors
                 .factors
                 .0
                 .par_iter()
                 .zip(dfactors.proofs.0.par_iter());
-            let it2 = it.zip(ciphertexts.0.into_par_iter());
+            let it2 = it.zip(mix.ciphertexts.0.par_iter());
 
             let suffix = format!("decryption_factor{}", ts[t] - 1);
             let label = cfg.label(*batch, suffix);
