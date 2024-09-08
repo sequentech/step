@@ -28,12 +28,7 @@ import {JsonInput} from "react-admin-json-view"
 import {INSERT_ELECTION_EVENT} from "../../queries/InsertElectionEvent"
 import {Box, CircularProgress, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
-import {
-    ETaskExecutionStatus,
-    IElectionEventPresentation,
-    ITenantSettings,
-    isNull,
-} from "@sequentech/ui-core"
+import {IElectionEventPresentation, ITenantSettings, isNull} from "@sequentech/ui-core"
 import {useNavigate} from "react-router"
 import {useTenantStore} from "../../providers/TenantContextProvider"
 import UploadIcon from "@mui/icons-material/Upload"
@@ -375,6 +370,7 @@ export const CreateElectionList: React.FC = () => {
                 subtitle="electionEventScreen.import.eesubtitle"
                 paragraph={"electionEventScreen.import.electionEventParagraph"}
                 doImport={handleImportElectionEvent}
+                disableImport={!!errors}
                 uploadCallback={uploadCallback}
                 errors={errors}
             />

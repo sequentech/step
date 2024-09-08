@@ -127,7 +127,7 @@ pub async fn update_task_execution_status(
                 execution_status = $1,
                 logs = $2,
                 end_at = CASE
-                    WHEN $1 = 'SUCCESS' THEN now()
+                    WHEN $1 != 'IN_PROGRESS' THEN now()
                     ELSE end_at
                 END
             WHERE id = $3;

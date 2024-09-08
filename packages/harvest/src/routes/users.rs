@@ -469,6 +469,7 @@ pub async fn import_users_f(
         .clone()
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
     let celery_app = get_celery_app().await;
+
     let celery_task = match celery_app
         .send_task(import_users::import_users::new(
             input,

@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
@@ -7,7 +9,7 @@ import {theme, Dialog} from "@sequentech/ui-essentials"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
-import {Accordion, AccordionSummary} from "@mui/material"
+import {Accordion, AccordionSummary, CircularProgress} from "@mui/material"
 import Table from "@mui/material/Table"
 import TableBody from "@mui/material/TableBody"
 import TableCell from "@mui/material/TableCell"
@@ -58,7 +60,11 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
         pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
     })
 
-    const task = taskData.sequent_backend_tasks_execution[0]
+    const task = taskData?.sequent_backend_tasks_execution[0]
+
+    if (!task) {
+        return <CircularProgress />
+    }
 
     const Content = (
         <>
@@ -106,7 +112,7 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
                                         {t("tasksScreen.column.start_at")}
                                     </TableCell>
                                     <TableCell align="left">
-                                        {task && new Date(task.start_at).toLocaleString()}
+                                        {task?.start_at && new Date(task.start_at).toLocaleString()}
                                     </TableCell>
                                 </TableRow>
                                 <TableRow>
@@ -114,7 +120,7 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
                                         {t("tasksScreen.column.end_at")}
                                     </TableCell>
                                     <TableCell align="left">
-                                        {task && new Date(task.end_at).toLocaleString()}
+                                        {task?.end_at && new Date(task.end_at).toLocaleString()}
                                     </TableCell>
                                 </TableRow>
                             </TableBody>

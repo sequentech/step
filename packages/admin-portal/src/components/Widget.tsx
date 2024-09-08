@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useState} from "react"
 import {
     Accordion,
@@ -164,7 +167,7 @@ export const Widget: React.FC<WidgetProps> = ({
                     </AccordionDetails>
                 </Accordion>
             </WidgetContainer>
-            
+
             {openTaskModal && taskId && (
                 <ViewTask
                     currTaskId={taskId}

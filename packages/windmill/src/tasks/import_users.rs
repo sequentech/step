@@ -533,10 +533,20 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
     let mut rdr = csv::ReaderBuilder::new()
         .delimiter(separator)
         .from_reader(voters_file);
-    let headers = rdr
-        .headers()
-        .with_context(|| "Error reading CSV headers from voters file")?
-        .clone();
+
+    let headers = match rdr.headers() {
+        Ok(headers) => headers.clone(),
+        Err(err) => {
+            update_fail(
+                &task_execution,
+                "Error reading CSV headers from voters file due to invalid UTF-8",
+            )
+            .await?;
+            return Err(Error::String(format!(
+                "Error reading CSV headers from voters file: {err}"
+            )));
+        }
+    };
 
     // Validate headers
     info!("headers: {headers:?}");
