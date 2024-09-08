@@ -92,11 +92,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 
             <script>
                 <#if isOtl>
-                    let resendTimerI18n = "${msg("messageOtp.auth.resend.timer")}";
-                    let resendButtonI18n = "${msg("messageOtp.auth.resend.button")}";
-                <#else>
                     let resendTimerI18n = "${msg("messageOtp.otl.resend.timer")}";
                     let resendButtonI18n = "${msg("messageOtp.otl.resend.button")}";
+                <#else>
+                    let resendTimerI18n = "${msg("messageOtp.auth.resend.timer")}";
+                    let resendButtonI18n = "${msg("messageOtp.auth.resend.button")}";
                 </#if>
                 let resendTimerTimeout = ${(resendTimer)};;
                 let codeJustSent = "${(codeJustSent?string('true', 'false'))}";
