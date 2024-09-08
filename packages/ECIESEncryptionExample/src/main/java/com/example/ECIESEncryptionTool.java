@@ -19,6 +19,7 @@ import java.nio.file.Paths;
 import java.security.*;
 import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
+import java.security.interfaces.RSAPrivateKey;
 import java.security.spec.ECGenParameterSpec;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
@@ -241,22 +242,38 @@ public class ECIESEncryptionTool {
     }
 
     private static PublicKey derivePublicKeyFromPrivateKey(PrivateKey privateKey) throws Exception {
-        // Cast the private key to ECPrivateKey and get the parameters
-        ECPrivateKey ecPrivateKey = (ECPrivateKey) privateKey;
-        org.spongycastle.jce.spec.ECParameterSpec ecSpec = ECNamedCurveTable.getParameterSpec("secp256r1");
-
-        // Convert the private key's scalar (d) into a BigInteger
-        java.math.BigInteger d = ecPrivateKey.getS();
-
-        // Generate the public key point using the private key's scalar (d)
-        org.spongycastle.math.ec.ECPoint q = ecSpec.getG().multiply(d).normalize();
-
-        // Create the public key spec using Bouncy Castle's ECPublicKeySpec
-        org.spongycastle.jce.spec.ECPublicKeySpec publicKeySpec = new org.spongycastle.jce.spec.ECPublicKeySpec(q, ecSpec);
-
-        // Create the key factory and generate the public key using Bouncy Castle
-        KeyFactory keyFactory = KeyFactory.getInstance("EC", "SC");
-        return keyFactory.generatePublic(publicKeySpec);
+        if (privateKey instanceof ECPrivateKey) {
+            // Handle ECPrivateKey (Elliptic Curve key)
+            ECPrivateKey ecPrivateKey = (ECPrivateKey) privateKey;
+            org.spongycastle.jce.spec.ECParameterSpec ecSpec = ECNamedCurveTable.getParameterSpec("secp256r1");
+    
+            // Convert the private key's scalar (d) into a BigInteger
+            java.math.BigInteger d = ecPrivateKey.getS();
+    
+            // Generate the public key point using the private key's scalar (d)
+            org.spongycastle.math.ec.ECPoint q = ecSpec.getG().multiply(d).normalize();
+    
+            // Create the public key spec using Bouncy Castle's ECPublicKeySpec
+            org.spongycastle.jce.spec.ECPublicKeySpec publicKeySpec = new org.spongycastle.jce.spec.ECPublicKeySpec(q, ecSpec);
+    
+            // Create the key factory and generate the public key using Bouncy Castle
+            KeyFactory keyFactory = KeyFactory.getInstance("EC", "SC");
+            return keyFactory.generatePublic(publicKeySpec);
+    
+        } else if (privateKey instanceof RSAPrivateKey) {
+            // Handle RSAPrivateKey (RSA key)
+            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+            RSAPrivateKey rsaPrivateKey = (RSAPrivateKey) privateKey;
+    
+            // Generate the public key from the RSA private key modulus and public exponent
+            java.security.spec.RSAPublicKeySpec publicKeySpec = new java.security.spec.RSAPublicKeySpec(
+                rsaPrivateKey.getModulus(), java.math.BigInteger.valueOf(65537)); // 65537 is the common public exponent
+    
+            return keyFactory.generatePublic(publicKeySpec);
+    
+        } else {
+            throw new IllegalArgumentException("Unsupported private key type.");
+        }
     }
 
     private static String publicKeyPemFromP12(String p12FilePath, String password)  throws Exception {
