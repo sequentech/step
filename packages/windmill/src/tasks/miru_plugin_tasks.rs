@@ -7,7 +7,7 @@ use crate::services::consolidation::upload_signature_service::upload_transmissio
 use crate::types::error::Error;
 use crate::types::error::Result;
 use anyhow::anyhow;
-use anyhow::{Result as AnyhowResult};
+use anyhow::Result as AnyhowResult;
 use celery::error::TaskError;
 use tracing::{info, instrument};
 

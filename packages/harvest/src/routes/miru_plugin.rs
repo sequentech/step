@@ -154,11 +154,7 @@ pub async fn upload_signature(
         body.password.clone(),
     )
     .await
-    .map_err(|err| (
-        Status::InternalServerError,
-        format!("{}", err),
-    ))
-    ?;
+    .map_err(|err| (Status::InternalServerError, format!("{}", err)))?;
 
     Ok(Json(UploadSignatureOutput {}))
 }
