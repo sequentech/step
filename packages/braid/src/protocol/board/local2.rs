@@ -56,7 +56,7 @@ pub(crate) struct LocalBoard<C: Ctx> {
     // checked on retrieval (it's not in the key)
     pub(crate) artifacts: HashMap<ArtifactEntryIdentifier, (Hash, i64)>,
     pub(crate) store: Option<PathBuf>,
-    pub(crate) in_memory: bool,
+    pub(crate) no_cache: bool,
     pub(crate) artifacts_memory: HashMap<ArtifactEntryIdentifier, (Hash, Vec<u8>)>,
     // For efficiency we store these artifacts in deserialized form,
     // which requires separate collections
@@ -67,16 +67,16 @@ pub(crate) struct LocalBoard<C: Ctx> {
 }
 
 impl<C: Ctx> LocalBoard<C> {
-    pub(crate) fn new(store: Option<PathBuf>, in_memory: bool) -> LocalBoard<C> {
+    pub(crate) fn new(store: Option<PathBuf>, no_cache: bool) -> LocalBoard<C> {
         
-        let mem = if store.is_none() {
-            true
+        let nc = if store.is_none() {
+            false
         }
         else {
-            in_memory
+            no_cache
         };
 
-        tracing::info!("LocalBoard in_memory: {}", mem);
+        tracing::info!("LocalBoard no_cache: {}", nc);
         
         LocalBoard {
             configuration: None,
@@ -84,7 +84,7 @@ impl<C: Ctx> LocalBoard<C> {
             statements: HashMap::new(),
             artifacts: HashMap::new(),
             store,
-            in_memory: mem,
+            no_cache: nc,
             artifacts_memory: HashMap::new(),
             mixes: HashMap::new(),
             ballots: HashMap::new(),
@@ -98,6 +98,13 @@ impl<C: Ctx> LocalBoard<C> {
     ///////////////////////////////////////////////////////////////////////////
 
     pub(crate) fn add(&mut self, message: VerifiedMessage, store_id: i64) -> Result<(), ProtocolError> {
+        /*tracing::info!("store artifacts {}", self.artifacts.len());
+        tracing::info!("cache artifacts {}", self.artifacts_memory.len());
+        tracing::info!("cache ballots {}", self.ballots.len());
+        tracing::info!("cache mixes {}", self.mixes.len());
+        tracing::info!("cache dfactors {}", self.decryption_factors.len());
+        tracing::info!("cache plaintexts {}", self.plaintexts.len());*/
+        
         if message.statement.get_kind() == StatementType::Configuration {
             self.add_bootstrap(message)
         } else {
@@ -221,7 +228,7 @@ impl<C: Ctx> LocalBoard<C> {
                         ),
                     );
 
-                    if self.store.is_some() && !self.in_memory {
+                    if self.store.is_some() && self.no_cache {
                         self.artifacts
                         .insert(artifact_identifier, (artifact_hash, store_id));
                     }
@@ -399,7 +406,7 @@ impl<C: Ctx> LocalBoard<C> {
             0,
         );
 
-        if self.store.is_some() && !self.in_memory {
+        if self.store.is_some() && self.no_cache {
             let entry = self
                 .artifacts
                 .get(&aei)
@@ -443,7 +450,7 @@ impl<C: Ctx> LocalBoard<C> {
         let aei =
             self.get_artifact_entry_identifier_ext(StatementType::Mix, signer_position, batch, 0);
         
-        if self.store.is_some() && !self.in_memory {
+        if self.store.is_some() && self.no_cache {
             let entry = self
                 .artifacts
                 .get(&aei)
@@ -489,7 +496,7 @@ impl<C: Ctx> LocalBoard<C> {
             0,
         );
 
-        if self.store.is_some() && !self.in_memory {
+        if self.store.is_some() && self.no_cache {
             let entry = self
                 .artifacts
                 .get(&aei)
@@ -542,7 +549,7 @@ impl<C: Ctx> LocalBoard<C> {
             0,
         );
 
-        if self.store.is_some() && !self.in_memory {
+        if self.store.is_some() && self.no_cache {
             let entry = self
             .artifacts
             .get(&aei)
@@ -811,7 +818,7 @@ impl<C: Ctx> LocalBoard<C> {
         let aei =
             self.get_artifact_entry_identifier_ext(kind.clone(), signer_position, 0, 0);
         
-        let bytes = if self.store.is_some() && !self.in_memory {
+        let bytes = if self.store.is_some() && self.no_cache {
             let entry = self
                 .artifacts
                 .get(&aei)

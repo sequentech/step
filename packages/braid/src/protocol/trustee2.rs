@@ -14,8 +14,10 @@ use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strand::{context::Ctx, elgamal::PrivateKey};
 
 use crate::protocol::action::Action;
-use crate::protocol::board::local::LocalBoard;
+use crate::protocol::board::local2::LocalBoard;
+use crate::protocol::board::ArtifactRef;
 use crate::protocol::predicate::Predicate;
+
 use crate::util::{ProtocolContext, ProtocolError};
 use board_messages::braid::artifact::Channel;
 use board_messages::braid::artifact::Configuration;
@@ -25,9 +27,14 @@ use board_messages::braid::artifact::{Ballots, DecryptionFactors, Mix, Plaintext
 use board_messages::braid::message::Message;
 use board_messages::braid::newtypes::*;
 use board_messages::braid::statement::StatementType;
+use board_messages::grpc::GrpcB3Message;
 use strand::util::StrandError;
+use std::path::PathBuf;
+
 
 use strand::symm::{self, EncryptionData};
+
+const RETRIEVE_ALL_MESSAGES_PERIOD: i64 = 60 * 30;
 
 ///////////////////////////////////////////////////////////////////////////
 // Trustee
@@ -51,6 +58,8 @@ pub struct Trustee<C: Ctx> {
     pub(crate) signing_key: StrandSignatureSk,
     pub(crate) encryption_key: symm::SymmetricKey,
     pub(crate) local_board: LocalBoard<C>,
+    pub(crate) last_message_id: i64,
+    pub(crate) step_counter: i64,
 }
 
 impl<C: Ctx> board_messages::braid::message::Signer for Trustee<C> {
@@ -67,14 +76,18 @@ impl<C: Ctx> Trustee<C> {
         name: String,
         signing_key: StrandSignatureSk,
         encryption_key: symm::SymmetricKey,
+        store: Option<PathBuf>,
+        in_memory: bool
     ) -> Trustee<C> {
-        let local_board = LocalBoard::new();
+        let local_board = LocalBoard::new(store, in_memory);
 
         Trustee {
             name,
             signing_key,
             encryption_key,
             local_board,
+            last_message_id: -1,
+            step_counter: 0,
         }
     }
 
@@ -85,10 +98,27 @@ impl<C: Ctx> Trustee<C> {
     #[instrument(name = "Trustee::step", skip(messages, self), level="trace"in)]
     pub(crate) fn step(
         &mut self,
-        messages: Vec<(Message, i64)>,
+        messages: &Vec<GrpcB3Message>,
     ) -> Result<StepResult, ProtocolError> {
-    // ) -> Result<(Vec<Message>, HashSet<Action>, i64), ProtocolError> {
+    
+        let messages = if self.local_board.store.is_some() {
+            self.store_and_return_messages(messages)?
+        }
+        else {
+            let ms: Result<Vec<(Message, i64)>, StrandError> = messages.iter().map(|m| {
+                let message = Message::strand_deserialize(&m.message)?;
+
+                Ok((message, m.id))
+            }).collect();
+
+            ms?
+        };
+        
         let (added_messages, last_id) = self.update_local_board(messages)?;
+        if added_messages > 0 {
+            info!("Setting last id {}", last_id);
+            self.last_message_id = last_id;
+        }
 
         trace!("Update added {} messages", added_messages);
         let predicates = self.derive_predicates(false)?;
@@ -109,7 +139,6 @@ impl<C: Ctx> Trustee<C> {
         let ret = StepResult::new(messages, actions, added_messages, last_id);
 
         Ok(ret)
-        // Ok((messages, actions, last_id))
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -132,12 +161,54 @@ impl<C: Ctx> Trustee<C> {
         }
     }
 
+    // Updates the message store, but not the local board
+    pub(crate) fn update_store(
+        &mut self,
+        messages: &Vec<GrpcB3Message>,
+    ) -> Result<(), ProtocolError> {
+        self.local_board.update_store(messages, false).map_err(|e| {
+            ProtocolError::BoardError(format!("{}", e))
+        })
+    }
+
+    pub(crate) fn store_and_return_messages(&mut self, messages: &Vec<GrpcB3Message>) -> Result<Vec<(Message, i64)>, ProtocolError> {
+        let ignore_existing = self.step_counter % RETRIEVE_ALL_MESSAGES_PERIOD == 0;
+        
+        self.local_board.store_and_return_messages(&messages, self.last_message_id, ignore_existing).map_err(|e| {
+            ProtocolError::BoardError(format!("{}", e))
+        })
+    }
+
+    // Returns the largest id stored in the local message store
+    pub fn get_last_external_id(&mut self) -> Result<i64, ProtocolError> {
+        self.step_counter += 1;
+        // in the event that there are holes, a full update will eventually load missing
+        // messages from the remote board
+        let reset = self.step_counter % RETRIEVE_ALL_MESSAGES_PERIOD == 0;
+        let external_last_id = if reset {
+            info!("* Full update from remote board (step = {})", self.step_counter);
+            -1
+        } else {
+            if self.local_board.store.is_some() {
+                self.local_board.get_last_external_id().unwrap_or(-1)
+            }
+            else {
+                self.last_message_id
+            }
+        };
+        
+        Ok(external_last_id)
+    }
+
+    
+
     ///////////////////////////////////////////////////////////////////////////
     // General (non-bootstrap) update
     //
     // Each message is verified and added to the local board.
     //
-    // Takes a vector of (message, message_id) pairs as input plus configuration, returns a pair of (updated messages count, last message id added)
+    // Takes a vector of (message, message_id) pairs as input plus configuration, 
+    // returns a pair of (updated messages count, last message id added)
     ///////////////////////////////////////////////////////////////////////////
     fn update(
         &mut self,
@@ -182,7 +253,7 @@ impl<C: Ctx> Trustee<C> {
             }
 
             let stmt = verified.statement.clone();
-            let _ = self.local_board.add(verified)?;
+            let _ = self.local_board.add(verified, id)?;
             debug!("Added message type=[{}]", stmt);
             added += 1;
             if id > last_added_id {
@@ -250,7 +321,7 @@ impl<C: Ctx> Trustee<C> {
         assert!(verified.signer_position == PROTOCOL_MANAGER_INDEX);
         trace!("Verified signature, Configuration signed by Protocol Manager");
 
-        let added_ = self.local_board.add(verified);
+        let added_ = self.local_board.add(verified, last_id);
         if added_.is_ok() {
             added += 1;
             last_added_id = last_id;
@@ -342,6 +413,7 @@ impl<C: Ctx> Trustee<C> {
         let results: Result<Vec<Vec<Message>>, ProtocolError> = actions
             .into_par_iter()
             .map(|a| {
+                info!("Running action {:?}..", a);
                 let m = if !verifying_mode {
                     a.run(self)
                 } else {
@@ -419,7 +491,7 @@ impl<C: Ctx> Trustee<C> {
         hash: &CiphertextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<&Ballots<C>, ProtocolError> {
+    ) -> Result<ArtifactRef<Ballots<C>>, ProtocolError> {
         self.local_board.get_ballots(hash, batch, signer_position)
     }
 
@@ -428,7 +500,7 @@ impl<C: Ctx> Trustee<C> {
         hash: &CiphertextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<&Mix<C>, ProtocolError> {
+    ) -> Result<ArtifactRef<Mix<C>>, ProtocolError> {
         self.local_board.get_mix(hash, batch, signer_position)
     }
 
@@ -437,7 +509,7 @@ impl<C: Ctx> Trustee<C> {
         hash: &DecryptionFactorsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<&DecryptionFactors<C>, ProtocolError> {
+    ) -> Result<ArtifactRef<DecryptionFactors<C>>, ProtocolError> {
         self.local_board
             .get_decryption_factors(hash, batch, signer_position)
     }
@@ -447,7 +519,7 @@ impl<C: Ctx> Trustee<C> {
         hash: &PlaintextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<&Plaintexts<C>, ProtocolError> {
+    ) -> Result<ArtifactRef<Plaintexts<C>>, ProtocolError> {
         self.local_board
             .get_plaintexts(hash, batch, signer_position)
     }
@@ -462,7 +534,7 @@ impl<C: Ctx> Trustee<C> {
         &self,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Option<Plaintexts<C>> {
+    ) -> Option<&Plaintexts<C>> {
         self.local_board
             .get_plaintexts_nohash(batch, signer_position)
     }
@@ -550,15 +622,16 @@ impl TrusteeConfig {
         }
     }
 
-    pub fn from<C: Ctx>(trustee: &Trustee<C>) -> TrusteeConfig {
-        let sk_string = trustee.signing_key.to_der_b64_string().unwrap();
-        let pk_string = StrandSignaturePk::from_sk(&trustee.signing_key)
+    pub fn new_from_objects(signing_key: StrandSignatureSk, encryption_key: symm::SymmetricKey) -> Self {
+
+        let sk_string = signing_key.to_der_b64_string().unwrap();
+        let pk_string = StrandSignaturePk::from_sk(&signing_key)
             .unwrap()
             .to_der_b64_string()
             .unwrap();
 
         // Compatible with both aes and chacha20poly backends
-        let ek_bytes = trustee.encryption_key.as_slice();
+        let ek_bytes = encryption_key.as_slice();
 
         // let pk_string: String = general_purpose::STANDARD_NO_PAD.encode(pk_bytes);
         let ek_string: String = general_purpose::STANDARD_NO_PAD.encode(ek_bytes);
@@ -574,16 +647,16 @@ impl TrusteeConfig {
 pub struct StepResult {
     pub(crate) messages: Vec<Message>,
     pub(crate) actions: HashSet<Action>,
-    pub(crate) added_messages: i64,
-    pub(crate) last_id: i64,
+    pub(crate) _added_messages: i64,
+    pub(crate) _last_id: i64,
 }
 impl StepResult {
-    fn new(messages: Vec<Message>, actions: HashSet<Action>, added_messages: i64, last_id: i64) -> Self {
+    fn new(messages: Vec<Message>, actions: HashSet<Action>, _added_messages: i64, _last_id: i64) -> Self {
         StepResult {
             messages,
             actions,
-            added_messages,
-            last_id,
+            _added_messages,
+            _last_id,
         }
     }
 }

@@ -167,9 +167,10 @@ impl SessionSet {
 
                     requests.push((session.board_name.to_string(), last_id));
                 }
-                info!("requests: {:?}", requests);
  
-if (self.session_factory.trustee_name == "trustee1.toml".to_string()) && (loop_count > 5) && (requests[0].1 == 16 || requests[0].1 == 26) {
+if (self.session_factory.trustee_name == "trustee1.toml".to_string()) && (loop_count > 5) && (requests[0].1 == 16 
+    /* || requests[0].1 == 26*/
+    ) {
     println!("*** Remove this code!");
     std::process::exit(0);
 } 
@@ -270,9 +271,10 @@ pub struct SessionFactory {
     signing_key: StrandSignatureSk,
     symm_key: SymmetricKey,
     store_root: PathBuf,
+    no_cache: bool,
 }
 impl SessionFactory {
-    pub fn new(trustee_name: &str, cfg: TrusteeConfig, store_root: PathBuf) -> Result<Self> {
+    pub fn new(trustee_name: &str, cfg: TrusteeConfig, store_root: PathBuf, no_cache: bool) -> Result<Self> {
         let signing_key: StrandSignatureSk = StrandSignatureSk::from_der_b64_string(&cfg.signing_key_sk)?;
 
         let bytes = crate::util::decode_base64(&cfg.encryption_key)?;
@@ -286,7 +288,8 @@ impl SessionFactory {
             trustee_name: trustee_name.to_string(),
             symm_key,
             signing_key,
-            store_root
+            store_root,
+            no_cache
         })
     }
 
@@ -301,7 +304,7 @@ impl SessionFactory {
             self.signing_key.clone(),
             self.symm_key,
             Some(self.store_root.join(&board_name)),
-            false
+            self.no_cache,
         );
         
         SessionM::new(board_name, trustee)

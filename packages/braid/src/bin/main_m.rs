@@ -40,6 +40,9 @@ struct Cli {
 
     #[arg(short, long)]
     trustee_config: PathBuf,
+
+    #[arg(short, long, default_value_t = false)]
+    no_cache: bool,
 }
 
 fn get_ignored_boards() -> HashSet<String> {
@@ -115,7 +118,7 @@ async fn run() -> Result<()> {
     let trustee_name = std::env::var("TRUSTEE_NAME")
         .unwrap_or(args.trustee_config.into_os_string().into_string().unwrap());
 
-    let factory = SessionFactory::new(&trustee_name, tc, store_root)?;
+    let factory = SessionFactory::new(&trustee_name, tc, store_root, args.no_cache)?;
     let mut master = SessionMaster::new(&args.server_url, factory, 1)?;
 
     loop {
