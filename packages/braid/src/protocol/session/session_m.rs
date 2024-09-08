@@ -4,8 +4,6 @@
 
 use anyhow::{Result, anyhow};
 use board_messages::grpc::GrpcB3Message;
-use rusqlite::params;
-use rusqlite::Connection;
 use strand::signature::StrandSignatureSk;
 use strand::symm::SymmetricKey;
 use std::collections::HashSet;
@@ -21,43 +19,30 @@ use tokio::task::JoinHandle;
 use tracing::{error, info, warn};
 
 use strand::context::Ctx;
-use strand::serialization::StrandDeserialize;
-
-
 use crate::protocol::board::grpc_m::{
     BoardFactoryMulti, BoardMulti, GrpcB3BoardParams,
 };
-use crate::protocol::trustee::Trustee;
-use crate::protocol::trustee::TrusteeConfig;
+use crate::protocol::trustee2::Trustee;
+use crate::protocol::trustee2::TrusteeConfig;
 use crate::util::ProtocolError;
 use board_messages::braid::message::Message;
 
-
-// How often a message_store update requests all message (not just > last external_id)
-const RETRIEVE_ALL_MESSAGES_PERIOD: i64 = 20 * 60;
 // How often the session map (with trustee's memory board) is cleared
 const SESSION_RESET_PERIOD: i64 = 20 * 60;
 
 pub struct SessionM<C: Ctx + 'static> {
     pub board_name: String,
     trustee: Trustee<C>,
-    // last message retrieved from local message_store
-    last_message_id: i64,
-    store_root: PathBuf,
-    step_counter: i64,
 }
 impl<C: Ctx> SessionM<C> {
-    pub fn new(board_name: &str, trustee: Trustee<C>, store_root: &PathBuf) -> Result<SessionM<C>> {
+    pub fn new(board_name: &str, trustee: Trustee<C>) -> Result<SessionM<C>> {
         let ret = SessionM {
             board_name: board_name.to_string(),
             trustee,
-            last_message_id: -1,
-            store_root: store_root.clone(),
-            step_counter: 1,
         };
 
         // fail early
-        ret.get_store()?;
+        // ret.get_store()?;
 
         Ok(ret)
     }
@@ -66,147 +51,25 @@ impl<C: Ctx> SessionM<C> {
         &mut self,
         messages: &Vec<GrpcB3Message>,
     ) -> Result<Vec<Message>, ProtocolError> {
-        let messages = self
-            .store_and_return_messages(messages)
-            .map_err(|e| ProtocolError::BoardError(e.to_string()))?;
-
+        
         // NOTE: we must call step even if there are no new remote messages
         // because there may be actions pending in the trustees memory board
         let step_result = self.trustee.step(messages)?;
-  
-        // last_id is the largest message id that was successfully updated to the trustee's board in memory
-        // in the event that there are holes, a session reset will eventually load missing messages
-        // from the store
-        if step_result.added_messages > 0 {
-            // if no messages were
-            self.last_message_id = step_result.last_id;
-        }
 
         Ok(step_result.messages)
     }
 
-    // Returns the largest id stored in the local message store
-    pub fn get_last_external_id(&mut self) -> Result<i64> {
-        let connection = self.get_store()?;
-
-        let external_last_id =
-            connection.query_row("SELECT max(external_id) FROM messages;", [], |row| {
-                row.get(0)
-            });
-
-        self.step_counter += 1;
-        // in the event that there are holes, a full update will eventually load missing
-        // messages from the remote board
-        let reset = self.step_counter % RETRIEVE_ALL_MESSAGES_PERIOD == 0;
-        let external_last_id = if reset {
-            info!("* Full update from remote board (step = {})", self.step_counter);
-            -1
-        } else {
-            external_last_id.unwrap_or(-1)
-        };
-
-        Ok(external_last_id)
+    pub fn get_last_external_id(&mut self) -> Result<i64, ProtocolError> {
+        self.trustee.get_last_external_id()
     }
 
-    // Updates the message store with the passed in messages. This method can
-    // be called independently of step, to only update the store (when a truncated 
-    // message is received from the bulletin board)
     pub(crate) fn update_store(
         &mut self,
         messages: &Vec<GrpcB3Message>,
-        ignore_existing: bool,
-    ) -> Result<Connection> {
-        let connection = self.get_store()?;
-
-        // FIXME verify message signatures before inserting in local store
-        let mut statement = if ignore_existing {
-            connection.prepare(
-                "INSERT OR IGNORE INTO MESSAGES(external_id, message, blob_hash) VALUES(?1, ?2, ?3)",
-            )?
-        } else {
-            connection.prepare(
-                "INSERT INTO MESSAGES(external_id, message, blob_hash) VALUES(?1, ?2, ?3)",
-            )?
-        };
-
-        connection.execute("BEGIN TRANSACTION", [])?;
-        for m in messages {
-            let hash = strand::hash::hash(&m.message)?;
-            statement.execute(params![m.id, m.message, hash])?;
-        }
-        connection.execute("END TRANSACTION", [])?;
-
-        drop(statement);
-
-        Ok(connection)
+    ) -> Result<(), ProtocolError> {
+        self.trustee.update_store(messages)
     }
 
-    fn store_and_return_messages(
-        &mut self,
-        messages: &Vec<GrpcB3Message>,
-    ) -> Result<Vec<(Message, i64)>> {
-        /* let connection = self.get_store()?;
-
-        let reset = self.step_counter % RETRIEVE_ALL_PERIOD == 0;
-        // FIXME verify message signatures before inserting in local store
-        let mut statement = if reset {
-            connection.prepare(
-                "INSERT OR IGNORE INTO MESSAGES(external_id, message, blob_hash) VALUES(?1, ?2, ?3)",
-            )?
-        } else {
-            connection.prepare(
-                "INSERT INTO MESSAGES(external_id, message, blob_hash) VALUES(?1, ?2, ?3)",
-            )?
-        };
-
-        connection.execute("BEGIN TRANSACTION", [])?;
-        for m in messages {
-            let hash = strand::hash::hash(&m.message)?;
-            statement.execute(params![m.id, m.message, hash])?;
-        }
-        connection.execute("END TRANSACTION", [])?;
-        */
-
-        let reset = self.step_counter % RETRIEVE_ALL_MESSAGES_PERIOD == 0;
-        let connection = self.update_store(messages, reset)?;
-
-        let mut stmt =
-            connection.prepare("SELECT id,message FROM MESSAGES where id > ?1 order by id asc")?;
-
-        let rows = stmt.query_map([self.last_message_id], |row| {
-            Ok(SqliteStoreMessageRow {
-                id: row.get(0)?,
-                message: row.get(1)?,
-            })
-        })?;
-
-        let messages: Result<Vec<(Message, i64)>> = rows
-            .map(|mr| {
-                let row = mr?;
-                let id = row.id;
-                let message = Message::strand_deserialize(&row.message)?;
-                Ok((message, id))
-            })
-            .collect();
-
-        messages
-    }
-
-    fn get_store(&self) -> Result<Connection> {
-        let db_path = self.store_root.join(&self.board_name);
-        let connection = Connection::open(&db_path)?;
-        // The autogenerated id column is used to establish an order that cannot be manipulated by the external board. Once a retrieved message is
-        // stored and assigned a local id, it is not possible for later messages to have an earlier id.
-        // The external_id column is used to retrieve _new_ messages as defined by the external board (to optimize bandwidth).
-        connection.execute("CREATE TABLE if not exists MESSAGES(id INTEGER PRIMARY KEY AUTOINCREMENT, external_id INT8 NOT NULL UNIQUE, message BLOB NOT NULL, blob_hash BLOB NOT NULL UNIQUE)", [])?;
-
-        Ok(connection)
-    }
-}
-
-struct SqliteStoreMessageRow {
-    id: i64,
-    message: Vec<u8>,
 }
 
 pub enum SessionSetMessage {
@@ -304,6 +167,7 @@ impl SessionSet {
 
                     requests.push((session.board_name.to_string(), last_id));
                 }
+                info!("requests: {:?}", requests);
  
 if (self.session_factory.trustee_name == "trustee1.toml".to_string()) && (loop_count > 5) && (requests[0].1 == 16 || requests[0].1 == 26) {
     println!("*** Remove this code!");
@@ -344,7 +208,7 @@ if (self.session_factory.trustee_name == "trustee1.toml".to_string()) && (loop_c
                     // avoids executing superfluous work
                     if truncated {
                         warn!("Received truncated messages, updating only..");
-                        if let Err(err) = s.update_store(messages, false) {
+                        if let Err(err) = s.update_store(messages) {
                             error!("Error updating store: {} (returned messages truncated)", err);
                         }
                         continue;
@@ -436,8 +300,10 @@ impl SessionFactory {
             self.trustee_name.clone(),
             self.signing_key.clone(),
             self.symm_key,
+            Some(self.store_root.join(&board_name)),
+            false
         );
         
-        SessionM::new(board_name, trustee, &self.store_root)
+        SessionM::new(board_name, trustee)
     }
 }

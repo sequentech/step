@@ -1,9 +1,12 @@
 use anyhow::Result;
 
-use board_messages::grpc::KeyedMessages;
+use board_messages::grpc::{GrpcB3Message, KeyedMessages};
 
 use board_messages::braid::message::Message;
 use board_messages::grpc::client::B3Client;
+use crate::protocol::board::Board;
+
+use super::BoardFactory;
 
 const MAX_MESSAGE_SIZE: usize = 10 * 1024 * 1024 * 1024;
 const GRPC_TIMEOUT: u64 = 5 * 60;
@@ -26,6 +29,28 @@ impl BoardMulti for GrpcB3 {
 
         Ok(())
     }
+}
+
+impl Board for GrpcB3 {
+    type Factory = GrpcB3BoardParams;
+    async fn get_messages(&mut self, board: &str, last_id: i64) -> Result<Vec<GrpcB3Message>> { 
+        let messages = self.client.get_messages(board, last_id).await?;
+
+        let messages = messages.into_inner();
+
+        Ok(messages.messages)
+
+    }
+    async fn insert_messages(&mut self, board: &str, messages: Vec<Message>) -> Result<()> {
+        if messages.len() > 0 {
+            self.client
+                .put_messages(board, &messages)
+                .await?;
+        }
+
+        Ok(())
+    }
+    
 }
 
 pub struct GrpcB3Index {
@@ -70,6 +95,11 @@ impl GrpcB3BoardParams {
     }
 }
 
+impl BoardFactory<GrpcB3> for GrpcB3BoardParams {
+    fn get_board(&self) -> GrpcB3 {
+        GrpcB3::new(&self.url)
+    }
+}
 impl BoardFactoryMulti<GrpcB3> for GrpcB3BoardParams {
     fn get_board(&self) -> GrpcB3 {
         GrpcB3::new(&self.url)

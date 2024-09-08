@@ -33,6 +33,8 @@ pub(super) fn compute_decryption_factors<C: Ctx>(
         .get_mix(ciphertexts_h, *batch, *mix_signer)
         .add_context("Computing decryption factors")?;
 
+    let ciphertexts = ciphertexts.get_ref();
+
     let my_channel = trustee
         .get_channel(&ChannelHash(channels_hs.0[*self_p]), *self_p)
         .add_context("Computing decryption factors")?;
@@ -155,6 +157,7 @@ pub(super) fn sign_plaintexts<C: Ctx>(
     let actual = trustee
         .get_plaintexts(plaintexts_h, *batch, trustees[0] - 1)
         .add_context("Signing plaintexts")?;
+    let actual = actual.get_ref();
 
     if expected.0 .0 == actual.0 .0 {
         info!(
@@ -202,6 +205,7 @@ fn compute_plaintexts_<C: Ctx>(
     let mix = trustee
         .get_mix(ciphertexts_h, *batch, *mix_signer)
         .add_context("Computing plaintexts")?;
+    let mix = mix.get_ref();
 
     let num_ciphertexts = mix.ciphertexts.0.len();
     let mut divider = vec![C::E::mul_identity(); num_ciphertexts];
@@ -219,6 +223,7 @@ fn compute_plaintexts_<C: Ctx>(
             let dfactors = trustee
                 .get_decryption_factors(&DecryptionFactorsHash(*df_h), *batch, ts[t] - 1)
                 .add_context("Computing plaintexts")?;
+            let dfactors = dfactors.get_ref();
 
             assert_eq!(num_ciphertexts, dfactors.factors.0.len());
             let vk = pk.verification_keys[ts[t] - 1].clone();
