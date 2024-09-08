@@ -54,7 +54,6 @@ import {
     Sequent_Backend_Tally_Session,
     Sequent_Backend_Tally_Session_Execution,
     UpdateTallyCeremonyMutation,
-    UploadSignatureMutation,
 } from "@/gql/graphql"
 import {CancelButton, NextButton} from "./styles"
 import {statusColor} from "./constants"
@@ -69,16 +68,10 @@ import {
     IMiruTransmissionPackageData,
     MIRU_TALLY_SESSION_ANNOTATION_KEY,
 } from "@/types/miru"
-import {SEND_TRANSMISSION_PACKAGE} from "@/queries/SendTransmissionPackage"
 import {IPermissions} from "@/types/keycloak"
-import {UPLOAD_SIGNATURE} from "@/queries/UploadSignature"
-import {MiruExportWizard} from "@/components/MiruExportWizard"
 import {CREATE_TRANSMISSION_PACKAGE} from "@/queries/CreateTransmissionPackage"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
-import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
-import {MiruPackageDownload} from "@/components/MiruPackageDownload"
-import {ExportButton} from "@/components/MiruExport"
 import {AuthContext} from "@/providers/AuthContextProvider"
 
 const WizardSteps = {

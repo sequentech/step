@@ -130,12 +130,12 @@ pub async fn upload_signature(
     input: Json<UploadSignatureInput>,
 ) -> Result<Json<UploadSignatureOutput>, (Status, String)> {
     let body = input.into_inner();
-    // authorize(
-    //     &claims,
-    //     true,
-    //     Some(claims.hasura_claims.tenant_id.clone()),
-    //     vec![Permissions::MIRU_SIGN],
-    // )?;
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::MIRU_SIGN],
+    )?;
 
     let Some(username) = claims.preferred_username.clone() else {
         return Err((
@@ -144,25 +144,21 @@ pub async fn upload_signature(
         ));
     };
 
-    let celery_app = get_celery_app().await;
-    let task = celery_app
-        .send_task(upload_signature_task::new(
-            claims.hasura_claims.tenant_id.clone(),
-            body.election_id.clone(),
-            body.area_id.clone(),
-            body.tally_session_id.clone(),
-            username,
-            body.document_id.clone(),
-            body.password.clone(),
-        ))
-        .await
-        .map_err(|error| {
-            (
-                Status::InternalServerError,
-                format!("Error sending upload_signature_task task: {error:?}"),
-            )
-        })?;
-    info!("Sent upload_signature_task task {}", task.task_id);
+    upload_signature_task(
+        claims.hasura_claims.tenant_id.clone(),
+        body.election_id.clone(),
+        body.area_id.clone(),
+        body.tally_session_id.clone(),
+        username,
+        body.document_id.clone(),
+        body.password.clone(),
+    )
+    .await
+    .map_err(|err| (
+        Status::InternalServerError,
+        format!("{}", err),
+    ))
+    ?;
 
     Ok(Json(UploadSignatureOutput {}))
 }

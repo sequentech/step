@@ -102,28 +102,31 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
     })
 
     const handleUploadSignature = async ({
-        doc_id,
+        documentId,
         password,
     }: {
-        doc_id: string
+        documentId: string
         password: string
     }) => {
-        const {data, errors} = await uploadSignature({
-            variables: {
-                electionId: selectedTallySessionData?.election_id,
-                tallySessionId: tally?.id,
-                areaId: selectedTallySessionData?.area_id,
-                document_id: doc_id,
-                password: password,
-            },
-        })
-        setUploading(false)
-        setSignatureId("")
-        notify(t("Signing Successful"), {type: "success"})
+        try {
+            const {data, errors} = await uploadSignature({
+                variables: {
+                    electionId: selectedTallySessionData?.election_id,
+                    tallySessionId: tally?.id,
+                    areaId: selectedTallySessionData?.area_id,
+                    documentId: documentId,
+                    password: password,
+                },
+            })
+            setUploading(false)
+            setSignatureId("")
+            notify(t("Signing Successful"), {type: "success"})
 
-        if (errors) {
-            setErrors(t("tally.errorUploadingSignature", {error: errors.toString()}))
-            return
+            if (errors) {
+                setErrors(t("tally.errorUploadingSignature", {error: errors.toString()}))
+            }
+        } catch (errors) {
+            setErrors(t("tally.errorUploadingSignature", {error: String(errors)}))
         }
     }
 
@@ -703,7 +706,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
                 cancel={t("tally.transmissionPackage.actions.regenerate.dialog.cancel")}
                 title={t("tally.transmissionPackage.actions.sign.dialog.title")}
                 handleClose={(result: boolean) => {
-                    handleUploadSignature({doc_id: signatureId, password: passwordState})
+                    handleUploadSignature({documentId: signatureId, password: passwordState})
                 }}
             >
                 <Box>
