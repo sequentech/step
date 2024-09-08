@@ -88,6 +88,12 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     const [tenantId] = useTenantStore()
     const {setTallyId, setCreatingFlag} = useElectionEventTallyStore()
     const isTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_CEREMONY)
+    const canDoMiruAction = authContext.isAuthorized(true, tenantId, [
+        IPermissions.MIRU_SIGN,
+        IPermissions.MIRU_CREATE,
+        IPermissions.MIRU_DOWNLOAD,
+        IPermissions.MIRU_SEND,
+    ])
 
     const [openCancelTally, openCancelTallySet] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
@@ -193,7 +199,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                 </Tooltip>
             ),
             action: viewAdminTally,
-            showAction: (id: Identifier) => canAdminCeremony,
+            showAction: (id: Identifier) => canAdminCeremony || canDoMiruAction,
         },
         {
             icon: (
