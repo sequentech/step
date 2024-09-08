@@ -4,7 +4,9 @@
 
 use crate::services::authorization::authorize;
 use crate::types::optional::OptionalId;
-use crate::types::resources::{Aggregate, DataList, TotalAggregate};
+use crate::types::resources::{
+    Aggregate, DataList, SortPayload, TotalAggregate,
+};
 use anyhow::{Context, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::futures::future::join_all;
@@ -144,6 +146,9 @@ pub struct GetUsersBody {
     offset: Option<i32>,
     show_votes_info: Option<bool>,
     attributes: Option<HashMap<String, String>>,
+    email_verified: Option<bool>,
+    enabled: Option<bool>,
+    sort: Option<HashMap<String, String>>,
 }
 
 #[instrument(skip(claims), ret)]
@@ -216,6 +221,9 @@ pub async fn get_users(
         offset: input.offset,
         user_ids: None,
         attributes: input.attributes,
+        enabled: input.enabled,
+        email_verified: input.email_verified,
+        sort: input.sort,
     };
 
     let (users, count) = match input.show_votes_info.unwrap_or(false) {

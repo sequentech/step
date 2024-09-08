@@ -161,6 +161,7 @@ interface EditUserFormProps {
     rolesList: Array<IRole>
     userAttributes: UserProfileAttribute[]
     createMode?: boolean
+    areas?: Sequent_Backend_Area[]
 }
 
 export const EditUserForm: React.FC<EditUserFormProps> = ({
@@ -170,6 +171,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     rolesList,
     userAttributes,
     createMode = false,
+    areas,
 }) => {
     const {t} = useTranslation()
     const {data, isLoading} = useListContext<IUser & {id: string}>()
@@ -187,11 +189,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             userId: id!,
             electionEventId: electionEventId,
         },
-    })
-
-    const {data: areas} = useGetList<Sequent_Backend_Area>("sequent_backend_area", {
-        pagination: {page: 1, perPage: 9999},
-        filter: {election_event_id: electionEventId, tenant_id: tenantId},
     })
 
     useEffect(() => {

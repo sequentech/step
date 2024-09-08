@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {ReactElement, useContext} from "react"
+import React, {ReactElement, useContext, useMemo} from "react"
 import {
     DatagridConfigurable,
     List,
@@ -18,7 +18,8 @@ import {
     FunctionField,
     Button as ReactAdminButton,
     useRecordContext,
-    DateField,
+    BooleanInput,
+    SelectInput,
 } from "react-admin"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -44,6 +45,7 @@ import {
     GetUserProfileAttributesQuery,
     ImportUsersMutation,
     ManualVerificationMutation,
+    Sequent_Backend_Area,
     Sequent_Backend_Election_Event,
 } from "@/gql/graphql"
 import {DELETE_USER} from "@/queries/DeleteUser"
@@ -132,14 +134,45 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             },
         }
     )
-    const Filters: Array<ReactElement> = [
-        <TextInput key="email" source="email" />,
-        <TextInput key="first_name" source="first_name" />,
-        <TextInput key="last_name" source="last_name" />,
-        <TextInput key="username" source="username" />,
-        <TextInput key="country" source="attributes.country" label="Country" />,
-        <TextInput key="embassy" source={`attributes.embassy`} label="Post/Embassy" />,
-    ]
+
+    const {data: areas} = useGetList<Sequent_Backend_Area>("sequent_backend_area", {
+        pagination: {page: 1, perPage: 9999},
+        filter: {election_event_id: electionEventId, tenant_id: tenantId},
+    })
+
+    const Filters = useMemo(() => {
+        let filters: ReactElement[] = []
+        if (userAttributes?.get_user_profile_attributes) {
+            filters = userAttributes.get_user_profile_attributes.map((attr) => {
+                const source = attr.name?.replaceAll(".", "%")
+                return (
+                    <TextInput
+                        key={attr.name}
+                        source={
+                            userBasicInfo.includes(`${attr.name}`)
+                                ? `${attr.name}`
+                                : `attributes.${source}`
+                        }
+                        label={getAttributeLabel(attr.display_name ?? "")}
+                    />
+                )
+            })
+            filters.push(<BooleanInput key="enabled" source={"enabled"} />)
+            filters.push(<BooleanInput key="email_verified" source={"email_verified"} />)
+            if (electionEventId && areas) {
+                filters.push(
+                    <SelectInput
+                        source="attributes.area-id"
+                        choices={areas?.map((area) => {
+                            return {id: area.id, name: area.name}
+                        })}
+                        label={t("usersAndRolesScreen.users.fields.area")}
+                    />
+                )
+            }
+        }
+        return filters
+    }, [userAttributes?.get_user_profile_attributes])
 
     console.log("userAttributes ", userAttributes)
 
@@ -590,6 +623,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                 close={handleClose}
                                 rolesList={rolesList || []}
                                 userAttributes={userAttributes?.get_user_profile_attributes || []}
+                                areas={areas}
                             />
                         }
                         extraActions={[
@@ -618,7 +652,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         <TextField source="id" />
                         <BooleanField source="email_verified" />
                         <BooleanField source="enabled" />
-                        {userAttributes?.get_user_profile_attributes.map((attr) => {
+                        {userAttributes.get_user_profile_attributes.map((attr) => {
                             if (attr.annotations?.inputType === "html5-date") {
                                 return (
                                     <CustomDateField
@@ -679,6 +713,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     close={handleClose}
                     rolesList={rolesList || []}
                     userAttributes={userAttributes?.get_user_profile_attributes || []}
+                    areas={areas}
                 />
             </ResourceListStyles.Drawer>
             <ResourceListStyles.Drawer
@@ -699,6 +734,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     close={handleClose}
                     rolesList={rolesList || []}
                     userAttributes={userAttributes?.get_user_profile_attributes || []}
+                    areas={areas}
                 />
             </ResourceListStyles.Drawer>
             <Dialog

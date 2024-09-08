@@ -149,6 +149,39 @@ pub struct ListUsersFilter {
     pub offset: Option<i32>,
     pub user_ids: Option<Vec<String>>,
     pub attributes: Option<HashMap<String, String>>,
+    pub email_verified: Option<bool>,
+    pub enabled: Option<bool>,
+    pub sort: Option<HashMap<String, String>>,
+}
+
+fn get_query_bool_condition(field: &str, value: Option<bool>) -> String {
+    match value {
+        Some(true) => format!("AND u.{} = true", field),
+        Some(false) => format!("AND u.{} = false", field),
+        None => "".to_string(),
+    }
+}
+
+fn get_sort_order_and_field(sort: Option<HashMap<String, String>>) -> (String, String) {
+    fn sanitize_string(s: &str) -> String {
+        s.trim_matches('\'').to_string()
+    }
+    match sort {
+        Some(sort_fields) => {
+            let field = sort_fields
+                .get("'field'")
+                .map(|f| sanitize_string(f))
+                .unwrap_or_else(|| "id".to_string());
+
+            let order = sort_fields
+                .get("'order'")
+                .map(|o| sanitize_string(o).to_uppercase())
+                .unwrap_or_else(|| "ASC".to_string());
+
+            (field, order)
+        }
+        None => ("id".to_string(), "ASC".to_string()),
+    }
 }
 
 #[instrument(skip(hasura_transaction, keycloak_transaction), err)]
@@ -195,8 +228,12 @@ pub async fn list_users(
     )
     .await?;
 
-    // let mut dynamic_attr_conditions: Vec<String> = Vec::new();
-    // let mut dynamic_attr_params: Vec<Option<String>> = vec![];
+    let enabled_condition = get_query_bool_condition("enabled", filter.enabled);
+    let email_verified_condition =
+        get_query_bool_condition("email_verified", filter.email_verified);
+
+    let mut dynamic_attr_conditions: Vec<String> = Vec::new();
+    let mut dynamic_attr_params: Vec<Option<String>> = vec![];
 
     let mut params: Vec<&(dyn ToSql + Sync)> = vec![
         &filter.realm,
@@ -209,24 +246,32 @@ pub async fn list_users(
         &filter.user_ids,
     ];
 
-    // if let Some(attributes) = &filter.attributes {
-    //     for (key, value) in attributes {
-    //         dynamic_attr_conditions.push(format!("(attr.name = ${{}} AND attr.value ILIKE ${{}})"));
-    //         let val = Some(format!("%{value}%"));
+    if let Some(attributes) = &filter.attributes {
+        let mut attr_placeholder_count = 9;
+        for (key, value) in attributes {
+            dynamic_attr_conditions.push(format!(
+                "EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value ILIKE ${})",
+                attr_placeholder_count,
+                attr_placeholder_count + 1
+            ));
+            let val = Some(format!("%{value}%"));
+            let formatted_keyy = key.trim_matches('\'').to_string();
+            dynamic_attr_params.push(Some(formatted_keyy.clone()));
+            dynamic_attr_params.push(val.clone());
+            attr_placeholder_count += 2;
+        }
+    }
 
-    //         dynamic_attr_params.push(Some(key.clone()));
-    //         dynamic_attr_params.push(val.clone());
-    //     }
-    // }
+    let dynamic_attr_clause = if !dynamic_attr_conditions.is_empty() {
+        dynamic_attr_conditions.join(" OR ")
+    } else {
+        "1=1".to_string() // Always true if no dynamic attributes are specified
+    };
 
-    // let dynamic_attr_clause = if !dynamic_attr_conditions.is_empty() {
-    //     format!("AND ({})", dynamic_attr_conditions.join(" OR "))
-    // } else {
-    //     "".to_string()
-    // };
+    let (sort_field, sort_order) = get_sort_order_and_field(filter.sort);
 
-    //TODO: add {dynamic_attr_clause} after {area_ids_where_clause}}
-    let statement = keycloak_transaction.prepare(format!(r#"
+    let query = format!(
+        r#"
         SELECT
             u.id,
             u.email,
@@ -254,17 +299,28 @@ pub async fn list_users(
             ($7::VARCHAR IS NULL OR username ILIKE $7) AND
             (u.id = ANY($8) OR $8 IS NULL)
             {area_ids_where_clause}
+            {enabled_condition}
+            {email_verified_condition}
+           AND ({dynamic_attr_clause})
         GROUP BY
             u.id
+        ORDER BY
+            {} {}
         LIMIT $2 OFFSET $3;
-    "#).as_str()).await?;
+    "#,
+        sort_field, sort_order
+    );
+
+    let statement = keycloak_transaction.prepare(&query).await?;
 
     if area_ids.is_some() {
         params.push(&area_ids);
     }
-    // for value in &dynamic_attr_params {
-    //     params.push(value);
-    // }
+
+    for value in &dynamic_attr_params {
+        params.push(value);
+    }
+
     let rows: Vec<Row> = keycloak_transaction
         .query(&statement, &params.as_slice())
         .await

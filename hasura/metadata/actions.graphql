@@ -490,6 +490,9 @@ input GetUsersInput {
   offset : Int
   show_votes_info : Boolean
   attributes : jsonb
+  enabled : Boolean
+  email_verified : Boolean
+  sort : jsonb
 }
 
 input CreateKeysCeremonyInput {

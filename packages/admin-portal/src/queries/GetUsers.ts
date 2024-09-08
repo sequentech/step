@@ -16,6 +16,9 @@ export const LIST_USERS = gql`
         $offset: Int
         $showVotesInfo: Boolean
         $attributes: jsonb
+        $enabled: Boolean
+        $email_verified: Boolean
+        $sort: jsonb
     ) {
         get_users(
             body: {
@@ -30,6 +33,9 @@ export const LIST_USERS = gql`
                 offset: $offset
                 show_votes_info: $showVotesInfo
                 attributes: $attributes
+                enabled: $enabled
+                email_verified: $email_verified
+                sort: $sort
             }
         ) {
             items {
@@ -65,7 +71,8 @@ export const formatUserAtributestoJsonb = (obj: any) => {
     const newUserAttributesObject: Record<string, any> = {}
     if (obj) {
         Object.entries(obj).forEach(([key, value]) => {
-            newUserAttributesObject[`'${key}'`] = value
+            const new_key = key.replaceAll("%", ".")
+            newUserAttributesObject[`'${new_key}'`] = value
         })
         return newUserAttributesObject
     }
@@ -76,6 +83,7 @@ export const customBuildGetUsersVariables =
     (introspectionResults: any) =>
     (resource: any, raFetchType: any, params: any, nullParam: any) => {
         const {filter, pagination, sort} = params
+        console.log("sort: ", sort)
 
         return {
             tenant_id: filter.tenant_id || null,
@@ -92,5 +100,8 @@ export const customBuildGetUsersVariables =
                     : null,
             showVotesInfo: filter.showVotesInfo || false,
             attributes: filter.attributes ? formatUserAtributestoJsonb(filter.attributes) : null,
+            enabled: filter.enabled ?? null,
+            email_verified: filter.email_verified ?? null,
+            sort: sort ? formatUserAtributestoJsonb(sort) : null,
         }
     }

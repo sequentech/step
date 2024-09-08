@@ -530,6 +530,9 @@ pub async fn send_communication(
             offset: Some(processed),
             user_ids: user_ids.clone(),
             attributes: None,
+            enabled: None,
+            email_verified: None,
+            sort: None,
         };
 
         let (users, total_count) = match audience_selection {

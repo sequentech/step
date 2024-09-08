@@ -235,6 +235,9 @@ pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
             offset: Some(offset),
             user_ids: None,
             attributes: None,
+            enabled: None,
+            email_verified: None,
+            sort: None,
         };
 
         let (users, count) = match &body {
