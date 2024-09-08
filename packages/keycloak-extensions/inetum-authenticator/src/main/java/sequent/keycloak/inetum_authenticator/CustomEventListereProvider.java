@@ -14,6 +14,7 @@ import java.util.concurrent.CompletableFuture;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.events.Event;
 import org.keycloak.events.EventListenerProvider;
+import org.keycloak.events.EventType;
 import org.keycloak.events.admin.AdminEvent;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.util.JsonSerialization;
@@ -31,7 +32,6 @@ public class CustomEventListereProvider implements EventListenerProvider {
 
   public CustomEventListereProvider(KeycloakSession session) {
     this.session = session;
-    authenticate();
   }
 
   @Override
@@ -39,11 +39,17 @@ public class CustomEventListereProvider implements EventListenerProvider {
 
   @Override
   public void onEvent(Event event) {
-    if (this.access_token == null) {
-      authenticate();
-    }
+    // if (this.access_token == null) {
+    //   authenticate();
+    // }
     log.info("access token: " + this.access_token);
-    logEvent();
+    log.info("eventuserId: " + event.getUserId());
+    log.info("eventRealmId: " + event.getRealmId());
+    log.info("eventError" + event.getError());
+    log.info("eventType" + event.getType());
+    log.info("realmName: " + session.realms().getRealm(event.getRealmId()).getName());
+    
+    logEvent(getElectionEventId(event.getRealmId()), event.getType());
   }
 
   public void authenticate() {
@@ -94,10 +100,19 @@ public class CustomEventListereProvider implements EventListenerProvider {
     return "tenant-" + tenantId;
   }
 
-  private void logEvent() {
+  private String getElectionEventId(String realmId) {
+    String realmName = session.realms().getRealm(realmId).getName();
+    String[] parts = realmName.split("event-");
+    if (parts.length > 1) {
+        return parts[1];
+    }
+    return null; 
+  }
+
+  private void logEvent(String electionEventId, EventType eventType) {
     HttpClient client = HttpClient.newHttpClient();
     String url = "http://" + this.harvestUrl + "/immudb/log-event";
-    log.info("url: " + url);
+    String requestBody = String.format("{\"election_event_id\": \"%s\", \"messageType\": \"%s\"}", electionEventId, eventType);
     HttpRequest request =
         HttpRequest.newBuilder()
             .uri(URI.create(url))
@@ -105,7 +120,7 @@ public class CustomEventListereProvider implements EventListenerProvider {
             .header("Authorization", "Bearer " + this.access_token)
             .POST(
                 HttpRequest.BodyPublishers.ofString(
-                    "{\"election_event_id\": \"test\", \"messageType\": \"testMessageType\"}"))
+                    requestBody))
             .build();
     CompletableFuture<HttpResponse<String>> response =
         client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
