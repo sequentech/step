@@ -16,10 +16,10 @@ use board_messages::braid::message::VerifiedMessage;
 use board_messages::braid::newtypes::*;
 use board_messages::braid::statement::StatementType;
 
-use crate::protocol::board::grpc::GrpcB3;
+use crate::protocol::board::grpc_m::GrpcB3;
 use crate::protocol::board::Board;
 use crate::protocol::predicate::Predicate;
-use crate::protocol::trustee::Trustee;
+use crate::protocol::trustee2::Trustee;
 
 use crate::util::dbg_hash;
 use crate::verify::datalog::Target;
@@ -116,14 +116,15 @@ enum Check {
 pub struct Verifier<C: Ctx> {
     trustee: Trustee<C>,
     board: GrpcB3,
+    board_name: String,
 }
 impl<C: Ctx> Verifier<C> {
-    pub fn new(trustee: Trustee<C>, board: GrpcB3) -> Verifier<C> {
-        Verifier { trustee, board }
+    pub fn new(trustee: Trustee<C>, board: GrpcB3, board_name: &str) -> Verifier<C> {
+        Verifier { trustee, board, board_name: board_name.to_string() }
     }
 
     pub async fn run(&mut self) -> Result<()> {
-        let mut vr = VerificationResult::new(&self.board.board_name);
+        let mut vr = VerificationResult::new(&self.board_name);
         vr.add_target(Check::CONFIGURATION_VALID);
         vr.add_target(Check::MESSAGE_SIGNATURES_VALID);
         vr.add_target(Check::MESSAGES_CFG_VALID);
@@ -131,10 +132,13 @@ impl<C: Ctx> Verifier<C> {
 
         info!(
             "{}",
-            format!("Verifying board '{}'", self.board.board_name).bold()
+            format!("Verifying board '{}'", self.board_name).bold()
         );
 
-        let messages = self.board.get_messages(None).await?;
+        let messages = self.board.get_messages(&self.board_name, -1).await?;
+        let messages: Vec<(Message, i64)> = messages.
+            iter()
+            .map(|m| (Message::strand_deserialize(&m.message).unwrap(), m.id)).collect();
         // discard ids here
         // let messages: Vec<Message> = messages.into_iter().map(|(m, id)| m).collect();
 

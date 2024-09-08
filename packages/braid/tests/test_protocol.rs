@@ -23,7 +23,7 @@ fn test_protocol_memory() {
         }
     }
 }
-
+/* 
 #[tokio::test]
 #[ignore]
 async fn test_protocol_pgsql() {
@@ -37,7 +37,7 @@ async fn test_protocol_pgsql() {
             braid::test::protocol_test_pgsql::run(100, 1, ctx).await;
         }
     }
-}
+} */
 
 #[tokio::test]
 #[ignore]
