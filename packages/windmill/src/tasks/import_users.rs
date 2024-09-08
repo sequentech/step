@@ -512,23 +512,40 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
         .with_context(|| "can't set transaction isolation level or encoding")?;
 
     let areas_map = match body.election_event_id {
-        Some(ref election_event_id) => Some(
-            get_areas_by_name(
+        Some(ref election_event_id) => {
+            match get_areas_by_name(
                 &hasura_transaction,
                 body.tenant_id.as_str(),
                 election_event_id.as_str(),
             )
             .await
-            .with_context(|| "error retrieving areas")?,
-        ),
+            {
+                Ok(areas) => Some(areas),
+                Err(err) => {
+                    update_fail(&task_execution, "Error retrieving areas").await?;
+                    return Err(Error::String(format!("Error retrieving areas: {err}")));
+                }
+            }
+        }
         None => None,
     };
 
-    let (mut voters_file, separator) = body
-        .get_s3_document_as_temp_file(&hasura_transaction)
-        .await
-        .with_context(|| "Error obtaining voters file from S3 as temp file")?;
+    let (mut voters_file, separator) =
+        match body.get_s3_document_as_temp_file(&hasura_transaction).await {
+            Ok(result) => result,
+            Err(err) => {
+                update_fail(
+                    &task_execution,
+                    "Error obtaining voters file from S3 as temp file",
+                )
+                .await?;
+                return Err(Error::String(format!(
+                    "Error obtaining voters file from S3: {err}"
+                )));
+            }
+        };
     voters_file.rewind()?;
+
     // Read the first line of the file to get the columns
     let mut rdr = csv::ReaderBuilder::new()
         .delimiter(separator)
@@ -571,25 +588,42 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
         voters_table_input_columns_names,
         voters_table_processed_columns_names,
         voters_table_processed_columns_types,
-    ) = body
-        .get_copy_from_query(&headers)
-        .with_context(|| "Error obtaining copy_from query")?;
+    ) = match body.get_copy_from_query(&headers) {
+        Ok(result) => result,
+        Err(err) => {
+            update_fail(&task_execution, "Error obtaining copy_from query").await?;
+            return Err(Error::String(format!(
+                "Error obtaining copy_from query: {err}"
+            )));
+        }
+    };
 
     let realm_name = match body.election_event_id {
         Some(ref event_id) => get_event_realm(body.tenant_id.as_str(), event_id.as_str()),
         None => get_tenant_realm(body.tenant_id.as_str()),
     };
-    let realm_id = keycloak_realm::get_realm_id(&keycloak_transaction, realm_name)
-        .await
-        .with_context(|| "Error obtaining realm id")?;
 
-    let insert_user_query = body
-        .get_insert_user_query(
-            realm_id,
-            voters_table,
-            &voters_table_processed_columns_names,
-        )
-        .with_context(|| "Error obtaining insert_user_query query")?;
+    let realm_id = match keycloak_realm::get_realm_id(&keycloak_transaction, realm_name).await {
+        Ok(id) => id,
+        Err(err) => {
+            update_fail(&task_execution, "Error obtaining realm id").await?;
+            return Err(Error::String(format!("Error obtaining realm id: {err}")));
+        }
+    };
+
+    let insert_user_query = match body.get_insert_user_query(
+        realm_id,
+        voters_table,
+        &voters_table_processed_columns_names,
+    ) {
+        Ok(query) => query,
+        Err(err) => {
+            update_fail(&task_execution, "Error obtaining insert_user_query").await?;
+            return Err(Error::String(format!(
+                "Error obtaining insert_user_query: {err}"
+            )));
+        }
+    };
 
     if let Err(err) = keycloak_transaction
         .execute(create_table_query.as_str(), &[])

@@ -295,25 +295,51 @@ pub async fn import_candidates_task(
     document_id: String,
     task_execution: TasksExecution,
 ) -> Result<()> {
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|err| anyhow!("Error getting hasura db pool: {err}"))?;
+    let mut hasura_db_client: DbClient = match get_hasura_pool().await.get().await {
+        Ok(client) => client,
+        Err(err) => {
+            update_fail(&task_execution, "Failed to get Hasura DB pool").await?;
+            return Err(anyhow!("Error getting Hasura DB pool: {}", err));
+        }
+    };
 
-    let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .map_err(|err| anyhow!("Error starting hasura transaction: {err}"))?;
+    let hasura_transaction = match hasura_db_client.transaction().await {
+        Ok(transaction) => transaction,
+        Err(err) => {
+            update_fail(&task_execution, "Failed to start Hasura transaction").await?;
+            return Err(anyhow!("Error starting Hasura transaction: {err}"));
+        }
+    };
 
-    let document = get_document(&hasura_transaction, &tenant_id, None, &document_id)
-        .await
-        .with_context(|| "Error obtaining the document")?
-        .ok_or(anyhow!("document not found"))?;
+    let document = match get_document(&hasura_transaction, &tenant_id, None, &document_id).await {
+        Ok(Some(document)) => document,
+        Ok(None) => {
+            update_fail(&task_execution, "Document not found").await?;
+            return Err(anyhow!("Document not found"));
+        }
+        Err(err) => {
+            update_fail(&task_execution, "Error obtaining the document").await?;
+            return Err(anyhow!("Error obtaining the document: {}", err));
+        }
+    };
 
-    let contests = export_contests(&hasura_transaction, &tenant_id, &election_event_id).await?;
+    let contests = match export_contests(&hasura_transaction, &tenant_id, &election_event_id).await
+    {
+        Ok(contests) => contests,
+        Err(err) => {
+            update_fail(&task_execution, "Document not found").await?;
+            return Err(anyhow!("Error obtaining the document"));
+        }
+    };
 
-    let mut temp_file = get_document_as_temp_file(&tenant_id, &document).await?;
+    let mut temp_file = match get_document_as_temp_file(&tenant_id, &document).await {
+        Ok(temp_file) => temp_file,
+        Err(err) => {
+            update_fail(&task_execution, "Document not found").await?;
+            return Err(anyhow!("Error obtaining the tmp document"));
+        }
+    };
+
     temp_file.rewind()?;
     let reader = BufReader::new(temp_file.as_file());
 

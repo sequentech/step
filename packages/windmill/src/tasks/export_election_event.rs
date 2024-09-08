@@ -30,11 +30,15 @@ pub async fn export_election_event(
         }
     };
 
-    // Start a new database transaction
-    let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .map_err(|err| anyhow!("Error starting hasura transaction: {err}"))?;
+    let hasura_transaction = match hasura_db_client.transaction().await {
+        Ok(transaction) => transaction,
+        Err(err) => {
+            update_fail(&task_execution, "Failed to start Hasura transaction").await?;
+            return Err(Error::String(format!(
+                "Error starting Hasura transaction: {err}"
+            )));
+        }
+    };
 
     // Process the export
     match process_export(&tenant_id, &election_event_id, &document_id).await {
