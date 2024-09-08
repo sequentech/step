@@ -37,6 +37,5 @@ pub mod board;
 pub mod datalog;
 pub mod predicate;
 pub mod session;
-pub mod trustee;
-// pub mod trustee2;
-// pub mod run;
+// pub mod trustee;
+pub mod trustee2;

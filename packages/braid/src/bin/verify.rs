@@ -8,8 +8,8 @@ use clap::Parser;
 use tracing::info;
 use tracing::instrument;
 
-use braid::protocol::board::grpc::GrpcB3;
-use braid::protocol::trustee::Trustee;
+use braid::protocol::board::grpc_m::GrpcB3;
+use braid::protocol::trustee2::Trustee;
 use braid::verify::verifier::Verifier;
 
 use strand::backend::ristretto::RistrettoCtx;
@@ -46,10 +46,10 @@ async fn main() -> Result<()> {
 
     info!("Connecting to board '{}'..", args.board);
     let trustee: Trustee<RistrettoCtx> =
-        Trustee::new("Verifier".to_string(), dummy_sk, dummy_encryption_key);
+        Trustee::new("Verifier".to_string(), dummy_sk, dummy_encryption_key, None, true);
     let board =
-        GrpcB3::new(&args.server_url, &args.board, None);
-    let mut session = Verifier::new(trustee, board);
+        GrpcB3::new(&args.server_url);
+    let mut session = Verifier::new(trustee, board, &args.board);
     session.run().await?;
 
     Ok(())
