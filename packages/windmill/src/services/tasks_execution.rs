@@ -62,7 +62,10 @@ pub async fn update_fail(task: &TasksExecution, err_message: &str) -> Result<(),
     let task_id = &task.id;
     let new_status = TasksExecutionStatus::FAILED;
     let logs = task.logs.clone();
-    let new_logs = serde_json::to_value(append_general_log(&logs, err_message))?;
+    let new_logs = serde_json::to_value(append_general_log(
+        &logs,
+        &("Error: ".to_owned() + err_message),
+    ))?;
 
     update_task_execution_status(task_id, new_status, Some(new_logs))
         .await

@@ -15,7 +15,7 @@ const StyledChips = styled.div`
     display: flex;
     padding: 1px 7px;
     flex-direction: row;
-    align-items: flex-start;
+    align-items: center;
     gap: 4px;
 `
 

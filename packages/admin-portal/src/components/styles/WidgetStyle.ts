@@ -10,6 +10,7 @@ export const CustomAccordionSummary = styled(AccordionSummary)(({theme}) => ({
     "color": theme.palette.common.white,
     "borderTopLeftRadius": "6px",
     "borderTopRightRadius": "6px",
+    "minHeight": "45px !important",
     "& .MuiAccordionSummary-expandIconWrapper": {
         color: theme.palette.common.white,
     },
@@ -49,17 +50,23 @@ export const InfoBox = styled(Box)({
     width: "100%",
 })
 
-export const IconsBox = styled(Box)({
-    display: "flex",
-    alignItems: "center",
-})
-
 export const TypeTypography = styled(Typography)(({theme}) => ({
     fontSize: "14px",
     margin: "0px",
     color: theme.palette.common.white,
     fontWeight: "500",
 }))
+
+export const StatusIconsBox = styled(Box)({
+    display: "flex",
+    justifyContent: "space-between",
+    width: "50%",
+})
+
+export const IconsBox = styled(Box)({
+    display: "flex",
+    alignItems: "center",
+})
 
 export const StyledIconButton = styled(IconButton)(({theme}) => ({
     "marginLeft": 3,
@@ -111,7 +118,14 @@ export const TransparentTable = styled(Table)({
     },
 })
 
-export const TransparentTableCell = styled(TableCell)({
-    padding: "8px 16px",
-    fontSize: "14px",
-})
+interface TransparentTableCellProps {
+    isFailed?: boolean
+}
+
+export const TransparentTableCell = styled(TableCell)<TransparentTableCellProps>(
+    ({isFailed, theme}) => ({
+        padding: "8px 16px",
+        fontSize: "14px",
+        color: isFailed ? "darkred" : "inherit",
+    })
+)

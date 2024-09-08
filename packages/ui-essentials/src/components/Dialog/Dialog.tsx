@@ -4,7 +4,7 @@
 import React, {PropsWithChildren} from "react"
 import DialogTitle from "@mui/material/DialogTitle"
 import MaterialDialog from "@mui/material/Dialog"
-import {Backdrop, Box, Button} from "@mui/material"
+import {Backdrop, Box, Button, SxProps} from "@mui/material"
 import DialogContent from "@mui/material/DialogContent"
 import DialogActions from "@mui/material/DialogActions"
 import {faTimesCircle, faInfoCircle, faExclamationTriangle} from "@fortawesome/free-solid-svg-icons"
@@ -26,6 +26,7 @@ export interface DialogProps extends PropsWithChildren {
     okEnabled?: () => boolean
     variant?: "warning" | "info" | "action" | "softwarning"
     fullWidth?: boolean
+    customCss?: SxProps
 }
 
 const Dialog: React.FC<DialogProps> = ({
@@ -39,6 +40,7 @@ const Dialog: React.FC<DialogProps> = ({
     okEnabled,
     variant,
     fullWidth = false,
+    customCss,
 }) => {
     const okVariant =
         "info" === variant ? "primary" : "softwarning" === variant ? "softWarning" : "solidWarning"
@@ -56,6 +58,7 @@ const Dialog: React.FC<DialogProps> = ({
             slots={{backdrop: StyledBackdrop}}
             fullWidth={fullWidth}
             className="dialog"
+            sx={customCss}
         >
             <DialogTitle className="dialog-title">
                 <Icon

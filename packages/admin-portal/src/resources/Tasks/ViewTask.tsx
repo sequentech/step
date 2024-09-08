@@ -141,6 +141,12 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
                 handleClose={goBack}
                 title={t("tasksScreen.taskInformation")}
                 ok={t("tasksScreen.ok")}
+                customCss={{
+                    "& .MuiDialog-paper": {
+                        width: "60%",
+                        maxWidth: "1500px",
+                    },
+                }}
             >
                 {Content}
             </Dialog>

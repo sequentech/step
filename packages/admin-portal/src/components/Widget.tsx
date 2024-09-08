@@ -24,6 +24,7 @@ import {
     LogsBox,
     CustomAccordionSummary,
     ViewTaskTypography,
+    StatusIconsBox,
 } from "./styles/WidgetStyle"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import CloseIcon from "@mui/icons-material/Close"
@@ -40,9 +41,12 @@ import {useQuery} from "@apollo/client"
 
 interface LogTableProps {
     logs: ITaskLog[]
+    status: ETaskExecutionStatus
 }
 
-export const LogTable: React.FC<LogTableProps> = ({logs}) => {
+export const LogTable: React.FC<LogTableProps> = ({logs, status}) => {
+    const isFailed = status === ETaskExecutionStatus.FAILED
+
     return (
         <TransparentTable>
             <TableBody>
@@ -51,7 +55,9 @@ export const LogTable: React.FC<LogTableProps> = ({logs}) => {
                         <TransparentTableCell>
                             {new Date(log.created_date).toLocaleString()}
                         </TransparentTableCell>
-                        <TransparentTableCell>{log.log_text}</TransparentTableCell>
+                        <TransparentTableCell isFailed={isFailed && index === logs.length - 1}>
+                            {log.log_text}
+                        </TransparentTableCell>
                     </TableRow>
                 ))}
             </TableBody>
@@ -135,18 +141,20 @@ export const Widget: React.FC<WidgetProps> = ({
                                     <b>Task: </b>
                                     {t(`tasksScreen.tasksExecution.${taskDataType || type}`)}
                                 </TypeTypography>
-                                <StatusChip status={taskDataStatus || status} />
-                                <IconsBox>
-                                    <StyledIconButton size="small" onClick={onSetViewTask}>
-                                        <Visibility />
-                                    </StyledIconButton>
-                                    <StyledIconButton
-                                        size="small"
-                                        onClick={() => onClose(identifier)}
-                                    >
-                                        <CloseIcon />
-                                    </StyledIconButton>
-                                </IconsBox>
+                                <StatusIconsBox>
+                                    <StatusChip status={taskDataStatus || status} />
+                                    <IconsBox>
+                                        <StyledIconButton size="small" onClick={onSetViewTask}>
+                                            <Visibility />
+                                        </StyledIconButton>
+                                        <StyledIconButton
+                                            size="small"
+                                            onClick={() => onClose(identifier)}
+                                        >
+                                            <CloseIcon />
+                                        </StyledIconButton>
+                                    </IconsBox>
+                                </StatusIconsBox>
                             </InfoBox>
                             {taskDataStatus === ETaskExecutionStatus.IN_PROGRESS && (
                                 <StyledProgressBar>
@@ -161,7 +169,10 @@ export const Widget: React.FC<WidgetProps> = ({
                         <LogsBox>
                             <LogTypography>{t("widget.logs")}</LogTypography>
                             <Divider />
-                            <LogTable logs={taskDataLogs.length > 0 ? taskDataLogs : initialLog} />
+                            <LogTable
+                                logs={taskDataLogs.length > 0 ? taskDataLogs : initialLog}
+                                status={taskDataStatus || status}
+                            />
                         </LogsBox>
                         <ViewTaskTypography onClick={onSetViewTask}>View Task</ViewTaskTypography>
                     </AccordionDetails>
