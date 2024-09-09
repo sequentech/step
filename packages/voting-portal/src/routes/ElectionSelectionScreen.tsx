@@ -431,11 +431,6 @@ const ElectionSelectionScreen: React.FC = () => {
 
     return (
         <PageLimit maxWidth="lg" className="election-selection-screen screen">
-            {!isElectionEventOpen(electionEvent) && (
-                <Box marginTop={"48px"}>
-                    <WarnBox variant="error">{"Election event is currently closed"}</WarnBox>
-                </Box>
-            )}
             <Box marginTop="48px">
                 <Stepper selected={0} />
             </Box>

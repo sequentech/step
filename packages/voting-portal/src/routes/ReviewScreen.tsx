@@ -132,6 +132,7 @@ const AuditBallotHelpDialog: React.FC<AuditBallotHelpDialogProps> = ({
             ok={t("reviewScreen.auditBallotHelpDialog.ok")}
             cancel={t("reviewScreen.auditBallotHelpDialog.cancel")}
             variant="warning"
+            maxWidth="md"
         >
             {stringToHtml(t("reviewScreen.auditBallotHelpDialog.content"))}
         </Dialog>
