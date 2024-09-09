@@ -12,7 +12,7 @@ import styledEmotion from "@emotion/styled"
 import Icon from "../Icon/Icon"
 import IconButton from "../IconButton/IconButton"
 import {styled as muiStyled} from "@mui/material/styles"
-import { IconProp } from "@fortawesome/fontawesome-svg-core"
+import {IconProp} from "@fortawesome/fontawesome-svg-core"
 
 const StyledBackdrop = styledEmotion(Backdrop)`
     opacity: 0.5 !important;
