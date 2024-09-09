@@ -267,7 +267,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         if (keycloak || !loaded) {
             return
         }
-        // createKeycloak()
     }, [loaded, keycloak])
 
     useEffect(() => {
