@@ -49,7 +49,6 @@ import {CommunicationTemplateCreate} from "./resources/CommunicationTemplate/Com
 import {ApolloContext} from "./providers/ApolloContextProvider"
 import {TenantContext} from "./providers/TenantContextProvider"
 import {Sequent_Backend_Tenant} from "./gql/graphql"
-import {LoginScreen} from "./screens/LoginScreen"
 
 interface AppProps {}
 
@@ -82,9 +81,6 @@ const App: React.FC<AppProps> = () => {
             theme={fullAdminTheme}
             i18nProvider={adminI18nProvider}
         >
-            <CustomRoutes noLayout>
-                <Route path="/login/:tenantId?" element={<LoginScreen />} />
-            </CustomRoutes>
             <CustomRoutes>
                 {/*<Route path="/logs" element={<Logs />} />*/}
                 <Route path="/user-roles" element={<UserAndRoles />} />

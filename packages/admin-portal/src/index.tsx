@@ -1,6 +1,3 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
-//
-// SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
 import ReactDOM from "react-dom/client"
 import "./index.css"
@@ -25,6 +22,7 @@ import {
     ApolloWrapper,
     defaultApolloContextValues,
 } from "./providers/ApolloContextProvider"
+import {BrowserRouter as Router} from "react-router-dom" // Import BrowserRouter
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
@@ -32,39 +30,38 @@ initCore()
 
 root.render(
     <React.StrictMode>
-        <SettingsWrapper>
-            <AuthContextProvider>
-                <TenantContextProvider>
-                    <NewResourceContextProvider>
-                        <ElectionEventContextProvider>
-                            <ElectionContextProvider>
-                                <ContestContextProvider>
-                                    <CandidateContextProvider>
-                                        <ElectionEventTallyContextProvider>
-                                            <PublishContextProvider>
-                                                <ThemeProvider theme={fullAdminTheme}>
-                                                    <ApolloContextProvider
-                                                        role={defaultApolloContextValues.role}
-                                                    >
-                                                        <ApolloWrapper>
-                                                            <App />
-                                                        </ApolloWrapper>
-                                                    </ApolloContextProvider>
-                                                </ThemeProvider>
-                                            </PublishContextProvider>
-                                        </ElectionEventTallyContextProvider>
-                                    </CandidateContextProvider>
-                                </ContestContextProvider>
-                            </ElectionContextProvider>
-                        </ElectionEventContextProvider>
-                    </NewResourceContextProvider>
-                </TenantContextProvider>
-            </AuthContextProvider>
-        </SettingsWrapper>
+        <Router>
+            <SettingsWrapper>
+                <AuthContextProvider>
+                    <TenantContextProvider>
+                        <NewResourceContextProvider>
+                            <ElectionEventContextProvider>
+                                <ElectionContextProvider>
+                                    <ContestContextProvider>
+                                        <CandidateContextProvider>
+                                            <ElectionEventTallyContextProvider>
+                                                <PublishContextProvider>
+                                                    <ThemeProvider theme={fullAdminTheme}>
+                                                        <ApolloContextProvider
+                                                            role={defaultApolloContextValues.role}
+                                                        >
+                                                            <ApolloWrapper>
+                                                                <App />
+                                                            </ApolloWrapper>
+                                                        </ApolloContextProvider>
+                                                    </ThemeProvider>
+                                                </PublishContextProvider>
+                                            </ElectionEventTallyContextProvider>
+                                        </CandidateContextProvider>
+                                    </ContestContextProvider>
+                                </ElectionContextProvider>
+                            </ElectionEventContextProvider>
+                        </NewResourceContextProvider>
+                    </TenantContextProvider>
+                </AuthContextProvider>
+            </SettingsWrapper>
+        </Router>
     </React.StrictMode>
 )
 
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
 reportWebVitals()

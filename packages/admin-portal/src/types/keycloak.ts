@@ -62,4 +62,5 @@ export enum IPermissions {
     DOCUMENT_WRITE = "document-write",
     SUPPORT_MATERIAL_READ = "support-material-read",
     SUPPORT_MATERIAL_WRITE = "support-material-write",
+    UNAUTHORIZED = "unauthorized",
 }
