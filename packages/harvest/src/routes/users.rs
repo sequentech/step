@@ -14,9 +14,7 @@ use sequent_core::services::jwt;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::keycloak::{
-    UPAttributePermissions, UPAttributeRequired, UPAttributeSelector, User,
-    UserProfileAttribute, AREA_ID_ATTR_NAME, PERMISSION_TO_EDIT,
-    TENANT_ID_ATTR_NAME,
+    User, UserProfileAttribute, TENANT_ID_ATTR_NAME,
 };
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
@@ -637,53 +635,5 @@ pub async fn get_user_profile_attributes(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    let user_profile_attributes = attributes_res
-        .iter()
-        .filter(|attr| match (&attr.permissions, &attr.name) {
-            (Some(permissions), Some(name)) => {
-                let has_permission =
-                    permissions.edit.as_ref().map_or(true, |edit| {
-                        edit.contains(&PERMISSION_TO_EDIT.to_string())
-                    });
-
-                let is_not_tenant_id =
-                    !name.contains(&TENANT_ID_ATTR_NAME.to_string());
-
-                let is_not_area_id =
-                    !name.contains(&AREA_ID_ATTR_NAME.to_string());
-
-                has_permission && is_not_tenant_id && is_not_area_id
-            }
-            _ => false,
-        })
-        .map(|attr| UserProfileAttribute {
-            annotations: attr.annotations.clone(),
-            display_name: attr.display_name.clone(),
-            group: attr.group.clone(),
-            multivalued: attr.multivalued,
-            name: client.get_attribute_name(&attr.name),
-            required: match attr.required.clone() {
-                Some(required) => Some(UPAttributeRequired {
-                    roles: required.roles,
-                    scopes: required.scopes,
-                }),
-                None => None,
-            },
-            validations: attr.validations.clone(),
-            permissions: match attr.permissions.clone() {
-                Some(permissions) => Some(UPAttributePermissions {
-                    edit: permissions.edit,
-                    view: permissions.view,
-                }),
-                None => None,
-            },
-            selector: match attr.selector.clone() {
-                Some(selector) => Some(UPAttributeSelector {
-                    scopes: selector.scopes,
-                }),
-                None => None,
-            },
-        })
-        .collect();
-    Ok(Json(user_profile_attributes))
+    Ok(Json(attributes_res))
 }
