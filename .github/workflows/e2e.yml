@@ -64,7 +64,7 @@ jobs:
         cp -r ../../node_modules/@nightwatch .
         cp -r ../../node_modules/nightwatch .
         cd ..
-        xvfb-run --auto-servernum npx nightwatch test/e2e/*.ts -c nightwatch.conf-ghaction.js  --env ${{ matrix.browser }}
+        xvfb-run --auto-servernum npx nightwatch test/e2e/*.ts --serial -c nightwatch.conf-ghaction.js  --env ${{ matrix.browser }}
     # - name: Run admin-portal tests against local
     #   if: ${{ github.event.inputs.useLocal == 'true' }}
     #   run: |
