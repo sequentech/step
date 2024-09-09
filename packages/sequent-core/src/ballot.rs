@@ -586,6 +586,29 @@ pub struct ElectionEventPresentation {
     pub voting_portal_countdown_policy: Option<VotingPortalCountdownPolicy>,
 }
 
+#[allow(non_camel_case_types)]
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+)]
+pub enum EGracePeriodPolicy {
+    #[strum(serialize = "no-grace-period")]
+    #[serde(rename = "no-grace-period")]
+    NO_GRACE_PERIOD,
+    #[strum(serialize = "grace-period-without-alert")]
+    #[serde(rename = "grace-period-without-alert")]
+    GRACE_PERIOD_WITHOUT_ALERT,
+}
+
 #[derive(
     BorshSerialize,
     BorshDeserialize,
@@ -603,6 +626,9 @@ pub struct ElectionDates {
     pub end_date: Option<String>,
     pub scheduled_closing: Option<bool>,
     pub scheduled_opening: Option<bool>,
+    pub is_grace_priod: Option<bool>,
+    pub grace_period_policy: Option<EGracePeriodPolicy>,
+    pub grace_period_secs: Option<u64>,
 }
 
 #[derive(
@@ -780,7 +806,7 @@ pub struct ElectionPresentation {
     pub contests_order: Option<ContestsOrder>,
     pub audit_button_cfg: Option<AuditButtonCfg>,
     pub sort_order: Option<i64>,
-    pub cast_vote_confirm: Option<bool>,
+    pub cast_vote_confirm: Option<bool>, //
 }
 
 #[derive(

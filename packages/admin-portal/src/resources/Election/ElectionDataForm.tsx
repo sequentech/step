@@ -54,6 +54,7 @@ import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {ElectionStyles} from "../../components/styles/ElectionStyles"
 import {
     ContestsOrder,
+    EGracePeriodPolicy,
     EVotingPortalAuditButtonCfg,
     IContestPresentation,
     IElectionDates,
@@ -454,6 +455,13 @@ export const ElectionDataForm: React.FC = () => {
         }
     }
 
+    const gracePeriodPolicyChoices = () => {
+        return (Object.values(EGracePeriodPolicy) as EGracePeriodPolicy[]).map((value) => ({
+            id: value,
+            name: t(`electionScreen.gracePeriodPolicy.${value.toLowerCase()}`),
+        }))
+    }
+
     const communicationMethodChoices = () => {
         return (Object.values(ICommunicationMethod) as ICommunicationMethod[]).map((value) => ({
             id: value,
@@ -604,6 +612,30 @@ export const ElectionDataForm: React.FC = () => {
                                         />
                                     </Grid>
                                 </Grid>
+                                <Typography
+                                    variant="body1"
+                                    component="span"
+                                    sx={{
+                                        padding: "0.5rem 1rem",
+                                        fontWeight: "bold",
+                                        margin: 0,
+                                        display: {xs: "none", sm: "block"},
+                                    }}
+                                >
+                                    {t("electionScreen.edit.gracePeriod")}
+                                </Typography>
+                                <SelectInput
+                                    source={`dates.grace_period_policy`}
+                                    choices={gracePeriodPolicyChoices()}
+                                    label={t(`electionScreen.gracePeriodPolicy.label`)}
+                                    defaultValue={EGracePeriodPolicy.NO_GRACE_PERIOD}
+                                    validate={required()}
+                                />
+                                <NumberInput
+                                    source="dates.grace_period_secs"
+                                    label={t("electionScreen.gracePeriodPolicy.gracePeriodSecs")}
+                                    min={0}
+                                />
                             </AccordionDetails>
                         </Accordion>
 

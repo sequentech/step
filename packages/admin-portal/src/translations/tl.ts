@@ -426,6 +426,7 @@ const tagalogTranslation = {
                 numAllowedVotes: "Bilang ng pinapayagang boto",
                 reorder: "I-reorder ang mga paligsahan",
                 castVoteConfirm: "Modal ng Pagkumpirma ng Pagboto",
+                gracePeriodPolicy: "Patakaran sa Palugit",
             },
             field: {
                 name: "Pangalan",
@@ -453,6 +454,12 @@ const tagalogTranslation = {
                 voters: "Mga Botante",
                 publish: "I-publish",
                 logs: "Mga Log",
+            },
+            gracePeriodPolicy: {
+                "label": "Patakaran sa Palugit",
+                "no-grace-period": "Walang palugit",
+                "grace-period-without-alert": "Palugit na walang babala",
+                "gracePeriodSecs": "Palugit sa segundo",
             },
         },
         tenantScreen: {

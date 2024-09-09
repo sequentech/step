@@ -431,6 +431,7 @@ const catalanTranslation: TranslationType = {
                 numAllowedVotes: "Número de vots permesos",
                 reorder: "Reordenar concursos",
                 castVoteConfirm: "Modal de Confirmació de Vot",
+                gracePeriodPolicy: "Política de període de gràcia",
             },
             field: {
                 name: "Nom",
@@ -458,6 +459,12 @@ const catalanTranslation: TranslationType = {
                 voters: "Votants",
                 publish: "Publicar",
                 logs: "Registres",
+            },
+            gracePeriodPolicy: {
+                "label": "Política de període de gràcia",
+                "no-grace-period": "Sense període de gràcia",
+                "grace-period-without-alert": "Període de gràcia sense avís",
+                "gracePeriodSecs": "Període de gràcia (segons)",
             },
         },
         tenantScreen: {

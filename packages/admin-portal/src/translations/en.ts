@@ -426,6 +426,7 @@ const englishTranslation = {
                 numAllowedVotes: "Number of allowed votes",
                 reorder: "Reorder contests",
                 castVoteConfirm: "Cast Vote Confirmation Modal",
+                gracePeriodPolicy: "Grace Period",
             },
             field: {
                 name: "Name",
@@ -453,6 +454,12 @@ const englishTranslation = {
                 voters: "Voters",
                 publish: "Publish",
                 logs: "Logs",
+            },
+            gracePeriodPolicy: {
+                "label": "Grace Period Policy",
+                "no-grace-period": "No grace period",
+                "grace-period-without-alert": "Grace period without alert",
+                "gracePeriodSecs": "Grace period in seconds",
             },
         },
         tenantScreen: {
