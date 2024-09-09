@@ -190,8 +190,6 @@ pub async fn list_users(
     keycloak_transaction: &Transaction<'_>,
     filter: ListUsersFilter,
 ) -> Result<(Vec<User>, i32)> {
-    println!("filter:::: {:?}", &filter);
-
     let low_sql_limit = PgConfig::from_env()?.low_sql_limit;
     let default_sql_limit = PgConfig::from_env()?.default_sql_limit;
     let query_limit: i64 =
@@ -235,17 +233,6 @@ pub async fn list_users(
     let mut dynamic_attr_conditions: Vec<String> = Vec::new();
     let mut dynamic_attr_params: Vec<Option<String>> = vec![];
 
-    let mut params: Vec<&(dyn ToSql + Sync)> = vec![
-        &filter.realm,
-        &query_limit,
-        &query_offset,
-        &email_pattern,
-        &first_name_pattern,
-        &last_name_pattern,
-        &username_pattern,
-        &filter.user_ids,
-    ];
-
     if let Some(attributes) = &filter.attributes {
         let mut attr_placeholder_count = 9;
         for (key, value) in attributes {
@@ -270,8 +257,26 @@ pub async fn list_users(
 
     let (sort_field, sort_order) = get_sort_order_and_field(filter.sort);
 
-    let query = format!(
-        r#"
+    let sort_clause = if [
+        "id",
+        "email",
+        "first_name",
+        "last_name",
+        "username",
+        "enabled",
+        "email_verified",
+    ]
+    .contains(&sort_field.as_str())
+    {
+        format!("{} {}", sort_field, sort_order)
+    } else {
+        format!(
+            "(SELECT value FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = '{}') {}",
+            sort_field, sort_order
+        )
+    };
+
+    let statement = keycloak_transaction.prepare(format!(r#"
         SELECT
             u.id,
             u.email,
@@ -304,14 +309,20 @@ pub async fn list_users(
            AND ({dynamic_attr_clause})
         GROUP BY
             u.id
-        ORDER BY
-            {} {}
+        ORDER BY {sort_clause}
         LIMIT $2 OFFSET $3;
-    "#,
-        sort_field, sort_order
-    );
+    "#).as_str()).await?;
 
-    let statement = keycloak_transaction.prepare(&query).await?;
+    let mut params: Vec<&(dyn ToSql + Sync)> = vec![
+        &filter.realm,
+        &query_limit,
+        &query_offset,
+        &email_pattern,
+        &first_name_pattern,
+        &last_name_pattern,
+        &username_pattern,
+        &filter.user_ids,
+    ];
 
     if area_ids.is_some() {
         params.push(&area_ids);

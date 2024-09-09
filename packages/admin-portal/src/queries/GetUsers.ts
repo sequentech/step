@@ -67,14 +67,35 @@ export const LIST_USERS = gql`
     }
 `
 
-export const formatUserAtributestoJsonb = (obj: any) => {
+/* take attributes obj when key is attribute field.
+if for example, originally the field looks like sequent.read-only.otp-method,
+we will receive it as sequent%read-only%otp-method
+*/
+export const formatUserAtributesToJsonb = (attributes: any) => {
     const newUserAttributesObject: Record<string, any> = {}
-    if (obj) {
-        Object.entries(obj).forEach(([key, value]) => {
-            const new_key = key.replaceAll("%", ".")
-            newUserAttributesObject[`'${new_key}'`] = value
+    if (attributes) {
+        Object.entries(attributes).forEach(([key, value]) => {
+            const convertedKey = key.replaceAll("%", ".")
+            newUserAttributesObject[`'${convertedKey}'`] = value
         })
         return newUserAttributesObject
+    }
+    return null
+}
+
+const ATTRIBUTES = "attributes"
+export const formatUserSortToJsonb = (sort: Record<string, string>) => {
+    const newUserSortObject: Record<string, string> = {}
+    if (sort) {
+        Object.entries(sort).forEach(([key, value]) => {
+            let actuallValue = value
+            // if value is as attributes['field'] it shoulde be just field
+            if (value.includes(ATTRIBUTES)) {
+                actuallValue = value.substring(ATTRIBUTES.length + 2, value.length - 2)
+            }
+            newUserSortObject[`'${key}'`] = actuallValue
+        })
+        return newUserSortObject
     }
     return null
 }
@@ -83,8 +104,6 @@ export const customBuildGetUsersVariables =
     (introspectionResults: any) =>
     (resource: any, raFetchType: any, params: any, nullParam: any) => {
         const {filter, pagination, sort} = params
-        console.log("sort: ", sort)
-
         return {
             tenant_id: filter.tenant_id || null,
             election_event_id: filter.election_event_id || null,
@@ -99,9 +118,9 @@ export const customBuildGetUsersVariables =
                     ? (pagination.page - 1) * pagination.perPage
                     : null,
             showVotesInfo: filter.showVotesInfo || false,
-            attributes: filter.attributes ? formatUserAtributestoJsonb(filter.attributes) : null,
+            attributes: filter.attributes ? formatUserAtributesToJsonb(filter.attributes) : null,
             enabled: filter.enabled ?? null,
             email_verified: filter.email_verified ?? null,
-            sort: sort ? formatUserAtributestoJsonb(sort) : null,
+            sort: sort ? formatUserSortToJsonb(sort) : null,
         }
     }
