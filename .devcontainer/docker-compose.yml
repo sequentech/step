@@ -267,7 +267,7 @@ services:
       - devcontainer
     depends_on:
       - devcontainer
-    working_dir: /workspaces/step/packages
+    working_dir: /
     environment:
         MAX_DIFF_LINES: ${MAX_DIFF_LINES}
         SECONDS_TO_SHOW_COUNTDOWN: ${SECONDS_TO_SHOW_COUNTDOWN}
