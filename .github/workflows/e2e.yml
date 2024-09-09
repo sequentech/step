@@ -22,10 +22,10 @@ on:
         required: true
         type: string
         default: 'admin'
-      useLocal:
-        description: 'generate local env for testing?'
-        type: boolean
-        default: "false"
+      # useLocal:
+      #   description: 'generate local env for testing?'
+      #   type: boolean
+      #   default: "false"
   pull_request:
   push:
       branches: [ 'main' ]
