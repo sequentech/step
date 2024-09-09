@@ -99,7 +99,7 @@ impl SessionSet {
             let mut loop_count: i64 = 0;
             
             loop {
-                loop_count += 1;
+                loop_count = (loop_count + 1) % i64::MAX;
                 sleep(Duration::from_millis(1000)).await;
                 let signal = self.inbox.try_recv();
 

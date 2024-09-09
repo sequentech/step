@@ -181,7 +181,7 @@ impl<C: Ctx> Trustee<C> {
 
     // Returns the largest id stored in the local message store
     pub fn get_last_external_id(&mut self) -> Result<i64, ProtocolError> {
-        self.step_counter += 1;
+        self.step_counter = (self.step_counter + 1) % i64::MAX;
         // in the event that there are holes, a full update will eventually load missing
         // messages from the remote board
         let reset = self.step_counter % RETRIEVE_ALL_MESSAGES_PERIOD == 0;

@@ -48,15 +48,10 @@ struct Cli {
 
     #[arg(long, default_value_t = false)]
     strict: bool,
-
-    #[arg(long, default_value_t = 300)]
-    session_reset_period: u64,
 }
 
-fn get_ignored_boards() -> Vec<String> {
-    let boards_str: String = std::env::var("IGNORE_BOARDS").unwrap_or_else(|_| "".into());
-    boards_str.split(',').map(|s| s.to_string()).collect()
-}
+// How often the session map (with trustee's memory board) is cleared
+const SESSION_RESET_PERIOD: i64 = 20 * 60;
 
 /*
 Entry point for a braid mixnet trustee.
@@ -102,14 +97,14 @@ async fn main() -> Result<()> {
     let bytes = braid::util::decode_base64(&tc.encryption_key)?;
     let ek = symm::sk_from_bytes(&bytes)?;
 
-    let mut ignored_boards = get_ignored_boards();
+    let ignored_boards = get_ignored_boards();
     info!("ignored boards {:?}", ignored_boards);
 
     let store_root = std::env::current_dir().unwrap().join("message_store");
     braid::util::ensure_directory(store_root.clone())?;
 
     let mut session_map: HashMap<String, Session<RistrettoCtx, GrpcB3>> = HashMap::new();
-    let mut loop_count: u64 = 0;
+    let mut loop_count: i64 = 0;
     loop {
         info!("{} >", loop_count);
 
@@ -128,7 +123,7 @@ async fn main() -> Result<()> {
             }
         };
 
-        if loop_count % args.session_reset_period == 0 {
+        if loop_count % SESSION_RESET_PERIOD == 0 {
             info!("* Session memory reset");
             session_map = HashMap::new();
         }
@@ -176,8 +171,7 @@ async fn main() -> Result<()> {
             session_map.insert(board_name.clone(), session);
         }
 
-        // This code is currently sequential, see protocol_test_grpc for an example of
-        // handling sessions in parallel by spawning threads.
+        // This code is sequential, see main_m for an alternative implementation
         for s in session_map.values_mut() {
             let board_name = s.board_name.clone();
             // info!("* Running trustee for board '{}'..", board_name);
@@ -195,17 +189,10 @@ async fn main() -> Result<()> {
                         board_name.clone(),
                         error
                     );
-                    // FIXME identify this condition properly
-                    if error.to_string().contains("Self authority not found") {
-                        ignored_boards.push(board_name);
-                    } else {
-                        step_error = true;
-                    }
+                    step_error = true;
                 }
-            };
-            // session_map_next.insert(session.name.clone(), session);
+            };   
         }
-        // session_map = session_map_next;
 
         if args.strict && step_error {
             break;
@@ -226,10 +213,15 @@ async fn main() -> Result<()> {
             }
         }
 
-        loop_count = (loop_count + 1) % u64::MAX;
+        loop_count = (loop_count + 1) % i64::MAX;
         println!("");
         sleep(Duration::from_millis(1000)).await;
     }
 
     Ok(())
+}
+
+fn get_ignored_boards() -> Vec<String> {
+    let boards_str: String = std::env::var("IGNORE_BOARDS").unwrap_or_else(|_| "".into());
+    boards_str.split(',').map(|s| s.to_string()).collect()
 }
