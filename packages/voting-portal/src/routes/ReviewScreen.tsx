@@ -103,7 +103,7 @@ const AuditButton: React.FC<AuditButtonProps> = ({onClick}) => {
 
     return (
         <StyledButton
-            sx={{width: {xs: "100%", sm: "200px"}, display: {xs: "none", sm: "flex"}}}
+            sx={{width: {xs: "100%", sm: "200px"}}}
             variant="warning"
             onClick={onClick}
         >
@@ -386,15 +386,14 @@ export const ReviewScreen: React.FC = () => {
                     `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/audit`
                 )
             } else {
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NO_BALLOT_STYLE}`))
-                return submit({error: VotingPortalErrorType.NO_BALLOT_STYLE}, {method: "post"})
+                navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
             }
         }
     }
 
     useEffect(() => {
         if (!ballotStyle) {
-            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NO_BALLOT_STYLE}`))
+            navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
         } else if (!auditableBallot) {
             setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NO_AUDITABLE_BALLOT}`))
         } else if (!selectionState) {
