@@ -1005,7 +1005,8 @@ const catalanTranslation: TranslationType = {
                     },
                     download: {
                         title: "Descarregar",
-                        itemTitle: "Descarregar el Paquet de Transmissió",
+                        emlTitle: "Download EML",
+                        transmissionPackageTitle: "Descarregar el Paquet de Transmissió",
                         dialog: {
                             title: "Vols descarregar el Paquet de Transmissió?",
                             description:

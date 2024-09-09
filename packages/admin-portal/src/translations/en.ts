@@ -1002,7 +1002,8 @@ const englishTranslation = {
                     },
                     download: {
                         title: "Download",
-                        itemTitle: "Download Transmission Package",
+                        emlTitle: "Download EML",
+                        transmissionPackageTitle: "Download Transmission Package",
                         dialog: {
                             title: "Do you want to Download the Transmission Package?",
                             description:

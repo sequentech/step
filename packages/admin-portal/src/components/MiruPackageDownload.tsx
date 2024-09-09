@@ -2,59 +2,19 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {Box, Button, CircularProgress, Menu, MenuItem} from "@mui/material"
+import {Box, Menu, MenuItem} from "@mui/material"
 import React, {useState} from "react"
 import {useTranslation} from "react-i18next"
-import {FetchDocumentQuery, Sequent_Backend_Document} from "@/gql/graphql"
+import {Sequent_Backend_Document} from "@/gql/graphql"
 import {Dialog} from "@sequentech/ui-essentials"
 import {downloadUrl} from "@sequentech/ui-core"
-import {EExportFormat, IResultDocuments} from "@/types/results"
-import {useQuery} from "@apollo/client"
-import {FETCH_DOCUMENT} from "@/queries/FetchDocument"
+import {EExportFormat} from "@/types/results"
 import {IMiruDocument} from "@/types/miru"
 import {TallyStyles} from "@/components/styles/TallyStyles"
 import DownloadIcon from "@mui/icons-material/Download"
 import {useGetOne} from "react-admin"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-
-interface PerformDownloadProps {
-    onDownload: () => void
-    fileName?: string
-    documentId: string
-    electionEventId: string
-}
-
-let downloading = false
-
-const PerformDownload: React.FC<PerformDownloadProps> = ({
-    onDownload,
-    fileName,
-    documentId,
-    electionEventId,
-}) => {
-    const {loading, error, data} = useQuery<FetchDocumentQuery>(FETCH_DOCUMENT, {
-        variables: {
-            electionEventId,
-            documentId,
-        },
-    })
-
-    if (!loading && !error && data?.fetchDocument?.url && !downloading) {
-        downloading = true
-
-        let documentName
-        documentName =
-            fileName ??
-            (() => {
-                // data.sequent_backend_document.name + getDocumentExtension(data.sequent_backend_document.mediaType)//to be enabled after generating updated hasura types
-                return "transmission_package" + ".zip"
-            })()
-
-        downloadUrl(data.fetchDocument.url, documentName).then(() => onDownload())
-    }
-
-    return <CircularProgress />
-}
+import {DownloadDocument} from "@/resources/User/DownloadDocument"
 
 interface MiruPackageDownloadProps {
     documents: IMiruDocument[] | null
@@ -73,14 +33,8 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) =
     const {t} = useTranslation()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
     const [openModal, setOpenModal] = useState(false)
-    const [performDownload, setPerformDownload] = useState<IDocumentData | null>(null)
-    const [documentToDownload, setDocumentToDownload] = useState<IMiruDocument | null>(null)
-    const [tenantId] = useTenantStore()
-    console.log({documentToDownload, documents})
-    const {data: document} = useGetOne<Sequent_Backend_Document>("sequent_backend_document", {
-        id: documentToDownload?.document_ids.eml ?? tenantId,
-        meta: {tenant_id: tenantId},
-    })
+    const [documentToDownload, setDocumentToDownload] = useState<string | null>(null)
+    const [performDownload, setPerformDownload] = useState<boolean>(false)
 
     const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
         event.preventDefault()
@@ -92,21 +46,13 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) =
         setAnchorEl(null)
     }
 
-    const handleDownload = (doc: IMiruDocument) => {
-        console.log({document, doc})
+    const handleDownload = (documentId: string) => {
+        console.log({documentId})
 
-        let name = "er_111.eml"
-
-        if (document?.name) {
-            name = document.name
-        }
-
-        setPerformDownload({
-            id: doc.document_ids.eml,
-            kind: EExportFormat.JSON, //need to adjust this to right format because document is currently not readable
-            name,
-        })
+        setDocumentToDownload(documentId)
     }
+
+    const emlDocumentId = documents?.[0]?.document_ids.eml
     return (
         <Box>
             <TallyStyles.MiruToolbarButton
@@ -120,16 +66,16 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) =
                 <span title={t("tally.transmissionPackage.actions.download.title")}>
                     {t("tally.transmissionPackage.actions.download.title")}
                 </span>
-                {performDownload ? (
-                    <PerformDownload
+                {performDownload && documentToDownload ? (
+                    <DownloadDocument
                         onDownload={() => {
-                            downloading = false
                             setDocumentToDownload(null)
-                            setPerformDownload(null)
+                            setPerformDownload(false)
                         }}
-                        fileName={performDownload.name}
-                        documentId={performDownload.id}
+                        fileName={null}
+                        documentId={documentToDownload}
                         electionEventId={electionEventId}
+                        withProgress={true}
                     />
                 ) : null}
             </TallyStyles.MiruToolbarButton>
@@ -150,14 +96,14 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) =
                 open={Boolean(anchorEl)}
                 onClose={handleClose}
             >
-                {documents?.map((doc) => (
+                {emlDocumentId ? (
                     <MenuItem
-                        key={doc.document_ids.xz}
+                        key={emlDocumentId}
                         onClick={(e: React.MouseEvent<HTMLElement>) => {
                             e.preventDefault()
                             e.stopPropagation()
                             handleClose()
-                            setDocumentToDownload(doc)
+                            setDocumentToDownload(emlDocumentId)
                             setOpenModal(true)
                         }}
                     >
@@ -168,8 +114,38 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) =
                                 overflow: "hidden",
                             }}
                         >
-                            <span title={t("tally.transmissionPackage.actions.download.itemTitle")}>
-                                {t("tally.transmissionPackage.actions.download.itemTitle")}
+                            <span title={t("tally.transmissionPackage.actions.download.emlTitle")}>
+                                {t("tally.transmissionPackage.actions.download.emlTitle")}
+                            </span>
+                        </Box>
+                    </MenuItem>
+                ) : null}
+                {documents?.map((doc) => (
+                    <MenuItem
+                        key={doc.document_ids.all_servers}
+                        onClick={(e: React.MouseEvent<HTMLElement>) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            handleClose()
+                            setDocumentToDownload(doc.document_ids.all_servers)
+                            setOpenModal(true)
+                        }}
+                    >
+                        <Box
+                            sx={{
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                            }}
+                        >
+                            <span
+                                title={t(
+                                    "tally.transmissionPackage.actions.download.transmissionPackageTitle"
+                                )}
+                            >
+                                {t(
+                                    "tally.transmissionPackage.actions.download.transmissionPackageTitle"
+                                )}
                             </span>
                         </Box>
                     </MenuItem>
@@ -187,9 +163,8 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) =
                         return
                     }
                     if (result) {
-                        handleDownload(documentToDownload)
+                        setPerformDownload(true)
                     }
-                    setDocumentToDownload(null)
                     setOpenModal(false)
                 }}
             >
