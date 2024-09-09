@@ -7,11 +7,34 @@ import {CustomAppBar} from "./CustomAppBar"
 import {CustomMenu} from "./CustomMenu"
 import {CustomSidebar} from "./menu/CustomSidebar"
 
+export const CustomCssReader: React.FC = () => {
+    const {tenantId} = useContext(TenantContext)
+    const {data: tenantData} = useGetOne<Sequent_Backend_Tenant>("sequent_backend_tenant", {
+      id: tenantId,
+    })
+
+    const setAtomValue = useSetAtom(cssInputLookAndFeel)
+    const css = useAtomValue(cssInputLookAndFeel)
+    useEffect(() => {
+        const customCss = tenantData?.annotations?.css ?? ""
+        if (css !== customCss) {
+            setAtomValue(customCss)
+        }
+        // console.log("CustomLayout: customCss :: ", customCss)
+        // return () => {}
+    },  [tenantData?.annotations?.css, setAtomValue, css])
+    
+    return <></>
+}
+
 const SequentSidebar = (props: any) => {
     return (
-        <CustomSidebar {...props}>
-            <CustomMenu {...props} classes={SidebarClasses} />
-        </CustomSidebar>
+        <>
+            <CustomCssReader />
+            <CustomSidebar {...props}>
+                <CustomMenu {...props} classes={SidebarClasses} />
+            </CustomSidebar>
+        </>
     )
 }
 

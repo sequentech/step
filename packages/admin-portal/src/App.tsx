@@ -63,29 +63,9 @@ const StyledApp = styled(Box)<{ css: string }>`
 
 const StyledAppAtom: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const css = useAtomValue(cssInputLookAndFeel)
-    return <StyledApp css={css}>{children}</StyledApp>
+    return <StyledApp className="felix-ttt" css={css}>{children}</StyledApp>
   }
 
-const CustomCssReader = () => {
-    
-    const {tenantId} = useContext(TenantContext)
-    const {data: tenantData} = useGetOne<Sequent_Backend_Tenant>("sequent_backend_tenant", {
-      id: tenantId,
-    })
-
-    const setAtomValue = useSetAtom(cssInputLookAndFeel)
-    const css = useAtomValue(cssInputLookAndFeel)
-    useEffect(() => {
-        const customCss = tenantData?.annotations?.css ?? ""
-        if (css !== customCss) {
-            setAtomValue(customCss)
-        }
-        // console.log("CustomLayout: customCss :: ", customCss)
-        // return () => {}
-    },  [tenantData?.annotations?.css, setAtomValue, css])
-    
-    return <></>
-}
 
 const App: React.FC<AppProps> = () => {
     const {apolloClient} = useContext(ApolloContext)
@@ -117,7 +97,6 @@ const App: React.FC<AppProps> = () => {
                 theme={fullAdminTheme}
                 i18nProvider={adminI18nProvider}
             >
-                <CustomCssReader />
                 <CustomRoutes>
                     {/*<Route path="/logs" element={<Logs />} />*/}
                     <Route path="/user-roles" element={<UserAndRoles />} />
