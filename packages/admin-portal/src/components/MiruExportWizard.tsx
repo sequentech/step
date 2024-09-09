@@ -727,6 +727,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
                 handleClose={(result: boolean) => {
                     if (!result || !signatureId || !passwordState) {
                         setSignatureId("")
+                        setPasswordState("")
                         setUploading(false)
                         return
                     }
