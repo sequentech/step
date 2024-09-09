@@ -274,6 +274,7 @@ button#kc-current-locale-link img {
 
 button#resend-otp-btn {
     background: initial;
+    text-wrap: wrap;
 }
 
 button#resend-otp-btn:hover {
