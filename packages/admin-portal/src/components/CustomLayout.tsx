@@ -8,7 +8,7 @@ import {CustomMenu} from "./CustomMenu"
 import {CustomSidebar} from "./menu/CustomSidebar"
 import {TenantContext} from "@/providers/TenantContextProvider"
 import {Sequent_Backend_Tenant} from "@/gql/graphql"
-import { useGetOne } from 'react-admin'
+import {useGetOne} from "react-admin"
 import cssInputLookAndFeel from "@/atoms/css-input-look-and-feel"
 import {useAtomValue, useSetAtom} from "jotai"
 import {ITenantTheme} from "@sequentech/ui-core"
@@ -16,7 +16,7 @@ import {ITenantTheme} from "@sequentech/ui-core"
 export const CustomCssReader: React.FC = () => {
     const {tenantId} = useContext(TenantContext)
     const {data: tenantData} = useGetOne<Sequent_Backend_Tenant>("sequent_backend_tenant", {
-      id: tenantId,
+        id: tenantId,
     })
 
     const setAtomValue = useSetAtom(cssInputLookAndFeel)
@@ -26,8 +26,8 @@ export const CustomCssReader: React.FC = () => {
         if (css !== customCss) {
             setAtomValue(customCss)
         }
-    },  [tenantData?.annotations?.css, setAtomValue, css])
-    
+    }, [tenantData?.annotations?.css, setAtomValue, css])
+
     return <></>
 }
 

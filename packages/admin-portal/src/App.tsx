@@ -54,15 +54,18 @@ import {useAtomValue} from "jotai"
 
 interface AppProps {}
 
-const StyledApp = styled(Box)<{ css: string }>`
-    ${({ css }) => css}
-`;
+const StyledApp = styled(Box)<{css: string}>`
+    ${({css}) => css}
+`
 
-const StyledAppAtom: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const StyledAppAtom: React.FC<{children: React.ReactNode}> = ({children}) => {
     const css = useAtomValue(cssInputLookAndFeel)
-    return <StyledApp className="felix-ttt" css={css}>{children}</StyledApp>
-  }
-
+    return (
+        <StyledApp className="felix-ttt" css={css}>
+            {children}
+        </StyledApp>
+    )
+}
 
 const App: React.FC<AppProps> = () => {
     const {apolloClient} = useContext(ApolloContext)
