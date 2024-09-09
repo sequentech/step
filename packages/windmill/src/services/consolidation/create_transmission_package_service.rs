@@ -208,6 +208,7 @@ pub async fn create_transmission_package_service(
     election_id: &str,
     area_id: &str,
     tally_session_id: &str,
+    force: bool,
 ) -> Result<()> {
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
@@ -248,12 +249,14 @@ pub async fn create_transmission_package_service(
             .flatten()
             .unwrap_or(vec![]);
 
-    let None = transmission_data.clone().into_iter().find(|data| {
+    let found_package = transmission_data.clone().into_iter().find(|data| {
         data.area_id == area_id.to_string() && data.election_id == election_id.to_string()
-    }) else {
+    });
+
+    if found_package.is_some() && !force {
         info!("transmission package already found, skipping");
         return Ok(());
-    };
+    }
     let area = get_area_by_id(&hasura_transaction, tenant_id, &area_id)
         .await
         .with_context(|| format!("Error fetching area {}", area_id))?
@@ -355,7 +358,7 @@ pub async fn create_transmission_package_service(
     .await?;
 
     // upload .xz
-    let xz_name = format!("er_{}", transaction_id);
+    let xz_name = format!("er_{}.xz", transaction_id);
     let (temp_path, temp_path_string, file_size) =
         write_into_named_temp_file(&base_compressed_xml, &xz_name, ".xz")?;
     let xz_document = upload_and_return_document_postgres(
@@ -372,7 +375,7 @@ pub async fn create_transmission_package_service(
     .await?;
 
     // upload eml
-    let eml_name = format!("er_{}", transaction_id);
+    let eml_name = format!("er_{}.xml", transaction_id);
     let (temp_path, temp_path_string, file_size) =
         write_into_named_temp_file(&eml.as_bytes().to_vec(), &eml_name, ".eml")?;
     let eml_document = upload_and_return_document_postgres(
@@ -405,6 +408,19 @@ pub async fn create_transmission_package_service(
     .await?;
 
     let area_name = area.name.clone().unwrap_or("".into());
+    let mut logs = if let Some(package) = found_package {
+        package.logs.clone()
+    } else {
+        vec![]
+    };
+    logs.push(create_transmission_package_log(
+        &now_local,
+        election_id,
+        &election.name,
+        area_id,
+        &area_name,
+    ));
+
     let new_transmission_package_data = MiruTransmissionPackageData {
         election_id: election_id.to_string(),
         area_id: area_id.to_string(),
@@ -420,13 +436,7 @@ pub async fn create_transmission_package_service(
             created_at: ISO8601::to_string(&now_local),
             signatures: vec![],
         }],
-        logs: vec![create_transmission_package_log(
-            &now_local,
-            election_id,
-            &election.name,
-            area_id,
-            &area_name,
-        )],
+        logs,
         threshold: threshold,
     };
     update_transmission_package_annotations(

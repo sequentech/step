@@ -108,7 +108,7 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) =
         })
     }
     return (
-        <div>
+        <Box>
             <TallyStyles.MiruToolbarButton
                 variant="outlined"
                 aria-label="export election data"
@@ -197,6 +197,6 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) =
                     name: areaName,
                 })}
             </Dialog>
-        </div>
+        </Box>
     )
 }

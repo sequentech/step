@@ -19,6 +19,7 @@ pub async fn create_transmission_package_task(
     election_id: String,
     area_id: String,
     tally_session_id: String,
+    force: bool,
 ) -> Result<()> {
     // Spawn the task using an async block
     let handle = tokio::task::spawn_blocking({
@@ -29,6 +30,7 @@ pub async fn create_transmission_package_task(
                     &election_id,
                     &area_id,
                     &tally_session_id,
+                    force,
                 )
                 .await
                 .map_err(|err| anyhow!("{}", err))

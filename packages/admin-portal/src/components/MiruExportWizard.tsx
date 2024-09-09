@@ -335,7 +335,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
             selectedTallySessionData?.documents[selectedTallySessionData?.documents.length - 1]
                 .signatures ?? []
 
-        return signatures.filter((signature) => !signature.signature || !signature.pub_key).length
+        return signatures.filter((signature) => !!signature.signature && !!signature.pub_key).length
     }
 
     const trusteeCount: () => number = () => {
@@ -391,8 +391,8 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
     }
 
     const disableSendButton = useMemo(() => {
-        return serversTotalCount === serverSentToCount || signedCount !== trusteeCount
-    }, [serversTotalCount, serverSentToCount, signedCount, trusteeCount])
+        return serversTotalCount() === serverSentToCount() || signedCount() < minimumSignatures()
+    }, [serversTotalCount, serverSentToCount, signedCount, trusteeCount, minimumSignatures])
 
     const [CreateTransmissionPackage] = useMutation<CreateTransmissionPackageMutation>(
         CREATE_TRANSMISSION_PACKAGE,
