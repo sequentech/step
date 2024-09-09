@@ -112,12 +112,12 @@ export const customBuildGetUsersVariables =
             username: filter.username || null,
             first_name: filter.first_name || null,
             last_name: filter.last_name || null,
-            limit: pagination.perPage || 10,
+            limit: pagination?.perPage ? pagination?.perPage : null,
             offset:
                 pagination?.page && pagination?.perPage
                     ? (pagination.page - 1) * pagination.perPage
                     : null,
-            showVotesInfo: filter.showVotesInfo || false,
+            showVotesInfo: filter.election_event_id ? true : false,
             attributes: filter.attributes ? formatUserAtributesToJsonb(filter.attributes) : null,
             enabled: filter.enabled ?? null,
             email_verified: filter.email_verified ?? null,
