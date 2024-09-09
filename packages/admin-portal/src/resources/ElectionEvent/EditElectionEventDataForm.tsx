@@ -574,7 +574,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                     key: "login",
                     origin: `https://${customUrlsValues.login}.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}/login`,
                     redirect_to: getAuthUrl(
-                        "https://lyfepedia.com", //globalSettings.VOTING_PORTAL_URL,
+                        globalSettings.VOTING_PORTAL_URL,
                         tenantId ?? "",
                         recordId,
                         "login"
@@ -585,7 +585,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                     key: "enrollment",
                     origin: `https://${customUrlsValues.enrollment}.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}/enrollment`,
                     redirect_to: getAuthUrl(
-                        "https://lyfepedia.com", //globalSettings.VOTING_PORTAL_URL,
+                        globalSettings.VOTING_PORTAL_URL,
                         tenantId ?? "",
                         recordId,
                         "enroll"

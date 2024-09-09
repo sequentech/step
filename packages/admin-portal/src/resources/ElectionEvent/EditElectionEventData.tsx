@@ -56,35 +56,24 @@ export const EditElectionEventData: React.FC = () => {
             enabled_language_codes: enabled_language_codes,
         }
         // i18n
-        // is all object, no change needed
+        // is alll object, no change needed
         delete data.enabled_languages
 
         // name, alias and description fields
-        const presentationI18n = data.presentation?.i18n
-
-        let fromPresentationName = ""
-        let fromPresentationAlias = ""
-        let fromPresentationDescription = ""
-
-        if (presentationI18n && Object.keys(presentationI18n).length > 0) {
-            fromPresentationName =
-                presentationI18n.en?.name ||
-                presentationI18n[Object.keys(presentationI18n)[0]]?.name ||
-                ""
-
-            fromPresentationAlias =
-                presentationI18n.en?.alias ||
-                presentationI18n[Object.keys(presentationI18n)[0]]?.alias ||
-                ""
-
-            fromPresentationDescription =
-                presentationI18n.en?.description ||
-                presentationI18n[Object.keys(presentationI18n)[0]]?.description ||
-                ""
-        }
-
+        const fromPresentationName =
+            data?.presentation?.i18n?.en?.name ||
+            data?.presentation?.i18n[Object.keys(data.presentation.i18n)[0]].name ||
+            ""
         data.name = fromPresentationName
+        const fromPresentationAlias =
+            data?.presentation?.i18n?.en?.alias ||
+            data?.presentation?.i18n[Object.keys(data.presentation.i18n)[0]].alias ||
+            ""
         data.alias = fromPresentationAlias
+        const fromPresentationDescription =
+            data?.presentation?.i18n?.en?.description ||
+            data?.presentation?.i18n[Object.keys(data.presentation.i18n)[0]].description ||
+            ""
         data.description = fromPresentationDescription
         // END name, alias and description fields
 
