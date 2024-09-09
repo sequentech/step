@@ -103,7 +103,8 @@ const AuditButton: React.FC<AuditButtonProps> = ({onClick}) => {
 
     return (
         <StyledButton
-            sx={{width: {xs: "100%", sm: "200px"}, display: {xs: "none", sm: "flex"}}}
+            className="audit-button"
+            sx={{width: {xs: "100%", sm: "200px"}}}
             variant="warning"
             onClick={onClick}
         >
@@ -132,6 +133,7 @@ const AuditBallotHelpDialog: React.FC<AuditBallotHelpDialogProps> = ({
             ok={t("reviewScreen.auditBallotHelpDialog.ok")}
             cancel={t("reviewScreen.auditBallotHelpDialog.cancel")}
             variant="warning"
+            maxWidth="md"
         >
             {stringToHtml(t("reviewScreen.auditBallotHelpDialog.content"))}
         </Dialog>
@@ -280,21 +282,24 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
 
     return (
         <Box sx={{marginBottom: "10px", marginTop: "10px"}}>
-            <StyledButton
-                sx={{display: {xs: "flex", sm: "none"}, marginBottom: "2px", width: "100%"}}
-                variant="warning"
-                onClick={() => setAuditBallotHelp(true)}
-            >
-                <Icon icon={faFire} size="sm" />
-                <Box>{t("reviewScreen.auditButton")}</Box>
-            </StyledButton>
+            {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW ? (
+                <StyledButton
+                    className="audit-button"
+                    sx={{display: {xs: "flex", sm: "none"}, marginBottom: "2px", width: "100%"}}
+                    variant="warning"
+                    onClick={() => setAuditBallotHelp(true)}
+                >
+                    <Icon icon={faFire} size="sm" />
+                    <Box>{t("reviewScreen.auditButton")}</Box>
+                </StyledButton>
+            ) : null}
             {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW ? (
                 <AuditBallotHelpDialog
                     auditBallotHelp={auditBallotHelp}
                     handleClose={handleClose}
                 />
             ) : null}
-            <ActionsContainer>
+            <ActionsContainer className="actions-container">
                 <StyledLink
                     to={`/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/vote${location.search}`}
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
@@ -386,15 +391,14 @@ export const ReviewScreen: React.FC = () => {
                     `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/audit`
                 )
             } else {
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NO_BALLOT_STYLE}`))
-                return submit({error: VotingPortalErrorType.NO_BALLOT_STYLE}, {method: "post"})
+                navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
             }
         }
     }
 
     useEffect(() => {
         if (!ballotStyle) {
-            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NO_BALLOT_STYLE}`))
+            navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
         } else if (!auditableBallot) {
             setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NO_AUDITABLE_BALLOT}`))
         } else if (!selectionState) {
@@ -440,6 +444,7 @@ export const ReviewScreen: React.FC = () => {
                 open={openBallotIdHelp}
                 title={t("reviewScreen.ballotIdHelpDialog.title")}
                 ok={t("reviewScreen.ballotIdHelpDialog.ok")}
+                maxWidth="md"
                 middleActions={
                     auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP
                         ? [
