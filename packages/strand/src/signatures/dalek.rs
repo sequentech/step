@@ -320,12 +320,18 @@ impl BorshSerialize for StrandSignaturePk {
 }
 
 impl BorshDeserialize for StrandSignaturePk {
-    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
-        let bytes: [u8; 32] = BorshDeserialize::deserialize(buf)?;
+    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> Result<Self, std::io::Error> {
+        let bytes =  <[u8; 32]>::deserialize_reader(reader)?;
 
         StrandSignaturePk::from_bytes(bytes)
             .map_err(|e| Error::new(ErrorKind::Other, e))
     }
+    /*fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+        let bytes: [u8; 32] = BorshDeserialize::deserialize(buf)?;
+
+        StrandSignaturePk::from_bytes(bytes)
+            .map_err(|e| Error::new(ErrorKind::Other, e))
+    }*/
 }
 
 // Implement Serialize for StrandSignaturePk
@@ -396,11 +402,17 @@ impl BorshSerialize for StrandSignature {
 }
 
 impl BorshDeserialize for StrandSignature {
+    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> Result<Self, std::io::Error> {
+        let bytes = <[u8; 64]>::deserialize_reader(reader)?;
+        StrandSignature::from_bytes(bytes)
+            .map_err(|e| Error::new(ErrorKind::Other, e))
+    }
+    /* 
     fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
         let bytes = <[u8; 64]>::deserialize(buf)?;
         StrandSignature::from_bytes(bytes)
             .map_err(|e| Error::new(ErrorKind::Other, e))
-    }
+    }*/
 }
 
 // Implement Serialize for StrandSignature

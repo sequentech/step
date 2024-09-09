@@ -55,8 +55,8 @@ pub(crate) struct YChallengeInput<'a, C: Ctx> {
     pub pk: &'a PublicKey<C>,
 }
 
-#[derive(Clone, BorshSerialize, BorshDeserialize, Debug)]
 /// Shuffle proof commitments.
+#[derive(Clone, BorshSerialize, BorshDeserialize, Debug)]
 pub struct Commitments<C: Ctx> {
     pub t1: C::E,
     pub t2: C::E,
@@ -66,8 +66,8 @@ pub struct Commitments<C: Ctx> {
     pub t_hats: StrandVector<C::E>,
 }
 
-#[derive(Clone, BorshSerialize, BorshDeserialize, Debug)]
 /// Shuffle proof responses.
+#[derive(Clone, BorshSerialize, BorshDeserialize, Debug)]
 pub struct Responses<C: Ctx> {
     pub(crate) s1: C::X,
     pub(crate) s2: C::X,
@@ -77,8 +77,15 @@ pub struct Responses<C: Ctx> {
     pub(crate) s_primes: StrandVector<C::X>,
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Debug, Clone)]
+
 /// A proof of shuffle.
+#[derive(BorshSerialize, BorshDeserialize, Debug)]
+pub struct ShuffleProof2<C: Ctx> {
+    pub a: C::E,
+}
+
+/// A proof of shuffle.
+#[derive(Debug, Clone)]
 pub struct ShuffleProof<C: Ctx> {
     // proof commitment
     pub(crate) t: Commitments<C>,
@@ -88,6 +95,39 @@ pub struct ShuffleProof<C: Ctx> {
     pub(crate) cs: StrandVector<C::E>,
     // commitment chain
     pub(crate) c_hats: StrandVector<C::E>,
+}
+// For some reason, deriving these does not work
+impl<C: Ctx> BorshSerialize for ShuffleProof<C> {
+    fn serialize<W: std::io::Write>(
+        &self,
+        writer: &mut W,
+    ) -> std::io::Result<()> {
+        let mut bytes: Vec<Vec<u8>> = vec![];
+        bytes.push(borsh::to_vec(&self.t)?);
+        bytes.push(borsh::to_vec(&self.s)?);
+        bytes.push(borsh::to_vec(&self.cs)?);
+        bytes.push(borsh::to_vec(&self.c_hats)?);
+
+        bytes.serialize(writer)
+    }
+}
+
+impl<C: Ctx> BorshDeserialize for ShuffleProof<C> {
+    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> Result<Self, std::io::Error> {
+        let bytes = <Vec<Vec<u8>>>::deserialize_reader(reader)?;
+        let t = Commitments::<C>::try_from_slice(&bytes[0])?;
+        let s = Responses::<C>::try_from_slice(&bytes[1])?;
+        let cs = StrandVector::<C::E>::try_from_slice(&bytes[2])?;
+        let c_hats = StrandVector::<C::E>::try_from_slice(&bytes[3])?;
+
+
+        Ok(ShuffleProof {
+            t,
+            s,
+            cs,
+            c_hats
+        })
+    }
 }
 
 pub(super) struct PermutationData<'a, C: Ctx> {

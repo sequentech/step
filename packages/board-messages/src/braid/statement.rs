@@ -368,6 +368,7 @@ impl Statement {
     BorshSerialize, BorshDeserialize, Clone, PartialEq, Eq, Display, Debug, core::hash::Hash,
 )]
 #[repr(u8)]
+#[borsh(use_discriminant=true)]
 pub enum StatementType {
     Configuration = 0,
     ConfigurationSigned = 1,
@@ -393,7 +394,7 @@ impl BorshSerialize for ChannelsHashes {
         let vector = &self.0;
 
         let vecs: Result<Vec<Vec<u8>>, std::io::Error> =
-            vector.iter().map(|t| t.try_to_vec()).collect();
+            vector.iter().map(|t| borsh::to_vec(t)).collect();
         let inside = vecs?;
 
         inside.serialize(writer)
@@ -401,8 +402,8 @@ impl BorshSerialize for ChannelsHashes {
 }
 
 impl BorshDeserialize for ChannelsHashes {
-    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
-        let vectors = <Vec<Vec<u8>>>::deserialize(buf)?;
+    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> Result<Self, std::io::Error> {
+        let vectors = <Vec<Vec<u8>>>::deserialize_reader(reader)?;
 
         let inner: std::io::Result<Vec<[u8; 64]>> = vectors
             .iter()
@@ -421,7 +422,7 @@ impl BorshSerialize for SharesHashes {
         let vector = &self.0;
 
         let vecs: Result<Vec<Vec<u8>>, std::io::Error> =
-            vector.iter().map(|t| t.try_to_vec()).collect();
+            vector.iter().map(|t| borsh::to_vec(t)).collect();
         let inside = vecs?;
 
         inside.serialize(writer)
@@ -429,8 +430,8 @@ impl BorshSerialize for SharesHashes {
 }
 
 impl BorshDeserialize for SharesHashes {
-    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
-        let vectors = <Vec<Vec<u8>>>::deserialize(buf)?;
+    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> Result<Self, std::io::Error> {
+        let vectors = <Vec<Vec<u8>>>::deserialize_reader(reader)?;
 
         let inner: std::io::Result<Vec<[u8; 64]>> = vectors
             .iter()
@@ -449,7 +450,7 @@ impl BorshSerialize for DecryptionFactorsHashes {
         let vector = &self.0;
 
         let vecs: Result<Vec<Vec<u8>>, std::io::Error> =
-            vector.iter().map(|t| t.try_to_vec()).collect();
+            vector.iter().map(|t| borsh::to_vec(t)).collect();
         let inside = vecs?;
 
         inside.serialize(writer)
@@ -457,8 +458,8 @@ impl BorshSerialize for DecryptionFactorsHashes {
 }
 
 impl BorshDeserialize for DecryptionFactorsHashes {
-    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
-        let vectors = <Vec<Vec<u8>>>::deserialize(buf)?;
+    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> Result<Self, std::io::Error> {
+        let vectors = <Vec<Vec<u8>>>::deserialize_reader(reader)?;
 
         let inner: std::io::Result<Vec<[u8; 64]>> = vectors
             .iter()

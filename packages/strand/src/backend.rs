@@ -334,6 +334,8 @@ pub(crate) mod tests {
         let es_b = es.strand_serialize().unwrap();
         let eprimes_b = e_primes.strand_serialize().unwrap();
         let proof_b = proof.strand_serialize().unwrap();
+        // let pr = crate::shuffler::ShuffleProof2 { a: es[0] };
+        // let proof_b = borsh::to_vec(&proof).unwrap();
 
         let pk_d = PublicKey::<C>::strand_deserialize(&pk_b).unwrap();
         let es_d = Vec::<Ciphertext<C>>::strand_deserialize(&es_b).unwrap();

@@ -18,7 +18,7 @@ getrandom = { version = "0.2" }
 
 strand = { path="../strand", features=["rayon"] }
 board-messages = { path="../board-messages" }
-borsh = "0.9.3"
+# borsh = { version = "=1.5.1", features = ["derive"] }
 crepe = "0.1.5"
 strum = { version = "0.24.1", features = ["derive"] }
 rayon = { version = "1.5" }

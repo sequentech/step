@@ -58,7 +58,7 @@ pub trait StrandDeserialize {
 
 impl<T: BorshSerialize> StrandSerialize for T {
     fn strand_serialize(&self) -> Result<Vec<u8>, StrandError> {
-        self.try_to_vec().map_err(|e| e.into())
+        borsh::to_vec(self).map_err(|e| e.into())
     }
 }
 
@@ -88,7 +88,7 @@ impl<T: BorshSerialize + BorshDeserialize + Send + Sync> BorshSerialize for Stra
         let vector = &self.0;
 
         let vecs: Result<Vec<Vec<u8>>, std::io::Error> =
-            vector.par().map(|t| t.try_to_vec()).collect();
+            vector.par().map(|t| borsh::to_vec(t)).collect();
         let inside = vecs?;
 
         inside.serialize(writer)
@@ -96,8 +96,16 @@ impl<T: BorshSerialize + BorshDeserialize + Send + Sync> BorshSerialize for Stra
 }
 
 impl<T: BorshSerialize + BorshDeserialize + Send + Sync> BorshDeserialize for StrandVector<T> {
-    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+    /*fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
         let vectors = <Vec<Vec<u8>>>::deserialize(buf)?;
+
+        let results: std::io::Result<Vec<T>> =
+            vectors.par().map(|v| T::try_from_slice(&v)).collect();
+
+        Ok(StrandVector(results?))
+    }*/
+    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> Result<Self, std::io::Error> {
+        let vectors = <Vec<Vec<u8>>>::deserialize_reader(reader)?;
 
         let results: std::io::Result<Vec<T>> =
             vectors.par().map(|v| T::try_from_slice(&v)).collect();
@@ -114,7 +122,7 @@ impl<T: Send + Sync + BorshSerialize> BorshSerialize for StrandRectangle<T> {
         let vector = self.rows();
 
         let vecs: Result<Vec<Vec<u8>>, std::io::Error> =
-            vector.par().map(|t| t.try_to_vec()).collect();
+            vector.par().map(|t| borsh::to_vec(t)).collect();
         let inside = vecs?;
 
         inside.serialize(writer)
@@ -122,8 +130,8 @@ impl<T: Send + Sync + BorshSerialize> BorshSerialize for StrandRectangle<T> {
 }
 
 impl<T: Send + Sync + BorshDeserialize> BorshDeserialize for StrandRectangle<T> {
-    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
-        let vectors = <Vec<Vec<u8>>>::deserialize(buf)?;
+    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> Result<Self, std::io::Error> {
+        let vectors = <Vec<Vec<u8>>>::deserialize_reader(reader)?;
         let results: std::io::Result<Vec<Vec<T>>> = vectors
             .par()
             .map(|v| Vec::<T>::try_from_slice(&v))
@@ -133,6 +141,18 @@ impl<T: Send + Sync + BorshDeserialize> BorshDeserialize for StrandRectangle<T> 
             Error::new(ErrorKind::Other, "Parsed bytes were not rectangular")
         })
     }
+    
+    /*fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+        let vectors = <Vec<Vec<u8>>>::deserialize(buf)?;
+        let results: std::io::Result<Vec<Vec<T>>> = vectors
+            .par()
+            .map(|v| Vec::<T>::try_from_slice(&v))
+            .collect();
+
+        StrandRectangle::new(results?).map_err(|_| {
+            Error::new(ErrorKind::Other, "Parsed bytes were not rectangular")
+        })
+    }*/
 }
 
 #[cfg(test)]

@@ -53,7 +53,6 @@ cfg_if::cfg_if! {
 
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
-#[cfg(feature = "rayon")]
 use crate::util::Par;
 
 impl RistrettoCtx {
@@ -88,7 +87,6 @@ use crate::hash::{ExtendableOutput, Update, XofReader};
 
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
-#[cfg(feature = "rayon")]
 use crate::util::Par;
 
 impl RistrettoCtx {
@@ -411,15 +409,25 @@ impl BorshSerialize for RistrettoPointS {
 }
 
 impl BorshDeserialize for RistrettoPointS {
-    #[inline]
     /// Deserializes the given bytes into a point, checking for membership.
-    fn deserialize(bytes: &mut &[u8]) -> std::io::Result<Self> {
-        let bytes = <[u8; 32]>::deserialize(bytes)?;
+    #[inline]
+    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> Result<Self, std::io::Error> {
+        let bytes = <[u8; 32]>::deserialize_reader(reader)?;
         let ctx = RistrettoCtx::default();
 
         ctx.element_from_bytes(&bytes)
             .map_err(|e| Error::new(ErrorKind::Other, e))
     }
+    
+    
+    
+    /*fn deserialize(bytes: &mut &[u8]) -> std::io::Result<Self> {
+        let bytes = <[u8; 32]>::deserialize(bytes)?;
+        let ctx = RistrettoCtx::default();
+
+        ctx.element_from_bytes(&bytes)
+            .map_err(|e| Error::new(ErrorKind::Other, e))
+    }*/
 }
 
 impl BorshSerialize for ScalarS {
@@ -436,13 +444,22 @@ impl BorshSerialize for ScalarS {
 impl BorshDeserialize for ScalarS {
     #[inline]
     /// Deserializes the given bytes into a scalar, checking for membership.
+    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> Result<Self, std::io::Error> {
+        let bytes = <[u8; 32]>::deserialize_reader(reader)?;
+        let ctx = RistrettoCtx::default();
+
+        ctx.exp_from_bytes(&bytes)
+            .map_err(|e| Error::new(ErrorKind::Other, e))
+    }
+    
+    /* 
     fn deserialize(bytes: &mut &[u8]) -> std::io::Result<Self> {
         let bytes = <[u8; 32]>::deserialize(bytes)?;
         let ctx = RistrettoCtx::default();
 
         ctx.exp_from_bytes(&bytes)
             .map_err(|e| Error::new(ErrorKind::Other, e))
-    }
+    }*/
 }
 
 impl std::fmt::Debug for RistrettoPointS {
