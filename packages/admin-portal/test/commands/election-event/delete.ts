@@ -15,7 +15,8 @@ export const deleteElectionEvent = {
         })
         browser.useCss().click(`li.menu-action-archive-${electionEventLink!}`)
         browser.useCss().click("button.ok-button")
-        browser.useXpath().click(`//li[normalize-space()="Active"]`)
+			.pause(pause.short)
+        browser.useXpath().click(`//li[normalize-space()="Active"]`).pause(pause.short)
     },
     deleteElection: (browser: NightwatchAPI) => {
         // delete election
