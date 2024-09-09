@@ -10,7 +10,7 @@ on:
 
 jobs:
   build-and-push:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
