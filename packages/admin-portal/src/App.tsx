@@ -48,12 +48,9 @@ import {CommunicationTemplateList} from "./resources/CommunicationTemplate/Commu
 import {CommunicationTemplateCreate} from "./resources/CommunicationTemplate/CommunicationTemplateCreate"
 import {ApolloContext} from "./providers/ApolloContextProvider"
 import cssInputLookAndFeel from "@/atoms/css-input-look-and-feel"
-import {TenantContext} from "@/providers/TenantContextProvider"
 import {Box} from "@mui/material"
-import {Sequent_Backend_Tenant} from "@/gql/graphql"
-import { useGetOne } from 'react-admin'
 import {styled} from "@mui/material/styles"
-import {useAtomValue, useSetAtom} from "jotai"
+import {useAtomValue} from "jotai"
 
 interface AppProps {}
 
