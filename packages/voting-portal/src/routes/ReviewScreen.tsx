@@ -103,6 +103,7 @@ const AuditButton: React.FC<AuditButtonProps> = ({onClick}) => {
 
     return (
         <StyledButton
+            className="audit-button"
             sx={{width: {xs: "100%", sm: "200px"}}}
             variant="warning"
             onClick={onClick}
@@ -281,21 +282,24 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
 
     return (
         <Box sx={{marginBottom: "10px", marginTop: "10px"}}>
-            <StyledButton
-                sx={{display: {xs: "flex", sm: "none"}, marginBottom: "2px", width: "100%"}}
-                variant="warning"
-                onClick={() => setAuditBallotHelp(true)}
-            >
-                <Icon icon={faFire} size="sm" />
-                <Box>{t("reviewScreen.auditButton")}</Box>
-            </StyledButton>
+            {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW ? (
+                <StyledButton
+                    className="audit-button"
+                    sx={{display: {xs: "flex", sm: "none"}, marginBottom: "2px", width: "100%"}}
+                    variant="warning"
+                    onClick={() => setAuditBallotHelp(true)}
+                >
+                    <Icon icon={faFire} size="sm" />
+                    <Box>{t("reviewScreen.auditButton")}</Box>
+                </StyledButton>
+            ) : null}
             {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW ? (
                 <AuditBallotHelpDialog
                     auditBallotHelp={auditBallotHelp}
                     handleClose={handleClose}
                 />
             ) : null}
-            <ActionsContainer>
+            <ActionsContainer className="actions-container">
                 <StyledLink
                     to={`/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/vote${location.search}`}
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}

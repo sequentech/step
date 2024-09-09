@@ -11,9 +11,22 @@ import {faTimesCircle, faInfoCircle, faExclamationTriangle} from "@fortawesome/f
 import styledEmotion from "@emotion/styled"
 import Icon from "../Icon/Icon"
 import IconButton from "../IconButton/IconButton"
+import {styled as muiStyled} from "@mui/material/styles"
 
 const StyledBackdrop = styledEmotion(Backdrop)`
     opacity: 0.5 !important;
+`
+
+const StyledDialogActions = muiStyled(DialogActions)`
+    @media (max-width: 600px) {
+        &.has-middle.MuiDialogActions-root {
+            flex-direction: column !important;
+            gap: 5px !important;
+        &.has-middle button.MuiButtonBase-root {
+            width: 100% !important;
+            margin: 0 !important;
+        }
+    }
 `
 
 export interface DialogProps extends PropsWithChildren {
@@ -84,7 +97,7 @@ const Dialog: React.FC<DialogProps> = ({
                 />
             </DialogTitle>
             <DialogContent className="dialog-content">{children}</DialogContent>
-            <DialogActions>
+            <StyledDialogActions className={middleActions ? "has-middle" : "no-middle"}>
                 {cancel ? (
                     <Button
                         className="cancel-button"
@@ -108,7 +121,7 @@ const Dialog: React.FC<DialogProps> = ({
                 >
                     {ok}
                 </Button>
-            </DialogActions>
+            </StyledDialogActions>
         </MaterialDialog>
     )
 }

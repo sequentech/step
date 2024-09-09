@@ -5,13 +5,7 @@
 import {Box, Button, CircularProgress, Typography, Alert} from "@mui/material"
 import React, {useContext, useEffect, useMemo, useState} from "react"
 import {useTranslation} from "react-i18next"
-import {
-    Dialog,
-    IconButton,
-    PageLimit,
-    SelectElection,
-    theme,
-} from "@sequentech/ui-essentials"
+import {Dialog, IconButton, PageLimit, SelectElection, theme} from "@sequentech/ui-essentials"
 import {
     isString,
     stringToHtml,
@@ -471,16 +465,16 @@ const ElectionSelectionScreen: React.FC = () => {
                             {stringToHtml(t("electionSelectionScreen.demoDialog.content"))}
                         </Dialog>
                     </StyledTitle>
-                    {(errorMsg || alertMsg)
-                        ? <Alert severity="warning">
-                            {errorMsg || alertMsg}
-                        </Alert>
-                        : <Typography
+                    {errorMsg || alertMsg ? (
+                        <Alert severity="warning">{errorMsg || alertMsg}</Alert>
+                    ) : (
+                        <Typography
                             variant="body1"
                             sx={{color: theme.palette.customGrey.contrastText}}
                         >
                             {stringToHtml(t("electionSelectionScreen.description"))}
-                        </Typography>}
+                        </Typography>
+                    )}
                 </Box>
                 {isMaterialsActivated ? (
                     <Button onClick={handleNavigateMaterials}>{t("materials.common.label")}</Button>
