@@ -20,6 +20,7 @@ import {
     useRecordContext,
     BooleanInput,
     SelectInput,
+    DateInput,
 } from "react-admin"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -146,6 +147,15 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             filters = userAttributes.get_user_profile_attributes.map((attr) => {
                 //covert to valid source string (if attr name is for example sequent.read-only.otp-method)
                 const source = attr.name?.replaceAll(".", "%")
+                if (attr.annotations?.inputType === "html5-date") {
+                    return (
+                        <DateInput
+                            key={attr.name}
+                            source={`attributes.${attr.name}`}
+                            label={attr.display_name ?? ""}
+                        />
+                    )
+                }
                 return (
                     <TextInput
                         key={attr.name}

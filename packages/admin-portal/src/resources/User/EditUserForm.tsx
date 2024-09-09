@@ -443,7 +443,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     <FormStyles.DateInput
                         source={`attributes.${attr.name}`}
                         onChange={handleAttrChange(attr.name)}
-                        label={attr.name}
+                        label={attr.display_name || ""}
                     />
                 )
             } else if (attr.name.toLowerCase().includes("area")) {

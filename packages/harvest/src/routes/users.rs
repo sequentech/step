@@ -4,13 +4,10 @@
 
 use crate::services::authorization::authorize;
 use crate::types::optional::OptionalId;
-use crate::types::resources::{
-    Aggregate, DataList, SortPayload, TotalAggregate,
-};
-use anyhow::{Context, Result};
+use crate::types::resources::{Aggregate, DataList, TotalAggregate};
+use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
 use rocket::futures::future::join_all;
-use rocket::futures::TryFutureExt;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
@@ -18,14 +15,13 @@ use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::keycloak::{
     UPAttributePermissions, UPAttributeRequired, UPAttributeSelector, User,
-    UserProfileAttribute, PERMISSION_TO_EDIT, TENANT_ID_ATTR_NAME,
+    UserProfileAttribute, AREA_ID_ATTR_NAME, PERMISSION_TO_EDIT,
+    TENANT_ID_ATTR_NAME,
 };
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
-use serde_json::Value;
 use std::collections::HashMap;
 use std::env;
-use strand::hash::info;
 use tracing::instrument;
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
@@ -643,13 +639,22 @@ pub async fn get_user_profile_attributes(
 
     let user_profile_attributes = attributes_res
         .iter()
-        .filter(|attr| {
-            attr.permissions
-                .as_ref()
-                .and_then(|p| p.edit.as_ref())
-                .map_or(true, |edit| {
-                    edit.contains(&PERMISSION_TO_EDIT.to_string())
-                })
+        .filter(|attr| match (&attr.permissions, &attr.name) {
+            (Some(permissions), Some(name)) => {
+                let has_permission =
+                    permissions.edit.as_ref().map_or(true, |edit| {
+                        edit.contains(&PERMISSION_TO_EDIT.to_string())
+                    });
+
+                let is_not_tenant_id =
+                    !name.contains(&TENANT_ID_ATTR_NAME.to_string());
+
+                let is_not_area_id =
+                    !name.contains(&AREA_ID_ATTR_NAME.to_string());
+
+                has_permission && is_not_tenant_id && is_not_area_id
+            }
+            _ => false,
         })
         .map(|attr| UserProfileAttribute {
             annotations: attr.annotations.clone(),
