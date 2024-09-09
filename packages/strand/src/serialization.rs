@@ -56,12 +56,14 @@ pub trait StrandDeserialize {
         Self: Sized;
 }
 
+/// Any implementer of borshserialize implements strandserialize
 impl<T: BorshSerialize> StrandSerialize for T {
     fn strand_serialize(&self) -> Result<Vec<u8>, StrandError> {
         borsh::to_vec(self).map_err(|e| e.into())
     }
 }
 
+/// Any implementer of borshdeserialize implements stranddeserialize
 impl<T: BorshDeserialize> StrandDeserialize for T {
     fn strand_deserialize(bytes: &[u8]) -> Result<Self, StrandError>
     where
@@ -72,14 +74,11 @@ impl<T: BorshDeserialize> StrandDeserialize for T {
     }
 }
 
-// Optimized (par) serialization vectors
-// See also https://github.com/rust-lang/rust/issues/31844
-// See also https://github.com/rust-lang/rust/issues/42721
-
 #[derive(Clone, Debug)]
-/// Optimized (par) serialization vectors
+/// Parallel serialization vector
 pub struct StrandVector<T: BorshSerialize + BorshDeserialize>(pub Vec<T>);
 
+/// Parallel serialization for vectors
 impl<T: BorshSerialize + BorshDeserialize + Send + Sync> BorshSerialize for StrandVector<T> {
     fn serialize<W: std::io::Write>(
         &self,
@@ -95,6 +94,7 @@ impl<T: BorshSerialize + BorshDeserialize + Send + Sync> BorshSerialize for Stra
     }
 }
 
+/// Parallel serialization for vectors
 impl<T: BorshSerialize + BorshDeserialize + Send + Sync> BorshDeserialize for StrandVector<T> {
     /*fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
         let vectors = <Vec<Vec<u8>>>::deserialize(buf)?;
@@ -114,6 +114,7 @@ impl<T: BorshSerialize + BorshDeserialize + Send + Sync> BorshDeserialize for St
     }
 }
 
+/// Parallel serialization for rectangles
 impl<T: Send + Sync + BorshSerialize> BorshSerialize for StrandRectangle<T> {
     fn serialize<W: std::io::Write>(
         &self,
@@ -129,6 +130,7 @@ impl<T: Send + Sync + BorshSerialize> BorshSerialize for StrandRectangle<T> {
     }
 }
 
+/// Parallel serialization for rectangles
 impl<T: Send + Sync + BorshDeserialize> BorshDeserialize for StrandRectangle<T> {
     fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> Result<Self, std::io::Error> {
         let vectors = <Vec<Vec<u8>>>::deserialize_reader(reader)?;

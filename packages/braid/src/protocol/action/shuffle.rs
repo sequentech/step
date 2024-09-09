@@ -72,13 +72,13 @@ pub(crate) fn mix<C: Ctx>(
     info!("Mix computing generators..");
 
     let hs = ctx.generators(ciphertexts.0.len() + 1, &seed)?;
-    let shuffler = strand::shuffler::Shuffler::new(&pk, &hs, &ctx);
+    let shuffler = strand::shuffler::Shuffler::new(&pk, &ctx);
 
     info!("Mix computing shuffle..");
     let (e_primes, rs, perm) = shuffler.gen_shuffle(&ciphertexts.0);
 
     let label = cfg.label(*batch, format!("shuffle{mix_no}"));
-    let proof = shuffler.gen_proof(&ciphertexts.0, &e_primes, rs, &perm, &label)?;
+    let proof = shuffler.gen_proof(&ciphertexts.0, &e_primes, rs, hs, &perm, &label)?;
 
     // FIXME removed self-verify
     // let ok = shuffler.check_proof(&proof, &cs, &e_primes, &label);
@@ -157,13 +157,14 @@ pub(crate) fn sign_mix<C: Ctx>(
 
     let seed = cfg.label(*batch, format!("shuffle_generators{mix_no}"));
     let hs = ctx.generators(source_cs.0.len() + 1, &seed)?;
-    let shuffler = strand::shuffler::Shuffler::new(&pk, &hs, &ctx);
+    let shuffler = strand::shuffler::Shuffler::new(&pk, &ctx);
 
     let label = cfg.label(*batch, format!("shuffle{mix_number}"));
     let ok = shuffler.check_proof(
         mix.proof.as_ref().expect("Should not be a null mix"),
         &source_cs.0,
         &mix.ciphertexts.0,
+        hs,
         &label,
     )?;
     info!(

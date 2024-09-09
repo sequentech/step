@@ -96,39 +96,6 @@ pub struct ShuffleProof<C: Ctx> {
     // commitment chain
     pub(crate) c_hats: StrandVector<C::E>,
 }
-// For some reason, deriving these does not work
-impl<C: Ctx> BorshSerialize for ShuffleProof<C> {
-    fn serialize<W: std::io::Write>(
-        &self,
-        writer: &mut W,
-    ) -> std::io::Result<()> {
-        let mut bytes: Vec<Vec<u8>> = vec![];
-        bytes.push(borsh::to_vec(&self.t)?);
-        bytes.push(borsh::to_vec(&self.s)?);
-        bytes.push(borsh::to_vec(&self.cs)?);
-        bytes.push(borsh::to_vec(&self.c_hats)?);
-
-        bytes.serialize(writer)
-    }
-}
-
-impl<C: Ctx> BorshDeserialize for ShuffleProof<C> {
-    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> Result<Self, std::io::Error> {
-        let bytes = <Vec<Vec<u8>>>::deserialize_reader(reader)?;
-        let t = Commitments::<C>::try_from_slice(&bytes[0])?;
-        let s = Responses::<C>::try_from_slice(&bytes[1])?;
-        let cs = StrandVector::<C::E>::try_from_slice(&bytes[2])?;
-        let c_hats = StrandVector::<C::E>::try_from_slice(&bytes[3])?;
-
-
-        Ok(ShuffleProof {
-            t,
-            s,
-            cs,
-            c_hats
-        })
-    }
-}
 
 pub(super) struct PermutationData<'a, C: Ctx> {
     pub(crate) permutation: &'a [usize],
@@ -567,8 +534,6 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
             return Err(StrandError::Generic("Cannot check proof on 0-width ciphertexts".to_string()));
         }
 
-        // let gmod = ctx.modulus();
-
         let us: Vec<C::X> =
             self.shuffle_proof_us(es, e_primes, &proof.cs.0, N, label)?;
 
@@ -696,16 +661,6 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
                 .modp(ctx);            
         }
 
-        /* let t_prime41 = (ctx.emod_pow(&a_prime.invp(ctx), &c))
-            .mul(&ctx.emod_pow(&self.pk.element.invp(ctx), &proof.s.s4))
-            .mul(&t_tilde41_temp)
-            .modp(ctx);
-
-        let t_prime42 = (ctx.emod_pow(&b_prime.invp(ctx), &c))
-            .mul(&ctx.emod_pow(&ctx.generator().invp(ctx), &proof.s.s4))
-            .mul(&t_tilde42_temp)
-            .modp(ctx); */
-
         let t_hat_primes: Vec<C::E> = (0..N)
             .par()
             .map(|i| {
@@ -731,10 +686,6 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
             checks.push(proof.t.t4_1s[w].eq(&t_prime_41s[w]));
             checks.push(proof.t.t4_2s[w].eq(&t_prime_42s[w]));
         }
-        
-        
-        // checks.push(proof.t.t4_1.eq(&t_prime41));
-        // checks.push(proof.t.t4_2.eq(&t_prime42));
 
         for (i, t_hat) in proof.t.t_hats.0.iter().enumerate().take(N) {
             checks.push(t_hat.eq(&t_hat_primes[i]));
@@ -877,21 +828,6 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         challenge_input
             .add_bytes("t4_2s", t.t4_2s.strand_serialize()?);
 
-        // FIXME unnecessary copying in order to do parallel serialization (es, e_primes, cs, c_hats are copied)
-        /*challenge_input
-            .add_bytes("es", StrandVector(y.es.to_vec()).strand_serialize()?);
-        challenge_input.add_bytes(
-            "e_primes",
-            StrandVector(y.e_primes.to_vec()).strand_serialize()?,
-        );
-        challenge_input.add_bytes(
-            "cs",
-            StrandVector::<C::E>(y.cs.to_vec()).strand_serialize()?,
-        );
-        challenge_input.add_bytes(
-            "c_hats",
-            StrandVector::<C::E>(y.c_hats.to_vec()).strand_serialize()?,
-        );*/
         challenge_input
             .add_bytes("es", serialize_flatten(y.es)?);
         challenge_input.add_bytes(
@@ -933,4 +869,38 @@ fn serialize_flatten<T: Send + Sync + StrandSerialize>(v: &[T]) -> Result<Vec<u8
     let bytes: Result<Vec<Vec<u8>>, StrandError> = v.par().map(|v| v.strand_serialize()).collect();
 
     Ok(bytes?.into_iter().flatten().collect())
+}
+
+// For some reason, deriving these does not work
+impl<C: Ctx> BorshSerialize for ShuffleProof<C> {
+    fn serialize<W: std::io::Write>(
+        &self,
+        writer: &mut W,
+    ) -> std::io::Result<()> {
+        let mut bytes: Vec<Vec<u8>> = vec![];
+        bytes.push(borsh::to_vec(&self.t)?);
+        bytes.push(borsh::to_vec(&self.s)?);
+        bytes.push(borsh::to_vec(&self.cs)?);
+        bytes.push(borsh::to_vec(&self.c_hats)?);
+
+        bytes.serialize(writer)
+    }
+}
+
+impl<C: Ctx> BorshDeserialize for ShuffleProof<C> {
+    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> Result<Self, std::io::Error> {
+        let bytes = <Vec<Vec<u8>>>::deserialize_reader(reader)?;
+        let t = Commitments::<C>::try_from_slice(&bytes[0])?;
+        let s = Responses::<C>::try_from_slice(&bytes[1])?;
+        let cs = StrandVector::<C::E>::try_from_slice(&bytes[2])?;
+        let c_hats = StrandVector::<C::E>::try_from_slice(&bytes[3])?;
+
+
+        Ok(ShuffleProof {
+            t,
+            s,
+            cs,
+            c_hats
+        })
+    }
 }

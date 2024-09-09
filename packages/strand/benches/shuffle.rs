@@ -40,14 +40,14 @@ fn test_shuffle_generic<C: Ctx>(ctx: C, n: usize) {
     let es = util::random_ciphertexts(n, &ctx);
     let seed = vec![];
     let hs = ctx.generators(es.len() + 1, &seed).unwrap();
-    let shuffler = Shuffler::new(&pk, &hs, &ctx);
+    let shuffler = Shuffler::new(&pk, &ctx);
 
     let (e_primes, rs, perm) = shuffler.gen_shuffle(&es);
     let proof = shuffler
-        .gen_proof(&es, &e_primes, rs, &perm, &vec![])
+        .gen_proof(&es, &e_primes, rs, hs.clone(), &perm, &vec![])
         .unwrap();
     let ok = shuffler
-        .check_proof(&proof, &es, &e_primes, &vec![])
+        .check_proof(&proof, &es, &e_primes, hs, &vec![])
         .unwrap();
 
     assert!(ok);
