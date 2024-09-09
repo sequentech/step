@@ -445,7 +445,15 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
     }
 
     const handleCreateTransmissionPackage = useCallback(
-        async ({area_id, election_id}: {area_id: string; election_id: string | null}) => {
+        async ({
+            area_id,
+            election_id,
+            force,
+        }: {
+            area_id: string
+            election_id: string | null
+            force: boolean
+        }) => {
             setRegenTransmissionLoading(true)
             const found = tallySessionData.find(
                 (datum) => datum.area_id === area_id && datum.election_id === election_id
@@ -458,7 +466,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
                 return
             }
 
-            if (found) {
+            if (found && !force) {
                 setRegenTransmissionLoading(false)
                 handleMiruExportSuccess?.({existingPackage: found})
                 return
@@ -470,6 +478,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
                         electionId: election_id,
                         tallySessionId: tallyId,
                         areaId: area_id,
+                        force,
                     },
                 })
 
@@ -706,10 +715,15 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
                 title={t("tally.transmissionPackage.actions.regenerate.dialog.title")}
                 handleClose={(result: boolean) => {
                     setConfirmRegenerateMiruModal(false)
-                    if (result) {
+                    if (
+                        result &&
+                        selectedTallySessionData?.area_id &&
+                        selectedTallySessionData?.election_id
+                    ) {
                         handleCreateTransmissionPackage({
-                            area_id: selectedTallySessionData?.area_id!,
-                            election_id: selectedTallySessionData?.election_id!,
+                            area_id: selectedTallySessionData?.area_id,
+                            election_id: selectedTallySessionData?.election_id,
+                            force: true,
                         })
                     }
                 }}

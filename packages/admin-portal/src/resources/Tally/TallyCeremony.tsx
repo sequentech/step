@@ -480,6 +480,7 @@ export const TallyCeremony: React.FC = () => {
                         electionId: election_id,
                         tallySessionId: tallyId,
                         areaId: area_id,
+                        force: false,
                     },
                 })
 
