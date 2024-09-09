@@ -171,7 +171,7 @@ impl ValidateAnnotations for Trustee {
         let annotations_js = self
             .annotations
             .clone()
-            .ok_or_else(|| anyhow!("Missing election event annotations"))?;
+            .ok_or_else(|| anyhow!("Missing trustee annotations"))?;
 
         let annotations: Annotations = deserialize_value(annotations_js)?;
 
