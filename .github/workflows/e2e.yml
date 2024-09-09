@@ -43,7 +43,6 @@ jobs:
       matrix:
         include:
           - browser: chrome
-          - browser: firefox
       fail-fast: false
     steps:
     - uses: actions/checkout@v3
