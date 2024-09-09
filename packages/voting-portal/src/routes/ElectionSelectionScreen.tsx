@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {Box, Button, CircularProgress, Typography} from "@mui/material"
+import {Box, Button, CircularProgress, Typography, Alert} from "@mui/material"
 import React, {useContext, useEffect, useMemo, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {
@@ -11,7 +11,6 @@ import {
     PageLimit,
     SelectElection,
     theme,
-    WarnBox,
 } from "@sequentech/ui-essentials"
 import {
     isString,
@@ -472,18 +471,16 @@ const ElectionSelectionScreen: React.FC = () => {
                             {stringToHtml(t("electionSelectionScreen.demoDialog.content"))}
                         </Dialog>
                     </StyledTitle>
-                    {errorMsg || alertMsg ? (
-                        <WarnBox variant={errorMsg ? "error" : "warning"}>
+                    {(errorMsg || alertMsg)
+                        ? <Alert severity="warning">
                             {errorMsg || alertMsg}
-                        </WarnBox>
-                    ) : (
-                        <Typography
+                        </Alert>
+                        : <Typography
                             variant="body1"
                             sx={{color: theme.palette.customGrey.contrastText}}
                         >
                             {stringToHtml(t("electionSelectionScreen.description"))}
-                        </Typography>
-                    )}
+                        </Typography>}
                 </Box>
                 {isMaterialsActivated ? (
                     <Button onClick={handleNavigateMaterials}>{t("materials.common.label")}</Button>
