@@ -18,7 +18,7 @@ on:
 
 jobs:
   build-and-push:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
@@ -42,7 +42,7 @@ jobs:
     - name: Build and push admin-portal
       uses: docker/build-push-action@v6
       with:
-        platforms: linux/amd64,linux/arm64
+        platforms: linux/amd64
         context: packages/.
         file: packages/Dockerfile.admin-portal
         tags: ghcr.io/${{ github.repository }}/admin-portal
