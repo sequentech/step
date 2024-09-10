@@ -26,9 +26,9 @@ on:
       #   description: 'generate local env for testing?'
       #   type: boolean
       #   default: "false"
-  pull_request:
-  push:
-      branches: [ 'main' ]
+  # pull_request:
+  # push:
+  #     branches: [ 'main' ]
 
 jobs:
   e2e:
