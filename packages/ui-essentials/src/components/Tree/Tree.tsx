@@ -6,7 +6,6 @@ import {Box, BoxProps, Typography} from "@mui/material"
 import {faAngleRight, faAngleDown} from "@fortawesome/free-solid-svg-icons"
 import Icon from "../Icon/Icon"
 import {styled} from "@mui/material/styles"
-import { IconProp } from "@fortawesome/fontawesome-svg-core"
 
 const Horizontal = styled(Box)`
     display: flex;
@@ -40,7 +39,7 @@ const TreeLeave: React.FC<TreeLeaveProps> = ({props, label, leaves, defaultOpen}
         <Box {...props}>
             <Horizontal>
                 {leaves ? (
-                    <StyledIcon icon={(open ? faAngleDown : faAngleRight) as IconProp} onClick={onClick} />
+                    <StyledIcon icon={open ? faAngleDown : faAngleRight} onClick={onClick} />
                 ) : null}
                 <Typography fontSize="16px" margin={0}>
                     {label}

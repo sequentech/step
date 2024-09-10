@@ -6,16 +6,15 @@ import {Meta, StoryObj} from "@storybook/react"
 import {faExclamationTriangle} from "@fortawesome/free-solid-svg-icons"
 import Icon from "../Icon"
 import VerticalBox from "../../VerticalBox/VerticalBox"
-import { IconProp } from "@fortawesome/fontawesome-svg-core"
 
 const IconExample: React.FC = () => (
     <VerticalBox maxWidth="32px">
-        <Icon icon={faExclamationTriangle as IconProp} size="lg" />
-        <Icon icon={faExclamationTriangle as IconProp} variant="info" size="lg" />
-        <Icon icon={faExclamationTriangle as IconProp} variant="warning" size="lg" />
-        <Icon icon={faExclamationTriangle as IconProp} variant="error" size="lg" />
-        <Icon icon={faExclamationTriangle as IconProp} variant="success" size="lg" />
-        <Icon icon={faExclamationTriangle as IconProp} variant="form" size="lg" />
+        <Icon icon={faExclamationTriangle} size="lg" />
+        <Icon icon={faExclamationTriangle} variant="info" size="lg" />
+        <Icon icon={faExclamationTriangle} variant="warning" size="lg" />
+        <Icon icon={faExclamationTriangle} variant="error" size="lg" />
+        <Icon icon={faExclamationTriangle} variant="success" size="lg" />
+        <Icon icon={faExclamationTriangle} variant="form" size="lg" />
     </VerticalBox>
 )
 
