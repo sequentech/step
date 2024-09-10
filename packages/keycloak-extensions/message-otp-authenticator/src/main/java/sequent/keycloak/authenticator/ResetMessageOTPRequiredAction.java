@@ -26,7 +26,7 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
   public static final String PROVIDER_ID = "message-otp-ra";
 
   public static final String IS_SETUP_FIELD = "is-setup";
-  private static final String FTL_RESET_MESSAGE_OTP = "login-message-otp.ftl";
+  private static final String FTL_RESET_MESSAGE_OTP = "message-otp.login.ftl";
 
   public MessageOTPCredentialProvider getCredentialProvider(KeycloakSession session) {
     log.info("getCredentialProvider()");
@@ -83,7 +83,7 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
             createForm(
                 context,
                 form ->
-                    form.setError("messageOtpAuthCodeExpired")
+                    form.setError("messageOtp.auth.codeExpired")
                         .createErrorPage(Response.Status.BAD_REQUEST)));
         return;
       }
@@ -93,7 +93,7 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
           createForm(
               context,
               form ->
-                  form.setError("messageOtpAuthCodeInvalid")
+                  form.setError("messageOtp.auth.codeInvalid")
                       .createErrorPage(Response.Status.BAD_REQUEST)));
       return;
     }
@@ -118,12 +118,23 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
   private Response createForm(
       RequiredActionContext context, Consumer<LoginFormsProvider> formConsumer) {
     Optional<AuthenticatorConfigModel> config = Utils.getConfig(context.getRealm());
+    String codeLength = config.get().getConfig().get(Utils.CODE_LENGTH);
     KeycloakSession session = context.getSession();
     UserModel user = context.getUser();
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
     String resendTimer = config.get().getConfig().get(Utils.RESEND_ACTIVATION_TIMER);
+    boolean isOtl = config.get().getConfig().get(Utils.ONE_TIME_LINK).equals("true");
+
     try {
-      Utils.sendCode(config.get(), session, user, authSession, Utils.MessageCourier.BOTH, false);
+      Utils.sendCode(
+          config.get(),
+          session,
+          user,
+          authSession,
+          Utils.MessageCourier.BOTH,
+          /* deferredUser */ false,
+          isOtl,
+          new String[0]);
     } catch (Exception error) {
       StringWriter sw = new StringWriter();
       error.printStackTrace(new PrintWriter(sw));
@@ -138,6 +149,8 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
             Utils.getOtpAddress(Utils.MessageCourier.BOTH, false, config.get(), authSession, user))
         .setAttribute("ttl", config.get().getConfig().get(Utils.CODE_TTL))
         .setAttribute("codeJustSent", true)
+        .setAttribute("isOtl", isOtl)
+        .setAttribute("codeLength", codeLength)
         .setAttribute("resendTimer", resendTimer);
 
     if (formConsumer != null) {

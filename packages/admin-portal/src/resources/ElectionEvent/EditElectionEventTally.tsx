@@ -10,17 +10,21 @@ import {ListTally} from "../Tally/ListTally"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {TallyCeremony} from "../Tally/TallyCeremony"
 import {TallyCeremonyTrustees} from "../Tally/TallyCeremonyTrustees"
+import {MiruExportWizard} from "@/components/MiruExportWizard"
 
 export const EditElectionEventTally: React.FC = () => {
     const recordTally = useRecordContext<Sequent_Backend_Tally_Session>()
-    const {tallyId, isTrustee, isCreating, isCreated} = useElectionEventTallyStore()
+    const {tallyId, isTrustee, isCreating, isCreated, selectedTallySessionData} =
+        useElectionEventTallyStore()
 
     console.log("EditElectionEventTally :: tallyId ::  ", tallyId)
     console.log("EditElectionEventTally :: isCreating ::  ", isCreating)
 
     return (
         <Box>
-            {isCreating || isCreated || tallyId ? (
+            {selectedTallySessionData ? (
+                <MiruExportWizard />
+            ) : isCreating || isCreated || tallyId ? (
                 <>{!isTrustee ? <TallyCeremony /> : <TallyCeremonyTrustees />}</>
             ) : (
                 <ListTally recordTally={recordTally} />
