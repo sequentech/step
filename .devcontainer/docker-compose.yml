@@ -261,8 +261,7 @@ services:
     ports:
       - 3002:3002
     stdin_open: true
-    entrypoint: 
-      - ./init-admin.sh
+    entrypoint: ["yarn start:admin-portal"]
     volumes_from:
       - devcontainer
     depends_on:
@@ -273,25 +272,47 @@ services:
         SECONDS_TO_SHOW_COUNTDOWN: ${SECONDS_TO_SHOW_COUNTDOWN}
         SECONDS_TO_SHOW_ALRET: ${SECONDS_TO_SHOW_ALRET}
 
-  # voting-portal:
-  #   image: ghcr.io/sequentech/step/admin-portal:latest
-  #   container_name: voting-portal
-  #   # depending on the `admin-portal` container to ensure that the
-  #   # `sequentech.local/frontend` image is locally build, so that we can reuse
-  #   # it:
-  #   depends_on:
-  #     - admin-portal
-  #     - devcontainer
-  #   restart: always
-  #   #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
-  #   #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
-  #   ports:
-  #     - 3000:3000
-  #   stdin_open: true
-  #   entrypoint: ["yarn start:voting-portal"]
-  #   volumes_from:
-  #     - devcontainer
-  #   working_dir: /workspaces/step/packages
+  voting-portal:
+    image: ghcr.io/sequentech/step/admin-portal:latest
+    platform: linux/amd64
+    container_name: voting-portal
+    # depending on the `admin-portal` container to ensure that the
+    # `sequentech.local/frontend` image is locally build, so that we can reuse
+    # it:
+    depends_on:
+      - admin-portal
+      - devcontainer
+    restart: always
+    #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
+    #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
+    ports:
+      - 3000:3000
+    stdin_open: true
+    entrypoint: ["yarn start:voting-portal"]
+    volumes_from:
+      - devcontainer
+    working_dir: /
+
+  ballot-verifier:
+    image: ghcr.io/sequentech/step/admin-portal:latest
+    platform: linux/amd64
+    container_name: ballot-verifier
+    # depending on the `admin-portal` container to ensure that the
+    # `sequentech.local/frontend` image is locally build, so that we can reuse
+    # it:
+    depends_on:
+      - admin-portal
+      - devcontainer
+    restart: always
+    #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
+    #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
+    ports:
+      - 3001:3001
+    stdin_open: true
+    entrypoint: ["yarn start:ballot-verifier"]
+    volumes_from:
+      - devcontainer
+    working_dir: /
 
   immudb:
     container_name: immudb
