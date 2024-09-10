@@ -65,3 +65,21 @@ pub fn error_sending_transmission_package_to_ccs_log(
         ),
     }
 }
+
+#[instrument(skip_all)]
+pub fn sign_transmission_package_log(
+    datetime: &DateTime<Local>,
+    election_id: &str,
+    election_name: &str,
+    area_id: &str,
+    area_name: &str,
+    trustee_name: &str,
+) -> Log {
+    Log {
+        created_date: ISO8601::to_string(datetime),
+        log_text: format!(
+            "Signed transmission package xml for election '{}' ({}) and area '{}' ({}) by trustee {}",
+            election_id, election_name, area_id, area_name, trustee_name
+        ),
+    }
+}

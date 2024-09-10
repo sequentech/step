@@ -16,7 +16,7 @@ import {WizardStyles} from "@/components/styles/WizardStyles"
 import {IMiruSignature} from "@/types/miru"
 
 interface MiruSignaturesProps {
-    tallySessionExecution?: Sequent_Backend_Tally_Session_Execution
+    tallySessionExecution?: Sequent_Backend_Tally_Session_Execution | null
     signatures: IMiruSignature[]
 }
 

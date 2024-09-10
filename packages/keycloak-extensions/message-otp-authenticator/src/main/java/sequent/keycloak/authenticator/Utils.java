@@ -134,7 +134,14 @@ public class Utils {
 
     // Handle OTL/OTP
     if (isOtl) {
-      code = generateOTL(authSession, session, ttl, otlAuthNotesNames);
+      code =
+          generateOTL(
+              authSession,
+              session,
+              ttl,
+              otlAuthNotesNames,
+              authSession.getRedirectUri(),
+              deferredUser);
       authSession.setAuthNote(Utils.OTL_VISITED, "false");
     } else {
       code = SecretGenerator.getInstance().randomString(length, SecretGenerator.DIGITS);
@@ -254,7 +261,9 @@ public class Utils {
       AuthenticationSessionModel authSession,
       KeycloakSession session,
       int ttl,
-      String[] otlAuthNotesNames) {
+      String[] otlAuthNotesNames,
+      String redirectUri,
+      boolean isDeferredUser) {
     // Get necessary components from the context
     AuthenticationSessionCompoundId compoundId =
         AuthenticationSessionCompoundId.fromAuthSession(authSession);
@@ -272,6 +281,8 @@ public class Utils {
             Time.currentTime() + ttl,
             sessionId, // Original compound session ID
             otlAuthNotesNames,
+            isDeferredUser,
+            redirectUri,
             authSession.getClient().getClientId());
 
     // Generate the OTL link
