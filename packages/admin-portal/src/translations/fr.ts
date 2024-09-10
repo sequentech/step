@@ -238,12 +238,17 @@ const frenchTranslation: TranslationType = {
                 dates: "Dates",
                 votingPeriod: "Période de vote",
                 language: "Langues",
+                customUrls: "Préfixer les URL personnalisées",
                 allowed: "Canaux de Vote Permis",
                 materials: "Matériaux de Support",
                 ballotDesign: "Design du Bulletin",
                 reorder: "Réorganiser les élections",
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importer des Candidats",
+            },
+            customUrls: {
+                login: "Connexion",
+                enrollment: "Inscription",
             },
             localization: {
                 emptyHeader: "Aucune langue n'a été définie pour l'événement",

@@ -34,7 +34,7 @@ import {
 } from "@mui/material"
 import styled from "@emotion/styled"
 import DownloadIcon from "@mui/icons-material/Download"
-import React, {useContext, useEffect, useMemo, useState} from "react"
+import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
 import {useTranslation} from "react-i18next"
@@ -62,6 +62,7 @@ import {
     Sequent_Backend_Election,
     ManageElectionDatesMutation,
     Sequent_Backend_Election_Event,
+    SetCustomUrlsMutation,
 } from "@/gql/graphql"
 import {ElectionStyles} from "@/components/styles/ElectionStyles"
 import {FormStyles} from "@/components/styles/FormStyles"
@@ -74,6 +75,12 @@ import {useWatch} from "react-hook-form"
 import {convertToNumber} from "@/lib/helpers"
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+// import {SET_CUSTOM_URL} from "@/queries/SetCustomUrl"
+import {SET_CUSTOM_URLS} from "@/queries/SetCustomUrls"
+import {getAuthUrl} from "@/services/UrlGeneration"
+import {WizardStyles} from "@/components/styles/WizardStyles"
+import {CustomUrlsStyle} from "@/components/styles/CustomUrlsStyle"
+import {StatusChip} from "@/components/StatusChip"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -204,6 +211,7 @@ export const EditElectionEventDataForm: React.FC = () => {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
+    const {globalSettings} = useContext(SettingsContext)
     const record = useRecordContext<Sequent_Backend_Election_Event>()
 
     const canEdit = authContext.isAuthorized(
@@ -224,6 +232,15 @@ export const EditElectionEventDataForm: React.FC = () => {
     const defaultSecondsForCountdown = convertToNumber(process.env.SECONDS_TO_SHOW_COUNTDOWN) ?? 60
     const defaultSecondsForAlret = convertToNumber(process.env.SECONDS_TO_SHOW_AlERT) ?? 180
     const [manageElectionDates] = useMutation<ManageElectionDatesMutation>(MANAGE_ELECTION_DATES)
+    const [customUrlsValues, setCustomUrlsValues] = useState({login: "", enrollment: ""})
+    const [manageCustomUrls, response] = useMutation<SetCustomUrlsMutation>(SET_CUSTOM_URLS, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.ELECTION_EVENT_WRITE,
+            },
+        },
+    })
+
     const [startDate, setStartDate] = useState<string | undefined>(undefined)
     const [endDate, setEndDate] = useState<string | undefined>(undefined)
     const notify = useNotify()
@@ -356,6 +373,10 @@ export const EditElectionEventDataForm: React.FC = () => {
                 policy: EVotingPortalCountdownPolicy.NO_COUNTDOWN,
             }
         }
+        if (!temp.presentation.custom_urls) {
+            temp.presentation.custom_urls = {}
+        }
+
         return temp
     }
 
@@ -537,6 +558,58 @@ export const EditElectionEventDataForm: React.FC = () => {
         notify("Candidates successfully imported", {type: "success"})
     }
 
+    const handleUpdateCustomUrls = async (
+        presentation: IElectionEventPresentation,
+        recordId: string
+    ) => {
+        try {
+            const urlEntries = [
+                {
+                    key: "login",
+                    origin: `https://${customUrlsValues.login}.${process.env.CUSTOM_URLS_DOMAIN_NAME}/login`,
+                    redirect_to: getAuthUrl(
+                        globalSettings.VOTING_PORTAL_URL,
+                        tenantId ?? "",
+                        recordId,
+                        "login"
+                    ),
+                    dns_prefix: customUrlsValues.login,
+                },
+                {
+                    key: "enrollment",
+                    origin: `https://${customUrlsValues.enrollment}.${process.env.CUSTOM_URLS_DOMAIN_NAME}/enrollment`,
+                    redirect_to: getAuthUrl(
+                        globalSettings.VOTING_PORTAL_URL,
+                        tenantId ?? "",
+                        recordId,
+                        "enroll"
+                    ),
+                    dns_prefix: customUrlsValues.enrollment,
+                },
+            ]
+            await Promise.all(
+                urlEntries.map((item) =>
+                    manageCustomUrls({
+                        variables: {
+                            origin: item.origin,
+                            redirect_to: item.redirect_to ?? "",
+                            dns_prefix: item.dns_prefix,
+                        },
+                    })
+                )
+            )
+        } catch (err: any) {
+            if (err.networkError) {
+                console.log("Network error occurred, please try again")
+            } else if (err.graphQLErrors) {
+                const graphqlErrors = "One of the URLS has invalid or already used DNS name"
+                console.log(graphqlErrors)
+            } else {
+                console.log(`"Server error"`)
+            }
+        }
+    }
+
     const sortedElections = (elections ?? []).sort((a, b) => {
         let presentationA = a.presentation as IElectionPresentation | undefined
         let presentationB = b.presentation as IElectionPresentation | undefined
@@ -592,7 +665,14 @@ export const EditElectionEventDataForm: React.FC = () => {
                                 start_date: startDate,
                                 end_date: endDate,
                             },
+                            onError() {
+                                notify("Error updating custom url", {type: "error"})
+                            },
                         })
+                        await handleUpdateCustomUrls(
+                            parsedValue.presentation as IElectionEventPresentation,
+                            record.id
+                        )
                     }
                     return (
                         <SimpleForm
@@ -649,17 +729,6 @@ export const EditElectionEventDataForm: React.FC = () => {
                                     </ElectionHeaderStyles.Wrapper>
                                 </AccordionSummary>
                                 <AccordionDetails>
-                                    <Typography
-                                        variant="body1"
-                                        component="span"
-                                        sx={{
-                                            fontWeight: "bold",
-                                            margin: 0,
-                                            display: {xs: "none", sm: "block"},
-                                        }}
-                                    >
-                                        {t("electionEventScreen.edit.votingPeriod")}
-                                    </Typography>
                                     <Grid container spacing={4}>
                                         <Grid item xs={12} md={6}>
                                             <DateTimeInput
@@ -833,6 +902,72 @@ export const EditElectionEventDataForm: React.FC = () => {
 
                             <Accordion
                                 sx={{width: "100%"}}
+                                expanded={expanded === "election-event-data-custom-urls"}
+                                onChange={() => setExpanded("election-event-data-custom-urls")}
+                            >
+                                <AccordionSummary
+                                    expandIcon={
+                                        <ExpandMoreIcon id="election-event-data-custom-urls" />
+                                    }
+                                >
+                                    <ElectionHeaderStyles.Wrapper>
+                                        <ElectionHeaderStyles.Title>
+                                            {t("electionEventScreen.edit.customUrls")}
+                                        </ElectionHeaderStyles.Title>
+                                    </ElectionHeaderStyles.Wrapper>
+                                </AccordionSummary>
+                                <AccordionDetails>
+                                    <CustomUrlsStyle.InputWrapper>
+                                        <p>https://</p>
+                                        <TextInput
+                                            variant="standard"
+                                            helperText={false}
+                                            sx={{width: "300px"}}
+                                            source={`presentation.custom_urls.login`}
+                                            label={""}
+                                            onChange={(e) =>
+                                                setCustomUrlsValues({
+                                                    ...customUrlsValues,
+                                                    login: e.target.value,
+                                                })
+                                            }
+                                        />
+                                        <p>{`.${process.env.CUSTOM_URLS_DOMAIN_NAME}/login`}</p>
+                                        {response.loading && (
+                                            <WizardStyles.DownloadProgress size={18} />
+                                        )}
+                                        {!response.error && !response.loading && (
+                                            <StatusChip status="SUCCESS" />
+                                        )}
+                                    </CustomUrlsStyle.InputWrapper>
+                                    <CustomUrlsStyle.InputWrapper>
+                                        <p>https://</p>
+                                        <TextInput
+                                            variant="standard"
+                                            helperText={false}
+                                            sx={{width: "300px"}}
+                                            source={`presentation.custom_urls.enrollment`}
+                                            label={""}
+                                            onChange={(e) =>
+                                                setCustomUrlsValues({
+                                                    ...customUrlsValues,
+                                                    enrollment: e.target.value,
+                                                })
+                                            }
+                                        />
+                                        <p>{`.${process.env.CUSTOM_URLS_DOMAIN_NAME}/enrollment`}</p>
+                                        {response.loading && (
+                                            <WizardStyles.DownloadProgress size={18} />
+                                        )}
+                                        {!response.error && !response.loading && (
+                                            <StatusChip status="SUCCESS" />
+                                        )}
+                                    </CustomUrlsStyle.InputWrapper>
+                                </AccordionDetails>
+                            </Accordion>
+
+                            <Accordion
+                                sx={{width: "100%"}}
                                 expanded={expanded === "election-event-data-materials"}
                                 onChange={() => setExpanded("election-event-data-materials")}
                             >
@@ -970,4 +1105,10 @@ export const EditElectionEventDataForm: React.FC = () => {
             />
         </>
     )
+}
+function useCallBack(
+    arg0: (presentation: IElectionEventPresentation, recordId: string) => Promise<void>,
+    arg1: never[]
+) {
+    throw new Error("Function not implemented.")
 }
