@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Header, adminTheme} from "@sequentech/ui-essentials"
-import React, {useContext, useEffect} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {AppBar, useGetOne} from "react-admin"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {ITenantSettings, ITenantTheme} from "@sequentech/ui-core"
@@ -20,20 +20,44 @@ export const CustomAppBar: React.FC = () => {
         id: tenantId,
     })
 
+    const [isFetching, setIsFetching] = useState(true)
+
     useEffect(() => {
         if (tenantData) {
             setTenant(tenantData)
+            setIsFetching(false)
         }
     }, [tenantData])
 
     const langList = (tenant?.settings as ITenantSettings | undefined)?.language_conf
         ?.enabled_language_codes ?? ["en"]
 
-    const logUrl = (tenant?.annotations as ITenantTheme | undefined)?.logo_url
+    const [logoUrl, setLogoUrl] = useState<string | undefined | null>(
+        (tenant?.annotations as ITenantTheme | undefined)?.logo_url
+    )
 
-    console.log("CustomAppBar: logUrl :: ", logUrl)
-    const logoImg = logUrl === undefined ? BlankLogoImg : logUrl === null ? SequentLogo : logUrl
-    console.log("CustomAppBar: logoImg :: ", logoImg)
+    const [logoImg, setLogoImg] = useState<string | undefined>(BlankLogoImg)
+
+    useEffect(() => {
+        setLogoImg(logoUrl ?? BlankLogoImg)
+        console.log("SetUp: logUrl :: ", logoUrl)
+        console.log("SetUp: logoImg :: ", logoImg)
+    }, [])
+
+    /*  When tenant annotations column is empty annotations.logo_url will be 
+        undefined and in that case Sequent logo must be shown.
+        But while data isn't fetched yet annotations.logo_url is also undefined 
+        and a blank logo must be shown.
+    */
+    useEffect(() => {
+        const newLogoState = (tenant?.annotations as ITenantTheme | undefined)?.logo_url
+        setLogoUrl(newLogoState)
+        if (!isFetching) {
+            setLogoImg(newLogoState ?? SequentLogo)
+        }
+        console.log("StateChange: logUrl :: ", logoUrl)
+        console.log("StateChange: logoImg :: ", logoImg)
+    }, [(tenant?.annotations as ITenantTheme | undefined)?.logo_url, logoUrl, isFetching])
 
     return (
         <AppBar
