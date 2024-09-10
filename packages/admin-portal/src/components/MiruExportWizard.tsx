@@ -387,7 +387,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
     )
 
     let minimumSignatures = () => {
-        return 1
+        return selectedTallySessionData?.threshold ?? 1
     }
 
     const disableSendButton = useMemo(() => {
