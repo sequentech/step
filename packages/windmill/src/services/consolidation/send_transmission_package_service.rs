@@ -69,6 +69,7 @@ async fn send_package_to_ccs_server(
     };
 
     let uri = format!("{}{}", ccs_server.address, base_url);
+    info!("Sending package to url {}", uri);
     let client = reqwest::Client::builder()
         .danger_accept_invalid_certs(true)
         .build()?;
