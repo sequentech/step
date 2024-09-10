@@ -31,6 +31,7 @@ import {translateElection} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {Box} from "@mui/material"
 import {MenuStyles, TreeMenuItemContainer} from "@/components/styles/Menu"
+import {Sequent_Backend_Document} from "@/gql/graphql"
 
 export const mapAddResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "createResource.electionEvent",
@@ -208,7 +209,7 @@ function TreeMenuItem({
 
     let imageDocumentId = (resource as ElectionType).image_document_id ?? null
 
-    const {data: imageData} = useGetOne("sequent_backend_document", {
+    const {data: imageData} = useGetOne<Sequent_Backend_Document>("sequent_backend_document", {
         id: imageDocumentId,
         meta: {tenant_id: tenantId},
     })

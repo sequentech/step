@@ -27,6 +27,7 @@ pub struct CreateTransmissionPackageInput {
     election_id: String,
     area_id: String,
     tally_session_id: String,
+    force: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -43,7 +44,7 @@ pub async fn create_transmission_package(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::TALLY_WRITE],
+        vec![Permissions::MIRU_CREATE],
     )?;
     let celery_app = get_celery_app().await;
     let task = celery_app
@@ -52,6 +53,7 @@ pub async fn create_transmission_package(
             body.election_id.clone(),
             body.area_id.clone(),
             body.tally_session_id.clone(),
+            body.force,
         ))
         .await
         .map_err(|error| {
@@ -85,24 +87,12 @@ pub async fn send_transmission_package(
     input: Json<SendTransmissionPackageInput>,
 ) -> Result<Json<SendTransmissionPackageOutput>, (Status, String)> {
     let body = input.into_inner();
-    let authorizations = vec![
-        authorize(
-            &claims,
-            true,
-            Some(claims.hasura_claims.tenant_id.clone()),
-            vec![Permissions::TALLY_WRITE],
-        ),
-        authorize(
-            &claims,
-            true,
-            Some(claims.hasura_claims.tenant_id.clone()),
-            vec![Permissions::TRUSTEE_WRITE],
-        ),
-    ];
-    if !authorizations.iter().any(|val| val.is_ok()) {
-        authorizations[0].clone()?;
-        authorizations[1].clone()?;
-    }
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::MIRU_SEND],
+    )?;
     let celery_app = get_celery_app().await;
     let task = celery_app
         .send_task(send_transmission_package_task::new(
@@ -128,7 +118,8 @@ pub struct UploadSignatureInput {
     election_id: String,
     area_id: String,
     tally_session_id: String,
-    private_key: String,
+    document_id: String,
+    password: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -145,7 +136,7 @@ pub async fn upload_signature(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::TALLY_WRITE],
+        vec![Permissions::MIRU_SIGN],
     )?;
 
     let Some(username) = claims.preferred_username.clone() else {
@@ -155,24 +146,17 @@ pub async fn upload_signature(
         ));
     };
 
-    let celery_app = get_celery_app().await;
-    let task = celery_app
-        .send_task(upload_signature_task::new(
-            claims.hasura_claims.tenant_id.clone(),
-            body.election_id.clone(),
-            body.area_id.clone(),
-            body.tally_session_id.clone(),
-            username,
-            body.private_key.clone(),
-        ))
-        .await
-        .map_err(|error| {
-            (
-                Status::InternalServerError,
-                format!("Error sending upload_signature_task task: {error:?}"),
-            )
-        })?;
-    info!("Sent upload_signature_task task {}", task.task_id);
+    upload_signature_task(
+        claims.hasura_claims.tenant_id.clone(),
+        body.election_id.clone(),
+        body.area_id.clone(),
+        body.tally_session_id.clone(),
+        username,
+        body.document_id.clone(),
+        body.password.clone(),
+    )
+    .await
+    .map_err(|err| (Status::InternalServerError, format!("{}", err)))?;
 
     Ok(Json(UploadSignatureOutput {}))
 }
