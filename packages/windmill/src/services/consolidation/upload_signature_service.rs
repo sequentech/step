@@ -312,6 +312,17 @@ pub async fn upload_transmission_package_signature_service(
         .collect();
     new_signatures.push(server_signature.clone());
     // generate zip of zips
+    let mut new_transmission_package_data = transmission_area_election.clone();
+    new_transmission_package_data
+        .logs
+        .push(sign_transmission_package_log(
+            &now_local,
+            election_id,
+            &election.name,
+            area_id,
+            &area_name,
+            &trustee_name,
+        ));
 
     let (compressed_xml, rendered_xml_hash) = compress_hash_eml(&eml)?;
     let all_servers_document = generate_all_servers_document(
@@ -327,12 +338,12 @@ pub async fn upload_transmission_package_signature_service(
         time_zone.clone(),
         now_utc.clone(),
         new_acm_signatures,
+        &new_transmission_package_data.logs,
     )
     .await?;
 
     // upload zip of zips
     let area_name = area.name.clone().unwrap_or_default();
-    let mut new_transmission_package_data = transmission_area_election.clone();
     let Some(first_document) = new_transmission_package_data.documents.first() else {
         return Err(anyhow!("Missing initial document"));
     };
@@ -347,16 +358,6 @@ pub async fn upload_transmission_package_signature_service(
         created_at: ISO8601::to_string(&now_local),
         signatures: new_miru_signatures,
     });
-    new_transmission_package_data
-        .logs
-        .push(sign_transmission_package_log(
-            &now_local,
-            election_id,
-            &election.name,
-            area_id,
-            &area_name,
-            &trustee_name,
-        ));
     update_transmission_package_annotations(
         &hasura_transaction,
         tenant_id,
