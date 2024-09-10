@@ -344,6 +344,7 @@ const spanishTranslation: TranslationType = {
                 tally: "Recuento",
                 publish: "Publicar",
                 logs: "Logs",
+                events: "Eventos",
             },
             tally: {
                 emptyHeader: "Ningún Recuento aún.",

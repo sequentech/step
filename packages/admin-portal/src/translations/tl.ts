@@ -343,6 +343,7 @@ const tagalogTranslation: TranslationType = {
                 tally: "Tally",
                 publish: "I-publish",
                 logs: "Mga Log",
+                events: "mga panghitabo",
             },
             tally: {
                 emptyHeader: "Walang pang Tally.",

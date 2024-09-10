@@ -344,6 +344,7 @@ const frenchTranslation: TranslationType = {
                 tally: "Comptage",
                 publish: "Publier",
                 logs: "Journaux",
+                events: "Événements",
             },
             tally: {
                 emptyHeader: "Aucun Comptage pour l'instant.",

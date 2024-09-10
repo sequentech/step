@@ -344,6 +344,7 @@ const catalanTranslation: TranslationType = {
                 tally: "Recompte",
                 publish: "Publicar",
                 logs: "Registres",
+                events: "Esdeveniments",
             },
             tally: {
                 emptyHeader: "Encara no hi ha Recompte.",

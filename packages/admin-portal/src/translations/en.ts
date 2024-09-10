@@ -343,6 +343,7 @@ const englishTranslation = {
                 tally: "Tally",
                 publish: "Publish",
                 logs: "Logs",
+                events: "Events",
             },
             tally: {
                 emptyHeader: "No Tally yet.",
