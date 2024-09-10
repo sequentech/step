@@ -72,7 +72,11 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
 
                 {Component && (
                     <>
-                        <Button onClick={() => setOpen(true)} label={t("common.label.add")}>
+                        <Button
+                            onClick={() => setOpen(true)}
+                            label={t("common.label.add")}
+                            className="add-button"
+                        >
                             <Add />
                         </Button>
 

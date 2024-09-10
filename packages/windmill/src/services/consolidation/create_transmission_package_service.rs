@@ -6,7 +6,7 @@ use super::ecies_encrypt::generate_ecies_key_pair;
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::eml_generator::{
     find_miru_annotation, prepend_miru_annotation, ValidateAnnotations, MIRU_AREA_CCS_SERVERS,
-    MIRU_AREA_STATION_ID, MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA,
+    MIRU_AREA_STATION_ID, MIRU_AREA_THRESHOLD, MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA,
 };
 use super::logs::create_transmission_package_log;
 use super::transmission_package::{create_transmission_package, generate_base_compressed_xml};
@@ -19,6 +19,7 @@ use crate::postgres::tally_session::{get_tally_session_by_id, update_tally_sessi
 use crate::postgres::tally_session_execution::get_tally_session_executions;
 use crate::services::ceremonies::velvet_tally::generate_initial_state;
 use crate::services::compress::decompress_file;
+use crate::services::consolidation::eml_types::ACMTrustee;
 use crate::services::database::get_hasura_pool;
 use crate::services::date::ISO8601;
 use crate::services::documents::get_document_as_temp_file;
@@ -114,7 +115,7 @@ pub async fn update_transmission_package_annotations(
         .clone()
         .into_iter()
         .filter(|data| {
-            data.area_id != area_id.to_string() && data.election_id != election_id.to_string()
+            data.area_id != area_id.to_string() || data.election_id != election_id.to_string()
         })
         .collect();
     new_transmission_data.push(new_transmission_package_data);
@@ -150,6 +151,7 @@ pub async fn generate_all_servers_document(
     tenant_id: &str,
     time_zone: TimeZone,
     now_utc: DateTime<Utc>,
+    server_signatures: Vec<ACMTrustee>,
 ) -> Result<Document> {
     let acm_key_pair = get_acm_key_pair().await?;
     let temp_dir = tempdir().with_context(|| "Error generating temp directory")?;
@@ -171,6 +173,7 @@ pub async fn generate_all_servers_document(
             &ccs_server.public_key_pem,
             area_station_id,
             &zip_file_path,
+            &server_signatures,
         )
         .await?;
     }
@@ -205,6 +208,7 @@ pub async fn create_transmission_package_service(
     election_id: &str,
     area_id: &str,
     tally_session_id: &str,
+    force: bool,
 ) -> Result<()> {
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
@@ -245,12 +249,14 @@ pub async fn create_transmission_package_service(
             .flatten()
             .unwrap_or(vec![]);
 
-    let None = transmission_data.clone().into_iter().find(|data| {
+    let found_package = transmission_data.clone().into_iter().find(|data| {
         data.area_id == area_id.to_string() && data.election_id == election_id.to_string()
-    }) else {
+    });
+
+    if found_package.is_some() && !force {
         info!("transmission package already found, skipping");
         return Ok(());
-    };
+    }
     let area = get_area_by_id(&hasura_transaction, tenant_id, &area_id)
         .await
         .with_context(|| format!("Error fetching area {}", area_id))?
@@ -264,6 +270,16 @@ pub async fn create_transmission_package_service(
                 MIRU_PLUGIN_PREPEND, MIRU_AREA_STATION_ID
             )
         })?;
+
+    let threshold = find_miru_annotation(MIRU_AREA_THRESHOLD, &area_annotations)
+        .with_context(|| {
+            format!(
+                "Missing area annotation: '{}:{}'",
+                MIRU_PLUGIN_PREPEND, MIRU_AREA_THRESHOLD
+            )
+        })?
+        .parse::<i64>()
+        .with_context(|| anyhow!("Can't parse threshold"))?;
 
     let ccs_servers_js = find_miru_annotation(MIRU_AREA_CCS_SERVERS, &area_annotations)
         .with_context(|| {
@@ -342,7 +358,7 @@ pub async fn create_transmission_package_service(
     .await?;
 
     // upload .xz
-    let xz_name = format!("er_{}", transaction_id);
+    let xz_name = format!("er_{}.xz", transaction_id);
     let (temp_path, temp_path_string, file_size) =
         write_into_named_temp_file(&base_compressed_xml, &xz_name, ".xz")?;
     let xz_document = upload_and_return_document_postgres(
@@ -359,7 +375,7 @@ pub async fn create_transmission_package_service(
     .await?;
 
     // upload eml
-    let eml_name = format!("er_{}", transaction_id);
+    let eml_name = format!("er_{}.xml", transaction_id);
     let (temp_path, temp_path_string, file_size) =
         write_into_named_temp_file(&eml.as_bytes().to_vec(), &eml_name, ".eml")?;
     let eml_document = upload_and_return_document_postgres(
@@ -387,10 +403,24 @@ pub async fn create_transmission_package_service(
         tenant_id,
         time_zone.clone(),
         now_utc.clone(),
+        vec![],
     )
     .await?;
 
     let area_name = area.name.clone().unwrap_or("".into());
+    let mut logs = if let Some(package) = found_package {
+        package.logs.clone()
+    } else {
+        vec![]
+    };
+    logs.push(create_transmission_package_log(
+        &now_local,
+        election_id,
+        &election.name,
+        area_id,
+        &area_name,
+    ));
+
     let new_transmission_package_data = MiruTransmissionPackageData {
         election_id: election_id.to_string(),
         area_id: area_id.to_string(),
@@ -406,13 +436,8 @@ pub async fn create_transmission_package_service(
             created_at: ISO8601::to_string(&now_local),
             signatures: vec![],
         }],
-        logs: vec![create_transmission_package_log(
-            &now_local,
-            election_id,
-            &election.name,
-            area_id,
-            &area_name,
-        )],
+        logs,
+        threshold: threshold,
     };
     update_transmission_package_annotations(
         &hasura_transaction,
