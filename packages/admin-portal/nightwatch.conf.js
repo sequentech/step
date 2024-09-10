@@ -44,13 +44,15 @@ module.exports = {
     test_settings: {
         default: {
             disable_error_log: false,
-            launch_url: "http://localhost:3002",
-
+            launch_url: "https://admin-portal-dev.sequent.vote",
             screenshots: {
-                enabled: false,
+                enabled: true,
                 path: "screens",
                 on_failure: true,
             },
+                globals: {
+                    waitForConditionTimeout: 15000, // 15 seconds
+                },
 
             desiredCapabilities: {
                 //     "browserName": "firefox",

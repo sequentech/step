@@ -13,7 +13,7 @@ export const deleteElectionEvent = {
             hoverElement: `a[title='${createElectionEvent.config.electionEvent.name}']`,
             clickElement: `//a//span[text()='${createElectionEvent.config.electionEvent.name}']/../../..//div[contains(@class,'menu-actions-sequent')]//*[local-name()='svg']`,
         })
-        browser.useCss().click(`li.menu-action-archive-${electionEventLink!}`)
+		browser.useCss().getLocationInView(`li.menu-action-archive-${electionEventLink!}`).click(`li.menu-action-archive-${electionEventLink!}`)
         browser.useCss().click("button.ok-button")
 			.pause(pause.short)
         browser.useXpath().click(`//li[normalize-space()="Active"]`).pause(pause.short)
