@@ -533,6 +533,7 @@ pub async fn send_communication(
             enabled: None,
             email_verified: None,
             sort: None,
+            has_voted: None,
         };
 
         let (users, total_count) = match audience_selection {

@@ -153,6 +153,7 @@ pub struct ListUsersFilter {
     pub email_verified: Option<bool>,
     pub enabled: Option<bool>,
     pub sort: Option<HashMap<String, String>>,
+    pub has_voted: Option<bool>,
 }
 
 fn get_query_bool_condition(field: &str, value: Option<bool>) -> String {
@@ -406,6 +407,7 @@ pub async fn list_users_with_vote_info(
         .election_event_id
         .clone()
         .ok_or(anyhow!("Election event id is empty"))?;
+    let filter_by_has_voted = filter.has_voted.clone();
     let (users, users_count) = list_users(hasura_transaction, keycloak_transaction, filter)
         .await
         .with_context(|| "Error listing users")?;
@@ -414,6 +416,7 @@ pub async fn list_users_with_vote_info(
         tenant_id.as_str(),
         election_event_id.as_str(),
         users,
+        filter_by_has_voted,
     )
     .await
     .with_context(|| "Error listing users with vote info")?;

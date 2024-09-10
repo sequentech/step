@@ -2163,6 +2163,16 @@
             "defaultValue": null
           },
           {
+            "name": "has_voted",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "last_name",
             "description": null,
             "type": {

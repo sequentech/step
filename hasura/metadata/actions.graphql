@@ -493,6 +493,7 @@ input GetUsersInput {
   enabled : Boolean
   email_verified : Boolean
   sort : jsonb
+  has_voted : Boolean
 }
 
 input CreateKeysCeremonyInput {

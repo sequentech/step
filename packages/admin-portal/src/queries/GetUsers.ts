@@ -19,6 +19,7 @@ export const LIST_USERS = gql`
         $enabled: Boolean
         $email_verified: Boolean
         $sort: jsonb
+        $has_voted: Boolean
     ) {
         get_users(
             body: {
@@ -36,6 +37,7 @@ export const LIST_USERS = gql`
                 enabled: $enabled
                 email_verified: $email_verified
                 sort: $sort
+                has_voted: $has_voted
             }
         ) {
             items {
@@ -122,5 +124,6 @@ export const customBuildGetUsersVariables =
             enabled: filter.enabled ?? null,
             email_verified: filter.email_verified ?? null,
             sort: sort ? formatUserSortToJsonb(sort) : null,
+            has_voted: filter.has_voted ?? null,
         }
     }

@@ -159,6 +159,7 @@ pub async fn get_election_event_stats(
             enabled: None,
             email_verified: None,
             sort: None,
+            has_voted: None,
         },
     )
     .await

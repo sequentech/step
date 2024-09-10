@@ -96,8 +96,8 @@ fn get_headers(
             Some(ref some_elections) => some_elections
                 .iter()
                 .map(|election| match election.alias {
-                    Some(ref election_alias) => election_alias.clone(),
-                    None => election.name.clone(),
+                    Some(ref election_alias) => format!("election: {}", election_alias.clone()),
+                    None => format!("election: {}", election.name.clone()),
                 })
                 .collect::<Vec<String>>(),
             None => vec![],
@@ -278,6 +278,7 @@ pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
             enabled: None,
             email_verified: None,
             sort: None,
+            has_voted: None,
         };
 
         let (users, count) = match &body {

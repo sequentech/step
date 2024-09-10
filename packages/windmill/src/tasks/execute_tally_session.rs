@@ -357,6 +357,7 @@ pub async fn count_cast_votes_election_with_census(
                 enabled: None,
                 email_verified: None,
                 sort: None,
+                has_voted: None,
             },
         )
         .await?;
@@ -399,6 +400,7 @@ pub async fn get_eligible_voters(
             enabled: None,
             email_verified: None,
             sort: None,
+            has_voted: None,
         },
     )
     .await?;

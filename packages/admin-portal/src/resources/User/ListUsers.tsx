@@ -181,6 +181,15 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     />
                 )
             }
+            if (electionEventId && !electionId) {
+                filters.push(
+                    <BooleanInput
+                        key="has_voted"
+                        source={"has_voted"}
+                        label={t("usersAndRolesScreen.users.fields.has_voted")}
+                    />
+                )
+            }
         }
         return filters
     }, [userAttributes?.get_user_profile_attributes])
