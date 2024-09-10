@@ -15,7 +15,7 @@ use std::io::{self, Read, Seek, Write};
 use strand::hash::hash_sha256;
 use tracing::{info, instrument};
 
-const ECIES_TOOL_PATH: &str = "/usr/local/bin/ecies-tool.jar";
+pub const ECIES_TOOL_PATH: &str = "/usr/local/bin/ecies-tool.jar";
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EciesKeyPair {
     pub private_key_pem: String,
@@ -28,6 +28,7 @@ pub fn ecies_encrypt_string(public_key_pem: &str, password: &str) -> Result<Stri
     let temp_pem_file_path = temp_pem_file.path();
     let temp_pem_file_string = temp_pem_file_path.to_string_lossy().to_string();
     // Write the salt and encrypted data to the output file
+    // Using brackets: let it drop out of scope so that all bytes are written
     {
         let mut output_file = File::create(temp_pem_file_path).context("Failed to create file")?;
         output_file
@@ -85,6 +86,7 @@ pub fn ecies_sign_data(acm_key_pair: &EciesKeyPair, data: &str) -> Result<String
     let temp_pem_file_path = temp_pem_file.path();
     let temp_pem_file_string = temp_pem_file_path.to_string_lossy().to_string();
     // Write the salt and encrypted data to the output file
+    // Using brackets: let it drop out of scope so that all bytes are written
     {
         let mut output_file = File::create(temp_pem_file_path).context("Failed to create file")?;
         output_file

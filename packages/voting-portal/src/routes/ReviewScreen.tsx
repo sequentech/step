@@ -490,7 +490,8 @@ export const ReviewScreen: React.FC = () => {
             {errorMsg && <WarnBox variant="error">{errorMsg}</WarnBox>}
             <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
                 {stringToHtml(
-                    auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW
+                    auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW ||
+                        auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP
                         ? t("reviewScreen.descriptionNoAudit")
                         : t("reviewScreen.description")
                 )}
