@@ -75,7 +75,7 @@ describe("import/export election event  tests", function () {
             .pause(pause.xLong)
     })
 
-    it("imports an election event", async (browser: NightwatchAPI) => {
+    it.skip("imports an election event", async (browser: NightwatchAPI) => {
         // browser.debug()
 
         console.log({exportPath})

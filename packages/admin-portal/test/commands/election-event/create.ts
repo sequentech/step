@@ -72,7 +72,6 @@ export const createElectionEvent: Election = {
         // create an election"
         browser.assert.urlContains(electionEventLink)
         browser
-            .getLocationInView(`a.${electionLink!}`)
             .assert.visible(`a.${electionLink!}`)
             .element(`a.${electionLink!}`)
             .click()

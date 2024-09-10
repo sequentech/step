@@ -47,7 +47,7 @@ module.exports = {
             launch_url: "http://localhost:3001",
 
             screenshots: {
-                enabled: false,
+                enabled: true,
                 path: "screens",
                 on_failure: true,
             },

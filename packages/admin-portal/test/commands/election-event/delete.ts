@@ -15,7 +15,6 @@ export const deleteElectionEvent = {
         })
         browser
             .useCss()
-            .getLocationInView(`li.menu-action-archive-${electionEventLink!}`)
             .click(`li.menu-action-archive-${electionEventLink!}`)
         browser.useCss().click("button.ok-button").pause(pause.short)
         browser.useXpath().click(`//li[normalize-space()="Active"]`).pause(pause.short)
