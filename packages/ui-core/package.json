@@ -52,7 +52,7 @@
     "react-dom": "18.1.0",
     "react-i18next": "11.18.3",
     "react-router-dom": "6.11.2",
-    "@mui/material": "5.13.3",
+    "@mui/material": "5.15.21",
     "@testing-library/jest-dom": "5.11.6",
     "@testing-library/react": "11.2.2",
     "@types/jest": "26.0.15",
