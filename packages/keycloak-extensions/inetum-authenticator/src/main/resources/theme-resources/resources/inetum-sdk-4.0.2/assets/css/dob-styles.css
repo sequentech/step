@@ -121,6 +121,12 @@ body {
   margin-bottom: auto;
   border: 2px solid rgba(0, 0, 0, 0.05);
 }
+@media (min-width: 1200px) {
+  #dob-main-container {
+    background-color: white;
+    border-radius: 3px;
+  }
+}
 
 @media (max-width: 1200px) {
   .dob-sdk-root-container {
