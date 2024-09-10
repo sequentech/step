@@ -8,6 +8,10 @@ pub mod normalize_vote;
 
 #[cfg(feature = "log")]
 pub mod init_log;
+
+#[macro_use]
+pub mod console_log;
+
 #[cfg(feature = "reports")]
 pub mod path;
 pub mod voting_screen;

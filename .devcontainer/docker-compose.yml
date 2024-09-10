@@ -4,7 +4,7 @@
 
 services:
   devcontainer:
-    #profiles: ["full", "base"]
+    profiles: ["full", "base"]
     image: ghcr.io/cachix/devenv:v1.0.7
     container_name: devcontainer
     volumes:
@@ -28,7 +28,7 @@ services:
 
   # Needed to set up proper permissions for non root user in postgres
   postgres-volume-init:
-    #profiles: ["full", "base"]
+    profiles: ["full", "base"]
     image: alpine
     container_name: postgres-volume-init
     volumes: 
@@ -40,7 +40,7 @@ services:
     command: chown -R 999:999 /logs /keycloak_logs
 
   postgres:
-    #profiles: ["full", "base"]
+    profiles: ["full", "base"]
     image: sequentech.local/postgresql
     container_name: postgres
     build:
@@ -63,7 +63,7 @@ services:
       - postgres-volume-init
 
   minio:
-    #profiles: ["full", "base"]
+    profiles: ["full", "base"]
     container_name: minio
     image: minio/minio
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
@@ -89,7 +89,7 @@ services:
   
   # used to add headers to minio
   minio-proxy:
-    #profiles: ["full", "base"]
+    profiles: ["full", "base"]
     container_name: minio-proxy
     image: nginx:latest
     ports:
@@ -100,7 +100,7 @@ services:
       - minio
   
   configure-minio:
-    #profiles: ["full", "base"]
+    profiles: ["full", "base"]
     container_name: configure-minio
     build:
       context: ./minio
@@ -120,7 +120,7 @@ services:
 
   # hashicorp vault to store secrets
   vault:
-    #profiles: ["full", "base"]
+    profiles: ["full", "base"]
     container_name: vault
     build:
       context: ./vault
@@ -145,7 +145,7 @@ services:
     entrypoint: /opt/vault/entrypoint.sh
 
   graphql-engine:
-    #profiles: ["full", "base"]
+    profiles: ["full", "base"]
     image: hasura/graphql-engine:v2.33.1.cli-migrations-v3
     container_name: hasura
     ports:
@@ -186,7 +186,7 @@ services:
         condition: service_healthy
 
   data-connector-agent:
-    #profiles: ["full", "base"]
+    profiles: ["full", "base"]
     container_name: data-connector-agent
     image: hasura/graphql-data-connector:v2.31.0
     restart: always
@@ -205,7 +205,7 @@ services:
       start_period: 5s
 
   postgres-keycloak:
-    #profiles: ["full", "base"]
+    profiles: ["full", "base"]
     image: sequentech.local/postgresql
     container_name: postgres-keycloak
     restart: unless-stopped
@@ -228,7 +228,7 @@ services:
       - postgres
 
   keycloak:
-    #profiles: ["full", "base"]
+    profiles: ["full", "base"]
     container_name: keycloak
     build:
       context: ../packages/
@@ -331,7 +331,7 @@ services:
   #      - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
 
   immudb:
-    #profiles: ["full", "base"]
+    profiles: ["full", "base"]
     container_name: immudb
     image: sequentech.local/immudb
     build:
@@ -353,7 +353,7 @@ services:
       - immudb-init
   
   harvest:
-    #profiles: ["full", "base"]
+    profiles: ["full", "base"]
     stdin_open: true
     image: sequentech.local/cargo-packages
     container_name: harvest
@@ -441,7 +441,7 @@ services:
      - ${HARVEST_PORT}:${HARVEST_PORT}
 
   trustee1:
-    #profiles: ["full"]
+    profiles: ["full"]
     stdin_open: true
     container_name: trustee1
     image: sequentech.local/braid
@@ -466,7 +466,7 @@ services:
       - immudb
   
   trustee2:
-    #profiles: ["full"]
+    profiles: ["full"]
     stdin_open: true
     image: sequentech.local/braid
     container_name: trustee2
@@ -517,7 +517,7 @@ services:
 
   # Create collection in immudb
   immudb-log-audit-init:
-    #profiles: ["full", "base"]
+    profiles: ["full", "base"]
     image: sequentech.local/immudb-log-audit
     container_name: immudb-log-audit-init
     build:
@@ -538,7 +538,7 @@ services:
 
   # Send audit logs to immudb
   immudb-log-audit:
-    #profiles: ["full", "base"]
+    profiles: ["full", "base"]
     image: sequentech.local/immudb-log-audit
     container_name: immudb-log-audit
     command: >
@@ -568,7 +568,7 @@ services:
 
   # Create collection in immudb
   immudb-log-audit-init-keycloak:
-    #profiles: ["full", "base"]
+    profiles: ["full", "base"]
     image: sequentech.local/immudb-log-audit
     container_name: immudb-log-audit-init-keycloak
     command: >
@@ -587,7 +587,7 @@ services:
 
   # Send audit logs to immudb
   immudb-log-audit-keycloak:
-    #profiles: ["full", "base"]
+    profiles: ["full", "base"]
     image: sequentech.local/immudb-log-audit
     container_name: immudb-log-audit-keycloak
     command: >
@@ -614,7 +614,7 @@ services:
 
 
   rabbitmq:
-    #profiles: ["full", "base"]
+    profiles: ["full", "base"]
     image: rabbitmq:3.12.11-management
     container_name: rabbitmq
     environment:
@@ -625,7 +625,7 @@ services:
       - "15672:15672"
 
   immudb-init:
-    #profiles: ["full", "base"]
+    profiles: ["full", "base"]
     stdin_open: true
     image: sequentech.local/cargo-packages
     container_name: immudb-init
@@ -663,7 +663,7 @@ services:
       - .env
 
   windmill:
-    #profiles: ["full", "base"]
+    profiles: ["full", "base"]
     stdin_open: true
     image: sequentech.local/cargo-packages
     container_name: windmill
@@ -768,7 +768,7 @@ services:
       DEMO_PUBLIC_KEY: ${DEMO_PUBLIC_KEY}
 
   beat:
-    #profiles: ["full"]
+    profiles: ["full"]
     stdin_open: true
     image: sequentech.local/cargo-packages
     container_name: beat

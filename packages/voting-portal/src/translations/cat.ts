@@ -51,9 +51,9 @@ const catalanTranslation: TranslationType = {
         reviewScreen: {
             title: "Revisa el teu vot",
             description:
-                "Per fer canvis a les seves seleccions, faci clic al botó “<b>Edita el teu vot</b>”, per confirmar les seves seleccions, faci clic al botó “<b>Envia el teu vot</b>” a sota, i per auditar la seva papereta faci clic al botó “<b>Auditar papereta</b>” a sota. Tingui en compte que una vegada enviï la seva papereta, haurà votat i no se li emetrà una altra papereta per aquesta elecció.",
+                "Per fer canvis a les seves seleccions, faci clic al botó “<b>Edita el teu vot</b>”, per confirmar les seves seleccions, faci clic al botó “<b>Envia el teu vot</b>” a sota, i per auditar la seva papereta faci clic al botó “<b>Auditar papereta</b>” a sota.",
             descriptionNoAudit:
-                "Per fer canvis a les seves seleccions, faci clic al botó “<b>Edita el teu vot</b>”, per confirmar les seves seleccions, faci clic al botó “<b>Envia el teu vot</b>” a sota. Tingui en compte que una vegada enviï la seva papereta, haurà votat i no se li emetrà una altra papereta per aquesta elecció.",
+                "Per fer canvis a les seves seleccions, faci clic al botó “<b>Edita el teu vot</b>”, per confirmar les seves seleccions, faci clic al botó “<b>Envia el teu vot</b>” a sota.",
             backButton: "Edita el teu vot",
             castBallotButton: "Envia el teu vot",
             auditButton: "Auditar papereta",
