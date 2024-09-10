@@ -6,7 +6,7 @@ import {Meta, StoryObj} from "@storybook/react"
 import {faTimesCircle} from "@fortawesome/free-solid-svg-icons"
 import IconButton from "../IconButton"
 import VerticalBox from "../../VerticalBox/VerticalBox"
-import {IconProp} from "@fortawesome/fontawesome-svg-core"
+import { IconProp } from "@fortawesome/fontawesome-svg-core"
 
 const IconButtonExample: React.FC = () => (
     <VerticalBox maxWidth="32px">

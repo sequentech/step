@@ -6,7 +6,7 @@ import {Meta, StoryObj} from "@storybook/react"
 import {faExclamationTriangle} from "@fortawesome/free-solid-svg-icons"
 import Icon from "../Icon"
 import VerticalBox from "../../VerticalBox/VerticalBox"
-import {IconProp} from "@fortawesome/fontawesome-svg-core"
+import { IconProp } from "@fortawesome/fontawesome-svg-core"
 
 const IconExample: React.FC = () => (
     <VerticalBox maxWidth="32px">

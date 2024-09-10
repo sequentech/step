@@ -8,7 +8,7 @@ import IconButton from "../IconButton/IconButton"
 import {useTranslation} from "react-i18next"
 import {faCircleQuestion, faCheck} from "@fortawesome/free-solid-svg-icons"
 import theme from "../../services/theme"
-import {IconProp} from "@fortawesome/fontawesome-svg-core"
+import { IconProp } from "@fortawesome/fontawesome-svg-core"
 
 const HashContainer = styled(Box)`
     display: flex;

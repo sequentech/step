@@ -11,7 +11,7 @@ import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 import emotionStyled from "@emotion/styled"
 import {useTranslation} from "react-i18next"
 import {isString} from "@sequentech/ui-core"
-import {IconProp} from "@fortawesome/fontawesome-svg-core"
+import { IconProp } from "@fortawesome/fontawesome-svg-core"
 
 const BorderBox = styled(Box)<{
     isactive: string
@@ -187,11 +187,7 @@ const Candidate: React.FC<CandidateProps> = ({
             </Box>
             {url ? (
                 <StyledLink href={url} target="_blank" className="candidate-link">
-                    <FontAwesomeIcon
-                        icon={faInfoCircle as IconProp}
-                        size="sm"
-                        className="candidate-icon"
-                    />
+                    <FontAwesomeIcon icon={faInfoCircle as IconProp} size="sm" className="candidate-icon" />
                     <Typography
                         className="candidate-link-text"
                         variant="body2"

@@ -8,7 +8,7 @@ import Box from "@mui/material/Box"
 import {faWarning, faTimes} from "@fortawesome/free-solid-svg-icons"
 import IconButton from "../IconButton/IconButton"
 import Icon from "../Icon/Icon"
-import {IconProp} from "@fortawesome/fontawesome-svg-core"
+import { IconProp } from "@fortawesome/fontawesome-svg-core"
 
 const WarnContainer = styled(Paper)`
     padding: 17px;
