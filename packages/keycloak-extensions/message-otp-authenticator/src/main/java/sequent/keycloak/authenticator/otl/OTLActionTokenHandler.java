@@ -7,7 +7,9 @@ package sequent.keycloak.authenticator.otl;
 import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.Response;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.TokenVerifier.Predicate;
 import org.keycloak.authentication.AuthenticationProcessor;
@@ -99,10 +101,15 @@ public class OTLActionTokenHandler extends AbstractActionTokenHandler<OTLActionT
     AuthenticationSessionModel authSession = tokenContext.getAuthenticationSession();
     final String originalCompoundSessionId = token.getOriginalCompoundSessionId();
     final String originUserId = token.getUserId();
-    final String[] authNoteNames = token.getAuthNoteNames();
+    final List<String> authNoteNames = new ArrayList<>(Arrays.asList(token.getAuthNoteNames()));
     final boolean isDeferredUser = token.getIsDeferredUser();
     final RealmModel realm = tokenContext.getRealm();
     final KeycloakSession session = tokenContext.getSession();
+
+    // we need to restore the current flow path too
+    if (!authNoteNames.contains(AuthenticationProcessor.CURRENT_FLOW_PATH)) {
+      authNoteNames.add(AuthenticationProcessor.CURRENT_FLOW_PATH);
+    }
 
     EventBuilder event = tokenContext.getEvent();
     event
@@ -130,7 +137,7 @@ public class OTLActionTokenHandler extends AbstractActionTokenHandler<OTLActionT
         .getClientNotes()
         .forEach(
             (String name, String note) -> {
-              log.infov("setClientNote name={0}", name);
+              log.infov("setClientNote name={0}, value={1}", name, note);
               authSession.setClientNote(name, note);
             });
     originalSession
@@ -140,23 +147,23 @@ public class OTLActionTokenHandler extends AbstractActionTokenHandler<OTLActionT
               log.infov("setting setUserSessionNote name={0}", name);
               authSession.setUserSessionNote(name, note);
             });
-    Arrays.stream(authNoteNames)
-        .forEach(
-            (String name) -> {
-              log.debugv(
-                  "setting setAuthNote name={0}, value={1}",
-                  name, originalSession.getAuthNote(name));
-              authSession.setAuthNote(name, originalSession.getAuthNote(name));
-            });
+    authNoteNames.forEach(
+        (String name) -> {
+          log.debugv(
+              "setting setAuthNote name={0}, value={1}", name, originalSession.getAuthNote(name));
+          authSession.setAuthNote(name, originalSession.getAuthNote(name));
+        });
     originalSession
         .getExecutionStatus()
         .forEach(
             (String authenticator, ExecutionStatus status) -> {
-              log.infov("setting setUserSessionNote authenticator={0}", authenticator);
+              log.infov(
+                  "setting setExecutionStatus authenticator={0}, status={1}",
+                  authenticator, status);
               authSession.setExecutionStatus(authenticator, status);
             });
-    log.infov("setting redirectUri={0}", token.getRedirectUri());
-    authSession.setRedirectUri(token.getRedirectUri());
+    log.infov("setting redirectUri={0}", originalSession.getRedirectUri());
+    authSession.setRedirectUri(originalSession.getRedirectUri());
 
     log.infov(
         "setting executionId={0}",
@@ -168,6 +175,7 @@ public class OTLActionTokenHandler extends AbstractActionTokenHandler<OTLActionT
       authSession.setAuthenticatedUser(null);
     }
 
+    log.info("setting OTL_VISITED=true");
     authSession.setAuthNote(Utils.OTL_VISITED, "true");
 
     // Once everything is copied, then we remove the original auth session
@@ -176,6 +184,7 @@ public class OTLActionTokenHandler extends AbstractActionTokenHandler<OTLActionT
     AuthenticationFlowURLHelper helper =
         new AuthenticationFlowURLHelper(session, realm, tokenContext.getUriInfo());
     URI redirectUri = helper.getLastExecutionUrl(authSession);
+    log.infov("redirectUri={0}", redirectUri.toString());
     return Response.status(Response.Status.FOUND).location(redirectUri).build();
   }
 
