@@ -4,10 +4,12 @@
 
 use crate::ballot::*;
 use crate::plaintext::*;
+use crate::util::console_log;
+
 use std::collections::HashMap;
 
-extern crate console_error_panic_hook;
-
+// Function used to decide if the voter needs to change his/her ballot before
+// continuing
 pub fn check_voting_not_allowed_next_util(
     contests: Vec<Contest>,
     decoded_contests: HashMap<String, DecodedVoteContest>,
@@ -45,23 +47,27 @@ pub fn check_voting_not_allowed_next_util(
             let invalid_errors: &Vec<InvalidPlaintextError> =
                 &decoded_contest.invalid_errors;
 
+            // Show the modal dialog that forces user to change his selection
+            // if:
+            // - There's any explicit invalid plaintext or an encoding error
             invalid_errors.iter().any(|error| {
                 matches!(
                     error.error_type,
                     InvalidPlaintextErrorType::Explicit
                         | InvalidPlaintextErrorType::EncodingError
                 )
+            // - there's an invalid error and invalid vote policy is NOT_ALLOWED
             }) || (!invalid_errors.is_empty()
                 && *vote_policy == InvalidVotePolicy::NOT_ALLOWED)
+            // - there's an blank vote because selection is empty and blank vote
+            //   policy is NOT_ALLOWED
                 || (choices_selected == 0
                     && *blank_policy == EBlankVotePolicy::NOT_ALLOWED)
+            // - selection is more than maximum and over vote policy is
+            //   NOT_ALLOWED_WITH_MSG_AND_ALERT
                 || (choices_selected as i64 > max
                     && over_vote_policy
                         == EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_ALERT)
-            // TODO: On the case
-            // EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_DISABLE we must disable
-            // further selections with React but no need to return
-            // true here that will show the Dialog
         } else {
             false
         }
@@ -70,17 +76,18 @@ pub fn check_voting_not_allowed_next_util(
     voting_not_allowed
 }
 
+// if returns true, when the user click next, there will be a dialog that
+// prompts the user to confirm before going to the next screen
 pub fn check_voting_error_dialog_util(
     contests: Vec<Contest>,
     decoded_contests: HashMap<String, DecodedVoteContest>,
 ) -> bool {
     let show_voting_alert = contests.iter().any(|contest| {
-        let default_vote_policy = InvalidVotePolicy::default();
-        let vote_policy = contest
+        let invalid_vote_policy = contest
             .presentation
             .as_ref()
-            .and_then(|p| p.invalid_vote_policy.as_ref())
-            .unwrap_or(&default_vote_policy);
+            .and_then(|p| p.invalid_vote_policy.clone())
+            .unwrap_or_default();
 
         let default_blank_policy = EBlankVotePolicy::default();
         let blank_policy = contest
@@ -95,7 +102,16 @@ pub fn check_voting_error_dialog_util(
             .and_then(|p| p.over_vote_policy)
             .unwrap_or_default();
 
+        let under_vote_policy = contest
+            .presentation
+            .as_ref()
+            .and_then(|p| p.under_vote_policy)
+            .unwrap_or_default();
+
         let max = contest.max_votes;
+        let min = contest.min_votes;
+
+        console_log!("max={min:?}, min={min:?}, blank_policy={blank_policy:?}, under_vote_policy={under_vote_policy:?}");
 
         if let Some(decoded_contest) = decoded_contests.get(&contest.id) {
             let choices_selected = decoded_contest
@@ -106,16 +122,34 @@ pub fn check_voting_error_dialog_util(
             let invalid_errors: &Vec<InvalidPlaintextError> =
                 &decoded_contest.invalid_errors;
             let explicit_invalid = decoded_contest.is_explicit_invalid;
+
+
+            console_log!("choices_selected={choices_selected:?}, explicit_invalid={explicit_invalid:?}");
+
+            // Show Alert dialog if:
+            // - there are invalid error and it's not allowed
             (!invalid_errors.is_empty()
-                && *vote_policy != InvalidVotePolicy::ALLOWED)
-                || (*vote_policy
+                && invalid_vote_policy != InvalidVotePolicy::ALLOWED)
+            // - invalid vote policy is WARN_INVALID_IMPLICIT_AND_EXPLICIT and
+            //   there's an explicit invalid ballot
+                || (invalid_vote_policy
                     == InvalidVotePolicy::WARN_INVALID_IMPLICIT_AND_EXPLICIT
                     && explicit_invalid)
+            // - blank vote policy is WARN and contest has no selection
                 || (*blank_policy == EBlankVotePolicy::WARN
                     && choices_selected == 0)
+            // - more than max choices were selected and over vote policy is
+            //   ALLOWED_WITH_MSG_AND_ALERT
                 || (choices_selected as i64 > max
                     && over_vote_policy
                         == EOverVotePolicy::ALLOWED_WITH_MSG_AND_ALERT)
+            // - it's not a blank vote because there is at least one selection,
+            //   the selection is less than the maximum (i.e. undervote) and
+            //   undervote policy is WARN_AND_ALERT
+                || ((choices_selected > 0
+                    && (choices_selected as i64) >= min
+                    && (choices_selected as i64) < max)
+                    && under_vote_policy == EUnderVotePolicy::WARN_AND_ALERT)
         } else {
             false
         }

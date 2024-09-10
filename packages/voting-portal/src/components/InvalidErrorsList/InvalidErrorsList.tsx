@@ -150,12 +150,18 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
                 ) || [],
         }
 
-        // remove duplicates, if there's blank vote, remove underVote
+        // remove duplicates
         ret.invalid_alerts = ret.invalid_alerts.filter(
             (error) =>
                 !(
-                    "errors.implicit.underVote" === error.message &&
-                    containsError(ret, "errors.implicit.blankVote")
+                    // if there's blank vote, remove underVote
+                    (
+                        ("errors.implicit.underVote" === error.message &&
+                            containsError(ret, "errors.implicit.blankVote")) ||
+                        // if overvote is an error, remove the info message
+                        ("errors.implicit.selectedMax" === error.message &&
+                            containsError(ret, "errors.implicit.selectedMax"))
+                    )
                 )
         )
         return ret
@@ -174,13 +180,12 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     useEffect(() => {
         let state =
             contestSelection && interpretContestSelection(contestSelection, ballotStyle.ballot_eml)
+        let prevState = decodedContestSelection
         setDecodedContestSelection(state)
-        setFilteredSelection((_) => filterErrorList(state))
-    }, [contestSelection])
-
-    useEffect(() => {
-        setFilteredSelection(filterErrorList)
-    }, [isReview, isTouched, isVotedState])
+        if (prevState != state) {
+            setFilteredSelection((_) => filterErrorList(state))
+        }
+    }, [contestSelection, isReview, isTouched, isVotedState])
 
     useEffect(() => {
         if (decodedContestSelection) {

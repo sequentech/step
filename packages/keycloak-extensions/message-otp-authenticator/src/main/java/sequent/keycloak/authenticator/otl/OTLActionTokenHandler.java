@@ -51,13 +51,39 @@ public class OTLActionTokenHandler extends AbstractActionTokenHandler<OTLActionT
     log.debug("OTLActionTokenHandler");
   }
 
-  // getVerifiers() needs not to be empty, so we verify email (which should
-  // checkout always, even if it's null)
+  protected AuthenticationSessionModel getOriginalSession(
+      ActionTokenContext<OTLActionToken> tokenContext, OTLActionToken token) {
+    final KeycloakSession session = tokenContext.getSession();
+    final RealmModel realm = tokenContext.getRealm();
+    final String originalCompoundSessionId = token.getOriginalCompoundSessionId();
+    final AuthenticationSessionManager asm = new AuthenticationSessionManager(session);
+    final AuthenticationSessionCompoundId compoundId =
+        AuthenticationSessionCompoundId.encoded(originalCompoundSessionId);
+    final ClientModel originalClient = realm.getClientById(compoundId.getClientUUID());
+    final AuthenticationSessionModel originalSession =
+        asm.getAuthenticationSessionByIdAndClient(
+            realm, compoundId.getRootSessionId(), originalClient, compoundId.getTabId());
+
+    return originalSession;
+  }
+
+  // getVerifiers() checks that the original session is found to be copied. If
+  // it's not, then we show Messages.EXPIRED_ACTION_TOKEN_NO_SESSION message
+  @SuppressWarnings("unchecked")
   @Override
   public Predicate<? super OTLActionToken>[] getVerifiers(
       ActionTokenContext<OTLActionToken> tokenContext) {
     log.debug("getVerifiers()");
-    return TokenUtils.predicates(verifyEmail(tokenContext));
+    return TokenUtils.predicates(
+        TokenUtils.checkThat(
+            (token) -> {
+              final AuthenticationSessionModel originalSession =
+                  getOriginalSession(tokenContext, token);
+
+              return originalSession != null;
+            },
+            Errors.NOT_ALLOWED,
+            Messages.EXPIRED_ACTION_TOKEN_NO_SESSION));
   }
 
   @Override
@@ -74,6 +100,7 @@ public class OTLActionTokenHandler extends AbstractActionTokenHandler<OTLActionT
     final String originalCompoundSessionId = token.getOriginalCompoundSessionId();
     final String originUserId = token.getUserId();
     final String[] authNoteNames = token.getAuthNoteNames();
+    final boolean isDeferredUser = token.getIsDeferredUser();
     final RealmModel realm = tokenContext.getRealm();
     final KeycloakSession session = tokenContext.getSession();
 
@@ -92,6 +119,8 @@ public class OTLActionTokenHandler extends AbstractActionTokenHandler<OTLActionT
     AuthenticationSessionCompoundId compoundId =
         AuthenticationSessionCompoundId.encoded(originalCompoundSessionId);
     ClientModel originalClient = realm.getClientById(compoundId.getClientUUID());
+
+    // NOTE: originalSession cannot be null, we checked this in getVerifiers()
     AuthenticationSessionModel originalSession =
         asm.getAuthenticationSessionByIdAndClient(
             realm, compoundId.getRootSessionId(), originalClient, compoundId.getTabId());
@@ -135,9 +164,11 @@ public class OTLActionTokenHandler extends AbstractActionTokenHandler<OTLActionT
     tokenContext.setExecutionId(
         originalSession.getAuthNote(AuthenticationProcessor.LAST_PROCESSED_EXECUTION));
 
+    if (isDeferredUser) {
+      authSession.setAuthenticatedUser(null);
+    }
+
     authSession.setAuthNote(Utils.OTL_VISITED, "true");
-    // we will asume we're using the "deferred registration authenticator"
-    authSession.setAuthenticatedUser(null);
 
     // Once everything is copied, then we remove the original auth session
     asm.removeAuthenticationSession(realm, originalSession, true);
