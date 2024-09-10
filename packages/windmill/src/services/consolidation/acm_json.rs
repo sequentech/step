@@ -8,6 +8,7 @@ use super::{
     },
     eml_types::ACMJson,
 };
+use crate::services::consolidation::eml_types::ACMTrustee;
 use crate::services::vault;
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
@@ -50,6 +51,7 @@ pub fn generate_acm_json(
     date_time: DateTime<Utc>,
     election_event_annotations: &Annotations,
     area_station_id: &str,
+    server_signatures: &Vec<ACMTrustee>,
 ) -> Result<ACMJson> {
     let MIRU_STATION_ID = area_station_id.to_string();
     let er_datetime = generate_timestamp(
@@ -85,7 +87,7 @@ pub fn generate_acm_json(
         event_name: election_event_name,
         sha256_hash: sha256_hash.into(),
         encrypted_key: encrypted_key_base64.into(),
-        members: vec![],
+        members: server_signatures.clone(),
         ip_address: IP_ADDRESS.into(),
         mac_address: MAC_ADDRESS.into(),
         er_datetime: er_datetime.clone(),

@@ -49,9 +49,9 @@ const tagalogTranslation = {
         reviewScreen: {
             title: "Suriin ang iyong balota",
             description:
-                "Upang baguhin ng iyong mga napili, i-click ang “<b>I-edit ang balota</b>” na button, upang kumpirmahin ang iyong mga napili, i-click ang “<b>I-submit ang iyong balota</b>” na button sa ibaba, at upang i-audit ang iyong balota i-click ang “<b>I-audit ang balota</b>” na button sa ibaba. Pakitandaan na kapag nai-submit mo na ang iyong balota, ikaw ay nakaboto na at hindi ka na maaring bigyan ng balota para sa Halalan na ito.",
+                "Upang baguhin ng iyong mga napili, i-click ang “<b>I-edit ang balota</b>” na button, upang kumpirmahin ang iyong mga napili, i-click ang “<b>I-submit ang iyong balota</b>” na button sa ibaba, at upang i-audit ang iyong balota i-click ang “<b>I-audit ang balota</b>” na button sa ibaba.",
             descriptionNoAudit:
-                "Upang baguhin ng iyong mga napili, i-click ang “<b>I-edit ang balota</b>” na button, upang kumpirmahin ang iyong mga napili, i-click ang “<b>I-submit ang iyong balota</b>” na button sa ibaba. Pakitandaan na kapag nai-submit mo na ang iyong balota, ikaw ay nakaboto na at hindi ka na maaring bigyan ng balota sa Halalan na ito.",
+                "Upang baguhin ng iyong mga napili, i-click ang “<b>I-edit ang balota</b>” na button, upang kumpirmahin ang iyong mga napili, i-click ang “<b>I-submit ang iyong balota</b>” na button sa ibaba.",
             backButton: "I-edit ang balota",
             castBallotButton: "I-submit ang iyong balota",
             auditButton: "I-audit ang balota",

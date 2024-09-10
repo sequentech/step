@@ -44,6 +44,7 @@ export interface IMiruTransmissionPackageData {
     servers: Array<IMiruCcsServer>
     documents: Array<IMiruDocument>
     logs: Array<ILog>
+    threshold: number
 }
 
 // MiruTallySessionData type alias
