@@ -1,7 +1,9 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-const tagalogTranslation = {
+import {TranslationType} from "./en"
+
+const tagalogTranslation: TranslationType = {
     translations: {
         loadingDataProvider: "Naglo-load ng tagapagbigay ng datos...",
         breadcrumbSteps: {
@@ -364,6 +366,8 @@ const tagalogTranslation = {
                 notify: {
                     noKeysTally:
                         "Hindi maaaring magsimula ang Seremonya ng Tally hanggang ang Seremonya ng Key ay matagumpay na nakumpleto.",
+                    noPublication:
+                        "Ang Seremonya ng Pagbibilang ay hindi maaaring magsimula hangga't hindi ka lumilikha ng isang post sa tab na I-publish.",
                     participateNow:
                         "Naanyayahan kang makibahagi sa seremonya ng Tally. Mangyaring <1>i-click ang Aksyon ng Key ng seremonya</1> upang makilahok.",
                 },
@@ -643,6 +647,10 @@ const tagalogTranslation = {
                 "document-write": "I-edit ang Mga Dokumento",
                 "support-material-read": "Basahin ang Suportang Materyal",
                 "support-material-write": "I-edit ang Suportang Materyal",
+                "miru-create": "Miru Lumikha",
+                "miru-download": "Miru I-download",
+                "miru-send": "Miru Ipadala",
+                "miru-sign": "Miru Lagdaan",
             },
         },
         generalSettingsScreen: {
@@ -830,6 +838,7 @@ const tagalogTranslation = {
                 "warn-and-alert": "Patanid asin Alerto",
             },
             invalidVotePolicy: {
+                "label": "Patakaran sa walang boto",
                 "allowed": "Pinapayagan",
                 "warn": "Magbigay ng Babala",
                 "warn-invalid-implicit-and-explicit":
@@ -843,10 +852,11 @@ const tagalogTranslation = {
                 "disabled": "Hindi Aktibo",
             },
             blankVotePolicy: {
-                "label": "Patakaran sa Blangkong Boto",
+                "label": "Patakaran sa walang boto",
                 "allowed": "Pinapayagan",
-                "warn": "Magbigay ng Babala",
-                "not-allowed": "Hindi Pinapayagan",
+                "warn-only-in-review": "Magbigay ng babala sa Pagsusuri",
+                "warn": "Magbigay ng babala",
+                "not-allowed": "Hindi pinapayagan",
             },
             overVotePolicy: {
                 "label": "Patakaran sa Sobra sa Pagboto",
@@ -961,36 +971,108 @@ const tagalogTranslation = {
             },
         },
         tally: {
-            errorUploadingSignature: "Nagkaroon ng error sa pag-upload ng lagda",
-            downloadTransmissionPackage: "I-download ang Package",
-            TransmissionPackageServers: "Mga Server",
+            errorUploadingSignature: "Nagkaroon ng error sa pag-upload ng pirma",
+            downloadTransmissionPackage: "I-download ang pakete",
+            transmissionPackage: {
+                title: "Pakete ng Transmisyon para sa Lugar '{{name}}'",
+                description:
+                    "Hinahayaan kang i-export ang isang Pakete ng Transmisyon sa mga Server ng Destinasyon o i-download ito.",
+                actions: {
+                    sign: {
+                        title: "I-regenerate",
+                        dialog: {
+                            title: "Nais mo bang pirmahan ang pakete ng transmisyon?",
+                            description:
+                                "Pakisiguro na nais mong i-regenerate ang pakete ng transmisyon para sa lugar na `{{name}}`",
+                            confirm: "Pirmahan ang pakete ng transmisyon",
+                            cancel: "Isara",
+                            input: {
+                                placeholder: "Ilagay ang iyong password",
+                            },
+                        },
+                    },
+                    send: {
+                        title: "Ipadala",
+                        dialog: {
+                            title: "Gusto mo bang ipadala ang Pakete ng Transmisyon?",
+                            description:
+                                "Pakisiguro na nais mong ipadala ang Pakete ng Transmisyon para sa Lugar '{{name}}' sa mga Server ng Destinasyon.",
+                            confirm: "Ipadala ang Pakete ng Transmisyon",
+                            cancel: "Isara",
+                        },
+                    },
+                    regenerate: {
+                        title: "I-regenerate",
+                        dialog: {
+                            title: "Nais mo bang i-regenerate ang pakete ng transmisyon?",
+                            description:
+                                "Pakisiguro na nais mong i-regenerate ang pakete ng transmisyon para sa lugar na `{{name}}`",
+                            confirm: "I-regenerate ang pakete ng transmisyon",
+                            cancel: "Isara",
+                        },
+                    },
+                    download: {
+                        title: "I-download",
+                        emlTitle: "I-download ang EML",
+                        transmissionPackageTitle: "I-download ang Pakete ng Transmisyon",
+                        dialog: {
+                            title: "Gusto mo bang i-download ang Pakete ng Transmisyon?",
+                            description:
+                                "Pakisiguro na nais mong i-download ang Pakete ng Transmisyon para sa Lugar '{{name}}.'",
+                            confirm: "I-download ang Pakete ng Transmisyon",
+                            cancel: "Isara",
+                        },
+                    },
+                },
+                destinationServers: {
+                    title: "Mga Server ng Destinasyon",
+                    description:
+                        "Ipinapakita ng talahanayan sa ibaba ang katayuan ng pagpapadala sa bawat isa sa mga Server ng Destinasyon.",
+                    status: "Naipadala sa {{signed}} ng {{total}}",
+                    table: {
+                        serverName: "Pangalan ng Server",
+                        sendStatus: "Katayuan ng Pagpapadala",
+                    },
+                },
+                signatures: {
+                    title: "SBEI Signatures",
+                    description:
+                        "Maaaring pirmahan ng mga SBEI ang Pakete ng Transmisyon. Ipinapakita ng talahanayan sa ibaba ang katayuan ng pirma ng bawat isa sa mga miyembro ng SBEI.",
+                    table: {
+                        trusteeName: "Pangalan ng Tagapagtiwala",
+                        signed: "Napirmahan",
+                    },
+                    status: "{{signed}} sa {{total}} Napirmahan",
+                },
+            },
             sendToTransmissionPackageServers:
-                "Ipadala ang Transmission Package para sa lugar '{{name}}'",
-            transmissionPackageSignatures: "Mga Lagda",
+                "Ipadala ang pakete ng transmisyon para sa lugar '{{name}}'",
             uploadTransmissionPackage: "I-upload",
-            exportElectionArea: "Ipadala ang Transmission Package para sa lugar '{{name}}'",
+            uploadTransmissionPackageDesc:
+                "I-upload ang iyong pirma para pirmahan ang pakete ng Resulta ng Halalan. Ang operasyong ito ay opsyonal.",
+            exportElectionArea: "Ipadala ang pakete ng transmisyon para sa lugar '{{name}}'",
             templateTitle: "Template ng Resulta",
-            templateSubTitle: "Opsyonal na palitan ang resulta template.",
-            ceremonyTitle: "Mga Halalan na Bibilangin",
-            ceremonySubTitle: "Piliin ang mga halalan na nais mong bilangin",
-            tallyTitle: "Pag-unlad ng Pagbibilang ng Halalan",
-            logsTitle: "Mga Log",
-            resultsTitle: "Mga Resulta at Paglahok",
+            templateSubTitle: "Opsyonal na palitan ang template ng mga resulta.",
+            ceremonyTitle: "Halalan para sa Pagbibilang",
+            ceremonySubTitle: "Piliin ang halalan para sa pagbibilang",
+            tallyTitle: "Progreso ng Pagbibilang ng Halalan",
+            logsTitle: "Mga Logs",
+            resultsTitle: "Mga Resulta at Pakikilahok",
             generalInfoTitle: "Pangkalahatang Impormasyon",
-            trusteeTallyTitle: "Mga Tagapayo",
-            trusteeTallySubTitle: "Katayuan ng pag-import ng key fragment",
-            createTallySuccess: "Tally nalikha",
-            createTallyError: "Hindi makalikha ng Tally",
-            startTallySuccess: "Tally sinimulan",
-            startTallyError: "Hindi masimulan ang Tally",
-            startTallyCeremonySuccess: "Seremonya ng Tally sinimulan",
-            startTallyCeremonyError: "Hindi masimulan ang Seremonya ng Tally",
-            cancelTallyCeremonySuccess: "Seremonya ng Tally nakansela",
-            cancelTallyCeremonyError: "Hindi makakansela ang Seremonya ng Tally",
-            trusteeTitle: "Proseso ng mga Tagapayo",
-            trusteeSubTitle: "Pakibigay ang iyong key fragment",
-            invited: "Ikaw ay naanyayahan na lumahok sa Seremonya ng Tally. Pakisunod ",
-            click: "i-click ang Tally Action",
+            trusteeTallyTitle: "Tagapagtiwala",
+            trusteeTallySubTitle: "Katayuan ng pag-import ng fragment ng key",
+            createTallySuccess: "Pagbibilang na ginawa",
+            createTallyError: "Error sa paggawa ng pagbibilang",
+            startTallySuccess: "Nagsimula ang pagbibilang",
+            startTallyError: "Error sa pagsisimula ng pagbibilang",
+            startTallyCeremonySuccess: "Nagsimula ang seremonya ng pagbibilang",
+            startTallyCeremonyError: "Hindi nasimulan ang seremonya ng pagbibilang",
+            cancelTallyCeremonySuccess: "Nakansela ang seremonya ng pagbibilang",
+            cancelTallyCeremonyError: "Hindi nakansela ang seremonya ng pagbibilang",
+            trusteeTitle: "Proseso ng tagapagtiwala",
+            trusteeSubTitle: "Pakilagay ang iyong fragment ng key",
+            invited: "Naanyayahan kang lumahok sa isang seremonya ng pagbibilang. Pakisuyo, ",
+            click: "i-click ang aksyon ng pagbibilang",
             participate: "para lumahok.",
             breadcrumbSteps: {
                 start: "Simula",
@@ -1001,65 +1083,65 @@ const tagalogTranslation = {
             },
             common: {
                 title: "Pagbibilang",
-                subTitle: "Pag-configure ng Pagbibilang.",
+                subTitle: "Pag-setup ng Pagbibilang.",
                 cancel: "Bumalik",
                 next: "Susunod",
                 date: "Petsa ng Pagbibilang",
-                global: "Pangkalahatan",
-                noTrustees: "Walang pang tagapayo",
-                imported: " na-import ng mga tagapayo ang key",
-                needed: " kinakailangan ng tagapayo",
+                global: "Global",
+                noTrustees: "Walang mga tagapagtiwala pa",
+                imported: " tagapagtiwala ang nag-import ng kanilang fragment ng key",
+                needed: " tagapagtiwala ang kailangan para sa pagbibilang",
                 start: "Simulan ang Pagbibilang",
-                ceremony: "Simulan ang Seremonya ng Tally",
+                ceremony: "Simulan ang Seremonya ng Pagbibilang",
                 results: "Mga Resulta",
                 dialog: {
                     ok: "Ok",
-                    okTally: "Simulan ang Pagbibilang",
-                    okCancel: "Kanselahin ang Pagbibilang",
+                    okTally: "Simulan ang pagbibilang",
+                    okCancel: "Kanselahin ang pagbibilang",
                     cancel: "Isara",
-                    title: "Sigurado ka bang nais mong magsimula ng isang seremonya?",
-                    tallyTitle: "Sigurado ka bang nais mong simulan ang pagbibilang?",
-                    cancelTitle: "Sigurado ka bang nais mong kanselahin ang pagbibilang?",
+                    title: "Sigurado ka bang gusto mong simulan ang isang seremonya?",
+                    tallyTitle: "Sigurado ka bang gusto mong simulan ang pagbibilang?",
+                    cancelTitle: "Sigurado ka bang gusto mong kanselahin ang pagbibilang?",
                     message:
-                        "Ikaw ay magpapasimula ng isang tally ceremony. Ang aksyong ito ay mag-aabiso sa mga tagapayo upang i-import ang kanilang mga key fragment.",
+                        "Malapit ka nang magsimula ng isang seremonya ng pagbibilang. Aabisuhan nito ang mga tagapagtiwala para i-import ang kanilang mga fragment ng key.",
                     cancelMessage:
-                        "Ikaw ay magpapakansela ng seremonya ng tally. Ang aksyong ito ay hindi maibabalik.",
+                        "Malapit ka nang kanselahin ang seremonya ng pagbibilang. Hindi na mababawi ang aksyong ito.",
                     ceremony:
-                        "Lahat ng kinakailangang tagapayo ay nakumpirma ang kanilang key fragments. Lahat ay handa na upang magsimula ng pagtanggap ng mga resulta. Nais mo bang simulan ang Pagbibilang?",
+                        "Na-verify na ng lahat ng kinakailangang tagapagtiwala ang kanilang mga fragment ng key. Handa na ang lahat para simulan ang pagtanggap ng mga resulta. Nais mo bang simulan ang Pagbibilang?",
                 },
             },
             table: {
-                elections: "Mga Halalan",
+                elections: "Halalan",
                 selected: "Napili",
                 status: "Katayuan",
-                progress: "Pag-unlad",
+                progress: "Progreso",
                 method: "Pamamaraan ng Pagbibilang",
-                elegible: "Mga Kwalipikadong Botante",
+                elegible: "Mga Karapat-dapat na Botante",
                 number: "Bilang ng mga Boto",
                 total: "Kabuuan",
                 turnout: "%",
                 candidates: "Mga Resulta ng Kandidato",
                 options: "Mga Opsyon",
-                global: "Buod ng Paglahok",
-                elegible_census: "Mga Kwalipikadong Botante",
+                global: "Buod ng pakikilahok",
+                elegible_census: "Senso ng mga karapat-dapat na botante",
                 cast_votes: "Bilang ng mga Boto",
                 cast_votes_percent: "Porsyento ng mga Boto",
-                total_votes: "Kabuuang Botante",
-                total_votes_percent: "Paglahok",
-                total_votes_counted: "Kabuuang Boto na Binibilang",
-                total_auditable_votes: "Kabuuang Ma-audit na Boto",
-                total_valid_votes: "Kabuuang Valido na Boto",
-                total_valid_votes_percent: "Porsyento ng Validong Boto",
-                total_invalid_votes: "Kabuuang Invalid na Boto",
-                total_invalid_votes_percent: "Porsyento ng Invalid na Boto",
-                explicit_invalid_votes: "Tahasang Invalid na Boto",
-                explicit_invalid_votes_percent: "Porsyento ng Tahasang Invalid na Boto",
-                implicit_invalid_votes: "Implicit na Invalid na Boto",
-                implicit_invalid_votes_percent: "Porsyento ng Implicit na Invalid na Boto",
-                blank_votes: "Blangko na mga Boto",
-                blank_votes_percent: "Porsyento ng Blangkong Boto",
-                number_of_votes: "Bilang ng mga Boto",
-                winning_position: "Panalong Posisyon",
+                total_votes: "Kabuuang mga botante",
+                total_votes_percent: "Pakikilahok",
+                total_votes_counted: "Kabuuang mga Botong Nabilang",
+                total_auditable_votes: "Kabuuang Mga Botong Maaaring Ma-audit",
+                total_valid_votes: "Kabuuang mga balidong boto",
+                total_valid_votes_percent: "Porsyento ng balidong boto",
+                total_invalid_votes: "Kabuuang mga di-balidong boto",
+                total_invalid_votes_percent: "Porsyento ng mga di-balidong boto",
+                explicit_invalid_votes: "Mga hayag na di-balidong boto",
+                explicit_invalid_votes_percent: "Porsyento ng mga hayag na di-balidong boto",
+                implicit_invalid_votes: "Mga nakatagong di-balidong boto",
+                implicit_invalid_votes_percent: "Porsyento ng mga nakatagong di-balidong boto",
+                blank_votes: "Mga botong walang laman",
+                blank_votes_percent: "Porsyento ng mga botong walang laman",
+                number_of_votes: "Bilang ng mga boto",
+                winning_position: "Winning position",
             },
         },
         publish: {
@@ -1188,6 +1270,12 @@ const tagalogTranslation = {
                 census: "Senso",
             },
             common: {
+                tallyCeremony: {
+                    manage: "Pamahalaan ang Seremonya ng Pagbibilang",
+                    view: "Tingnan ang Seremonya ng Pagbibilang",
+                    cancel: "Kanselahin ang Seremonya ng Pagbibilang",
+                    addKey: "Magdagdag ng Susi ng Pagbibilang",
+                },
                 edit: "I-edit",
                 confirm: "Kumpirmahin",
                 back: "Bumalik",
@@ -1289,7 +1377,5 @@ const tagalogTranslation = {
         },
     },
 }
-
-export type TranslationType = typeof tagalogTranslation
 
 export default tagalogTranslation

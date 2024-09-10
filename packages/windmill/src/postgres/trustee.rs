@@ -69,3 +69,36 @@ pub async fn get_trustee_by_name(
         .map(|tally_session: &Trustee| tally_session.clone())
         .ok_or(anyhow!("Trustee {name} not found"))
 }
+
+#[instrument(err, skip(hasura_transaction))]
+pub async fn get_all_trustees(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+) -> Result<Vec<Trustee>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    *
+                FROM
+                    sequent_backend.trustee
+                WHERE
+                    tenant_id = $1;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(&statement, &[&Uuid::parse_str(tenant_id)?])
+        .await?;
+
+    let elements: Vec<Trustee> = rows
+        .into_iter()
+        .map(|row| -> Result<Trustee> {
+            row.try_into()
+                .map(|res: TrusteeWrapper| -> Trustee { res.0 })
+        })
+        .collect::<Result<Vec<Trustee>>>()?;
+
+    Ok(elements)
+}
