@@ -50,9 +50,9 @@ module.exports = {
                 path: "screens",
                 on_failure: true,
             },
-                globals: {
-                    waitForConditionTimeout: 15000, // 15 seconds
-                },
+            globals: {
+                waitForConditionTimeout: 15000, // 15 seconds
+            },
 
             desiredCapabilities: {
                 //     "browserName": "firefox",
