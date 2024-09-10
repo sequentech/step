@@ -123,22 +123,11 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     // Get the form data
     MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
     context.getEvent().detail(Details.REGISTER_METHOD, "form");
-
     UserProfile profile = getOrCreateUserProfile(context, formData);
+    UserModel user = Utils.lookupUserByFormData(context, searchAttributesList, formData);
+    buildEventDetails(formData, context, user);
     Attributes attributes = profile.getAttributes();
-    String phoneNumber = attributes.getFirst(PHONE_NUMBER);
-    String IDNumber = attributes.getFirst(ID_NUMBER);
     String email = attributes.getFirst(UserModel.EMAIL);
-    String username = attributes.getFirst(UserModel.USERNAME);
-    String firstName = attributes.getFirst(UserModel.FIRST_NAME);
-    String lastName = attributes.getFirst(UserModel.LAST_NAME);
-
-    context.getEvent().detail(Details.EMAIL, email);
-    context.getEvent().detail(Details.USERNAME, username);
-    context.getEvent().detail(Details.FIRST_NAME, firstName);
-    context.getEvent().detail(Details.LAST_NAME, lastName);
-    context.getEvent().detail(Utils.PHONE_NUMBER, phoneNumber);
-    context.getEvent().detail(Utils.ID_NUMBER, IDNumber);
 
     if (context.getRealm().isRegistrationEmailAsUsername()) {
       context.getEvent().detail(Details.USERNAME, email);
@@ -201,7 +190,6 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     }
 
     // Lookup user by attributes using form data
-    UserModel user = Utils.lookupUserByFormData(context, searchAttributesList, formData);
 
     if (user == null) {
       String sessionId = context.getAuthenticationSession().getParentSession().getId();
@@ -217,7 +205,6 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       context.validationError(formData, errors);
       return;
     }
-    context.getEvent().user(user.getId());
 
     // Check if the voter has already been validated
     log.infov("validate: Is user validated id {0}", verifiedAttributeId);
@@ -572,4 +559,20 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     context.error(missingFieldsErrorMessage);
     return true;
   }
+
+  private void buildEventDetails(MultivaluedMap<String, String> formData , ValidationContext context, UserModel user) {
+    formData = normalizeFormParameters(formData);
+    formData.forEach((key, value) -> {
+      if(value != null) {
+        context.getEvent().detail(key, value);
+      }
+    });
+    context.getEvent().user(user.getId());
+    if(user != null) {
+      context.getEvent().detail("user_attributes", Utils.getUserAttributesString(user));
+    }
+    context.getEvent().detail(Utils.AUTHENTICATOR_CLASS_NAME, this.getClass().getSimpleName());
+  }
+
+ 
 }
