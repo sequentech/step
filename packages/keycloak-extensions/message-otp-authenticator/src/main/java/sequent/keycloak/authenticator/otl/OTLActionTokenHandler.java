@@ -48,7 +48,7 @@ public class OTLActionTokenHandler extends AbstractActionTokenHandler<OTLActionT
         /* defaultEventType= */ EventType.IDENTITY_PROVIDER_LINK_ACCOUNT,
         /* defaultEventError= */ Errors.INVALID_TOKEN);
 
-    log.debug("OTLActionTokenHandler");
+    log.info("OTLActionTokenHandler");
   }
 
   protected AuthenticationSessionModel getOriginalSession(
@@ -73,7 +73,7 @@ public class OTLActionTokenHandler extends AbstractActionTokenHandler<OTLActionT
   @Override
   public Predicate<? super OTLActionToken>[] getVerifiers(
       ActionTokenContext<OTLActionToken> tokenContext) {
-    log.debug("getVerifiers()");
+    log.info("getVerifiers()");
     return TokenUtils.predicates(
         TokenUtils.checkThat(
             (token) -> {
@@ -95,7 +95,7 @@ public class OTLActionTokenHandler extends AbstractActionTokenHandler<OTLActionT
   @Override
   public Response handleToken(
       OTLActionToken token, ActionTokenContext<OTLActionToken> tokenContext) {
-    log.debug("handleToken(): start");
+    log.info("handleToken(): start");
     AuthenticationSessionModel authSession = tokenContext.getAuthenticationSession();
     final String originalCompoundSessionId = token.getOriginalCompoundSessionId();
     final String originUserId = token.getUserId();
@@ -110,7 +110,7 @@ public class OTLActionTokenHandler extends AbstractActionTokenHandler<OTLActionT
         .detail(Details.CONTEXT, "originUserId = " + originUserId);
     event.success();
 
-    log.debugv(
+    log.infov(
         "handleToken(): tokenContext.isAuthenticationSessionFresh() = {0}",
         tokenContext.isAuthenticationSessionFresh());
 
@@ -130,14 +130,14 @@ public class OTLActionTokenHandler extends AbstractActionTokenHandler<OTLActionT
         .getClientNotes()
         .forEach(
             (String name, String note) -> {
-              log.debugv("setClientNote name={0}", name);
+              log.infov("setClientNote name={0}", name);
               authSession.setClientNote(name, note);
             });
     originalSession
         .getUserSessionNotes()
         .forEach(
             (String name, String note) -> {
-              log.debugv("setting setUserSessionNote name={0}", name);
+              log.infov("setting setUserSessionNote name={0}", name);
               authSession.setUserSessionNote(name, note);
             });
     Arrays.stream(authNoteNames)
@@ -152,13 +152,13 @@ public class OTLActionTokenHandler extends AbstractActionTokenHandler<OTLActionT
         .getExecutionStatus()
         .forEach(
             (String authenticator, ExecutionStatus status) -> {
-              log.debugv("setting setUserSessionNote authenticator={0}", authenticator);
+              log.infov("setting setUserSessionNote authenticator={0}", authenticator);
               authSession.setExecutionStatus(authenticator, status);
             });
-    log.debugv("setting redirectUri={0}", originalSession.getRedirectUri());
-    authSession.setRedirectUri(originalSession.getRedirectUri());
+    log.infov("setting redirectUri={0}", token.getRedirectUri());
+    authSession.setRedirectUri(token.getRedirectUri());
 
-    log.debugv(
+    log.infov(
         "setting executionId={0}",
         originalSession.getAuthNote(AuthenticationProcessor.LAST_PROCESSED_EXECUTION));
     tokenContext.setExecutionId(
