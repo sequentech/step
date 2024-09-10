@@ -77,6 +77,11 @@ async fn send_package_to_ccs_server(
         .await
         .map_err(|err| anyhow!("{:?}", err))?;
     let response_str = format!("{:?}", response);
+    info!(
+        "Response code: {}. Response: '{}'",
+        response.status(),
+        response_str
+    );
     let is_success = response.status().is_success();
     let text = response.text().await?;
 

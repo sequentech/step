@@ -111,8 +111,8 @@ async fn update_signatures(
 
             Ok(ACMTrustee {
                 id: trustee_id,
-                signature: miru_signature.signature.clone(),
-                publickey: miru_signature.pub_key.clone(),
+                signature: Some(miru_signature.signature.clone()),
+                publickey: Some(miru_signature.pub_key.clone()),
                 name: trustee_name,
             })
         })

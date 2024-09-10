@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct ACMTrustee {
     pub id: String,
-    pub signature: String,
-    pub publickey: String,
+    pub signature: Option<String>,
+    pub publickey: Option<String>,
     pub name: String,
 }
 

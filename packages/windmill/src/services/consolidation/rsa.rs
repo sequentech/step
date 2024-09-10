@@ -63,7 +63,7 @@ pub fn derive_public_key_from_p12(pk12_file_path_string: &str, password: &str) -
         ECIES_TOOL_PATH, pk12_file_path_string, password
     );
 
-    let public_pem = run_shell_command(&command)?.replace("\n", "");
+    let public_pem = run_shell_command(&command)?.replace("\n\n", "\n");
 
     info!("public pem: '{}'", public_pem);
 
