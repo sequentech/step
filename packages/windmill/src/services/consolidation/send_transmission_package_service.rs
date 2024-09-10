@@ -7,7 +7,10 @@ use super::{
         find_miru_annotation, prepend_miru_annotation, ValidateAnnotations, MIRU_AREA_CCS_SERVERS,
         MIRU_AREA_STATION_ID, MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA,
     },
-    logs::{error_sending_transmission_package_to_ccs_log, send_transmission_package_to_ccs_log},
+    logs::{
+        error_sending_logs_to_ccs_log, error_sending_transmission_package_to_ccs_log,
+        send_logs_to_ccs_log, send_transmission_package_to_ccs_log,
+    },
     transmission_package::create_transmission_package,
     zip::unzip_file,
 };
@@ -48,15 +51,24 @@ use tracing::{info, instrument};
 
 const SEND_ELECTION_RESULTS_API_PATH: &str = "/api/receiver/v1/acm/election-results";
 
+const SEND_LOGS_API_PATH: &str = "/api/receiver/v1/acm/audit-logs";
+
 #[instrument(err)]
 async fn send_package_to_ccs_server(
     transmission_package_path: &Path,
     ccs_server: &MiruCcsServer,
+    is_log: bool,
 ) -> Result<()> {
     // Read the file contents into a Vec<u8>
-    let mut transmission_package_bytes = std::fs::read(transmission_package_path)?;
+    let transmission_package_bytes = std::fs::read(transmission_package_path)?;
 
-    let uri = format!("{}{}", ccs_server.address, SEND_ELECTION_RESULTS_API_PATH);
+    let base_url = if is_log {
+        SEND_LOGS_API_PATH
+    } else {
+        SEND_ELECTION_RESULTS_API_PATH
+    };
+
+    let uri = format!("{}{}", ccs_server.address, base_url);
     let client = reqwest::Client::builder()
         .danger_accept_invalid_certs(true)
         .build()?;
@@ -407,7 +419,7 @@ pub async fn send_transmission_package_service(
         }
         let second_zip_folder_path = zip_output_temp_dir.path().join(&ccs_server.tag);
         let second_zip_path = second_zip_folder_path.join(format!("er_{}.zip", area_station_id));
-        match send_package_to_ccs_server(&second_zip_path, ccs_server).await {
+        match send_package_to_ccs_server(&second_zip_path, ccs_server, false).await {
             Ok(_) => {
                 let new_log = send_transmission_package_to_ccs_log(
                     &Local::now(),
@@ -433,10 +445,6 @@ pub async fn send_transmission_package_service(
                     new_log,
                 )
                 .await?;
-                new_miru_document.servers_sent_to.push(MiruServerDocument {
-                    name: ccs_server.name.clone(),
-                    sent_at: ISO8601::to_string(&Local::now()),
-                });
             }
             Err(err) => {
                 let error_str = format!("{}", err);
@@ -465,6 +473,58 @@ pub async fn send_transmission_package_service(
                     new_log,
                 )
                 .await?;
+            }
+        }
+        let with_logs = ccs_server.send_logs.clone().unwrap_or_default();
+        let logs_zip_path = second_zip_folder_path.join(format!("al_{}.zip", area_station_id));
+        if with_logs {
+            match send_package_to_ccs_server(&logs_zip_path, ccs_server, true).await {
+                Ok(_) => {
+                    let new_log = send_logs_to_ccs_log(
+                        &Local::now(),
+                        election_id,
+                        &election.name,
+                        area_id,
+                        &area_name,
+                        &ccs_server.name,
+                        &ccs_server.address,
+                    );
+                    record_new_log(
+                        tenant_id,
+                        election_id,
+                        area_id,
+                        tally_session_id,
+                        &election_event.id,
+                        new_log,
+                    )
+                    .await?;
+                    new_miru_document.servers_sent_to.push(MiruServerDocument {
+                        name: ccs_server.name.clone(),
+                        sent_at: ISO8601::to_string(&Local::now()),
+                    });
+                }
+                Err(err) => {
+                    let error_str = format!("{}", err);
+                    let new_log = error_sending_logs_to_ccs_log(
+                        &Local::now(),
+                        election_id,
+                        &election.name,
+                        area_id,
+                        &area_name,
+                        &ccs_server.name,
+                        &ccs_server.address,
+                        &error_str,
+                    );
+                    record_new_log(
+                        tenant_id,
+                        election_id,
+                        area_id,
+                        tally_session_id,
+                        &election_event.id,
+                        new_log,
+                    )
+                    .await?;
+                }
             }
         }
     }
