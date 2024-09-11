@@ -3,10 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
-use windmill::services::database::get_hasura_pool;
-use windmill::postgres::election_event::get_election_event_by_id;
-use deadpool_postgres::Client as DbClient;
 use anyhow::Result;
+use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
@@ -14,9 +12,11 @@ use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::{event, instrument, Level};
+use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::services::custom_url::{
-    get_page_rule, set_custom_url, PageRule, Target,PreviousCustomUrls
+    get_page_rule, set_custom_url, PageRule, PreviousCustomUrls, Target,
 };
+use windmill::services::database::get_hasura_pool;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateCustomUrlInput {
@@ -24,7 +24,7 @@ pub struct UpdateCustomUrlInput {
     pub redirect_to: String,
     pub dns_prefix: String,
     pub election_id: String,
-    pub  key: String,
+    pub key: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -58,42 +58,60 @@ pub async fn update_custom_url(
 
     info!("Authorization succeeded, processing URL update");
     let mut hasura_db_client: DbClient = get_hasura_pool()
-    .await
-    .get()
+        .await
+        .get()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    let election_event = get_election_event_by_id(
+        &hasura_transaction,
+        &claims.hasura_claims.tenant_id,
+        &body.election_id,
+    )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-let hasura_transaction = hasura_db_client
-    .transaction()
-    .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-
-    let election_event =
-    get_election_event_by_id(&hasura_transaction, &claims.hasura_claims.tenant_id, &body.election_id).await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-
-    let prev_custom_urls = if let Some(presentation) = &election_event.presentation {
-        if let Some(custom_urls_obj) = presentation.get("custom_urls") {
-            PreviousCustomUrls {
-                login: custom_urls_obj.get("login").and_then(Value::as_str).unwrap_or("").to_owned(),
-                enrollment: custom_urls_obj.get("enrollment").and_then(Value::as_str).unwrap_or("").to_owned(),
+    let prev_custom_urls =
+        if let Some(presentation) = &election_event.presentation {
+            if let Some(custom_urls_obj) = presentation.get("custom_urls") {
+                PreviousCustomUrls {
+                    login: custom_urls_obj
+                        .get("login")
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .to_owned(),
+                    enrollment: custom_urls_obj
+                        .get("enrollment")
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .to_owned(),
+                }
+            } else {
+                PreviousCustomUrls {
+                    login: "".to_owned(),
+                    enrollment: "".to_owned(),
+                }
             }
         } else {
             PreviousCustomUrls {
                 login: "".to_owned(),
                 enrollment: "".to_owned(),
             }
-        }
-    } else {
-        PreviousCustomUrls {
-            login: "".to_owned(),
-            enrollment: "".to_owned(),
-        }
-    };
+        };
 
-
-    match set_custom_url(&body.redirect_to, &body.origin, &body.dns_prefix, &prev_custom_urls, &body.key)
-        .await
+    match set_custom_url(
+        &body.redirect_to,
+        &body.origin,
+        &body.dns_prefix,
+        &prev_custom_urls,
+        &body.key,
+    )
+    .await
     {
         Ok(message) => {
             info!("Custom URL successfully updated");

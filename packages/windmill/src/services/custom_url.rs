@@ -129,7 +129,7 @@ pub async fn set_custom_url(
     info!("Redirect to: {:?}", redirect_to);
     info!("DNS Prefix: {:?}", dns_prefix);
 
-    let current_prev_url =     match key {
+    let current_prev_url = match key {
         "login" => &prev_custom_urls.login,
         "enrollment" => &prev_custom_urls.enrollment,
         _ => panic!("Invalid key provided"),
