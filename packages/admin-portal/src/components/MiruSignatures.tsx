@@ -22,7 +22,7 @@ interface MiruSignaturesProps {
 
 export const MiruSignatures: React.FC<MiruSignaturesProps> = (props) => {
     const {signatures, area} = props
-    const {t} = useTranslation() //translations to be applied
+    const {t} = useTranslation()
 
     const areaTrustees = useMemo((): Array<string> => {
         let trusteesAnnotation = area?.annotations?.["miru:area-trustee-users"]

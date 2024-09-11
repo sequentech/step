@@ -7,8 +7,8 @@ use super::{
     },
     eml_generator::{
         find_miru_annotation, prepend_miru_annotation, ValidateAnnotations, MIRU_AREA_CCS_SERVERS,
-        MIRU_AREA_STATION_ID, MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA, MIRU_TRUSTEE_ID,
-        MIRU_TRUSTEE_NAME,
+        MIRU_AREA_STATION_ID, MIRU_AREA_TRUSTEE_USERS, MIRU_PLUGIN_PREPEND,
+        MIRU_TALLY_SESSION_DATA, MIRU_TRUSTEE_ID, MIRU_TRUSTEE_NAME,
     },
     eml_types::ACMTrustee,
     logs::{
@@ -193,8 +193,7 @@ pub async fn upload_transmission_package_signature_service(
     )
     .await?
     else {
-        info!("Election not found");
-        return Ok(());
+        return Err(anyhow!("Election not found"));
     };
     let area = get_area_by_id(&hasura_transaction, tenant_id, &area_id)
         .await
@@ -220,6 +219,23 @@ pub async fn upload_transmission_package_signature_service(
         })?;
     let ccs_servers: Vec<MiruCcsServer> =
         deserialize_str(&ccs_servers_js).map_err(|err| anyhow!("{}", err))?;
+
+    let trustees_js = find_miru_annotation(MIRU_AREA_TRUSTEE_USERS, &area_annotations)
+        .with_context(|| {
+            format!(
+                "Missing area annotation: '{}:{}'",
+                MIRU_PLUGIN_PREPEND, MIRU_AREA_TRUSTEE_USERS
+            )
+        })?;
+    let trustees: Vec<String> = deserialize_str(&trustees_js).map_err(|err| anyhow!("{}", err))?;
+
+    if !trustees.contains(&trustee_name.to_string()) {
+        return Err(anyhow!(
+            "Trustee '{}' not found in the valid trustees list {:?}",
+            trustee_name,
+            trustees
+        ));
+    }
 
     let tally_session = get_tally_session_by_id(
         &hasura_transaction,
