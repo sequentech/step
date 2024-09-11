@@ -336,13 +336,7 @@ fn status<C: Ctx>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result<Opt
         .trustees
         .iter()
         .map(|t| {
-            let mut ret: Vec<ArtifactEntryIdentifier> = t.local_board.artifacts_memory.keys().cloned().collect();
-            ret.extend(t.local_board.ballots.keys().cloned());
-            ret.extend(t.local_board.mixes.keys().cloned());
-            ret.extend(t.local_board.decryption_factors.keys().cloned());
-            ret.extend(t.local_board.plaintexts.keys().cloned());
-
-            ret
+            t.local_board.artifacts_memory.keys().cloned().collect()
         })
         .collect();
 

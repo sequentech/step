@@ -275,10 +275,10 @@ pub(crate) mod tests {
         let (e_primes, rs, perm) = shuffler.gen_shuffle(&es);
         println!("* gen shuffle {}", now.elapsed().as_millis());
         let now = Instant::now();println!("* gen proof..");
-        let proof = shuffler.gen_proof(&es, &e_primes, rs, hs.clone(), perm, &[]).unwrap();
+        let proof = shuffler.gen_proof(es.clone(), &e_primes, rs, hs.clone(), perm, &[]).unwrap();
         println!("* gen proof {}", now.elapsed().as_millis());
         let now = Instant::now(); println!("* check proof..");
-        let ok = shuffler.check_proof(&proof, &es, &e_primes, hs, &[]).unwrap();
+        let ok = shuffler.check_proof(&proof, es, e_primes, hs, &[]).unwrap();
         println!("* check proof {}", now.elapsed().as_millis());
 
         println!("All shuffle {}", beg.elapsed().as_millis());
@@ -323,7 +323,7 @@ pub(crate) mod tests {
             ctx: (*ctx).clone(),
         };
         let (e_primes, rs, perm) = shuffler.gen_shuffle(&es);
-        let proof = shuffler.gen_proof(&es, &e_primes, rs, hs.clone(), perm, &[]).unwrap();
+        let proof = shuffler.gen_proof(es.clone(), &e_primes, rs, hs.clone(), perm, &[]).unwrap();
         // in this test do this only after serialization
         // let ok = shuffler.check_proof(&proof, &es, &e_primes, &[]);
         // assert!(ok);
@@ -347,7 +347,7 @@ pub(crate) mod tests {
         };
 
         let ok_d = shuffler_d
-            .check_proof(&proof_d, &es_d, &eprimes_d, hs, &[])
+            .check_proof(&proof_d, es_d, eprimes_d, hs, &[])
             .unwrap();
 
         assert!(ok_d);

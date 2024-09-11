@@ -31,10 +31,10 @@ pub(crate) fn mix<C: Ctx>(
         info!(
             "Mix computing shuffle [{} (ballots)] ({})..",
             dbg_hash(&source_h.0),
-            ballots.get_ref().ciphertexts.0.len()
+            ballots.ciphertexts.0.len()
         );
-        // &ballots.ciphertexts
-        ballots.transform(|b| &b.ciphertexts, |b| b.ciphertexts)
+        ballots.ciphertexts
+        
     } else {
         // First mix ciphertexts come from ballots, second from first mix, third from second, etc.
         // mix_no is 1-based, but trustees[] is 0-based, so the previous mixer is
@@ -50,13 +50,11 @@ pub(crate) fn mix<C: Ctx>(
         info!(
             "Mix computing shuffle [{} (mix)] ({})..",
             dbg_hash(&source_h.0),
-            mix.get_ref().ciphertexts.0.len()
+            mix.ciphertexts.0.len()
         );
 
-        // &mix.ciphertexts
-        mix.transform(|m| &m.ciphertexts, |m| m.ciphertexts)
+        mix.ciphertexts
     };
-    let ciphertexts = ciphertexts.get_ref();
 
     // Null mix
     if ciphertexts.0.len() == 0 {
@@ -78,7 +76,7 @@ pub(crate) fn mix<C: Ctx>(
     let (e_primes, rs, perm) = shuffler.gen_shuffle(&ciphertexts.0);
 
     let label = cfg.label(*batch, format!("shuffle{mix_no}"));
-    let proof = shuffler.gen_proof(&ciphertexts.0, &e_primes, rs, hs, perm, &label)?;
+    let proof = shuffler.gen_proof(ciphertexts.0, &e_primes, rs, hs, perm, &label)?;
 
     // FIXME removed self-verify
     // let ok = shuffler.check_proof(&proof, &cs, &e_primes, &label);
@@ -114,9 +112,9 @@ pub(crate) fn sign_mix<C: Ctx>(
             "SignMix verifying shuffle [{} (ballots)] => [{}] ({})..",
             dbg_hash(&source_h.0),
             dbg_hash(&cipher_h.0),
-            ballots.get_ref().ciphertexts.0.len()
+            ballots.ciphertexts.0.len()
         );
-        ballots.transform(|b| &b.ciphertexts, |b| b.ciphertexts)
+        ballots.ciphertexts
     } else {
         let mix = trustee
             .get_mix(source_h, *batch, signers_t)
@@ -126,17 +124,15 @@ pub(crate) fn sign_mix<C: Ctx>(
             "SignMix verifying shuffle [{} (mix)] => [{}] ({})..",
             dbg_hash(&source_h.0),
             dbg_hash(&cipher_h.0),
-            mix.get_ref().ciphertexts.0.len()
+            mix.ciphertexts.0.len()
         );
-        mix.transform(|m| &m.ciphertexts, |m| m.ciphertexts)
+        mix.ciphertexts
     };
 
     let target = trustee.get_mix(cipher_h, *batch, signert_t);
     let mix = target.add_context("Signing mix")?;
-    let mix = mix.get_ref();
+    
     let mix_number = mix.mix_number;
-
-    let source_cs = source_cs.get_ref();
 
     // Null mix
     if source_cs.0.len() == 0 {
@@ -162,8 +158,8 @@ pub(crate) fn sign_mix<C: Ctx>(
     let label = cfg.label(*batch, format!("shuffle{mix_number}"));
     let ok = shuffler.check_proof(
         mix.proof.as_ref().expect("Should not be a null mix"),
-        &source_cs.0,
-        &mix.ciphertexts.0,
+        source_cs.0,
+        mix.ciphertexts.0,
         hs,
         &label,
     )?;

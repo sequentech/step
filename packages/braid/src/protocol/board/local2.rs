@@ -58,12 +58,6 @@ pub(crate) struct LocalBoard<C: Ctx> {
     pub(crate) store: Option<PathBuf>,
     pub(crate) no_cache: bool,
     pub(crate) artifacts_memory: HashMap<ArtifactEntryIdentifier, (Hash, Vec<u8>)>,
-    // For efficiency we store these artifacts in deserialized form,
-    // which requires separate collections
-    pub(crate) mixes: HashMap<ArtifactEntryIdentifier, (Hash, Mix<C>)>,
-    pub(crate) ballots: HashMap<ArtifactEntryIdentifier, (Hash, Ballots<C>)>,
-    pub(crate) decryption_factors: HashMap<ArtifactEntryIdentifier, (Hash, DecryptionFactors<C>)>,
-    pub(crate) plaintexts: HashMap<ArtifactEntryIdentifier, (Hash, Plaintexts<C>)>,
 }
 
 impl<C: Ctx> LocalBoard<C> {
@@ -86,10 +80,6 @@ impl<C: Ctx> LocalBoard<C> {
             store,
             no_cache: nc,
             artifacts_memory: HashMap::new(),
-            mixes: HashMap::new(),
-            ballots: HashMap::new(),
-            decryption_factors: HashMap::new(),
-            plaintexts: HashMap::new(),
         }
     }
 
@@ -398,8 +388,12 @@ impl<C: Ctx> LocalBoard<C> {
         b_h: &CiphertextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<ArtifactRef<Ballots<C>>, ProtocolError> {
-        let aei = self.get_artifact_entry_identifier_ext(
+    ) -> Result<Ballots<C>, ProtocolError> {
+        
+        let bytes = self.get_artifact(StatementType::Ballots, b_h.0, signer_position, batch)?;
+        let bytes = bytes.get_ref();
+        Ok(Ballots::<C>::strand_deserialize(&bytes)?)
+        /*let aei = self.get_artifact_entry_identifier_ext(
             StatementType::Ballots,
             signer_position,
             batch,
@@ -437,7 +431,7 @@ impl<C: Ctx> LocalBoard<C> {
             } else {
                 Ok(ArtifactRef::Ref(&entry.1))
             }
-        }
+        }*/
         
     }
 
@@ -446,8 +440,12 @@ impl<C: Ctx> LocalBoard<C> {
         m_h: &CiphertextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<ArtifactRef<Mix<C>>, ProtocolError> {
-        let aei =
+    ) -> Result<Mix<C>, ProtocolError> {
+        
+        let bytes = self.get_artifact(StatementType::Mix, m_h.0, signer_position, batch)?;
+        let bytes = bytes.get_ref();
+        Ok(Mix::<C>::strand_deserialize(&bytes)?)
+        /*let aei =
             self.get_artifact_entry_identifier_ext(StatementType::Mix, signer_position, batch, 0);
         
         if self.store.is_some() && self.no_cache {
@@ -479,17 +477,21 @@ impl<C: Ctx> LocalBoard<C> {
             } else {
                 Ok(ArtifactRef::Ref(&entry.1))
             }
-        }
+        }*/
         
     }
 
     pub(crate) fn get_decryption_factors(
         &self,
-        m_h: &DecryptionFactorsHash,
+        d_h: &DecryptionFactorsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<ArtifactRef<DecryptionFactors<C>>, ProtocolError> {
-        let aei = self.get_artifact_entry_identifier_ext(
+    ) -> Result<DecryptionFactors<C>, ProtocolError> {
+        
+        let bytes = self.get_artifact(StatementType::DecryptionFactors, d_h.0, signer_position, batch)?;
+        let bytes = bytes.get_ref();
+        Ok(DecryptionFactors::<C>::strand_deserialize(&bytes)?)
+        /* let aei = self.get_artifact_entry_identifier_ext(
             StatementType::DecryptionFactors,
             signer_position,
             batch,
@@ -533,16 +535,20 @@ impl<C: Ctx> LocalBoard<C> {
             } else {
                 Ok(ArtifactRef::Ref(&entry.1))
             }
-        }
+        }*/
     }
 
     pub(crate) fn get_plaintexts(
         &self,
-        m_h: &PlaintextsHash,
+        p_h: &PlaintextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<ArtifactRef<Plaintexts<C>>, ProtocolError> {
-        let aei = self.get_artifact_entry_identifier_ext(
+    ) -> Result<Plaintexts<C>, ProtocolError> {
+        
+        let bytes = self.get_artifact(StatementType::Plaintexts, p_h.0, signer_position, batch)?;
+        let bytes = bytes.get_ref();
+        Ok(Plaintexts::<C>::strand_deserialize(&bytes)?)
+        /*let aei = self.get_artifact_entry_identifier_ext(
             StatementType::Plaintexts,
             signer_position,
             batch,
@@ -581,7 +587,7 @@ impl<C: Ctx> LocalBoard<C> {
             } else {
                 Ok(ArtifactRef::Ref(&entry.1))
             }
-        }
+        }*/
         
     }
 
@@ -772,51 +778,44 @@ impl<C: Ctx> LocalBoard<C> {
         &self,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Option<&Plaintexts<C>> {
+    ) -> Option<Plaintexts<C>> {
         let aei = self.get_artifact_entry_identifier_ext(
             StatementType::Plaintexts,
             signer_position,
             batch,
             0,
         );
-        let entry = self.plaintexts.get(&aei)?;
-
-        Some(&entry.1)
+        let entry = self.artifacts_memory.get(&aei)?;
+        
+        Plaintexts::<C>::strand_deserialize(&entry.1).ok()
     }
 
     fn insert_artifact_memory(&mut self, ai: ArtifactEntryIdentifier, hash: [u8; 64], bytes: Vec<u8>) -> Result<(), ProtocolError> {
-        match ai.statement_entry.kind {
-            StatementType::Ballots => {
-                let ballots = Ballots::<C>::strand_deserialize(&bytes)?;
-                self.ballots.insert(ai, (hash, ballots));
-            },
-            StatementType::Mix => {
-                let mix = Mix::<C>::strand_deserialize(&bytes)?;
-                self.mixes.insert(ai, (hash, mix));
-            },
-            StatementType::DecryptionFactors => {
-                let decryption_factors = DecryptionFactors::<C>::strand_deserialize(&bytes)?;
-                self.decryption_factors.insert(ai, (hash, decryption_factors));
-            },
-            StatementType::Plaintexts => {
-                let plaintexts = Plaintexts::<C>::strand_deserialize(&bytes)?;
-                self.plaintexts.insert(ai, (hash, plaintexts));
-            },
-            _ => { self.artifacts_memory.insert(ai, (hash, bytes)); },
-        };
-
+       self.artifacts_memory.insert(ai, (hash, bytes));
+        
         Ok(())
     }
-    
-    // Common code to get dkg artifacts
+
     fn get_dkg_artifact(
         &self, 
         kind: StatementType, 
-        hash: Hash, 
+        hash: Hash,
         signer_position: TrusteePosition,
+    )  -> Result<ArtifactRef<Vec<u8>>, ProtocolError> {
+        self.get_artifact(kind, hash, signer_position, 0)
+    }
+    
+    // Gets an artifact from the store or the bytes cache
+    fn get_artifact(
+        &self, 
+        kind: StatementType, 
+        hash: Hash,        
+        signer_position: TrusteePosition,
+        batch: BatchNumber,
     ) -> Result<ArtifactRef<Vec<u8>>, ProtocolError> {
+        // Mix number is always zero for all artifacts, only a signed mix _statement_ has a mixnumber
         let aei =
-            self.get_artifact_entry_identifier_ext(kind.clone(), signer_position, 0, 0);
+            self.get_artifact_entry_identifier_ext(kind.clone(), signer_position, batch, 0);
         
         let bytes = if self.store.is_some() && self.no_cache {
             let entry = self

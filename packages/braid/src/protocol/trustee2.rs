@@ -15,7 +15,6 @@ use strand::{context::Ctx, elgamal::PrivateKey};
 
 use crate::protocol::action::Action;
 use crate::protocol::board::local2::LocalBoard;
-use crate::protocol::board::ArtifactRef;
 use crate::protocol::predicate::Predicate;
 
 use crate::util::{ProtocolContext, ProtocolError};
@@ -491,7 +490,7 @@ impl<C: Ctx> Trustee<C> {
         hash: &CiphertextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<ArtifactRef<Ballots<C>>, ProtocolError> {
+    ) -> Result<Ballots<C>, ProtocolError> {
         self.local_board.get_ballots(hash, batch, signer_position)
     }
 
@@ -500,7 +499,7 @@ impl<C: Ctx> Trustee<C> {
         hash: &CiphertextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<ArtifactRef<Mix<C>>, ProtocolError> {
+    ) -> Result<Mix<C>, ProtocolError> {
         self.local_board.get_mix(hash, batch, signer_position)
     }
 
@@ -509,7 +508,7 @@ impl<C: Ctx> Trustee<C> {
         hash: &DecryptionFactorsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<ArtifactRef<DecryptionFactors<C>>, ProtocolError> {
+    ) -> Result<DecryptionFactors<C>, ProtocolError> {
         self.local_board
             .get_decryption_factors(hash, batch, signer_position)
     }
@@ -519,7 +518,7 @@ impl<C: Ctx> Trustee<C> {
         hash: &PlaintextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<ArtifactRef<Plaintexts<C>>, ProtocolError> {
+    ) -> Result<Plaintexts<C>, ProtocolError> {
         self.local_board
             .get_plaintexts(hash, batch, signer_position)
     }
@@ -534,7 +533,7 @@ impl<C: Ctx> Trustee<C> {
         &self,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Option<&Plaintexts<C>> {
+    ) -> Option<Plaintexts<C>> {
         self.local_board
             .get_plaintexts_nohash(batch, signer_position)
     }
