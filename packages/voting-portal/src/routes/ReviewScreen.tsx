@@ -278,8 +278,6 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
         }
     }
 
-    console.log("auditButtonCfg", auditButtonCfg)
-
     return (
         <Box sx={{marginBottom: "10px", marginTop: "10px"}}>
             {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW ? (
