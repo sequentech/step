@@ -198,6 +198,20 @@ actions:
       version: 2
   permissions:
   - role: admin-user
+- name: delete_users
+  definition:
+    kind: synchronous
+    handler: http://{{HARVEST_DOMAIN}}/delete-users
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: admin-user
+  comment: delete users
 - name: edit_user
   definition:
     kind: synchronous
@@ -896,4 +910,5 @@ custom_types:
   - name: ExportTenantUsersOutput
   - name: UserProfileAttributes
   - name: UserProfileAttribute
+  - name: DeleteUsersOutput
   scalars: []

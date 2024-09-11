@@ -527,6 +527,7 @@ const frenchTranslation: TranslationType = {
                     exportError: "Erreur lors de l'exportation des utilisateurs",
                     deleteError: "Erreur lors de la suppression de l'utilisateur",
                     deleteSuccess: "Utilisateur supprimé",
+                    multipleDeleteSuccess: "Utilisateurs supprimés",
                 },
             },
             voters: {
@@ -557,6 +558,7 @@ const frenchTranslation: TranslationType = {
                     exportError: "Erreur lors de l'exportation des électeurs",
                     deleteError: "Erreur lors de la suppression de l'électeur",
                     deleteSuccess: "Électeur supprimé",
+                    multipleDeleteSuccess: "Électeurs supprimés",
                     manualVerificationError:
                         "Erreur lors de la vérification manuelle de l'électeur",
                     manualVerificationSuccess:

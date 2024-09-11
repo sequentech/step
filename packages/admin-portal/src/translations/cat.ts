@@ -526,6 +526,7 @@ const catalanTranslation: TranslationType = {
                     exportError: "Error exportant usuaris",
                     deleteError: "Error esborrant usuari",
                     deleteSuccess: "Usuari esborrat",
+                    multipleDeleteSuccess: "Usuaris esborrats",
                 },
             },
             voters: {
@@ -556,6 +557,7 @@ const catalanTranslation: TranslationType = {
                     exportError: "Error exportant votants",
                     deleteError: "Error esborrant votant",
                     deleteSuccess: "Votant esborrat",
+                    multipleDeleteSuccess: "Votants esborrats",
                     manualVerificationError: "Error verificant manualment al votant",
                     manualVerificationSuccess:
                         "Verificat amb èxit manualment al votant, descarregar PDF..",

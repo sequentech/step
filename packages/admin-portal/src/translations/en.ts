@@ -520,6 +520,7 @@ const englishTranslation = {
                     exportError: "Error exporting users",
                     deleteError: "Error deleting user",
                     deleteSuccess: "User deleted",
+                    multipleDeleteSuccess: "Users deleted",
                 },
             },
             voters: {
@@ -550,6 +551,7 @@ const englishTranslation = {
                     exportError: "Error exporting voters",
                     deleteError: "Error deleting voter",
                     deleteSuccess: "Voter deleted",
+                    multipleDeleteSuccess: "Voters deleted",
                     manualVerificationError: "Error manually verifying the voter",
                     manualVerificationSuccess:
                         "Sucessfully verified manually the voter, downloading PDF..",

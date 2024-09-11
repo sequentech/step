@@ -108,6 +108,14 @@ type Mutation {
 }
 
 type Mutation {
+  delete_users (
+    tenant_id: String!
+    election_event_id: String
+    users_id: [String!]!
+  ): DeleteUsersOutput
+}
+
+type Mutation {
   edit_user (
     body: EditUsersInput!
   ): KeycloakUser!
@@ -934,5 +942,9 @@ type UserProfileAttribute {
   validations : jsonb
   permissions : jsonb
   selector : jsonb
+}
+
+type DeleteUsersOutput {
+  ids : String
 }
 

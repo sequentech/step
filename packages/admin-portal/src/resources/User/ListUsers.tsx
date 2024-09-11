@@ -42,6 +42,7 @@ import {CreateUser} from "./CreateUser"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {
     DeleteUserMutation,
+    DeleteUsersMutation,
     ExportTenantUsersMutation,
     ExportUsersMutation,
     GetDocumentQuery,
@@ -71,18 +72,22 @@ import CustomDateField from "./CustomDateField"
 import {ActionsMenu} from "@/components/ActionsMenu"
 import EditPassword from "./EditPassword"
 import {styled} from "@mui/material/styles"
+import {DELETE_USERS} from "@/queries/DeleteUsers"
 
 const OMIT_FIELDS: Array<string> = ["email_verified"]
 
-const DataGridContainerStyle = styled(Box)<{isOpenSideBar?: boolean}>`
+const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
         overflow-x: auto;
         width: 100%;
         ${({isOpenSideBar}) =>
             `max-width: ${isOpenSideBar ? "calc(100vw - 355px)" : "calc(100vw - 108px)"};`}
+        &  > div:first-child {
+            position: absolute;
+            width: 100%;
+        }
     }
 `
-
 export interface ListUsersProps {
     aside?: ReactElement
     electionEventId?: string
@@ -140,7 +145,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const refresh = useRefresh()
     const [deleteUser] = useMutation<DeleteUserMutation>(DELETE_USER)
     const [getManualVerificationPdf] = useMutation<ManualVerificationMutation>(MANUAL_VERIFICATION)
-    const [deleteUsers] = useMutation<DeleteUserMutation>(DELETE_USER)
+    const [deleteUsers] = useMutation<DeleteUsersMutation>(DELETE_USERS)
     const [exportUsers] = useMutation<ExportUsersMutation>(EXPORT_USERS)
     const {data: userAttributes} = useQuery<GetUserProfileAttributesQuery>(
         USER_PROFILE_ATTRIBUTES,
@@ -491,11 +496,13 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     ]
 
     async function confirmDeleteBulkAction() {
+        console.log(selectedIds)
+
         const {errors} = await deleteUsers({
             variables: {
                 tenantId: tenantId,
                 electionEventId: electionEventId,
-                userId: selectedIds,
+                usersId: selectedIds,
             },
         })
 
@@ -515,7 +522,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             t(
                 `usersAndRolesScreen.${
                     electionEventId ? "voters" : "users"
-                }.notifications.deleteSuccess`
+                }.notifications.multipleDeleteSuccess`
             ),
             {type: "success"}
         )
@@ -705,67 +712,66 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 filters={Filters}
             >
                 {userAttributes?.get_user_profile_attributes && (
-                    <DataGridContainerStyle isOpenSideBar={isOpenSidebar}>
-                        <DatagridConfigurable bulkActionButtons={<BulkActions />}>
-                            <TextField
-                                source="id"
-                                width={200}
-                                sx={{display: "block", width: "280px"}}
-                            />
-                            <BooleanField source="email_verified" />
-                            <BooleanField source="enabled" />
-                            {userAttributes.get_user_profile_attributes.map((attr) => {
-                                if (attr.annotations?.inputType === "html5-date") {
-                                    return (
-                                        <CustomDateField
-                                            key={attr.name}
-                                            source={`${attr.name}`}
-                                            label={getAttributeLabel(attr.display_name ?? "")}
-                                            emptyText=""
-                                        />
-                                    )
-                                }
+                    <DataGridContainerStyle
+                        isOpenSideBar={isOpenSidebar}
+                        bulkActionButtons={<BulkActions />}
+                    >
+                        {/* <DatagridConfigurable> */}
+                        <TextField source="id" sx={{display: "block", width: "280px"}} />
+                        <BooleanField source="email_verified" />
+                        <BooleanField source="enabled" />
+                        {userAttributes.get_user_profile_attributes.map((attr) => {
+                            if (attr.annotations?.inputType === "html5-date") {
                                 return (
-                                    <TextField
+                                    <CustomDateField
                                         key={attr.name}
-                                        source={
-                                            attr.name && userBasicInfo.includes(attr.name)
-                                                ? attr.name
-                                                : `attributes['${attr.name}']`
-                                        }
+                                        source={`${attr.name}`}
                                         label={getAttributeLabel(attr.display_name ?? "")}
+                                        emptyText=""
                                     />
                                 )
-                            })}
-                            {electionEventId && (
-                                <FunctionField
-                                    label={t("usersAndRolesScreen.users.fields.area")}
-                                    render={(record: IUser) =>
-                                        record?.area?.name ? (
-                                            <Chip label={record?.area?.name ?? ""} />
-                                        ) : (
-                                            "-"
-                                        )
+                            }
+                            return (
+                                <TextField
+                                    key={attr.name}
+                                    source={
+                                        attr.name && userBasicInfo.includes(attr.name)
+                                            ? attr.name
+                                            : `attributes['${attr.name}']`
                                     }
+                                    label={getAttributeLabel(attr.display_name ?? "")}
                                 />
-                            )}
-                            {electionEventId && (
-                                <FunctionField
-                                    source="has_voted"
-                                    label={t("usersAndRolesScreen.users.fields.has_voted")}
-                                    render={(record: IUser, source: string | undefined) => {
-                                        let newRecord = {
-                                            has_voted: (record?.votes_info?.length ?? 0) > 0,
-                                            ...record,
-                                        }
-                                        return <BooleanField record={newRecord} source={source} />
-                                    }}
-                                />
-                            )}
-                            <WrapperField source="actions" label="Actions">
-                                <ActionsMenu actions={actions} />
-                            </WrapperField>
-                        </DatagridConfigurable>
+                            )
+                        })}
+                        {electionEventId && (
+                            <FunctionField
+                                label={t("usersAndRolesScreen.users.fields.area")}
+                                render={(record: IUser) =>
+                                    record?.area?.name ? (
+                                        <Chip label={record?.area?.name ?? ""} />
+                                    ) : (
+                                        "-"
+                                    )
+                                }
+                            />
+                        )}
+                        {electionEventId && (
+                            <FunctionField
+                                source="has_voted"
+                                label={t("usersAndRolesScreen.users.fields.has_voted")}
+                                render={(record: IUser, source: string | undefined) => {
+                                    let newRecord = {
+                                        has_voted: (record?.votes_info?.length ?? 0) > 0,
+                                        ...record,
+                                    }
+                                    return <BooleanField record={newRecord} source={source} />
+                                }}
+                            />
+                        )}
+                        <WrapperField source="actions" label="Actions">
+                            <ActionsMenu actions={actions} />
+                        </WrapperField>
+                        {/* </DatagridConfigurable> */}
                     </DataGridContainerStyle>
                 )}
             </List>

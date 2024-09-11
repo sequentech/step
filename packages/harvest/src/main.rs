@@ -60,6 +60,7 @@ async fn rocket() -> _ {
                 routes::users::export_users_f,
                 routes::users::export_tenant_users_f,
                 routes::users::delete_user,
+                routes::users::delete_users,
                 routes::users::get_users,
                 routes::users::get_user,
                 routes::users::edit_user,

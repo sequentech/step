@@ -86,7 +86,7 @@ pub async fn delete_user(
 pub struct DeleteUsersBody {
     tenant_id: String,
     election_event_id: Option<String>,
-    user_ids: Vec<String>,
+    users_id: Vec<String>,
 }
 
 #[instrument(skip(claims))]
@@ -117,7 +117,7 @@ pub async fn delete_users(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    for id in input.user_ids {
+    for id in input.users_id {
         client
             .delete_user(&realm, &id)
             .await

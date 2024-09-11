@@ -525,6 +525,7 @@ const spanishTranslation: TranslationType = {
                     exportError: "Error al exportar usuarios",
                     deleteError: "Error borrando usuario",
                     deleteSuccess: "Usuario borrado",
+                    multipleDeleteSuccess: "Usuarios borrados",
                 },
             },
             voters: {
@@ -555,6 +556,7 @@ const spanishTranslation: TranslationType = {
                     exportError: "Error al exportar votantes",
                     deleteError: "Error borrando votante",
                     deleteSuccess: "Votante borrado",
+                    multipleDeleteSuccess: "Votantes borrado",
                     manualVerificationError: "Error verificando manualmente al votante",
                     manualVerificationSuccess:
                         "Verificado exitosamente manualmente al elector, descargar PDF..",
