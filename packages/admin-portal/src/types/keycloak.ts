@@ -62,4 +62,8 @@ export enum IPermissions {
     DOCUMENT_WRITE = "document-write",
     SUPPORT_MATERIAL_READ = "support-material-read",
     SUPPORT_MATERIAL_WRITE = "support-material-write",
+    MIRU_CREATE = "miru-create",
+    MIRU_DOWNLOAD = "miru-download",
+    MIRU_SEND = "miru-send",
+    MIRU_SIGN = "miru-sign",
 }

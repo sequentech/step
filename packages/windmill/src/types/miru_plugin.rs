@@ -14,13 +14,20 @@ pub struct MiruSignature {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MiruServerDocument {
     pub name: String,
-    pub document_id: String,
     pub sent_at: String, // date using ISO8601/rfc3339
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct MiruDocumentIds {
+    #[serde(default)]
+    pub eml: String,
+    pub xz: String,
+    pub all_servers: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MiruDocument {
-    pub document_id: String,
+    pub document_ids: MiruDocumentIds,
     pub transaction_id: String,
     pub servers_sent_to: Vec<MiruServerDocument>,
     pub created_at: String,
@@ -30,6 +37,7 @@ pub struct MiruDocument {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MiruCcsServer {
     pub name: String,
+    pub tag: String,
     pub address: String,
     pub public_key_pem: String,
 }
@@ -41,6 +49,7 @@ pub struct MiruTransmissionPackageData {
     pub servers: Vec<MiruCcsServer>,
     pub documents: Vec<MiruDocument>,
     pub logs: Vec<Log>,
+    pub threshold: i64,
 }
 
 pub type MiruTallySessionData = Vec<MiruTransmissionPackageData>;

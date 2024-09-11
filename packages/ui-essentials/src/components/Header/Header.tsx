@@ -2,13 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState} from "react"
-
 import Image from "mui-image"
 import LanguageMenu from "../LanguageMenu/LanguageMenu"
 import PageBanner from "../PageBanner/PageBanner"
 import PageLimit from "../PageLimit/PageLimit"
 import {theme} from "../../services/theme"
-import LogoImg from "../../../public/Sequent_logo.svg"
 import styled from "@emotion/styled"
 import {Box, Button, Tooltip, TooltipProps, tooltipClasses} from "@mui/material"
 import Version from "../Version/Version"
@@ -65,7 +63,6 @@ export const StyledButtonContainerWrapper = styled.div`
     position: relative;
     padding: 0;
     margin: 0;
-    width: 125px;
     height: 44px;
 `
 
@@ -86,10 +83,7 @@ export const StyledButton = styled(Button)`
     background: transparent !important;
     border: none;
     display: flex;
-    width: 100%;
-    // border-bottom: ${({theme}) => `2px solid ${theme.palette.brandColor}`} !important;
     outline: "none";
-    box-sizing: "border-box";
 
     &:hover,
     &:focus,
@@ -105,6 +99,7 @@ type ApplicationVersion = {
 }
 
 export type UserProfile = {
+    firstName?: string
     username: string
     email?: string
     openLink?: Function
@@ -165,7 +160,7 @@ export default function Header({
                 <PageLimit maxWidth="lg" sx={{height: {xs: "37px", md: "47px"}}}>
                     <PageBanner direction="row" sx={{height: "100%"}}>
                         <StyledLink href={logoLink} target="_blank">
-                            <StyledImage src={logoUrl ?? LogoImg} duration={100} alt="Logo Image" />
+                            <StyledImage src={logoUrl || ""} duration={100} alt="Logo Image" />
                         </StyledLink>
                         <Box
                             display="flex"

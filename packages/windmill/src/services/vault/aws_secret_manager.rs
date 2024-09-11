@@ -46,8 +46,11 @@ impl Vault for AwsSecretManager {
             .get_secret_value()
             .secret_id(self.get_prefixed_key(key)?)
             .send()
-            .await?;
+            .await;
 
-        Ok(resp.secret_string().map(|s| s.to_string()))
+        match resp {
+            Ok(data) => Ok(data.secret_string().map(|s| s.to_string())),
+            Err(_) => Ok(None),
+        }
     }
 }

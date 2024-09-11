@@ -7,7 +7,10 @@ package sequent.keycloak.authenticator;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
+import jakarta.ws.rs.core.UriBuilder;
+import jakarta.ws.rs.core.UriInfo;
 import java.io.IOException;
+import java.net.URI;
 import java.text.MessageFormat;
 import java.util.List;
 import java.util.Locale;
@@ -16,23 +19,33 @@ import java.util.Optional;
 import java.util.Properties;
 import lombok.experimental.UtilityClass;
 import lombok.extern.jbosslog.JBossLog;
+import org.keycloak.authentication.AuthenticationFlowContext;
+import org.keycloak.authentication.actiontoken.DefaultActionToken;
 import org.keycloak.common.util.SecretGenerator;
+import org.keycloak.common.util.Time;
 import org.keycloak.email.EmailException;
 import org.keycloak.email.EmailSenderProvider;
 import org.keycloak.email.EmailTemplateProvider;
 import org.keycloak.email.freemarker.beans.ProfileBean;
+import org.keycloak.events.Details;
 import org.keycloak.forms.login.freemarker.model.UrlBean;
 import org.keycloak.models.AuthenticatorConfigModel;
+import org.keycloak.models.Constants;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakUriInfo;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.services.Urls;
+import org.keycloak.services.resources.LoginActionsService;
+import org.keycloak.services.resources.RealmsResource;
+import org.keycloak.sessions.AuthenticationSessionCompoundId;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.theme.FreeMarkerException;
 import org.keycloak.theme.Theme;
 import org.keycloak.theme.beans.MessageFormatterMethod;
 import org.keycloak.theme.freemarker.FreeMarkerProvider;
 import sequent.keycloak.authenticator.gateway.SmsSenderProvider;
+import sequent.keycloak.authenticator.otl.OTLActionToken;
 
 @UtilityClass
 @JBossLog
@@ -41,17 +54,37 @@ public class Utils {
   public final String CODE_LENGTH = "length";
   public final String CODE_TTL = "ttl";
   public final String SENDER_ID = "senderId";
+  public final String ONE_TIME_LINK = "one-time-link";
+  public final String OTL_VISITED = "one-time-link.visited";
+  public static final String USER_ID = "userId";
   public final String TEL_USER_ATTRIBUTE = "telUserAttribute";
   public final String MESSAGE_COURIER_ATTRIBUTE = "messageCourierAttribute";
   public final String DEFERRED_USER_ATTRIBUTE = "deferredUserAttribute";
+  public final String OTL_RESTORED_AUTH_NOTES_ATTRIBUTE = "otlRestoredAuthNotesAttribute";
+
   public final String SEND_CODE_SMS_I18N_KEY = "messageOtp.sendCode.sms.text";
   public final String SEND_CODE_EMAIL_SUBJECT = "messageOtp.sendCode.email.subject";
   public final String SEND_CODE_EMAIL_FTL = "send-code-email.ftl";
+  public final String RESEND_ACTIVATION_TIMER = "resendCoudActivationTimer";
+
+  public final String SEND_LINK_SMS_I18N_KEY = "messageOtp.sendLink.sms.text";
+  public final String SEND_LINK_EMAIL_SUBJECT = "messageOtp.sendLink.email.subject";
+  public final String SEND_LINK_EMAIL_FTL = "send-link-email.ftl";
+
+  public static final String SEND_SUCCESS_SMS_I18N_KEY = "messageSuccessSms";
+  public static final String SEND_SUCCESS_EMAIL_SUBJECT = "messageSuccessEmailSubject";
+  public static final String SEND_SUCCESS_EMAIL_FTL = "success-email.ftl";
+  public static final String ID_NUMBER_ATTRIBUTE = "sequent.read-only.id-card-number";
+  public static final String PHONE_NUMBER_ATTRIBUTE = "sequent.read-only.id-mobile-number";
+
+  public static final String ID_NUMBER = "ID_number";
+  public static final String PHONE_NUMBER = "Phone_number";
 
   public enum MessageCourier {
     SMS,
     EMAIL,
-    BOTH;
+    BOTH,
+    NONE;
 
     // Method to convert a string value to a NotificationType
     public static MessageCourier fromString(String type) {
@@ -73,12 +106,16 @@ public class Utils {
       UserModel user,
       AuthenticationSessionModel authSession,
       MessageCourier messageCourier,
-      boolean deferredUser)
+      boolean deferredUser,
+      boolean isOtl,
+      String[] otlAuthNotesNames)
       throws IOException, EmailException {
     log.info("sendCode(): start");
     String mobileNumber = null;
     String emailAddress = null;
+    String code = null;
 
+    // Handle deferred user
     if (deferredUser) {
       String mobileNumberAttribute = config.getConfig().get(Utils.TEL_USER_ATTRIBUTE);
       mobileNumber = authSession.getAuthNote(mobileNumberAttribute);
@@ -92,11 +129,25 @@ public class Utils {
 
     int length = Integer.parseInt(config.getConfig().get(Utils.CODE_LENGTH));
     int ttl = Integer.parseInt(config.getConfig().get(Utils.CODE_TTL));
-
-    String code = SecretGenerator.getInstance().randomString(length, SecretGenerator.DIGITS);
-    authSession.setAuthNote(Utils.CODE, code);
     authSession.setAuthNote(
         Utils.CODE_TTL, Long.toString(System.currentTimeMillis() + (ttl * 1000L)));
+
+    // Handle OTL/OTP
+    if (isOtl) {
+      code =
+          generateOTL(
+              authSession,
+              session,
+              ttl,
+              otlAuthNotesNames,
+              authSession.getRedirectUri(),
+              deferredUser);
+      authSession.setAuthNote(Utils.OTL_VISITED, "false");
+    } else {
+      code = SecretGenerator.getInstance().randomString(length, SecretGenerator.DIGITS);
+      authSession.setAuthNote(Utils.CODE, code);
+    }
+
     RealmModel realm = authSession.getRealm();
     String realmName = getRealmName(realm);
 
@@ -106,6 +157,7 @@ public class Utils {
     }
     log.infov("sendCode(): messageCourier=`{0}`", messageCourier);
 
+    // Sending via SMS
     if (mobileNumber != null
         && mobileNumber.trim().length() > 0
         && (messageCourier == MessageCourier.SMS || messageCourier == MessageCourier.BOTH)) {
@@ -114,12 +166,14 @@ public class Utils {
       List<String> smsAttributes =
           ImmutableList.of(realmName, code, String.valueOf(Math.floorDiv(ttl, 60)));
 
+      String smsTemplateKey = (isOtl) ? Utils.SEND_LINK_SMS_I18N_KEY : Utils.SEND_CODE_SMS_I18N_KEY;
       smsSenderProvider.send(
-          mobileNumber.trim(), Utils.SEND_CODE_SMS_I18N_KEY, smsAttributes, realm, user, session);
+          mobileNumber.trim(), smsTemplateKey, smsAttributes, realm, user, session);
     } else {
       log.infov("sendCode(): NOT Sending SMS to=`{0}`", mobileNumber);
     }
 
+    // Sending via Email
     if (emailAddress != null
         && emailAddress.trim().length() > 0
         && (messageCourier == MessageCourier.EMAIL || messageCourier == MessageCourier.BOTH)) {
@@ -136,14 +190,16 @@ public class Utils {
       log.infov("sendCode(): Sending email: prepared messageAttributes");
 
       try {
+        String subjectKey = (isOtl) ? Utils.SEND_LINK_EMAIL_SUBJECT : Utils.SEND_CODE_EMAIL_SUBJECT;
+        String ftlKey = (isOtl) ? Utils.SEND_LINK_EMAIL_FTL : Utils.SEND_CODE_EMAIL_FTL;
         if (deferredUser) {
           sendEmail(
               session,
               realm,
               user,
-              Utils.SEND_CODE_EMAIL_SUBJECT,
+              subjectKey,
               subjAttr,
-              Utils.SEND_CODE_EMAIL_FTL,
+              ftlKey,
               messageAttributes,
               emailAddress.trim());
         } else {
@@ -151,11 +207,7 @@ public class Utils {
               .setRealm(realm)
               .setUser(user)
               .setAttribute("realmName", realmName)
-              .send(
-                  Utils.SEND_CODE_EMAIL_SUBJECT,
-                  subjAttr,
-                  Utils.SEND_CODE_EMAIL_FTL,
-                  messageAttributes);
+              .send(subjectKey, subjAttr, ftlKey, messageAttributes);
         }
       } catch (EmailException error) {
         log.debug("sendCode(): Exception sending email", error);
@@ -184,6 +236,59 @@ public class Utils {
     log.infov("getMobile(): telUserAttribute={0}, mobile={1}", telUserAttribute, mobile);
     return mobile;
   }
+
+  public static String linkFromActionToken(
+      KeycloakSession session, RealmModel realm, DefaultActionToken token) {
+    UriInfo uriInfo = session.getContext().getUri();
+    UriBuilder builder =
+        actionTokenBuilder(
+            uriInfo.getBaseUri(), token.serialize(session, realm, uriInfo), token.getIssuedFor());
+    return builder.build(realm.getName()).toString();
+  }
+
+  UriBuilder actionTokenBuilder(URI baseUri, String tokenString, String clientId) {
+    log.infof(
+        "actionTokenBuilder(): baseUri: %s, tokenString: %s, clientId: %s",
+        baseUri, tokenString, clientId);
+    return Urls.realmBase(baseUri)
+        .path(RealmsResource.class, "getLoginActionsService")
+        .path(LoginActionsService.class, "executeActionToken")
+        .queryParam(Constants.KEY, tokenString)
+        .queryParam(Constants.CLIENT_ID, clientId);
+  }
+
+  String generateOTL(
+      AuthenticationSessionModel authSession,
+      KeycloakSession session,
+      int ttl,
+      String[] otlAuthNotesNames,
+      String redirectUri,
+      boolean isDeferredUser) {
+    // Get necessary components from the context
+    AuthenticationSessionCompoundId compoundId =
+        AuthenticationSessionCompoundId.fromAuthSession(authSession);
+    String sessionId = compoundId.getEncodedId();
+    String userId =
+        authSession.getAuthenticatedUser() == null
+            ? authSession.getAuthNote(USER_ID)
+            : authSession.getAuthenticatedUser().getId();
+    RealmModel realm = authSession.getRealm();
+
+    // Create the OTLActionToken with the necessary information
+    OTLActionToken token =
+        new OTLActionToken(
+            userId,
+            Time.currentTime() + ttl,
+            sessionId, // Original compound session ID
+            otlAuthNotesNames,
+            isDeferredUser,
+            redirectUri,
+            authSession.getClient().getClientId());
+
+    // Generate the OTL link
+    return linkFromActionToken(session, realm, token);
+  }
+  ;
 
   Optional<AuthenticatorConfigModel> getConfig(RealmModel realm) {
     // Using streams to find the first matching configuration
@@ -332,5 +437,143 @@ public class Utils {
     public String getHtmlBody() {
       return htmlBody;
     }
+  }
+
+  protected static String getOtpAddress(
+      Utils.MessageCourier courier,
+      boolean deferredUser,
+      AuthenticatorConfigModel config,
+      AuthenticationSessionModel authSession,
+      UserModel user) {
+    String mobileNumber = null;
+    String emailAddress = null;
+
+    if (deferredUser) {
+      String mobileNumberAttribute = config.getConfig().get(Utils.TEL_USER_ATTRIBUTE);
+      mobileNumber = authSession.getAuthNote(mobileNumberAttribute);
+      emailAddress = authSession.getAuthNote("email");
+    } else {
+      mobileNumber = Utils.getMobile(config, user);
+      emailAddress = user.getEmail();
+    }
+    switch (courier) {
+      case EMAIL:
+        return obscureEmail(emailAddress);
+      case SMS:
+        return obscurePhoneNumber(mobileNumber);
+      case BOTH:
+        return emailAddress != null ? obscureEmail(emailAddress) : obscurePhoneNumber(mobileNumber);
+    }
+    return emailAddress;
+  }
+
+  protected static String obscurePhoneNumber(String phoneNumber) {
+    if (phoneNumber == null) {
+      return phoneNumber;
+    }
+    return phoneNumber.substring(0, 4)
+        + "*".repeat(phoneNumber.length() - 7)
+        + phoneNumber.substring(phoneNumber.length() - 3);
+  }
+
+  protected static String obscureEmail(String email) {
+    int atIndex = email.indexOf('@');
+    if (atIndex == -1 || atIndex < 2) {
+      return email;
+    }
+
+    String firstPart = email.substring(0, 2);
+    String domainPart = email.substring(atIndex + 1);
+    String maskedLocal = firstPart + "*".repeat(atIndex - 2);
+
+    int lastDotIndex = domainPart.lastIndexOf('.');
+    String domain, tld;
+
+    if (lastDotIndex != -1) {
+      domain = domainPart.substring(0, lastDotIndex);
+      tld = domainPart.substring(lastDotIndex);
+    } else {
+      domain = domainPart;
+      tld = "";
+    }
+
+    String maskedDomain = domain;
+    if (domain.length() >= 2) {
+      maskedDomain = "*".repeat(domain.length() - 2) + domain.substring(domain.length() - 2);
+    }
+    return maskedLocal + "@" + maskedDomain + tld;
+  }
+
+  public static void sendConfirmation(
+      KeycloakSession session,
+      RealmModel realm,
+      UserModel user,
+      MessageCourier messageCourier,
+      String mobileNumber)
+      throws EmailException, IOException {
+    log.info("sendConfirmation(): start");
+    String realName = realm.getName();
+    // Send a confirmation email
+    EmailTemplateProvider emailTemplateProvider = session.getProvider(EmailTemplateProvider.class);
+
+    // We get the username we are going to provide the user in other to login. It's going to be
+    // either email or mobileNumber.
+    String username = user.getEmail() != null ? user.getEmail() : mobileNumber;
+    log.infov("sendConfirmation(): username {0}", username);
+    log.infov("sendConfirmation(): messageCourier {0}", messageCourier);
+
+    String email = user.getEmail();
+
+    if (email != null
+        && email.trim().length() > 0
+        && (MessageCourier.EMAIL.equals(messageCourier)
+            || MessageCourier.BOTH.equals(messageCourier))) {
+      log.infov("sendConfirmation(): sending email", username);
+      List<Object> subjAttr = ImmutableList.of(realName);
+      Map<String, Object> messageAttributes = Maps.newHashMap();
+      messageAttributes.put("realmName", realName);
+      messageAttributes.put("username", username);
+
+      emailTemplateProvider
+          .setRealm(realm)
+          .setUser(user)
+          .setAttribute("realmName", realName)
+          .setAttribute("username", username)
+          .send(SEND_SUCCESS_EMAIL_SUBJECT, subjAttr, SEND_SUCCESS_EMAIL_FTL, messageAttributes);
+    }
+
+    if (mobileNumber != null
+        && mobileNumber.trim().length() > 0
+        && (MessageCourier.SMS.equals(messageCourier)
+            || MessageCourier.BOTH.equals(messageCourier))) {
+      log.infov("sendConfirmation(): sending sms", username);
+
+      SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
+      log.infov("sendCode(): Sending SMS to=`{0}`", mobileNumber.trim());
+      log.infov("sendCode(): Sending SMS to=`{0}`", mobileNumber.trim());
+      List<String> smsAttributes = ImmutableList.of(realName, username);
+
+      smsSenderProvider.send(
+          mobileNumber.trim(), SEND_SUCCESS_SMS_I18N_KEY, smsAttributes, realm, user, session);
+    }
+  }
+
+  public void buildEventDetails(AuthenticationFlowContext context) {
+    AuthenticationSessionModel authSession = context.getAuthenticationSession();
+    String email = authSession.getAuthNote(Details.EMAIL);
+    String firstName = authSession.getAuthNote(UserModel.FIRST_NAME);
+    String lastName = authSession.getAuthNote(UserModel.LAST_NAME);
+    String idNumber = authSession.getAuthNote(ID_NUMBER);
+    String userId = context.getAuthenticationSession().getAuthNote(USER_ID);
+    String phoneNumber = context.getAuthenticationSession().getAuthNote(PHONE_NUMBER_ATTRIBUTE);
+
+    context.getEvent().user(userId);
+    context.getEvent().detail(Details.EMAIL, email);
+    context.getEvent().detail(ID_NUMBER, idNumber);
+    context.getEvent().detail(Details.FIRST_NAME, firstName);
+    context.getEvent().detail(Details.LAST_NAME, lastName);
+    context.getEvent().detail(PHONE_NUMBER, phoneNumber);
+
+    context.getEvent().getEvent();
   }
 }

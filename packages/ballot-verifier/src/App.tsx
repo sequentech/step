@@ -17,6 +17,8 @@ import {LoginScreen} from "./screens/LoginScreen"
 import {SettingsContext} from "./providers/SettingsContextProvider"
 import {useAppSelector} from "./store/hooks"
 import {selectFirstBallotStyle} from "./store/ballotStyles/ballotStylesSlice"
+import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
+import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
 
 const StyledApp = styled(Stack)`
     min-height: 100vh;
@@ -32,17 +34,25 @@ const HeaderWithContext: React.FC = () => {
     let languagesList = presentation?.language_conf?.enabled_language_codes ?? ["en"]
     let showUserProfile = presentation?.show_user_profile ?? true
 
+    const logoImg =
+        presentation?.logo_url === undefined
+            ? BlankLogoImg
+            : presentation?.logo_url === null
+            ? SequentLogo
+            : presentation?.logo_url
+
     return (
         <Header
             appVersion={{main: "10.4.2"}}
             userProfile={{
+                firstName: authContext.firstName,
                 username: authContext.username,
                 email: authContext.email,
                 openLink: showUserProfile ? authContext.openProfileLink : undefined,
             }}
             logoutFn={authContext.isAuthenticated ? authContext.logout : undefined}
             languagesList={languagesList}
-            logoUrl={presentation?.logo_url}
+            logoUrl={logoImg}
         />
     )
 }

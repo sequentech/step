@@ -11,6 +11,7 @@ use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 use windmill::services::database::get_hasura_pool;
+use windmill::tasks::miru_plugin_tasks::upload_signature_task;
 use windmill::{
     services::{
         celery_app::get_celery_app,
@@ -26,6 +27,7 @@ pub struct CreateTransmissionPackageInput {
     election_id: String,
     area_id: String,
     tally_session_id: String,
+    force: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -42,7 +44,7 @@ pub async fn create_transmission_package(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::TALLY_WRITE],
+        vec![Permissions::MIRU_CREATE],
     )?;
     let celery_app = get_celery_app().await;
     let task = celery_app
@@ -51,6 +53,7 @@ pub async fn create_transmission_package(
             body.election_id.clone(),
             body.area_id.clone(),
             body.tally_session_id.clone(),
+            body.force,
         ))
         .await
         .map_err(|error| {
@@ -84,25 +87,12 @@ pub async fn send_transmission_package(
     input: Json<SendTransmissionPackageInput>,
 ) -> Result<Json<SendTransmissionPackageOutput>, (Status, String)> {
     let body = input.into_inner();
-    info!("FFF claims {:?}", claims);
-    let authorizations = vec![
-        authorize(
-            &claims,
-            true,
-            Some(claims.hasura_claims.tenant_id.clone()),
-            vec![Permissions::TALLY_WRITE],
-        ),
-        authorize(
-            &claims,
-            true,
-            Some(claims.hasura_claims.tenant_id.clone()),
-            vec![Permissions::TRUSTEE_WRITE],
-        ),
-    ];
-    if !authorizations.iter().any(|val| val.is_ok()) {
-        authorizations[0].clone()?;
-        authorizations[1].clone()?;
-    }
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::MIRU_SEND],
+    )?;
     let celery_app = get_celery_app().await;
     let task = celery_app
         .send_task(send_transmission_package_task::new(
@@ -128,7 +118,8 @@ pub struct UploadSignatureInput {
     election_id: String,
     area_id: String,
     tally_session_id: String,
-    private_key: String,
+    document_id: String,
+    password: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -145,7 +136,7 @@ pub async fn upload_signature(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::TRUSTEE_WRITE],
+        vec![Permissions::MIRU_SIGN],
     )?;
 
     let Some(username) = claims.preferred_username.clone() else {
@@ -155,34 +146,17 @@ pub async fn upload_signature(
         ));
     };
 
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-
-    let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-
-    upload_transmission_package_signature_service(
-        &hasura_transaction,
-        &claims.hasura_claims.tenant_id,
-        &username,
-        &body.election_id,
-        &body.area_id,
-        &body.tally_session_id,
-        &body.private_key,
+    upload_signature_task(
+        claims.hasura_claims.tenant_id.clone(),
+        body.election_id.clone(),
+        body.area_id.clone(),
+        body.tally_session_id.clone(),
+        username,
+        body.document_id.clone(),
+        body.password.clone(),
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-
-    hasura_transaction
-        .commit()
-        .await
-        .with_context(|| "error comitting transaction")
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    .map_err(|err| (Status::InternalServerError, format!("{}", err)))?;
 
     Ok(Json(UploadSignatureOutput {}))
 }

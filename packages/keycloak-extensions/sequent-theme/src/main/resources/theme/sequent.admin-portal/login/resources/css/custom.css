@@ -271,3 +271,12 @@ button#kc-current-locale-link img {
 .pf-c-form__label-text {
     font-weight: bold;
 }
+
+button#resend-otp-btn {
+    background: initial;
+    text-wrap: wrap;
+}
+
+button#resend-otp-btn:hover {
+    text-decoration: underline;
+}

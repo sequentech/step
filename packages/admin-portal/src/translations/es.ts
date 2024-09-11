@@ -272,7 +272,6 @@ const spanishTranslation: TranslationType = {
                 materialActivated: "Materiales de Soporte activados",
                 materialTitle: "Titulo",
                 materialSubTitle: "Subtitulo",
-                hideAudit: "Deshabilitar Soporte de Auditoría de la Papeleta",
                 logoUrl: "Logo URL",
                 redirectFinishUrl: "URL de redirección al finalizar",
                 css: "CSS personalizado",
@@ -640,6 +639,10 @@ const spanishTranslation: TranslationType = {
                 "document-write": "Editar Documentos",
                 "support-material-read": "Leer Materiales de Soporte",
                 "support-material-write": "Editar Materiales de Soporte",
+                "miru-create": "Miru Create",
+                "miru-download": "Miru Download",
+                "miru-send": "Miru Send",
+                "miru-sign": "Miru Sign",
             },
         },
         generalSettingsScreen: {
@@ -687,6 +690,7 @@ const spanishTranslation: TranslationType = {
                 en: "Inglés",
                 fr: "Francés",
                 cat: "Valenciano",
+                tl: "Tagalo",
             },
             channel: {
                 online: "En línea",
@@ -812,7 +816,21 @@ const spanishTranslation: TranslationType = {
                 "custom": "Personalizado",
                 "alphabetical": "Alfabético",
             },
+            auditButtonConfig: {
+                "label": "Opciones de visualización del botón de auditoría",
+                "show": "Mostrar",
+                "not-show": "No mostrar",
+                "show-in-help": "Mostrar en el cuadro de diálogo de ayuda",
+            },
+            underVotePolicy: {
+                "label": "Política de Subvoto",
+                "allowed": "Permitido",
+                "warn-only-in-review": "Advertir en Revisión",
+                "warn": "Advertir",
+                "warn-and-alert": "Advertir y Alertar",
+            },
             invalidVotePolicy: {
+                "label": "Política de Voto Inválido",
                 "allowed": "Permitido",
                 "warn": "Advertencia",
                 "warn-invalid-implicit-and-explicit": "Advertir Inválidos Implícitos y Explícitos",
@@ -827,8 +845,18 @@ const spanishTranslation: TranslationType = {
             blankVotePolicy: {
                 "label": "Política de voto en blanco",
                 "allowed": "Permitido",
+                "warn-only-in-review": "Advertir en Revisión",
                 "warn": "Advertir",
                 "not-allowed": "No permitido",
+            },
+            overVotePolicy: {
+                "label": "Política de voto excesivo",
+                "allowed": "Permitido",
+                "allowed-with-msg": "Permitido con un mensaje de warning",
+                "allowed-with-msg-and-alert": "Permitido con un mensaje de warning y alerta",
+                "not-allowed-with-msg-and-alert": "No permitido con un mensaje de warning y alerta",
+                "not-allowed-with-msg-and-disable":
+                    "No permitido con un mensaje de warning y dehabilitar selecciones adicionales",
             },
             paginationPolicy: {
                 label: "Nombre de la página",
@@ -941,6 +969,19 @@ const spanishTranslation: TranslationType = {
                 description:
                     "Te permite exportar un Paquete de Transmisión a los Servidores de Destino o descargarlo.",
                 actions: {
+                    sign: {
+                        title: "Regenerar",
+                        dialog: {
+                            title: "¿Desea firmar el paquete de transmisión?",
+                            description:
+                                "Por favor, confirme que desea regenerar el paquete de transmisión para el área `{{name}}`",
+                            confirm: "Firmar paquete de transmisión",
+                            cancel: "Cerrar",
+                            input: {
+                                placeholder: "Ingrese su contraseña",
+                            },
+                        },
+                    },
                     send: {
                         title: "Enviar",
                         dialog: {
@@ -951,9 +992,20 @@ const spanishTranslation: TranslationType = {
                             cancel: "Cerrar",
                         },
                     },
+                    regenerate: {
+                        title: "Regenerar",
+                        dialog: {
+                            title: "¿Desea regenerar el paquete de transmisión?",
+                            description:
+                                "Por favor confirme que desea regenerar el paquete de transmisión para el área `{{name}}`",
+                            confirm: "Regenerar paquete de transmisión",
+                            cancel: "Cerrar",
+                        },
+                    },
                     download: {
                         title: "Descargar",
-                        itemTitle: "Descargar el Paquete de Transmisión",
+                        emlTitle: "Download EML",
+                        transmissionPackageTitle: "Descargar el Paquete de Transmisión",
                         dialog: {
                             title: "¿Quieres descargar el Paquete de Transmisión?",
                             description:
@@ -1209,6 +1261,12 @@ const spanishTranslation: TranslationType = {
                 census: "Censo",
             },
             common: {
+                tallyCeremony: {
+                    manage: "Gestionar la Ceremonia de Cómputo",
+                    view: "Ver la Ceremonia de Cómputo",
+                    cancel: "Cancelar la Ceremonia de Cómputo",
+                    addKey: "Agregar Clave de Cómputo",
+                },
                 edit: "Editar",
                 confirm: "Confirmar",
                 back: "Atras",

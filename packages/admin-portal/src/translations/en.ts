@@ -1,5 +1,8 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
+
+import {Placeholder} from "react-admin"
+
 // SPDX-License-Identifier: AGPL-3.0-only
 const englishTranslation = {
     translations: {
@@ -270,7 +273,6 @@ const englishTranslation = {
                 materialActivated: "Support Materials Activated",
                 materialTitle: "Title",
                 materialSubTitle: "Subtitle",
-                hideAudit: "Disable Ballot Audit Support",
                 logoUrl: "Logo URL",
                 redirectFinishUrl: "Redirect Finish URL",
                 css: "Custom CSS",
@@ -636,6 +638,10 @@ const englishTranslation = {
                 "document-write": "Edit Documents",
                 "support-material-read": "Read Support Materials",
                 "support-material-write": "Edit Support Materials",
+                "miru-create": "Miru Create",
+                "miru-download": "Miru Download",
+                "miru-send": "Miru Send",
+                "miru-sign": "Miru Sign",
             },
         },
         generalSettingsScreen: {
@@ -683,6 +689,7 @@ const englishTranslation = {
                 en: "English",
                 fr: "French",
                 cat: "Valencian",
+                tl: "Tagalog",
             },
             channel: {
                 online: "Online",
@@ -808,7 +815,21 @@ const englishTranslation = {
                 "custom": "Custom",
                 "alphabetical": "Alphabetical",
             },
+            auditButtonConfig: {
+                "label": "Audit Button Display Options",
+                "show": "Show",
+                "not-show": "Not Show",
+                "show-in-help": "Show In Help Dialog",
+            },
+            underVotePolicy: {
+                "label": "Under Vote Policy",
+                "allowed": "Allowed",
+                "warn-only-in-review": "Warn in Review",
+                "warn": "Warn",
+                "warn-and-alert": "Warn and Alert",
+            },
             invalidVotePolicy: {
+                "label": "Invalid Vote Policy",
                 "allowed": "Allowed",
                 "warn": "Warn",
                 "warn-invalid-implicit-and-explicit": "Warn Invalid Implicit And Explicit",
@@ -823,8 +844,18 @@ const englishTranslation = {
             blankVotePolicy: {
                 "label": "Blank Vote Policy",
                 "allowed": "Allowed",
+                "warn-only-in-review": "Warn in Review",
                 "warn": "Warn",
                 "not-allowed": "Not Allowed",
+            },
+            overVotePolicy: {
+                "label": "Over Vote Policy",
+                "allowed": "Allowed",
+                "allowed-with-msg": "Allowed with Warning Message",
+                "allowed-with-msg-and-alert": "Allowed with Warning message and Alert",
+                "not-allowed-with-msg-and-alert": "Not Allowed with Warning message and Alert",
+                "not-allowed-with-msg-and-disable":
+                    "Not Allowed with Warning message and Disable further selections",
             },
             paginationPolicy: {
                 label: "Page Name",
@@ -946,9 +977,33 @@ const englishTranslation = {
                             cancel: "Close",
                         },
                     },
+                    regenerate: {
+                        title: "Regenerate",
+                        dialog: {
+                            title: "Do you want to regenerate the Transmission Package?",
+                            description:
+                                "Please confirm you want to regenerate the Transmission Package for Area `{{name}}`",
+                            confirm: "Regenerate Transmission Package",
+                            cancel: "Close",
+                        },
+                    },
+                    sign: {
+                        title: "Regenerate",
+                        dialog: {
+                            title: "Do you want to sign the Transmission Package?",
+                            description:
+                                "Please confirm you want to regenerate the Transmission Package for Area `{{name}}`",
+                            confirm: "Sign Transmission Package",
+                            cancel: "Close",
+                            input: {
+                                placeholder: "Enter your password",
+                            },
+                        },
+                    },
                     download: {
                         title: "Download",
-                        itemTitle: "Download Transmission Package",
+                        emlTitle: "Download EML",
+                        transmissionPackageTitle: "Download Transmission Package",
                         dialog: {
                             title: "Do you want to Download the Transmission Package?",
                             description:
@@ -972,7 +1027,7 @@ const englishTranslation = {
                     title: "SBEI Signatures",
                     description:
                         "SBEIs can sign the Transmission Package. The table below shows the signing status of each of the SBEI members.",
-                    status: "{{signed}} out of {{total}} Signed",
+                    status: "{{signed}} out of {{total}} Signed, {{minimum}} minimum",
                     table: {
                         trusteeName: "Trustee Name",
                         signed: "Has Signed",
@@ -1202,6 +1257,12 @@ const englishTranslation = {
                 census: "Census",
             },
             common: {
+                tallyCeremony: {
+                    manage: "Manage Tally Ceremony",
+                    view: "View Tally Ceremony",
+                    cancel: "Cancel Tally Ceremony",
+                    addKey: "Add Tally Key",
+                },
                 edit: "Edit",
                 confirm: "Confirm",
                 back: "Back",

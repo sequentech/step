@@ -4,9 +4,12 @@
 
 package sequent.keycloak.conditional_authenticators;
 
+import static sequent.keycloak.authenticator.Utils.sendConfirmation;
+
 import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.Response;
 import java.util.List;
+import java.util.Optional;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.TokenVerifier.Predicate;
 import org.keycloak.authentication.actiontoken.AbstractActionTokenHandler;
@@ -15,27 +18,34 @@ import org.keycloak.authentication.actiontoken.ActionTokenHandlerFactory;
 import org.keycloak.authentication.actiontoken.TokenUtils;
 import org.keycloak.events.Errors;
 import org.keycloak.events.EventType;
+import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.UserModel;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.services.managers.AuthenticationManager;
 import org.keycloak.services.messages.Messages;
 import org.keycloak.sessions.AuthenticationSessionModel;
+import sequent.keycloak.authenticator.Utils.MessageCourier;
+import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
+import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
 
 @JBossLog
 @AutoService(ActionTokenHandlerFactory.class)
 public class ManualVerificationTokenHandler
     extends AbstractActionTokenHandler<ManualVerificationToken> {
+
+  // TODO: Make it configurable
   public static final String VERIFIED_ATTRIBUTE = "sequent.read-only.id-card-number-validated";
+  public static final String TEL_USER_ATTRIBUTE = "sequent.read-only.mobile-number";
   public static final String VERIFIED_VALUE = "VERIFIED";
 
   public ManualVerificationTokenHandler() {
     super(
-        /* id = */ ManualVerificationToken.TOKEN_TYPE,
-        /* tokenClass = */ ManualVerificationToken.class,
-        /* defaultErrorMessage = */ Messages.INVALID_CODE,
-        /* defaultEventType = */ EventType.RESET_PASSWORD,
-        /* defaultEventError = */ Errors.NOT_ALLOWED);
+        /* id= */ ManualVerificationToken.TOKEN_TYPE,
+        /* tokenClass= */ ManualVerificationToken.class,
+        /* defaultErrorMessage= */ Messages.INVALID_CODE,
+        /* defaultEventType= */ EventType.RESET_PASSWORD,
+        /* defaultEventError= */ Errors.NOT_ALLOWED);
 
     log.info("ManualVerificationTokenHandler");
   }
@@ -79,7 +89,7 @@ public class ManualVerificationTokenHandler
     String redirectUri = token.getRedirectUri();
 
     if (redirectUri != null) {
-      log.info("handleToken(): setting redirectUri=" + redirectUri);
+      log.infov("handleToken(): setting redirectUri={0}", redirectUri);
       authSession.setAuthNote(
           AuthenticationManager.SET_REDIRECT_URI_AFTER_REQUIRED_ACTIONS, "true");
 
@@ -91,11 +101,59 @@ public class ManualVerificationTokenHandler
 
     user.setEmailVerified(true);
     user.setAttribute(VERIFIED_ATTRIBUTE, List.of(VERIFIED_VALUE));
-    log.info(
-        "handleToken(): user.VERIFIED_ATTRIBUTE = " + user.getFirstAttribute(VERIFIED_ATTRIBUTE));
+    log.infov(
+        "handleToken(): user.VERIFIED_ATTRIBUTE = {0}", user.getFirstAttribute(VERIFIED_ATTRIBUTE));
 
     authSession.addRequiredAction(UserModel.RequiredAction.UPDATE_PASSWORD.name());
     user.addRequiredAction(UserModel.RequiredAction.UPDATE_PASSWORD.name());
+
+    Optional<AuthenticatorConfigModel> config =
+        Utils.getConfig(tokenContext.getRealm(), ManualVerificationConfigAuthenticator.PROVIDER_ID);
+
+    String telUserAttribute =
+        config
+            .map(c -> c.getConfig().get(ManualVerificationConfigAuthenticator.TEL_USER_ATTRIBUTE))
+            .orElse(TEL_USER_ATTRIBUTE);
+
+    log.infov("handleToken(): telUserAttribute configuration {0}", telUserAttribute);
+    String mobile = user.getFirstAttribute(telUserAttribute);
+    log.infov("handleToken(): user mobile {0}", mobile);
+
+    var messageCourier =
+        config
+            .map(
+                c ->
+                    MessageCourier.fromString(
+                        c.getConfig()
+                            .get(ManualVerificationConfigAuthenticator.MESSAGE_COURIER_ATTRIBUTE)))
+            .orElse(MessageCourier.BOTH);
+    log.infov("handleToken(): messageCourier configuration {0}", messageCourier);
+
+    try {
+      sendConfirmation(
+          tokenContext.getSession(), tokenContext.getRealm(), user, messageCourier, mobile);
+    } catch (Exception error) {
+      error.printStackTrace();
+    }
+
+    boolean auto2FA =
+        config
+            .map(
+                c ->
+                    Boolean.parseBoolean(
+                        c.getConfig().get(ManualVerificationConfigAuthenticator.AUTO_2FA)))
+            .orElse(false);
+    log.infov("handleToken(): auto2FA configuration {0}", auto2FA);
+
+    if (auto2FA) {
+      // Generate a MessageOTP credential for the user and remove the required
+      // action
+      MessageOTPCredentialProvider credentialProvider =
+          getCredentialProvider(tokenContext.getSession());
+      credentialProvider.createCredential(
+          tokenContext.getRealm(), user, MessageOTPCredentialModel.create(/* isSetup= */ true));
+    }
+
     tokenContext.getEvent().success();
     tokenContext.setEvent(tokenContext.getEvent().clone().event(EventType.LOGIN));
 
@@ -111,5 +169,16 @@ public class ManualVerificationTokenHandler
   public boolean canUseTokenRepeatedly(
       ManualVerificationToken token, ActionTokenContext<ManualVerificationToken> tokenContext) {
     return false;
+  }
+
+  public MessageOTPCredentialProvider getCredentialProvider(KeycloakSession session) {
+    log.info("getCredentialProvider()");
+    return new MessageOTPCredentialProvider(session);
+    // TODO: doesn't work - why?
+    // return (MessageOTPCredentialProvider) session
+    // 	.getProvider(
+    // 		CredentialProvider.class,
+    // 		MessageOTPCredentialProviderFactory.PROVIDER_ID
+    // 	);
   }
 }

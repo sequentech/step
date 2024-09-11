@@ -351,6 +351,7 @@ impl Candidate {
     Clone,
     EnumString,
     Display,
+    Default,
 )]
 pub enum CandidatesOrder {
     #[strum(serialize = "random")]
@@ -361,12 +362,8 @@ pub enum CandidatesOrder {
     Custom,
     #[strum(serialize = "alphabetical")]
     #[serde(rename = "alphabetical")]
+    #[default]
     Alphabetical,
-}
-impl Default for CandidatesOrder {
-    fn default() -> Self {
-        CandidatesOrder::Alphabetical
-    }
 }
 
 #[derive(
@@ -381,6 +378,7 @@ impl Default for CandidatesOrder {
     Clone,
     EnumString,
     Display,
+    Default,
 )]
 pub enum ContestsOrder {
     #[strum(serialize = "random")]
@@ -391,12 +389,36 @@ pub enum ContestsOrder {
     Custom,
     #[strum(serialize = "alphabetical")]
     #[serde(rename = "alphabetical")]
+    #[default]
     Alphabetical,
 }
-impl Default for ContestsOrder {
-    fn default() -> Self {
-        ContestsOrder::Alphabetical
-    }
+
+#[allow(non_camel_case_types)]
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+    Default,
+)]
+pub enum AuditButtonCfg {
+    #[strum(serialize = "show")]
+    #[serde(rename = "show")]
+    #[default]
+    SHOW,
+    #[strum(serialize = "not-show")]
+    #[serde(rename = "not-show")]
+    NOT_SHOW,
+    #[strum(serialize = "show-in-help")]
+    #[serde(rename = "show-in-help")]
+    SHOW_IN_HELP,
 }
 
 #[derive(
@@ -411,6 +433,7 @@ impl Default for ContestsOrder {
     Clone,
     EnumString,
     Display,
+    Default,
 )]
 pub enum ElectionsOrder {
     #[strum(serialize = "random")]
@@ -421,12 +444,8 @@ pub enum ElectionsOrder {
     Custom,
     #[strum(serialize = "alphabetical")]
     #[serde(rename = "alphabetical")]
+    #[default]
     Alphabetical,
-}
-impl Default for ElectionsOrder {
-    fn default() -> Self {
-        ElectionsOrder::Alphabetical
-    }
 }
 
 #[derive(
@@ -469,10 +488,12 @@ pub struct Election {
     Clone,
     EnumString,
     Display,
+    Default,
 )]
 pub enum InvalidVotePolicy {
     #[strum(serialize = "allowed")]
     #[serde(rename = "allowed")]
+    #[default]
     ALLOWED,
     #[strum(serialize = "warn")]
     #[serde(rename = "warn")]
@@ -483,12 +504,6 @@ pub enum InvalidVotePolicy {
     #[strum(serialize = "not-allowed")]
     #[serde(rename = "not-allowed")]
     NOT_ALLOWED,
-}
-
-impl Default for InvalidVotePolicy {
-    fn default() -> Self {
-        InvalidVotePolicy::ALLOWED
-    }
 }
 
 #[derive(
@@ -565,7 +580,6 @@ pub struct ElectionEventPresentation {
     pub logo_url: Option<String>,
     pub redirect_finish_url: Option<String>,
     pub css: Option<String>,
-    pub hide_audit: Option<bool>,
     pub skip_election_list: Option<bool>,
     pub show_user_profile: Option<bool>, // default is true
     pub elections_order: Option<ElectionsOrder>,
@@ -662,23 +676,89 @@ pub enum ECountdownPolicy {
     Clone,
     EnumString,
     Display,
+    Default,
 )]
-pub enum EBlankVotePolicy {
+pub enum EUnderVotePolicy {
     #[strum(serialize = "allowed")]
     #[serde(rename = "allowed")]
+    #[default]
     ALLOWED,
     #[strum(serialize = "warn")]
     #[serde(rename = "warn")]
     WARN,
+    #[strum(serialize = "warn-only-in-review")]
+    #[serde(rename = "warn-only-in-review")]
+    WARN_ONLY_IN_REVIEW,
+    #[strum(serialize = "warn-and-alert")]
+    #[serde(rename = "warn-and-alert")]
+    WARN_AND_ALERT,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Copy,
+    Clone,
+    EnumString,
+    Display,
+    Default,
+)]
+pub enum EBlankVotePolicy {
+    #[strum(serialize = "allowed")]
+    #[serde(rename = "allowed")]
+    #[default]
+    ALLOWED,
+    #[strum(serialize = "warn")]
+    #[serde(rename = "warn")]
+    WARN,
+    #[strum(serialize = "warn-only-in-review")]
+    #[serde(rename = "warn-only-in-review")]
+    WARN_ONLY_IN_REVIEW,
     #[strum(serialize = "not-allowed")]
     #[serde(rename = "not-allowed")]
     NOT_ALLOWED,
 }
 
-impl Default for EBlankVotePolicy {
-    fn default() -> Self {
-        EBlankVotePolicy::ALLOWED
-    }
+#[allow(non_camel_case_types)]
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Copy,
+    Clone,
+    EnumString,
+    Display,
+    Default,
+)]
+pub enum EOverVotePolicy {
+    #[strum(serialize = "allowed")]
+    #[serde(rename = "allowed")]
+    ALLOWED,
+    #[strum(serialize = "allowed-with-msg")]
+    #[serde(rename = "allowed-with-msg")]
+    ALLOWED_WITH_MSG,
+    #[strum(serialize = "allowed-with-msg-and-alert")]
+    #[serde(rename = "allowed-with-msg-and-alert")]
+    #[default]
+    ALLOWED_WITH_MSG_AND_ALERT,
+    #[strum(serialize = "not-allowed-with-msg-and-alert")]
+    #[serde(rename = "not-allowed-with-msg-and-alert")]
+    NOT_ALLOWED_WITH_MSG_AND_ALERT,
+    #[strum(serialize = "not-allowed-with-msg-and-disable")]
+    #[serde(rename = "not-allowed-with-msg-and-disable")]
+    NOT_ALLOWED_WITH_MSG_AND_DISABLE,
 }
 
 #[derive(
@@ -698,6 +778,7 @@ pub struct ElectionPresentation {
     pub dates: Option<ElectionDates>,
     pub language_conf: Option<ElectionEventLanguageConf>,
     pub contests_order: Option<ContestsOrder>,
+    pub audit_button_cfg: Option<AuditButtonCfg>,
     pub sort_order: Option<i64>,
     pub cast_vote_confirm: Option<bool>,
 }
@@ -756,7 +837,9 @@ pub struct ContestPresentation {
     pub allow_writeins: Option<bool>,
     pub base32_writeins: Option<bool>,
     pub invalid_vote_policy: Option<InvalidVotePolicy>, /* allowed|warn|warn-invalid-implicit-and-explicit */
+    pub under_vote_policy: Option<EUnderVotePolicy>,
     pub blank_vote_policy: Option<EBlankVotePolicy>,
+    pub over_vote_policy: Option<EOverVotePolicy>,
     pub pagination_policy: Option<String>,
     pub cumulative_number_of_checkboxes: Option<u64>,
     pub shuffle_categories: Option<bool>,
@@ -768,7 +851,6 @@ pub struct ContestPresentation {
     pub max_selections_per_type: Option<u64>,
     pub types_presentation: Option<HashMap<String, Option<TypePresentation>>>,
     pub sort_order: Option<i64>,
-    pub under_vote_alert: Option<bool>,
 }
 
 impl ContestPresentation {
@@ -779,6 +861,7 @@ impl ContestPresentation {
             base32_writeins: Some(true),
             invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
             blank_vote_policy: Some(EBlankVotePolicy::ALLOWED),
+            over_vote_policy: Some(EOverVotePolicy::ALLOWED),
             pagination_policy: Some("".to_owned()),
             cumulative_number_of_checkboxes: None,
             shuffle_categories: Some(false),
@@ -790,7 +873,7 @@ impl ContestPresentation {
             max_selections_per_type: None,
             types_presentation: None,
             sort_order: None,
-            under_vote_alert: Some(false),
+            under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
         }
     }
 }

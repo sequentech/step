@@ -12,13 +12,18 @@ export interface IMiruSignature {
 
 export interface IMiruServersSentTo {
     name: string
-    document_id: string
     sent_at: string
+}
+
+export interface IMiruDocumentIds {
+    eml: string
+    xz: string
+    all_servers: string
 }
 
 // MiruDocument interface
 export interface IMiruDocument {
-    document_id: string
+    document_ids: IMiruDocumentIds
     servers_sent_to: Array<IMiruServersSentTo>
     transaction_id: string
     created_at: string
@@ -39,6 +44,7 @@ export interface IMiruTransmissionPackageData {
     servers: Array<IMiruCcsServer>
     documents: Array<IMiruDocument>
     logs: Array<ILog>
+    threshold: number
 }
 
 // MiruTallySessionData type alias

@@ -18,7 +18,7 @@ SPDX-License-Identifier: AGPL-3.0-only
             <@userProfileCommons.userProfileFormFields; callback, attribute>
                 <#if callback = "afterField">
                 <#-- render password fields just under the username or email (if used as username) -->
-                    <#if passwordRequired?? && (attribute.name == 'username' || (attribute.name == 'email' && realm.registrationEmailAsUsername))>
+                    <#if passwordRequired?? && (attribute.name == 'username' || (attribute.name == 'email' && realm.registrationEmailAsUsername)) && (attribute.annotations.showPasswordAfterThis!'true') != 'false' || (attribute.annotations.showPasswordAfterThis!'false') == 'true'>
                         <div class="${properties.kcFormGroupClass!}">
                             <div class="${properties.kcLabelWrapperClass!}">
                                 <label for="password" class="${properties.kcLabelClass!}">${msg("password")}</label> *
@@ -145,6 +145,9 @@ SPDX-License-Identifier: AGPL-3.0-only
                     utilsScript: "${url.resourcesPath}/intl-tel-input-23.3.2/js/utils.js",
                     initialCountry: "auto",
                     separateDialCode: true,
+					customPlaceholder: function(selectedCountryPlaceholder, selectedCountryData) {
+						return selectedCountryPlaceholder.replace(/\d/g, '0');
+					},
                     hiddenInput: () => ({ phone: id, country: "country_code" }),
                     geoIpLookup: function(success, failure) {
                         const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;

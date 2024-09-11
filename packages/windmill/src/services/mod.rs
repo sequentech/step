@@ -34,6 +34,7 @@ pub mod probe;
 pub mod protocol_manager;
 pub mod public_keys;
 pub mod s3;
+pub mod shell;
 pub mod tally_sheets;
 pub mod temp_path;
 pub mod to_result;
