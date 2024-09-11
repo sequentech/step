@@ -502,8 +502,6 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
         [tallySessionData, tally]
     )
 
-    console.log({disableSendButton})
-
     return (
         <>
             <TallyStyles.MiruHeader>
@@ -644,7 +642,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
                                 selectedTallySessionData?.documents.length - 1
                             ].signatures ?? []
                         }
-                        tallySessionExecution={tallySessionExecution}
+                        area={area}
                     />
                 </WizardStyles.AccordionDetails>
             </Accordion>
