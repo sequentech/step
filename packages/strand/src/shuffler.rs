@@ -90,10 +90,10 @@ pub struct ShuffleProof<C: Ctx> {
     pub(crate) c_hats: StrandVector<C::E>,
 }
 
-pub(super) struct PermutationData<'a, C: Ctx> {
-    pub(crate) permutation: &'a [usize],
-    pub(crate) commitments_c: &'a [C::E],
-    pub(crate) commitments_r: &'a [C::X],
+pub(super) struct PermutationData<C: Ctx> {
+    pub(crate) permutation: Vec<usize>,
+    pub(crate) commitments_c: Vec<C::E>,
+    pub(crate) commitments_r: Vec<C::X>,
 }
 
 /// Interface to ciphertext shuffling and verifying.
@@ -177,21 +177,21 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         e_primes: &[Ciphertext<C>],
         r_primes: Vec<C::X>,
         generators: Vec<C::E>,
-        perm: &[usize],
+        perm: Vec<usize>,
         label: &[u8],
     ) -> Result<ShuffleProof<C>, StrandError> {
         // let now = Instant::now(); println!("gen_commitments..");
-        let (cs, rs) = self.gen_commitments(perm, &generators, &self.ctx);
+        let (cs, rs) = self.gen_commitments(&perm, &generators, &self.ctx);
         // println!("gen_commitments {}", now.elapsed().as_millis());
 
         let perm_data = PermutationData {
             permutation: perm,
-            commitments_c: &cs,
-            commitments_r: &rs,
+            commitments_c: cs,
+            commitments_r: rs,
         };
 
         // let now = Instant::now();
-        let (proof, _, _) =
+        let (proof, _) =
             self.gen_proof_ext(es, e_primes, r_primes, generators, perm_data, label)?;
         // println!("gen_proof_ext {}", now.elapsed().as_millis());
 
@@ -199,8 +199,8 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
     }
 
     // gen_proof_ext has support for
-    // 1. Returns extra data used for coq test transcript
-    // 2. Allows passing in permutation data for multi-shuffling
+    // 1. Returns extra data used for coq test transcript >> UPDATE: removed will break 
+    // test_gen_coq_data() in rug.rs
     pub(super) fn gen_proof_ext(
         &self,
         es: &[Ciphertext<C>],
@@ -209,7 +209,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         generators: Vec<C::E>,
         perm_data: PermutationData<C>,
         label: &[u8],
-    ) -> Result<(ShuffleProof<C>, Vec<C::X>, C::X), StrandError> {
+    ) -> Result<(ShuffleProof<C>, /* Vec<C::X> ,*/ C::X), StrandError> {
         let ctx = &self.ctx;
         let mut rng = ctx.get_rng();
 
@@ -230,7 +230,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
 
         // COST
         // let now = Instant::now(); println!("shuffle proof us..");
-        let us = self.shuffle_proof_us(es, e_primes, cs, N, label)?;
+        let us = self.shuffle_proof_us(es, e_primes, &cs, N, label)?;
         // println!("shuffle proof us {}", now.elapsed().as_millis());
 
         let mut u_primes: Vec<&C::X> = Vec::with_capacity(N);
@@ -238,7 +238,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
             u_primes.push(&us[i]);
         }
 
-        drop(perm_data);
+        drop(perm);
 
         // COST
         // let now = Instant::now(); println!("gen_commitment_chain..");
@@ -268,6 +268,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         }
 
         drop(vs);
+        drop(rs);
         drop(r_primes);
 
         r_bar = r_bar.modq(ctx);
@@ -341,7 +342,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         let y = YChallengeInput {
             es,
             e_primes,
-            cs,
+            cs: &cs,
             c_hats: &c_hats,
             pk: self.pk,
         };
@@ -357,6 +358,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
 
         // COST
         let c: C::X = self.shuffle_proof_challenge(&y, &t, label)?;
+
         // println!("shuffle proof challenge {}", now.elapsed().as_millis());
         
         // let now = Instant::now(); println!("block 3..");
@@ -378,10 +380,11 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
             s_primes.push(next_s_prime);
         }
 
+        drop(u_primes);
+        drop(us);
         drop(y);
         drop(omega_hats);
         drop(omega_primes);
-        drop(u_primes);
 
         // println!("block 3 {}", now.elapsed().as_millis());
 
@@ -394,10 +397,6 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
             s_primes: StrandVector(s_primes),
         };
 
-        let cs = cs.to_vec();
-
-        // FIXME zeroize perm_data.perm and r_primes
-
         Ok((
             ShuffleProof {
                 t,
@@ -405,7 +404,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
                 cs: StrandVector(cs),
                 c_hats: StrandVector(c_hats),
             },
-            us,
+            // us,
             c,
         ))
     }
@@ -430,8 +429,6 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
 
         assert!(N == e_primes.len());
         assert!(N == h_generators.len());
-
-        // let gmod = ctx.modulus();
 
         let us: Vec<C::X> =
             self.shuffle_proof_us(es, e_primes, &proof.cs.0, N, label)?;
@@ -564,7 +561,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
 
         assert!(generators.len() == perm.len());
 
-        let (cs, rs): (Vec<C::E>, Vec<C::X>) = generators
+        let (mut cs, mut rs): (Vec<C::E>, Vec<C::X>) = generators
             .par()
             .map(|h| {
                 // It is idiomatic to unwrap on lock
@@ -579,11 +576,19 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
 
         let mut cs_permuted = vec![C::E::mul_identity(); perm.len()];
         let mut rs_permuted = vec![C::X::mul_identity(); perm.len()];
+        
+        for i in (0..perm.len()).rev() {
+            cs_permuted[perm[i]] = cs.remove(i);
+            rs_permuted[perm[i]] = rs.remove(i);
+        }
 
+        /* let mut cs_permuted = vec![C::E::mul_identity(); perm.len()];
+        let mut rs_permuted = vec![C::X::mul_identity(); perm.len()];
+        
         for i in 0..perm.len() {
             cs_permuted[perm[i]] = cs[i].clone();
             rs_permuted[perm[i]] = rs[i].clone();
-        }
+        }*/
 
         (cs_permuted, rs_permuted)
     }
@@ -638,11 +643,23 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         n: usize,
         label: &[u8],
     ) -> Result<Vec<C::X>, StrandError> {
-        let mut prefix_challenge_input = ChallengeInput::from(&[
+        // Copying
+        /* let mut prefix_challenge_input = ChallengeInput::from(&[
             ("es", &StrandVector(es.to_vec())),
             ("e_primes", &StrandVector(e_primes.to_vec())),
+        ])?;*/
+        let es = serialize_flatten(&es)?;
+        let e_primes = serialize_flatten(&e_primes)?;
+        
+        let mut prefix_challenge_input = ChallengeInput::from(&[
+            ("es", &es),
+            ("e_primes", &e_primes),
         ])?;
-        prefix_challenge_input.add("cs", &StrandVector::<C::E>(cs.to_vec()))?;
+        
+        // Copying
+        // prefix_challenge_input.add("cs", &StrandVector::<C::E>(cs.to_vec()))?;
+        let cs = serialize_flatten(&cs)?;
+        prefix_challenge_input.add("cs", &cs)?;
         prefix_challenge_input.add("label", &label.to_vec())?;
 
         let prefix_bytes = prefix_challenge_input.strand_serialize()?;
@@ -650,17 +667,20 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         // optimization: instead of calculating u = H(prefix || i),
         // we do u = H(H(prefix) || i)
         // that way we avoid allocating prefix-size bytes n times
-        let prefix_hash = crate::hash::hash(&prefix_bytes)?;
+        let prefix_hash = crate::hash::hash_to_array(&prefix_bytes)?;
 
         let us: Result<Vec<C::X>, StrandError> = (0..n)
             .par()
             .map(|i| {
-                let next = ChallengeInput::from_bytes(vec![
+                let next = [("prefix", &prefix_hash[0..]),
+                            ("counter", &i.to_le_bytes()[0..])];
+                /*let next = ChallengeInput::from_bytes(vec![
                     ("prefix", prefix_hash.clone()),
                     ("counter", i.to_le_bytes().to_vec()),
                 ]);
+                // let bytes = next.get_bytes();*/
+                let bytes = borsh::to_vec(&next).map_err(|e| e.into());
 
-                let bytes = next.get_bytes();
                 let z: Result<C::X, StrandError> = match bytes {
                     Err(e) => Err(e),
                     Ok(b) => Ok(self.ctx.hash_to_exp(&b)?),

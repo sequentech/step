@@ -479,7 +479,7 @@ pub struct ChaumPedersen<C: Ctx> {
     pub response: C::X,
 }
 
-#[derive(BorshSerialize, BorshDeserialize)]
+#[derive(BorshSerialize)]
 pub(crate) struct ChallengeInput(HashMap<String, Vec<u8>>);
 impl ChallengeInput {
     pub(crate) fn from<T: BorshSerialize>(

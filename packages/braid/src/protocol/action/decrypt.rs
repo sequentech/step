@@ -29,12 +29,6 @@ pub(super) fn compute_decryption_factors<C: Ctx>(
         .add_context("Computing decryption factors")?;
     let vk = pk.verification_keys[*self_p].clone();
 
-    let ciphertexts = trustee
-        .get_mix(ciphertexts_h, *batch, *mix_signer)
-        .add_context("Computing decryption factors")?;
-
-    let ciphertexts = ciphertexts.get_ref();
-
     let my_channel = trustee
         .get_channel(&ChannelHash(channels_hs.0[*self_p]), *self_p)
         .add_context("Computing decryption factors")?;
@@ -54,6 +48,12 @@ pub(super) fn compute_decryption_factors<C: Ctx>(
         secret = secret.modq(&ctx);
     }
 
+    let ciphertexts = trustee
+        .get_mix(ciphertexts_h, *batch, *mix_signer)
+        .add_context("Computing decryption factors")?;
+
+    let ciphertexts = ciphertexts.get_ref();
+    
     info!(
         "ComputeDecryptionFactors [{}] ({})..",
         dbg_hash(&ciphertexts_h.0),

@@ -52,7 +52,6 @@ struct Cli {
 }
 
 fn main() -> Result<()> {
-
     let args = Cli::parse();
 
     // let runtime = tokio::runtime::Builder::new_current_thread()

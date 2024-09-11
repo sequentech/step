@@ -168,7 +168,7 @@ impl SessionSet {
                     requests.push((session.board_name.to_string(), last_id));
                 }
  
-if (self.session_factory.trustee_name == "trustee1.toml".to_string()) && (loop_count > 5) && (requests[0].1 == 16 
+if (self.session_factory.trustee_name == "trustee3.toml".to_string()) && (loop_count > 5) && (requests[0].1 == 16 
     /* || requests[0].1 == 26*/
     ) {
     println!("*** Remove this code!");

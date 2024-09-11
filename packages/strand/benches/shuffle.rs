@@ -44,7 +44,7 @@ fn test_shuffle_generic<C: Ctx>(ctx: C, n: usize) {
 
     let (e_primes, rs, perm) = shuffler.gen_shuffle(&es);
     let proof = shuffler
-        .gen_proof(&es, &e_primes, rs, hs.clone(), &perm, &vec![])
+        .gen_proof(&es, &e_primes, rs, hs.clone(), perm, &vec![])
         .unwrap();
     let ok = shuffler
         .check_proof(&proof, &es, &e_primes, hs, &vec![])
