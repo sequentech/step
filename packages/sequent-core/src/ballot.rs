@@ -626,9 +626,6 @@ pub struct ElectionDates {
     pub end_date: Option<String>,
     pub scheduled_closing: Option<bool>,
     pub scheduled_opening: Option<bool>,
-    pub is_grace_priod: Option<bool>,
-    pub grace_period_policy: Option<EGracePeriodPolicy>,
-    pub grace_period_secs: Option<u64>,
 }
 
 #[derive(
@@ -806,7 +803,10 @@ pub struct ElectionPresentation {
     pub contests_order: Option<ContestsOrder>,
     pub audit_button_cfg: Option<AuditButtonCfg>,
     pub sort_order: Option<i64>,
-    pub cast_vote_confirm: Option<bool>, //
+    pub cast_vote_confirm: Option<bool>,
+    pub is_grace_priod: Option<bool>,
+    pub grace_period_policy: Option<EGracePeriodPolicy>,
+    pub grace_period_secs: Option<u64>,
 }
 
 #[derive(

@@ -17,9 +17,11 @@ use crate::{
 use anyhow::{anyhow, Context, Result};
 use board_messages::braid::message::Signer;
 use board_messages::electoral_log::newtypes::*;
+use chrono::{DateTime, Duration, Local, NaiveDateTime, Utc};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use rocket::futures::TryFutureExt;
+use sequent_core::ballot::EGracePeriodPolicy;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::ElectionPresentation;
 use sequent_core::ballot::ElectionStatus;
@@ -60,6 +62,7 @@ pub async fn try_insert_cast_vote(
     tenant_id: &str,
     voter_id: &str,
     area_id: &str,
+    auth_time: &Option<i64>,
 ) -> Result<InsertCastVoteOutput> {
     let mut hasura_db_client: DbClient = get_hasura_pool().await.get().await?;
     let hasura_transaction = hasura_db_client.transaction().await?;
@@ -107,6 +110,7 @@ pub async fn try_insert_cast_vote(
         election_id,
         auth_headers,
         &election_event,
+        auth_time,
     );
 
     // Transaction isolation begins at this future (unless above methods are
@@ -245,10 +249,22 @@ async fn check_status(
     election_id: &str,
     auth_headers: AuthHeaders,
     election_event: &GetElectionEventSequentBackendElectionEvent,
+    auth_time: &Option<i64>,
 ) -> anyhow::Result<()> {
     if election_event.is_archived {
         return Err(anyhow!("Election event is archived"));
     }
+
+    let auth_time_utc: DateTime<Utc> = if let Some(auth_time_int) = *auth_time {
+        if let Some(naive) = NaiveDateTime::from_timestamp_opt(auth_time_int, 0) {
+            let datetime = DateTime::<Utc>::from_utc(naive, Utc);
+            datetime
+        } else {
+            return Err(anyhow!("Invalid auth_time timestamp"));
+        }
+    } else {
+        return Err(anyhow!("auth_time is not a valid integer"));
+    };
 
     let hasura_response = hasura::election::get_election(
         auth_headers.clone(),
@@ -272,19 +288,46 @@ async fn check_status(
         .flatten()
         .unwrap_or(Default::default());
 
-    let close_date_opt = election_presentation
-        .dates
-        .clone()
-        .map(|dates| dates.end_date)
-        .flatten()
-        .map(|end_date| ISO8601::to_date(&end_date).ok())
-        .flatten();
+    let grace_period_secs = election_presentation.grace_period_secs.unwrap_or(0);
+    let grace_period_policy = election_presentation
+        .grace_period_policy
+        .unwrap_or(EGracePeriodPolicy::NO_GRACE_PERIOD);
+    let mut is_grace_period_valid: bool = false;
+
+    let close_date_opt: Option<DateTime<Utc>> = if let Some(dates) = &election.dates {
+        if let Some(end_date_str) = dates.get("end_date") {
+            if let Some(end_date_str) = end_date_str.as_str() {
+                match end_date_str.parse::<DateTime<Utc>>() {
+                    Ok(close_date) => {
+                        println!("Parsed end_date: {}", close_date);
+                        Some(close_date)
+                    }
+                    Err(err) => {
+                        println!("Failed to parse end_date: {}", err);
+                        None
+                    }
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    };
 
     if let Some(close_date) = close_date_opt {
-        if ISO8601::now() > close_date {
+        let grace_period_duration = Duration::seconds(grace_period_secs as i64);
+        let close_time_with_grace = close_date + grace_period_duration;
+        is_grace_period_valid = grace_period_policy != EGracePeriodPolicy::NO_GRACE_PERIOD
+            && Local::now() < close_time_with_grace
+            && auth_time_utc < close_date;
+
+        if Local::now() > close_date && !is_grace_period_valid {
             return Err(anyhow!("Election is closed"));
         }
-    };
+    }
 
     let election_status: ElectionStatus = election
         .status
@@ -293,7 +336,7 @@ async fn check_status(
         .transpose()
         .map(|value| value.unwrap_or(Default::default()))?;
 
-    if election_status.voting_status != VotingStatus::OPEN {
+    if election_status.voting_status != VotingStatus::OPEN && !is_grace_period_valid {
         return Err(anyhow!("Election voting status is not open"));
     }
 
