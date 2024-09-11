@@ -7,11 +7,11 @@ use crate::services::protocol_manager::get_protocol_manager;
 use crate::services::protocol_manager::{create_named_param, get_board_client, get_immudb_client};
 use crate::types::resources::{Aggregate, DataList, OrderDirection, TotalAggregate};
 use anyhow::{anyhow, Context, Result};
-use board_messages::braid::message::Signer as _;
+use board_messages::braid::message::{self, Signer as _};
 use board_messages::electoral_log::message::Message;
 use board_messages::electoral_log::message::SigningData;
 use board_messages::electoral_log::newtypes::*;
-use immu_board::assign_value;
+use immu_board::{assign_value, ElectoralLogMessage};
 use immu_board::util::get_event_board;
 use immu_board::BoardMessage;
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue};
@@ -151,6 +151,23 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(self))]
+    pub async fn post_registration_error(&self, event_id: String, error_message: String, error_type: String, user_id: Option<String>) -> Result<()> {
+        let event = EventIdString(event_id);
+        let error_message = ErrorMessageString(error_message);
+        let message = Message::registration_error_message(event, error_message, user_id, &self.sd)?;
+        let maybe_user_id = match user_id.clone() {
+            Some(user_id) => 
+            if user_id == "null" {
+                None
+            } else {
+                Some(user_id)
+            },
+            None => None,
+        };
+        self.post(message).await
+    }
+
+    #[instrument(skip(self))]
     pub async fn post_keygen(&self, event_id: String) -> Result<()> {
         let event = EventIdString(event_id);
 
@@ -221,9 +238,9 @@ impl ElectoralLog {
     }
 
     async fn post(&self, message: Message) -> Result<()> {
-        let board_message: BoardMessage = message.try_into()?;
+        let board_message: ElectoralLogMessage = message.try_into()?;
         let ms = vec![board_message];
-
+    
         let mut client = get_board_client().await?;
         client
             .insert_electoral_log_messages(self.elog_database.as_str(), &ms)

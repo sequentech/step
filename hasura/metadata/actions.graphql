@@ -301,8 +301,10 @@ type Query {
 
 type Query {
   logEvent (
-    electionEventId: String!
-    messageType: String!
+    election_event_id: String!
+    message_type: String!
+    user_id: String
+    body: String!
   ): LogEventOutput
 }
 

@@ -35,6 +35,68 @@ pub struct BoardClient {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ElectoralLogMessage {
+    pub id: i64,
+    pub created: i64,
+    pub sender_pk: String,
+    pub statement_timestamp: i64,
+    pub statement_kind: String,
+    pub message: Vec<u8>,
+    pub version: String,
+    pub user_id: Option<String>,
+}
+
+impl TryFrom<&Row> for ElectoralLogMessage {
+    type Error = anyhow::Error;
+
+    fn try_from(row: &Row) -> Result<Self, Self::Error> {
+        let mut id = 0;
+        let mut created = 0;
+        let mut sender_pk = String::from("");
+        let mut statement_timestamp = 0;
+        let mut statement_kind = String::from("");
+        let mut message = vec![];
+        let mut version = String::from("");
+        let mut user_id: Option<String> = None;
+
+        for (column, value) in row.columns.iter().zip(row.values.iter()) {
+            // FIXME for some reason columns names appear with parentheses
+            let dot = column
+                .find('.')
+                .ok_or(anyhow!("invalid column found '{}'", column.as_str()))?;
+            let bare_column = &column[dot + 1..column.len() - 1];
+
+            match bare_column {
+                "id" => assign_value!(Value::N, value, id),
+                "created" => assign_value!(Value::Ts, value, created),
+                "sender_pk" => assign_value!(Value::S, value, sender_pk),
+                "statement_timestamp" => {
+                    assign_value!(Value::Ts, value, statement_timestamp)
+                }
+                "statement_kind" => assign_value!(Value::S, value, statement_kind),
+                "message" => assign_value!(Value::Bs, value, message),
+                "version" => assign_value!(Value::S, value, version),
+                "userId" => match value.value.as_ref() {
+                    Some(Value::S(inner)) => user_id = Some(inner.clone()), 
+                    None => user_id = None,
+                _ => return Err(anyhow!("invalid column found '{}'", bare_column)),
+            }
+        }
+
+        Ok(ElectoralLogMessage {
+            id,
+            created,
+            sender_pk,
+            statement_timestamp,
+            statement_kind,
+            message,
+            version,
+            user_id,
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BoardMessage {
     pub id: i64,
     pub created: i64,
@@ -454,7 +516,7 @@ impl BoardClient {
     pub async fn insert_electoral_log_messages(
         &mut self,
         board_db: &str,
-        messages: &Vec<BoardMessage>,
+        messages: &Vec<ElectoralLogMessage>,
     ) -> Result<()> {
         self.insert(board_db, Table::ElectoralLogMessages, messages)
             .await
@@ -485,14 +547,14 @@ impl BoardClient {
                     statement_kind,
                     statement_timestamp,
                     message,
-                    version
+                    version,
                 ) VALUES (
                     @created,
                     @sender_pk,
                     @statement_kind,
                     @statement_timestamp,
                     @message,
-                    @version
+                    @version,
                 );
             "#,
                 table.as_str()
@@ -721,6 +783,7 @@ impl BoardClient {
             statement_kind VARCHAR,
             message BLOB,
             version VARCHAR,
+            userId VARCHAR,
             PRIMARY KEY id
         );
         "#,

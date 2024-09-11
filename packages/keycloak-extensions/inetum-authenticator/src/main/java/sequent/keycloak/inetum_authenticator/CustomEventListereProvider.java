@@ -39,17 +39,15 @@ public class CustomEventListereProvider implements EventListenerProvider {
 
   @Override
   public void onEvent(Event event) {
-    // if (this.access_token == null) {
-    //   authenticate();
-    // }
-    log.info("access token: " + this.access_token);
-    log.info("eventuserId: " + event.getUserId());
-    log.info("eventRealmId: " + event.getRealmId());
-    log.info("eventError" + event.getError());
-    log.info("eventType" + event.getType());
-    log.info("realmName: " + session.realms().getRealm(event.getRealmId()).getName());
     
-    logEvent(getElectionEventId(event.getRealmId()), event.getType());
+    if(event.getType() == EventType.REGISTER_ERROR) {
+      if (this.access_token == null) {
+        authenticate();
+      }
+      logEvent(getElectionEventId(event.getRealmId()), event.getType(), event.getError(), event.getUserId());
+    }
+   
+    
   }
 
   public void authenticate() {
@@ -109,10 +107,10 @@ public class CustomEventListereProvider implements EventListenerProvider {
     return null; 
   }
 
-  private void logEvent(String electionEventId, EventType eventType) {
+  private void logEvent(String electionEventId, EventType eventType, String body, String userId) {
     HttpClient client = HttpClient.newHttpClient();
     String url = "http://" + this.harvestUrl + "/immudb/log-event";
-    String requestBody = String.format("{\"election_event_id\": \"%s\", \"messageType\": \"%s\"}", electionEventId, eventType);
+    String requestBody = String.format("{\"election_event_id\": \"%s\", \"message_type\": \"%s\", \"body\" : \"%s\", \"user_id\": \"%s\"}", electionEventId, eventType, body, userId);
     HttpRequest request =
         HttpRequest.newBuilder()
             .uri(URI.create(url))
