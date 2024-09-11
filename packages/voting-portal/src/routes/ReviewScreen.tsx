@@ -283,17 +283,6 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     return (
         <Box sx={{marginBottom: "10px", marginTop: "10px"}}>
             {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW ? (
-                <StyledButton
-                    className="audit-button"
-                    sx={{display: {xs: "flex", sm: "none"}, marginBottom: "2px", width: "100%"}}
-                    variant="warning"
-                    onClick={() => setAuditBallotHelp(true)}
-                >
-                    <Icon icon={faFire} size="sm" />
-                    <Box>{t("reviewScreen.auditButton")}</Box>
-                </StyledButton>
-            ) : null}
-            {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW ? (
                 <AuditBallotHelpDialog
                     auditBallotHelp={auditBallotHelp}
                     handleClose={handleClose}
