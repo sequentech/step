@@ -479,6 +479,10 @@ const frenchTranslation: TranslationType = {
                 subtitle: "Configuration générale",
                 mobileNumber: "Mobile",
             },
+            editPassword: {
+                title: '',
+                label: 'Modifier le mot de passe',
+            },
             users: {
                 title: "Utilisateurs",
                 subtitle: "Voir et éditer les données de l'utilisateur",
@@ -533,6 +537,7 @@ const frenchTranslation: TranslationType = {
                     subtitle: "Créer électeur",
                 },
                 manualVerification: {
+                    label: "Vérifier",
                     verify: "Vérifier manuellement l'électeur",
                     body: "Vérifiez manuellement cet électeur. Vous obtiendrez un PDF avec un lien de code QR qui permettra à l'électeur de se connecter en omettant le KYC en ligne.",
                 },

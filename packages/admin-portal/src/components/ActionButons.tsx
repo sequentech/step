@@ -21,6 +21,7 @@ export interface Action {
     icon: React.ReactNode
     action: (id: Identifier) => void
     showAction?: (id: Identifier) => boolean
+    label?: string;
 }
 
 interface ActionsColumnProps {

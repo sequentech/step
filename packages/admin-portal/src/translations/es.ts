@@ -477,6 +477,10 @@ const spanishTranslation: TranslationType = {
                 subtitle: "Configuración general",
                 mobileNumber: "Móvil",
             },
+            editPassword: {
+                title: '',
+                label: 'Editar contraseña',
+            },
             users: {
                 title: "Usuarios",
                 subtitle: "Ver y editar datos del usuario",
@@ -531,6 +535,7 @@ const spanishTranslation: TranslationType = {
                     subtitle: "Crear votante",
                 },
                 manualVerification: {
+                    label: "Verificar",
                     verify: "Verificar manualmente al votante",
                     body: "Verifique manualmente a este votante. Obtendrá un PDF con un enlace de código QR que le permite al votante iniciar sesión omitiendo el KYC en línea.",
                 },

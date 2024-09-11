@@ -473,6 +473,10 @@ const englishTranslation = {
                 subtitle: "General configuration",
                 mobileNumber: "Mobile",
             },
+            editPassword: {
+                title: '',
+                label: 'Edit Password',
+            },
             users: {
                 title: "Users",
                 subtitle: "View and edit user data",
@@ -525,6 +529,7 @@ const englishTranslation = {
                     subtitle: "Create Voter",
                 },
                 manualVerification: {
+                    label: "Verify",
                     verify: "Manually Verify this voter",
                     body: "Manually Verify this voter. You will obtain a PDF with a QR Code link that allows the voter to login skipping online KYC.",
                 },

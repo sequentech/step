@@ -478,6 +478,10 @@ const catalanTranslation: TranslationType = {
                 subtitle: "Configuració general",
                 mobileNumber: "Mòbil",
             },
+            editPassword: {
+                title: '',
+                label: 'Edita la contrasenya',
+            },
             users: {
                 title: "Usuaris",
                 subtitle: "Veure i editar dades de l'usuari",
@@ -532,6 +536,7 @@ const catalanTranslation: TranslationType = {
                     subtitle: "Crear votant",
                 },
                 manualVerification: {
+                    label: "Verifica",
                     verify: "Verificar manualment al votant",
                     body: "Verifiqueu manualment a aquest votant. Obtindrà un PDF amb un enllaç de codi QR que permet al votant iniciar sessió ometent el KYC en línia.",
                 },

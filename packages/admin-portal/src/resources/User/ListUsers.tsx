@@ -33,6 +33,7 @@ import {Action, ActionsColumn} from "@/components/ActionButons"
 import EditIcon from "@mui/icons-material/Edit"
 import MailIcon from "@mui/icons-material/Mail"
 import CreditScoreIcon from "@mui/icons-material/CreditScore"
+import PasswordIcon from '@mui/icons-material/Password';
 import DeleteIcon from "@mui/icons-material/Delete"
 import {EditUser} from "./EditUser"
 import {AudienceSelection, SendCommunication} from "./SendCommunication"
@@ -66,6 +67,8 @@ import {IMPORT_USERS} from "@/queries/ImportUsers"
 import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
 import {getAttributeLabel, userBasicInfo} from "@/services/UserService"
 import CustomDateField from "./CustomDateField"
+import { ActionsMenu } from "@/components/ActionsMenu"
+import EditPassword from "./EditPassword"
 
 const OMIT_FIELDS: Array<string> = ["email_verified"]
 
@@ -115,6 +118,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
     const [openManualVerificationModal, setOpenManualVerificationModal] = React.useState(false)
     const [openDeleteBulkModal, setOpenDeleteBulkModal] = React.useState(false)
+    const [openEditPassword, setOpenEditPassword] = React.useState(false)
     const [selectedIds, setSelectedIds] = React.useState<Identifier[]>([])
     const [deleteId, setDeleteId] = React.useState<string | undefined>()
     const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
@@ -365,6 +369,17 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setRecordIds([id])
     }
 
+    const editPasswordAction = (id: Identifier) => {
+        setOpen(false)
+        setOpenNew(false)
+        setOpenSendCommunication(false)
+        setOpenManualVerificationModal(false)
+        setOpenDeleteBulkModal(false)
+        setOpenDeleteModal(false)
+        setOpenEditPassword(true)
+        setRecordIds([id as string])
+    }
+
     const confirmManualVerificationAction = async () => {
         const {errors, data} = await getManualVerificationPdf({
             variables: {
@@ -435,21 +450,31 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             icon: <MailIcon />,
             action: sendCommunicationForIdAction,
             showAction: () => canSendCommunications,
+            label: t(`sendCommunication.send`)
         },
         {
             icon: <EditIcon />,
             action: editAction,
             showAction: () => canEditUsers,
+            label: t(`common.label.edit`)
         },
         {
             icon: <DeleteIcon />,
             action: deleteAction,
             showAction: () => canEditUsers,
+            label: t(`common.label.delete`)
         },
         {
             icon: <CreditScoreIcon />,
             action: manualVerificationAction,
             showAction: () => canEditUsers,
+            label: t(`usersAndRolesScreen.voters.manualVerification.label`)
+        },
+        {
+            icon: <PasswordIcon />,
+            action: editPasswordAction,
+            showAction: () => canEditUsers,
+            label: t(`usersAndRolesScreen.editPassword.label`)
         },
     ]
 
@@ -721,7 +746,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                             />
                         )}
                         <WrapperField source="actions" label="Actions">
-                            <ActionsColumn actions={actions} />
+                            {/* <ActionsColumn actions={actions} /> */}
+                            <ActionsMenu actions={actions} />
                         </WrapperField>
                     </DatagridConfigurable>
                 )}
@@ -849,6 +875,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     ) : null}
                 </FormStyles.ReservedProgressSpace>
             </Dialog>
+            <EditPassword open={openEditPassword} handleClose={() => setOpenEditPassword(false)} userId={recordIds[0] as string} />
         </>
     )
 }
