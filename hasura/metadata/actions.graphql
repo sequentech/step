@@ -350,6 +350,8 @@ type Mutation {
     origin: String!
     redirect_to: String!
     dns_prefix: String!
+    election_id: String!
+    key: String!
   ): SetCustomUrlsOutput
 }
 

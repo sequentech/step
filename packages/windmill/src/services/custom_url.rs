@@ -43,6 +43,12 @@ struct CreatePageRuleRequest {
     status: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PreviousCustomUrls {
+    pub login: String,
+    pub enrollment: String,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateDNSRecordRequest {
     #[serde(rename = "type")]
@@ -107,9 +113,7 @@ pub async fn get_page_rule(target_value: &str) -> Result<Option<PageRule>, Box<d
 
 #[instrument]
 pub async fn get_dns_record(record_name: &str) -> Result<Option<DnsRecord>, Box<dyn Error>> {
-    info!("target_value {:?}", record_name);
     let dns_records = get_all_dns_records().await?;
-    info!("get_dns_record: {:?}", dns_records);
     Ok(find_matching_dns_record(dns_records, record_name))
 }
 
@@ -118,12 +122,20 @@ pub async fn set_custom_url(
     origin: &str,
     redirect_to: &str,
     dns_prefix: &str,
+    prev_custom_urls: &PreviousCustomUrls,
+    key: &str,
 ) -> Result<(), Box<dyn Error>> {
     info!("Origin: {:?}", origin);
     info!("Redirect to: {:?}", redirect_to);
     info!("DNS Prefix: {:?}", dns_prefix);
 
-    let current_dns_record = match get_dns_record(dns_prefix).await {
+    let current_prev_url =     match key {
+        "login" => &prev_custom_urls.login,
+        "enrollment" => &prev_custom_urls.enrollment,
+        _ => panic!("Invalid key provided"),
+    };
+
+    let current_dns_record = match get_dns_record(current_prev_url).await {
         Ok(dns_record) => {
             info!("Current DNS record found: {:?}", dns_record);
             dns_record
@@ -215,7 +227,7 @@ async fn get_all_page_rules() -> Result<Vec<PageRule>, Box<dyn Error>> {
             &zone_id,
         ))
         .header("X-Auth-Email", api_email)
-        .header("X-Auth-Key", api_key)
+        .header("Authorization", format!("Bearer {}", api_key))
         .header("Content-Type", "application/json")
         .send()
         .await
@@ -255,7 +267,7 @@ async fn get_all_dns_records() -> Result<Vec<DnsRecord>, Box<dyn Error>> {
             &zone_id,
         ))
         .header("X-Auth-Email", api_email)
-        .header("X-Auth-Key", api_key)
+        .header("Authorization", format!("Bearer {}", api_key))
         .header("Content-Type", "application/json")
         .send()
         .await
@@ -370,7 +382,7 @@ pub async fn create_dns_record(redirect_to: &str, dns_prefix: &str) -> Result<()
     let response = match client
         .post(&url)
         .header("X-Auth-Email", api_email)
-        .header("X-Auth-Key", api_key)
+        .header("Authorization", format!("Bearer {}", api_key))
         .json(&request_dns_body)
         .send()
         .await
@@ -421,7 +433,7 @@ pub async fn update_dns_record(
     let response = match client
         .put(&url)
         .header("X-Auth-Email", api_email)
-        .header("X-Auth-Key", api_key)
+        .header("Authorization", format!("Bearer {}", api_key))
         .json(&request_dns_body)
         .send()
         .await
@@ -456,7 +468,6 @@ async fn update_page_rule(
     let (zone_id, api_email, api_key) = get_cloudflare_vars()?;
     let client = Client::new();
     let request_body = create_payload(redirect_to, origin);
-
     let page_rules = get_all_page_rules().await?;
     info!("Existing page rules: {:?}", page_rules);
 
@@ -466,7 +477,7 @@ async fn update_page_rule(
             zone_id, rule_id
         ))
         .header("X-Auth-Email", api_email)
-        .header("X-Auth-Key", api_key)
+        .header("Authorization", format!("Bearer {}", api_key))
         .json(&request_body)
         .send()
         .await?;
@@ -489,14 +500,13 @@ async fn create_page_rule(redirect_to: &str, origin: &str) -> Result<(), Box<dyn
     let client = Client::new();
     info!("create_page_rule");
     let request_body = create_payload(redirect_to, origin);
-
     let response = client
         .post(&format!(
             "https://api.cloudflare.com/client/v4/zones/{}/pagerules",
             &zone_id,
         ))
         .header("X-Auth-Email", api_email)
-        .header("X-Auth-Key", api_key)
+        .header("Authorization", format!("Bearer {}", api_key))
         .json(&request_body)
         .send()
         .await

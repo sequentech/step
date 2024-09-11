@@ -572,7 +572,7 @@ export const EditElectionEventDataForm: React.FC = () => {
             const urlEntries = [
                 {
                     key: "login",
-                    origin: `https://${customUrlsValues.login}.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}/login`,
+                    origin: `https://${customUrlsValues.login}.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}`,
                     redirect_to: getAuthUrl(
                         globalSettings.VOTING_PORTAL_URL,
                         tenantId ?? "",
@@ -583,7 +583,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                 },
                 {
                     key: "enrollment",
-                    origin: `https://${customUrlsValues.enrollment}.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}/enrollment`,
+                    origin: `https://${customUrlsValues.enrollment}.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}`,
                     redirect_to: getAuthUrl(
                         globalSettings.VOTING_PORTAL_URL,
                         tenantId ?? "",
@@ -602,6 +602,8 @@ export const EditElectionEventDataForm: React.FC = () => {
                             origin: item.origin,
                             redirect_to: item.redirect_to ?? "",
                             dns_prefix: item.dns_prefix,
+                            election_id: recordId,
+                            key: item.key,
                         },
                     })
                 )
