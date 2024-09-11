@@ -12,9 +12,6 @@ export enum ContestsOrder {
 export interface IElectionDates {
     start_date?: string
     end_date?: string
-    is_grace_priod?: boolean
-    grace_period_policy?: EGracePeriodPolicy
-    grace_period_secs?: number
 }
 
 export interface IElectionPresentation {

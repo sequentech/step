@@ -107,8 +107,9 @@ const ManagedNumberInput = ({
     defaultValue,
     sourceToWatch,
 }: ManagedNumberInputProps) => {
-    const gracePeriodSecs = `presentation.grace_period_secs`
-    const selectedPolicy: EGracePeriodPolicy = useWatch({name: sourceToWatch})
+    const selectedPolicy: EGracePeriodPolicy =
+        useWatch({name: sourceToWatch}) || EGracePeriodPolicy.NO_GRACE_PERIOD
+    console.log(selectedPolicy)
     const isDisabled = selectedPolicy === EGracePeriodPolicy.NO_GRACE_PERIOD
 
     return (
@@ -332,7 +333,6 @@ export const ElectionDataForm: React.FC = () => {
 
             // defaults
             temp.num_allowed_revotes = temp.num_allowed_revotes || 1
-            temp.presentation.grace_period_secs = temp.presentation.grace_period_secs || 0
 
             return temp
         },
