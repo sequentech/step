@@ -480,8 +480,10 @@ const frenchTranslation: TranslationType = {
                 mobileNumber: "Mobile",
             },
             editPassword: {
-                title: '',
-                label: 'Modifier le mot de passe',
+                label: "Changer le mot de passe",
+                temporatyLabel: "Temporaire",
+                temporatyInfo:
+                    "Si activé, l'utilisateur devra changer le mot de passe lors de la prochaine connexion.",
             },
             users: {
                 title: "Utilisateurs",

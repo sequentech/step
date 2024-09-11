@@ -552,6 +552,7 @@ input EditUsersInput {
   groups : [String!]
   username : String
   password : String
+  temporary : Boolean
 }
 
 input DeleteUserInput {

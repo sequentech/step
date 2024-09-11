@@ -203,6 +203,7 @@ impl KeycloakAdminClient {
         last_name: Option<String>,
         username: Option<String>,
         password: Option<String>,
+        temporary: Option<bool>,
     ) -> Result<User> {
         let mut current_user: UserRepresentation = self
             .client
@@ -253,7 +254,10 @@ impl KeycloakAdminClient {
                     // the new credential
                     vec![CredentialRepresentation {
                         type_: Some("password".to_string()),
-                        temporary: Some(true),
+                        temporary: match temporary {
+                            Some(temportay) => Some(temportay),
+                            _ => Some(true),
+                        },
                         value: Some(val),
                         ..Default::default()
                     }],

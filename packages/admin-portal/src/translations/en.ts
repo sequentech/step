@@ -474,8 +474,9 @@ const englishTranslation = {
                 mobileNumber: "Mobile",
             },
             editPassword: {
-                title: '',
-                label: 'Edit Password',
+                label: "Change password",
+                temporatyLabel: "Temporary",
+                temporatyInfo: "If enabled, the user must change the password on next login",
             },
             users: {
                 title: "Users",

@@ -479,8 +479,10 @@ const catalanTranslation: TranslationType = {
                 mobileNumber: "Mòbil",
             },
             editPassword: {
-                title: '',
-                label: 'Edita la contrasenya',
+                label: "Canviar contrasenya",
+                temporatyLabel: "Temporal",
+                temporatyInfo:
+                    "Si està habilitat, l'usuari haurà de canviar la contrasenya en el pròxim inici de sessió.",
             },
             users: {
                 title: "Usuaris",

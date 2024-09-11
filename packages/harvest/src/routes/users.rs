@@ -367,6 +367,7 @@ pub struct EditUserBody {
     last_name: Option<String>,
     username: Option<String>,
     password: Option<String>,
+    temporary: Option<bool>,
 }
 
 #[instrument(skip(claims), ret)]
@@ -418,6 +419,7 @@ pub async fn edit_user(
             input.last_name.clone(),
             input.username.clone(),
             input.password.clone(),
+            input.temporary.clone(),
         )
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;

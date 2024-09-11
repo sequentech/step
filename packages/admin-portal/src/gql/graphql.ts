@@ -144,6 +144,7 @@ export type EditUsersInput = {
   groups?: InputMaybe<Array<Scalars['String']['input']>>;
   last_name?: InputMaybe<Scalars['String']['input']>;
   password?: InputMaybe<Scalars['String']['input']>;
+  temporary?: InputMaybe<Scalars['Boolean']['input']>;
   tenant_id: Scalars['String']['input'];
   user_id: Scalars['String']['input'];
   username?: InputMaybe<Scalars['String']['input']>;

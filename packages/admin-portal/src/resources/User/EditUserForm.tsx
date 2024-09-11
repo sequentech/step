@@ -248,7 +248,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             onSubmitCreateUser()
         } else {
             try {
-                let {data} = await edit_user({
+                await edit_user({
                     variables: {
                         body: {
                             user_id: user?.id,
@@ -257,10 +257,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             first_name: user?.first_name,
                             last_name: user?.last_name,
                             enabled: user?.enabled,
-                            password:
-                                user?.password && user?.password.length > 0
-                                    ? user.password
-                                    : undefined,
                             email: user?.email,
                             attributes: formatUserAtributes(user?.attributes),
                         },

@@ -478,8 +478,10 @@ const spanishTranslation: TranslationType = {
                 mobileNumber: "Móvil",
             },
             editPassword: {
-                title: '',
-                label: 'Editar contraseña',
+                label: "Cambiar contraseña",
+                temporatyLabel: "Temporal",
+                temporatyInfo:
+                    "Si está habilitado, el usuario deberá cambiar la contraseña en el próximo inicio de sesión.",
             },
             users: {
                 title: "Usuarios",

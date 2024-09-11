@@ -979,6 +979,16 @@
             "defaultValue": null
           },
           {
+            "name": "temporary",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "tenant_id",
             "description": null,
             "type": {
