@@ -151,7 +151,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
       } catch (IOException e) {
         attempt++;
-        System.err.println("Request failed (attempt " + attempt + "): " + e.getMessage());
+        log.warnv("Request failed (attempt {0}): {1}", attempt, e.getMessage());
 
         if (attempt >= maxRetries) {
           throw e; // Propagate the exception if max retries are reached
