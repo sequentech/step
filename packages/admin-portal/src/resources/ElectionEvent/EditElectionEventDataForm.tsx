@@ -925,6 +925,9 @@ export const EditElectionEventDataForm: React.FC = () => {
                                 </AccordionSummary>
                                 <AccordionDetails>
                                     <CustomUrlsStyle.InputWrapper>
+                                    <CustomUrlsStyle.InputLabel>
+                                        Login:
+                                    </CustomUrlsStyle.InputLabel>
                                         <CustomUrlsStyle.InputLabelWrapper>
                                             <p>https://</p>
                                             <TextInput
@@ -940,7 +943,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                                                     })
                                                 }
                                             />
-                                            <p>{`.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}/login`}</p>
+                                            <p>{`.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}`}</p>
                                             {isCustomUrlLoading ? (
                                                 <WizardStyles.DownloadProgress size={18} />
                                             ) : (
@@ -960,6 +963,9 @@ export const EditElectionEventDataForm: React.FC = () => {
                                             )}
                                     </CustomUrlsStyle.InputWrapper>
                                     <CustomUrlsStyle.InputWrapper>
+                                    <CustomUrlsStyle.InputLabel>
+                                        Enrollment:
+                                    </CustomUrlsStyle.InputLabel>
                                         <CustomUrlsStyle.InputLabelWrapper>
                                             <p>https://</p>
                                             <TextInput
@@ -975,7 +981,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                                                     })
                                                 }
                                             />
-                                            <p>{`.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}/enrollment`}</p>
+                                            <p>{`.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}`}</p>
                                             {isCustomUrlLoading ? (
                                                 <WizardStyles.DownloadProgress size={18} />
                                             ) : (

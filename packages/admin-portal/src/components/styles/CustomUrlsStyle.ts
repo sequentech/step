@@ -12,6 +12,11 @@ export const CustomUrlsStyle = {
         align-items: flex-start;
     `,
 
+    InputLabel: styled.p`
+        font-size: 16px;
+        font-weight: 500;
+    `,
+
     InputLabelWrapper: styled.div`
         display: flex;
         flex-direction: row;
