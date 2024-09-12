@@ -9,8 +9,7 @@ use crate::services::database::PgConfig;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use futures::stream::Filter;
-use rocket::http::Status;
-use sequent_core::{services::keycloak::KeycloakAdminClient, types::keycloak::*};
+use sequent_core::types::keycloak::*;
 use std::{
     collections::{HashMap, HashSet},
     convert::From,

@@ -1,16 +1,8 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useCallback, useEffect, useMemo, useState} from "react"
-import {
-    DateTimeInput,
-    SaveButton,
-    SimpleForm,
-    useGetList,
-    useListContext,
-    useNotify,
-    useRefresh,
-} from "react-admin"
+import React, {useCallback, useEffect, useState} from "react"
+import {SaveButton, SimpleForm, useListContext, useNotify, useRefresh} from "react-admin"
 import {useMutation, useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
@@ -291,10 +283,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             setUser(newUser)
         }
 
-    if (!user && !createMode) {
-        return null
-    }
-
     let areaIdAttribute = user?.attributes?.["area-id"] as string | undefined
     let defaultAreaId = areaIdAttribute ?? undefined
 
@@ -328,50 +316,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             }
         })
     }
-
-    //TODO: move when handle paswword
-    const validatePassword = (value: any) => {
-        /*TODO: we should validate only to the extent that these policies are 
-        in place in keycloak
-        if (!value || value.length == 0) {
-            return
-        }
-     
-        const hasEnoughChars = value.length < 8
-        const hasUpperCase = /[A-Z]/.test(value)
-        const hasLowerCase = /[a-z]/.test(value)
-        const hasDigit = /\d/.test(value)
-        const hasSpecialChar = /[^a-zA-Z\d]/.test(value)
-     
-        if (hasEnoughChars) {
-            return t("usersAndRolesScreen.users.fields.passwordLengthValidate")
-        }
-     
-        if (!hasUpperCase) {
-            return t("usersAndRolesScreen.users.fields.passwordUppercaseValidate")
-        }
-     
-        if (!hasLowerCase) {
-            return t("usersAndRolesScreen.users.fields.passwordLowercaseValidate")
-        }
-     
-        if (!hasDigit) {
-            return t("usersAndRolesScreen.users.fields.passwordDigitValidate")
-        }
-     
-        if (!hasSpecialChar) {
-            return t("usersAndRolesScreen.users.fields.passwordSpecialCharValidate")
-        }*/
-    }
-
-    // const equalToPassword = (value: any, allValues: any) => {
-    //     if (!allValues.password || allValues.password.length == 0) {
-    //         return
-    //     }
-    //     if (value !== allValues.password) {
-    //         return t("usersAndRolesScreen.users.fields.passwordMismatch")
-    //     }
-    // }
 
     const renderFormField = (attr: UserProfileAttribute) => {
         if (attr.name) {
@@ -464,6 +408,10 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 </>
             )
         }
+    }
+
+    if (!user && !createMode) {
+        return null
     }
 
     return (

@@ -1,27 +1,19 @@
-import React, {MouseEventHandler, useState} from "react"
+import React, {useState} from "react"
 import Dialog from "@mui/material/Dialog"
 import DialogTitle from "@mui/material/DialogTitle"
 import {useTranslation} from "react-i18next"
-import {
-    BooleanInput,
-    Edit,
-    PasswordInput,
-    SaveButton,
-    SimpleForm,
-    useListContext,
-    useNotify,
-    useRefresh,
-} from "react-admin"
-import {Box, DialogContent, InputLabel, Modal, Popover, Tooltip} from "@mui/material"
+import {BooleanInput, SaveButton, SimpleForm, useNotify, useRefresh} from "react-admin"
+import {Box, DialogContent, InputLabel, Popover} from "@mui/material"
 import {IUser} from "sequent-core"
 import {useMutation} from "@apollo/client"
 import {EditUsersInput} from "@/gql/graphql"
 import {EDIT_USER} from "@/queries/EditUser"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {faInfoCircle, faTimesCircle} from "@fortawesome/free-solid-svg-icons"
-import {Icon, IconButton} from "@sequentech/ui-essentials"
+import {IconButton} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import {useTenantStore} from "@/providers/TenantContextProvider"
+import IconTooltip from "@/components/IconTooltip"
 
 interface EditPasswordProps {
     open: boolean
@@ -58,6 +50,11 @@ const InputContainerStyle = styled(Box)`
     }
 `
 
+const PasswordInputStyle = styled(FormStyles.PasswordInput)`
+    flex: 1;
+    margin: 0 auto;
+`
+
 const EditPassword = ({open, handleClose, id, electionEventId}: EditPasswordProps) => {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
@@ -66,18 +63,6 @@ const EditPassword = ({open, handleClose, id, electionEventId}: EditPasswordProp
     const [user, setUser] = useState<IUser>({id})
     const [temporary, setTemportay] = useState<boolean>(true)
     const [edit_user] = useMutation<EditUsersInput>(EDIT_USER)
-
-    const [anchorEl, setAnchorEl] = React.useState<HTMLElement | null>(null)
-
-    const handlePopoverOpen = (event: React.MouseEvent<HTMLElement>) => {
-        setAnchorEl(event.currentTarget)
-    }
-
-    const handlePopoverClose = () => {
-        setAnchorEl(null)
-    }
-
-    const openTemporaryInfo = Boolean(anchorEl)
 
     const equalToPassword = (value: any, allValues: any) => {
         if (!allValues.password || allValues.password.length == 0) {
@@ -92,6 +77,40 @@ const EditPassword = ({open, handleClose, id, electionEventId}: EditPasswordProp
         const {name, value} = e.target
         let newUser = {...user, [name]: value}
         setUser(newUser)
+    }
+
+    const validatePassword = (value: any) => {
+        /*TODO: we should validate only to the extent that these policies are 
+        in place in keycloak
+        if (!value || value.length == 0) {
+            return
+        }
+     
+        const hasEnoughChars = value.length < 8
+        const hasUpperCase = /[A-Z]/.test(value)
+        const hasLowerCase = /[a-z]/.test(value)
+        const hasDigit = /\d/.test(value)
+        const hasSpecialChar = /[^a-zA-Z\d]/.test(value)
+     
+        if (hasEnoughChars) {
+            return t("usersAndRolesScreen.users.fields.passwordLengthValidate")
+        }
+     
+        if (!hasUpperCase) {
+            return t("usersAndRolesScreen.users.fields.passwordUppercaseValidate")
+        }
+     
+        if (!hasLowerCase) {
+            return t("usersAndRolesScreen.users.fields.passwordLowercaseValidate")
+        }
+     
+        if (!hasDigit) {
+            return t("usersAndRolesScreen.users.fields.passwordDigitValidate")
+        }
+     
+        if (!hasSpecialChar) {
+            return t("usersAndRolesScreen.users.fields.passwordSpecialCharValidate")
+        }*/
     }
 
     const onSubmit = async () => {
@@ -149,68 +168,34 @@ const EditPassword = ({open, handleClose, id, electionEventId}: EditPasswordProp
                             <InputLabelStyle>
                                 {t("usersAndRolesScreen.users.fields.password")}:
                             </InputLabelStyle>
-                            <FormStyles.PasswordInput
+                            <PasswordInputStyle
                                 label={false}
                                 source="password"
                                 onChange={(e) => {
                                     console.log("Password Input changed", e.target.value)
                                     handleChange(e)
                                 }}
-                                sx={{flex: 1, margin: "0 auto"}}
                             />
                         </InputContainerStyle>
                         <InputContainerStyle>
                             <InputLabelStyle>
                                 {t("usersAndRolesScreen.users.fields.repeatPassword")}:
                             </InputLabelStyle>
-                            <FormStyles.PasswordInput
+                            <PasswordInputStyle
                                 label={false}
                                 source="confirm_password"
                                 validate={equalToPassword}
                                 onChange={handleChange}
-                                sx={{flex: 1, margin: "0 auto"}}
                             />
                         </InputContainerStyle>
                         <InputContainerStyle sx={{flexDirection: "row !important"}}>
                             <InputLabelStyle paddingTop={false}>
                                 <Box sx={{display: "flex", gap: "8px"}}>
                                     {t(`usersAndRolesScreen.editPassword.temporatyLabel`)}
-                                    <Box
-                                        aria-owns={open ? "mouse-over-popover" : undefined}
-                                        onMouseEnter={handlePopoverOpen}
-                                        onMouseLeave={handlePopoverClose}
-                                    >
-                                        <Icon icon={faInfoCircle} />
-                                    </Box>
-                                    <Popover
-                                        id="mouse-over-popover"
-                                        sx={{
-                                            "pointerEvents": "none",
-                                            "& .MuiPopover-paper": {
-                                                width: "200px",
-                                                padding: "6px",
-                                            },
-                                        }}
-                                        open={openTemporaryInfo}
-                                        anchorEl={anchorEl}
-                                        anchorOrigin={{
-                                            vertical: "bottom",
-                                            horizontal: "left",
-                                        }}
-                                        transformOrigin={{
-                                            vertical: "top",
-                                            horizontal: "left",
-                                        }}
-                                        onClose={handlePopoverClose}
-                                        disableRestoreFocus
-                                    >
-                                        <Box
-                                            component="span"
-                                            sx={{width: "100px", padding: "2px", w: "100px"}}
-                                        >
-                                            {t(`usersAndRolesScreen.editPassword.temporatyInfo`)}
-                                        </Box>
-                                    </Popover>
+                                    <IconTooltip
+                                        icon={faInfoCircle}
+                                        info={t(`usersAndRolesScreen.editPassword.temporatyInfo`)}
+                                    />
                                 </Box>
                             </InputLabelStyle>
                             <BooleanInput

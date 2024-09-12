@@ -215,8 +215,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         return filters
     }, [userAttributes?.get_user_profile_attributes])
 
-    console.log("userAttributes ", userAttributes)
-
     const [exportTenantUsers] = useMutation<ExportTenantUsersMutation>(EXPORT_TENANT_USERS, {
         context: {
             headers: {
@@ -496,8 +494,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     ]
 
     async function confirmDeleteBulkAction() {
-        console.log(selectedIds)
-
         const {errors} = await deleteUsers({
             variables: {
                 tenantId: tenantId,
