@@ -261,7 +261,7 @@ services:
     ports:
       - 3002:3002
     stdin_open: true
-    entrypoint: ["yarn start:admin-portal"]
+    entrypoint: ["yarn", "start:admin-portal"]
     volumes_from:
       - devcontainer
     depends_on:
@@ -288,7 +288,7 @@ services:
     ports:
       - 3000:3000
     stdin_open: true
-    entrypoint: ["yarn start:voting-portal"]
+    entrypoint: ["yarn", "start:voting-portal"]
     volumes_from:
       - devcontainer
     working_dir: /
@@ -309,7 +309,7 @@ services:
     ports:
       - 3001:3001
     stdin_open: true
-    entrypoint: ["yarn start:ballot-verifier"]
+    entrypoint: ["yarn", "start:ballot-verifier"]
     volumes_from:
       - devcontainer
     working_dir: /
