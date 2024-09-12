@@ -90,6 +90,42 @@ body {
 
 /*
  * ------------
+ * Sizings of screens (Sequent)
+ * ------------
+ */
+ @media (min-width: 768px) {
+  #dob-main-container .dob-background .dob-instruction-template__header {
+    padding-bottom: 0;
+  }
+  #dob-main-container .dob-background .dob-text--lead {
+    font-size: 1.1rem;
+  }
+  #dob-main-container .dob-background .dob-initial-step__rows-container {
+    gap: 0.3rem;
+  }
+  #dob-main-container .dob-background .dob-instruction-template__footer {
+    padding-top: 0;
+    margin-top: -40px;
+  }
+}
+
+@media (min-width: 1200px) {
+  #dob-main-container .dob-background .dob-text--lead {
+    font-size: 1.3rem;
+  }
+  #dob-main-container .dob-background .dob-initial-step__rows-container {
+    gap: 0.3rem;
+  }
+}
+
+@media (min-width: 992px) {
+  #dob-main-container .dob-background .dob-initial-step__rows-container {
+    gap: 0.3rem;
+  }
+}
+
+/*
+ * ------------
  * FONTS
  * ------------
  */
@@ -272,4 +308,13 @@ dob-sdk-root {
 }
 
 @media (min-width: 1200px) {
+}
+
+.error-form {
+  font-size: 16px;
+}
+
+.error-form a.retry-link {
+  display: block;
+  padding: 20px 0;
 }
