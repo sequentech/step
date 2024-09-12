@@ -71,10 +71,7 @@ export const createElectionEvent: Election = {
     createElection: function (this: Election, browser: NightwatchAPI): void {
         // create an election"
         browser.assert.urlContains(electionEventLink)
-        browser
-            .assert.visible(`a.${electionLink!}`)
-            .element(`a.${electionLink!}`)
-            .click()
+        browser.assert.visible(`a.${electionLink!}`).element(`a.${electionLink!}`).click()
         browser.assert
             .visible("input[name=name]")
             .element("input[name=name]")

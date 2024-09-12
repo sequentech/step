@@ -14,6 +14,7 @@ let exportPath
 describe("import/export election event  tests", function () {
     before(function (browser) {
         browser.login()
+        browser.reset()
 
         // create election event
         createElectionEvent.createElectionEvent(browser)

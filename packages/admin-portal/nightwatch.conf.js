@@ -51,7 +51,7 @@ module.exports = {
                 on_failure: true,
             },
             globals: {
-                waitForConditionTimeout: 15000, // 15 seconds
+                waitForConditionTimeout: 25000, // 25 seconds
             },
 
             desiredCapabilities: {

@@ -11,8 +11,7 @@ import {deleteElectionEvent} from "../commands/election-event/delete"
 describe("voters tests", function () {
     before(function (browser) {
         browser.login()
-
-        // create election event
+        browser.reset()
         createElectionEvent.createElectionEvent(browser)
         createElectionEvent.createElection(browser)
         createElectionEvent.createContest(browser)

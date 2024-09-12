@@ -12,6 +12,7 @@ import {pause} from ".."
 describe("publish tests", function () {
     before(function (browser) {
         browser.login()
+        browser.reset()
 
         // create election event
         createElectionEvent.createElectionEvent(browser)

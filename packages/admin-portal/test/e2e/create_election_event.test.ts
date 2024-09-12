@@ -9,6 +9,7 @@ import {deleteElectionEvent} from "../commands/election-event/delete"
 describe("login", function () {
     before(function (browser) {
         browser.login()
+        browser.reset()
     })
 
     after(function (browser) {

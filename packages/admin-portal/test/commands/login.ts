@@ -25,6 +25,9 @@ exports.command = function (
         .assert.visible(this.submitButton)
         .click(this.submitButton)
         .pause(pause.medium)
+        .useXpath()
+        .waitForElementVisible("//li[contains(text(),'Active')]")
+        .useCss()
 
     return this
 }

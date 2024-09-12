@@ -9,6 +9,7 @@ import {createElectionEvent} from "../commands/election-event/create"
 describe("sidebar tests", function () {
     before(function (browser) {
         browser.login()
+        browser.reset()
         createElectionEvent.createElectionEvent(browser)
         createElectionEvent.createElection(browser)
         createElectionEvent.createContest(browser)
