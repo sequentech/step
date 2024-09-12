@@ -44,7 +44,6 @@ import {
     Sequent_Backend_Election_Event,
     Sequent_Backend_Tenant,
 } from "../../gql/graphql"
-import {useWatch} from "react-hook-form"
 
 import React, {useCallback, useContext, useEffect, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
@@ -72,6 +71,8 @@ import styled from "@emotion/styled"
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {ManageElectionDatesMutation} from "@/gql/graphql"
 import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
+import {ManagedNumberInput} from "@/components/managed-inputs/ManagedNumberInput"
+import {ManagedSelectInput} from "@/components/managed-inputs/ManagedSelectInput"
 
 const LangsWrapper = styled(Box)`
     margin-top: 46px;
@@ -93,35 +94,6 @@ const ListWrapper = styled.div`
     padding: 8px;
     margin-bottom: 4px;
 `
-
-interface ManagedNumberInputProps {
-    source: string
-    label: string
-    defaultValue: number
-    sourceToWatch: string
-}
-
-const ManagedNumberInput = ({
-    source,
-    label,
-    defaultValue,
-    sourceToWatch,
-}: ManagedNumberInputProps) => {
-    const selectedPolicy: EGracePeriodPolicy =
-        useWatch({name: sourceToWatch}) || EGracePeriodPolicy.NO_GRACE_PERIOD
-    console.log(selectedPolicy)
-    const isDisabled = selectedPolicy === EGracePeriodPolicy.NO_GRACE_PERIOD
-
-    return (
-        <NumberInput
-            source={source}
-            disabled={isDisabled}
-            label={label}
-            defaultValue={defaultValue}
-            style={{flex: 1}}
-        />
-    )
-}
 
 export type Sequent_Backend_Election_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -333,6 +305,14 @@ export const ElectionDataForm: React.FC = () => {
 
             // defaults
             temp.num_allowed_revotes = temp.num_allowed_revotes || 1
+            temp.presentation.grace_period_policy =
+                temp.presentation.grace_period_policy || EGracePeriodPolicy.NO_GRACE_PERIOD
+            temp.presentation.grace_period_secs = temp.presentation.grace_period_secs || 0
+
+            if (!temp.dates?.end_date) {
+                temp.presentation.grace_period_policy = EGracePeriodPolicy.NO_GRACE_PERIOD
+                temp.presentation.grace_period_secs = 0
+            }
 
             return temp
         },
@@ -654,18 +634,23 @@ export const ElectionDataForm: React.FC = () => {
                                 >
                                     {t("electionScreen.edit.gracePeriodPolicy")}
                                 </Typography>
-                                <SelectInput
+                                <ManagedSelectInput
                                     source={`presentation.grace_period_policy`}
                                     choices={gracePeriodPolicyChoices()}
                                     label={t(`electionScreen.gracePeriodPolicy.label`)}
                                     defaultValue={EGracePeriodPolicy.NO_GRACE_PERIOD}
-                                    validate={required()}
+                                    sourceToWatch={"dates.end_date"}
+                                    isDisabled={(sourceToWatchStatus) => !sourceToWatchStatus}
                                 />
                                 <ManagedNumberInput
-                                    source={"presentation.grace_period_policy_secs"}
+                                    source={"presentation.grace_period_secs"}
                                     label={t("electionScreen.gracePeriodPolicy.gracePeriodSecs")}
                                     defaultValue={0}
                                     sourceToWatch="presentation.grace_period_policy"
+                                    isDisabled={(selectedPolicy: any) =>
+                                        selectedPolicy === EGracePeriodPolicy.NO_GRACE_PERIOD ||
+                                        endDateValue === undefined
+                                    }
                                 />
                             </AccordionDetails>
                         </Accordion>

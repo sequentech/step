@@ -21,6 +21,9 @@ export interface IElectionPresentation {
     sort_order?: number
     cast_vote_confirm?: boolean
     audit_button_cfg?: EVotingPortalAuditButtonCfg
+    is_grace_priod?: boolean
+    grace_period_policy?: EGracePeriodPolicy
+    grace_period_secs?: number
     // more missing
 }
 
