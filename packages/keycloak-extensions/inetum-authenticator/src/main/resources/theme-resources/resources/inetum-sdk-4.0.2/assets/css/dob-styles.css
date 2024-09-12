@@ -309,12 +309,3 @@ dob-sdk-root {
 
 @media (min-width: 1200px) {
 }
-
-.error-form {
-  font-size: 16px;
-}
-
-.error-form a.retry-link {
-  display: block;
-  padding: 20px 0;
-}
