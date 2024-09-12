@@ -119,8 +119,8 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     log.info("doPost: url=" + url + ", payload =" + payload.toString());
 
     var attempt = 0;
-    int maxRetries = Utils.parseInt(configMap.get(Utils.MAX_RETRIES), 3);
-    int retryDelay = Utils.parseInt(configMap.get(Utils.RETRY_DELAY), 2000);
+    int maxRetries = Utils.parseInt(configMap.get(Utils.MAX_RETRIES), Utils.DEFAULT_MAX_RETRIES);
+    int retryDelay = Utils.parseInt(configMap.get(Utils.RETRY_DELAY), Utils.DEFAULT_RETRY_DELAY);
 
     while (attempt < maxRetries) {
       try {
@@ -161,8 +161,8 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     log.info("doGet: url=" + url);
 
     var attempt = 0;
-    int maxRetries = Utils.parseInt(configMap.get(Utils.MAX_RETRIES), 3);
-    int retryDelay = Utils.parseInt(configMap.get(Utils.RETRY_DELAY), 2000);
+    int maxRetries = Utils.parseInt(configMap.get(Utils.MAX_RETRIES), Utils.DEFAULT_MAX_RETRIES);
+    int retryDelay = Utils.parseInt(configMap.get(Utils.RETRY_DELAY), Utils.DEFAULT_RETRY_DELAY);
 
     while (attempt < maxRetries) {
       try {
@@ -849,13 +849,13 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
             "Maximum number of retries for inetum requests",
             "-",
             ProviderConfigProperty.STRING_TYPE,
-            "3"),
+            String.valueOf(Utils.DEFAULT_MAX_RETRIES)),
         new ProviderConfigProperty(
             Utils.RETRY_DELAY,
             "Time waiting between retries for inetum requests",
             "Time in milisecons",
             ProviderConfigProperty.STRING_TYPE,
-            "2000"),
+            String.valueOf(Utils.DEFAULT_RETRY_DELAY)),
         new ProviderConfigProperty(
             Utils.ENV_CONFIG_ATTRIBUTE,
             "Configuration for the env_config",
