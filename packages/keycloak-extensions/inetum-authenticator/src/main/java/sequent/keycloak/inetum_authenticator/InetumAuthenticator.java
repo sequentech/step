@@ -118,13 +118,38 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     String authorization = "Bearer " + configMap.get(Utils.API_KEY_ATTRIBUTE);
     log.info("doPost: url=" + url + ", payload =" + payload.toString());
 
-    SimpleHttp.Response response =
-        SimpleHttp.doPost(url, context.getSession())
-            .header("Content-Type", "application/json")
-            .header("Authorization", authorization)
-            .json(payload)
-            .asResponse();
-    return response;
+    var attempt = 0;
+    int maxRetries = Utils.parseInt(configMap.get(Utils.MAX_RETRIES), 3);
+    int retryDelay = Utils.parseInt(configMap.get(Utils.RETRY_DELAY), 2000);
+
+    while (attempt < maxRetries) {
+      try {
+        SimpleHttp.Response response =
+            SimpleHttp.doPost(url, context.getSession())
+                .header("Content-Type", "application/json")
+                .header("Authorization", authorization)
+                .json(payload)
+                .asResponse();
+        return response;
+
+      } catch (IOException e) {
+        attempt++;
+        log.warnv("doPost: Request failed (attempt {0}): {1}", attempt, e.getMessage());
+
+        if (attempt >= maxRetries) {
+          throw e; // Propagate the exception if max retries are reached
+        }
+
+        // Wait before retrying
+        try {
+          Thread.sleep(retryDelay);
+        } catch (InterruptedException interruptedException) {
+          Thread.currentThread().interrupt();
+          throw new IOException("doPost: Retry interrupted", interruptedException);
+        }
+      }
+    }
+    throw new IOException("doPost: Failed to execute request after " + maxRetries + " attempts.");
   }
 
   /** Send a GET to Inetum API */
@@ -135,12 +160,38 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     String authorization = "Bearer " + configMap.get(Utils.API_KEY_ATTRIBUTE);
     log.info("doGet: url=" + url);
 
-    SimpleHttp.Response response =
-        SimpleHttp.doGet(url, context.getSession())
-            .header("Content-Type", "application/json")
-            .header("Authorization", authorization)
-            .asResponse();
-    return response;
+    var attempt = 0;
+    int maxRetries = Utils.parseInt(configMap.get(Utils.MAX_RETRIES), 3);
+    int retryDelay = Utils.parseInt(configMap.get(Utils.RETRY_DELAY), 2000);
+
+    while (attempt < maxRetries) {
+      try {
+        SimpleHttp.Response response =
+            SimpleHttp.doGet(url, context.getSession())
+                .header("Content-Type", "application/json")
+                .header("Authorization", authorization)
+                .asResponse();
+
+        return response;
+
+      } catch (IOException e) {
+        attempt++;
+        log.warnv("doGet: Request failed (attempt {0}): {1}", attempt, e.getMessage());
+
+        if (attempt >= maxRetries) {
+          throw e; // Propagate the exception if max retries are reached
+        }
+
+        // Wait before retrying
+        try {
+          Thread.sleep(retryDelay);
+        } catch (InterruptedException interruptedException) {
+          Thread.currentThread().interrupt();
+          throw new IOException("doGet: Retry interrupted", interruptedException);
+        }
+      }
+    }
+    throw new IOException("doGet: Failed to execute request after " + maxRetries + " attempts.");
   }
 
   protected Map<String, String> getTemplateMap(Map<String, String> configMap) {
@@ -793,6 +844,18 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
             "-",
             ProviderConfigProperty.TEXT_TYPE,
             "{}"),
+        new ProviderConfigProperty(
+            Utils.MAX_RETRIES,
+            "Maximum number of retries for inetum requests",
+            "-",
+            ProviderConfigProperty.STRING_TYPE,
+            "3"),
+        new ProviderConfigProperty(
+            Utils.RETRY_DELAY,
+            "Time waiting between retries for inetum requests",
+            "Time in milisecons",
+            ProviderConfigProperty.STRING_TYPE,
+            "2000"),
         new ProviderConfigProperty(
             Utils.ENV_CONFIG_ATTRIBUTE,
             "Configuration for the env_config",

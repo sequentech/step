@@ -87,6 +87,8 @@ public class Utils {
   public static final String PHONE_NUMBER_ATTRIBUTE = "sequent.read-only.id-mobile-number";
   public static final String ID_NUMBER_ATTRIBUTE = "sequent.read-only.id-card-number";
   public static final String ID_NUMBER = "ID_number";
+  public static final String MAX_RETRIES = "max-retries";
+  public static final String RETRY_DELAY = "retry-delay";
 
   /**
    * We store the user data entered in the registration form in the session notes. This information
@@ -273,5 +275,14 @@ public class Utils {
     context.getEvent().detail(Details.FIRST_NAME, firstName);
     context.getEvent().detail(Details.LAST_NAME, lastName);
     context.getEvent().detail(PHONE_NUMBER, phoneNumber);
+  }
+
+  public static int parseInt(String s, int defaultValue) {
+    if (s == null) return defaultValue;
+    try {
+      return Integer.parseInt(s);
+    } catch (NumberFormatException x) {
+      return defaultValue;
+    }
   }
 }
