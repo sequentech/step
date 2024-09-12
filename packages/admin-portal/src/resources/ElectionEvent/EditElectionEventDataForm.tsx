@@ -925,9 +925,9 @@ export const EditElectionEventDataForm: React.FC = () => {
                                 </AccordionSummary>
                                 <AccordionDetails>
                                     <CustomUrlsStyle.InputWrapper>
-                                    <CustomUrlsStyle.InputLabel>
-                                        Login:
-                                    </CustomUrlsStyle.InputLabel>
+                                        <CustomUrlsStyle.InputLabel>
+                                            Login:
+                                        </CustomUrlsStyle.InputLabel>
                                         <CustomUrlsStyle.InputLabelWrapper>
                                             <p>https://</p>
                                             <TextInput
@@ -963,9 +963,9 @@ export const EditElectionEventDataForm: React.FC = () => {
                                             )}
                                     </CustomUrlsStyle.InputWrapper>
                                     <CustomUrlsStyle.InputWrapper>
-                                    <CustomUrlsStyle.InputLabel>
-                                        Enrollment:
-                                    </CustomUrlsStyle.InputLabel>
+                                        <CustomUrlsStyle.InputLabel>
+                                            Enrollment:
+                                        </CustomUrlsStyle.InputLabel>
                                         <CustomUrlsStyle.InputLabelWrapper>
                                             <p>https://</p>
                                             <TextInput
