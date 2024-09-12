@@ -6,14 +6,14 @@
 resolver = "2"
 
 members = [
-    "braid",
-    # "harvest",
+    #"braid",
+    "harvest",
     "strand",
-    #"immu-board",
-    #"immudb-rs",
-    #"sequent-core",
+    "immu-board",
+    "immudb-rs",
+    "sequent-core",
     "board-messages",
-    #"velvet",
-    #"windmill",
-    #"wrap-map-err",
+    "velvet",
+    "windmill",
+    "wrap-map-err",
 ]

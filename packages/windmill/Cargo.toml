@@ -12,9 +12,9 @@ authors = [
 license = "AGPL-3.0-only"
 
 [features]
-default = ["fips_full"]
-fips_core = ["dep:postgres-openssl", "dep:openssl"]
-fips_full = ["dep:postgres-openssl", "dep:openssl"]
+# default = ["fips_full"]
+# fips_core = ["dep:postgres-openssl", "dep:openssl"]
+# fips_full = ["dep:postgres-openssl", "dep:openssl"]
 
 
 [dependencies]
@@ -50,14 +50,14 @@ encoding_rs = "0.8.34"
 encoding_rs_io = "0.1.7"
 
 # logging
-tracing = "0.1"
-thiserror = "1.0.50"
+# tracing = "0.1"
+# thiserror = "1.0.50"
 
-# time
-time = "0.3.31"
+# # time
+# time = "0.3.31"
 
-# for sending emails and sms
-lettre = "0.11.2"
+# # for sending emails and sms
+lettre = { version = "=0.10.4", default-features = false }
 aws-config = { version = "1.0.3", features = ["behavior-version-latest"] }
 aws-sdk-sesv2 = "1.4.0"
 aws-sdk-sns = "1.4.0"

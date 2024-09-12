@@ -11,8 +11,8 @@ edition = "2021"
 
 [dependencies]
 rocket = { version = "0.5.0", features = ["json"] }
-serde = { version = "1.0.190", features = ["derive"] }
-serde_json = "1.0.105"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 serde_with = "3.4.0"
 reqwest = { version="0.12", features = ["blocking", "json"] }
 handlebars = "4.3.7"
@@ -24,14 +24,14 @@ graphql_client = "0.13.0"
 tokio = { version = "1.32.0", features = ["full"] }
 chrono = "0.4.31"
 base64 = "0.21.0"
-celery = "0.5.5"
+celery = { git = "https://github.com/rusty-celery/rusty-celery.git", rev = "1a0168f4b4b521c891fcfc853c21fc30de12c2f2" }
 strum = "0.25"
 strum_macros = "0.25"
 uuid = { version = "1.5.0", features = ["v4", "fast-rng"] }
 
 # s3
 aws-config = { version = "1.0.3", features = ["behavior-version-latest"] }
-aws-sdk-s3 = "1.11.0"
+aws-sdk-s3 = "=1.11.0"
 
 # logging
 tracing = "0.1"
