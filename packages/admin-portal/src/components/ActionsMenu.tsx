@@ -1,7 +1,6 @@
-// SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import styled from "@emotion/styled"
 import {IconButton, Menu, MenuItem} from "@mui/material"
 import {GridMoreVertIcon} from "@mui/x-data-grid"
 import React from "react"

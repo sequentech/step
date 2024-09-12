@@ -1,6 +1,9 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import React from "react"
 import {Box, Popover} from "@mui/material"
-import {styled} from "@mui/material/styles"
 import {Icon} from "@sequentech/ui-essentials"
 import {IconDefinition} from "@fortawesome/fontawesome-svg-core"
 
