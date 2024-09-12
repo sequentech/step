@@ -216,7 +216,7 @@ pub async fn get_manual_verification_pdf(
 
         <script>
           const qrcode = new QRCode(document.getElementById("qrcode"), {
-            text: "{{data.manual_verification_url}}",
+            text: "{{data.manual_verification_url}}".replace("&#x3D;", "="),
             width: 480,
             height: 480,
             colorDark: '#000000',
