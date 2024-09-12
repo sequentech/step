@@ -449,6 +449,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
                             <Select
                                 name="area"
+                                className="select-voter-area"
                                 defaultValue={defaultAreaId}
                                 value={defaultAreaId}
                                 onChange={handleSelectChange("area-id")}

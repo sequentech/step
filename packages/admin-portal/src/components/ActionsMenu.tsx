@@ -79,6 +79,7 @@ export const ActionsMenu: React.FC<ActionsMenuProps> = (props) => {
                               key={index}
                               onClick={() => action.action(record.id)}
                               sx={{display: "flex", gap: "8px"}}
+                              className={action.className ?? ""}
                           >
                               {action.icon}
                               {action.label || ""}

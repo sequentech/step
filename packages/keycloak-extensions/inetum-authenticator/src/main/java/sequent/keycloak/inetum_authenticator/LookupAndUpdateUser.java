@@ -5,15 +5,14 @@
 package sequent.keycloak.inetum_authenticator;
 
 import static java.util.Arrays.asList;
+import static sequent.keycloak.authenticator.Utils.sendConfirmation;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Maps;
 import jakarta.ws.rs.core.Response;
-import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.Config;
 import org.keycloak.authentication.AuthenticationFlowContext;
@@ -23,8 +22,6 @@ import org.keycloak.authentication.AuthenticatorFactory;
 import org.keycloak.authentication.forms.RegistrationPage;
 import org.keycloak.authentication.requiredactions.TermsAndConditions;
 import org.keycloak.common.util.Time;
-import org.keycloak.email.EmailException;
-import org.keycloak.email.EmailTemplateProvider;
 import org.keycloak.events.Details;
 import org.keycloak.events.EventType;
 import org.keycloak.models.AuthenticationExecutionModel;
@@ -39,9 +36,9 @@ import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.services.resources.LoginActionsService;
 import sequent.keycloak.authenticator.MessageOTPAuthenticator;
+import sequent.keycloak.authenticator.Utils.MessageCourier;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
-import sequent.keycloak.authenticator.gateway.SmsSenderProvider;
 
 /** Lookups an user using a field */
 @JBossLog
@@ -57,28 +54,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
   public static final String AUTO_LOGIN = "auto-login";
   private static final String MESSAGE_COURIER_ATTRIBUTE = "messageCourierAttribute";
   private static final String TEL_USER_ATTRIBUTE = "telUserAttribute";
-  private static final String SEND_SUCCESS_SUBJECT = "messageSuccessEmailSubject";
-  private static final String SEND_SUCCESS_SMS_I18N_KEY = "messageSuccessSms";
-  private static final String SEND_SUCCESS_EMAIL_FTL = "success-email.ftl";
   public static final String AUTO_2FA = "auto-2fa";
-
-  public enum MessageCourier {
-    BOTH,
-    SMS,
-    EMAIL,
-    NONE;
-
-    static MessageCourier fromString(String type) {
-      if (type != null) {
-        for (MessageCourier messageCourier : MessageCourier.values()) {
-          if (type.equalsIgnoreCase(messageCourier.name())) {
-            return messageCourier;
-          }
-        }
-      }
-      throw new IllegalArgumentException("No constant with text " + type + " found");
-    }
-  }
 
   @Override
   public void authenticate(AuthenticationFlowContext context) {
@@ -101,25 +77,40 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
     // Lookup user by attributes in authNotes
     UserModel user = lookupUserByAuthNotes(context, searchAttributesList);
+    Utils.buildEventDetails(context);
 
     // check user was found
     if (user == null) {
       log.error("authenticate(): user not found");
+      context.getEvent().error(Utils.ERROR_USER_NOT_FOUND);
       context.attempted();
       return;
     }
     // check user has no credentials yet
     else if (user.credentialManager().getStoredCredentialsStream().count() > 0) {
       log.error("authenticate(): user found but already has credentials");
+      context.getEvent().error(Utils.ERROR_USER_HAS_CREDENTIALS);
       context.attempted();
       return;
     }
+    String email = user.getEmail();
+    String username = user.getUsername();
+
+    context
+        .getEvent()
+        .detail(Details.USERNAME, username)
+        .detail(Details.REGISTER_METHOD, "form")
+        .detail(Details.EMAIL, email);
 
     // check that the user doesn't have set any of the unset attributes
-    boolean unsetAttributesChecked = checkUnsetAttributes(user, context, unsetAttributesList);
+    Optional<String> unsetAttributesChecked =
+        checkUnsetAttributes(user, context, unsetAttributesList);
 
-    if (!unsetAttributesChecked) {
+    if (unsetAttributesChecked.isPresent()) {
       log.error("authenticate(): some user unset attributes are set");
+      context
+          .getEvent()
+          .error(Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET + ": " + unsetAttributesChecked.get());
       context.attempted();
       return;
     }
@@ -142,18 +133,11 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     log.info("authenticate(): done");
 
     // Success event, similar to RegistrationUserCreation.java in keycloak
-    String email = user.getEmail();
-    String username = user.getUsername();
 
     if (context.getRealm().isRegistrationEmailAsUsername()) {
       username = email;
     }
 
-    context
-        .getEvent()
-        .detail(Details.USERNAME, username)
-        .detail(Details.REGISTER_METHOD, "form")
-        .detail(Details.EMAIL, email);
     user.setEnabled(true);
 
     if ("on".equals(context.getAuthenticationSession().getAuthNote("termsAccepted"))) {
@@ -209,9 +193,9 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
           MessageOTPCredentialModel.create(/* isSetup= */ true));
     }
 
-    log.info("authenticate(): success");
-
     if (autoLogin) {
+      context.getEvent().detail("auto_login", "true");
+      context.getEvent().success();
       context.success();
     } else {
       context.clearUser();
@@ -225,7 +209,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
           String telUserAttribute = config.getConfig().get(TEL_USER_ATTRIBUTE);
           String mobile = user.getFirstAttribute(telUserAttribute);
 
-          sendConfirmation(context, user, messageCourier, mobile);
+          sendConfirmation(context.getSession(), context.getRealm(), user, messageCourier, mobile);
         } catch (Exception error) {
           log.errorv("there was an error {0}", error);
           context.failureChallenge(
@@ -248,64 +232,6 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     }
   }
 
-  private void sendConfirmation(
-      AuthenticationFlowContext context,
-      UserModel user,
-      MessageCourier messageCourier,
-      String mobileNumber)
-      throws EmailException, IOException {
-    log.info("sendConfirmation(): start");
-    var session = context.getSession();
-    // Send a confirmation email
-    EmailTemplateProvider emailTemplateProvider = session.getProvider(EmailTemplateProvider.class);
-
-    // We get the username we are going to provide the user in other to login. It's going to be
-    // either email or mobileNumber.
-    String username = user.getEmail() != null ? user.getEmail() : mobileNumber;
-    log.infov("sendConfirmation(): username {0}", username);
-    log.infov("sendConfirmation(): messageCourier {0}", messageCourier);
-
-    String email = user.getEmail();
-
-    if (email != null
-        && email.trim().length() > 0
-        && (MessageCourier.EMAIL.equals(messageCourier)
-            || MessageCourier.BOTH.equals(messageCourier))) {
-      log.infov("sendConfirmation(): sending email", username);
-      List<Object> subjAttr = ImmutableList.of(context.getRealm().getName());
-      Map<String, Object> messageAttributes = Maps.newHashMap();
-      messageAttributes.put("realmName", context.getRealm().getName());
-      messageAttributes.put("username", username);
-
-      emailTemplateProvider
-          .setRealm(context.getRealm())
-          .setUser(user)
-          .setAttribute("realmName", context.getRealm().getName())
-          .setAttribute("username", username)
-          .send(SEND_SUCCESS_SUBJECT, subjAttr, SEND_SUCCESS_EMAIL_FTL, messageAttributes);
-    }
-
-    if (mobileNumber != null
-        && mobileNumber.trim().length() > 0
-        && (MessageCourier.SMS.equals(messageCourier)
-            || MessageCourier.BOTH.equals(messageCourier))) {
-      log.infov("sendConfirmation(): sending sms", username);
-
-      SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
-      log.infov("sendCode(): Sending SMS to=`{0}`", mobileNumber.trim());
-      log.infov("sendCode(): Sending SMS to=`{0}`", mobileNumber.trim());
-      List<String> smsAttributes = ImmutableList.of(context.getRealm().getName(), username);
-
-      smsSenderProvider.send(
-          mobileNumber.trim(),
-          SEND_SUCCESS_SMS_I18N_KEY,
-          smsAttributes,
-          context.getRealm(),
-          user,
-          session);
-    }
-  }
-
   private UserModel lookupUserByAuthNotes(
       AuthenticationFlowContext context, List<String> attributes) {
     log.info("lookupUserByAuthNotes(): start");
@@ -313,7 +239,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     return Utils.lookupUserByAuthNotes(context);
   }
 
-  private boolean checkUnsetAttributes(
+  private Optional<String> checkUnsetAttributes(
       UserModel user, AuthenticationFlowContext context, List<String> attributes) {
     Map<String, List<String>> userAttributes = user.getAttributes();
     for (String attributeName : attributes) {
@@ -321,7 +247,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
         // Only assume email is valid if it's verified
         if (user.isEmailVerified() && user.getEmail() != null && !user.getEmail().isBlank()) {
           log.info("checkUnsetAttributes(): user has email=" + user.getEmail());
-          return false;
+          return Optional.of("User has email attribute set but it should be unset");
         }
       } else {
         if (userAttributes.containsKey(attributeName)
@@ -329,29 +255,36 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
             && userAttributes.get(attributeName).size() > 0
             && userAttributes.get(attributeName).get(0) != null
             && !userAttributes.get(attributeName).get(0).isBlank()) {
-          log.info(
-              "checkUnsetAttributes(): user has attribute "
+          String formattedErrorMessage =
+              "User has attribute "
                   + attributeName
                   + " with value="
-                  + userAttributes.get(attributeName));
-          return false;
+                  + userAttributes.get(attributeName)
+                  + " but it should be unset";
+          log.error(formattedErrorMessage);
+          return Optional.of(formattedErrorMessage);
         }
       }
     }
-    return true;
+    return Optional.empty();
   }
 
   private void updateUserAttributes(
       UserModel user, AuthenticationFlowContext context, List<String> attributes) {
     for (String attribute : attributes) {
       List<String> values = Utils.getAttributeValuesFromAuthNote(context, attribute);
-      if (values != null && !values.isEmpty()) {
+      if (values != null && !values.isEmpty() && !values.get(0).isBlank()) {
         if (attribute.equals("username")) {
+          log.debugv("Setting attribute username to value={}", values.get(0));
           user.setUsername(values.get(0));
         } else if (attribute.equals("email")) {
+          log.debugv("Setting attribute email to value={}", values.get(0));
           user.setEmail(values.get(0));
         }
+        log.debugv("Setting attribute name={} to values={}", attribute, values);
         user.setAttribute(attribute, values);
+      } else {
+        log.debugv("No setting attribute name={} because it's blank or null", attribute);
       }
     }
   }

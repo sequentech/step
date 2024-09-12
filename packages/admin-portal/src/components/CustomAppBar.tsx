@@ -9,6 +9,7 @@ import {ITenantSettings} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {TenantContext} from "@/providers/TenantContextProvider"
 import {Sequent_Backend_Tenant} from "@/gql/graphql"
+import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
 
 export const CustomAppBar: React.FC = () => {
     const authContext = useContext(AuthContext)
@@ -42,12 +43,14 @@ export const CustomAppBar: React.FC = () => {
             <Header
                 appVersion={{main: globalSettings.APP_VERSION}}
                 userProfile={{
+                    firstName: authContext.firstName,
                     username: authContext.username,
                     email: authContext.email,
                     openLink: authContext.openProfileLink,
                 }}
                 logoutFn={authContext.isAuthenticated ? authContext.logout : undefined}
                 languagesList={langList}
+                logoUrl={SequentLogo}
             />
         </AppBar>
     )

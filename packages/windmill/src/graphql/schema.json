@@ -3514,6 +3514,29 @@
       },
       {
         "kind": "OBJECT",
+        "name": "LogEventOutput",
+        "description": null,
+        "fields": [
+          {
+            "name": "electionEventId",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
         "name": "ManageElectionDatesOutput",
         "description": null,
         "fields": [
@@ -19018,6 +19041,20 @@
                 "defaultValue": null
               },
               {
+                "name": "document_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              },
+              {
                 "name": "election_id",
                 "description": null,
                 "type": {
@@ -19032,7 +19069,7 @@
                 "defaultValue": null
               },
               {
-                "name": "private_key",
+                "name": "password",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -19712,6 +19749,47 @@
                   }
                 }
               }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "logEvent",
+            "description": "log an event in immudb",
+            "args": [
+              {
+                "name": "electionEventId",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "messageType",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "OBJECT",
+              "name": "LogEventOutput",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null

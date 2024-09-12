@@ -588,8 +588,14 @@ let MuiDialog: Components["MuiDialog"] = {
     styleOverrides: {
         paper: ({ownerState}) => {
             return {
-                border: `2px solid ${palette.black}`,
-                maxWidth: ownerState.fullWidth ? "100vw" : "496px",
+                ...{
+                    border: `2px solid ${palette.black}`,
+                },
+                ...(ownerState.maxWidth === "xs"
+                    ? {
+                          maxWidth: "496px",
+                      }
+                    : {}),
             }
         },
     },

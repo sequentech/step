@@ -27,10 +27,10 @@ import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import UploadIcon from "@mui/icons-material/Upload"
 import {ListActions} from "@/components/ListActions"
-import {Box, Button, Chip, Typography} from "@mui/material"
+import {Button, Chip, Typography} from "@mui/material"
 import {Dialog} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
-import {Action, ActionsColumn} from "@/components/ActionButons"
+import {Action} from "@/components/ActionButons"
 import EditIcon from "@mui/icons-material/Edit"
 import MailIcon from "@mui/icons-material/Mail"
 import CreditScoreIcon from "@mui/icons-material/CreditScore"
@@ -468,16 +468,17 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             label: t(`sendCommunication.send`),
         },
         {
-            icon: <EditIcon />,
+            icon: <EditIcon className="edit-voter-icon" />,
             action: editAction,
             showAction: () => canEditUsers,
             label: t(`common.label.edit`),
         },
         {
-            icon: <DeleteIcon />,
+            icon: <DeleteIcon className="delete-voter-icon" />,
             action: deleteAction,
             showAction: () => canEditUsers,
             label: t(`common.label.delete`),
+            className: "delete-voter-icon",
         },
         {
             icon: <CreditScoreIcon />,
@@ -622,7 +623,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     <Typography variant="body1" paragraph>
                         {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.askCreate`)}
                     </Typography>
-                    <ResourceListStyles.EmptyButtonList>
+                    <ResourceListStyles.EmptyButtonList className="voter-add-button">
                         <Button onClick={() => setOpenNew(true)}>
                             <ResourceListStyles.CreateIcon icon={faPlus} />
                             {t(
@@ -709,10 +710,10 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             >
                 {userAttributes?.get_user_profile_attributes && (
                     <DataGridContainerStyle
+                        omit={OMIT_FIELDS}
                         isOpenSideBar={isOpenSidebar}
                         bulkActionButtons={<BulkActions />}
                     >
-                        {/* <DatagridConfigurable> */}
                         <TextField source="id" sx={{display: "block", width: "280px"}} />
                         <BooleanField source="email_verified" />
                         <BooleanField source="enabled" />
@@ -767,7 +768,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         <WrapperField source="actions" label="Actions">
                             <ActionsMenu actions={actions} />
                         </WrapperField>
-                        {/* </DatagridConfigurable> */}
                     </DataGridContainerStyle>
                 )}
             </List>

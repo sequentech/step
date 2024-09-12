@@ -272,7 +272,6 @@ const catalanTranslation: TranslationType = {
                 materialActivated: "Materials de Suport activats",
                 materialTitle: "Títol",
                 materialSubTitle: "Subtítol",
-                hideAudit: "Deshabilitar Suport d'Auditoria de la Papereta",
                 logoUrl: "URL del Logotip",
                 redirectFinishUrl: "URL de redirecció en finalitzar",
                 css: "CSS personalitzat",
@@ -650,6 +649,10 @@ const catalanTranslation: TranslationType = {
                 "document-write": "Editar Documents",
                 "support-material-read": "Llegir Materials de Suport",
                 "support-material-write": "Editar Materials de Suport",
+                "miru-create": "Miru Create",
+                "miru-download": "Miru Download",
+                "miru-send": "Miru Send",
+                "miru-sign": "Miru Sign",
             },
         },
         generalSettingsScreen: {
@@ -697,6 +700,7 @@ const catalanTranslation: TranslationType = {
                 en: "Anglès",
                 fr: "Francès",
                 cat: "Valencià",
+                tl: "Tagal",
             },
             channel: {
                 online: "En línia",
@@ -821,6 +825,12 @@ const catalanTranslation: TranslationType = {
                 "random": "Aleatòries",
                 "custom": "Personalitzat",
                 "alphabetical": "Alfabètic",
+            },
+            auditButtonConfig: {
+                "label": "Opció de visualització del botó d'auditoria",
+                "show": "Mostrar",
+                "not-show": "No mostrar",
+                "show-in-help": "Mostra al diàleg d'ajuda",
             },
             underVotePolicy: {
                 "label": "Política de Votació Inferior",
@@ -969,6 +979,19 @@ const catalanTranslation: TranslationType = {
                 description:
                     "Et permet exportar un Paquet de Transmissió als Servidors de Destinació o descarregar-lo.",
                 actions: {
+                    sign: {
+                        title: "Regenerar",
+                        dialog: {
+                            title: "Vols signar el paquet de transmissió?",
+                            description:
+                                "Si us plau, confirma que vols regenerar el paquet de transmissió per a l'àrea `{{name}}`",
+                            confirm: "Signar el paquet de transmissió",
+                            cancel: "Tancar",
+                            input: {
+                                placeholder: "Introdueix la teva contrasenya",
+                            },
+                        },
+                    },
                     send: {
                         title: "Enviar",
                         dialog: {
@@ -979,9 +1002,20 @@ const catalanTranslation: TranslationType = {
                             cancel: "Tancar",
                         },
                     },
+                    regenerate: {
+                        title: "Regenerar",
+                        dialog: {
+                            title: "Vol regenerar el paquet de transmissió?",
+                            description:
+                                "Si us plau, confirmi que vol regenerar el paquet de transmissió per a l'àrea `{{name}}`",
+                            confirm: "Regenerar paquet de transmissió",
+                            cancel: "Tancar",
+                        },
+                    },
                     download: {
                         title: "Descarregar",
-                        itemTitle: "Descarregar el Paquet de Transmissió",
+                        emlTitle: "Download EML",
+                        transmissionPackageTitle: "Descarregar el Paquet de Transmissió",
                         dialog: {
                             title: "Vols descarregar el Paquet de Transmissió?",
                             description:
@@ -1237,6 +1271,12 @@ const catalanTranslation: TranslationType = {
                 census: "Cens",
             },
             common: {
+                tallyCeremony: {
+                    manage: "Gestionar la Cerimònia de Còmput",
+                    view: "Veure la Cerimònia de Còmput",
+                    cancel: "Cancel·lar la Cerimònia de Còmput",
+                    addKey: "Afegir Clau de Còmput",
+                },
                 edit: "Editar",
                 confirm: "Confirmar",
                 back: "Enrere",

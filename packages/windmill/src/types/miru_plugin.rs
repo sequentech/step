@@ -49,6 +49,7 @@ pub struct MiruTransmissionPackageData {
     pub servers: Vec<MiruCcsServer>,
     pub documents: Vec<MiruDocument>,
     pub logs: Vec<Log>,
+    pub threshold: i64,
 }
 
 pub type MiruTallySessionData = Vec<MiruTransmissionPackageData>;

@@ -51,9 +51,9 @@ const spanishTranslation: TranslationType = {
         reviewScreen: {
             title: "Revisa tu voto",
             description:
-                "Para realizar cambios en sus selecciones, haga clic en el botón “<b>Editar selección</b>”, para confirmar sus selecciones, haga clic en el botón “<b>Enviar tu voto</b>” debajo, y para auditar su papeleta haga clic en el botón “<b>Auditar papeleta</b>” debajo. Tenga en cuenta que una vez que envíe su papeleta, habrá votado y no se le emitirá otra papeleta para esta elección.",
+                "Para realizar cambios en sus selecciones, haga clic en el botón “<b>Editar selección</b>”, para confirmar sus selecciones, haga clic en el botón “<b>Enviar tu voto</b>” debajo, y para auditar su papeleta haga clic en el botón “<b>Auditar papeleta</b>” debajo.",
             descriptionNoAudit:
-                "Para realizar cambios en sus selecciones, haga clic en el botón “<b>Editar selección</b>”, para confirmar sus selecciones, haga clic en el botón “<b>Enviar tu voto</b>” debajo. Tenga en cuenta que una vez que envíe su papeleta, habrá votado y no se le emitirá otra papeleta para esta elección.",
+                "Para realizar cambios en sus selecciones, haga clic en el botón “<b>Editar selección</b>”, para confirmar sus selecciones, haga clic en el botón “<b>Enviar tu voto</b>” debajo.",
             backButton: "Editar tu voto",
             castBallotButton: "Enviar tu voto",
             auditButton: "Auditar papeleta",
