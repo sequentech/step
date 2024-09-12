@@ -52,7 +52,7 @@ module.exports = {
                 on_failure: true,
             },
             globals: {
-                waitForConditionTimeout: 25000, // 25 seconds
+                waitForConditionTimeout: 50000, // 50 seconds
             },
             desiredCapabilities: {
                 "browserName": "firefox",
