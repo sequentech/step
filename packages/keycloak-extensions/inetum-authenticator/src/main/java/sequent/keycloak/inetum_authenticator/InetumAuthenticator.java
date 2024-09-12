@@ -118,13 +118,38 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     String authorization = "Bearer " + configMap.get(Utils.API_KEY_ATTRIBUTE);
     log.info("doPost: url=" + url + ", payload =" + payload.toString());
 
-    SimpleHttp.Response response =
-        SimpleHttp.doPost(url, context.getSession())
-            .header("Content-Type", "application/json")
-            .header("Authorization", authorization)
-            .json(payload)
-            .asResponse();
-    return response;
+    var attempt = 0;
+    var maxRetries = 3;
+    var retryDelay = 2000;
+
+    while (attempt < maxRetries) {
+      try {
+        SimpleHttp.Response response =
+            SimpleHttp.doPost(url, context.getSession())
+                .header("Content-Type", "application/json")
+                .header("Authorization", authorization)
+                .json(payload)
+                .asResponse();
+        return response;
+
+      } catch (IOException e) {
+        attempt++;
+        log.warnv("doPost: Request failed (attempt {0}): {1}", attempt, e.getMessage());
+
+        if (attempt >= maxRetries) {
+          throw e; // Propagate the exception if max retries are reached
+        }
+
+        // Wait before retrying
+        try {
+          Thread.sleep(retryDelay);
+        } catch (InterruptedException interruptedException) {
+          Thread.currentThread().interrupt();
+          throw new IOException("doPost: Retry interrupted", interruptedException);
+        }
+      }
+    }
+    throw new IOException("doPost: Failed to execute request after " + maxRetries + " attempts.");
   }
 
   /** Send a GET to Inetum API */
@@ -151,7 +176,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
       } catch (IOException e) {
         attempt++;
-        log.warnv("Request failed (attempt {0}): {1}", attempt, e.getMessage());
+        log.warnv("doGet: Request failed (attempt {0}): {1}", attempt, e.getMessage());
 
         if (attempt >= maxRetries) {
           throw e; // Propagate the exception if max retries are reached
@@ -162,11 +187,11 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
           Thread.sleep(retryDelay);
         } catch (InterruptedException interruptedException) {
           Thread.currentThread().interrupt();
-          throw new IOException("Retry interrupted", interruptedException);
+          throw new IOException("doGet: Retry interrupted", interruptedException);
         }
       }
     }
-    throw new IOException("Failed to execute request after " + maxRetries + " attempts.");
+    throw new IOException("doGet: Failed to execute request after " + maxRetries + " attempts.");
   }
 
   protected Map<String, String> getTemplateMap(Map<String, String> configMap) {
