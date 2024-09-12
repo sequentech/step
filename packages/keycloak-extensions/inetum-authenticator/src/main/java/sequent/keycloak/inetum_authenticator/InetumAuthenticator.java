@@ -135,12 +135,38 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     String authorization = "Bearer " + configMap.get(Utils.API_KEY_ATTRIBUTE);
     log.info("doGet: url=" + url);
 
-    SimpleHttp.Response response =
-        SimpleHttp.doGet(url, context.getSession())
-            .header("Content-Type", "application/json")
-            .header("Authorization", authorization)
-            .asResponse();
-    return response;
+    var attempt = 0;
+    var maxRetries = 3;
+    var retryDelay = 2000;
+
+    while (attempt < maxRetries) {
+      try {
+        SimpleHttp.Response response =
+            SimpleHttp.doGet(url, context.getSession())
+                .header("Content-Type", "application/json")
+                .header("Authorization", authorization)
+                .asResponse();
+
+        return response;
+
+      } catch (IOException e) {
+        attempt++;
+        System.err.println("Request failed (attempt " + attempt + "): " + e.getMessage());
+
+        if (attempt >= maxRetries) {
+          throw e; // Propagate the exception if max retries are reached
+        }
+
+        // Wait before retrying
+        try {
+          Thread.sleep(retryDelay);
+        } catch (InterruptedException interruptedException) {
+          Thread.currentThread().interrupt();
+          throw new IOException("Retry interrupted", interruptedException);
+        }
+      }
+    }
+    throw new IOException("Failed to execute request after " + maxRetries + " attempts.");
   }
 
   protected Map<String, String> getTemplateMap(Map<String, String> configMap) {
