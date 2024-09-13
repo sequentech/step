@@ -19,21 +19,16 @@ use board_messages::braid::message::Signer;
 use board_messages::electoral_log::newtypes::*;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
-use rocket::futures::TryFutureExt;
-use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::ElectionPresentation;
 use sequent_core::ballot::ElectionStatus;
 use sequent_core::ballot::VotingStatus;
 use sequent_core::ballot::{HashableBallot, HashableBallotContest};
 use sequent_core::encrypt::hash_ballot_sha512;
 use sequent_core::encrypt::DEFAULT_PLAINTEXT_LABEL;
-use sequent_core::serialization::base64::Base64Deserialize;
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::keycloak;
 use serde::{Deserialize, Serialize};
-use serde_json;
-use serde_json::Value;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::hash::{hash_to_array, Hash, HashWrapper};
 use strand::serialization::StrandSerialize;
@@ -62,15 +57,79 @@ struct CastVoteIds<'a> {
     area_id: &'a str,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub enum CastVoteError {
+    #[serde(rename = "area_not_found")]
+    AreaNotFound,
+    #[serde(rename = "election_event_not_found")]
+    ElectionEventNotFound(String),
+    #[serde(rename = "electoral_log_not_found")]
+    ElectoralLogNotFound(String),
+    #[serde(rename = "check_status_failed")]
+    CheckStatusFailed(String),
+    #[serde(rename = "check_previous_votes_failed")]
+    CheckPreviousVotesFailed(String),
+    #[serde(rename = "insert_failed")]
+    InsertFailed(String),
+    #[serde(rename = "commit_failed")]
+    CommitFailed(String),
+    #[serde(rename = "get_db_client_failed")]
+    GetDbClientFailed(String),
+    #[serde(rename = "get_client_credentials_failed")]
+    GetClientCredentialsFailed(String),
+    #[serde(rename = "get_area_id_failed")]
+    GetAreaIdFailed(String),
+    #[serde(rename = "get_transaction_failed")]
+    GetTransactionFailed(String),
+    #[serde(rename = "deserialize_ballot_failed")]
+    DeserializeBallotFailed(String),
+    #[serde(rename = "deserialize_contests_failed")]
+    DeserializeContestsFailed(String),
+    #[serde(rename = "serialize_voter_id_failed")]
+    SerializeVoterIdFailed(String),
+    #[serde(rename = "serialize_ballot_failed")]
+    SerializeBallotFailed(String),
+    #[serde(rename = "pok_validation_failed")]
+    PokValidationFailed(String),
+    #[serde(rename = "ballot_sign_failed")]
+    BallotSignFailed(String),
+    #[serde(rename = "uuid_parse_failed")]
+    UuidParseFailed(String, String),
+    #[serde(rename = "unknown_error")]
+    UnknownError(String),
+}
+
+impl core::fmt::Display for CastVoteError {
+    fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::result::Result<(), core::fmt::Error> {
+        write!(fmt, "{self:?}")
+    }
+}
+
+impl CastVoteError {
+    pub fn new(error: anyhow::Error) -> Self {
+        match error.downcast::<CastVoteError>() {
+            Ok(e) => e,
+            Err(e) => CastVoteError::UnknownError(e.to_string()),
+        }
+    }
+}
+
 #[instrument(skip(input), err)]
 pub async fn try_insert_cast_vote(
     input: InsertCastVoteInput,
     tenant_id: &str,
     voter_id: &str,
     area_id: &str,
-) -> Result<InsertCastVoteOutput> {
-    let mut hasura_db_client: DbClient = get_hasura_pool().await.get().await?;
-    let hasura_transaction = hasura_db_client.transaction().await?;
+) -> Result<InsertCastVoteOutput, CastVoteError> {
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|e| CastVoteError::GetDbClientFailed(e.to_string()))?;
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .map_err(|e| CastVoteError::GetTransactionFailed(e.to_string()))?;
     // TODO performance of serializable
     /*hasura_transaction
     .simple_query("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;")
@@ -78,40 +137,52 @@ pub async fn try_insert_cast_vote(
     .with_context(|| "Cannot set transaction isolation level")?;*/
 
     let hashable_ballot: HashableBallot = deserialize_str(&input.content)
-        .map_err(|err| anyhow!("Error deserializing ballot content: {}", err))?;
+        .map_err(|e| CastVoteError::DeserializeBallotFailed(e.to_string()))?;
 
-    let pseudonym_h =
-        hash_voter_id(voter_id).map_err(|err| anyhow!("Error hashing voter id: {:?}", err))?;
+    let pseudonym_h = hash_voter_id(voter_id)
+        .map_err(|e| CastVoteError::SerializeVoterIdFailed(e.to_string()))?;
+
     let vote_h = hash_ballot_sha512(&hashable_ballot)
-        .map_err(|err| anyhow!("Error hashing ballot: {:?}", err))?;
+        .map_err(|e| CastVoteError::SerializeBallotFailed(e.to_string()))?;
 
     let pseudonym_h = PseudonymHash(HashWrapper::new(pseudonym_h));
     let vote_h = CastVoteHash(HashWrapper::new(vote_h));
 
-    let area_opt = get_area_by_id(&hasura_transaction, tenant_id, area_id).await?;
+    let area_opt = get_area_by_id(&hasura_transaction, tenant_id, area_id)
+        .await
+        .map_err(|e| CastVoteError::GetAreaIdFailed(e.to_string()))?;
 
     let hashable_ballot_contests = hashable_ballot
         .deserialize_contests()
-        .map_err(|err| anyhow!("Error deserializing ballot content: {:?}", err))?;
+        .map_err(|e| CastVoteError::DeserializeContestsFailed(e.to_string()))?;
+
     hashable_ballot_contests
         .iter()
         .map(check_popk)
-        .collect::<Result<Vec<()>>>()?;
+        .collect::<Result<Vec<()>>>()
+        .map_err(|e| CastVoteError::PokValidationFailed(e.to_string()))?;
 
-    let auth_headers = keycloak::get_client_credentials().await?;
+    let auth_headers = keycloak::get_client_credentials()
+        .await
+        .map_err(|e| CastVoteError::GetClientCredentialsFailed(e.to_string()))?;
 
     let area = if let Some(area) = area_opt {
         area
     } else {
-        return Err(anyhow!("Area id not found"));
+        return Err(CastVoteError::AreaNotFound);
     };
     let election_event_id: &str = area.election_event_id.as_str();
 
     let election_event: GetElectionEventSequentBackendElectionEvent =
-        get_election_event(&auth_headers, tenant_id, election_event_id).await?;
-    let (electoral_log, signing_key) = get_electoral_log(&election_event).await?;
-    // From this point on, we have all variables needed to do post_cat_vote_error
+        get_election_event(&auth_headers, tenant_id, election_event_id)
+            .await
+            .map_err(|e| CastVoteError::ElectionEventNotFound(e.to_string()))?;
 
+    let (electoral_log, signing_key) = get_electoral_log(&election_event)
+        .await
+        .map_err(|e| CastVoteError::ElectoralLogNotFound(e.to_string()))?;
+
+    // From this point on, we have all variables needed to do post_cat_vote_error
     let election_id_string = input.election_id.to_string();
 
     let ids = CastVoteIds {
@@ -174,7 +245,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
     ids: CastVoteIds<'a>,
     auth_headers: AuthHeaders,
     signing_key: StrandSignatureSk,
-) -> Result<CastVote, anyhow::Error> {
+) -> Result<CastVote, CastVoteError> {
     let election_id_string = input.election_id.to_string();
     let election_id = election_id_string.as_str();
 
@@ -198,12 +269,20 @@ pub async fn insert_cast_vote_and_commit<'a>(
     );
 
     // TODO signature must include more information
-    let ballot_signature = signing_key.sign(input.content.as_bytes())?;
+    let ballot_signature = signing_key
+        .sign(input.content.as_bytes())
+        .map_err(|e| CastVoteError::BallotSignFailed(e.to_string()))?;
+
     let ballot_signature = ballot_signature.to_bytes().to_vec();
-    let tenant_uuid = Uuid::parse_str(ids.tenant_id)?;
-    let election_event_uuid = Uuid::parse_str(ids.election_event_id)?;
-    let election_uuid = Uuid::parse_str(election_id)?;
-    let area_uuid = Uuid::parse_str(ids.area_id)?;
+    let tenant_uuid = Uuid::parse_str(ids.tenant_id)
+        .map_err(|e| CastVoteError::UuidParseFailed(e.to_string(), "tenant_id".to_string()))?;
+    let election_event_uuid = Uuid::parse_str(ids.election_event_id).map_err(|e| {
+        CastVoteError::UuidParseFailed(e.to_string(), "election_event_id".to_string())
+    })?;
+    let election_uuid = Uuid::parse_str(election_id)
+        .map_err(|e| CastVoteError::UuidParseFailed(e.to_string(), "election_id".to_string()))?;
+    let area_uuid = Uuid::parse_str(ids.area_id)
+        .map_err(|e| CastVoteError::UuidParseFailed(e.to_string(), "area_id".to_string()))?;
     let insert = postgres::cast_vote::insert_cast_vote(
         &hasura_transaction,
         &tenant_uuid,
@@ -218,16 +297,17 @@ pub async fn insert_cast_vote_and_commit<'a>(
 
     check_status
         .await
-        .map_err(|e| anyhow!("Check status failed: {}", e))?;
+        .map_err(|e| CastVoteError::CheckStatusFailed(e.to_string()))?;
     check_previous_votes
         .await
-        .map_err(|e| anyhow!("Check previous votes failed: {}", e))?;
-    let cast_vote = insert.await.map_err(|e| anyhow!("Insert failed: {}", e))?;
-
+        .map_err(|e| CastVoteError::CheckPreviousVotesFailed(e.to_string()))?;
+    let cast_vote = insert
+        .await
+        .map_err(|e| CastVoteError::InsertFailed(e.to_string()))?;
     hasura_transaction
         .commit()
         .await
-        .map_err(|e| anyhow!("Commit failed: {}", e))?;
+        .map_err(|e| CastVoteError::CommitFailed(e.to_string()))?;
 
     Ok(cast_vote)
 }

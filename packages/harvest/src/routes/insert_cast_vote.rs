@@ -13,7 +13,8 @@ use sequent_core::types::permissions::VoterPermissions;
 use std::time::Instant;
 use tracing::{debug, error, info, instrument};
 use windmill::services::insert_cast_vote::{
-    try_insert_cast_vote, InsertCastVoteInput, InsertCastVoteOutput,
+    try_insert_cast_vote, CastVoteError, InsertCastVoteInput,
+    InsertCastVoteOutput,
 };
 
 /// Gets the POST coming from the frontend->Hasura->Harvest->Here.
@@ -37,16 +38,76 @@ pub async fn insert_cast_vote(
         &area_id,
     )
     .await
-    .map_err(|e| {
+    .map_err(|cast_vote_err| {
         let duration = start.elapsed();
         info!(
             "insert-cast-vote took {} ms to complete but failed.",
             duration.as_millis()
         );
-        error!(error=?e, "Error inserting vote: ");
+
+        match &cast_vote_err {
+            CastVoteError::AreaNotFound => {
+                error!("AreaNotFound by ID Error.")
+            }
+            CastVoteError::ElectionEventNotFound(error_str) => {
+                error!("ElectionEventNotFound Error: {}", error_str)
+            }
+            CastVoteError::ElectoralLogNotFound(error_str) => {
+                error!("ElectoralLogNotFound Error: {}", error_str)
+            }
+            CastVoteError::CheckStatusFailed(error_str) => {
+                error!("CheckStatusFailed Error: {}", error_str)
+            }
+            CastVoteError::CheckPreviousVotesFailed(error_str) => {
+                error!("CheckPreviousVotesFailed Error: {}", error_str)
+            }
+            CastVoteError::InsertFailed(error_str) => {
+                error!("InsertFailed Error: {}", error_str)
+            }
+            CastVoteError::CommitFailed(error_str) => {
+                error!("CommitFailed Error: {}", error_str)
+            }
+            CastVoteError::GetDbClientFailed(error_str) => {
+                error!("GetDbClientFailed Error: {}", error_str)
+            }
+            CastVoteError::GetClientCredentialsFailed(error_str) => {
+                error!("GetClientCredentialsFailed Error: {}", error_str)
+            }
+            CastVoteError::GetAreaIdFailed(error_str) => {
+                error!("GetAreaIdFailed Error: {}", error_str)
+            }
+            CastVoteError::GetTransactionFailed(error_str) => {
+                error!("GetTransactionFailed Error: {}", error_str)
+            }
+            CastVoteError::DeserializeBallotFailed(error_str) => {
+                error!("Error deserializing ballot content: DeserializeBallotFailed Error: {}", error_str)
+            }
+            CastVoteError::DeserializeContestsFailed(error_str) => {
+                error!("Error deserializing ballot contests: DeserializeContestsFailed Error: {}", error_str)
+            }
+            CastVoteError::SerializeVoterIdFailed(error_str) => {
+                error!("Error hashing voter id: SerializeVoterIdFailed Error: {}", error_str)
+            }
+            CastVoteError::SerializeBallotFailed(error_str) => {
+                error!("Error hashing ballot: SerializeBallotFailed Error: {}", error_str)
+            }
+            CastVoteError::PokValidationFailed(error_str) => {
+                error!("PokValidationFailed Error: {}", error_str)
+            }
+            CastVoteError::BallotSignFailed(error_str) => {
+                error!("BallotSignFailed Error: {}", error_str)
+            }
+            CastVoteError::UuidParseFailed(error_str1, error_str2) => {
+                error!("UuidParseFailed Error: {} Error parsing:{}", error_str1, error_str2)
+            }
+            CastVoteError::UnknownError(error_str) => {
+                error!("Unknown Error: {}", error_str)
+            }
+        };
+
         (
             Status::InternalServerError,
-            format!("Error inserting vote: {:?}", e),
+            format!("Error inserting vote: {:?}", cast_vote_err),
         )
     })?;
 
