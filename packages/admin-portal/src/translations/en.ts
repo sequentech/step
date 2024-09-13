@@ -108,7 +108,7 @@ const englishTranslation = {
             printButton: "Print",
             restartButton: "Start Voting",
             title: "Audit your Ballot",
-            description: "To verify your ballot you will need. to follow the bellow steps:",
+			description: "To verify your ballot, please follow the steps below:",
             step1Title: "1. Download or copy the following information",
             step1Description:
                 "Your <b>Ballot ID</b> that appears at the top of the screen and your encrypted ballot below:",
@@ -129,7 +129,7 @@ const englishTranslation = {
                 ok: "OK",
             },
             bottomWarning:
-                "For security reason, when you audit your ballot, it need to be spoiled. To continue with the voting process, you need to click ‘<b>Start Voting</b>’ bellow.",
+                "For security reasons, when you audit your ballot it needs to be spoiled. To continue with the voting process, click ‘<b>Start Voting</b>’ below.",
         },
         electionSelectionScreen: {
             title: "Election list",
