@@ -5,6 +5,7 @@
 // pub mod grpc;
 pub mod grpc_m;
 // pub mod local;
+#[cfg(feature = "sqlite")]
 pub mod local2;
 // pub mod pgsql;
 
