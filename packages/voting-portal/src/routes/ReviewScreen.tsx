@@ -252,6 +252,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 },
             })
             if (result.errors) {
+                console.log(result.errors.map((e) => e.message))
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`))
             }
 
