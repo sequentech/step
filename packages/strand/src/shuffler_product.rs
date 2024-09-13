@@ -84,7 +84,7 @@ pub struct Responses<C: Ctx> {
     pub(crate) s_primes: StrandVector<C::X>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, BorshSerialize, BorshDeserialize)]
 /// A proof of shuffle.
 pub struct ShuffleProof<C: Ctx> {
     // proof commitment
@@ -871,6 +871,7 @@ fn serialize_flatten<T: Send + Sync + StrandSerialize>(v: &[T]) -> Result<Vec<u8
     Ok(bytes?.into_iter().flatten().collect())
 }
 
+/*
 // For some reason, deriving these does not work
 impl<C: Ctx> BorshSerialize for ShuffleProof<C> {
     fn serialize<W: std::io::Write>(
@@ -903,4 +904,4 @@ impl<C: Ctx> BorshDeserialize for ShuffleProof<C> {
             c_hats
         })
     }
-}
+}*/

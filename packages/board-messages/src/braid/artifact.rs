@@ -76,6 +76,7 @@ impl<C: Ctx> Configuration<C> {
     }
 }
 
+#[derive(BorshSerialize, BorshDeserialize)]
 pub struct Channel<C: Ctx> {
     // The public key (as an element) with which other trustees will encrypt shares sent to the originator of this ShareTransport
     pub channel_pk: C::E,
@@ -95,6 +96,7 @@ impl<C: Ctx> Channel<C> {
         }
     }
 }
+/*
 // For some reason, deriving these does not work
 impl<C: Ctx> BorshSerialize for Channel<C> {
     fn serialize<W: std::io::Write>(
@@ -123,7 +125,7 @@ impl<C: Ctx> BorshDeserialize for Channel<C> {
             encrypted_channel_sk
         })
     }
-}
+}*/
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct Shares<C: Ctx> {
@@ -151,7 +153,7 @@ impl<C: Ctx> DkgPublicKey<C> {
 
 use strand::serialization::StrandVector;
 
-#[derive(Debug)]
+#[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct Ballots<C: Ctx> {
     pub ciphertexts: StrandVector<Ciphertext<C>>,
 }
@@ -162,6 +164,8 @@ impl<C: Ctx> Ballots<C> {
         }
     }
 }
+
+/*
 // For some reason, deriving these does not work
 impl<C: Ctx> BorshSerialize for Ballots<C> {
     fn serialize<W: std::io::Write>(
@@ -184,10 +188,10 @@ impl<C: Ctx> BorshDeserialize for Ballots<C> {
             ciphertexts
         })
     }
-}
+}*/
 
 
-#[derive(Clone)]
+#[derive(Clone, BorshSerialize, BorshDeserialize)]
 pub struct Mix<C: Ctx> {
     pub ciphertexts: StrandVector<Ciphertext<C>>,
     pub proof: Option<ShuffleProof<C>>,
@@ -213,6 +217,8 @@ impl<C: Ctx> Mix<C> {
         }
     }
 }
+
+/*
 // For some reason, deriving these does not work
 impl<C: Ctx> BorshSerialize for Mix<C> {
     fn serialize<W: std::io::Write>(
@@ -242,8 +248,9 @@ impl<C: Ctx> BorshDeserialize for Mix<C> {
         })
     }
 }
+    */
 
-#[derive(Debug)]
+#[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct DecryptionFactors<C: Ctx> {
     pub factors: StrandVector<C::E>,
     pub proofs: StrandVector<ChaumPedersen<C>>,
@@ -256,6 +263,8 @@ impl<C: Ctx> DecryptionFactors<C> {
         }
     }
 }
+
+/*
 // For some reason, deriving these does not work
 impl<C: Ctx> BorshSerialize for DecryptionFactors<C> {
     fn serialize<W: std::io::Write>(
@@ -282,6 +291,7 @@ impl<C: Ctx> BorshDeserialize for DecryptionFactors<C> {
         })
     }
 }
+    */
 
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]

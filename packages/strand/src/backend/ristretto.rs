@@ -37,7 +37,7 @@ use crate::serialization::{StrandDeserialize, StrandSerialize};
 use crate::util;
 use crate::util::StrandError;
 
-#[derive(Eq, PartialEq, Clone, Debug)]
+#[derive(Eq, PartialEq, Clone, Debug, BorshSerialize, BorshDeserialize)]
 /// [Ristretto](https://ristretto.group/what_is_ristretto.html) implementation of a strand modular arithmetic context.
 pub struct RistrettoCtx;
 

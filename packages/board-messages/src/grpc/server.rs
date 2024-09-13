@@ -22,7 +22,6 @@ use crate::grpc::pgsql::ZPgsqlB3Client;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 
 const BB8_POOL_SIZE: u32 = 20;
-const MAX_MESSAGE_SIZE: usize = 1024 * 1024 * 1024;
 
 pub struct PgsqlB3Server {
     pool: Pool<PostgresConnectionManager<NoTls>>,
@@ -191,13 +190,13 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
                 let mut send: Vec<GrpcB3Message> = vec![];
                 for m in ms.into_iter() {
                     let next_bytes: usize = m.message.len();
-                    if next_bytes > MAX_MESSAGE_SIZE {
-                        error!("get_messages_multi: encountered single message exceeding limit {} > {}", next_bytes, MAX_MESSAGE_SIZE);
-                        return Err(Status::internal(format!("get_messages_multi: encountered single message exceeding limit {} > {}", next_bytes, MAX_MESSAGE_SIZE)));
+                    if next_bytes > super::MAX_MESSAGE_SIZE {
+                        error!("get_messages_multi: encountered single message exceeding limit {} > {}", next_bytes, super::MAX_MESSAGE_SIZE);
+                        return Err(Status::internal(format!("get_messages_multi: encountered single message exceeding limit {} > {}", next_bytes, super::MAX_MESSAGE_SIZE)));
                     }
                     total_bytes += next_bytes;
-                    if total_bytes > MAX_MESSAGE_SIZE {
-                        warn!("get_messages_multi: truncating response to respect limit {} > {}", total_bytes, MAX_MESSAGE_SIZE);
+                    if total_bytes > super::MAX_MESSAGE_SIZE {
+                        warn!("get_messages_multi: truncating response to respect limit {} > {}", total_bytes, super::MAX_MESSAGE_SIZE);
                         total_bytes -= next_bytes;
                         truncated = true;
                         break;
@@ -236,15 +235,14 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
     ) -> Result<Response<PutMessagesMultiReply>, Status> {
         let r = request.get_ref();
 
-        let mut total_bytes: u32 = 0;
         for request in &r.requests {
             let bytes: usize = request.messages.iter().map(|m| m.message.len()).sum();
-            total_bytes += bytes as u32;
+            info!("post_messages_multi: received post for '{}' with {} messages", request.board, request.messages.len());
+            let now = std::time::Instant::now();
             self.put_messages_(&request.board, &request.messages)
-                .await?;
+                .await?;            
+            info!("messages posted in {}ms ({:.3} MB)", now.elapsed().as_millis(), f64::from(bytes as u32) / (1024.0 * 1024.0));
         }
-
-        info!("post_messages_multi: received post with {} messages, size = {:.3} MB", r.requests.len(), f64::from(total_bytes) / (1024.0 * 1024.0));
 
         let reply = PutMessagesMultiReply {};
         Ok(Response::new(reply))

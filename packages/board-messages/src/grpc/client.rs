@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::time::Duration;
 
 use crate::braid::message::Message;
@@ -93,9 +94,52 @@ impl B3Client {
     pub async fn put_messages_multi(
         &self,
         requests: Vec<(String, Vec<Message>)>,
-    ) -> Result<Response<PutMessagesMultiReply>> {
-        let mut rs = vec![];
+    ) -> Result<Vec<Response<PutMessagesMultiReply>>> {
+        
+        if requests.len() == 0 {
+            return Ok(vec![])
+        }
+        
+        let mut chunker = Chunker::new();
+        let mut client = self.get_grpc_client().await?;
+        let mut responses = vec![];
+
+        for (board, messages) in requests {
+            for m in messages {
+                let chunk = chunker.add_message(board.clone(), m);
+                if let Some(chunk) = chunk {
+                    let response = self.put_message_batch(&chunk, &mut client).await?;
+                    responses.push(response);
+                }
+            }
+        }
+        let last_chunk = std::mem::replace(&mut chunker.next_chunk, HashMap::new());
+        if last_chunk.len() > 0 {
+            let response = self.put_message_batch(&last_chunk, &mut client).await?;
+            responses.push(response);
+        }
+
+        Ok(responses)
+        
+        
+        /* let mut rs = vec![];
         for r in requests {
+            let next = Self::put_messages_request(&r.0, &r.1);
+            rs.push(next?);
+        } 
+
+        let put_request = PutMessagesMultiRequest { requests: rs };
+        let put_request = Request::new(put_request);
+
+        let mut client = self.get_grpc_client().await?;
+        let response = client.put_messages_multi(put_request).await?;
+
+        Ok(response)*/
+    }
+
+    async fn put_message_batch(&self, chunk: &HashMap<String, Vec<Message>>, client: &mut B3ClientInner<Channel>) -> Result<Response<PutMessagesMultiReply>>  {
+        let mut rs = vec![];
+        for r in chunk {
             let next = Self::put_messages_request(&r.0, &r.1);
             rs.push(next?);
         }
@@ -103,7 +147,6 @@ impl B3Client {
         let put_request = PutMessagesMultiRequest { requests: rs };
         let put_request = Request::new(put_request);
 
-        let mut client = self.get_grpc_client().await?;
         let response = client.put_messages_multi(put_request).await?;
 
         Ok(response)
@@ -155,5 +198,41 @@ impl B3Client {
             .max_encoding_message_size(self.max_message_size);
 
         Ok(client)
+    }
+}
+
+struct Chunker {
+    next_chunk: HashMap<String, Vec<Message>>,
+    size: usize,
+}
+impl Chunker {
+    fn new() -> Self {
+        Self {
+            next_chunk: HashMap::new(),
+            size: 0,
+        }
+    }
+    fn add_message(&mut self, board: String, message: Message) -> Option<HashMap<String, Vec<Message>>> {
+        let size = message.artifact.as_ref().map(|m| m.len()).unwrap_or(0);
+
+        let mut ret: Option<HashMap<String, Vec<Message>>> = None;
+        
+        if self.size + size > super::MAX_MESSAGE_SIZE {
+            if self.next_chunk.len() > 0 {
+                ret = Some(std::mem::replace(&mut self.next_chunk, HashMap::new()));
+                self.size = 0;
+            }
+        }
+
+        let v = self.next_chunk.get_mut(&board);
+        if let Some(v) = v {
+            v.push(message);
+        }
+        else {
+            self.next_chunk.insert(board, vec![message]);
+        }
+        self.size += size;
+
+        return ret;
     }
 }
