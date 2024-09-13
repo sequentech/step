@@ -30,6 +30,7 @@ pub mod pg_lock;
 pub mod private_keys;
 pub mod probe;
 pub mod protocol_manager;
+pub mod protocol_manager_postgres;
 pub mod public_keys;
 pub mod s3;
 pub mod tally_sheets;

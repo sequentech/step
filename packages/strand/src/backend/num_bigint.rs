@@ -35,6 +35,7 @@ use crate::elgamal::{Ciphertext, PrivateKey, PublicKey};
 use crate::rng::StrandRng;
 use crate::serialization::{StrandDeserialize, StrandSerialize};
 use crate::util::StrandError;
+use std::io::{self, Read, Write};
 
 pub trait SerializeNumber {
     fn to_str_radix(&self, radix: u32) -> String;
@@ -42,6 +43,27 @@ pub trait SerializeNumber {
 
 pub trait DeserializeNumber: Sized {
     fn from_str_radix(s: &str, radix: u32) -> Result<Self, ParseBigIntError>;
+}
+
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BorshBigUint(pub BigUint);
+
+impl BorshSerialize for BorshBigUint {
+    fn serialize<W: Write>(&self, writer: &mut W) -> io::Result<()> {
+        // Convert BigUint to a byte array and serialize that
+        let bytes = self.0.to_bytes_le();
+        bytes.serialize(writer)
+    }
+}
+
+
+impl BorshDeserialize for BorshBigUint {
+    fn deserialize_reader<R: Read>(reader: &mut R) -> io::Result<Self> {
+        // Deserialize a Vec<u8> and convert it back to BigUint
+        let bytes = Vec::<u8>::deserialize_reader(reader)?;
+        Ok(BorshBigUint(BigUint::from_bytes_le(&bytes)))
+    }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -68,7 +90,7 @@ impl DeserializeNumber for BigUintP {
     }
 }
 
-#[derive(Eq, PartialEq, Clone, Debug)]
+#[derive(Eq, PartialEq, Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct BigintCtx<P: BigintCtxParams> {
     params: P,
 }
@@ -401,13 +423,14 @@ impl<P: BigintCtxParams + Eq> Exponent<BigintCtx<P>> for BigUintX<P> {
 
 impl Plaintext for BigUintP {}
 
-pub trait BigintCtxParams: Clone + Eq + Send + Sync + Debug {
+pub trait BigintCtxParams: Clone + Eq + Send + Sync + Debug + BorshSerialize + BorshDeserialize {
     fn generator(&self) -> &BigUintE<Self>;
     fn modulus(&self) -> &BigUintE<Self>;
     fn exp_modulus(&self) -> &BigUintX<Self>;
     fn co_factor(&self) -> &BigUint;
     fn new() -> Self;
 }
+
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub struct P2048 {
     generator: BigUintE<Self>,
@@ -415,6 +438,41 @@ pub struct P2048 {
     exp_modulus: BigUintX<Self>,
     co_factor: BigUint,
 }
+
+
+impl BorshSerialize for P2048 {
+    fn serialize<W: Write>(&self, writer: &mut W) -> io::Result<()> {
+        // Serialize each field manually
+        self.generator.serialize(writer)?;
+        self.modulus.serialize(writer)?;
+        self.exp_modulus.serialize(writer)?;
+        
+        // Serialize co_factor as BorshBigUint
+        BorshBigUint(self.co_factor.clone()).serialize(writer)?;
+
+        Ok(())
+    }
+}
+
+impl BorshDeserialize for P2048 {
+    fn deserialize_reader<R: Read>(reader: &mut R) -> io::Result<Self> {
+        // Deserialize each field manually
+        let generator = BigUintE::<Self>::deserialize_reader(reader)?;
+        let modulus = BigUintE::<Self>::deserialize_reader(reader)?;
+        let exp_modulus = BigUintX::<Self>::deserialize_reader(reader)?;
+
+        // Deserialize co_factor as BorshBigUint and unwrap it to BigUint
+        let co_factor = BorshBigUint::deserialize_reader(reader)?.0;
+
+        Ok(P2048 {
+            generator,
+            modulus,
+            exp_modulus,
+            co_factor,
+        })
+    }
+}
+
 impl BigintCtxParams for P2048 {
     #[inline(always)]
     fn generator(&self) -> &BigUintE<Self> {
@@ -495,6 +553,17 @@ impl<P: BigintCtxParams> BorshDeserialize for BigUintE<P> {
         ctx.element_from_bytes(&bytes)
             .map_err(|e| Error::new(ErrorKind::Other, e))
     }
+
+    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<Self> {
+        // Use a buffer to read bytes from the reader
+        let mut bytes = Vec::new();
+        // Read the data from the reader into the buffer
+        reader.read_to_end(&mut bytes)?;
+
+        // Deserialize the buffer using the same logic as in deserialize
+        let mut bytes_slice: &[u8] = &bytes;
+        Self::deserialize(&mut bytes_slice)
+    }
 }
 
 impl<P: BigintCtxParams> BorshSerialize for BigUintX<P> {
@@ -517,6 +586,17 @@ impl<P: BigintCtxParams> BorshDeserialize for BigUintX<P> {
         ctx.exp_from_bytes(&bytes)
             .map_err(|e| Error::new(ErrorKind::Other, e))
     }
+
+    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<Self> {
+        // Use a buffer to read bytes from the reader
+        let mut bytes = Vec::new();
+        // Read the data from the reader into the buffer
+        reader.read_to_end(&mut bytes)?;
+
+        // Deserialize the buffer using the same logic as in deserialize
+        let mut bytes_slice: &[u8] = &bytes;
+        Self::deserialize(&mut bytes_slice)
+    }
 }
 
 impl BorshSerialize for BigUintP {
@@ -537,6 +617,17 @@ impl BorshDeserialize for BigUintP {
 
         let biguint = BigUint::from_bytes_le(&bytes);
         Ok(BigUintP(biguint))
+    }
+
+    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<Self> {
+        // Use a buffer to read bytes from the reader
+        let mut bytes = Vec::new();
+        // Read the data from the reader into the buffer
+        reader.read_to_end(&mut bytes)?;
+
+        // Deserialize the buffer using the same logic as in deserialize
+        let mut bytes_slice: &[u8] = &bytes;
+        Self::deserialize(&mut bytes_slice)
     }
 }
 
