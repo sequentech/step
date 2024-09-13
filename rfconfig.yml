@@ -1,0 +1,31 @@
+strategy:
+
+  # The version numbering strategy - see below for details.
+  # Allowed values: 'SemVer' or 'Milestone', default 'SemVer'
+  kind: SemVer
+
+  # The initial seed version number if no version sources (release branches or tags)
+  # are present in the repository. If using Milestone strategy, the baseNumber should
+  # simply be the major version e.g. 2. Defaults to 0.0, or 0, depending on the
+  # numbering strategy.
+  baseNumber: "2.4"
+
+# The prefix that identifies a release branch. Default = 'release/'
+releaseBranchPrefix: 'release/'
+
+# Prefixes for working branches (not release or trunk). Defaults to
+# ['feature/', 'bugfix/', '- hotfix/', 'merge/']
+workingBranchPrefixes:
+  - feat/
+
+# Whether to remove the working branch prefix from the branch name when generating the preReleaseLabel.
+# Default: true
+stripBranchPrefixFromLabel: true
+
+# Whether to fail with an error if the branch is not recognised as release or trunk, and its prefix doesn't match
+# a working branch prefix. Default: true
+failOnUnknownPrefix: true
+
+# The name of the trunk or long-running branch in Release Flow. Defaults to
+# 'master' for backward compatibility.
+trunkBranchName: 'main'
