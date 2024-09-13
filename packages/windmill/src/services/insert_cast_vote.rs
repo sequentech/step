@@ -40,7 +40,7 @@ use strand::serialization::StrandSerialize;
 use strand::signature::StrandSignatureSk;
 use strand::util::StrandError;
 use strand::zkp::Zkp;
-use tracing::{event, instrument, Level};
+use tracing::{error, event, instrument, Level};
 use uuid::Uuid;
 
 use super::date::ISO8601;
@@ -53,6 +53,14 @@ pub struct InsertCastVoteInput {
 }
 
 pub type InsertCastVoteOutput = CastVote;
+
+#[derive(Debug)]
+struct CastVoteIds<'a> {
+    election_event_id: &'a str,
+    tenant_id: &'a str,
+    voter_id: &'a str,
+    area_id: &'a str,
+}
 
 #[instrument(skip(input), err)]
 pub async fn try_insert_cast_vote(
@@ -69,17 +77,6 @@ pub async fn try_insert_cast_vote(
     .await
     .with_context(|| "Cannot set transaction isolation level")?;*/
 
-    let election_id_string = input.election_id.to_string();
-    let election_id = election_id_string.as_str();
-    let area_opt = get_area_by_id(&hasura_transaction, tenant_id, area_id).await?;
-
-    let area = if let Some(area) = area_opt {
-        area
-    } else {
-        return Err(anyhow!("Area id not found"));
-    };
-    let election_event_id = area.election_event_id.as_str();
-
     let hashable_ballot: HashableBallot = deserialize_str(&input.content)
         .map_err(|err| anyhow!("Error deserializing ballot content: {}", err))?;
 
@@ -88,22 +85,102 @@ pub async fn try_insert_cast_vote(
     let vote_h = hash_ballot_sha512(&hashable_ballot)
         .map_err(|err| anyhow!("Error hashing ballot: {:?}", err))?;
 
+    let pseudonym_h = PseudonymHash(HashWrapper::new(pseudonym_h));
+    let vote_h = CastVoteHash(HashWrapper::new(vote_h));
+
+    let area_opt = get_area_by_id(&hasura_transaction, tenant_id, area_id).await?;
+
     let hashable_ballot_contests = hashable_ballot
         .deserialize_contests()
         .map_err(|err| anyhow!("Error deserializing ballot content: {:?}", err))?;
     hashable_ballot_contests
         .iter()
-        .map(|contest| check_popk(contest))
+        .map(check_popk)
         .collect::<Result<Vec<()>>>()?;
 
     let auth_headers = keycloak::get_client_credentials().await?;
 
-    let election_event = get_election_event(&auth_headers, tenant_id, election_event_id).await?;
+    let area = if let Some(area) = area_opt {
+        area
+    } else {
+        return Err(anyhow!("Area id not found"));
+    };
+    let election_event_id: &str = area.election_event_id.as_str();
+
+    let election_event: GetElectionEventSequentBackendElectionEvent =
+        get_election_event(&auth_headers, tenant_id, election_event_id).await?;
     let (electoral_log, signing_key) = get_electoral_log(&election_event).await?;
+    // From this point on, we have all variables needed to do post_cat_vote_error
+
+    let election_id_string = input.election_id.to_string();
+
+    let ids = CastVoteIds {
+        election_event_id,
+        tenant_id,
+        voter_id,
+        area_id,
+    };
+
+    let result = insert_cast_vote_and_commit(
+        input,
+        hasura_transaction,
+        election_event,
+        ids,
+        auth_headers,
+        signing_key,
+    )
+    .await;
+
+    match result {
+        Ok(inserted_cast_vote) => {
+            let log_result = electoral_log
+                .post_cast_vote(
+                    election_event_id.to_string(),
+                    Some(election_id_string),
+                    pseudonym_h,
+                    vote_h,
+                )
+                .await;
+            if let Err(log_err) = log_result {
+                error!("Error posting to the electoral log {:?}", log_err);
+            }
+            Ok(inserted_cast_vote)
+        }
+        Err(err) => {
+            error!(err=?err);
+            // TODO error message may leak implementation details
+            let log_result = electoral_log
+                .post_cast_vote_error(
+                    election_event_id.to_string(),
+                    Some(election_id_string),
+                    pseudonym_h,
+                    err.to_string(),
+                )
+                .await;
+
+            if let Err(log_err) = log_result {
+                error!("Error posting error to the electoral log {:?}", log_err);
+            }
+            Err(err)
+        }
+    }
+}
+
+#[instrument(skip(input, hasura_transaction, signing_key, auth_headers), err)]
+pub async fn insert_cast_vote_and_commit<'a>(
+    input: InsertCastVoteInput,
+    hasura_transaction: Transaction<'_>,
+    election_event: GetElectionEventSequentBackendElectionEvent,
+    ids: CastVoteIds<'a>,
+    auth_headers: AuthHeaders,
+    signing_key: StrandSignatureSk,
+) -> Result<CastVote, anyhow::Error> {
+    let election_id_string = input.election_id.to_string();
+    let election_id = election_id_string.as_str();
 
     let check_status = check_status(
-        tenant_id,
-        election_event_id,
+        ids.tenant_id,
+        ids.election_event_id,
         election_id,
         auth_headers,
         &election_event,
@@ -112,21 +189,21 @@ pub async fn try_insert_cast_vote(
     // Transaction isolation begins at this future (unless above methods are
     // switched from hasura to direct sql)
     let check_previous_votes = check_previous_votes(
-        voter_id,
-        tenant_id,
-        election_event_id,
+        ids.voter_id,
+        ids.tenant_id,
+        ids.election_event_id,
         election_id,
-        area_id,
+        ids.area_id,
         &hasura_transaction,
     );
 
     // TODO signature must include more information
     let ballot_signature = signing_key.sign(input.content.as_bytes())?;
     let ballot_signature = ballot_signature.to_bytes().to_vec();
-    let tenant_uuid = Uuid::parse_str(tenant_id)?;
-    let election_event_uuid = Uuid::parse_str(election_event_id)?;
+    let tenant_uuid = Uuid::parse_str(ids.tenant_id)?;
+    let election_event_uuid = Uuid::parse_str(ids.election_event_id)?;
     let election_uuid = Uuid::parse_str(election_id)?;
-    let area_uuid = Uuid::parse_str(area_id)?;
+    let area_uuid = Uuid::parse_str(ids.area_id)?;
     let insert = postgres::cast_vote::insert_cast_vote(
         &hasura_transaction,
         &tenant_uuid,
@@ -134,65 +211,25 @@ pub async fn try_insert_cast_vote(
         &election_uuid,
         &area_uuid,
         &input.content,
-        voter_id,
+        ids.voter_id,
         &input.ballot_id,
         &ballot_signature,
     );
 
-    let result = check_status
-        .and_then(|_| check_previous_votes)
-        .and_then(|_| insert)
-        .await;
+    check_status
+        .await
+        .map_err(|e| anyhow!("Check status failed: {}", e))?;
+    check_previous_votes
+        .await
+        .map_err(|e| anyhow!("Check previous votes failed: {}", e))?;
+    let cast_vote = insert.await.map_err(|e| anyhow!("Insert failed: {}", e))?;
 
-    let commit = hasura_transaction
+    hasura_transaction
         .commit()
         .await
-        .map_err(|e| anyhow!("Commit failed: {}", e));
-    let result = commit.and(result);
+        .map_err(|e| anyhow!("Commit failed: {}", e))?;
 
-    let pseudonym_h = PseudonymHash(HashWrapper::new(pseudonym_h));
-    let vote_h = CastVoteHash(HashWrapper::new(vote_h));
-
-    match result {
-        Ok(result) => {
-            let log_result = electoral_log
-                .post_cast_vote(
-                    election_event_id.to_string(),
-                    Some(input.election_id.to_string()),
-                    pseudonym_h,
-                    vote_h,
-                )
-                .await;
-            if let Err(log_err) = log_result {
-                event!(
-                    Level::ERROR,
-                    "Error posting to the electoral log {:?}",
-                    log_err
-                );
-            }
-            Ok(result.into())
-        }
-        Err(err) => {
-            // TODO error message may leak implementation details
-            let log_result = electoral_log
-                .post_cast_vote_error(
-                    election_event_id.to_string(),
-                    Some(input.election_id.to_string()),
-                    pseudonym_h,
-                    err.to_string(),
-                )
-                .await;
-
-            if let Err(log_err) = log_result {
-                event!(
-                    Level::ERROR,
-                    "Error posting error to the electoral log {:?}",
-                    log_err
-                );
-            }
-            Err(err)
-        }
-    }
+    Ok(cast_vote)
 }
 
 fn hash_voter_id(voter_id: &str) -> Result<Hash, StrandError> {
