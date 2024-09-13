@@ -50,7 +50,7 @@ struct Cli {
     strict: bool,
 }
 
-// How often the session map (with trustee's memory board) is cleared
+// How often the session map (which contains trustee's memory board) is cleared
 const SESSION_RESET_PERIOD: i64 = 20 * 60;
 
 /*
@@ -58,7 +58,7 @@ Entry point for a braid mixnet trustee.
 
 Example run command
 
-cargo run --release --bin main  -- --server-url http://immudb:3322 --trustee-config trustee.toml
+cargo run --release --bin main  -- --server-url http://127.0.0.1:50051 --trustee-config trustee.toml
 
 A mixnet trustee will periodically:
 

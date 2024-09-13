@@ -43,6 +43,7 @@ malachite = { version = "0.3.2", default-features = false, features = [ "natural
 rug = { version = "~1.23.0", default-features = false, features = ["integer", "rand"], optional = true }
 
 # Signatures
+# ed25519-dalek = { version = "=2.1.1", features = ["rand_core", "pkcs8"] }
 ed25519-dalek = { version = "=2.1.1", features = ["rand_core", "pkcs8"] }
 ecdsa = {version = "0.16.8", features = ["signing"] }
 p384 = "0.13.0"

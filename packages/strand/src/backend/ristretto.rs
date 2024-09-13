@@ -413,21 +413,19 @@ impl BorshDeserialize for RistrettoPointS {
     #[inline]
     fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> Result<Self, std::io::Error> {
         let bytes = <[u8; 32]>::deserialize_reader(reader)?;
-        let ctx = RistrettoCtx::default();
+        // We duplicate this code in order to avoid the copying in ctx.element_from_bytes
+        // Note we are passing the [u8; 32] directly instead of passing through 
+        // to_ristretto_point_array(bytes) which takes a slice
+        CompressedRistretto(bytes)
+            .decompress()
+            .map(RistrettoPointS)
+            .ok_or(Error::new(ErrorKind::Other, "Failed to decode ristretto point"))
+        
+        /* let ctx = RistrettoCtx::default();
 
         ctx.element_from_bytes(&bytes)
-            .map_err(|e| Error::new(ErrorKind::Other, e))
+            .map_err(|e| Error::new(ErrorKind::Other, e))*/
     }
-    
-    
-    
-    /*fn deserialize(bytes: &mut &[u8]) -> std::io::Result<Self> {
-        let bytes = <[u8; 32]>::deserialize(bytes)?;
-        let ctx = RistrettoCtx::default();
-
-        ctx.element_from_bytes(&bytes)
-            .map_err(|e| Error::new(ErrorKind::Other, e))
-    }*/
 }
 
 impl BorshSerialize for ScalarS {
@@ -445,21 +443,18 @@ impl BorshDeserialize for ScalarS {
     #[inline]
     /// Deserializes the given bytes into a scalar, checking for membership.
     fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> Result<Self, std::io::Error> {
+        // We duplicate this code in order to avoid the copying in ctx.exp_from_bytes
+        // Note we are passing the [u8; 32] directly instead of passing through 
+        // to_ristretto_point_array(bytes) which takes a slice
         let bytes = <[u8; 32]>::deserialize_reader(reader)?;
-        let ctx = RistrettoCtx::default();
+        let opt: Option<ScalarS> =
+            Scalar::from_canonical_bytes(bytes).map(ScalarS).into();
+            opt.ok_or(Error::new(ErrorKind::Other, "Failed to decode scalar"))
+        /* let ctx = RistrettoCtx::default();
 
         ctx.exp_from_bytes(&bytes)
-            .map_err(|e| Error::new(ErrorKind::Other, e))
+            .map_err(|e| Error::new(ErrorKind::Other, e))*/
     }
-    
-    /* 
-    fn deserialize(bytes: &mut &[u8]) -> std::io::Result<Self> {
-        let bytes = <[u8; 32]>::deserialize(bytes)?;
-        let ctx = RistrettoCtx::default();
-
-        ctx.exp_from_bytes(&bytes)
-            .map_err(|e| Error::new(ErrorKind::Other, e))
-    }*/
 }
 
 impl std::fmt::Debug for RistrettoPointS {

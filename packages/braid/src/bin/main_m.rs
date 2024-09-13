@@ -43,25 +43,27 @@ struct Cli {
 
     #[arg(short, long, default_value_t = false)]
     no_cache: bool,
-}
 
-fn get_ignored_boards() -> HashSet<String> {
-    let boards_str: String = std::env::var("IGNORE_BOARDS").unwrap_or_else(|_| "".into());
-    HashSet::from_iter(boards_str.split(',').map(|s| s.to_string()))
-}
+    #[arg(short, long, default_value_t = 1)]
+    tokio_workers: usize,
 
+    #[arg(short, long, default_value_t = 1)]
+    session_workers: usize,
+}
 
 fn main() -> Result<()> {
+    let args = Cli::parse();
+
     // let runtime = tokio::runtime::Builder::new_current_thread()
     let runtime = tokio::runtime::Builder::new_multi_thread()
-    .worker_threads(1)
+    .worker_threads(args.tokio_workers)
     .max_blocking_threads(10)
     .enable_all()
     .build()
     .unwrap();
     
     runtime.block_on(async { 
-        run().await
+        run(&args).await
     })
 }
 
@@ -70,7 +72,7 @@ Entry point for a braid mixnet trustee.
 
 Example run command
 
-cargo run --release --bin main_m -- --server-url http://immudb:3322 --trustee-config trustee.toml
+cargo run --release --bin main_m -- --server-url --server-url http://127.0.0.1:50051 --trustee-config trustee.toml
 
 A mixnet trustee will periodically:
 
@@ -80,8 +82,8 @@ A mixnet trustee will periodically:
         b) Update the local store with new messages
         c) Execute the protocol with the existing messages in the local store
 */
-#[instrument]
-async fn run() -> Result<()> {
+#[instrument(skip_all)]
+async fn run(args: &Cli) -> Result<()> {
     braid::util::init_log(true);
 
     let default_panic = std::panic::take_hook();
@@ -97,8 +99,6 @@ async fn run() -> Result<()> {
             let resident = stats::resident::mib().unwrap();
         }
     }
-
-    let args = Cli::parse();
 
     let contents = fs::read_to_string(args.trustee_config.clone())
         .expect("Should have been able to read the trustee configuration file");
@@ -116,10 +116,10 @@ async fn run() -> Result<()> {
     let store_root = std::env::current_dir().unwrap().join("message_store");
     
     let trustee_name = std::env::var("TRUSTEE_NAME")
-        .unwrap_or(args.trustee_config.into_os_string().into_string().unwrap());
+        .unwrap_or(args.trustee_config.clone().into_os_string().into_string().unwrap());
 
     let factory = SessionFactory::new(&trustee_name, tc, store_root, args.no_cache)?;
-    let mut master = SessionMaster::new(&args.server_url, factory, 1)?;
+    let mut master = SessionMaster::new(&args.server_url, factory, args.session_workers)?;
 
     loop {
         
@@ -240,4 +240,9 @@ impl SessionMaster {
 
         Ok(())
     }
+}
+
+fn get_ignored_boards() -> HashSet<String> {
+    let boards_str: String = std::env::var("IGNORE_BOARDS").unwrap_or_else(|_| "".into());
+    HashSet::from_iter(boards_str.split(',').map(|s| s.to_string()))
 }
