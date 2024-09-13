@@ -27,7 +27,7 @@ services:
       PG_DATABASE_URL: ${HASURA_PG_DATABASE_URL}
 
   simplesaml:
-    #profiles: ["full", "base"]
+    profiles: ["full"]
     image: kenchan0130/simplesamlphp
     container_name: simplesamlphp
     ports:
