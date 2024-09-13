@@ -17,7 +17,18 @@ gq http://graphql-engine:8080/v1/graphql \
     --introspect  \
     --format json \
     > graphql.schema.json
+
+# Copy the schema to the apps
 cd ..
 cp admin-portal/graphql.schema.json windmill/src/graphql/schema.json
+cp admin-portal/graphql.schema.json voting-portal/graphql.schema.json
+cp admin-portal/graphql.schema.json ballot-verifier/graphql.schema.json
 cp admin-portal/graphql.schema.json ..
+
+# Generate Ts types, functions and graphql queries
 yarn generate:admin-portal
+yarn generate:voting-portal
+yarn generate:ballot-verifier
+
+# Format the generated source files
+yarn lint:fix && yarn prettify:fix

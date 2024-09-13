@@ -236,9 +236,9 @@ const frenchTranslation: TranslationType = {
             edit: {
                 general: "Général",
                 dates: "Dates",
+                customUrls: "Préfixer les URL personnalisées",
                 votingPeriod: "Période de vote",
                 language: "Langues",
-                customUrls: "Préfixer les URL personnalisées",
                 allowed: "Canaux de Vote Permis",
                 materials: "Matériaux de Support",
                 ballotDesign: "Design du Bulletin",

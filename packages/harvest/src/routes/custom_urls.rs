@@ -2,23 +2,29 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::{
-    authorization::authorize,
-    custom_url::{get_page_rule, set_custom_url, PageRule, Target},
-};
+use crate::services::authorization::authorize;
 use anyhow::Result;
+use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use tracing::{event, instrument, Level};
+use windmill::postgres::election_event::get_election_event_by_id;
+use windmill::services::custom_url::{
+    get_page_rule, set_custom_url, PageRule, PreviousCustomUrls, Target,
+};
+use windmill::services::database::get_hasura_pool;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateCustomUrlInput {
     pub origin: String,
     pub redirect_to: String,
     pub dns_prefix: String,
+    pub election_id: String,
+    pub key: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -27,9 +33,9 @@ pub struct GetCustomUrlInput {
 }
 
 #[derive(Serialize)]
-struct GraphQLError {
+struct UpdateCustomUrlOutput {
+    success: bool,
     message: String,
-    extensions: Option<serde_json::Value>,
 }
 
 // TODO: Add env for cloudflare auth + for local / remote
@@ -38,7 +44,7 @@ struct GraphQLError {
 pub async fn update_custom_url(
     claims: JwtClaims,
     input: Json<UpdateCustomUrlInput>,
-) -> Result<Json<String>, (Status, String)> {
+) -> Result<Json<UpdateCustomUrlOutput>, (Status, String)> {
     let body = input.into_inner();
     if let Err(err) = authorize(
         &claims,
@@ -51,34 +57,79 @@ pub async fn update_custom_url(
     }
 
     info!("Authorization succeeded, processing URL update");
-
-    match set_custom_url(&body.redirect_to, &body.origin, &body.dns_prefix)
+    let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
+        .get()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    let election_event = get_election_event_by_id(
+        &hasura_transaction,
+        &claims.hasura_claims.tenant_id,
+        &body.election_id,
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    let prev_custom_urls =
+        if let Some(presentation) = &election_event.presentation {
+            if let Some(custom_urls_obj) = presentation.get("custom_urls") {
+                PreviousCustomUrls {
+                    login: custom_urls_obj
+                        .get("login")
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .to_owned(),
+                    enrollment: custom_urls_obj
+                        .get("enrollment")
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .to_owned(),
+                }
+            } else {
+                PreviousCustomUrls {
+                    login: "".to_owned(),
+                    enrollment: "".to_owned(),
+                }
+            }
+        } else {
+            PreviousCustomUrls {
+                login: "".to_owned(),
+                enrollment: "".to_owned(),
+            }
+        };
+
+    match set_custom_url(
+        &body.redirect_to,
+        &body.origin,
+        &body.dns_prefix,
+        &prev_custom_urls,
+        &body.key,
+    )
+    .await
     {
-        Ok(_) => {
+        Ok(message) => {
             info!("Custom URL successfully updated");
-            Ok(Json("Successfully Updated".to_string()))
+            let success_message = format!("Success updating custom URL");
+            Ok(Json(UpdateCustomUrlOutput {
+                success: true,
+                message: success_message,
+            }))
         }
         Err(error) => {
             let error_message =
                 format!("Error updating custom URL: {:?}", error);
             error!("{}", error_message);
 
-            // Create a GraphQL error response
-            let graphql_error = GraphQLError {
-                message: error_message.clone(),
-                extensions: None, /* You can add more structured information
-                                   * if needed */
-            };
-
-            // Serialize the error response to a JSON string
-            let graphql_error_response = serde_json::to_string(&graphql_error)
-                .unwrap_or_else(|_| {
-                    "Failed to serialize GraphQL error".to_string()
-                });
-
-            // Return the error in the expected format (Status, String)
-            Err((Status::InternalServerError, graphql_error_response))
+            Ok(Json(UpdateCustomUrlOutput {
+                success: false,
+                message: error_message,
+            }))
         }
     }
 }

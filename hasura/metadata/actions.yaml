@@ -614,6 +614,19 @@ actions:
       version: 2
   permissions:
   - role: admin-user
+- name: logEvent
+  definition:
+    kind: ""
+    handler: http://{{HARVEST_DOMAIN}}/immudb/log-event
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: service-account
+  comment: log an event in immudb
 - name: manage_election_dates
   definition:
     kind: synchronous
@@ -798,47 +811,47 @@ actions:
   comment: upsert_areas
 custom_types:
   enums:
-  - name: OrderDirection
-    values:
-    - description: null
-      is_deprecated: null
-      value: asc
-    - description: null
-      is_deprecated: null
-      value: desc
-  - name: PgAuditTable
-    values:
-    - description: null
-      is_deprecated: null
-      value: pgaudit_hasura
-    - description: null
-      is_deprecated: null
-      value: pgaudit_keycloak
+    - name: OrderDirection
+      values:
+        - description: null
+          is_deprecated: null
+          value: asc
+        - description: null
+          is_deprecated: null
+          value: desc
+    - name: PgAuditTable
+      values:
+        - description: null
+          is_deprecated: null
+          value: pgaudit_hasura
+        - description: null
+          is_deprecated: null
+          value: pgaudit_keycloak
   input_objects:
-  - name: TemplateInput
-  - name: PgAuditFilter
-  - name: PgAuditOrderBy
-  - name: ElectoralLogFilter
-  - name: ElectoralLogOrderBy
-  - name: SampleInput
-  - name: CreateElectionEventInput
-  - name: GetUsersInput
-  - name: CreateKeysCeremonyInput
-  - name: ElectionEventStatsInput
-  - name: ElectionStatsInput
-  - name: GetPrivateKeyInput
-  - name: CheckPrivateKeyInput
-  - name: GetPermissionsInput
-  - name: GetRolesInput
-  - name: EditUsersInput
-  - name: DeleteUserInput
-  - name: KeycloakUser2
-  - name: CreateUserInput
-  - name: KeycloakPermission2
-  - name: CreatePermissionInput
-  - name: GetManualVerificationInput
-  - name: KeycloakRole2
-  - name: RestorePrivateKeyInput
+    - name: TemplateInput
+    - name: PgAuditFilter
+    - name: PgAuditOrderBy
+    - name: ElectoralLogFilter
+    - name: ElectoralLogOrderBy
+    - name: SampleInput
+    - name: CreateElectionEventInput
+    - name: GetUsersInput
+    - name: CreateKeysCeremonyInput
+    - name: ElectionEventStatsInput
+    - name: ElectionStatsInput
+    - name: GetPrivateKeyInput
+    - name: CheckPrivateKeyInput
+    - name: GetPermissionsInput
+    - name: GetRolesInput
+    - name: EditUsersInput
+    - name: DeleteUserInput
+    - name: KeycloakUser2
+    - name: CreateUserInput
+    - name: KeycloakPermission2
+    - name: CreatePermissionInput
+    - name: GetManualVerificationInput
+    - name: KeycloakRole2
+    - name: RestorePrivateKeyInput
   objects:
   - name: GetManualVerificationOutput
   - name: CreateKeysCeremonyOutput
@@ -892,6 +905,7 @@ custom_types:
   - name: ExportLogsOutput
   - name: ExportAllUsersOutput
   - name: ExportTenantUsersOutput
+  - name: LogEventOutput
   - name: SetCustomUrlOutput
   - name: SetCustomUrlsOutput
   scalars: []
