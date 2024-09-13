@@ -136,60 +136,54 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
 
     return (
         <Box>
-            <Box style={{display: "flex", gap: "5px", alignItems: "center"}}>
-                <StyledButtonTooltip
-                    disableHoverListener={
-                        !expiry || (expiry.countdownAt ? timeLeft > expiry?.countdownAt : true)
-                    }
-                    arrow
-                    placement="bottom-end"
-                    title={<CountdownTooltipContent timeLeft={timeLeftText} />}
-                    slotProps={{
-                        popper: {
-                            modifiers: [
-                                {
-                                    name: "offset",
-                                    options: {
-                                        offset: [-0, 10],
-                                    },
+            <StyledButtonTooltip
+                disableHoverListener={
+                    !expiry || (expiry.countdownAt ? timeLeft > expiry?.countdownAt : true)
+                }
+                arrow
+                placement="bottom-end"
+                title={<CountdownTooltipContent timeLeft={timeLeftText} />}
+                slotProps={{
+                    popper: {
+                        modifiers: [
+                            {
+                                name: "offset",
+                                options: {
+                                    offset: [-0, 10],
                                 },
-                            ],
-                        },
-                    }}
-                >
-                    <StyledButtonContainerWrapper>
-                        <StyledButtonContainer
-                            style={{position: "initial"}}
-                            className="logout-button-container"
+                            },
+                        ],
+                    },
+                }}
+            >
+                <StyledButtonContainerWrapper>
+                    {expiry && timeLeft > 0 && timeLeft < totalDuration && (
+                        <CountdownTimer progress={(timeLeft / totalDuration) * 100} />
+                    )}
+                    <StyledButtonContainer className="logout-button-container">
+                        <StyledButton
+                            className="logout-button"
+                            aria-label="log out button"
+                            onClick={handleMenu}
                         >
-                            <StyledButton
-                                className="logout-button"
-                                aria-label="log out button"
-                                onClick={handleMenu}
+                            <AccountCircle sx={{fontSize: 40}} />
+                            <Box
+                                className="user-first-name"
+                                sx={{
+                                    display: {xs: "none", sm: "block"},
+                                    maxWidth: "70px",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                    overflowX: "clip",
+                                }}
+                                title={userProfile.firstName ?? userProfile.username}
                             >
-                                <AccountCircle sx={{fontSize: 40}} />
-                                <Box
-                                    className="user-first-name"
-                                    sx={{
-                                        display: {xs: "none", sm: "block"},
-                                        maxWidth: "70px",
-                                        textOverflow: "ellipsis",
-                                        whiteSpace: "nowrap",
-                                        overflowX: "clip",
-                                    }}
-                                    title={userProfile.firstName ?? userProfile.username}
-                                >
-                                    {userProfile.firstName ?? userProfile.username}
-                                </Box>
-                            </StyledButton>
-                        </StyledButtonContainer>
-
-                        {expiry && timeLeft > 0 && timeLeft < totalDuration && (
-                            <CountdownTimer progress={(timeLeft / totalDuration) * 100} />
-                        )}
-                    </StyledButtonContainerWrapper>
-                </StyledButtonTooltip>
-            </Box>
+                                {userProfile.firstName ?? userProfile.username}
+                            </Box>
+                        </StyledButton>
+                    </StyledButtonContainer>
+                </StyledButtonContainerWrapper>
+            </StyledButtonTooltip>
             <Menu
                 id="menu-appbar"
                 anchorEl={anchorEl}

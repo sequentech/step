@@ -64,10 +64,12 @@ export const StyledButtonContainerWrapper = styled.div`
     padding: 0;
     margin: 0;
     height: 44px;
+    width: 138px;
 `
 
 export const StyledButtonContainer = styled.div`
     position: absolute;
+    top: 0px;
     padding: 0;
     margin: 0;
     display: flex;
