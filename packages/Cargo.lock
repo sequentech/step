@@ -8412,6 +8412,7 @@ dependencies = [
  "aws-smithy-types",
  "base64 0.21.7",
  "board-messages",
+ "braid",
  "celery",
  "cfg-if 1.0.0",
  "chrono",
