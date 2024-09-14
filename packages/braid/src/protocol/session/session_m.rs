@@ -175,7 +175,6 @@ if (self.session_factory.trustee_name == "trustee3.toml".to_string()) && (loop_c
     std::process::exit(0);
 } 
 
-                
                 let board = GrpcB3BoardParams::new(&self.b3_url);
                 let board = board.get_board();    
                 let responses = board.get_messages_multi(&requests).await;
