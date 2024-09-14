@@ -159,6 +159,18 @@ impl BorshDeserialize for StrandSignatureSk {
 
         Ok(sk)
     }
+    fn deserialize_reader<R: std::io::Read>(
+        reader: &mut R,
+    ) -> std::io::Result<Self> {
+        // Use a buffer to read bytes from the reader
+        let mut bytes = Vec::new();
+        // Read the data from the reader into the buffer
+        reader.read_to_end(&mut bytes)?;
+
+        // Deserialize the buffer using the same logic as in deserialize
+        let mut bytes_slice: &[u8] = &bytes;
+        Self::deserialize(&mut bytes_slice)
+    }
 }
 
 impl BorshSerialize for StrandSignaturePk {
@@ -180,6 +192,18 @@ impl BorshDeserialize for StrandSignaturePk {
 
         Ok(pk)
     }
+    fn deserialize_reader<R: std::io::Read>(
+        reader: &mut R,
+    ) -> std::io::Result<Self> {
+        // Use a buffer to read bytes from the reader
+        let mut bytes = Vec::new();
+        // Read the data from the reader into the buffer
+        reader.read_to_end(&mut bytes)?;
+
+        // Deserialize the buffer using the same logic as in deserialize
+        let mut bytes_slice: &[u8] = &bytes;
+        Self::deserialize(&mut bytes_slice)
+    }
 }
 
 impl BorshSerialize for StrandSignature {
@@ -199,6 +223,18 @@ impl BorshDeserialize for StrandSignature {
             .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
         Ok(signature)
+    }
+    fn deserialize_reader<R: std::io::Read>(
+        reader: &mut R,
+    ) -> std::io::Result<Self> {
+        // Use a buffer to read bytes from the reader
+        let mut bytes = Vec::new();
+        // Read the data from the reader into the buffer
+        reader.read_to_end(&mut bytes)?;
+
+        // Deserialize the buffer using the same logic as in deserialize
+        let mut bytes_slice: &[u8] = &bytes;
+        Self::deserialize(&mut bytes_slice)
     }
 }
 
