@@ -7,8 +7,8 @@ use std::iter::FromIterator;
 use std::marker::PhantomData;
 
 use borsh::{BorshDeserialize, BorshSerialize};
-use strand::zkp::{ChaumPedersen, Schnorr};
 use strand::shuffler_product::StrandRectangle;
+use strand::zkp::{ChaumPedersen, Schnorr};
 
 use crate::braid::newtypes::PROTOCOL_MANAGER_INDEX;
 use crate::braid::newtypes::{BatchNumber, MixNumber};
@@ -97,10 +97,7 @@ impl<C: Ctx> Channel<C> {
 }
 // For some reason, deriving these does not work
 impl<C: Ctx> BorshSerialize for Channel<C> {
-    fn serialize<W: std::io::Write>(
-        &self,
-        writer: &mut W,
-    ) -> std::io::Result<()> {
+    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
         let mut bytes: Vec<Vec<u8>> = vec![];
         bytes.push(borsh::to_vec(&self.channel_pk)?);
         bytes.push(borsh::to_vec(&self.pk_proof)?);
@@ -120,7 +117,7 @@ impl<C: Ctx> BorshDeserialize for Channel<C> {
         Ok(Channel {
             channel_pk,
             pk_proof,
-            encrypted_channel_sk
+            encrypted_channel_sk,
         })
     }
 }
@@ -164,10 +161,7 @@ impl<C: Ctx> Ballots<C> {
 }
 // For some reason, deriving these does not work
 impl<C: Ctx> BorshSerialize for Ballots<C> {
-    fn serialize<W: std::io::Write>(
-        &self,
-        writer: &mut W,
-    ) -> std::io::Result<()> {
+    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
         let mut bytes: Vec<Vec<u8>> = vec![];
         bytes.push(borsh::to_vec(&self.ciphertexts)?);
 
@@ -180,12 +174,9 @@ impl<C: Ctx> BorshDeserialize for Ballots<C> {
         let bytes = <Vec<Vec<u8>>>::deserialize_reader(reader)?;
         let ciphertexts = StrandVector::<Ciphertext<C>>::try_from_slice(&bytes[0])?;
 
-        Ok(Ballots {
-            ciphertexts
-        })
+        Ok(Ballots { ciphertexts })
     }
 }
-
 
 #[derive(Clone)]
 pub struct Mix<C: Ctx> {
@@ -215,10 +206,7 @@ impl<C: Ctx> Mix<C> {
 }
 // For some reason, deriving these does not work
 impl<C: Ctx> BorshSerialize for Mix<C> {
-    fn serialize<W: std::io::Write>(
-        &self,
-        writer: &mut W,
-    ) -> std::io::Result<()> {
+    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
         let mut bytes: Vec<Vec<u8>> = vec![];
         bytes.push(borsh::to_vec(&self.ciphertexts)?);
         bytes.push(borsh::to_vec(&self.proof)?);
@@ -232,13 +220,13 @@ impl<C: Ctx> BorshDeserialize for Mix<C> {
     fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> Result<Self, std::io::Error> {
         let bytes = <Vec<Vec<u8>>>::deserialize_reader(reader)?;
         let ciphertexts = StrandVector::<Ciphertext<C>>::try_from_slice(&bytes[0])?;
-        let proof = Option::<ShuffleProof::<C>>::try_from_slice(&bytes[1])?;
+        let proof = Option::<ShuffleProof<C>>::try_from_slice(&bytes[1])?;
         let mix_number = MixNumber::try_from_slice(&bytes[2])?;
 
         Ok(Mix {
             ciphertexts,
             proof,
-            mix_number
+            mix_number,
         })
     }
 }
@@ -258,10 +246,7 @@ impl<C: Ctx> DecryptionFactors<C> {
 }
 // For some reason, deriving these does not work
 impl<C: Ctx> BorshSerialize for DecryptionFactors<C> {
-    fn serialize<W: std::io::Write>(
-        &self,
-        writer: &mut W,
-    ) -> std::io::Result<()> {
+    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
         let mut bytes: Vec<Vec<u8>> = vec![];
         bytes.push(borsh::to_vec(&self.factors)?);
         bytes.push(borsh::to_vec(&self.proofs)?);
@@ -276,13 +261,9 @@ impl<C: Ctx> BorshDeserialize for DecryptionFactors<C> {
         let factors = StrandVector::<C::E>::try_from_slice(&bytes[0])?;
         let proofs = StrandVector::<ChaumPedersen<C>>::try_from_slice(&bytes[1])?;
 
-        Ok(DecryptionFactors {
-            factors,
-            proofs,
-        })
+        Ok(DecryptionFactors { factors, proofs })
     }
 }
-
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct Plaintexts<C: Ctx>(pub StrandVector<C::P>);
@@ -297,9 +278,7 @@ pub struct BallotsWide<C: Ctx> {
 }
 impl<C: Ctx> BallotsWide<C> {
     pub fn new(ciphertexts: StrandRectangle<Ciphertext<C>>) -> BallotsWide<C> {
-        BallotsWide {
-            ciphertexts,
-        }
+        BallotsWide { ciphertexts }
     }
 }
 
@@ -323,7 +302,7 @@ impl<C: Ctx> MixWide<C> {
     }
     pub fn null(mix_number: MixNumber) -> MixWide<C> {
         let c = StrandRectangle::new(vec![vec![]]).expect("impossible");
-        
+
         MixWide {
             ciphertexts: c,
             proof: None,
@@ -338,11 +317,11 @@ pub struct DecryptionFactorsWide<C: Ctx> {
     pub proofs: StrandRectangle<ChaumPedersen<C>>,
 }
 impl<C: Ctx> DecryptionFactorsWide<C> {
-    pub fn new(factors: StrandRectangle<C::E>, proofs: StrandRectangle<ChaumPedersen<C>>) -> DecryptionFactorsWide<C> {
-        DecryptionFactorsWide {
-            factors,
-            proofs,
-        }
+    pub fn new(
+        factors: StrandRectangle<C::E>,
+        proofs: StrandRectangle<ChaumPedersen<C>>,
+    ) -> DecryptionFactorsWide<C> {
+        DecryptionFactorsWide { factors, proofs }
     }
 }
 

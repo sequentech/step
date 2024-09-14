@@ -126,8 +126,11 @@ impl B3Client {
                 Ok(message)
             })
             .collect();
-        
-        println!("put_messages_request: serialization in {}ms ", now.elapsed().as_millis());
+
+        println!(
+            "put_messages_request: serialization in {}ms ",
+            now.elapsed().as_millis()
+        );
 
         Ok(PutMessagesRequest {
             board: board.to_string(),

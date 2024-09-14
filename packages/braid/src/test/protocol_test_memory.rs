@@ -138,9 +138,7 @@ fn run_protocol_test<C: Ctx + 'static>(
 
         let decryptor = selected_trustees[0] - 1;
         let plaintexts: Vec<Plaintexts<C>> = (0..batches)
-            .filter_map(|b| {
-                sessions[decryptor].get_plaintexts_nohash(b + 1, decryptor)
-            })
+            .filter_map(|b| sessions[decryptor].get_plaintexts_nohash(b + 1, decryptor))
             .map(|p| Plaintexts::<C>(p.0.clone()))
             .collect();
 
@@ -198,7 +196,10 @@ pub fn create_protocol_test<C: Ctx>(
             // let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
             let encryption_key = strand::symm::gen_key();
             let pk = StrandSignaturePk::from_sk(&sk).unwrap();
-            (Trustee::new(i.to_string(), sk, encryption_key, None, true), pk)
+            (
+                Trustee::new(i.to_string(), sk, encryption_key, None, true),
+                pk,
+            )
         })
         .unzip();
 

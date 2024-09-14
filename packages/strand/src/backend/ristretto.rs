@@ -411,16 +411,22 @@ impl BorshSerialize for RistrettoPointS {
 impl BorshDeserialize for RistrettoPointS {
     /// Deserializes the given bytes into a point, checking for membership.
     #[inline]
-    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> Result<Self, std::io::Error> {
+    fn deserialize_reader<R: std::io::Read>(
+        reader: &mut R,
+    ) -> Result<Self, std::io::Error> {
         let bytes = <[u8; 32]>::deserialize_reader(reader)?;
-        // We duplicate this code in order to avoid the copying in ctx.element_from_bytes
-        // Note we are passing the [u8; 32] directly instead of passing through 
+        // We duplicate this code in order to avoid the copying in
+        // ctx.element_from_bytes Note we are passing the [u8; 32]
+        // directly instead of passing through
         // to_ristretto_point_array(bytes) which takes a slice
         CompressedRistretto(bytes)
             .decompress()
             .map(RistrettoPointS)
-            .ok_or(Error::new(ErrorKind::Other, "Failed to decode ristretto point"))
-        
+            .ok_or(Error::new(
+                ErrorKind::Other,
+                "Failed to decode ristretto point",
+            ))
+
         /* let ctx = RistrettoCtx::default();
 
         ctx.element_from_bytes(&bytes)
@@ -442,14 +448,17 @@ impl BorshSerialize for ScalarS {
 impl BorshDeserialize for ScalarS {
     #[inline]
     /// Deserializes the given bytes into a scalar, checking for membership.
-    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> Result<Self, std::io::Error> {
-        // We duplicate this code in order to avoid the copying in ctx.exp_from_bytes
-        // Note we are passing the [u8; 32] directly instead of passing through 
-        // to_ristretto_point_array(bytes) which takes a slice
+    fn deserialize_reader<R: std::io::Read>(
+        reader: &mut R,
+    ) -> Result<Self, std::io::Error> {
+        // We duplicate this code in order to avoid the copying in
+        // ctx.exp_from_bytes Note we are passing the [u8; 32] directly
+        // instead of passing through to_ristretto_point_array(bytes)
+        // which takes a slice
         let bytes = <[u8; 32]>::deserialize_reader(reader)?;
         let opt: Option<ScalarS> =
             Scalar::from_canonical_bytes(bytes).map(ScalarS).into();
-            opt.ok_or(Error::new(ErrorKind::Other, "Failed to decode scalar"))
+        opt.ok_or(Error::new(ErrorKind::Other, "Failed to decode scalar"))
         /* let ctx = RistrettoCtx::default();
 
         ctx.exp_from_bytes(&bytes)
@@ -586,7 +595,7 @@ mod tests {
         let ctx = RistrettoCtx;
         test_product_shuffle_generic(&ctx);
     }
- 
+
     #[cfg(not(feature = "wasm"))]
     #[test]
     fn test_shuffle_serialization() {

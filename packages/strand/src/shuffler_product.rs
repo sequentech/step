@@ -37,8 +37,8 @@
 // r_big in haines appears as r_prime (vector form) in haenni
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
-use std::sync::{Arc, Mutex};
 use std::collections::HashSet;
+use std::sync::{Arc, Mutex};
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use rand::seq::SliceRandom;
@@ -104,29 +104,24 @@ pub(super) struct PermutationData<'a, C: Ctx> {
 }
 
 #[derive(Clone, Debug)]
-/// A rectangular array, for example to represent a list of product ciphertexts, all of equal width.
+/// A rectangular array, for example to represent a list of product ciphertexts,
+/// all of equal width.
 pub struct StrandRectangle<T: Send + Sync> {
-    rows: Vec<Vec<T>>
+    rows: Vec<Vec<T>>,
 }
 impl<T: Send + Sync> StrandRectangle<T> {
     pub fn new(rows: Vec<Vec<T>>) -> Result<Self, StrandError> {
-        
         if !Self::is_rectangular(&rows) {
             Err(StrandError::Generic("Not a rectangular array".to_string()))
-        }
-        else {
-            Ok(StrandRectangle {
-                rows
-            })
+        } else {
+            Ok(StrandRectangle { rows })
         }
     }
 
     pub(crate) fn new_unchecked(rows: Vec<Vec<T>>) -> Self {
-        StrandRectangle {
-            rows
-        }
+        StrandRectangle { rows }
     }
-    
+
     pub fn rows(&self) -> &Vec<Vec<T>> {
         &self.rows
     }
@@ -134,8 +129,7 @@ impl<T: Send + Sync> StrandRectangle<T> {
     pub fn width(&self) -> usize {
         if self.rows.len() < 1 {
             0
-        }
-        else {
+        } else {
             self.rows[0].len()
         }
     }
@@ -186,34 +180,40 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         perm: &[usize],
         product_ciphertexts: &StrandRectangle<Ciphertext<C>>,
     ) -> (StrandRectangle<Ciphertext<C>>, Vec<Vec<C::X>>) {
-        
         assert!(perm.len() == product_ciphertexts.rows().len());
 
         let ctx = &self.ctx;
         let rng = Arc::new(Mutex::new(ctx.get_rng()));
 
-        let (e_primes, rs): (Vec<Vec<Ciphertext<C>>>, Vec<Vec<C::X>>) = product_ciphertexts.rows()
-            .par()
-            .map(|cs| {
-                let mut rs = vec![];
+        let (e_primes, rs): (Vec<Vec<Ciphertext<C>>>, Vec<Vec<C::X>>) =
+            product_ciphertexts
+                .rows()
+                .par()
+                .map(|cs| {
+                    let mut rs = vec![];
 
-                let e_primes_: Vec<Ciphertext<C>> = cs.iter().map(|c| {
-                    // It is idiomatic to unwrap on lock
-                    let mut rng_ = rng.lock().unwrap();
-                    let r = ctx.rnd_exp(&mut rng_);
-                    drop(rng_);
+                    let e_primes_: Vec<Ciphertext<C>> = cs
+                        .iter()
+                        .map(|c| {
+                            // It is idiomatic to unwrap on lock
+                            let mut rng_ = rng.lock().unwrap();
+                            let r = ctx.rnd_exp(&mut rng_);
+                            drop(rng_);
 
-                    let a =
-                        c.mhr.mul(&ctx.emod_pow(&self.pk.element, &r)).modp(ctx);
-                    let b = c.gr.mul(&ctx.gmod_pow(&r)).modp(ctx);
+                            let a = c
+                                .mhr
+                                .mul(&ctx.emod_pow(&self.pk.element, &r))
+                                .modp(ctx);
+                            let b = c.gr.mul(&ctx.gmod_pow(&r)).modp(ctx);
 
-                    rs.push(r);
-                    Ciphertext { mhr: a, gr: b }
-                }).collect::<Vec<Ciphertext<C>>>();
+                            rs.push(r);
+                            Ciphertext { mhr: a, gr: b }
+                        })
+                        .collect::<Vec<Ciphertext<C>>>();
 
-                (e_primes_, rs)
-            })
-            .unzip();
+                    (e_primes_, rs)
+                })
+                .unzip();
 
         let mut e_primes_permuted: Vec<Vec<Ciphertext<C>>> = vec![];
         for p in perm {
@@ -234,7 +234,6 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         perm: &[usize],
         label: &[u8],
     ) -> Result<ShuffleProof<C>, StrandError> {
-        
         assert_eq!(self.generators.len(), perm.len() + 1);
         // let now = Instant::now();
         let (cs, rs) = self.gen_commitments(perm, &self.ctx);
@@ -271,24 +270,34 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
 
         let h_generators = &self.generators[1..];
         let h_initial = &self.generators[0];
-        
+
         if N != e_primes.rows().len() {
-            return Err(StrandError::Generic("N != e_primes.rows().len()".to_string()));
+            return Err(StrandError::Generic(
+                "N != e_primes.rows().len()".to_string(),
+            ));
         }
         if N != r_big.len() {
             return Err(StrandError::Generic("N != r_big.len()".to_string()));
         }
         if N != perm_data.permutation.len() {
-            return Err(StrandError::Generic("N != perm_data.permutation.len()".to_string()));
+            return Err(StrandError::Generic(
+                "N != perm_data.permutation.len()".to_string(),
+            ));
         }
         if N != h_generators.len() {
-            return Err(StrandError::Generic("N != h_generators.len()".to_string()));
+            return Err(StrandError::Generic(
+                "N != h_generators.len()".to_string(),
+            ));
         }
         if N <= 0 {
-            return Err(StrandError::Generic("Cannot shuffle 0 ciphertexts".to_string()));
+            return Err(StrandError::Generic(
+                "Cannot shuffle 0 ciphertexts".to_string(),
+            ));
         }
         if width <= 0 {
-            return Err(StrandError::Generic("Cannot shuffle 0-width ciphertexts".to_string()));
+            return Err(StrandError::Generic(
+                "Cannot shuffle 0-width ciphertexts".to_string(),
+            ));
         }
 
         let (cs, rs) = (perm_data.commitments_c, perm_data.commitments_r);
@@ -336,9 +345,9 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
                     // r_prime = r_prime.add(&r_primes[i].mul(&us[i]));
                 }
                 r_star[w] = r_star[w].add(&r_big[i][w].mul(&us[i]));
-            }            
+            }
         }
-        
+
         // println!("v4 {}", now.elapsed().as_millis());
 
         r_bar = r_bar.modq(ctx);
@@ -351,7 +360,8 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         }
 
         let omegas: Vec<C::X> = (0..3).map(|_| ctx.rnd_exp(&mut rng)).collect();
-        let omega_4: Vec<C::X> = (0..width).map(|_| ctx.rnd_exp(&mut rng)).collect();
+        let omega_4: Vec<C::X> =
+            (0..width).map(|_| ctx.rnd_exp(&mut rng)).collect();
 
         let omega_hats: Vec<C::X> =
             (0..N).map(|_| ctx.rnd_exp(&mut rng)).collect();
@@ -368,7 +378,6 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         let values: Vec<(C::E, Vec<C::E>, Vec<C::E>)> = (0..N)
             .par()
             .map(|i| {
-                
                 let mut mhrs = vec![];
                 let mut grs = vec![];
 
@@ -376,7 +385,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
                     mhrs.push(ctx.emod_pow(&c.mhr, &omega_primes[i]));
                     grs.push(ctx.emod_pow(&c.gr, &omega_primes[i]));
                 }
-                
+
                 (
                     ctx.emod_pow(&h_generators[i], &omega_primes[i]),
                     mhrs,
@@ -390,7 +399,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         // ~0 cost *
         for value in values.iter() {
             t3_temp = t3_temp.mul(&value.0).modp(ctx);
-            
+
             for w in 0..width {
                 t4_1_temp[w] = t4_1_temp[w].mul(&value.1[w]).modp(ctx);
                 t4_2_temp[w] = t4_2_temp[w].mul(&value.2[w]).modp(ctx);
@@ -412,7 +421,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
                 .mul(&t4_2_temp[w])
                 .modp(ctx);
         }
-        
+
         /*let t4_1 = (ctx.emod_pow(&self.pk.element.invp(ctx), &omegas[3]))
             .mul(&t4_1_temp)
             .modp(ctx);
@@ -458,7 +467,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         let s1 = omegas[0].add(&c.mul(&r_bar)).modq(ctx);
         let s2 = omegas[1].add(&c.mul(&r_diamond)).modq(ctx);
         let s3 = omegas[2].add(&c.mul(&r_tilde)).modq(ctx);
-        
+
         let mut s4s = vec![C::X::add_identity(); width];
         for w in 0..width {
             s4s[w] = omega_4[w].add(&c.mul(&r_star[w])).modq(ctx);
@@ -522,16 +531,24 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         let h_initial = &self.generators[0];
 
         if N != e_primes.rows().len() {
-            return Err(StrandError::Generic("N != e_primes.rows().len()".to_string()));
+            return Err(StrandError::Generic(
+                "N != e_primes.rows().len()".to_string(),
+            ));
         }
         if N != h_generators.len() {
-            return Err(StrandError::Generic("N != h_generators.len()".to_string()));
+            return Err(StrandError::Generic(
+                "N != h_generators.len()".to_string(),
+            ));
         }
         if N <= 0 {
-            return Err(StrandError::Generic("Cannot check proof on 0 ciphertexts".to_string()));
+            return Err(StrandError::Generic(
+                "Cannot check proof on 0 ciphertexts".to_string(),
+            ));
         }
         if width <= 0 {
-            return Err(StrandError::Generic("Cannot check proof on 0-width ciphertexts".to_string()));
+            return Err(StrandError::Generic(
+                "Cannot check proof on 0-width ciphertexts".to_string(),
+            ));
         }
 
         let us: Vec<C::X> =
@@ -551,19 +568,28 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         let es = es.rows();
         let e_primes = e_primes.rows();
 
-        let values: Vec<(C::E, Vec<C::E>, Vec<C::E>, C::E, Vec<C::E>, Vec<C::E>)> = (0..N)
+        let values: Vec<(
+            C::E,
+            Vec<C::E>,
+            Vec<C::E>,
+            C::E,
+            Vec<C::E>,
+            Vec<C::E>,
+        )> = (0..N)
             .par()
             .map(|i| {
-                let mut e_mhrs = vec![C::E::mul_identity();width];
-                let mut e_grs = vec![C::E::mul_identity();width];
-                let mut e_prime_mhrs = vec![C::E::mul_identity();width];
-                let mut e_prime_grs = vec![C::E::mul_identity();width];
+                let mut e_mhrs = vec![C::E::mul_identity(); width];
+                let mut e_grs = vec![C::E::mul_identity(); width];
+                let mut e_prime_mhrs = vec![C::E::mul_identity(); width];
+                let mut e_prime_grs = vec![C::E::mul_identity(); width];
 
                 for w in 0..width {
-                    e_mhrs[w] = ctx.emod_pow(&es[i][w].mhr, &us[i]); 
+                    e_mhrs[w] = ctx.emod_pow(&es[i][w].mhr, &us[i]);
                     e_grs[w] = ctx.emod_pow(&es[i][w].gr, &us[i]);
-                    e_prime_mhrs[w] = ctx.emod_pow(&e_primes[i][w].mhr, &proof.s.s_primes.0[i]);
-                    e_prime_grs[w] = ctx.emod_pow(&e_primes[i][w].gr, &proof.s.s_primes.0[i]);
+                    e_prime_mhrs[w] = ctx
+                        .emod_pow(&e_primes[i][w].mhr, &proof.s.s_primes.0[i]);
+                    e_prime_grs[w] = ctx
+                        .emod_pow(&e_primes[i][w].gr, &proof.s.s_primes.0[i]);
                 }
                 (
                     ctx.emod_pow(&proof.cs.0[i], &us[i]),
@@ -573,8 +599,8 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
                     e_prime_mhrs,
                     e_prime_grs,
                 )
-                
-                /* 
+
+                /*
                 (
                     ctx.emod_pow(&proof.cs.0[i], &us[i]),
                     ctx.emod_pow(&es[i].mhr, &us[i]),
@@ -595,15 +621,16 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
             u = u.mul(&us[i]).modq(ctx);
 
             c_tilde = c_tilde.mul(&values[i].0).modp(ctx);
-            
+
             t_tilde3_temp = t_tilde3_temp.mul(&values[i].3).modp(ctx);
-            
 
             for w in 0..width {
                 a_primes[w] = a_primes[w].mul(&values[i].1[w]).modp(ctx);
                 b_primes[w] = b_primes[w].mul(&values[i].2[w]).modp(ctx);
-                t_tilde41_temps[w] = t_tilde41_temps[w].mul(&values[i].4[w]).modp(ctx);
-                t_tilde42_temps[w] = t_tilde42_temps[w].mul(&values[i].5[w]).modp(ctx);
+                t_tilde41_temps[w] =
+                    t_tilde41_temps[w].mul(&values[i].4[w]).modp(ctx);
+                t_tilde42_temps[w] =
+                    t_tilde42_temps[w].mul(&values[i].5[w]).modp(ctx);
             }
 
             /* c_tilde = c_tilde.mul(&values[i].0).modp(ctx);
@@ -645,7 +672,6 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
             .mul(&t_tilde3_temp)
             .modp(ctx);
 
-
         let mut t_prime_41s = vec![C::E::mul_identity(); width];
         let mut t_prime_42s = vec![C::E::mul_identity(); width];
 
@@ -658,7 +684,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
             t_prime_42s[w] = (ctx.emod_pow(&b_primes[w].invp(ctx), &c))
                 .mul(&ctx.emod_pow(&ctx.generator().invp(ctx), &proof.s.s4s[w]))
                 .mul(&t_tilde42_temps[w])
-                .modp(ctx);            
+                .modp(ctx);
         }
 
         let t_hat_primes: Vec<C::E> = (0..N)
@@ -773,12 +799,11 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         n: usize,
         label: &[u8],
     ) -> Result<Vec<C::X>, StrandError> {
-        let mut prefix_challenge_input = ChallengeInput::from(&[
-            ("es", es),
-            ("e_primes", e_primes),
-        ])?;
+        let mut prefix_challenge_input =
+            ChallengeInput::from(&[("es", es), ("e_primes", e_primes)])?;
         // FIXME unnecessary copy of cs
-        // prefix_challenge_input.add_bytes("cs", StrandVector::<C::E>(cs.to_vec()).strand_serialize()?);
+        // prefix_challenge_input.add_bytes("cs",
+        // StrandVector::<C::E>(cs.to_vec()).strand_serialize()?);
         let cbytes: Result<Vec<u8>, StrandError> = serialize_flatten(cs);
         prefix_challenge_input.add_bytes("cs", cbytes?);
         prefix_challenge_input.add("label", &label.to_vec())?;
@@ -822,26 +847,14 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
             ("t3", &t.t3),
         ])?;
 
-        challenge_input
-            .add_bytes("t4_1s", t.t4_1s.strand_serialize()?);
+        challenge_input.add_bytes("t4_1s", t.t4_1s.strand_serialize()?);
 
-        challenge_input
-            .add_bytes("t4_2s", t.t4_2s.strand_serialize()?);
+        challenge_input.add_bytes("t4_2s", t.t4_2s.strand_serialize()?);
 
-        challenge_input
-            .add_bytes("es", serialize_flatten(y.es)?);
-        challenge_input.add_bytes(
-            "e_primes",
-            serialize_flatten(y.e_primes)?,
-        );
-        challenge_input.add_bytes(
-            "cs",
-            serialize_flatten(y.cs)?,
-        );
-        challenge_input.add_bytes(
-            "c_hats",
-            serialize_flatten(y.c_hats)?,
-        );
+        challenge_input.add_bytes("es", serialize_flatten(y.es)?);
+        challenge_input.add_bytes("e_primes", serialize_flatten(y.e_primes)?);
+        challenge_input.add_bytes("cs", serialize_flatten(y.cs)?);
+        challenge_input.add_bytes("c_hats", serialize_flatten(y.c_hats)?);
         challenge_input
             .add_bytes("pk.element", y.pk.element.strand_serialize()?);
         challenge_input.add_bytes("t_hats", t.t_hats.strand_serialize()?);
@@ -865,8 +878,11 @@ pub(crate) fn gen_permutation(size: usize) -> Vec<usize> {
 }
 
 // Helper to avoid copying data to use StrandVector serialization
-fn serialize_flatten<T: Send + Sync + StrandSerialize>(v: &[T]) -> Result<Vec<u8>, StrandError> {
-    let bytes: Result<Vec<Vec<u8>>, StrandError> = v.par().map(|v| v.strand_serialize()).collect();
+fn serialize_flatten<T: Send + Sync + StrandSerialize>(
+    v: &[T],
+) -> Result<Vec<u8>, StrandError> {
+    let bytes: Result<Vec<Vec<u8>>, StrandError> =
+        v.par().map(|v| v.strand_serialize()).collect();
 
     Ok(bytes?.into_iter().flatten().collect())
 }
@@ -888,19 +904,15 @@ impl<C: Ctx> BorshSerialize for ShuffleProof<C> {
 }
 
 impl<C: Ctx> BorshDeserialize for ShuffleProof<C> {
-    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> Result<Self, std::io::Error> {
+    fn deserialize_reader<R: std::io::Read>(
+        reader: &mut R,
+    ) -> Result<Self, std::io::Error> {
         let bytes = <Vec<Vec<u8>>>::deserialize_reader(reader)?;
         let t = Commitments::<C>::try_from_slice(&bytes[0])?;
         let s = Responses::<C>::try_from_slice(&bytes[1])?;
         let cs = StrandVector::<C::E>::try_from_slice(&bytes[2])?;
         let c_hats = StrandVector::<C::E>::try_from_slice(&bytes[3])?;
 
-
-        Ok(ShuffleProof {
-            t,
-            s,
-            cs,
-            c_hats
-        })
+        Ok(ShuffleProof { t, s, cs, c_hats })
     }
 }

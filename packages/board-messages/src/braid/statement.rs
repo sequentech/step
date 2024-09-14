@@ -368,7 +368,7 @@ impl Statement {
     BorshSerialize, BorshDeserialize, Clone, PartialEq, Eq, Display, Debug, core::hash::Hash,
 )]
 #[repr(u8)]
-#[borsh(use_discriminant=true)]
+#[borsh(use_discriminant = true)]
 pub enum StatementType {
     Configuration = 0,
     ConfigurationSigned = 1,

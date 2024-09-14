@@ -2,7 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use board_messages::{braid::{message::Message, statement::StatementType}, grpc::GrpcB3Message};
+use board_messages::{
+    braid::{message::Message, statement::StatementType},
+    grpc::GrpcB3Message,
+};
 
 ///////////////////////////////////////////////////////////////////////////
 // VectorBoard
@@ -89,7 +92,6 @@ impl VectorBoard {
 ///////////////////////////////////////////////////////////////////////////
 // Debug
 ///////////////////////////////////////////////////////////////////////////
-
 
 impl std::fmt::Debug for VectorBoard {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

@@ -33,10 +33,9 @@
 //! let plaintext_ = ctx.decode(&decrypted);
 //! assert_eq!(plaintext, plaintext_);
 //! ```
-use std::io::{Error, ErrorKind};
-use borsh::{BorshDeserialize, BorshSerialize};
 use crate::shuffler_product::StrandRectangle;
-
+use borsh::{BorshDeserialize, BorshSerialize};
+use std::io::{Error, ErrorKind};
 
 use crate::util::{Par, StrandError};
 #[cfg(feature = "rayon")]
@@ -79,7 +78,9 @@ impl<T: BorshDeserialize> StrandDeserialize for T {
 pub struct StrandVector<T: BorshSerialize + BorshDeserialize>(pub Vec<T>);
 
 /// Parallel serialization for vectors
-impl<T: BorshSerialize + BorshDeserialize + Send + Sync> BorshSerialize for StrandVector<T> {
+impl<T: BorshSerialize + BorshDeserialize + Send + Sync> BorshSerialize
+    for StrandVector<T>
+{
     fn serialize<W: std::io::Write>(
         &self,
         writer: &mut W,
@@ -95,7 +96,9 @@ impl<T: BorshSerialize + BorshDeserialize + Send + Sync> BorshSerialize for Stra
 }
 
 /// Parallel serialization for vectors
-impl<T: BorshSerialize + BorshDeserialize + Send + Sync> BorshDeserialize for StrandVector<T> {
+impl<T: BorshSerialize + BorshDeserialize + Send + Sync> BorshDeserialize
+    for StrandVector<T>
+{
     /*fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
         let vectors = <Vec<Vec<u8>>>::deserialize(buf)?;
 
@@ -104,7 +107,9 @@ impl<T: BorshSerialize + BorshDeserialize + Send + Sync> BorshDeserialize for St
 
         Ok(StrandVector(results?))
     }*/
-    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> Result<Self, std::io::Error> {
+    fn deserialize_reader<R: std::io::Read>(
+        reader: &mut R,
+    ) -> Result<Self, std::io::Error> {
         let vectors = <Vec<Vec<u8>>>::deserialize_reader(reader)?;
 
         let results: std::io::Result<Vec<T>> =
@@ -131,8 +136,12 @@ impl<T: Send + Sync + BorshSerialize> BorshSerialize for StrandRectangle<T> {
 }
 
 /// Parallel serialization for rectangles
-impl<T: Send + Sync + BorshDeserialize> BorshDeserialize for StrandRectangle<T> {
-    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> Result<Self, std::io::Error> {
+impl<T: Send + Sync + BorshDeserialize> BorshDeserialize
+    for StrandRectangle<T>
+{
+    fn deserialize_reader<R: std::io::Read>(
+        reader: &mut R,
+    ) -> Result<Self, std::io::Error> {
         let vectors = <Vec<Vec<u8>>>::deserialize_reader(reader)?;
         let results: std::io::Result<Vec<Vec<T>>> = vectors
             .par()
@@ -143,7 +152,7 @@ impl<T: Send + Sync + BorshDeserialize> BorshDeserialize for StrandRectangle<T> 
             Error::new(ErrorKind::Other, "Parsed bytes were not rectangular")
         })
     }
-    
+
     /*fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
         let vectors = <Vec<Vec<u8>>>::deserialize(buf)?;
         let results: std::io::Result<Vec<Vec<T>>> = vectors

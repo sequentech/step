@@ -46,7 +46,10 @@ impl<C: Ctx> VectorSession<C> {
             let mut remote = self.remote.lock().unwrap();
             send(step_result.messages, &mut remote);
         } else {
-            error!("VectorSession: Trustee step returned err {:?}", result.err().unwrap());
+            error!(
+                "VectorSession: Trustee step returned err {:?}",
+                result.err().unwrap()
+            );
         }
     }
 

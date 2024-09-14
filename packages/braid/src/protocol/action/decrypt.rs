@@ -51,7 +51,7 @@ pub(super) fn compute_decryption_factors<C: Ctx>(
     let ciphertexts = trustee
         .get_mix(ciphertexts_h, *batch, *mix_signer)
         .add_context("Computing decryption factors")?;
-    
+
     info!(
         "ComputeDecryptionFactors [{}] ({})..",
         dbg_hash(&ciphertexts_h.0),

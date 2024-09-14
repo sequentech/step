@@ -34,7 +34,6 @@ pub(crate) fn mix<C: Ctx>(
             ballots.ciphertexts.0.len()
         );
         ballots.ciphertexts
-        
     } else {
         // First mix ciphertexts come from ballots, second from first mix, third from second, etc.
         // mix_no is 1-based, but trustees[] is 0-based, so the previous mixer is
@@ -131,7 +130,7 @@ pub(crate) fn sign_mix<C: Ctx>(
 
     let target = trustee.get_mix(cipher_h, *batch, signert_t);
     let mix = target.add_context("Signing mix")?;
-    
+
     let mix_number = mix.mix_number;
 
     // Null mix

@@ -27,9 +27,8 @@ use board_messages::braid::message::Message;
 use board_messages::braid::newtypes::*;
 use board_messages::braid::statement::StatementType;
 use board_messages::grpc::GrpcB3Message;
-use strand::util::StrandError;
 use std::path::PathBuf;
-
+use strand::util::StrandError;
 
 use strand::symm::{self, EncryptionData};
 
@@ -76,7 +75,7 @@ impl<C: Ctx> Trustee<C> {
         signing_key: StrandSignatureSk,
         encryption_key: symm::SymmetricKey,
         store: Option<PathBuf>,
-        in_memory: bool
+        in_memory: bool,
     ) -> Trustee<C> {
         let local_board = LocalBoard::new(store, in_memory);
 
@@ -99,20 +98,21 @@ impl<C: Ctx> Trustee<C> {
         &mut self,
         messages: &Vec<GrpcB3Message>,
     ) -> Result<StepResult, ProtocolError> {
-    
         let messages = if self.local_board.store.is_some() {
             self.store_and_return_messages(messages)?
-        }
-        else {
-            let ms: Result<Vec<(Message, i64)>, StrandError> = messages.iter().map(|m| {
-                let message = Message::strand_deserialize(&m.message)?;
+        } else {
+            let ms: Result<Vec<(Message, i64)>, StrandError> = messages
+                .iter()
+                .map(|m| {
+                    let message = Message::strand_deserialize(&m.message)?;
 
-                Ok((message, m.id))
-            }).collect();
+                    Ok((message, m.id))
+                })
+                .collect();
 
             ms?
         };
-        
+
         let (added_messages, last_id) = self.update_local_board(messages)?;
         if added_messages > 0 {
             info!("Setting last id {}", last_id);
@@ -165,17 +165,20 @@ impl<C: Ctx> Trustee<C> {
         &mut self,
         messages: &Vec<GrpcB3Message>,
     ) -> Result<(), ProtocolError> {
-        self.local_board.update_store(messages, false).map_err(|e| {
-            ProtocolError::BoardError(format!("{}", e))
-        })
+        self.local_board
+            .update_store(messages, false)
+            .map_err(|e| ProtocolError::BoardError(format!("{}", e)))
     }
 
-    pub(crate) fn store_and_return_messages(&mut self, messages: &Vec<GrpcB3Message>) -> Result<Vec<(Message, i64)>, ProtocolError> {
+    pub(crate) fn store_and_return_messages(
+        &mut self,
+        messages: &Vec<GrpcB3Message>,
+    ) -> Result<Vec<(Message, i64)>, ProtocolError> {
         let ignore_existing = self.step_counter % RETRIEVE_ALL_MESSAGES_PERIOD == 0;
-        
-        self.local_board.store_and_return_messages(&messages, self.last_message_id, ignore_existing).map_err(|e| {
-            ProtocolError::BoardError(format!("{}", e))
-        })
+
+        self.local_board
+            .store_and_return_messages(&messages, self.last_message_id, ignore_existing)
+            .map_err(|e| ProtocolError::BoardError(format!("{}", e)))
     }
 
     // Returns the largest id stored in the local message store
@@ -185,28 +188,28 @@ impl<C: Ctx> Trustee<C> {
         // messages from the remote board
         let reset = self.step_counter % RETRIEVE_ALL_MESSAGES_PERIOD == 0;
         let external_last_id = if reset {
-            info!("* Full update from remote board (step = {})", self.step_counter);
+            info!(
+                "* Full update from remote board (step = {})",
+                self.step_counter
+            );
             -1
         } else {
             if self.local_board.store.is_some() {
                 self.local_board.get_last_external_id().unwrap_or(-1)
-            }
-            else {
+            } else {
                 self.last_message_id
             }
         };
-        
+
         Ok(external_last_id)
     }
-
-    
 
     ///////////////////////////////////////////////////////////////////////////
     // General (non-bootstrap) update
     //
     // Each message is verified and added to the local board.
     //
-    // Takes a vector of (message, message_id) pairs as input plus configuration, 
+    // Takes a vector of (message, message_id) pairs as input plus configuration,
     // returns a pair of (updated messages count, last message id added)
     ///////////////////////////////////////////////////////////////////////////
     fn update(
@@ -613,16 +616,17 @@ pub struct TrusteeConfig {
 }
 impl TrusteeConfig {
     pub fn new(signing_key_sk: &str, signing_key_pk: &str, symm_key: &str) -> Self {
-
         TrusteeConfig {
             signing_key_sk: signing_key_sk.to_string(),
             signing_key_pk: signing_key_pk.to_string(),
-            encryption_key: symm_key.to_string()
+            encryption_key: symm_key.to_string(),
         }
     }
 
-    pub fn new_from_objects(signing_key: StrandSignatureSk, encryption_key: symm::SymmetricKey) -> Self {
-
+    pub fn new_from_objects(
+        signing_key: StrandSignatureSk,
+        encryption_key: symm::SymmetricKey,
+    ) -> Self {
         let sk_string = signing_key.to_der_b64_string().unwrap();
         let pk_string = StrandSignaturePk::from_sk(&signing_key)
             .unwrap()
@@ -650,7 +654,12 @@ pub struct StepResult {
     pub(crate) _last_id: i64,
 }
 impl StepResult {
-    fn new(messages: Vec<Message>, actions: HashSet<Action>, _added_messages: i64, _last_id: i64) -> Self {
+    fn new(
+        messages: Vec<Message>,
+        actions: HashSet<Action>,
+        _added_messages: i64,
+        _last_id: i64,
+    ) -> Self {
         StepResult {
             messages,
             actions,

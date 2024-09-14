@@ -68,7 +68,7 @@ aws-smithy-types = "1.1.1"
 wrap-map-err = { path = "../wrap-map-err" }
 immu-board = { path="../immu-board" }
 immudb-rs = { path="../immudb-rs" }
-board-messages = { path="../board-messages" }
+board-messages = { path="../board-messages"}
 braid = { path="../braid" }
 strand = { path="../strand" }
 sequent-core = { path="../sequent-core", features = ["reports", "keycloak", "log", "probe", "areas"] }

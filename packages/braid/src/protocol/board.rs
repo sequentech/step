@@ -5,7 +5,6 @@
 // pub mod grpc;
 pub mod grpc_m;
 // pub mod local;
-#[cfg(feature = "sqlite")]
 pub mod local2;
 // pub mod pgsql;
 
@@ -37,21 +36,25 @@ pub trait BoardFactory<B: Board>: Sized {
 
 pub enum ArtifactRef<'a, T> {
     Ref(&'a T),
-    Owned(T)
+    Owned(T),
 }
 impl<'a, T> ArtifactRef<'a, T> {
-    pub fn get_ref(&'a self) -> &'a T { 
+    pub fn get_ref(&'a self) -> &'a T {
         match self {
-            ArtifactRef::Ref(ref v) => { *v },
-            ArtifactRef::Owned(v) => { v },
+            ArtifactRef::Ref(ref v) => *v,
+            ArtifactRef::Owned(v) => v,
         }
-     }
-     pub fn transform<U, F: FnOnce(&'a T) -> &'a U, G: FnOnce(T) -> U>(self, f: F, g: G) -> ArtifactRef<'a, U> {
+    }
+    pub fn transform<U, F: FnOnce(&'a T) -> &'a U, G: FnOnce(T) -> U>(
+        self,
+        f: F,
+        g: G,
+    ) -> ArtifactRef<'a, U> {
         let ret = match self {
-            ArtifactRef::Ref(ref v) => { ArtifactRef::Ref(f(*v)) },
-            ArtifactRef::Owned(v) => { ArtifactRef::Owned(g(v)) },
+            ArtifactRef::Ref(ref v) => ArtifactRef::Ref(f(*v)),
+            ArtifactRef::Owned(v) => ArtifactRef::Owned(g(v)),
         };
-        
+
         ret
     }
 }

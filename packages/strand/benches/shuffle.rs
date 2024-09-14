@@ -19,11 +19,7 @@ pub(crate) fn test_product_shuffle_generic<C: Ctx>(ctx: C, n: usize) {
     let es = util::random_product_ciphertexts(n, 1, &ctx);
     let seed = vec![];
     let hs = ctx.generators(es.rows().len() + 1, &seed).unwrap();
-    let shuffler = strand::shuffler_product::Shuffler::new(
-        &pk,
-        &hs,
-        &ctx,
-    );
+    let shuffler = strand::shuffler_product::Shuffler::new(&pk, &hs, &ctx);
 
     let (e_primes, rs, perm) = shuffler.gen_shuffle(&es);
     let proof = shuffler.gen_proof(&es, &e_primes, rs, &perm, &[]).unwrap();
