@@ -50,11 +50,11 @@ encoding_rs = "0.8.34"
 encoding_rs_io = "0.1.7"
 
 # logging
-# tracing = "0.1"
-# thiserror = "1.0.50"
+tracing = "0.1"
+thiserror = "1.0.50"
 
-# # time
-# time = "0.3.31"
+# time
+time = "0.3.31"
 
 # # for sending emails and sms
 lettre = { version = "=0.10.4", default-features = false }

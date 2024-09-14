@@ -6,7 +6,7 @@
 resolver = "2"
 
 members = [
-    #"braid",
+    "braid",
     "harvest",
     "strand",
     "immu-board",

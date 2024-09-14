@@ -41,7 +41,7 @@ tokio-postgres = "0.7.10"
 bb8-postgres = "0.8.1"
 
 clap = { version = "4.0", features = ["derive"] }
-cursive = { version = "0.21.1", optional = true }
+cursive = { version = "0.15", optional = true }
 
 [lib]
 crate-type = ["cdylib", "rlib"]
