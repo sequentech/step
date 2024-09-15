@@ -88,9 +88,8 @@ public class Utils {
   public static final String ID_NUMBER_ATTRIBUTE = "sequent.read-only.id-card-number";
   public static final String ID_NUMBER = "ID_number";
   public static final String MAX_RETRIES = "max-retries";
-  public static final String RETRY_DELAY = "retry-delay";
   public static final int DEFAULT_MAX_RETRIES = 3;
-  public static final int DEFAULT_RETRY_DELAY = 10_000;
+  public static final int BASE_RETRY_DELAY = 1_000;
 
   /**
    * We store the user data entered in the registration form in the session notes. This information
