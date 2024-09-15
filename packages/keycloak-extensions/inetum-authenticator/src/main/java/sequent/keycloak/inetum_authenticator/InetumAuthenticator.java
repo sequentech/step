@@ -366,57 +366,61 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
         if (responseStatus != 200) {
           log.errorv(
-              "verifyResults (attempt {0}): Error calling transaction/status, status = {1}", attempt, responseStatus);
+              "verifyResults (attempt {0}): Error calling transaction/status, status = {1}",
+              attempt, responseStatus);
           log.errorv(
-              "verifyResults (attempt {0}): Error calling transaction/status, response.asString() = {1}", attempt, response.asString());
-            attempt++;
-            if (attempt >= maxRetries) {
-              throw new IOException("Too many attempts on transaction/status, bad status=" + responseStatus);
-            } else {
-              log.errorv(
-                  "verifyResults (attempt {0}): Will retry again", attempt);
-              // Wait before retrying
-              sleep(retryDelay, attempt);
-              continue;
-            }
-        }
-
-        code = response.asJson().get("code").asInt();
-        if (code != 0) {
-          log.errorv("verifyResults (attempt {0}): Error calling transaction/status, code = {1}", attempt, code);
-          log.errorv(
-              "verifyResults (attempt {0}): Error calling transaction/status, response.asString() = {1}", attempt, response.asString());
+              "verifyResults (attempt {0}): Error calling transaction/status, response.asString() = {1}",
+              attempt, response.asString());
           attempt++;
           if (attempt >= maxRetries) {
-            throw new IOException("Too many attempts on transaction/status, bad code = " + code);
+            throw new IOException(
+                "Too many attempts on transaction/status, bad status=" + responseStatus);
           } else {
-            log.errorv(
-                "verifyResults (attempt {0}): Will retry again", attempt);
+            log.errorv("verifyResults (attempt {0}): Will retry again", attempt);
             // Wait before retrying
             sleep(retryDelay, attempt);
             continue;
           }
         }
 
-        // check that vinetum has already verified the data, or else retry 
-        // again after a delay
-        idStatus = response
-          .asJson()
-          .get("response")
-          .get("idStatus")
-          .asText();
-        log.infov("verifyResults (attempt {0}): transaction/status, idStatus = {1}", attempt, idStatus);
-
-        if (!idStatus.equals("verificationOK") && !idStatus.equals("verificationKO")) {
-          log.errorv("verifyResults (attempt {0}): incorrect idStatus = {1} in transaction/status", attempt, idStatus);
+        code = response.asJson().get("code").asInt();
+        if (code != 0) {
           log.errorv(
-              "verifyResults (attempt {0}): Error calling transaction/status, response.asString() = {1}", attempt, response.asString());
+              "verifyResults (attempt {0}): Error calling transaction/status, code = {1}",
+              attempt, code);
+          log.errorv(
+              "verifyResults (attempt {0}): Error calling transaction/status, response.asString() = {1}",
+              attempt, response.asString());
           attempt++;
           if (attempt >= maxRetries) {
-            throw new IOException("Too many attempts on transaction/status, bad idStatus = " + idStatus);
+            throw new IOException("Too many attempts on transaction/status, bad code = " + code);
           } else {
-            log.errorv(
-                "verifyResults (attempt {0}): Will retry again", attempt);
+            log.errorv("verifyResults (attempt {0}): Will retry again", attempt);
+            // Wait before retrying
+            sleep(retryDelay, attempt);
+            continue;
+          }
+        }
+
+        // check that vinetum has already verified the data, or else retry
+        // again after a delay
+        idStatus = response.asJson().get("response").get("idStatus").asText();
+        log.infov(
+            "verifyResults (attempt {0}): transaction/status, idStatus = {1}", attempt, idStatus);
+
+        if (!idStatus.equals("verificationOK") && !idStatus.equals("verificationKO")) {
+          log.errorv(
+              "verifyResults (attempt {0}): incorrect idStatus = {1} in transaction/status",
+              attempt, idStatus);
+          log.errorv(
+              "verifyResults (attempt {0}): Error calling transaction/status, response.asString() = {1}",
+              attempt, response.asString());
+          attempt++;
+          if (attempt >= maxRetries) {
+            throw new IOException(
+                "Too many attempts on transaction/status, bad idStatus = " + idStatus);
+          } else {
+            log.errorv("verifyResults (attempt {0}): Will retry again", attempt);
             // Wait before retrying
             sleep(retryDelay, attempt);
             continue;
