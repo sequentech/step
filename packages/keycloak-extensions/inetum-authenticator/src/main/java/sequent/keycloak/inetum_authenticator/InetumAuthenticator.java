@@ -120,7 +120,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
     var attempt = 0;
     int maxRetries = Utils.parseInt(configMap.get(Utils.MAX_RETRIES), Utils.DEFAULT_MAX_RETRIES);
-    int retryDelay = Utils.parseInt(configMap.get(Utils.RETRY_DELAY), Utils.DEFAULT_RETRY_DELAY);
+    int baseRetryDelay = Utils.BASE_RETRY_DELAY;
 
     while (attempt < maxRetries) {
       try {
@@ -141,7 +141,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
         }
 
         // Wait before retrying
-        sleep(retryDelay, attempt);
+        sleep(baseRetryDelay, attempt);
       }
     }
     throw new IOException("doPost: Failed to execute request after " + maxRetries + " attempts.");
@@ -157,7 +157,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
     var attempt = 0;
     int maxRetries = Utils.parseInt(configMap.get(Utils.MAX_RETRIES), Utils.DEFAULT_MAX_RETRIES);
-    int retryDelay = Utils.parseInt(configMap.get(Utils.RETRY_DELAY), Utils.DEFAULT_RETRY_DELAY);
+    int baseRetryDelay = Utils.BASE_RETRY_DELAY;
 
     while (attempt < maxRetries) {
       try {
@@ -178,7 +178,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
         }
 
         // Wait before retrying
-        sleep(retryDelay, attempt);
+        sleep(baseRetryDelay, attempt);
       }
     }
     throw new IOException("doGet: Failed to execute request after " + maxRetries + " attempts.");
@@ -355,7 +355,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
     var attempt = 0;
     int maxRetries = Utils.parseInt(configMap.get(Utils.MAX_RETRIES), Utils.DEFAULT_MAX_RETRIES);
-    int retryDelay = Utils.parseInt(configMap.get(Utils.RETRY_DELAY), Utils.DEFAULT_RETRY_DELAY);
+    int baseRetryDelay = Utils.BASE_RETRY_DELAY;
 
     try {
       while (attempt < maxRetries) {
@@ -378,7 +378,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
           } else {
             log.errorv("verifyResults (attempt {0}): Will retry again", attempt);
             // Wait before retrying
-            sleep(retryDelay, attempt);
+            sleep(baseRetryDelay, attempt);
             continue;
           }
         }
@@ -397,7 +397,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
           } else {
             log.errorv("verifyResults (attempt {0}): Will retry again", attempt);
             // Wait before retrying
-            sleep(retryDelay, attempt);
+            sleep(baseRetryDelay, attempt);
             continue;
           }
         }
@@ -422,7 +422,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
           } else {
             log.errorv("verifyResults (attempt {0}): Will retry again", attempt);
             // Wait before retrying
-            sleep(retryDelay, attempt);
+            sleep(baseRetryDelay, attempt);
             continue;
           }
         }
@@ -902,16 +902,10 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
             "{}"),
         new ProviderConfigProperty(
             Utils.MAX_RETRIES,
-            "Maximum number of retries for inetum requests",
+            "Maximum number of retries for inetum requests. Will use exponential backoff, starting with 1 second.",
             "-",
             ProviderConfigProperty.STRING_TYPE,
             String.valueOf(Utils.DEFAULT_MAX_RETRIES)),
-        new ProviderConfigProperty(
-            Utils.RETRY_DELAY,
-            "Time waiting between retries for inetum requests",
-            "Time in milisecons",
-            ProviderConfigProperty.STRING_TYPE,
-            String.valueOf(Utils.DEFAULT_RETRY_DELAY)),
         new ProviderConfigProperty(
             Utils.ENV_CONFIG_ATTRIBUTE,
             "Configuration for the env_config",
