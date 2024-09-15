@@ -54,44 +54,68 @@ pub async fn insert_election_event(
 ) -> Result<()> {
     data.election_event.validate()?;
 
+    // Prepare the new SQL statement
     let statement = hasura_transaction
         .prepare(
             r#"
-                INSERT INTO sequent_backend.election_event
-                (id, created_at, updated_at, labels, annotations, tenant_id, name, description, presentation, bulletin_board_reference, is_archived, voting_channels, dates, status, user_boards, encryption_protocol, is_audit, audit_election_event_id, public_key, alias, statistics)
+                INSERT INTO sequent_backend.event_list
+                (
+                    id,
+                    election,
+                    created_at,
+                    updated_at,
+                    tenant_id,
+                    schedule,
+                    event_type,
+                    receivers,
+                    template,
+                    election_event_id
+                )
                 VALUES
-                ($1, NOW(), NOW(), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19);
+                (
+                    $1,
+                    $2,
+                    NOW(),
+                    NOW(),
+                    $3,
+                    $4,
+                    $5,
+                    $6,
+                    $7,
+                    $8
+                );
             "#,
         )
         .await?;
 
+    // Bind data to the SQL statement
     let rows: Vec<Row> = hasura_transaction
         .query(
             &statement,
             &[
-                &Uuid::parse_str(&data.election_event.id)?,
-                &data.election_event.labels,
-                &data.election_event.annotations,
-                &Uuid::parse_str(&data.election_event.tenant_id)?,
+                // Generate a new UUID for the id field
+                &Uuid::new_v4(),
+                
+                // The election field should use the name from data.election_event
                 &data.election_event.name,
-                &data.election_event.description,
-                &data.election_event.presentation,
-                &data.election_event.bulletin_board_reference,
-                &data.election_event.is_archived,
-                &data.election_event.voting_channels,
+                
+                // The tenant_id field should use the tenant_id from data.election_event
+                &Uuid::parse_str(&data.election_event.tenant_id)?,
+                
+                // The schedule field should use the dates from data.election_event
                 &data.election_event.dates,
-                &data.election_event.status,
-                &data.election_event.user_boards,
-                &data.election_event.encryption_protocol,
-                &data.election_event.is_audit,
-                &data
-                    .election_event
-                    .audit_election_event_id
-                    .as_ref()
-                    .and_then(|s| Uuid::parse_str(&s).ok()),
-                &data.election_event.public_key,
-                &data.election_event.alias,
-                &data.election_event.statistics,
+                
+                // The event_type field should be a fixed string "event"
+                &"event".to_string(),
+                
+                // The receivers field should be an empty array (assuming your DB accepts this format)
+                &"[]".to_string(),
+                
+                // The template field should be an empty string
+                &"".to_string(),
+                
+                // Generate a new UUID for the election_event_id field
+                &Uuid::parse_str(&data.election_event.id)?,
             ],
         )
         .await
@@ -99,6 +123,58 @@ pub async fn insert_election_event(
 
     Ok(())
 }
+// #[instrument(err, skip_all)]
+// pub async fn insert_election_event(
+//     hasura_transaction: &Transaction<'_>,
+//     data: &ImportElectionEventSchema,
+// ) -> Result<()> {
+//     data.election_event.validate()?;
+
+//     let statement = hasura_transaction
+//         .prepare(
+//             r#"
+//                 INSERT INTO sequent_backend.election_event
+//                 (id, created_at, updated_at, labels, annotations, tenant_id, name, description, presentation, bulletin_board_reference, is_archived, voting_channels, dates, status, user_boards, encryption_protocol, is_audit, audit_election_event_id, public_key, alias, statistics)
+//                 VALUES
+//                 ($1, NOW(), NOW(), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19);
+//             "#,
+//         )
+//         .await?;
+
+//     let rows: Vec<Row> = hasura_transaction
+//         .query(
+//             &statement,
+//             &[
+//                 &Uuid::parse_str(&data.election_event.id)?,
+//                 &data.election_event.labels,
+//                 &data.election_event.annotations,
+//                 &Uuid::parse_str(&data.election_event.tenant_id)?,
+//                 &data.election_event.name,
+//                 &data.election_event.description,
+//                 &data.election_event.presentation,
+//                 &data.election_event.bulletin_board_reference,
+//                 &data.election_event.is_archived,
+//                 &data.election_event.voting_channels,
+//                 &data.election_event.dates,
+//                 &data.election_event.status,
+//                 &data.election_event.user_boards,
+//                 &data.election_event.encryption_protocol,
+//                 &data.election_event.is_audit,
+//                 &data
+//                     .election_event
+//                     .audit_election_event_id
+//                     .as_ref()
+//                     .and_then(|s| Uuid::parse_str(&s).ok()),
+//                 &data.election_event.public_key,
+//                 &data.election_event.alias,
+//                 &data.election_event.statistics,
+//             ],
+//         )
+//         .await
+//         .map_err(|err| anyhow!("Error running the document query: {err}"))?;
+
+//     Ok(())
+// }
 
 #[instrument(err, skip_all)]
 pub async fn get_election_event_by_id(

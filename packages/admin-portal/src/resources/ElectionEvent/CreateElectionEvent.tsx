@@ -123,6 +123,8 @@ export const CreateElectionList: React.FC = () => {
         }
     }, [tenant])
 
+    console.log("clicked hereeee")
+
     const handleElectionCreated = ({
         error,
         isLoading: isOneLoading,
