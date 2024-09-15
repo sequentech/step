@@ -18,6 +18,7 @@ import {
     List,
     TextField,
     TextInput,
+    useGetList,
     useRecordContext,
     WrapperField,
 } from "react-admin"
@@ -33,6 +34,12 @@ const Filters: Array<ReactElement> = [
 const EditElectionEvents = () => {
     const {t} = useTranslation()
     const record = useRecordContext<Sequent_Backend_Election>()
+    const {data, total} = useGetList("sequent_backend_election_event", {
+        pagination: {page: 1, perPage: 10},
+        sort: {field: "updated_at", order: "DESC"},
+    })
+    console.log(data, "data")
+
     // const {globalSettings} = React.useContext(SettingsContext)
     const electionEventId = record?.id
     // const electionId = record?.election_event_id

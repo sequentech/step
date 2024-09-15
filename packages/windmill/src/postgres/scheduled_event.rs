@@ -260,7 +260,6 @@ pub async fn update_scheduled_event(
 
     Ok(())
 }
-
 #[instrument(skip(hasura_transaction), err)]
 pub async fn insert_scheduled_event(
     hasura_transaction: &Transaction<'_>,
@@ -280,56 +279,63 @@ pub async fn insert_scheduled_event(
     let statement = hasura_transaction
         .prepare(
             r#"
-                INSERT INTO
-                    "sequent_backend".scheduled_event
+                INSERT INTO sequent_backend.event_list
                 (
-                    tenant_id,
-                    election_event_id,
+                    election,
                     created_at,
-                    event_processor,
-                    cron_config,
-                    task_id,
-                    event_payload
+                    updated_at,
+                    tenant_id,
+                    schedule,
+                    event_type,
+                    receivers,
+                    template,
+                    election_event_id
                 )
-                VALUES (
+                VALUES
+                (
                     $1,
-                    $2,
                     NOW(),
+                    NOW(),
+                    $2,
                     $3,
                     $4,
                     $5,
-                    $6
-                )
-                RETURNING
+                    $6,
+                    $7
+                );
+             RETURNING
                     id,
-                    tenant_id,
-                    election_event_id,
+                    election,
                     created_at,
-                    stopped_at,
-                    labels,
-                    annotations,
-                    event_processor,
-                    cron_config,
-                    event_payload,
-                    task_id;
+                    updated_at,
+                    tenant_id,
+                    schedule,
+                    event_type,
+                    receivers,
+                    template,
+                    election_event_id
             "#,
         )
-        .await
-        .map_err(|err| anyhow!("Error preparing scheduled event statement: {}", err))?;
+        .await?;
+
+    // Bind data to the SQL statement
     let rows: Vec<Row> = hasura_transaction
         .query(
             &statement,
             &[
-                &tenant_uuid,
-                &election_event_uuid,
+                &task_id,,
                 &event_processor_s,
+                &tenant_uuid,
                 &cron_config_js,
-                &task_id,
-                &event_payload,
+                &"event".to_string(),
+                &"[]".to_string(),
+                &"".to_string(),
+                &election_event_uuid,
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error inserting scheduled event: {}", err))?;
+        .map_err(|err| anyhow!("Error running the document query: {err}"))?;
+
 
     let rows: Vec<PostgresScheduledEvent> = rows
         .into_iter()
@@ -343,3 +349,86 @@ pub async fn insert_scheduled_event(
         Err(anyhow!("Unexpected rows affected {}", rows.len()))
     }
 }
+
+// #[instrument(skip(hasura_transaction), err)]
+// pub async fn insert_scheduled_event(
+//     hasura_transaction: &Transaction<'_>,
+//     tenant_id: &str,
+//     election_event_id: &str,
+//     event_processor: EventProcessors,
+//     task_id: &str,
+//     cron_config: CronConfig,
+//     event_payload: Value,
+// ) -> Result<PostgresScheduledEvent> {
+//     let tenant_uuid: uuid::Uuid =
+//         Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+//     let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+//         .with_context(|| "Error parsing election_event_id as UUID")?;
+//     let cron_config_js: Value = serde_json::to_value(cron_config)?;
+//     let event_processor_s = event_processor.to_string();
+//     let statement = hasura_transaction
+//         .prepare(
+//             r#"
+//                 INSERT INTO
+//                     "sequent_backend".scheduled_event
+//                 (
+//                     tenant_id,
+//                     election_event_id,
+//                     created_at,
+//                     event_processor,
+//                     cron_config,
+//                     task_id,
+//                     event_payload
+//                 )
+//                 VALUES (
+//                     $1,
+//                     $2,
+//                     NOW(),
+//                     $3,
+//                     $4,
+//                     $5,
+//                     $6
+//                 )
+//                 RETURNING
+//                     id,
+//                     tenant_id,
+//                     election_event_id,
+//                     created_at,
+//                     stopped_at,
+//                     labels,
+//                     annotations,
+//                     event_processor,
+//                     cron_config,
+//                     event_payload,
+//                     task_id;
+//             "#,
+//         )
+//         .await
+//         .map_err(|err| anyhow!("Error preparing scheduled event statement: {}", err))?;
+//     let rows: Vec<Row> = hasura_transaction
+//         .query(
+//             &statement,
+//             &[
+//                 &tenant_uuid,
+//                 &election_event_uuid,
+//                 &event_processor_s,
+//                 &cron_config_js,
+//                 &task_id,
+//                 &event_payload,
+//             ],
+//         )
+//         .await
+//         .map_err(|err| anyhow!("Error inserting scheduled event: {}", err))?;
+
+//     let rows: Vec<PostgresScheduledEvent> = rows
+//         .into_iter()
+//         .map(|row| -> Result<PostgresScheduledEvent> { row.try_into() })
+//         .collect::<Result<Vec<PostgresScheduledEvent>>>()
+//         .map_err(|err| anyhow!("Error deserializing scheduled event: {}", err))?;
+
+//     if 1 == rows.len() {
+//         Ok(rows[0].clone())
+//     } else {
+//         Err(anyhow!("Unexpected rows affected {}", rows.len()))
+//     }
+// }
