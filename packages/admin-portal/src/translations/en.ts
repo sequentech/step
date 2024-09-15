@@ -407,7 +407,19 @@ const englishTranslation = {
                         "You didn't enter the Integrity Check (SHA-256) field. Please confirm  that you are importing the correct file and you want to import it.",
                 },
             },
-            exportError: "Error exporting Election Event",
+            export: {
+                title: "Export Election Event",
+                subtitle:
+                    "Export can be a long operation. Are you sure you want to export records?",
+                encryptWithPassword: "Encrypt with Password",
+                includeVoters: "Include Voters",
+                activityLogs: "Activity Logs",
+                ballotingBoard: "Balloting Board",
+                publications: "Publications",
+                s3Files: "S3 Files",
+                exportSuccess: "Election Event exported successfully",
+                exportError: "Error exporting Election Event",
+            },
         },
         electionScreen: {
             common: {

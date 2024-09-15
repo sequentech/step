@@ -408,7 +408,19 @@ const tagalogTranslation: TranslationType = {
                         "Hindi mo ipinakita ang field para sa Pag-check ng Integridad (SHA-256). Mangyaring kumpirmahin na ini-import mo ang tamang file at nais mo itong i-import.",
                 },
             },
-            exportError: "Error sa pag-export ng Kaganapan ng Halalan",
+            export: {
+                title: "I-export ang Kaganapang Halalan",
+                subtitle:
+                    "Ang pag-export ay maaaring isang mahabang proseso. Sigurado ka bang gusto mong i-export ang mga tala?",
+                encryptWithPassword: "I-encrypt gamit ang Password",
+                includeVoters: "Isama ang mga Botante",
+                activityLogs: "Mga Log ng Aktibidad",
+                ballotingBoard: "Lupon ng Balota",
+                publications: "Mga Publikasyon",
+                s3Files: "Mga File ng S3",
+                exportSuccess: "Matagumpay na nai-export ang Kaganapang Halalan",
+                exportError: "Error sa pag-export ng Kaganapang Halalan",
+            },
         },
         electionScreen: {
             common: {

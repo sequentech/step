@@ -408,7 +408,19 @@ const spanishTranslation: TranslationType = {
                         "No ingresó el campo Verificación de integridad (SHA-256). Confirme que está importando el archivo correcto y que desea importarlo.",
                 },
             },
-            exportError: "Error al exportar el Evento Electoral",
+            export: {
+                title: "Exportar Evento Electoral",
+                subtitle:
+                    "La exportación puede ser una operación larga. ¿Estás seguro de que deseas exportar los registros?",
+                encryptWithPassword: "Cifrar con Contraseña",
+                includeVoters: "Incluir Votantes",
+                activityLogs: "Registros de Actividad",
+                ballotingBoard: "Junta Electoral",
+                publications: "Publicaciones",
+                s3Files: "Archivos S3",
+                exportSuccess: "Evento Electoral exportado con éxito",
+                exportError: "Error al exportar el Evento Electoral",
+            },
         },
         electionScreen: {
             common: {

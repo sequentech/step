@@ -410,7 +410,19 @@ const frenchTranslation: TranslationType = {
                         "Vous n'avez pas entré le champ de Vérification de l'Intégrité (SHA-256). Confirmez que vous importez le fichier correct et que vous souhaitez l'importer.",
                 },
             },
-            exportError: "Erreur lors de l'exportation de l'événement électoral",
+            export: {
+                title: "Exporter l'Événement Électoral",
+                subtitle:
+                    "L'exportation peut être une opération longue. Êtes-vous sûr de vouloir exporter les enregistrements ?",
+                encryptWithPassword: "Chiffrer avec Mot de Passe",
+                includeVoters: "Inclure les Électeurs",
+                activityLogs: "Journaux d'Activité",
+                ballotingBoard: "Conseil de Scrutin",
+                publications: "Publications",
+                s3Files: "Fichiers S3",
+                exportSuccess: "Événement Électoral exporté avec succès",
+                exportError: "Erreur lors de l'exportation de l'Événement Électoral",
+            },
         },
         electionScreen: {
             common: {

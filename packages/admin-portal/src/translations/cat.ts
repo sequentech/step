@@ -409,7 +409,19 @@ const catalanTranslation: TranslationType = {
                         "No va introduir el camp Verificació d'integritat (SHA-256). Confirmeu que està importanr el fitxer correcte i que desitja importar-lo.",
                 },
             },
-            exportError: "Error exportant l'esdeveniment electoral",
+            export: {
+                title: "Exportar Esdeveniment Electoral",
+                subtitle:
+                    "L'exportació pot ser una operació llarga. Estàs segur que vols exportar els registres?",
+                encryptWithPassword: "Xifrar amb Contrasenya",
+                includeVoters: "Incloure Votants",
+                activityLogs: "Registres d'Activitat",
+                ballotingBoard: "Junta Electoral",
+                publications: "Publicacions",
+                s3Files: "Fitxers S3",
+                exportSuccess: "Esdeveniment Electoral exportat amb èxit",
+                exportError: "Error en exportar l'Esdeveniment Electoral",
+            },
         },
         electionScreen: {
             common: {

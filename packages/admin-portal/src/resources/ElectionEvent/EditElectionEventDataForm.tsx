@@ -34,7 +34,7 @@ import {
 } from "@mui/material"
 import styled from "@emotion/styled"
 import DownloadIcon from "@mui/icons-material/Download"
-import React, {useContext, useEffect, useMemo, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
 import {useTranslation} from "react-i18next"
@@ -50,44 +50,31 @@ import {
     ITenantSettings,
     EVotingPortalCountdownPolicy,
 } from "@sequentech/ui-core"
-import {Dialog} from "@sequentech/ui-essentials"
 import {ListActions} from "@/components/ListActions"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {ListSupportMaterials} from "../SupportMaterials/ListSuportMaterial"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {TVotingSetting} from "@/types/settings"
 import {
-    ExportElectionEventMutation,
     ImportCandidatesMutation,
     Sequent_Backend_Election,
     ManageElectionDatesMutation,
     Sequent_Backend_Election_Event,
 } from "@/gql/graphql"
 import {ElectionStyles} from "@/components/styles/ElectionStyles"
-import {FormStyles} from "@/components/styles/FormStyles"
-import {DownloadDocument} from "../User/DownloadDocument"
-import {EXPORT_ELECTION_EVENT} from "@/queries/ExportElectionEvent"
 import {useMutation} from "@apollo/client"
 import {IMPORT_CANDIDTATES} from "@/queries/ImportCandidates"
 import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
 import {useWatch} from "react-hook-form"
 import {convertToNumber} from "@/lib/helpers"
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
-import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {ExportElectionEventDrawer} from "../../components/election-event/import-data/ExportElectionEventDrawer"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
     defaultLanguage?: string
     electionsOrder?: Array<Sequent_Backend_Election>
 } & Sequent_Backend_Election_Event
-
-interface ExportWrapperProps {
-    electionEventId: string
-    openExport: boolean
-    setOpenExport: (val: boolean) => void
-    exportDocumentId: string | undefined
-    setExportDocumentId: (val: string | undefined) => void
-}
 
 const ElectionRows = styled.div`
     display: flex;
@@ -127,76 +114,6 @@ const ManagedNumberInput = ({
             defaultValue={defaultValue}
             style={{flex: 1}}
         />
-    )
-}
-
-const ExportWrapper: React.FC<ExportWrapperProps> = ({
-    electionEventId,
-    openExport,
-    setOpenExport,
-    exportDocumentId,
-    setExportDocumentId,
-}) => {
-    const [exportElectionEvent] = useMutation<ExportElectionEventMutation>(EXPORT_ELECTION_EVENT, {
-        context: {
-            headers: {
-                "x-hasura-role": IPermissions.ELECTION_EVENT_READ,
-            },
-        },
-    })
-    const notify = useNotify()
-    const {t} = useTranslation()
-
-    const confirmExportAction = async () => {
-        console.log("CONFIRM EXPORT")
-
-        const {data: exportElectionEventData, errors} = await exportElectionEvent({
-            variables: {
-                electionEventId,
-            },
-        })
-        let documentId = exportElectionEventData?.export_election_event?.document_id
-        if (errors || !documentId) {
-            setOpenExport(false)
-            notify(t(`electionEventScreen.exportError`), {type: "error"})
-            console.log(`Error exporting users: ${errors}`)
-            return
-        }
-        setExportDocumentId(documentId)
-    }
-
-    return (
-        <Dialog
-            variant="info"
-            open={openExport}
-            ok={t("common.label.export")}
-            cancel={t("common.label.cancel")}
-            title={t("common.label.export")}
-            handleClose={(result: boolean) => {
-                if (result) {
-                    confirmExportAction()
-                } else {
-                    setOpenExport(false)
-                }
-            }}
-        >
-            {t("common.export")}
-            {exportDocumentId ? (
-                <>
-                    <FormStyles.ShowProgress />
-                    <DownloadDocument
-                        documentId={exportDocumentId}
-                        electionEventId={electionEventId ?? ""}
-                        fileName={`election-event-${electionEventId}-export.json`}
-                        onDownload={() => {
-                            console.log("onDownload called")
-                            setExportDocumentId(undefined)
-                            setOpenExport(false)
-                        }}
-                    />
-                </>
-            ) : null}
-        </Dialog>
     )
 }
 
@@ -961,7 +878,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                 errors={null}
             />
 
-            <ExportWrapper
+            <ExportElectionEventDrawer
                 electionEventId={record.id}
                 openExport={openExport}
                 setOpenExport={setOpenExport}

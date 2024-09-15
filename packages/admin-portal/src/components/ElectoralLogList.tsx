@@ -56,13 +56,13 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
             let documentId = exportElectionEventData?.export_election_event_logs?.document_id
             if (errors || !documentId) {
                 setOpenExport(false)
-                notify(t(`electionEventScreen.exportError`), {type: "error"})
+                notify(t(`electionEventScreen.export.exportError`), {type: "error"})
                 console.log(`Error exporting: ${errors}`)
                 return
             }
             setExportDocumentId(documentId)
         } catch (error) {
-            notify(t(`electionEventScreen.exportError`), {type: "error"})
+            notify(t(`electionEventScreen.export.exportError`), {type: "error"})
             setOpenExport(false)
         }
     }
