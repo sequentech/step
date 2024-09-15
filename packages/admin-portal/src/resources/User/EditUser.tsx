@@ -4,7 +4,7 @@
 import React, {useEffect, useState} from "react"
 import {List, useListContext} from "react-admin"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {IRole, IUser} from "@sequentech/ui-core"
+import {IRole} from "@sequentech/ui-core"
 import {EditUserForm} from "./EditUserForm"
 import {Sequent_Backend_Area, UserProfileAttribute} from "@/gql/graphql"
 
@@ -42,8 +42,9 @@ export const EditUser: React.FC<EditUserProps> = ({
             <List
                 resource="user"
                 filter={{tenant_id: tenantId, election_event_id: electionEventId}}
-                sx={{padding: "16px"}}
+                sx={{"padding": "16px", "& .MuiPaper-root": {boxShadow: "none"}}}
                 actions={false}
+                pagination={false}
             >
                 <EditUserForm
                     id={id}

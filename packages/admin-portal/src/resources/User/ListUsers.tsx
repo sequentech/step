@@ -22,6 +22,7 @@ import {
     SelectInput,
     DateInput,
     useSidebarState,
+    useUnselectAll,
 } from "react-admin"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -51,6 +52,7 @@ import {
     ManualVerificationMutation,
     Sequent_Backend_Area,
     Sequent_Backend_Election_Event,
+    UserProfileAttribute,
 } from "@/gql/graphql"
 import {DELETE_USER} from "@/queries/DeleteUser"
 import {GET_DOCUMENT} from "@/queries/GetDocument"
@@ -73,8 +75,6 @@ import {ActionsMenu} from "@/components/ActionsMenu"
 import EditPassword from "./EditPassword"
 import {styled} from "@mui/material/styles"
 import {DELETE_USERS} from "@/queries/DeleteUsers"
-
-const OMIT_FIELDS: Array<string> = ["email_verified"]
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -143,6 +143,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [recordIds, setRecordIds] = React.useState<Array<Identifier>>([])
     const authContext = useContext(AuthContext)
     const refresh = useRefresh()
+    const unselectAll = useUnselectAll("user")
     const [deleteUser] = useMutation<DeleteUserMutation>(DELETE_USER)
     const [getManualVerificationPdf] = useMutation<ManualVerificationMutation>(MANUAL_VERIFICATION)
     const [deleteUsers] = useMutation<DeleteUsersMutation>(DELETE_USERS)
@@ -327,6 +328,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setOpenDrawer(false)
         setOpenNew(false)
         setOpen(false)
+        unselectAll()
     }
 
     const editAction = (id: Identifier) => {
@@ -662,6 +664,47 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         }
     }
 
+    const listFields = useMemo(() => {
+        const basicInfoFields: UserProfileAttribute[] = []
+        const attributesFields: UserProfileAttribute[] = []
+        const omitFields = ["id", "email_verified"]
+
+        userAttributes?.get_user_profile_attributes.forEach((attr) => {
+            if (attr.name && (userBasicInfo.includes(attr.name) || attr.name?.includes("mobile"))) {
+                basicInfoFields.push(attr)
+            } else {
+                omitFields.push(`attributes['${attr.name}']`)
+                attributesFields.push(attr)
+            }
+        })
+        return {basicInfoFields, attributesFields, omitFields}
+    }, [userAttributes?.get_user_profile_attributes])
+
+    const renderFields = (fields: UserProfileAttribute[]) =>
+        fields.map((attr) => {
+            if (attr.annotations?.inputType === "html5-date") {
+                return (
+                    <CustomDateField
+                        key={attr.name}
+                        source={`${attr.name}`}
+                        label={getAttributeLabel(attr.display_name ?? "")}
+                        emptyText=""
+                    />
+                )
+            }
+            return (
+                <TextField
+                    key={attr.name}
+                    source={
+                        attr.name && userBasicInfo.includes(attr.name)
+                            ? attr.name
+                            : `attributes['${attr.name}']`
+                    }
+                    label={getAttributeLabel(attr.display_name ?? "")}
+                />
+            )
+        })
+
     return (
         <>
             <List
@@ -710,36 +753,14 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             >
                 {userAttributes?.get_user_profile_attributes && (
                     <DataGridContainerStyle
-                        omit={OMIT_FIELDS}
+                        omit={listFields.omitFields}
                         isOpenSideBar={isOpenSidebar}
                         bulkActionButtons={<BulkActions />}
                     >
                         <TextField source="id" sx={{display: "block", width: "280px"}} />
                         <BooleanField source="email_verified" />
                         <BooleanField source="enabled" />
-                        {userAttributes.get_user_profile_attributes.map((attr) => {
-                            if (attr.annotations?.inputType === "html5-date") {
-                                return (
-                                    <CustomDateField
-                                        key={attr.name}
-                                        source={`${attr.name}`}
-                                        label={getAttributeLabel(attr.display_name ?? "")}
-                                        emptyText=""
-                                    />
-                                )
-                            }
-                            return (
-                                <TextField
-                                    key={attr.name}
-                                    source={
-                                        attr.name && userBasicInfo.includes(attr.name)
-                                            ? attr.name
-                                            : `attributes['${attr.name}']`
-                                    }
-                                    label={getAttributeLabel(attr.display_name ?? "")}
-                                />
-                            )
-                        })}
+                        {renderFields(listFields.basicInfoFields)}
                         {electionEventId && (
                             <FunctionField
                                 label={t("usersAndRolesScreen.users.fields.area")}
@@ -752,6 +773,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                 }
                             />
                         )}
+                        {renderFields(listFields.attributesFields)}
                         {electionEventId && (
                             <FunctionField
                                 source="has_voted"
@@ -854,6 +876,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         confirmDeleteBulkAction()
                     }
                     setOpenDeleteBulkModal(false)
+                    unselectAll()
                 }}
             >
                 {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.delete.bulkBody`)}

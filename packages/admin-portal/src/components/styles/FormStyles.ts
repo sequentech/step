@@ -13,7 +13,7 @@ export const FormStyles = {
             padding: 16.50px 14px;
         }
         
-        label {
+        label:not(.MuiInputLabel-shrink) {
             top: 8px;
         }
     `,

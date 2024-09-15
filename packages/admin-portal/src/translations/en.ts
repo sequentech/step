@@ -533,7 +533,7 @@ const englishTranslation = {
                     subtitle: "Create Voter",
                 },
                 manualVerification: {
-                    label: "Verify",
+                    label: "Manually Verify",
                     verify: "Manually Verify this voter",
                     body: "Manually Verify this voter. You will obtain a PDF with a QR Code link that allows the voter to login skipping online KYC.",
                 },

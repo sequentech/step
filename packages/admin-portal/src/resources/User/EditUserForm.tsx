@@ -18,6 +18,8 @@ import {
     InputLabel,
     FormGroup,
     FormLabel,
+    Autocomplete,
+    TextField,
 } from "@mui/material"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {
@@ -298,6 +300,18 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         })
     }
 
+    const handleAutocompleteChange = (attrName: string) => async (value: string) => {
+        setUser((prev) => {
+            return {
+                ...prev,
+                attributes: {
+                    ...prev?.attributes,
+                    [attrName]: [value],
+                },
+            }
+        })
+    }
+
     const handleCheckboxChange = (attrName: string) => (choiseId: string) => {
         let checkedItems = [choiseId]
         if (user && user?.attributes && user?.attributes[attrName]) {
@@ -441,27 +455,24 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             />
                         }
                     />
-                    {electionEventId ? (
+                    {electionEventId && (
                         <FormControl fullWidth>
                             <ElectionHeaderStyles.Title>
                                 {t("usersAndRolesScreen.users.fields.area")}
                             </ElectionHeaderStyles.Title>
-
-                            <Select
-                                name="area"
-                                className="select-voter-area"
-                                defaultValue={defaultAreaId}
-                                value={defaultAreaId}
-                                onChange={handleSelectChange("area-id")}
-                            >
-                                {areas?.map((area: Sequent_Backend_Area) => (
-                                    <MenuItem key={area.id} value={area.id}>
-                                        {area.name}
-                                    </MenuItem>
-                                ))}
-                            </Select>
+                            <Autocomplete
+                                renderInput={(params) => <TextField {...params} hiddenLabel />}
+                                options={
+                                    areas?.map((area) => {
+                                        return {id: area.id, label: area.name}
+                                    }) ?? []
+                                }
+                                onChange={(e, value) =>
+                                    handleAutocompleteChange("area-id")(value?.id)
+                                }
+                            />
                         </FormControl>
-                    ) : null}
+                    )}
                     {isUndefined(electionEventId) ? (
                         <ListUserRoles
                             userRoles={userRoles}

@@ -66,6 +66,9 @@ code {
   padding-bottom: 0 !important;
 }
 
+button.RaFilterFormInput-hideButton {
+  margin-bottom: 21px !important;
+}
 
 .list-actions {
   display: flex;

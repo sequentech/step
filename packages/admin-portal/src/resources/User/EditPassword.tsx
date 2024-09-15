@@ -174,10 +174,7 @@ const EditPassword = ({open, handleClose, id, electionEventId}: EditPasswordProp
                             <PasswordInputStyle
                                 label={false}
                                 source="password"
-                                onChange={(e) => {
-                                    console.log("Password Input changed", e.target.value)
-                                    handleChange(e)
-                                }}
+                                onChange={handleChange}
                             />
                         </InputContainerStyle>
                         <InputContainerStyle>

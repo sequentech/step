@@ -45,6 +45,11 @@ export const ActionsMenu: React.FC<ActionsMenuProps> = (props) => {
         (action) => !action.showAction || action.showAction(record.id)
     )
 
+    const handleClickAction = (action: Action) => {
+        action.action(record.id)
+        handleClose()
+    }
+
     return (
         <div>
             <IconButton
@@ -76,7 +81,7 @@ export const ActionsMenu: React.FC<ActionsMenuProps> = (props) => {
                     ? filteredActions.map((action, index) => (
                           <MenuItem
                               key={index}
-                              onClick={() => action.action(record.id)}
+                              onClick={() => handleClickAction(action)}
                               sx={{display: "flex", gap: "8px"}}
                               className={action.className ?? ""}
                           >
