@@ -426,6 +426,9 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
             continue;
           }
         }
+
+        // Everything good, so we break the loop
+        break;
       }
 
       // The status is verification OK. Now we need to retrieve the
