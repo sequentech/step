@@ -26,6 +26,16 @@ services:
       # as a data source. this can be removed/updated based on your needs
       PG_DATABASE_URL: ${HASURA_PG_DATABASE_URL}
 
+  simplesaml:
+    profiles: ["full"]
+    image: kenchan0130/simplesamlphp
+    container_name: simplesamlphp
+    ports:
+      - "8083:8080"    
+    volumes:
+      - ./simplesaml/authsources.php:/var/www/simplesamlphp/config/authsources.php
+      - ./simplesaml/saml20-sp-remote.php:/var/www/simplesamlphp/metadata/saml20-sp-remote.php
+
   # Needed to set up proper permissions for non root user in postgres
   postgres-volume-init:
     profiles: ["full", "base"]
@@ -434,6 +444,11 @@ services:
       AWS_S3_FETCH_EXPIRATION_SECS: ${AWS_S3_FETCH_EXPIRATION_SECS}
       AWS_REGION: ${AWS_REGION}
       AWS_S3_MAX_UPLOAD_BYTES: ${AWS_S3_MAX_UPLOAD_BYTES}
+
+      CLOUDFLARE_ZONE: ${CLOUDFLARE_ZONE}
+      CLOUDFLARE_API_EMAIL: ${CLOUDFLARE_API_EMAIL}
+      CLOUDFLARE_API_KEY: ${CLOUDFLARE_API_KEY}
+      CUSTOM_URLS_IP_DNS_CONTENT: ${CUSTOM_URLS_IP_DNS_CONTENT}
 
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
