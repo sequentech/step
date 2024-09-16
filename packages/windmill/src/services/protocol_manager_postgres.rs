@@ -2,6 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use braid::protocol::board::grpc_m::GrpcB3;
+use anyhow::{anyhow, Context, Result};
+use tracing::{event, info, instrument, Level};
+use std::env;
 
 #[instrument(err)]
 pub async fn get_board() -> Result<GrpcB3> {
