@@ -137,7 +137,7 @@ async fn run(args: &Cli) -> Result<()> {
         };
 
         boards.retain(|b| !ignored_boards.contains(b));
-        
+        let boards_len = boards.len();
         master.refresh_sets(boards).await?;
 
         cfg_if::cfg_if! {
@@ -150,7 +150,7 @@ async fn run(args: &Cli) -> Result<()> {
                 let mb = 1024 * 1024;
 
                 if let(Ok(_), Ok(alloc), Ok(res)) = (e_, alloc, res) {
-                    info!("{} MB allocated / {} MB resident ({} boards)", (alloc / mb), (res / mb), boards.len());
+                    info!("{} MB allocated / {} MB resident ({} boards)", (alloc / mb), (res / mb), boards_len);
                 }
             }
         }

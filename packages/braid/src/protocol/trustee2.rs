@@ -540,6 +540,11 @@ impl<C: Ctx> Trustee<C> {
 
     ///////////////////////////////////////////////////////////////////////////
 
+    #[allow(dead_code)]
+    pub(crate) fn is_finished(&self) -> bool {
+        self.local_board.is_finished()
+    }
+    
     pub(crate) fn is_config_approved(&self, _config: &Configuration<C>) -> bool {
         // FIXME validate (called by cfg action)
         true

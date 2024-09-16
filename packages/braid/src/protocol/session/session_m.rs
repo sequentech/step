@@ -168,9 +168,15 @@ impl SessionSet {
                     requests.push((session.board_name.to_string(), last_id));
                 }
  
-if (self.session_factory.trustee_name == "trustee3.toml".to_string()) && (loop_count > 5) && (requests[0].1 == 16 
-    /* || requests[0].1 == 26*/
-    ) {
+// dkg messages = 1 + 5n 
+// tally messages = b * (n + (t * t + 1) + 1)
+// threshold 3: 32 messages
+let trustees = 3;
+let threshold = 2;
+let dkg_messages = 1 + 5 * trustees;
+let tally_messages = trustees + (threshold * (threshold + 1)) + 1;
+
+if (loop_count > 5) && (requests[0].1 == dkg_messages || requests[0].1 == (dkg_messages + tally_messages)) {
     println!("*** Remove this code!");
     std::process::exit(0);
 } 

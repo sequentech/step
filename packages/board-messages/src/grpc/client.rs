@@ -106,7 +106,7 @@ impl B3Client {
 
         for (board, messages) in requests {
             for m in messages {
-                let chunk = chunker.add_message(board.clone(), m);
+                let chunk = chunker.add_message(board.clone(), m)?;
                 if let Some(chunk) = chunk {
                     let response = self.put_message_batch(&chunk, &mut client).await?;
                     responses.push(response);
@@ -212,9 +212,11 @@ impl Chunker {
             size: 0,
         }
     }
-    fn add_message(&mut self, board: String, message: Message) -> Option<HashMap<String, Vec<Message>>> {
+    fn add_message(&mut self, board: String, message: Message) -> Result<Option<HashMap<String, Vec<Message>>>> {
         let size = message.artifact.as_ref().map(|m| m.len()).unwrap_or(0);
-
+        if size > super::MAX_MESSAGE_SIZE {
+            return Err(anyhow::anyhow!("Found single message with size above limit {} > {}", size, super::MAX_MESSAGE_SIZE));
+        }
         let mut ret: Option<HashMap<String, Vec<Message>>> = None;
         
         if self.size + size > super::MAX_MESSAGE_SIZE {
@@ -233,6 +235,6 @@ impl Chunker {
         }
         self.size += size;
 
-        return ret;
+        return Ok(ret);
     }
 }

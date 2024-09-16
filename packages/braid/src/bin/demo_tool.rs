@@ -28,6 +28,7 @@ use strand::serialization::StrandDeserialize;
 use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strand::symm;
+use rand::prelude::SliceRandom;
 
 const PG_HOST: &'static str = "localhost";
 const PG_DATABASE: &'static str = "protocoldb";
@@ -63,6 +64,12 @@ struct Cli {
 
     #[arg(long, default_value_t = 1)]
     batches: u32,
+    
+    #[arg(long, default_value_t = 3)]
+    num_trustees: usize,
+
+    #[arg(long, default_value_t = 2)]
+    threshold: usize,
 
     #[arg(value_enum)]
     command: Command,
@@ -141,8 +148,16 @@ async fn main() -> Result<()> {
 
     match &args.command {
         Command::GenConfigs => {
-            let threshold = [1, 2];
-            gen_configs::<RistrettoCtx>(3, &threshold)?;
+            // let threshold = [1, 2];            
+            let max: [usize; 12] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+            let all = &max[0..args.num_trustees];
+            let mut rng = &mut rand::thread_rng();
+            let threshold: Vec<usize> = all
+                .choose_multiple(&mut rng, args.threshold)
+                .cloned()
+                .collect();
+
+            gen_configs::<RistrettoCtx>(args.num_trustees, &threshold)?;
         }
         Command::InitProtocol => {
             let path = Path::new(DEMO_DIR).join(CONFIG);
@@ -261,6 +276,7 @@ fn gen_configs<C: Ctx>(n_trustees: usize, threshold: &[usize]) -> Result<()> {
         threshold.len(),
         PhantomData,
     );
+    println!("Generated config: {:?}", cfg);
     println!("Creating demo files at '{}'", DEMO_DIR);
     fs::create_dir_all(DEMO_DIR)?;
 
@@ -277,13 +293,14 @@ fn gen_configs<C: Ctx>(n_trustees: usize, threshold: &[usize]) -> Result<()> {
         let toml = toml::to_string(&tc)?;
         let path = Path::new(DEMO_DIR).join((i + 1).to_string());
         fs::create_dir_all(&path)?;
-        let mut file = File::create(path.join(format!("trustee{}.toml", i + 1)))?;
+        let mut file = File::create(path.join("trustee.toml"))?;
         file.write_all(toml.as_bytes())?;
-        let mut file = File::create(path.join("run.sh"))?;
-        let run = format!("cargo run --manifest-path ../../Cargo.toml --release --bin main -- --server-url http://127.0.0.1:50051 --trustee-config trustee{}.toml",
-            i + 1
-        );
-        file.write_all(run.as_bytes())?;
+        let path = path.join("run.sh");
+        if !Path::exists(&path) {
+            let mut file = File::create(path.join("run.sh"))?;
+            let run = "cargo run --manifest-path ../../Cargo.toml --release --bin main -- --server-url http://127.0.0.1:50051 --trustee-config trustee.toml";
+            file.write_all(run.as_bytes())?;
+        }
     }
 
     Ok(())

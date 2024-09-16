@@ -82,19 +82,52 @@ impl<C: Ctx> LocalBoard<C> {
             artifacts_memory: HashMap::new(),
         }
     }
+    /*
+        n trustees
+        t threshold
+        b batches
+
+        DKG phase: 1 + 5n
+                            ballot  mix     mix signature     decrypt factors    plaintext + sig
+        Tally phase:    b * (1 +     t +    (t * (t - 1)) +    t +                 n)
+    */
+    pub(crate) fn is_finished(&self) -> bool {
+        let Some(cfg) = &self.configuration else {
+            return false;
+        };
+
+        let mut sei = StatementEntryIdentifier {
+            kind: StatementType::Ballots,
+            signer_position: PROTOCOL_MANAGER_INDEX,
+            batch: 0,
+            mix_number: 0
+        };
+
+        loop {
+            sei.batch = sei.batch + 1;
+            if self.statements.get(&sei).is_none() { break; }
+        }
+
+        if sei.batch == 0 {
+            return false;
+        }
+        
+        let t = cfg.threshold;
+        let n = cfg.trustees.len();
+        
+        let dkg = 1 + (5 * n);
+        let per_batch_tally = 1 + (2 * t) + (t * (t - 1)) + n;
+
+        let max = dkg + (sei.batch * per_batch_tally);
+        
+        self.statements.len() == max
+    }
 
     ///////////////////////////////////////////////////////////////////////////
     // Add messages to LocalBoard
     ///////////////////////////////////////////////////////////////////////////
 
-    pub(crate) fn add(&mut self, message: VerifiedMessage, store_id: i64) -> Result<(), ProtocolError> {
-        /*tracing::info!("store artifacts {}", self.artifacts.len());
-        tracing::info!("cache artifacts {}", self.artifacts_memory.len());
-        tracing::info!("cache ballots {}", self.ballots.len());
-        tracing::info!("cache mixes {}", self.mixes.len());
-        tracing::info!("cache dfactors {}", self.decryption_factors.len());
-        tracing::info!("cache plaintexts {}", self.plaintexts.len());*/
-        
+    pub(crate) fn add(&mut self, message: VerifiedMessage, store_id: i64) -> Result<(), ProtocolError> {        
         if message.statement.get_kind() == StatementType::Configuration {
             self.add_bootstrap(message)
         } else {
@@ -223,7 +256,7 @@ impl<C: Ctx> LocalBoard<C> {
                         .insert(artifact_identifier, (artifact_hash, store_id));
                     }
                     else {
-                        self.insert_artifact_memory(artifact_identifier, artifact_hash, artifact)?;
+                        self.artifacts_memory.insert(artifact_identifier, (artifact_hash, artifact));
                     }
 
                     debug!("Artifact inserted");
@@ -300,27 +333,6 @@ impl<C: Ctx> LocalBoard<C> {
         let bytes = bytes.get_ref();
         Ok(Channel::<C>::strand_deserialize(&bytes)?)
        
-        /*let aei =
-            self.get_artifact_entry_identifier_ext(StatementType::Channel, signer_position, 0, 0);
-        let entry = self
-            .artifacts
-            .get(&aei)
-            .ok_or(ProtocolError::MissingArtifact(StatementType::Channel))?;
-
-        if channel_h.0 != entry.0 {
-            Err(ProtocolError::MismatchedArtifactHash(
-                StatementType::Channel,
-            ))
-        } else {
-            let bytes = self.get_artifact_from_store(entry.1);
-
-            let Ok(bytes) = bytes else {
-                error!("Error retrieving artifact: {}", bytes.err().unwrap());
-                return Err(ProtocolError::MissingArtifact(StatementType::Channel));
-            };
-            
-            Ok(Channel::<C>::strand_deserialize(&bytes)?)
-        }*/
     }
 
     pub(crate) fn get_shares(
@@ -332,24 +344,7 @@ impl<C: Ctx> LocalBoard<C> {
         let bytes = self.get_dkg_artifact(StatementType::Shares, shares_h.0, signer_position)?;
         let bytes = bytes.get_ref();
         Ok(Shares::strand_deserialize(&bytes)?)
-        /*let aei =
-            self.get_artifact_entry_identifier_ext(StatementType::Shares, signer_position, 0, 0);
-        let entry = self
-            .artifacts
-            .get(&aei)
-            .ok_or(ProtocolError::MissingArtifact(StatementType::Shares))?;
-        if shares_h.0 != entry.0 {
-            Err(ProtocolError::MismatchedArtifactHash(StatementType::Shares))
-        } else {
-            let bytes = self.get_artifact_from_store(entry.1);
 
-            let Ok(bytes) = bytes else {
-                error!("Error retrieving artifact: {}", bytes.err().unwrap());
-                return Err(ProtocolError::MissingArtifact(StatementType::Shares));
-            };
-            
-            Ok(Shares::strand_deserialize(&bytes)?)
-        }*/
     }
 
     pub(crate) fn get_dkg_public_key(
@@ -361,26 +356,7 @@ impl<C: Ctx> LocalBoard<C> {
         let bytes = self.get_dkg_artifact(StatementType::PublicKey, pk_h.0, signer_position)?;
         let bytes = bytes.get_ref();
         Ok(DkgPublicKey::<C>::strand_deserialize(&bytes)?)
-        /*let aei =
-            self.get_artifact_entry_identifier_ext(StatementType::PublicKey, signer_position, 0, 0);
-        let entry = self
-            .artifacts
-            .get(&aei)
-            .ok_or(ProtocolError::MissingArtifact(StatementType::PublicKey))?;
-        if pk_h.0 != entry.0 {
-            Err(ProtocolError::MismatchedArtifactHash(
-                StatementType::PublicKey,
-            ))
-        } else {
-            let bytes = self.get_artifact_from_store(entry.1);
 
-            let Ok(bytes) = bytes else {
-                error!("Error retrieving artifact: {}", bytes.err().unwrap());
-                return Err(ProtocolError::MissingArtifact(StatementType::PublicKey));
-            };
-            
-            Ok(DkgPublicKey::<C>::strand_deserialize(&bytes)?)
-        }*/
     }
 
     pub(crate) fn get_ballots(
@@ -393,45 +369,6 @@ impl<C: Ctx> LocalBoard<C> {
         let bytes = self.get_artifact(StatementType::Ballots, b_h.0, signer_position, batch)?;
         let bytes = bytes.get_ref();
         Ok(Ballots::<C>::strand_deserialize(&bytes)?)
-        /*let aei = self.get_artifact_entry_identifier_ext(
-            StatementType::Ballots,
-            signer_position,
-            batch,
-            0,
-        );
-
-        if self.store.is_some() && self.no_cache {
-            let entry = self
-                .artifacts
-                .get(&aei)
-                .ok_or(ProtocolError::MissingArtifact(StatementType::Ballots))?;
-            if b_h.0 != entry.0 {
-                Err(ProtocolError::MismatchedArtifactHash(
-                    StatementType::Ballots,
-                ))
-            } else {
-                let bytes = self.get_artifact_from_store(entry.1);
-
-                let Ok(bytes) = bytes else {
-                    error!("Error retrieving artifact: {}", bytes.err().unwrap());
-                    return Err(ProtocolError::MissingArtifact(StatementType::Ballots));
-                };
-                Ok(ArtifactRef::Owned(Ballots::<C>::strand_deserialize(&bytes)?))
-            }
-        }
-        else {
-            let entry = self
-                .ballots
-                .get(&aei)
-                .ok_or(ProtocolError::MissingArtifact(StatementType::Ballots))?;
-            if b_h.0 != entry.0 {
-                Err(ProtocolError::MismatchedArtifactHash(
-                    StatementType::Ballots,
-                ))
-            } else {
-                Ok(ArtifactRef::Ref(&entry.1))
-            }
-        }*/
         
     }
 
@@ -445,39 +382,6 @@ impl<C: Ctx> LocalBoard<C> {
         let bytes = self.get_artifact(StatementType::Mix, m_h.0, signer_position, batch)?;
         let bytes = bytes.get_ref();
         Ok(Mix::<C>::strand_deserialize(&bytes)?)
-        /*let aei =
-            self.get_artifact_entry_identifier_ext(StatementType::Mix, signer_position, batch, 0);
-        
-        if self.store.is_some() && self.no_cache {
-            let entry = self
-                .artifacts
-                .get(&aei)
-                .ok_or(ProtocolError::MissingArtifact(StatementType::Mix))?;
-            if m_h.0 != entry.0 {
-                Err(ProtocolError::MismatchedArtifactHash(StatementType::Mix))
-            } else {
-                
-                let bytes = self.get_artifact_from_store(entry.1);
-
-                let Ok(bytes) = bytes else {
-                    error!("Error retrieving artifact: {}", bytes.err().unwrap());
-                    return Err(ProtocolError::MissingArtifact(StatementType::Mix));
-                };
-                Ok(ArtifactRef::Owned(Mix::<C>::strand_deserialize(&bytes)?))
-                
-            }
-        }
-        else {
-            let entry = self
-                .mixes
-                .get(&aei)
-                .ok_or(ProtocolError::MissingArtifact(StatementType::Mix))?;
-            if m_h.0 != entry.0 {
-                Err(ProtocolError::MismatchedArtifactHash(StatementType::Mix))
-            } else {
-                Ok(ArtifactRef::Ref(&entry.1))
-            }
-        }*/
         
     }
 
@@ -491,51 +395,6 @@ impl<C: Ctx> LocalBoard<C> {
         let bytes = self.get_artifact(StatementType::DecryptionFactors, d_h.0, signer_position, batch)?;
         let bytes = bytes.get_ref();
         Ok(DecryptionFactors::<C>::strand_deserialize(&bytes)?)
-        /* let aei = self.get_artifact_entry_identifier_ext(
-            StatementType::DecryptionFactors,
-            signer_position,
-            batch,
-            0,
-        );
-
-        if self.store.is_some() && self.no_cache {
-            let entry = self
-                .artifacts
-                .get(&aei)
-                .ok_or(ProtocolError::MissingArtifact(
-                    StatementType::DecryptionFactors,
-                ))?;
-
-            if m_h.0 != entry.0 {
-                Err(ProtocolError::MismatchedArtifactHash(
-                    StatementType::DecryptionFactors,
-                ))
-            } else {
-                let bytes = self.get_artifact_from_store(entry.1);
-
-                let Ok(bytes) = bytes else {
-                    error!("Error retrieving artifact: {}", bytes.err().unwrap());
-                    return Err(ProtocolError::MissingArtifact(StatementType::DecryptionFactors));
-                };
-                
-                Ok(ArtifactRef::Owned(DecryptionFactors::<C>::strand_deserialize(&bytes)?))
-            }
-        }
-        else {
-            let entry = self
-                .decryption_factors
-                .get(&aei)
-                .ok_or(ProtocolError::MissingArtifact(
-                    StatementType::DecryptionFactors,
-                ))?;
-            if m_h.0 != entry.0 {
-                Err(ProtocolError::MismatchedArtifactHash(
-                    StatementType::DecryptionFactors,
-                ))
-            } else {
-                Ok(ArtifactRef::Ref(&entry.1))
-            }
-        }*/
     }
 
     pub(crate) fn get_plaintexts(
@@ -548,47 +407,6 @@ impl<C: Ctx> LocalBoard<C> {
         let bytes = self.get_artifact(StatementType::Plaintexts, p_h.0, signer_position, batch)?;
         let bytes = bytes.get_ref();
         Ok(Plaintexts::<C>::strand_deserialize(&bytes)?)
-        /*let aei = self.get_artifact_entry_identifier_ext(
-            StatementType::Plaintexts,
-            signer_position,
-            batch,
-            0,
-        );
-
-        if self.store.is_some() && self.no_cache {
-            let entry = self
-            .artifacts
-            .get(&aei)
-            .ok_or(ProtocolError::MissingArtifact(StatementType::Plaintexts))?;
-            if m_h.0 != entry.0 {
-                Err(ProtocolError::MismatchedArtifactHash(
-                    StatementType::Plaintexts,
-                ))
-            } else {
-                let bytes = self.get_artifact_from_store(entry.1);
-
-                let Ok(bytes) = bytes else {
-                    error!("Error retrieving artifact: {}", bytes.err().unwrap());
-                    return Err(ProtocolError::MissingArtifact(StatementType::Plaintexts));
-                };
-                
-                Ok(ArtifactRef::Owned(Plaintexts::<C>::strand_deserialize(&bytes)?))
-            }
-        }
-        else {
-            let entry = self
-                .plaintexts
-                .get(&aei)
-                .ok_or(ProtocolError::MissingArtifact(StatementType::Plaintexts))?;
-            if m_h.0 != entry.0 {
-                Err(ProtocolError::MismatchedArtifactHash(
-                    StatementType::Plaintexts,
-                ))
-            } else {
-                Ok(ArtifactRef::Ref(&entry.1))
-            }
-        }*/
-        
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -790,11 +608,9 @@ impl<C: Ctx> LocalBoard<C> {
         Plaintexts::<C>::strand_deserialize(&entry.1).ok()
     }
 
-    fn insert_artifact_memory(&mut self, ai: ArtifactEntryIdentifier, hash: [u8; 64], bytes: Vec<u8>) -> Result<(), ProtocolError> {
-       self.artifacts_memory.insert(ai, (hash, bytes));
-        
-        Ok(())
-    }
+    ///////////////////////////////////////////////////////////////////////////
+    // Artifact retrieval commonality
+    //////////////////////////////////////////////////////////////////////////
 
     fn get_dkg_artifact(
         &self, 

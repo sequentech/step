@@ -19,7 +19,7 @@ const PG_DATABASE: &'static str = "protocoldb";
 const PG_HOST: &'static str = "localhost";
 const PG_USER: &'static str = "postgres";
 const PG_PASSW: &'static str = "postgrespw";
-const PG_PORT: u32 = 49154;
+const PG_PORT: u32 = 49153;
 
 struct CData {
     params: PgsqlDbConnectionParams,
@@ -107,6 +107,9 @@ fn main() {
     siv.add_global_callback('t', timer);
     siv.set_fps(1);
 
+    // detect db connection errors early
+    q(&params).unwrap();
+    
     siv.add_global_callback(Event::Refresh, step);
     siv.set_user_data(CData::new(params));
 
@@ -379,6 +382,7 @@ b batches
 DKG phase: 1 + 5n
                      ballot  mix     mix signature     decrypt factors    plaintext + sig
 Tally phase:    b * (1 +     t +    (t * (t - 1)) +    t +                 n)
+= b * (n + (t * t + 1) + 1)
 
 */
 fn get_max_values(row: &B3IndexRow) -> (i32, i32) {
