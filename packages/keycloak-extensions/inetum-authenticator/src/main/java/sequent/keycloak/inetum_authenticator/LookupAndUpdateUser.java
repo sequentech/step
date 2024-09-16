@@ -273,13 +273,18 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       UserModel user, AuthenticationFlowContext context, List<String> attributes) {
     for (String attribute : attributes) {
       List<String> values = Utils.getAttributeValuesFromAuthNote(context, attribute);
-      if (values != null && !values.isEmpty()) {
+      if (values != null && !values.isEmpty() && !values.get(0).isBlank()) {
         if (attribute.equals("username")) {
+          log.debugv("Setting attribute username to value={}", values.get(0));
           user.setUsername(values.get(0));
         } else if (attribute.equals("email")) {
+          log.debugv("Setting attribute email to value={}", values.get(0));
           user.setEmail(values.get(0));
         }
+        log.debugv("Setting attribute name={} to values={}", attribute, values);
         user.setAttribute(attribute, values);
+      } else {
+        log.debugv("No setting attribute name={} because it's blank or null", attribute);
       }
     }
   }

@@ -40,6 +40,7 @@ pub struct MiruCcsServer {
     pub tag: String,
     pub address: String,
     pub public_key_pem: String,
+    pub send_logs: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -49,6 +50,7 @@ pub struct MiruTransmissionPackageData {
     pub servers: Vec<MiruCcsServer>,
     pub documents: Vec<MiruDocument>,
     pub logs: Vec<Log>,
+    pub threshold: i64,
 }
 
 pub type MiruTallySessionData = Vec<MiruTransmissionPackageData>;

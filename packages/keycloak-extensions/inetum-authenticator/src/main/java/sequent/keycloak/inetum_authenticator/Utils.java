@@ -94,6 +94,9 @@ public class Utils {
   public static final String ID_NUMBER = "ID_number";
   public static final String USER_PROFILE_ATTRIBUTES = "user_profile_attributes";
   public static final String AUTHENTICATOR_CLASS_NAME = "authenticator_class_name";
+  public static final String MAX_RETRIES = "max-retries";
+  public static final int DEFAULT_MAX_RETRIES = 3;
+  public static final int BASE_RETRY_DELAY = 1_000;
 
   /**
    * We store the user data entered in the registration form in the session notes. This information
@@ -306,4 +309,12 @@ public class Utils {
       return userProfileMetadata.getAttributes();
   }
 
+  public static int parseInt(String s, int defaultValue) {
+    if (s == null) return defaultValue;
+    try {
+      return Integer.parseInt(s);
+    } catch (NumberFormatException x) {
+      return defaultValue;
+    }
+  }
 }

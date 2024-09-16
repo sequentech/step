@@ -51,7 +51,7 @@ public class ConditionalHasUserAttributeAuthenticator implements ConditionalAuth
       return false;
     }
     String userAttributeValue = user.getFirstAttribute(requiredUserAttributeKey);
-    boolean userAttributePresent = (userAttributeValue != null);
+    boolean userAttributePresent = (userAttributeValue != null && !userAttributeValue.isBlank());
     log.infov(
         "matchCondition(): requiredUserAttributeKey={0}, userAttributeValue={1}, negateOutput[{2}] != userAttributePresent[{3}]",
         requiredUserAttributeKey, userAttributeValue, negateOutput, userAttributePresent);

@@ -359,7 +359,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       log.infov(
           "lookupUserByFormData(): checkUniqueAttributes attribute {0} with value {1}",
           attribute, value);
-      if (value != null) {
+      if (value != null && !value.isBlank()) {
         Stream<UserModel> currentStream =
             session
                 .users()
