@@ -61,16 +61,23 @@ pub struct CreateDNSRecordRequest {
     proxied: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-struct Action {
-    id: String,
-    value: ForwardURL,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct ForwardURL {
     url: String,
     status_code: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+enum ActionValue {
+    String(String),
+    Integer(i64),
+    ForwardURL(ForwardURL),
+}
+#[derive(Debug, Serialize, Deserialize)]
+struct Action {
+    id: String,
+    value: ActionValue,
 }
 
 #[derive(Debug)]
@@ -311,9 +318,11 @@ fn find_matching_dns_record(records: Vec<DnsRecord>, expected_name: &str) -> Opt
 fn find_matching_target(rules: Vec<PageRule>, expected_redirect_url: &str) -> Option<PageRule> {
     for rule in rules {
         for action in &rule.actions {
-            let forward = &action.value;
-            if forward.url == expected_redirect_url {
-                return Some(rule);
+            let forward = action.value.clone();
+            if let ActionValue::ForwardURL(fwd) = action.value.clone() {
+                if fwd.url == expected_redirect_url {
+                    return Some(rule);
+                }
             }
         }
     }
@@ -332,10 +341,10 @@ fn create_payload(origin: &str, redirect_to: &str) -> CreatePageRuleRequest {
     info!("lets url the url {:?}", origin);
     let actions = vec![Action {
         id: "forwarding_url".to_string(),
-        value: ForwardURL {
+        value: ActionValue::ForwardURL(ForwardURL {
             url: redirect_to.to_string(),
             status_code: 301,
-        },
+        }),
     }];
 
     CreatePageRuleRequest {
