@@ -369,6 +369,7 @@ const tagalogTranslation: TranslationType = {
                 tally: "Tally",
                 publish: "I-publish",
                 logs: "Mga Log",
+                tasks: "Mga Gawain",
             },
             tally: {
                 emptyHeader: "Walang pang Tally.",
@@ -435,6 +436,8 @@ const tagalogTranslation: TranslationType = {
                 },
             },
             exportError: "Error sa pag-export ng Kaganapan ng Halalan",
+            taskNotification:
+                "{{action}} ay nagsimula na. Maaari mong makita ang status nito sa Talahanayan ng Pagpapatupad ng Mga Gawain.",
         },
         electionScreen: {
             common: {
@@ -1394,6 +1397,9 @@ const tagalogTranslation: TranslationType = {
                 isHidden: "Nakatago",
                 publicUrl: "Publikong URL",
             },
+        },
+        widget: {
+            logs: "Mga Log",
         },
     },
 }
