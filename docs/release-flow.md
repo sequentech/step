@@ -10,7 +10,7 @@ This file is pre-configured with the following settings:
 
 - The `trunk` branch is named `main`.
 - The version number to be used on the `trunk` branch is defined.
-- The prefix for working branches is set to `feat/meta-*` (as usual).
+- The prefix for working branches is set to `feat/meta-*` or `fix/meta-*` (as usual).
 - The prefix for release branches is set to `release/*`, followed by the major and minor version numbers, e.g., `release/1.0`, `release/1.1`, etc.
 
 ## Important Notes
