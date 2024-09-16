@@ -8,6 +8,8 @@
 
 package sequent.keycloak.inetum_authenticator;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import freemarker.template.Template;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
@@ -37,8 +39,6 @@ import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.userprofile.UserProfile;
 import org.keycloak.userprofile.UserProfileContext;
 import org.keycloak.userprofile.UserProfileProvider;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 
 @UtilityClass
 @JBossLog
@@ -269,44 +269,48 @@ public class Utils {
   }
 
   public String getUserAttributesString(UserModel user) {
-    if(user != null) {
-  Map<String, List<String>> attributes = user.getAttributes();
-  ObjectMapper mapper = new ObjectMapper();
-  ObjectNode attributesJson = mapper.createObjectNode();
+    if (user != null) {
+      Map<String, List<String>> attributes = user.getAttributes();
+      ObjectMapper mapper = new ObjectMapper();
+      ObjectNode attributesJson = mapper.createObjectNode();
 
-  for (String attributeName : attributes.keySet()) {
-    String value = attributes.get(attributeName).get(0);
-    if (value != null) {
-      attributesJson.put(attributeName, value);
+      for (String attributeName : attributes.keySet()) {
+        String value = attributes.get(attributeName).get(0);
+        if (value != null) {
+          attributesJson.put(attributeName, value);
+        }
+      }
+
+      return attributesJson.toString();
     }
+    return null;
   }
 
-  return attributesJson.toString();
-  } 
-  return null; 
-  }
-
-  public void buildEventDetails(EventBuilder builder, AuthenticationSessionModel authSession, UserModel user,KeycloakSession session, String className) {
+  public void buildEventDetails(
+      EventBuilder builder,
+      AuthenticationSessionModel authSession,
+      UserModel user,
+      KeycloakSession session,
+      String className) {
     List<UPAttribute> realmsAttributes = getRealmUserProfileAttributes(session);
     for (UPAttribute attribute : realmsAttributes) {
       String authNoteValue = authSession.getAuthNote(attribute.getName());
       builder.detail(attribute.getName(), authNoteValue);
     }
-    if(user != null) {
+    if (user != null) {
       builder.user(user.getId());
       builder.detail(USER_PROFILE_ATTRIBUTES, getUserAttributesString(user));
     } else {
       String userId = authSession.getAuthNote(USER_ID);
       builder.user(userId);
     }
-   builder.detail(AUTHENTICATOR_CLASS_NAME, className);
-
+    builder.detail(AUTHENTICATOR_CLASS_NAME, className);
   }
 
-   public List<UPAttribute> getRealmUserProfileAttributes(KeycloakSession session) {
-      UserProfileProvider userProfileProvider = session.getProvider(UserProfileProvider.class);
-      UPConfig userProfileMetadata = userProfileProvider.getConfiguration();
-      return userProfileMetadata.getAttributes();
+  public List<UPAttribute> getRealmUserProfileAttributes(KeycloakSession session) {
+    UserProfileProvider userProfileProvider = session.getProvider(UserProfileProvider.class);
+    UPConfig userProfileMetadata = userProfileProvider.getConfiguration();
+    return userProfileMetadata.getAttributes();
   }
 
   public static int parseInt(String s, int defaultValue) {

@@ -39,10 +39,14 @@ public class CustomEventListereProvider implements EventListenerProvider {
 
   @Override
   public void onEvent(Event event) {
-      if (this.access_token == null) {
-        authenticate();
-      }
-      logEvent(getElectionEventId(event.getRealmId()), event.getType(), event.getError(), event.getUserId());
+    if (this.access_token == null) {
+      authenticate();
+    }
+    logEvent(
+        getElectionEventId(event.getRealmId()),
+        event.getType(),
+        event.getError(),
+        event.getUserId());
   }
 
   public void authenticate() {
@@ -97,23 +101,24 @@ public class CustomEventListereProvider implements EventListenerProvider {
     String realmName = session.realms().getRealm(realmId).getName();
     String[] parts = realmName.split("event-");
     if (parts.length > 1) {
-        return parts[1];
+      return parts[1];
     }
-    return null; 
+    return null;
   }
 
   private void logEvent(String electionEventId, EventType eventType, String body, String userId) {
     HttpClient client = HttpClient.newHttpClient();
     String url = "http://" + this.harvestUrl + "/immudb/log-event";
-    String requestBody = String.format("{\"election_event_id\": \"%s\", \"message_type\": \"%s\", \"body\" : \"%s\", \"user_id\": \"%s\"}", electionEventId, eventType, body, userId);
+    String requestBody =
+        String.format(
+            "{\"election_event_id\": \"%s\", \"message_type\": \"%s\", \"body\" : \"%s\", \"user_id\": \"%s\"}",
+            electionEventId, eventType, body, userId);
     HttpRequest request =
         HttpRequest.newBuilder()
             .uri(URI.create(url))
             .header("Content-Type", "application/json")
             .header("Authorization", "Bearer " + this.access_token)
-            .POST(
-                HttpRequest.BodyPublishers.ofString(
-                    requestBody))
+            .POST(HttpRequest.BodyPublishers.ofString(requestBody))
             .build();
     CompletableFuture<HttpResponse<String>> response =
         client.sendAsync(request, HttpResponse.BodyHandlers.ofString());

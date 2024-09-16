@@ -51,7 +51,6 @@ import org.keycloak.userprofile.UserProfileProvider;
 import sequent.keycloak.authenticator.gateway.SmsSenderProvider;
 import sequent.keycloak.authenticator.otl.OTLActionToken;
 
-
 @UtilityClass
 @JBossLog
 public class Utils {
@@ -566,40 +565,39 @@ public class Utils {
   }
 
   public void buildEventDetails(AuthenticationFlowContext context, String className) {
-   AuthenticationSessionModel authSession = context.getAuthenticationSession();
-   UserModel user = context.getUser();
-   List<UPAttribute> realmsAttributesList = getRealmUserProfileAttributes(context.getSession());
-   for (UPAttribute attribute : realmsAttributesList) {
-    String authNoteValue = authSession.getAuthNote(attribute.getName());
-    context.getEvent().detail(attribute.getName(), authNoteValue);
-  }
-   if(user != null) {
-     context.getEvent().detail(USER_PROFILE_ATTRIBUTES, getUserAttributesString(user));
-     context.getEvent().user(user.getId());
-   } else {
+    AuthenticationSessionModel authSession = context.getAuthenticationSession();
+    UserModel user = context.getUser();
+    List<UPAttribute> realmsAttributesList = getRealmUserProfileAttributes(context.getSession());
+    for (UPAttribute attribute : realmsAttributesList) {
+      String authNoteValue = authSession.getAuthNote(attribute.getName());
+      context.getEvent().detail(attribute.getName(), authNoteValue);
+    }
+    if (user != null) {
+      context.getEvent().detail(USER_PROFILE_ATTRIBUTES, getUserAttributesString(user));
+      context.getEvent().user(user.getId());
+    } else {
       String userId = context.getAuthenticationSession().getAuthNote(USER_ID);
       context.getEvent().user(userId);
-   }
-   context.getEvent().detail(AUTHENTICATOR_CLASS_NAME, className);
+    }
+    context.getEvent().detail(AUTHENTICATOR_CLASS_NAME, className);
   }
 
   public String getUserAttributesString(UserModel user) {
     Map<String, List<String>> attributes = user.getAttributes();
     ObjectMapper mapper = new ObjectMapper();
     ObjectNode attributesJson = mapper.createObjectNode();
-  
+
     for (String attributeName : attributes.keySet()) {
       String value = attributes.get(attributeName).get(0);
       attributesJson.put(attributeName, value);
     }
-  
-    return attributesJson.toString();
-    }
 
-     public List<UPAttribute> getRealmUserProfileAttributes(KeycloakSession session) {
-      UserProfileProvider userProfileProvider = session.getProvider(UserProfileProvider.class);
-      UPConfig userProfileConfig = userProfileProvider.getConfiguration();
-      return userProfileConfig.getAttributes();
+    return attributesJson.toString();
   }
 
+  public List<UPAttribute> getRealmUserProfileAttributes(KeycloakSession session) {
+    UserProfileProvider userProfileProvider = session.getProvider(UserProfileProvider.class);
+    UPConfig userProfileConfig = userProfileProvider.getConfiguration();
+    return userProfileConfig.getAttributes();
+  }
 }

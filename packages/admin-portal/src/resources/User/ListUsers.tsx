@@ -58,7 +58,7 @@ import {EXPORT_USERS} from "@/queries/ExportUsers"
 import {EXPORT_TENANT_USERS} from "@/queries/ExportTenantUsers"
 import {DownloadDocument} from "./DownloadDocument"
 import {IMPORT_USERS} from "@/queries/ImportUsers"
-import { ElectoralLogFilters, ElectoralLogList } from "@/components/ElectoralLogList"
+import {ElectoralLogFilters, ElectoralLogList} from "@/components/ElectoralLogList"
 
 const OMIT_FIELDS: Array<string> = ["id", "email_verified"]
 
@@ -361,7 +361,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     }
     //TODO: add this funciton once Yuval's PR is merged
     const showUsersLogsModal = (id: Identifier) => {
-        console.log("id", id);
+        console.log("id", id)
         if (!electionEventId) {
             return
         }
@@ -761,8 +761,21 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 </FormStyles.ReservedProgressSpace>
             </Dialog>
 
-            <Dialog fullWidth={true} variant="info" title="User's logs" ok={"close"} open={openUsersLogsModal} handleClose={(results: boolean) => {setOpenUsersLogsModal(false)}}>
-                <ElectoralLogList showActions = {false} filterToShow={ElectoralLogFilters.USER_ID} filterValue={recordIds[0]?.toString()}/>
+            <Dialog
+                fullWidth={true}
+                variant="info"
+                title="User's logs"
+                ok={"close"}
+                open={openUsersLogsModal}
+                handleClose={(results: boolean) => {
+                    setOpenUsersLogsModal(false)
+                }}
+            >
+                <ElectoralLogList
+                    showActions={false}
+                    filterToShow={ElectoralLogFilters.USER_ID}
+                    filterValue={recordIds[0]?.toString()}
+                />
             </Dialog>
         </>
     )

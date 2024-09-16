@@ -16,7 +16,8 @@ use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::election_event_board::get_election_event_board;
 use windmill::services::electoral_log::{
-    list_electoral_log as get_logs, ElectoralLog, ElectoralLogRow, GetElectoralLogBody
+    list_electoral_log as get_logs, ElectoralLog, ElectoralLogRow,
+    GetElectoralLogBody,
 };
 use windmill::types::resources::DataList;
 
@@ -88,29 +89,22 @@ pub async fn create_electoral_log(
         election_event.bulletin_board_reference.clone(),
     )
     .with_context(|| "error getting election event")
-    .map_err(|e| {
-        (
-            Status::InternalServerError,
-            format!("{:?}", e),
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let electoral_log = ElectoralLog::new(board_name.as_str())
+        .await
+        .with_context(|| "error getting electoral log")
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    electoral_log
+        .post_keycloak_event(
+            input.election_event_id.clone(),
+            input.message_type,
+            input.body,
+            input.user_id,
         )
-    })?;
-    let electoral_log = ElectoralLog::new(board_name.as_str()).await
-    .with_context(|| "error getting electoral log")
-    .map_err(|e| {
-        (
-            Status::InternalServerError,
-            format!("{:?}", e),
-        )
-    })?;
-    electoral_log.post_keycloak_event(input.election_event_id.clone(), input.message_type, input.body, input.user_id).await
-    .with_context(|| "error posting registration error")
-    .map_err(|e| {
-        (
-            Status::InternalServerError,
-            format!("{:?}", e),
-        )
-    })?;
-    
+        .await
+        .with_context(|| "error posting registration error")
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
     Ok(Json(LogEventOutput {
         id: input.election_event_id.clone(),
     }))

@@ -179,7 +179,12 @@ impl Message {
         Self::from_body(event, body, sd, None)
     }
 
-    fn from_body(event: EventIdString, body: StatementBody, sd: &SigningData, user_id: Option<String>) -> Result<Self> {
+    fn from_body(
+        event: EventIdString,
+        body: StatementBody,
+        sd: &SigningData,
+        user_id: Option<String>,
+    ) -> Result<Self> {
         let head = StatementHead::from_body(event, &body);
         let statement = Statement::new(head, body);
 
@@ -199,7 +204,7 @@ impl Message {
         sender_sk: &StrandSignatureSk,
         sender_name: &str,
         system_sk: &StrandSignatureSk,
-        user_id: Option<String>
+        user_id: Option<String>,
     ) -> Result<Message> {
         let bytes = statement.strand_serialize()?;
         let sender_signature: StrandSignature = sender_sk.sign(&bytes)?;

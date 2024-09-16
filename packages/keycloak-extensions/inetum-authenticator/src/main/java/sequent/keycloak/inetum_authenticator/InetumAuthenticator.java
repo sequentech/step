@@ -61,7 +61,12 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
     Map<String, String> configMap = config.getConfig();
     UserModel user = context.getUser();
-    Utils.buildEventDetails(context.getEvent(), context.getAuthenticationSession(), user, context.getSession(),this.getClass().getSimpleName());
+    Utils.buildEventDetails(
+        context.getEvent(),
+        context.getAuthenticationSession(),
+        user,
+        context.getSession(),
+        this.getClass().getSimpleName());
     if (user != null) {
       String statusAttributeName = configMap.get(Utils.USER_STATUS_ATTRIBUTE);
       String statusAttributeValue = user.getFirstAttribute(statusAttributeName);

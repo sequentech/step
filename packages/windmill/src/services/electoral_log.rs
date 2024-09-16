@@ -11,7 +11,7 @@ use board_messages::braid::message::{self, Signer as _};
 use board_messages::electoral_log::message::Message;
 use board_messages::electoral_log::message::SigningData;
 use board_messages::electoral_log::newtypes::*;
-use immu_board::{assign_value};
+use immu_board::assign_value;
 use immu_board::util::get_event_board;
 use immu_board::ElectoralLogMessage;
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue};
@@ -151,11 +151,18 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(self))]
-    pub async fn post_keycloak_event(&self, event_id: String, event_type: String, error_message: String, user_id: Option<String>) -> Result<()> {
+    pub async fn post_keycloak_event(
+        &self,
+        event_id: String,
+        event_type: String,
+        error_message: String,
+        user_id: Option<String>,
+    ) -> Result<()> {
         let event = EventIdString(event_id);
         let error_message = ErrorMessageString(error_message);
         let event_type = KeycloakEventTypeString(event_type);
-        let message = Message::keycloak_user_event(event,event_type, error_message, user_id, &self.sd)?;
+        let message =
+            Message::keycloak_user_event(event, event_type, error_message, user_id, &self.sd)?;
         self.post(message).await
     }
 
@@ -232,7 +239,7 @@ impl ElectoralLog {
     async fn post(&self, message: Message) -> Result<()> {
         let board_message: ElectoralLogMessage = message.try_into()?;
         let ms = vec![board_message];
-    
+
         let mut client = get_board_client().await?;
         client
             .insert_electoral_log_messages(self.elog_database.as_str(), &ms)
@@ -283,7 +290,7 @@ impl GetElectoralLogBody {
                         where_clauses.push(format!("id = @{}", param_name));
                         params.push(create_named_param(param_name, Value::N(int_value)));
                     }
-                    OrderField::StatementTimestamp | OrderField::Created | OrderField::Message  => {}
+                    OrderField::StatementTimestamp | OrderField::Created | OrderField::Message => {}
                     _ => {
                         where_clauses.push(format!("{field} LIKE @{}", param_name));
                         params.push(create_named_param(param_name, Value::S(value.to_string())));
@@ -354,7 +361,6 @@ impl TryFrom<&Row> for ElectoralLogRow {
         let mut user_id = None;
 
         for (column, value) in row.columns.iter().zip(row.values.iter()) {
-
             match column.as_str() {
                 c if c.ends_with(".id)") => {
                     assign_value!(Value::N, value, id)
@@ -374,13 +380,12 @@ impl TryFrom<&Row> for ElectoralLogRow {
                 c if c.ends_with(".message)") => {
                     assign_value!(Value::Bs, value, message)
                 }
-                c if c.ends_with(".user_id)") => {match value.value.as_ref() {
-                    Some(Value::S(inner)) => user_id = Some(inner.clone()), 
+                c if c.ends_with(".user_id)") => match value.value.as_ref() {
+                    Some(Value::S(inner)) => user_id = Some(inner.clone()),
                     Some(Value::Null(_)) => user_id = None,
                     None => user_id = None,
                     _ => return Err(anyhow!("invalid column value for 'user_id'")),
-                }
-            }
+                },
                 _ => return Err(anyhow!("invalid column found '{}'", column.as_str())),
             }
         }

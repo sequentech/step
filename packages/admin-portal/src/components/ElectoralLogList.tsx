@@ -24,8 +24,8 @@ import {EXPORT_ELECTION_EVENT_LOGS} from "@/queries/ExportElectionEventLogs"
 import {useMutation} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
 import {ElectionStyles} from "./styles/ElectionStyles"
-import { useLocation } from "react-router"
-import { Box } from "@mui/material"
+import {useLocation} from "react-router"
+import {Box} from "@mui/material"
 
 interface ExportWrapperProps {
     electionEventId: string
@@ -120,23 +120,23 @@ export enum ElectoralLogFilters {
     USER_ID = "user_id",
 }
 
-export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({aside, filterToShow, filterValue, showActions = true}) => {
+export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
+    aside,
+    filterToShow,
+    filterValue,
+    showActions = true,
+}) => {
     const [tenantId] = useTenantStore()
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const {t} = useTranslation()
     const location = useLocation()
-    const params = new URLSearchParams(location.search);
+    const params = new URLSearchParams(location.search)
     const user_id = params.get("user_id")
     const filters: Array<ReactElement> = []
 
     useEffect(() => {
         for (const filter of Object.values(ElectoralLogFilters)) {
-            filters.push(
-                <TextInput
-                    key={filter}
-                    source={filter}
-                />
-            )
+            filters.push(<TextInput key={filter} source={filter} />)
         }
     }, [])
     const [openExport, setOpenExport] = React.useState(false)
@@ -146,14 +146,13 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({aside, filter
         setOpenExport(true)
     }
 
-    const filterObject: { [key: string]: any } = {
+    const filterObject: {[key: string]: any} = {
         election_event_id: record?.id || undefined,
-    };
-
-    if (filterToShow) {
-        filterObject[filterToShow] = filterValue || undefined;
     }
 
+    if (filterToShow) {
+        filterObject[filterToShow] = filterValue || undefined
+    }
 
     return (
         <>
@@ -171,20 +170,16 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({aside, filter
                 <DatagridConfigurable bulkActionButtons={<></>}>
                     <NumberField source="id" />
                     <FunctionField
-                source="user_id"
-                render={(record: any) => {
-                    const userId = record.user_id;
-                    return (
-                        <span style={{ display: 'block', textAlign: 'center' }}>
-                            {!userId || userId === 'null' ? (
-                                <span >-</span>
-                            ) : (
-                                userId
-                            )}
-                        </span>
-                    );
-                }}
-            />
+                        source="user_id"
+                        render={(record: any) => {
+                            const userId = record.user_id
+                            return (
+                                <span style={{display: "block", textAlign: "center"}}>
+                                    {!userId || userId === "null" ? <span>-</span> : userId}
+                                </span>
+                            )
+                        }}
+                    />
                     <FunctionField
                         source="created"
                         render={(record: any) => new Date(record.created * 1000).toUTCString()}

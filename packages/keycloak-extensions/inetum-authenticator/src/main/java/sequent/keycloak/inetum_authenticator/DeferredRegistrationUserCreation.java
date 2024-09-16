@@ -560,19 +560,19 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     return true;
   }
 
-  private void buildEventDetails(MultivaluedMap<String, String> formData , ValidationContext context, UserModel user) {
+  private void buildEventDetails(
+      MultivaluedMap<String, String> formData, ValidationContext context, UserModel user) {
     formData = normalizeFormParameters(formData);
-    formData.forEach((key, value) -> {
-      if(value != null) {
-        context.getEvent().detail(key, value);
-      }
-    });
-    if(user != null) {
+    formData.forEach(
+        (key, value) -> {
+          if (value != null) {
+            context.getEvent().detail(key, value);
+          }
+        });
+    if (user != null) {
       context.getEvent().user(user.getId());
       context.getEvent().detail("user_attributes", Utils.getUserAttributesString(user));
     }
     context.getEvent().detail(Utils.AUTHENTICATOR_CLASS_NAME, this.getClass().getSimpleName());
   }
-
- 
 }

@@ -53,7 +53,6 @@ public class MessageOTPAuthenticator
     String resend = context.getHttpRequest().getDecodedFormParameters().getFirst("resend");
     UserModel user = context.getUser();
     Utils.buildEventDetails(context, this.getClass().getSimpleName());
-    
 
     if (resend != null && resend.equals("true")) {
       intiateForm(context, /*resend*/ true);

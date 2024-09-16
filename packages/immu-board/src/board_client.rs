@@ -77,14 +77,13 @@ impl TryFrom<&Row> for ElectoralLogMessage {
                 "message" => assign_value!(Value::Bs, value, message),
                 "version" => assign_value!(Value::S, value, version),
                 "user_Id" => match value.value.as_ref() {
-                    Some(Value::S(inner)) => user_id = Some(inner.clone()), 
+                    Some(Value::S(inner)) => user_id = Some(inner.clone()),
                     None => user_id = None,
                     _ => return Err(anyhow!("invalid column value for 'userId'")),
+                },
+                _ => return Err(anyhow!("invalid column found '{}'", bare_column)),
             }
-            _ => return Err(anyhow!("invalid column found '{}'", bare_column)),
-
         }
-    }
 
         Ok(ElectoralLogMessage {
             id,
@@ -315,8 +314,6 @@ impl BoardClient {
 
         Ok(messages)
     }
-
-
 
     /// Get all messages whose id is bigger than `last_id`
     async fn get(
@@ -643,8 +640,8 @@ impl BoardClient {
                     name: String::from("user_id"),
                     value: Some(SqlValue {
                         value: match message.user_id.clone() {
-                            Some(user_id) => Some(Value::S(user_id)),  
-                            None => None,                              
+                            Some(user_id) => Some(Value::S(user_id)),
+                            None => None,
                         },
                     }),
                 },
@@ -656,7 +653,11 @@ impl BoardClient {
             sql_results.push(result);
         }
 
-        let commit = self.client.commit(&transaction_id).await.with_context(|| "error commiting to electoral log");
+        let commit = self
+            .client
+            .commit(&transaction_id)
+            .await
+            .with_context(|| "error commiting to electoral log");
         self.client.close_session().await?;
 
         // We defer checking on these results until after closing the session
@@ -667,8 +668,6 @@ impl BoardClient {
 
         Ok(())
     }
-
-    
 
     async fn insert(
         &mut self,
