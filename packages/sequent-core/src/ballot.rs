@@ -1150,4 +1150,5 @@ pub struct BallotStyle {
 pub struct CustomUrls {
     pub login: Option<String>,
     pub enrollment: Option<String>,
+    pub saml: Option<String>,
 }

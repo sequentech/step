@@ -12,6 +12,7 @@ export interface IElectionEventMaterials {
 export interface ICustomUrls {
     login?: string
     enrollment?: string
+    saml?: string
 }
 
 export enum ElectionsOrder {
