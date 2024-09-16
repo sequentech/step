@@ -318,7 +318,6 @@ fn find_matching_dns_record(records: Vec<DnsRecord>, expected_name: &str) -> Opt
 fn find_matching_target(rules: Vec<PageRule>, expected_redirect_url: &str) -> Option<PageRule> {
     for rule in rules {
         for action in &rule.actions {
-            let forward = action.value.clone();
             if let ActionValue::ForwardURL(fwd) = action.value.clone() {
                 if fwd.url == expected_redirect_url {
                     return Some(rule);
