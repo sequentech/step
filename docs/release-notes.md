@@ -30,11 +30,7 @@ The following steps explain how to manually add the required roles and assign th
    - Click `Assign role` to assign the `tasks-read` role to the `admin` role.
    - Choose `tasks-read` and click `Assign`.
 
-4. **Verify Role Assignment**
-   - Go to the `Users` section.
-   - Select a user with the `admin` role and verify that the `tasks-read` role has been inherited.
-
-5. **Repeat for All Relevant Tenants**
+4. **Repeat for All Relevant Tenants**
    - For each tenant in your system, repeat the above steps to ensure the `tasks-read` role is assigned correctly.
 
 By following these steps, you will ensure that permissions are correctly set up for older deployments.
