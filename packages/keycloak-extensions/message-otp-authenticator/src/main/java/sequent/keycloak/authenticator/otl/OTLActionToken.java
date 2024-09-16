@@ -18,9 +18,13 @@ public class OTLActionToken extends DefaultActionToken {
   private static final String JSON_FIELD_SESSION_ID = "original-compound-session-id";
   private static final String JSON_FIELD_AUTH_NOTE_NAMES = "auth-note-names";
   private static final String JSON_FIELD_IS_DEFERRED_USER = "is-deferred-user";
+  private static final String JSON_FIELD_REDIRECT_URI = "redirect-uri";
 
   @JsonProperty(JSON_FIELD_SESSION_ID)
   private String originalCompoundSessionId;
+
+  @JsonProperty(JSON_FIELD_REDIRECT_URI)
+  private String redirectUri;
 
   @JsonProperty(JSON_FIELD_AUTH_NOTE_NAMES)
   private String[] authNoteNames;
@@ -34,9 +38,10 @@ public class OTLActionToken extends DefaultActionToken {
       String originalCompoundSessionId,
       String[] authNoteNames,
       boolean isDeferredUser,
+      String redirectUri,
       String clientId) {
     super(userId, TOKEN_TYPE, absoluteExpirationInSecs, null, null);
-    log.debug(
+    log.info(
         "OTLActionToken: userId="
             + userId
             + ", absoluteExpirationInSecs="
@@ -47,52 +52,64 @@ public class OTLActionToken extends DefaultActionToken {
             + authNoteNames
             + ", isDeferredUser="
             + isDeferredUser
+            + ", redirectUri="
+            + redirectUri
             + ", clientId="
             + clientId);
     this.issuedFor = clientId;
     setOriginalCompoundSessionId(originalCompoundSessionId);
     setAuthNoteNames(authNoteNames);
     setIsDeferredUser(isDeferredUser);
+    setRedirectUri(redirectUri);
   }
 
   OTLActionToken() {
     super();
-    log.debug("OTLActionToken private");
+    log.info("OTLActionToken private");
   }
 
   @Override
   public boolean isActive() {
-    log.debug("OTLActionToken isActive() => true");
+    log.info("OTLActionToken isActive() => true");
     return true;
   }
 
   public String getOriginalCompoundSessionId() {
-    log.debug("getOriginalCompoundSessionId(): " + originalCompoundSessionId);
+    log.info("getOriginalCompoundSessionId(): " + originalCompoundSessionId);
     return originalCompoundSessionId;
   }
 
   public void setOriginalCompoundSessionId(String originalCompoundSessionId) {
-    log.debug("setOriginalCompoundSessionId() = " + originalCompoundSessionId);
+    log.info("setOriginalCompoundSessionId() = " + originalCompoundSessionId);
     this.originalCompoundSessionId = originalCompoundSessionId;
   }
 
   public String[] getAuthNoteNames() {
-    log.debug("getAuthNoteNames(): " + authNoteNames);
+    log.info("getAuthNoteNames(): " + authNoteNames);
     return authNoteNames;
   }
 
   public void setAuthNoteNames(String[] authNoteNames) {
-    log.debug("setAuthNoteNames() = " + authNoteNames);
+    log.info("setAuthNoteNames() = " + authNoteNames);
     this.authNoteNames = authNoteNames;
   }
 
   public boolean getIsDeferredUser() {
-    log.debug("getIsDeferredUser(): " + isDeferredUser);
+    log.info("getIsDeferredUser(): " + isDeferredUser);
     return isDeferredUser;
   }
 
   public void setIsDeferredUser(boolean isDeferredUser) {
-    log.debug("setIsDeferredUser() = " + isDeferredUser);
+    log.info("setIsDeferredUser() = " + isDeferredUser);
     this.isDeferredUser = isDeferredUser;
+  }
+
+  public void setRedirectUri(String redirectUri) {
+    log.info("setRedirectUri() = " + redirectUri);
+    this.redirectUri = redirectUri;
+  }
+
+  public String getRedirectUri() {
+    return this.redirectUri;
   }
 }

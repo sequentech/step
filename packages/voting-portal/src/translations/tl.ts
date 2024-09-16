@@ -7,7 +7,7 @@ const tagalogTranslation = {
             goBack: "Bumalik",
         },
         breadcrumbSteps: {
-            electionList: "Listahan ng Balota",
+            electionList: "Listahan ng mga Balota",
             ballot: "Balota",
             review: "Suriin",
             confirmation: "Kumpirmasyon",
@@ -16,15 +16,15 @@ const tagalogTranslation = {
         votingScreen: {
             backButton: "Bumalik",
             reviewButton: "Susunod",
-            clearButton: "Burahin ang pagpili",
+            clearButton: "Burahin ang mga napili",
             ballotHelpDialog: {
                 title: "Impormasyon: Screen ng Balota",
                 content:
-                    "Ipinapakita ng screen na ito ang mga paligsahan na maaari mong pagboto. Maaari mong piliin ang iyong mga pagpipilian sa pamamagitan ng pag-activate ng checkbox sa kanang bahagi ng Kandidato/Sagot. Upang i-reset ang iyong mga pagpili, i-click ang “<b>Burahin ang pagpili</b>” na button, upang pumunta sa susunod na hakbang, i-click ang “<b>Susunod</b>” na button sa ibaba.",
+                    "Ipinapakita sa screen na ito ang mga paligsahan na maaari mong botohan. Maaari kang pumili sa pamamagitan ng pag-activate ng checkbox sa kanang bahagi ng Kandidato/Sagot. Upang i-reset ang iyong mga pagpili, i-click ang “<b>Burahin ang pagpili</b>” na button, upang pumunta sa susunod na hakbang, i-click ang “<b>Susunod</b>” na button sa ibaba.",
                 ok: "OK",
             },
             nonVotedDialog: {
-                title: "Di-wastong o blangko na boto",
+                title: "Di-wasto o blangkong boto",
                 content:
                     "Ang ilan sa iyong mga sagot ay magreresulta sa pagkaka-invalidate o pagkakaroon ng blangko sa balota sa isa o higit pang mga tanong.",
                 ok: "Bumalik at suriin",
@@ -49,9 +49,9 @@ const tagalogTranslation = {
         reviewScreen: {
             title: "Suriin ang iyong balota",
             description:
-                "Upang baguhin ng iyong mga napili, i-click ang “<b>I-edit ang balota</b>” na button, upang kumpirmahin ang iyong mga napili, i-click ang “<b>I-submit ang iyong balota</b>” na button sa ibaba, at upang i-audit ang iyong balota i-click ang “<b>I-audit ang balota</b>” na button sa ibaba. Pakitandaan na kapag nai-submit mo na ang iyong balota, ikaw ay nakaboto na at hindi ka na maaring bigyan ng balota para sa Halalan na ito.",
+                "Upang baguhin ng iyong mga napili, i-click ang “<b>I-edit ang balota</b>” na button, upang kumpirmahin ang iyong mga napili, i-click ang “<b>I-submit ang iyong balota</b>” na button sa ibaba, at upang i-audit ang iyong balota i-click ang “<b>I-audit ang balota</b>” na button sa ibaba.",
             descriptionNoAudit:
-                "Upang baguhin ng iyong mga napili, i-click ang “<b>I-edit ang balota</b>” na button, upang kumpirmahin ang iyong mga napili, i-click ang “<b>I-submit ang iyong balota</b>” na button sa ibaba. Pakitandaan na kapag nai-submit mo na ang iyong balota, ikaw ay nakaboto na at hindi ka na maaring bigyan ng balota sa Halalan na ito.",
+                "Upang baguhin ng iyong mga napili, i-click ang “<b>I-edit ang balota</b>” na button, upang kumpirmahin ang iyong mga napili, i-click ang “<b>I-submit ang iyong balota</b>” na button sa ibaba.",
             backButton: "I-edit ang balota",
             castBallotButton: "I-submit ang iyong balota",
             auditButton: "I-audit ang balota",
@@ -71,7 +71,7 @@ const tagalogTranslation = {
             auditBallotHelpDialog: {
                 title: "Nais mo bang i-audit ang balota?",
                 content:
-                    "<p>Pakitandaan na ang pag-audit ng iyong balota ay magpapawalang-bisa dito, na kakailanganin mong magsimulang muli sa proseso ng pagboto. Sa proseso ng audit, maari mong tiyakin na ang iyong balota ay tamang naka-encode, ngunit ito ay nangangailangan ng mga advanced na teknikal na hakbang. Inirerekomenda naming magpatuloy ka lang kung ikaw ay kumpiyansa sa iyong kakayahang teknikal. Kung nais mo lamang i-submit ang iyong balota, i-click ang <u>Kanselahin</u> upang bumalik sa screen ng pagsusuri ng balota.</b></p>",
+                    "<p>Pakitandaan na ang pag-audit ng iyong balota ay magpapawalang-bisa dito, at kakailanganin mong magsimulang muli sa proseso ng pagboto. Sa proseso ng audit, maari mong tiyakin na ang iyong balota ay tamang naka-encode, ngunit ito ay nangangailangan ng mga advanced na teknikal na hakbang. Inirerekomenda naming magpatuloy ka lang kung ikaw ay kumpiyansa sa iyong kakayahang teknikal. Kung nais mo lamang i-submit ang iyong balota, i-click ang <u>Kanselahin</u> upang bumalik sa screen ng pagsusuri ng balota.</b></p>",
                 ok: "Oo, nais kong IBASURA ang aking balota upang i-audit ito",
                 cancel: "Kanselahin",
             },

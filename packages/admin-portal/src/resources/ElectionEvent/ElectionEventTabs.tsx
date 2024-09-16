@@ -73,7 +73,7 @@ export const ElectionEventTabs: React.FC = () => {
     )
 
     const {t} = useTranslation()
-    const {setTallyId, setCreatingFlag} = useElectionEventTallyStore()
+    const {setTallyId, setCreatingFlag, setSelectedTallySessionData} = useElectionEventTallyStore()
 
     useEffect(() => {
         const locArr = location.pathname.split("/").slice(0, 3).join("/")
@@ -161,6 +161,7 @@ export const ElectionEventTabs: React.FC = () => {
                         onClick={() => {
                             setTallyId(null)
                             setCreatingFlag(false)
+                            setSelectedTallySessionData(null)
                         }}
                     >
                         <EditElectionEventTally />

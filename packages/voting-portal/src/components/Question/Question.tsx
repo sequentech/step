@@ -169,7 +169,7 @@ export const Question: React.FC<IQuestionProps> = ({
     // when isRadioChecked is true, clicking on another option works as a radio button:
     // it deselects the previously selected option to select the new one
     const isRadioSelection = checkIsRadioSelection(question)
-    const isBlank = isReview && contestState && checkIsBlank(contestState) && !hasBlankCandidate
+    const isBlank = isReview && contestState && checkIsBlank(contestState)
 
     return (
         <Box>

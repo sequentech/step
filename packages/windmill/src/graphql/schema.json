@@ -19387,6 +19387,20 @@
                 "defaultValue": null
               },
               {
+                "name": "document_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              },
+              {
                 "name": "election_id",
                 "description": null,
                 "type": {
@@ -19401,7 +19415,7 @@
                 "defaultValue": null
               },
               {
-                "name": "private_key",
+                "name": "password",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",

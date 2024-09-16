@@ -7,7 +7,9 @@ package sequent.keycloak.authenticator.otl;
 import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.Response;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.TokenVerifier.Predicate;
 import org.keycloak.authentication.AuthenticationProcessor;
@@ -48,7 +50,7 @@ public class OTLActionTokenHandler extends AbstractActionTokenHandler<OTLActionT
         /* defaultEventType= */ EventType.IDENTITY_PROVIDER_LINK_ACCOUNT,
         /* defaultEventError= */ Errors.INVALID_TOKEN);
 
-    log.debug("OTLActionTokenHandler");
+    log.info("OTLActionTokenHandler");
   }
 
   protected AuthenticationSessionModel getOriginalSession(
@@ -73,7 +75,7 @@ public class OTLActionTokenHandler extends AbstractActionTokenHandler<OTLActionT
   @Override
   public Predicate<? super OTLActionToken>[] getVerifiers(
       ActionTokenContext<OTLActionToken> tokenContext) {
-    log.debug("getVerifiers()");
+    log.info("getVerifiers()");
     return TokenUtils.predicates(
         TokenUtils.checkThat(
             (token) -> {
@@ -95,14 +97,19 @@ public class OTLActionTokenHandler extends AbstractActionTokenHandler<OTLActionT
   @Override
   public Response handleToken(
       OTLActionToken token, ActionTokenContext<OTLActionToken> tokenContext) {
-    log.debug("handleToken(): start");
+    log.info("handleToken(): start");
     AuthenticationSessionModel authSession = tokenContext.getAuthenticationSession();
     final String originalCompoundSessionId = token.getOriginalCompoundSessionId();
     final String originUserId = token.getUserId();
-    final String[] authNoteNames = token.getAuthNoteNames();
+    final List<String> authNoteNames = new ArrayList<>(Arrays.asList(token.getAuthNoteNames()));
     final boolean isDeferredUser = token.getIsDeferredUser();
     final RealmModel realm = tokenContext.getRealm();
     final KeycloakSession session = tokenContext.getSession();
+
+    // we need to restore the current flow path too
+    if (!authNoteNames.contains(AuthenticationProcessor.CURRENT_FLOW_PATH)) {
+      authNoteNames.add(AuthenticationProcessor.CURRENT_FLOW_PATH);
+    }
 
     EventBuilder event = tokenContext.getEvent();
     event
@@ -110,7 +117,7 @@ public class OTLActionTokenHandler extends AbstractActionTokenHandler<OTLActionT
         .detail(Details.CONTEXT, "originUserId = " + originUserId);
     event.success();
 
-    log.debugv(
+    log.infov(
         "handleToken(): tokenContext.isAuthenticationSessionFresh() = {0}",
         tokenContext.isAuthenticationSessionFresh());
 
@@ -130,35 +137,35 @@ public class OTLActionTokenHandler extends AbstractActionTokenHandler<OTLActionT
         .getClientNotes()
         .forEach(
             (String name, String note) -> {
-              log.debugv("setClientNote name={0}", name);
+              log.infov("setClientNote name={0}, value={1}", name, note);
               authSession.setClientNote(name, note);
             });
     originalSession
         .getUserSessionNotes()
         .forEach(
             (String name, String note) -> {
-              log.debugv("setting setUserSessionNote name={0}", name);
+              log.infov("setting setUserSessionNote name={0}", name);
               authSession.setUserSessionNote(name, note);
             });
-    Arrays.stream(authNoteNames)
-        .forEach(
-            (String name) -> {
-              log.debugv(
-                  "setting setAuthNote name={0}, value={1}",
-                  name, originalSession.getAuthNote(name));
-              authSession.setAuthNote(name, originalSession.getAuthNote(name));
-            });
+    authNoteNames.forEach(
+        (String name) -> {
+          log.debugv(
+              "setting setAuthNote name={0}, value={1}", name, originalSession.getAuthNote(name));
+          authSession.setAuthNote(name, originalSession.getAuthNote(name));
+        });
     originalSession
         .getExecutionStatus()
         .forEach(
             (String authenticator, ExecutionStatus status) -> {
-              log.debugv("setting setUserSessionNote authenticator={0}", authenticator);
+              log.infov(
+                  "setting setExecutionStatus authenticator={0}, status={1}",
+                  authenticator, status);
               authSession.setExecutionStatus(authenticator, status);
             });
-    log.debugv("setting redirectUri={0}", originalSession.getRedirectUri());
+    log.infov("setting redirectUri={0}", originalSession.getRedirectUri());
     authSession.setRedirectUri(originalSession.getRedirectUri());
 
-    log.debugv(
+    log.infov(
         "setting executionId={0}",
         originalSession.getAuthNote(AuthenticationProcessor.LAST_PROCESSED_EXECUTION));
     tokenContext.setExecutionId(
@@ -168,6 +175,7 @@ public class OTLActionTokenHandler extends AbstractActionTokenHandler<OTLActionT
       authSession.setAuthenticatedUser(null);
     }
 
+    log.info("setting OTL_VISITED=true");
     authSession.setAuthNote(Utils.OTL_VISITED, "true");
 
     // Once everything is copied, then we remove the original auth session
@@ -176,6 +184,7 @@ public class OTLActionTokenHandler extends AbstractActionTokenHandler<OTLActionT
     AuthenticationFlowURLHelper helper =
         new AuthenticationFlowURLHelper(session, realm, tokenContext.getUriInfo());
     URI redirectUri = helper.getLastExecutionUrl(authSession);
+    log.infov("redirectUri={0}", redirectUri.toString());
     return Response.status(Response.Status.FOUND).location(redirectUri).build();
   }
 

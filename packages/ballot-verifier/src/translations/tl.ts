@@ -18,7 +18,7 @@ const tagalogTranslation = {
                 content:
                     "Upang magpatuloy, mangyaring i-import ang naka-encrypt na data ng balota na ibinigay sa Voting Portal.",
             },
-            step2: "Hakbang 2: Ipasok ang ID ng iyong balota",
+            step2: "Hakbang 2: I-type ang ID ng iyong balota",
             description2: "Mangyaring i-type ang ID ng balota na ibinigay sa Voting Portal:",
             ballotIdHelpDialog: {
                 title: "Impormasyon: Ang ID ng iyong balota",
@@ -40,7 +40,7 @@ const tagalogTranslation = {
         confirmationScreen: {
             ballotIdTitle: "ID ng Balota",
             ballotIdDescription:
-                "Sa ibaba, ipinapakita ng sistema ang ID ng balota ng na-decode na balota, at ang nalikha ng verifier",
+                "Sa ibaba, ipinapakita ng sistema ang ID ng na-decode na balota, at ang nalikha ng verifier",
             ballotIdError: "Hindi tumutugma sa na-decode na ID ng balota",
             decodedBallotId: "Na-decode na ID ng Balota",
             decodedBallotIdHelpDialog: {
