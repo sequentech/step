@@ -11,6 +11,7 @@ pub mod compress;
 pub mod consolidation;
 pub mod database;
 pub mod date;
+pub mod delete_election_event;
 pub mod documents;
 pub mod election;
 pub mod election_dates;
