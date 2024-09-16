@@ -33,19 +33,25 @@ pub struct GetCustomUrlInput {
 }
 
 #[derive(Serialize)]
+struct GetCustomUrlOutput {
+    success: bool,
+    message: String,
+    origin: String,
+}
+
+#[derive(Serialize)]
 struct UpdateCustomUrlOutput {
     success: bool,
     message: String,
 }
 
-// TODO: Add env for cloudflare auth + for local / remote
 #[instrument(skip(claims))]
 #[post("/set-custom-url", format = "json", data = "<input>")]
 pub async fn update_custom_url(
     claims: JwtClaims,
     input: Json<UpdateCustomUrlInput>,
 ) -> Result<Json<UpdateCustomUrlOutput>, (Status, String)> {
-    let body = input.into_inner();
+    let body: UpdateCustomUrlInput = input.into_inner();
     if let Err(err) = authorize(
         &claims,
         true,
@@ -90,17 +96,23 @@ pub async fn update_custom_url(
                         .and_then(Value::as_str)
                         .unwrap_or("")
                         .to_owned(),
+                    saml: custom_urls_obj.get("saml")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .to_owned(),
                 }
             } else {
                 PreviousCustomUrls {
                     login: "".to_owned(),
                     enrollment: "".to_owned(),
+                    saml: "".to_owned(),
                 }
             }
         } else {
             PreviousCustomUrls {
                 login: "".to_owned(),
                 enrollment: "".to_owned(),
+                saml: "".to_owned(),
             }
         };
 
@@ -139,7 +151,7 @@ pub async fn update_custom_url(
 pub async fn get_custom_url(
     claims: JwtClaims,
     input: Json<GetCustomUrlInput>,
-) -> Result<Json<String>, (Status, String)> {
+) -> Result<Json<GetCustomUrlOutput>, (Status, String)> {
     let body = input.into_inner();
     authorize(
         &claims,
@@ -159,18 +171,27 @@ pub async fn get_custom_url(
             let origin = r
                 .targets
                 .get(0)
-                .map(|target| target.constraint.value.clone()) // The origin domain url
-                .ok_or_else(|| {
-                    (
-                        Status::InternalServerError,
-                        "Error extracting page rule".to_string(),
-                    )
-                })?;
-            Ok(Json(origin))
+                .map(|target| target.constraint.value.clone());
+
+            match origin {
+                Some(origin) => {
+                    Ok(Json(GetCustomUrlOutput{
+                        success: true,
+                        message: "Page rule found".to_string(),
+                        origin,
+                    }))
+                }
+                None => {
+                    Ok(Json(GetCustomUrlOutput{
+                        success: false,
+                        message: "Error extracting page rule".to_string(),
+                        origin: "".to_string()}))
+                }
+            }
         }
-        None => Err((
-            Status::InternalServerError,
-            "No matching page rule found".to_string(),
-        )),
+        None => Ok(Json(GetCustomUrlOutput{
+            success: false,
+            message: "No matching page rule found".to_string(),
+            origin: "".to_string()}))
     }
 }

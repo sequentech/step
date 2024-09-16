@@ -47,6 +47,7 @@ struct CreatePageRuleRequest {
 pub struct PreviousCustomUrls {
     pub login: String,
     pub enrollment: String,
+    pub saml: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -132,6 +133,7 @@ pub async fn set_custom_url(
     let current_prev_url = match key {
         "login" => &prev_custom_urls.login,
         "enrollment" => &prev_custom_urls.enrollment,
+        "saml" => &prev_custom_urls.saml,
         _ => panic!("Invalid key provided"),
     };
 
@@ -299,7 +301,7 @@ fn find_matching_dns_record(records: Vec<DnsRecord>, expected_name: &str) -> Opt
         let name: Vec<String> = record.name.split(".").map(|s| s.to_owned()).collect();
 
         if let Some(name) = name.first() {
-            info!("name :{}", name);
+            info!("name: {}", name);
 
             if name == expected_name {
                 return Some(record);

@@ -232,9 +232,11 @@ export const EditElectionEventDataForm: React.FC = () => {
     const defaultSecondsForCountdown = convertToNumber(process.env.SECONDS_TO_SHOW_COUNTDOWN) ?? 60
     const defaultSecondsForAlret = convertToNumber(process.env.SECONDS_TO_SHOW_AlERT) ?? 180
     const [manageElectionDates] = useMutation<ManageElectionDatesMutation>(MANAGE_ELECTION_DATES)
-    const [customUrlsValues, setCustomUrlsValues] = useState({login: "", enrollment: ""})
+    const [customUrlsValues, setCustomUrlsValues] = useState({login: "", enrollment: "", saml: ""})
     const [customLoginRes, setCustomLoginRes] = useState<FetchResult<SetCustomUrlsMutation>>()
     const [customEnrollmentRes, setCustomEnrollmentRes] =
+        useState<FetchResult<SetCustomUrlsMutation>>()
+    const [customSamlRes, setCustomSamlRes] =
         useState<FetchResult<SetCustomUrlsMutation>>()
     const [isCustomUrlLoading, setIsCustomUrlLoading] = useState(false)
     const [isCustomizeUrl, setIsCustomizeUrl] = useState(false)
@@ -592,10 +594,16 @@ export const EditElectionEventDataForm: React.FC = () => {
                     ),
                     dns_prefix: customUrlsValues.enrollment,
                 },
+                {
+                    key: "saml",
+                    origin: `https://${customUrlsValues.saml}.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}`,
+                    redirect_to: `${globalSettings.KEYCLOAK_URL}realms/tenant-${tenantId}-event-${recordId}/broker/simplesamlphp/endpoint`,
+                    dns_prefix: customUrlsValues.saml,
+                },
             ]
             setIsCustomUrlLoading(true)
             setIsCustomizeUrl(true)
-            const [loginResponse, enrollmentResponse] = await Promise.all(
+            const [loginResponse, enrollmentResponse, samlResponse] = await Promise.all(
                 urlEntries.map((item) =>
                     manageCustomUrls({
                         variables: {
@@ -610,6 +618,7 @@ export const EditElectionEventDataForm: React.FC = () => {
             )
             setCustomLoginRes(loginResponse)
             setCustomEnrollmentRes(enrollmentResponse)
+            setCustomSamlRes(samlResponse)
         } catch (err: any) {
             console.error(err)
         } finally {
@@ -1000,6 +1009,49 @@ export const EditElectionEventDataForm: React.FC = () => {
                                                 <CustomUrlsStyle.ErrorText>
                                                     {
                                                         customEnrollmentRes?.data?.set_custom_urls
+                                                            ?.message
+                                                    }
+                                                </CustomUrlsStyle.ErrorText>
+                                            )}
+                                    </CustomUrlsStyle.InputWrapper>
+                                    <CustomUrlsStyle.InputWrapper>
+                                        <CustomUrlsStyle.InputLabel>
+                                            SAML:
+                                        </CustomUrlsStyle.InputLabel>
+                                        <CustomUrlsStyle.InputLabelWrapper>
+                                            <p>https://</p>
+                                            <TextInput
+                                                variant="standard"
+                                                helperText={false}
+                                                sx={{width: "300px"}}
+                                                source={`presentation.custom_urls.saml`}
+                                                label={""}
+                                                onChange={(e) =>
+                                                    setCustomUrlsValues({
+                                                        ...customUrlsValues,
+                                                        saml: e.target.value,
+                                                    })
+                                                }
+                                            />
+                                            <p>{`.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}`}</p>
+                                            {isCustomUrlLoading ? (
+                                                <WizardStyles.DownloadProgress size={18} />
+                                            ) : (
+                                                isCustomizeUrl &&
+                                                (customSamlRes?.data?.set_custom_urls
+                                                    ?.success ? (
+                                                    <StatusChip status="SUCCESS" />
+                                                ) : (
+                                                    <StatusChip status="ERROR" />
+                                                ))
+                                            )}
+                                        </CustomUrlsStyle.InputLabelWrapper>
+                                        {customSamlRes &&
+                                            !customSamlRes?.data?.set_custom_urls
+                                                ?.success && (
+                                                <CustomUrlsStyle.ErrorText>
+                                                    {
+                                                        customSamlRes?.data?.set_custom_urls
                                                             ?.message
                                                     }
                                                 </CustomUrlsStyle.ErrorText>

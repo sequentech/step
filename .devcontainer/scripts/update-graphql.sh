@@ -11,6 +11,7 @@ docker compose restart graphql-engine
 # graphql-engine needs some waiting time before it's up and working
 sleep 10
 
+# Generate graphql schema
 cd packages/admin-portal
 gq http://graphql-engine:8080/v1/graphql \
     -H 'X-Hasura-Admin-Secret: admin' \
