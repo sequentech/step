@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 pub mod braid;
-// pub mod electoral_log;
+pub mod electoral_log;
 pub mod grpc;
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};

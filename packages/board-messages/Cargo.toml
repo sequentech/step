@@ -13,6 +13,7 @@ edition = "2021"
 license = "AGPL-3.0-only"
 
 [dependencies]
+immu-board = { path="../immu-board" }
 strand = { path="../strand", features=["rayon"] }
 borsh = { version = "=1.5.1", features = ["derive"] }
 strum = { version = "0.24.1", features = ["derive"] }

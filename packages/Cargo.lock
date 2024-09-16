@@ -1306,6 +1306,7 @@ dependencies = [
  "clap 4.5.17",
  "cursive",
  "hex",
+ "immu-board",
  "log",
  "prost 0.13.2",
  "rayon",
