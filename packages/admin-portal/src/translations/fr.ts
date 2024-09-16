@@ -657,6 +657,7 @@ const frenchTranslation: TranslationType = {
                 "publish-read": "Lire Publication",
                 "publish-write": "Éditer Publication",
                 "logs-read": "Lire Journaux",
+                "tasks-read": "Lire l'Exécution des Tâches",
                 "keys-read": "Lire Clés",
                 "document-upload": "Télécharger Documents",
                 "document-download": "Télécharger Documents",

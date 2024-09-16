@@ -655,6 +655,7 @@ const catalanTranslation: TranslationType = {
                 "publish-read": "Llegir Publicació",
                 "publish-write": "Editar Publicació",
                 "logs-read": "Llegir Registres",
+                "tasks-read": "Llegir l'Execució de Tasques",
                 "keys-read": "Llegir Claus",
                 "document-upload": "Pujar Documents",
                 "document-download": "Descarregar Documents",

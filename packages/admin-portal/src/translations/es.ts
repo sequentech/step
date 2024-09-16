@@ -654,6 +654,7 @@ const spanishTranslation: TranslationType = {
                 "publish-read": "Leer Publicación",
                 "publish-write": "Editar Publicación",
                 "logs-read": "Leer Registros",
+                "tasks-read": "Leer la Ejecución de Tareas",
                 "keys-read": "Leer Claves",
                 "document-upload": "Subir Documentos",
                 "document-download": "Descargar Documentos",

@@ -648,6 +648,7 @@ const tagalogTranslation = {
                 "publish-read": "Basahin ang Publish",
                 "publish-write": "I-edit ang Publish",
                 "logs-read": "Basahin ang Logs",
+                "tasks-read": "Basahin ang Pagpapatupad ng Mga Gawain",
                 "keys-read": "Basahin ang Mga Susi",
                 "document-upload": "Mag-upload ng Mga Dokumento",
                 "document-download": "I-download ang Mga Dokumento",

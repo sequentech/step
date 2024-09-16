@@ -650,6 +650,7 @@ const englishTranslation = {
                 "publish-read": "Read Publish",
                 "publish-write": "Edit Publish",
                 "logs-read": "Read Logs",
+                "tasks-read": "Read Tasks Execution",
                 "keys-read": "Read Keys",
                 "document-upload": "Upload Documents",
                 "document-download": "Download Documents",
