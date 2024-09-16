@@ -19,7 +19,7 @@ const tagalogTranslation: TranslationType = {
             ballotHelpDialog: {
                 title: "Impormasyon: Screen ng Balota",
                 content:
-                    "Dito makikita ang mga halalan na maaari mong pagbotohan. Piliin ang iyong mga sagot sa pamamagitan ng pag-check ng kahon sa kanan ng Kandidato/Sagot. Upang magsimula ulit sa pagpili, i-click ang “<b>Burahin and mga Napili</b>” na button. Upang magpatuloy sa susunod na hakbang, i-click ang “<b>Magpatuloy</b>” na button sa ibaba.",
+                    "Dito makikita ang mga halalan na maaari mong botohan. Piliin ang iyong mga sagot sa pamamagitan ng pag-check ng kahon sa kanan ng Kandidato/Sagot. Upang magsimula ulit sa pagpili, i-click ang “<b>Burahin and mga Napili</b>” na button. Upang magpatuloy sa susunod na hakbang, i-click ang “<b>Magpatuloy</b>” na button sa ibaba.",
                 ok: "OK",
             },
         },

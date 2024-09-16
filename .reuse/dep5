@@ -14,6 +14,7 @@ Files:
   packages/Cargo.lock.copy
   .envrc
   .release-it.json
+  .release-commit
   devenv.lock
   devenv.nix
   graphql.schema.json
@@ -43,6 +44,7 @@ Files:
   packages/keycloak-extensions/inetum-authenticator/src/main/resources/theme-resources/resources/inetum-sdk-4.0.2/*
   packages/keycloak-extensions/sequent-extend-admin-console-spi/src/main/resources/META-INF/services/org.keycloak.services.ui.extend.UiPageProviderFactory
   packages/keycloak-extensions/sequent-extend-admin-console-spi/src/main/resources/META-INF/services/org.keycloak.services.ui.extend.UiTabProviderFactory
+  docs/assets/*
 Copyright: 2024 Sequent Tech <legal@sequentech.io>
 License: AGPL-3.0-only
 

@@ -6,8 +6,10 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct ACMTrustee {
     pub id: String,
-    pub signature: String,
-    pub publickey: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub signature: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub publickey: Option<String>,
     pub name: String,
 }
 

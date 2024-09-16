@@ -33,7 +33,7 @@ pub async fn create_transmission_package_task(
                     force,
                 )
                 .await
-                .map_err(|err| anyhow!("{}", err))
+                .map_err(|err| anyhow!("Thread error: {}", err))
             })
         }
     });
