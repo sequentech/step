@@ -25,7 +25,6 @@ import {useMutation} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
 import {ElectionStyles} from "./styles/ElectionStyles"
 import {useLocation} from "react-router"
-import {Box} from "@mui/material"
 
 interface ExportWrapperProps {
     electionEventId: string

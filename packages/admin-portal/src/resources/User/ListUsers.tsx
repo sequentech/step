@@ -361,7 +361,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     }
     //TODO: add this funciton once Yuval's PR is merged
     const showUsersLogsModal = (id: Identifier) => {
-        console.log("id", id)
         if (!electionEventId) {
             return
         }
@@ -764,8 +763,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             <Dialog
                 fullWidth={true}
                 variant="info"
-                title="User's logs"
-                ok={"close"}
+                title=""
+                ok={t("common.label.close")}
                 open={openUsersLogsModal}
                 handleClose={(results: boolean) => {
                     setOpenUsersLogsModal(false)
