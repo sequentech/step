@@ -7,7 +7,10 @@ use super::{
         find_miru_annotation, prepend_miru_annotation, ValidateAnnotations, MIRU_AREA_CCS_SERVERS,
         MIRU_AREA_STATION_ID, MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA,
     },
-    logs::{error_sending_transmission_package_to_ccs_log, send_transmission_package_to_ccs_log},
+    logs::{
+        error_sending_logs_to_ccs_log, error_sending_transmission_package_to_ccs_log,
+        send_logs_to_ccs_log, send_transmission_package_to_ccs_log,
+    },
     transmission_package::create_transmission_package,
     zip::unzip_file,
 };
@@ -24,7 +27,8 @@ use crate::{
         temp_path::{generate_temp_file, get_file_size},
     },
     types::miru_plugin::{
-        MiruCcsServer, MiruServerDocument, MiruTallySessionData, MiruTransmissionPackageData,
+        MiruCcsServer, MiruDocument, MiruServerDocument, MiruTallySessionData,
+        MiruTransmissionPackageData,
     },
 };
 use anyhow::{anyhow, Context, Result};
@@ -34,7 +38,10 @@ use reqwest::multipart;
 use sequent_core::{
     ballot::Annotations,
     serialization::deserialize_with_path::deserialize_str,
-    types::hasura::core::{ElectionEvent, TallySession},
+    types::{
+        ceremonies::Log,
+        hasura::core::{ElectionEvent, TallySession},
+    },
     util::date_time::get_system_timezone,
 };
 use std::io::{Read, Seek};
@@ -44,15 +51,25 @@ use tracing::{info, instrument};
 
 const SEND_ELECTION_RESULTS_API_PATH: &str = "/api/receiver/v1/acm/election-results";
 
+const SEND_LOGS_API_PATH: &str = "/api/receiver/v1/acm/audit-logs";
+
 #[instrument(err)]
 async fn send_package_to_ccs_server(
     transmission_package_path: &Path,
     ccs_server: &MiruCcsServer,
+    is_log: bool,
 ) -> Result<()> {
     // Read the file contents into a Vec<u8>
-    let mut transmission_package_bytes = std::fs::read(transmission_package_path)?;
+    let transmission_package_bytes = std::fs::read(transmission_package_path)?;
 
-    let uri = format!("{}{}", ccs_server.address, SEND_ELECTION_RESULTS_API_PATH);
+    let base_url = if is_log {
+        SEND_LOGS_API_PATH
+    } else {
+        SEND_ELECTION_RESULTS_API_PATH
+    };
+
+    let uri = format!("{}{}", ccs_server.address, base_url);
+    info!("Sending package to url {}", uri);
     let client = reqwest::Client::builder()
         .danger_accept_invalid_certs(true)
         .build()?;
@@ -73,6 +90,11 @@ async fn send_package_to_ccs_server(
         .await
         .map_err(|err| anyhow!("{:?}", err))?;
     let response_str = format!("{:?}", response);
+    info!(
+        "Response code: {}. Response: '{}'",
+        response.status(),
+        response_str
+    );
     let is_success = response.status().is_success();
     let text = response.text().await?;
 
@@ -84,6 +106,180 @@ async fn send_package_to_ccs_server(
             response_str
         ));
     }
+    Ok(())
+}
+
+#[instrument(skip_all)]
+pub fn get_latest_miru_document(input_documents: &Vec<MiruDocument>) -> Option<MiruDocument> {
+    let mut documents = input_documents.clone();
+    documents.sort_by(|a, b| {
+        let Ok(a_date) = ISO8601::to_date(&a.created_at) else {
+            return Ordering::Equal;
+        };
+        let Ok(b_date) = ISO8601::to_date(&b.created_at) else {
+            return Ordering::Equal;
+        };
+        if a_date > b_date {
+            Ordering::Less
+        } else if a_date < b_date {
+            Ordering::Greater
+        } else {
+            Ordering::Equal
+        }
+    });
+    documents.first().cloned()
+}
+
+async fn update_miru_document(
+    tenant_id: &str,
+    election_id: &str,
+    area_id: &str,
+    tally_session_id: &str,
+    election_event_id: &str,
+    new_miru_document: MiruDocument,
+) -> Result<()> {
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .with_context(|| "Error acquiring hasura connection pool")?;
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .with_context(|| "Error acquiring hasura transaction")?;
+
+    let tally_session = get_tally_session_by_id(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+    )
+    .await
+    .with_context(|| "Error fetching tally session")?;
+    let tally_annotations = tally_session.get_valid_annotations()?;
+
+    let transmission_data: MiruTallySessionData =
+        find_miru_annotation(MIRU_TALLY_SESSION_DATA, &tally_annotations)
+            .with_context(|| {
+                format!(
+                    "Missing tally session annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA
+                )
+            })
+            .map(|tally_session_data_js| {
+                deserialize_str(&tally_session_data_js).map_err(|err| anyhow!("{}", err))
+            })
+            .flatten()
+            .unwrap_or(vec![]);
+
+    let Some(transmission_area_election) = transmission_data.clone().into_iter().find(|data| {
+        data.area_id == area_id.to_string() && data.election_id == election_id.to_string()
+    }) else {
+        return Err(anyhow!("transmission package not found, unexpected"));
+    };
+    let mut new_transmission_area_election = transmission_area_election.clone();
+
+    new_transmission_area_election.documents = new_transmission_area_election
+        .documents
+        .into_iter()
+        .map(|value| {
+            if value.document_ids.all_servers == new_miru_document.document_ids.all_servers {
+                new_miru_document.clone()
+            } else {
+                value
+            }
+        })
+        .collect();
+
+    update_transmission_package_annotations(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+        area_id,
+        election_id,
+        transmission_data.clone(),
+        new_transmission_area_election,
+        tally_annotations.clone(),
+    )
+    .await?;
+
+    hasura_transaction
+        .commit()
+        .await
+        .with_context(|| "error comitting transaction")?;
+
+    Ok(())
+}
+
+async fn record_new_log(
+    tenant_id: &str,
+    election_id: &str,
+    area_id: &str,
+    tally_session_id: &str,
+    election_event_id: &str,
+    log: Log,
+) -> Result<()> {
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .with_context(|| "Error acquiring hasura connection pool")?;
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .with_context(|| "Error acquiring hasura transaction")?;
+
+    let tally_session = get_tally_session_by_id(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+    )
+    .await
+    .with_context(|| "Error fetching tally session")?;
+    let tally_annotations = tally_session.get_valid_annotations()?;
+
+    let transmission_data: MiruTallySessionData =
+        find_miru_annotation(MIRU_TALLY_SESSION_DATA, &tally_annotations)
+            .with_context(|| {
+                format!(
+                    "Missing tally session annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA
+                )
+            })
+            .map(|tally_session_data_js| {
+                deserialize_str(&tally_session_data_js).map_err(|err| anyhow!("{}", err))
+            })
+            .flatten()
+            .unwrap_or(vec![]);
+
+    let Some(transmission_area_election) = transmission_data.clone().into_iter().find(|data| {
+        data.area_id == area_id.to_string() && data.election_id == election_id.to_string()
+    }) else {
+        return Err(anyhow!("transmission package not found, unexpected"));
+    };
+    let mut new_transmission_area_election = transmission_area_election.clone();
+    new_transmission_area_election.logs.push(log);
+
+    update_transmission_package_annotations(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+        area_id,
+        election_id,
+        transmission_data.clone(),
+        new_transmission_area_election,
+        tally_annotations.clone(),
+    )
+    .await?;
+
+    hasura_transaction
+        .commit()
+        .await
+        .with_context(|| "error comitting transaction")?;
+
     Ok(())
 }
 
@@ -168,24 +364,8 @@ pub async fn send_transmission_package_service(
         info!("transmission package not found, skipping");
         return Ok(());
     };
-
-    let mut documents = transmission_area_election.documents.clone();
-    documents.sort_by(|a, b| {
-        let Ok(a_date) = ISO8601::to_date(&a.created_at) else {
-            return Ordering::Equal;
-        };
-        let Ok(b_date) = ISO8601::to_date(&b.created_at) else {
-            return Ordering::Equal;
-        };
-        if a_date > b_date {
-            Ordering::Less
-        } else if a_date < b_date {
-            Ordering::Greater
-        } else {
-            Ordering::Equal
-        }
-    });
-    let Some(miru_document) = documents.first().cloned() else {
+    let Some(miru_document) = get_latest_miru_document(&transmission_area_election.documents)
+    else {
         info!("transmission package document not found, skipping");
         return Ok(());
     };
@@ -197,7 +377,12 @@ pub async fn send_transmission_package_service(
         &miru_document.document_ids.all_servers,
     )
     .await?
-    .ok_or_else(|| anyhow!("Can't find document {}", miru_document.document_ids.xz))?;
+    .ok_or_else(|| {
+        anyhow!(
+            "Can't find document {}",
+            miru_document.document_ids.all_servers
+        )
+    })?;
 
     let mut compressed_zip = get_document_as_temp_file(tenant_id, &document).await?;
 
@@ -214,6 +399,17 @@ pub async fn send_transmission_package_service(
         .map(|value| value.name.clone())
         .collect();
 
+    if transmission_area_election.threshold > -1
+        && (miru_document.signatures.len() as i64) < transmission_area_election.threshold
+    {
+        info!(
+            "Can't send to servers as number of signatures {} is less than threshold {}",
+            miru_document.signatures.len(),
+            transmission_area_election.threshold
+        );
+        return Ok(());
+    }
+
     for ccs_server in &transmission_area_election.servers {
         if servers_sent_to.contains(&ccs_server.name) {
             info!(
@@ -224,34 +420,68 @@ pub async fn send_transmission_package_service(
         }
         let second_zip_folder_path = zip_output_temp_dir.path().join(&ccs_server.tag);
         let second_zip_path = second_zip_folder_path.join(format!("er_{}.zip", area_station_id));
-        match send_package_to_ccs_server(&second_zip_path, ccs_server).await {
+        match send_package_to_ccs_server(&second_zip_path, ccs_server, false).await {
             Ok(_) => {
-                new_transmission_area_election
-                    .logs
-                    .push(send_transmission_package_to_ccs_log(
-                        &Local::now(),
-                        election_id,
-                        &election.name,
-                        area_id,
-                        &area_name,
-                        &ccs_server.name,
-                        &ccs_server.address,
-                        new_miru_document
-                            .signatures
-                            .clone()
-                            .into_iter()
-                            .map(|signature| signature.trustee_name.clone())
-                            .collect(),
-                    ));
-                new_miru_document.servers_sent_to.push(MiruServerDocument {
-                    name: ccs_server.name.clone(),
-                    sent_at: ISO8601::to_string(&Local::now()),
-                });
+                let new_log = send_transmission_package_to_ccs_log(
+                    &Local::now(),
+                    election_id,
+                    &election.name,
+                    area_id,
+                    &area_name,
+                    &ccs_server.name,
+                    &ccs_server.address,
+                    new_miru_document
+                        .signatures
+                        .clone()
+                        .into_iter()
+                        .map(|signature| signature.trustee_name.clone())
+                        .collect(),
+                );
+                record_new_log(
+                    tenant_id,
+                    election_id,
+                    area_id,
+                    tally_session_id,
+                    &election_event.id,
+                    new_log,
+                )
+                .await?;
             }
             Err(err) => {
                 let error_str = format!("{}", err);
-                new_transmission_area_election.logs.push(
-                    error_sending_transmission_package_to_ccs_log(
+                let new_log = error_sending_transmission_package_to_ccs_log(
+                    &Local::now(),
+                    election_id,
+                    &election.name,
+                    area_id,
+                    &area_name,
+                    &ccs_server.name,
+                    &ccs_server.address,
+                    new_miru_document
+                        .signatures
+                        .clone()
+                        .into_iter()
+                        .map(|signature| signature.trustee_name.clone())
+                        .collect(),
+                    &error_str,
+                );
+                record_new_log(
+                    tenant_id,
+                    election_id,
+                    area_id,
+                    tally_session_id,
+                    &election_event.id,
+                    new_log,
+                )
+                .await?;
+            }
+        }
+        let with_logs = ccs_server.send_logs.clone().unwrap_or_default();
+        let logs_zip_path = second_zip_folder_path.join(format!("al_{}.zip", area_station_id));
+        if with_logs {
+            match send_package_to_ccs_server(&logs_zip_path, ccs_server, true).await {
+                Ok(_) => {
+                    let new_log = send_logs_to_ccs_log(
                         &Local::now(),
                         election_id,
                         &election.name,
@@ -259,41 +489,54 @@ pub async fn send_transmission_package_service(
                         &area_name,
                         &ccs_server.name,
                         &ccs_server.address,
-                        new_miru_document
-                            .signatures
-                            .clone()
-                            .into_iter()
-                            .map(|signature| signature.trustee_name.clone())
-                            .collect(),
+                    );
+                    record_new_log(
+                        tenant_id,
+                        election_id,
+                        area_id,
+                        tally_session_id,
+                        &election_event.id,
+                        new_log,
+                    )
+                    .await?;
+                    new_miru_document.servers_sent_to.push(MiruServerDocument {
+                        name: ccs_server.name.clone(),
+                        sent_at: ISO8601::to_string(&Local::now()),
+                    });
+                }
+                Err(err) => {
+                    let error_str = format!("{}", err);
+                    let new_log = error_sending_logs_to_ccs_log(
+                        &Local::now(),
+                        election_id,
+                        &election.name,
+                        area_id,
+                        &area_name,
+                        &ccs_server.name,
+                        &ccs_server.address,
                         &error_str,
-                    ),
-                );
+                    );
+                    record_new_log(
+                        tenant_id,
+                        election_id,
+                        area_id,
+                        tally_session_id,
+                        &election_event.id,
+                        new_log,
+                    )
+                    .await?;
+                }
             }
         }
     }
 
-    new_transmission_area_election.documents = new_transmission_area_election
-        .documents
-        .into_iter()
-        .map(|value| {
-            if value.document_ids.xz == new_miru_document.document_ids.xz {
-                new_miru_document.clone()
-            } else {
-                value
-            }
-        })
-        .collect();
-
-    update_transmission_package_annotations(
-        &hasura_transaction,
+    update_miru_document(
         tenant_id,
-        &election_event.id,
-        tally_session_id,
-        area_id,
         election_id,
-        transmission_data.clone(),
-        new_transmission_area_election,
-        tally_annotations.clone(),
+        area_id,
+        tally_session_id,
+        &election_event.id,
+        new_miru_document,
     )
     .await?;
 

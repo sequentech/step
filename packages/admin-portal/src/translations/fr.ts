@@ -642,6 +642,10 @@ const frenchTranslation: TranslationType = {
                 "document-write": "Éditer Documents",
                 "support-material-read": "Lire Matériaux de Support",
                 "support-material-write": "Éditer Matériaux de Support",
+                "miru-create": "Miru Create",
+                "miru-download": "Miru Download",
+                "miru-send": "Miru Send",
+                "miru-sign": "Miru Sign",
             },
         },
         generalSettingsScreen: {
@@ -972,6 +976,19 @@ const frenchTranslation: TranslationType = {
                 description:
                     "Vous permet d'exporter un Paquet de Transmission vers des Serveurs de Destination ou de le télécharger.",
                 actions: {
+                    sign: {
+                        title: "Régénérer",
+                        dialog: {
+                            title: "Voulez-vous signer le paquet de transmission ?",
+                            description:
+                                "Veuillez confirmer que vous souhaitez régénérer le paquet de transmission pour la zone `{{name}}`",
+                            confirm: "Signer le paquet de transmission",
+                            cancel: "Fermer",
+                            input: {
+                                placeholder: "Entrez votre mot de passe",
+                            },
+                        },
+                    },
                     send: {
                         title: "Envoyer",
                         dialog: {
@@ -982,9 +999,20 @@ const frenchTranslation: TranslationType = {
                             cancel: "Fermer",
                         },
                     },
+                    regenerate: {
+                        title: "Régénérer",
+                        dialog: {
+                            title: "Voulez-vous régénérer le paquet de transmission?",
+                            description:
+                                "Veuillez confirmer que vous souhaitez régénérer le paquet de transmission pour la zone `{{name}}`",
+                            confirm: "Régénérer le paquet de transmission",
+                            cancel: "Fermer",
+                        },
+                    },
                     download: {
                         title: "Télécharger",
-                        itemTitle: "Télécharger le Paquet de Transmission",
+                        emlTitle: "Download EML",
+                        transmissionPackageTitle: "Télécharger le Paquet de Transmission",
                         dialog: {
                             title: "Voulez-vous télécharger le Paquet de Transmission?",
                             description:
@@ -1240,6 +1268,12 @@ const frenchTranslation: TranslationType = {
                 census: "Recensement",
             },
             common: {
+                tallyCeremony: {
+                    manage: "Gérer la Cérémonie de Décompte",
+                    view: "Voir la Cérémonie de Décompte",
+                    cancel: "Annuler la Cérémonie de Décompte",
+                    addKey: "Ajouter une Clé de Décompte",
+                },
                 edit: "Éditer",
                 confirm: "Confirmer",
                 back: "Arrière",

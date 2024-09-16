@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React from "react"
+import React, {useMemo} from "react"
 import {useTranslation} from "react-i18next"
-import {Sequent_Backend_Tally_Session_Execution} from "@/gql/graphql"
+import {Sequent_Backend_Area} from "@/gql/graphql"
 import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty"
 import Table from "@mui/material/Table"
 import TableBody from "@mui/material/TableBody"
@@ -16,13 +16,27 @@ import {WizardStyles} from "@/components/styles/WizardStyles"
 import {IMiruSignature} from "@/types/miru"
 
 interface MiruSignaturesProps {
-    tallySessionExecution?: Sequent_Backend_Tally_Session_Execution
+    area?: Sequent_Backend_Area | null
     signatures: IMiruSignature[]
 }
 
 export const MiruSignatures: React.FC<MiruSignaturesProps> = (props) => {
-    const {signatures, tallySessionExecution} = props
-    const {t} = useTranslation() //translations to be applied
+    const {signatures, area} = props
+    const {t} = useTranslation()
+
+    const areaTrustees = useMemo((): Array<string> => {
+        let trusteesAnnotation = area?.annotations?.["miru:area-trustee-users"]
+        if (!trusteesAnnotation) {
+            return []
+        }
+
+        try {
+            let trustees: Array<string> = JSON.parse(trusteesAnnotation)
+            return trustees
+        } catch {
+            return []
+        }
+    }, [area?.annotations, area?.annotations?.["miru:area-trustee-users"]])
 
     const hasSigned = (trusteeName: string) => {
         return !!signatures.find((signature) => signature.trustee_name === trusteeName)
@@ -43,16 +57,16 @@ export const MiruSignatures: React.FC<MiruSignaturesProps> = (props) => {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {tallySessionExecution?.status?.trustees.map((trustee: any) => {
+                        {areaTrustees.map((trustee) => {
                             return (
                                 <TableRow
-                                    key={trustee.name as any}
+                                    key={trustee}
                                     sx={{
                                         "&:last-child td, &:last-child th": {border: 0},
                                     }}
                                 >
                                     <TableCell sx={{width: "25%"}} component="th" scope="row">
-                                        {trustee.name}
+                                        {trustee}
                                     </TableCell>
                                     <TableCell align="center">
                                         {hasSigned(trustee) ? (

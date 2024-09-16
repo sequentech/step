@@ -274,8 +274,18 @@ button#kc-current-locale-link img {
 
 button#resend-otp-btn {
     background: initial;
+    text-wrap: wrap;
 }
 
 button#resend-otp-btn:hover {
     text-decoration: underline;
+}
+
+.inetum-error-form {
+    font-size: 16px;
+}
+
+.inetum-error-form a.retry-link {
+    display: block;
+    padding: 20px 0;
 }

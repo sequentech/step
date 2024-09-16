@@ -50,7 +50,7 @@ const tagalogTranslation: TranslationType = {
             bottomDescription1:
                 "Ang iyong balota ay na-encrypt ng tama. Maaari mo nang isara ang window na ito at bumalik sa Voting Booth.",
             bottomDescription2:
-                "Kung hindi sila tumutugma, i-click dito upang malaman ang mga posibleng dahilan at kung ano ang mga hakbang na maaari mong gawin.",
+                "Kung hindi sila nagtutugma, i-click dito upang malaman ang mga posibleng dahilan at kung ano ang mga hakbang na maaari mong gawin.",
             ballotChoicesDescription: "At ang iyong mga napili sa balota ay:",
             helpAndFaq: "Help at FAQ",
             backButton: "Bumalik",
@@ -109,21 +109,21 @@ const tagalogTranslation: TranslationType = {
         },
         selectElection: {
             electionWebsite: "Website ng Balota",
-            openElection: "Bukas",
-            closedElection: "Saraado",
-            voted: "Bumoto",
-            notVoted: "Hindi bumoto",
+            openElection: "Bukas na",
+            closedElection: "Sarado",
+            voted: "Nakaboto",
+            notVoted: "Hindi pa nakaboto",
             resultsButton: "Mga Resulta ng Balota",
             voteButton: "I-click upang Bumoto",
-            openDate: "Bukas: ",
-            closeDate: "Sarado: ",
+            openDate: "Simula: ",
+            closeDate: "Pagtapos: ",
             ballotLocator: "Hanapin ang iyong balota",
         },
         header: {
             profile: "Profile",
             session: {
                 title: "Malapit nang mag-expire ang iyong session.",
-                timeLeft: "May natitira kang {{time}} para bumoto.",
+                timeLeft: "May natitira ka pang {{time}} para bumoto.",
                 timeLeftMinutesAndSeconds: "{{timeLeftInMinutes}} minuto at {{time}} segundo",
                 timeLeftSeconds: "{{timeLeft}} segundo",
             },
