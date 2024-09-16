@@ -104,7 +104,7 @@ actions:
         template_engine: Kriti
         version: 2
     permissions:
-      - role: tally-write
+      - role: miru-create
       - role: admin-user
   - name: create_user
     definition:
@@ -415,6 +415,7 @@ actions:
         template_engine: Kriti
         version: 2
     permissions:
+      - role: document-upload
       - role: admin-user
   - name: get_user
     definition:
@@ -777,7 +778,7 @@ actions:
         template_engine: Kriti
         version: 2
     permissions:
-      - role: miru-sign
+      - role: trustee-read
       - role: admin-user
   - name: upload_signature
     definition:
@@ -791,7 +792,7 @@ actions:
         template_engine: Kriti
         version: 2
     permissions:
-      - role: trustee-write
+      - role: miru-sign
       - role: admin-user
   - name: upsert_areas
     definition:
