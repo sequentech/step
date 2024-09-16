@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import { useAliasRenderer } from "@/hooks/useAliasRenderer"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {GET_AREA_WITH_AREA_CONTESTS} from "@/queries/GetAreaWithAreaContest"
 import {useQuery} from "@apollo/client"
 import styled from "@emotion/styled"
@@ -33,7 +33,7 @@ export const AreaContestItems: React.FC<AreaContestItemsProps> = (props) => {
             areaId: record.id,
         },
     })
-    
+
     const aliasRenderer = useAliasRenderer()
 
     return (
