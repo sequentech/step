@@ -149,6 +149,45 @@ interface ActionButtonProps {
     setErrorMsg: (msg: CastBallotsErrorType) => void
 }
 
+interface LoadingOrCastButtonProps {
+    onClick: () => void
+    loading: boolean
+    className?: string
+    isCastingBallot: boolean
+}
+
+const LoadingOrCastButton: React.FC<LoadingOrCastButtonProps> = ({onClick, loading, isCastingBallot, className}) => {
+    const {t} = useTranslation()
+
+    if (loading) {
+        return (
+        <StyledButton
+            className={className}
+            sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
+            disabled={true}
+            onClick={onClick}
+        >
+            <Box
+                className={className}
+            >
+                <CircularProgress style={{ width: '200%', height: '200%' }}/>
+            </Box>
+        </StyledButton>
+        );
+    } else {
+        return (
+            <StyledButton
+                className={className}
+                sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
+                disabled={isCastingBallot}
+                onClick={onClick}                >
+                <Box>{t("reviewScreen.castBallotButton")}</Box>
+                <Icon icon={faAngleRight} size="sm" />
+            </StyledButton>
+        );
+    }
+}
+
 const ActionButtons: React.FC<ActionButtonProps> = ({
     ballotStyle,
     auditableBallot,
@@ -307,17 +346,14 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW ? (
                     <AuditButton onClick={() => setAuditBallotHelp(true)} />
                 ) : null}
-                <StyledButton
+                <LoadingOrCastButton
                     className="cast-ballot-button"
-                    sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
-                    disabled={isCastingBallot || onErrorCastDisabled}
+                    isCastingBallot={isCastingBallot}
+                    loading={onErrorCastDisabled}
                     onClick={() =>
                         castVoteConfirmModal ? setConfirmCastVoteModal(true) : castBallotAction()
                     }
-                >
-                    <Box>{t("reviewScreen.castBallotButton")}</Box>
-                    <Icon icon={faAngleRight} size="sm" />
-                </StyledButton>
+                />
             </ActionsContainer>
             <Dialog
                 handleClose={handleCloseCastVoteDialog}
