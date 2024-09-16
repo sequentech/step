@@ -458,7 +458,7 @@ pub fn generate_ids_map(
         rename_map.insert(
             election_report.contest.election_id.clone(),
             format!(
-                "{:.100}__{}",
+                "{:.30}__{}",
                 election_report.election_name, election_report.contest.election_id
             ),
         );
@@ -468,7 +468,7 @@ pub fn generate_ids_map(
         };
         rename_map.insert(
             election_report.contest.id.clone(),
-            format!("{:.100}__{}", contest_name, election_report.contest.id),
+            format!("{:.30}__{}", contest_name, election_report.contest.id),
         );
     }
 
@@ -476,7 +476,7 @@ pub fn generate_ids_map(
         let Some(name) = area.name.clone() else {
             continue;
         };
-        rename_map.insert(area.id.clone(), format!("{:.100}__{}", name, area.id));
+        rename_map.insert(area.id.clone(), format!("{:.30}__{}", name, area.id));
     }
 
     Ok(rename_map)
