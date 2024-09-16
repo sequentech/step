@@ -51,7 +51,6 @@ COPY --chown=keycloak:keycloak \
    /build/keycloak-extensions/dummy-email-sender-provider/target/sequent.dummy-email-sender-provider.jar \
    /build/keycloak-extensions/aws-ses-email-sender-provider/target/sequent.aws-ses-email-sender-provider.jar \
    /build/keycloak-extensions/sequent-theme/target/sequent.sequent-theme.jar \
-   /build/keycloak-extensions/sequent-extend-admin-console-spi/target/sequent.sequent-extend-admin-console-spi.jar \
    /opt/keycloak/providers/
 
 RUN /opt/keycloak/bin/kc.sh build 
