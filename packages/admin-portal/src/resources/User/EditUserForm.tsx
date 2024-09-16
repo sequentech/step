@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useCallback, useEffect, useState} from "react"
+import React, {useCallback, useEffect, useMemo, useState} from "react"
 import {SaveButton, SimpleForm, useListContext, useNotify, useRefresh} from "react-admin"
 import {useMutation, useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
@@ -40,6 +40,7 @@ import {SET_USER_ROLE} from "@/queries/SetUserRole"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {CREATE_USER} from "@/queries/CreateUser"
 import {formatUserAtributes, getAttributeLabel, userBasicInfo} from "@/services/UserService"
+import PhoneInput from "@/components/PhoneInput"
 
 interface ListUserRolesProps {
     userId?: string
@@ -300,7 +301,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         })
     }
 
-    const handleAutocompleteChange = (attrName: string) => async (value: string) => {
+    const handleAttrStringValueChange = (attrName: string) => async (value: string) => {
         setUser((prev) => {
             return {
                 ...prev,
@@ -341,12 +342,12 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             if (attr.annotations?.inputType === "select") {
                 return (
                     <FormControl fullWidth>
-                        <InputLabel id="demo-simple-select-label">{attr.display_name}</InputLabel>
+                        <InputLabel id="select-label">{attr.display_name}</InputLabel>
                         <Select
                             name={displayName}
                             defaultValue={value}
-                            labelId="demo-simple-select-label"
-                            label={attr.display_name}
+                            labelId="select-label"
+                            label={getAttributeLabel(displayName)}
                             value={value}
                             onChange={handleSelectChange(attr.name)}
                         >
@@ -397,24 +398,32 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     <FormStyles.DateInput
                         source={`attributes.${attr.name}`}
                         onChange={handleAttrChange(attr.name)}
-                        label={attr.display_name || ""}
+                        label={getAttributeLabel(displayName)}
                     />
                 )
             } else if (attr.name.toLowerCase().includes("area")) {
                 return
+            } else if (attr.name.toLowerCase().includes("mobile-number")) {
+                return (
+                    <PhoneInput
+                        handlePhoneNumberChange={handleAttrStringValueChange(attr.name ?? "")}
+                        label={getAttributeLabel(displayName)}
+                        fullWidth
+                    />
+                )
             }
             return (
                 <>
                     {isCustomAttribute ? (
                         <FormStyles.TextField
-                            label={attr.display_name}
+                            label={getAttributeLabel(displayName)}
                             value={value}
                             onChange={handleAttrChange(attr.name)}
                         />
                     ) : (
                         <FormStyles.TextInput
                             key={attr.display_name}
-                            label={getAttributeLabel(attr.display_name ?? "")}
+                            label={getAttributeLabel(displayName)}
                             onChange={handleChange}
                             source={attr.name}
                         />
@@ -423,6 +432,10 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             )
         }
     }
+
+    const formFields = useMemo(() => {
+        return userAttributes?.map((attr) => renderFormField(attr))
+    }, [userAttributes])
 
     if (!user && !createMode) {
         return null
@@ -443,7 +456,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     <PageHeaderStyles.SubTitle>
                         {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.subtitle`)}
                     </PageHeaderStyles.SubTitle>
-                    {userAttributes?.map((attr) => attr.name && renderFormField(attr))}
+                    {formFields}
                     <FormStyles.CheckboxControlLabel
                         label={t("usersAndRolesScreen.users.fields.enabled")}
                         control={
@@ -468,7 +481,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                     }) ?? []
                                 }
                                 onChange={(e, value) =>
-                                    handleAutocompleteChange("area-id")(value?.id)
+                                    handleAttrStringValueChange("area-id")(value?.id)
                                 }
                             />
                         </FormControl>
