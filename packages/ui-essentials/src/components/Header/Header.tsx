@@ -77,7 +77,7 @@ export const StyledButtonContainer = styled.div`
     justify-content: center;
     align-items: center;
     height: 100%;
-    width: 100%;
+    flex: 1;
 `
 
 export const StyledButton = styled(Button)`
