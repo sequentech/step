@@ -4,6 +4,7 @@
 
 use reqwest::Client;
 use rocket::futures::stream::Forward;
+use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fmt;
@@ -203,22 +204,19 @@ pub async fn set_custom_url(
 }
 
 #[instrument]
-fn get_cloudflare_vars() -> Result<(String, String, String), Box<dyn Error>> {
+fn get_cloudflare_vars() -> Result<(String, String), Box<dyn Error>> {
     let cloudflare_zone = std::env::var("CLOUDFLARE_ZONE")
-        .map_err(|_e| "Missing cloudflare env variable".to_string())?;
-    let cloudflare_api_email = std::env::var("CLOUDFLARE_API_EMAIL")
         .map_err(|_e| "Missing cloudflare env variable".to_string())?;
     let cloudflare_api_key = std::env::var("CLOUDFLARE_API_KEY")
         .map_err(|_e| "Missing cloudflare env variable".to_string())?;
 
-    Ok((cloudflare_zone, cloudflare_api_email, cloudflare_api_key))
+    Ok((cloudflare_zone, cloudflare_api_key))
 }
 
 #[instrument]
 async fn get_all_page_rules() -> Result<Vec<PageRule>, Box<dyn Error>> {
-    let (zone_id, api_email, api_key) = get_cloudflare_vars()?;
+    let (zone_id, api_key) = get_cloudflare_vars()?;
     info!("zone_id {:?}", zone_id);
-    info!("api_email {:?}", api_email);
     info!("api_key {:?}", api_key);
 
     let client = Client::new();
@@ -228,7 +226,6 @@ async fn get_all_page_rules() -> Result<Vec<PageRule>, Box<dyn Error>> {
             "https://api.cloudflare.com/client/v4/zones/{}/pagerules",
             &zone_id,
         ))
-        .header("X-Auth-Email", api_email)
         .header("Authorization", format!("Bearer {}", api_key))
         .header("Content-Type", "application/json")
         .send()
@@ -236,10 +233,10 @@ async fn get_all_page_rules() -> Result<Vec<PageRule>, Box<dyn Error>> {
         .map_err(|e| CloudflareError::new(&format!("Request error: {}", e)))?;
 
     if response.status().is_success() {
-        let api_response: ApiResponse<Vec<PageRule>> = response
-            .json()
-            .await
-            .map_err(|e| CloudflareError::new(&format!("Failed to parse response: {}", e)))?;
+        let response_text = response.text().await?;
+        info!("Response: {}", response_text);
+
+        let api_response: ApiResponse<Vec<PageRule>> = deserialize_str(&response_text)?;
         Ok(api_response.result)
     } else {
         let error_text = response
@@ -256,9 +253,8 @@ async fn get_all_page_rules() -> Result<Vec<PageRule>, Box<dyn Error>> {
 
 #[instrument]
 async fn get_all_dns_records() -> Result<Vec<DnsRecord>, Box<dyn Error>> {
-    let (zone_id, api_email, api_key) = get_cloudflare_vars()?;
+    let (zone_id, api_key) = get_cloudflare_vars()?;
     info!("zone_id {:?}", zone_id);
-    info!("api_email {:?}", api_email);
     info!("api_key {:?}", api_key);
 
     let client = Client::new();
@@ -268,7 +264,6 @@ async fn get_all_dns_records() -> Result<Vec<DnsRecord>, Box<dyn Error>> {
             "https://api.cloudflare.com/client/v4/zones/{}/dns_records",
             &zone_id,
         ))
-        .header("X-Auth-Email", api_email)
         .header("Authorization", format!("Bearer {}", api_key))
         .header("Content-Type", "application/json")
         .send()
@@ -276,10 +271,10 @@ async fn get_all_dns_records() -> Result<Vec<DnsRecord>, Box<dyn Error>> {
         .map_err(|e| CloudflareError::new(&format!("Request error: {}", e)))?;
 
     if response.status().is_success() {
-        let api_response: ApiResponse<Vec<DnsRecord>> = response
-            .json()
-            .await
-            .map_err(|e| CloudflareError::new(&format!("Failed to parse response: {}", e)))?;
+        let response_text = response.text().await?;
+        info!("Response: {}", response_text);
+
+        let api_response: ApiResponse<Vec<DnsRecord>> = deserialize_str(&response_text)?;
         Ok(api_response.result)
     } else {
         let error_text = response
@@ -366,7 +361,7 @@ fn create_dns_payload(origin: &str) -> CreateDNSRecordRequest {
 
 pub async fn create_dns_record(redirect_to: &str, dns_prefix: &str) -> Result<(), Box<dyn Error>> {
     let client = Client::new();
-    let (zone_id, api_email, api_key) = match get_cloudflare_vars() {
+    let (zone_id, api_key) = match get_cloudflare_vars() {
         Ok(vars) => vars,
         Err(e) => {
             error!("Failed to get Cloudflare environment variables: {}", e);
@@ -383,7 +378,6 @@ pub async fn create_dns_record(redirect_to: &str, dns_prefix: &str) -> Result<()
     info!("DNS prefix {:?}", dns_prefix);
     let response = match client
         .post(&url)
-        .header("X-Auth-Email", api_email)
         .header("Authorization", format!("Bearer {}", api_key))
         .json(&request_dns_body)
         .send()
@@ -417,7 +411,7 @@ pub async fn update_dns_record(
     dns_prefix: &str,
 ) -> Result<(), Box<dyn Error>> {
     let client = Client::new();
-    let (zone_id, api_email, api_key) = match get_cloudflare_vars() {
+    let (zone_id, api_key) = match get_cloudflare_vars() {
         Ok(vars) => vars,
         Err(e) => {
             error!("Failed to get Cloudflare environment variables: {}", e);
@@ -434,7 +428,6 @@ pub async fn update_dns_record(
     info!("DNS prefix {:?}", dns_prefix);
     let response = match client
         .put(&url)
-        .header("X-Auth-Email", api_email)
         .header("Authorization", format!("Bearer {}", api_key))
         .json(&request_dns_body)
         .send()
@@ -467,7 +460,7 @@ async fn update_page_rule(
     redirect_to: &str,
     origin: &str,
 ) -> Result<(), Box<dyn Error>> {
-    let (zone_id, api_email, api_key) = get_cloudflare_vars()?;
+    let (zone_id, api_key) = get_cloudflare_vars()?;
     let client = Client::new();
     let request_body = create_payload(redirect_to, origin);
     let page_rules = get_all_page_rules().await?;
@@ -478,7 +471,6 @@ async fn update_page_rule(
             "https://api.cloudflare.com/client/v4/zones/{}/pagerules/{}",
             zone_id, rule_id
         ))
-        .header("X-Auth-Email", api_email)
         .header("Authorization", format!("Bearer {}", api_key))
         .json(&request_body)
         .send()
@@ -498,7 +490,7 @@ async fn update_page_rule(
 }
 
 async fn create_page_rule(redirect_to: &str, origin: &str) -> Result<(), Box<dyn Error>> {
-    let (zone_id, api_email, api_key) = get_cloudflare_vars()?;
+    let (zone_id, api_key) = get_cloudflare_vars()?;
     let client = Client::new();
     info!("create_page_rule");
     let request_body = create_payload(redirect_to, origin);
@@ -507,7 +499,6 @@ async fn create_page_rule(redirect_to: &str, origin: &str) -> Result<(), Box<dyn
             "https://api.cloudflare.com/client/v4/zones/{}/pagerules",
             &zone_id,
         ))
-        .header("X-Auth-Email", api_email)
         .header("Authorization", format!("Bearer {}", api_key))
         .json(&request_body)
         .send()
