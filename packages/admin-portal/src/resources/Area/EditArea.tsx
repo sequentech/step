@@ -9,6 +9,7 @@ import {
     RecordContext,
     SaveButton,
     AutocompleteInput,
+    ReferenceArrayInput,
     ReferenceInput,
     SimpleForm,
     TextInput,
@@ -26,6 +27,7 @@ import {INSERT_AREA_CONTESTS} from "../../queries/InsertAreaContest"
 import {DELETE_AREA_CONTESTS} from "@/queries/DeleteAreaContest"
 import {Sequent_Backend_Area} from "@/gql/graphql"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import { gridColumnGroupsLookupSelector } from "@mui/x-data-grid"
 interface EditAreaProps {
     id?: Identifier | undefined
     electionEventId: Identifier | undefined
@@ -67,8 +69,11 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
 
     const aliasRenderer = useAliasRenderer()
 
-    const contestMatcher = (filter: string, contest: any) => {
-        return contest?.alias?.match(filter) || (!contest.alias && contest.name.match(filter))
+    const contestFilterToQuery = (searchText: string) => {
+        if (!searchText || searchText.length == 0) {
+            return {name: ""}
+        }
+        return {"name@_ilike,alias@_ilike": searchText.trim()}
     }
 
     const areaFilterToQuery = (searchText: string) => {
@@ -217,16 +222,36 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
                                         <TextInput source="description" />
 
                                         {contests ? (
-                                            <AutocompleteArrayInput
+                                            /*<AutocompleteArrayInput
                                                 className="area-contest"
-                                                label={t("areas.sequent_backend_area_contest")}
                                                 source="area_contest_ids"
                                                 choices={contests}
                                                 optionText={aliasRenderer}
                                                 matchSuggestion={contestMatcher}
+                                                filterToQuery={contestFilterToQuery}
                                                 optionValue="id"
                                                 fullWidth
-                                            />
+                                            />*/
+
+                                            <ReferenceArrayInput
+                                                label={t("areas.sequent_backend_area_contest")}
+                                                reference="sequent_backend_contest"
+                                                source="area_contest_ids"
+                                                filter={{
+                                                    tenant_id: tenantId,
+                                                    election_event_id: electionEventId,
+                                                }}
+                                                perPage={100} // // Setting initial larger records size
+                                                enableGetChoices={({q}) => q && q.length >= 3}
+                                            >
+                                                <AutocompleteArrayInput
+                                                    className="area-contest"
+                                                    fullWidth={true}
+                                                    optionText={aliasRenderer}
+                                                    filterToQuery={contestFilterToQuery}
+                                                    debounce={100}
+                                                />
+                                            </ReferenceArrayInput>
                                         ) : null}
                                         <ReferenceInput
                                             fullWidth={true}
