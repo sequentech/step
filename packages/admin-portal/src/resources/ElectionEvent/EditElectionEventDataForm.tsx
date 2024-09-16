@@ -236,8 +236,7 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [customLoginRes, setCustomLoginRes] = useState<FetchResult<SetCustomUrlsMutation>>()
     const [customEnrollmentRes, setCustomEnrollmentRes] =
         useState<FetchResult<SetCustomUrlsMutation>>()
-    const [customSamlRes, setCustomSamlRes] =
-        useState<FetchResult<SetCustomUrlsMutation>>()
+    const [customSamlRes, setCustomSamlRes] = useState<FetchResult<SetCustomUrlsMutation>>()
     const [isCustomUrlLoading, setIsCustomUrlLoading] = useState(false)
     const [isCustomizeUrl, setIsCustomizeUrl] = useState(false)
 
@@ -1038,8 +1037,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                                                 <WizardStyles.DownloadProgress size={18} />
                                             ) : (
                                                 isCustomizeUrl &&
-                                                (customSamlRes?.data?.set_custom_urls
-                                                    ?.success ? (
+                                                (customSamlRes?.data?.set_custom_urls?.success ? (
                                                     <StatusChip status="SUCCESS" />
                                                 ) : (
                                                     <StatusChip status="ERROR" />
@@ -1047,13 +1045,9 @@ export const EditElectionEventDataForm: React.FC = () => {
                                             )}
                                         </CustomUrlsStyle.InputLabelWrapper>
                                         {customSamlRes &&
-                                            !customSamlRes?.data?.set_custom_urls
-                                                ?.success && (
+                                            !customSamlRes?.data?.set_custom_urls?.success && (
                                                 <CustomUrlsStyle.ErrorText>
-                                                    {
-                                                        customSamlRes?.data?.set_custom_urls
-                                                            ?.message
-                                                    }
+                                                    {customSamlRes?.data?.set_custom_urls?.message}
                                                 </CustomUrlsStyle.ErrorText>
                                             )}
                                     </CustomUrlsStyle.InputWrapper>
