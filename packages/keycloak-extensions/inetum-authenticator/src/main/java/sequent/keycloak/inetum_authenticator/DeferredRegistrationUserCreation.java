@@ -567,8 +567,8 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         context.getEvent().detail(key, value);
       }
     });
-    context.getEvent().user(user.getId());
     if(user != null) {
+      context.getEvent().user(user.getId());
       context.getEvent().detail("user_attributes", Utils.getUserAttributesString(user));
     }
     context.getEvent().detail(Utils.AUTHENTICATOR_CLASS_NAME, this.getClass().getSimpleName());

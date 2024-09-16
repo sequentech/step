@@ -28,6 +28,11 @@ pub struct ErrorMessageString(pub String);
 #[derive(
     BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
 )]
+pub struct KeycloakEventTypeString(pub String);
+
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
 pub struct ContestIdString(pub String);
 
 #[derive(

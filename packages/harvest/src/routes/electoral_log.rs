@@ -65,7 +65,6 @@ pub async fn create_electoral_log(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::SERVICE_ACCOUNT],
     )?;
-    info!("log event input: {:?}", input);
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -95,7 +94,6 @@ pub async fn create_electoral_log(
             format!("{:?}", e),
         )
     })?;
-    info!("electoral logs success: {:?}", board_name);
     let electoral_log = ElectoralLog::new(board_name.as_str()).await
     .with_context(|| "error getting electoral log")
     .map_err(|e| {
@@ -104,7 +102,7 @@ pub async fn create_electoral_log(
             format!("{:?}", e),
         )
     })?;
-    electoral_log.post_registration_error(input.election_event_id.clone(), input.body, input.message_type, input.user_id).await
+    electoral_log.post_keycloak_event(input.election_event_id.clone(), input.message_type, input.body, input.user_id).await
     .with_context(|| "error posting registration error")
     .map_err(|e| {
         (

@@ -122,13 +122,14 @@ impl Message {
         }
     }
 
-    pub fn registration_error_message(
+    pub fn keycloak_user_event(
         event: EventIdString,
+        event_type: KeycloakEventTypeString,
         error: ErrorMessageString,
         user_id: Option<String>,
         sd: &SigningData,
     ) -> Result<Self> {
-        let body = StatementBody::VoterRegistrationError(error);
+        let body = StatementBody::KeycloakUserEvent(error, event_type);
         Self::from_body(event, body, sd, user_id)
     }
 

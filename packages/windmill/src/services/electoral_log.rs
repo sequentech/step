@@ -151,10 +151,11 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(self))]
-    pub async fn post_registration_error(&self, event_id: String, error_message: String, error_type: String, user_id: Option<String>) -> Result<()> {
+    pub async fn post_keycloak_event(&self, event_id: String, event_type: String, error_message: String, user_id: Option<String>) -> Result<()> {
         let event = EventIdString(event_id);
         let error_message = ErrorMessageString(error_message);
-        let message = Message::registration_error_message(event, error_message, user_id, &self.sd)?;
+        let event_type = KeycloakEventTypeString(event_type);
+        let message = Message::keycloak_user_event(event,event_type, error_message, user_id, &self.sd)?;
         self.post(message).await
     }
 

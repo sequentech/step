@@ -39,15 +39,10 @@ public class CustomEventListereProvider implements EventListenerProvider {
 
   @Override
   public void onEvent(Event event) {
-    
-    if(event.getType() == EventType.REGISTER_ERROR) {
       if (this.access_token == null) {
         authenticate();
       }
       logEvent(getElectionEventId(event.getRealmId()), event.getType(), event.getError(), event.getUserId());
-    }
-   
-    
   }
 
   public void authenticate() {
