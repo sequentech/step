@@ -8,7 +8,7 @@ use serde;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::collections::HashMap;
-use tracing::{event, instrument, Level};
+use tracing::{event, info, instrument, Level};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct JwtRolesAccess {
@@ -48,14 +48,14 @@ pub struct JwtClaims {
     pub typ: String,
     pub azp: String,
     pub nonce: Option<String>,
-    pub session_state: String,
+    pub session_state: Option<String>,
     pub acr: String,
     #[serde(rename = "allowed-origins")]
     pub allowed_origins: Vec<String>,
     pub realm_access: JwtRolesAccess,
     pub resource_access: Option<HashMap<String, JwtRolesAccess>>,
     pub scope: String,
-    pub sid: String,
+    pub sid: Option<String>,
     pub email_verified: bool,
     #[serde(rename = "https://hasura.io/jwt/claims")]
     pub hasura_claims: JwtHasuraClaims,
@@ -65,6 +65,7 @@ pub struct JwtClaims {
     pub family_name: Option<String>,
 }
 
+#[instrument(err, skip_all)]
 pub fn decode_jwt(token: &str) -> Result<JwtClaims> {
     let parts: Vec<&str> = token.split('.').collect();
     let part = parts.get(1).ok_or(anyhow::anyhow!("Bad token (no '.')"))?;
@@ -73,10 +74,10 @@ pub fn decode_jwt(token: &str) -> Result<JwtClaims> {
         .map_err(|err| anyhow!("Error decoding string: {:?}", err))?;
     let json = String::from_utf8(bytes)
         .map_err(|err| anyhow!("Error decoding bytes to utf8: {:?}", err))?;
-
     let claims: JwtClaims = serde_json::from_str(&json).map_err(|err| {
         anyhow!("Error decoding string into formatted json: {:?}", err)
     })?;
+
     Ok(claims)
 }
 

@@ -104,7 +104,7 @@ actions:
         template_engine: Kriti
         version: 2
     permissions:
-      - role: tally-write
+      - role: miru-create
       - role: admin-user
   - name: create_user
     definition:
@@ -268,7 +268,7 @@ actions:
       - role: user-read
   - name: fetchDocument
     definition:
-      kind: ""
+      kind: synchronous
       handler: http://{{HARVEST_DOMAIN}}/fetch-document
       forward_client_headers: true
       headers:
@@ -303,7 +303,7 @@ actions:
       - role: admin-user
   - name: getElectionEventStats
     definition:
-      kind: ""
+      kind: synchronous
       handler: http://{{HARVEST_DOMAIN}}/election-event/stats
       forward_client_headers: true
       request_transform:
@@ -318,7 +318,7 @@ actions:
     comment: get election event stats
   - name: getElectionStats
     definition:
-      kind: ""
+      kind: synchronous
       handler: http://{{HARVEST_DOMAIN}}/election/stats
       forward_client_headers: true
       request_transform:
@@ -360,7 +360,7 @@ actions:
       - role: admin-user
   - name: get_permissions
     definition:
-      kind: ""
+      kind: synchronous
       handler: http://{{HARVEST_DOMAIN}}/get-permissions
       forward_client_headers: true
       request_transform:
@@ -392,7 +392,7 @@ actions:
     comment: get private key
   - name: get_roles
     definition:
-      kind: ""
+      kind: synchronous
       handler: http://{{HARVEST_DOMAIN}}/get-roles
       forward_client_headers: true
       request_transform:
@@ -415,6 +415,7 @@ actions:
         template_engine: Kriti
         version: 2
     permissions:
+      - role: document-upload
       - role: admin-user
   - name: get_user
     definition:
@@ -433,7 +434,7 @@ actions:
       - role: admin-user
   - name: get_users
     definition:
-      kind: ""
+      kind: synchronous
       handler: http://{{HARVEST_DOMAIN}}/get-users
       forward_client_headers: true
       request_transform:
@@ -553,7 +554,7 @@ actions:
     comment: insert_cast_vote
   - name: listElectoralLog
     definition:
-      kind: ""
+      kind: synchronous
       handler: http://{{HARVEST_DOMAIN}}/immudb/electoral-log
       forward_client_headers: true
       request_transform:
@@ -576,7 +577,7 @@ actions:
     comment: List Electoral Log
   - name: listPgaudit
     definition:
-      kind: ""
+      kind: synchronous
       handler: http://{{HARVEST_DOMAIN}}/immudb/pgaudit-list
       forward_client_headers: true
       headers:
@@ -603,7 +604,7 @@ actions:
     comment: List PostgreSQL audit logs
   - name: list_user_roles
     definition:
-      kind: ""
+      kind: synchronous
       handler: http://{{HARVEST_DOMAIN}}/list-user-roles
       forward_client_headers: true
       request_transform:
@@ -614,6 +615,19 @@ actions:
         version: 2
     permissions:
       - role: admin-user
+  - name: logEvent
+    definition:
+      kind: ""
+      handler: http://{{HARVEST_DOMAIN}}/immudb/log-event
+      request_transform:
+        body:
+          action: transform
+          template: '{{$body.input}}'
+        template_engine: Kriti
+        version: 2
+    permissions:
+      - role: service-account
+    comment: log an event in immudb
   - name: manage_election_dates
     definition:
       kind: synchronous
@@ -683,8 +697,7 @@ actions:
         template_engine: Kriti
         version: 2
     permissions:
-      - role: trustee-write
-      - role: tally-write
+      - role: miru-send
       - role: admin-user
   - name: set_role_permission
     definition:
@@ -766,7 +779,7 @@ actions:
         template_engine: Kriti
         version: 2
     permissions:
-      - role: trustee-write
+      - role: miru-sign
       - role: admin-user
   - name: upsert_areas
     definition:
@@ -878,4 +891,5 @@ custom_types:
     - name: ExportLogsOutput
     - name: ExportAllUsersOutput
     - name: ExportTenantUsersOutput
+    - name: LogEventOutput
   scalars: []

@@ -11,7 +11,7 @@ use sequent_core::{
     serialization::deserialize_with_path::{deserialize_str, deserialize_value},
     types::{
         date_time::*,
-        hasura::core::{self, ElectionEvent},
+        hasura::core::{self, ElectionEvent, Trustee},
     },
     util::date_time::{generate_timestamp, get_system_timezone},
 };
@@ -36,7 +36,11 @@ const MIRU_CANDIDATE_AFFILIATION_REGISTERED_NAME: &str = "candidate-affiliation-
 const MIRU_CANDIDATE_AFFILIATION_PARTY: &str = "candidate-affiliation-party";
 pub const MIRU_AREA_CCS_SERVERS: &str = "area-ccs-servers";
 pub const MIRU_AREA_STATION_ID: &str = "area-station-id";
+pub const MIRU_AREA_THRESHOLD: &str = "area-threshold";
+pub const MIRU_AREA_TRUSTEE_USERS: &str = "area-trustee-users";
 pub const MIRU_TALLY_SESSION_DATA: &str = "tally-session-data";
+pub const MIRU_TRUSTEE_ID: &str = "trustee-id";
+pub const MIRU_TRUSTEE_NAME: &str = "trustee-name";
 
 const ISSUE_DATE_FORMAT: &str = "%Y-%m-%dT%H:%M:%S";
 const OFFICIAL_STATUS_DATE_FORMAT: &str = "%Y-%m-%d";
@@ -162,6 +166,28 @@ fn check_annotations_exist(keys: Vec<String>, annotations: &Annotations) -> Resu
     Ok(())
 }
 
+impl ValidateAnnotations for Trustee {
+    #[instrument(err)]
+    fn get_valid_annotations(&self) -> Result<Annotations> {
+        let annotations_js = self
+            .annotations
+            .clone()
+            .ok_or_else(|| anyhow!("Missing trustee annotations"))?;
+
+        let annotations: Annotations = deserialize_value(annotations_js)?;
+
+        check_annotations_exist(
+            vec![
+                prepend_miru_annotation(MIRU_TRUSTEE_ID),
+                prepend_miru_annotation(MIRU_TRUSTEE_NAME),
+            ],
+            &annotations,
+        )
+        .with_context(|| "Trustee: ")?;
+        Ok(annotations)
+    }
+}
+
 impl ValidateAnnotations for ElectionEvent {
     #[instrument(err)]
     fn get_valid_annotations(&self) -> Result<Annotations> {
@@ -220,10 +246,22 @@ impl ValidateAnnotations for core::Area {
             vec![
                 prepend_miru_annotation(MIRU_AREA_CCS_SERVERS),
                 prepend_miru_annotation(MIRU_AREA_STATION_ID),
+                prepend_miru_annotation(MIRU_AREA_THRESHOLD),
+                prepend_miru_annotation(MIRU_AREA_TRUSTEE_USERS),
             ],
             &annotations,
         )
         .with_context(|| "Area: ")?;
+
+        let trustee_users_js = find_miru_annotation(MIRU_AREA_TRUSTEE_USERS, &annotations)
+            .with_context(|| {
+                format!(
+                    "Missing area annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_AREA_TRUSTEE_USERS
+                )
+            })?;
+        let _trustee_users: Vec<String> =
+            deserialize_str(&trustee_users_js).map_err(|err| anyhow!("{}", err))?;
 
         let ccs_servers_js = find_miru_annotation(MIRU_AREA_CCS_SERVERS, &annotations)
             .with_context(|| {

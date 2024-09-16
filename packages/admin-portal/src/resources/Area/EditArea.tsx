@@ -213,6 +213,7 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
 
                                         {contests ? (
                                             <AutocompleteArrayInput
+                                                className="area-contest"
                                                 label={t("areas.sequent_backend_area_contest")}
                                                 source="area_contest_ids"
                                                 choices={contests}

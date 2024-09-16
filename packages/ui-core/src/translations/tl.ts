@@ -14,7 +14,7 @@ const tagalogTranslation: TranslationType = {
             finish: "Tapos na",
         },
         electionEventBreadcrumbSteps: {
-            created: "Nagawa",
+            created: "Nalikha",
             keys: "Mga Susi",
             publish: "I-publish",
             started: "Nagsimula",
@@ -29,30 +29,30 @@ const tagalogTranslation: TranslationType = {
         homeScreen: {
             title: "Sequent Ballot Verifier",
             description1:
-                "Ang ballot verifier ay ginagamit kapag pumipili ang botante na i-audit ang balota sa voting booth. Ang pag-verify ay dapat tumagal ng 1-2 minuto.",
+                "Ang ballot verifier ay ginagamit kapag pinili ng botante na i-audit ang balota sa voting booth. Ang pag-verify ay tatagal ng 1-2 minuto.",
             description2:
-                "Ang ballot verifier ay nagpapahintulot sa botante na tiyakin na ang encrypted na balota ay tama na naglalaman ng mga pinili sa voting booth. Ang pagpayag na magsagawa ng tsek na ito ay tinatawag na cast-as-intended verifiability at pumipigil sa mga pagkakamali at mapanlikhang aktibidad sa panahon ng encryption ng balota.",
-            descriptionMore: "Matuto pa",
+                "Ang ballot verifier ay nagbibigay-daan sa botante na tiyakin na ang encrypted na balota ay wastong nakuha ang mga pinili sa voting booth. Ang pagpayag na magsagawa ng pagsusuri na ito ay tinatawag na cast-as-intended verifiability at pinipigilan ang mga pagkakamali at malisyosong aktibidad habang ine-encrypt ang balota.",
+            descriptionMore: "Alamin pa",
             startButton: "Mag-browse ng file",
             dragDropOption: "O i-drag at i-drop ito dito",
             importErrorDescription:
-                "Nagkaroon ng problema sa pag-import ng auditable na balota. Pumili ka ba ng tamang file?",
-            importErrorMoreInfo: "Higit pang impormasyon",
+                "Nagkaroon ng problema sa pag-import ng sisiyasating balota. Tama ba ang napili mong file?",
+            importErrorMoreInfo: "Karagdagang impormasyon",
             importErrorTitle: "Error",
-            useSampleText: "Wala bang auditable na balota?",
-            useSampleLink: "Gamitin ang sample na auditable na balota",
+            useSampleText: "Walang sisiyasatin na balota?",
+            useSampleLink: "Gamitin ang sample na sisiyasating balota",
         },
         confirmationScreen: {
             title: "Sequent Ballot Verifier",
             topDescription1:
-                "Batay sa impormasyon sa na-import na Auditable na Balota, kami ay nagkalkula na:",
-            topDescription2: "Kung ito ang Ballot ID na ipinapakita sa Voting Booth:",
+                "Batay sa impormasyon sa na-import na Sisiyasating Balota, nakalkula namin na:",
+            topDescription2: "Kung ito ang Ballot ID na ipinakita sa Voting Booth:",
             bottomDescription1:
-                "Ang iyong balota ay na-encrypt ng tama. Maaari mo na ngayong isara ang window na ito at bumalik sa Voting Booth.",
+                "Ang iyong balota ay na-encrypt ng tama. Maaari mo nang isara ang window na ito at bumalik sa Voting Booth.",
             bottomDescription2:
-                "Kung hindi sila tumutugma, i-click dito upang malaman ang higit pa tungkol sa mga posibleng dahilan at kung ano ang mga hakbang na maaari mong gawin.",
-            ballotChoicesDescription: "At ang iyong mga pagpipilian sa balota ay:",
-            helpAndFaq: "Tulong at FAQ",
+                "Kung hindi sila nagtutugma, i-click dito upang malaman ang mga posibleng dahilan at kung ano ang mga hakbang na maaari mong gawin.",
+            ballotChoicesDescription: "At ang iyong mga napili sa balota ay:",
+            helpAndFaq: "Help at FAQ",
             backButton: "Bumalik",
             markedInvalid: "Ang balota ay tahasang minarkahan na invalid",
         },
@@ -60,7 +60,7 @@ const tagalogTranslation: TranslationType = {
             statusModal: {
                 title: "Status",
                 content:
-                    "Ang status panel ay nagbibigay sa iyo ng impormasyon tungkol sa mga verifications na isinagawa.",
+                    "Ang status panel ay nagbibigay sa iyo ng impormasyon tungkol sa mga beripikasyon na isinagawa.",
                 ok: "OK",
             },
         },
@@ -76,9 +76,9 @@ const tagalogTranslation: TranslationType = {
             },
             implicit: {
                 selectedMax:
-                    "Overvote: Ang bilang ng mga piniling pagpipilian {{numSelected}} ay higit sa maximum {{max}}",
+                    "Overvote: Ang bilang ng mga pinili {{numSelected}} ay higit sa maximum {{max}}",
                 selectedMin:
-                    "Ang bilang ng mga piniling pagpipilian {{numSelected}} ay mas mababa kaysa sa minimum {{min}}",
+                    "Ang bilang ng mga pinili {{numSelected}} ay mas mababa kaysa sa minimum {{min}}",
             },
             explicit: {
                 notAllowed:
@@ -94,7 +94,7 @@ const tagalogTranslation: TranslationType = {
             modal: {
                 title: "Sigurado ka bang gusto mong mag-logout?",
                 content:
-                    "Ikaw ay malapit nang isara ang application na ito. Ang aksyong ito ay hindi maibabalik.",
+                    "Malapit mo nang isara ang application na ito. Ang aksyong ito ay hindi maibabalik.",
                 ok: "OK",
                 close: "Isara",
             },
@@ -109,21 +109,21 @@ const tagalogTranslation: TranslationType = {
         },
         selectElection: {
             electionWebsite: "Website ng Balota",
-            openElection: "Bukas",
-            closedElection: "Nagsara",
-            voted: "Naboto",
-            notVoted: "Hindi naboto",
+            openElection: "Bukas na",
+            closedElection: "Sarado",
+            voted: "Nakaboto",
+            notVoted: "Hindi pa nakaboto",
             resultsButton: "Mga Resulta ng Balota",
             voteButton: "I-click upang Bumoto",
-            openDate: "Bukas: ",
-            closeDate: "Nagsara: ",
+            openDate: "Simula: ",
+            closeDate: "Pagtapos: ",
             ballotLocator: "Hanapin ang iyong balota",
         },
         header: {
             profile: "Profile",
             session: {
                 title: "Malapit nang mag-expire ang iyong session.",
-                timeLeft: "May natitira kang {{time}} para bumoto.",
+                timeLeft: "May natitira ka pang {{time}} para bumoto.",
                 timeLeftMinutesAndSeconds: "{{timeLeftInMinutes}} minuto at {{time}} segundo",
                 timeLeftSeconds: "{{timeLeft}} segundo",
             },

@@ -33,8 +33,10 @@ export interface IMiruDocument {
 // MiruCcsServer interface
 export interface IMiruCcsServer {
     name: string
+    tag: string
     address: string
     public_key_pem: string
+    send_logs?: boolean
 }
 
 // MiruTransmissionPackageData interface
@@ -44,6 +46,7 @@ export interface IMiruTransmissionPackageData {
     servers: Array<IMiruCcsServer>
     documents: Array<IMiruDocument>
     logs: Array<ILog>
+    threshold: number
 }
 
 // MiruTallySessionData type alias

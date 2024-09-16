@@ -48,27 +48,33 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
   private static final String INETUM_DATE_FORMAT = "inetumDateFormat";
   private static final String EXPIRED_DATE = "isBeforeDateValue";
   private static final String NOW = "now";
+  public static final String ERROR_FAILED_TO_LOAD_INETUM_FORM = "failedToLoadInetumForm";
+  public static final String ERROR_TO_CREATE_INETUM_FORM = "failedToCreateTransaction";
 
   @Override
   public void authenticate(AuthenticationFlowContext context) {
     // Authentication is successful if the user already has the user's
     // validation status attribute set to true, otherwise initiate a new
     // flow and show form
-    log.info("authenticate()");
+    log.info("authenticate() intetum-authenticator");
 
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
     Map<String, String> configMap = config.getConfig();
     UserModel user = context.getUser();
+    Utils.buildEventDetails(context);
 
     if (user != null) {
       String statusAttributeName = configMap.get(Utils.USER_STATUS_ATTRIBUTE);
       String statusAttributeValue = user.getFirstAttribute(statusAttributeName);
       log.info("checking statusAttributeValue=" + statusAttributeValue);
       boolean validated = (statusAttributeValue != null && statusAttributeValue.equals("TRUE"));
-
       log.info("validated=" + validated);
       if (validated) {
         log.info("validated IS TRUE, pass");
+        context
+            .getEvent()
+            .detail("action", "InetumAuthenticator: User already validated")
+            .success();
         context.success();
         return;
       }
@@ -90,6 +96,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
               .createForm(Utils.INETUM_FORM);
       context.challenge(challenge);
     } catch (IOException error) {
+      context.getEvent().error(ERROR_FAILED_TO_LOAD_INETUM_FORM);
       context.failure(AuthenticationFlowError.INTERNAL_ERROR);
       context.attempted();
       Response challenge =
@@ -111,13 +118,33 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     String authorization = "Bearer " + configMap.get(Utils.API_KEY_ATTRIBUTE);
     log.info("doPost: url=" + url + ", payload =" + payload.toString());
 
-    SimpleHttp.Response response =
-        SimpleHttp.doPost(url, context.getSession())
-            .header("Content-Type", "application/json")
-            .header("Authorization", authorization)
-            .json(payload)
-            .asResponse();
-    return response;
+    var attempt = 0;
+    int maxRetries = Utils.parseInt(configMap.get(Utils.MAX_RETRIES), Utils.DEFAULT_MAX_RETRIES);
+    int baseRetryDelay = Utils.BASE_RETRY_DELAY;
+
+    while (attempt < maxRetries) {
+      try {
+        SimpleHttp.Response response =
+            SimpleHttp.doPost(url, context.getSession())
+                .header("Content-Type", "application/json")
+                .header("Authorization", authorization)
+                .json(payload)
+                .asResponse();
+        return response;
+
+      } catch (IOException e) {
+        attempt++;
+        log.warnv("doPost: Request failed (attempt {0}): {1}", attempt, e.getMessage());
+
+        if (attempt >= maxRetries) {
+          throw e; // Propagate the exception if max retries are reached
+        }
+
+        // Wait before retrying
+        sleep(baseRetryDelay, attempt);
+      }
+    }
+    throw new IOException("doPost: Failed to execute request after " + maxRetries + " attempts.");
   }
 
   /** Send a GET to Inetum API */
@@ -128,12 +155,33 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     String authorization = "Bearer " + configMap.get(Utils.API_KEY_ATTRIBUTE);
     log.info("doGet: url=" + url);
 
-    SimpleHttp.Response response =
-        SimpleHttp.doGet(url, context.getSession())
-            .header("Content-Type", "application/json")
-            .header("Authorization", authorization)
-            .asResponse();
-    return response;
+    var attempt = 0;
+    int maxRetries = Utils.parseInt(configMap.get(Utils.MAX_RETRIES), Utils.DEFAULT_MAX_RETRIES);
+    int baseRetryDelay = Utils.BASE_RETRY_DELAY;
+
+    while (attempt < maxRetries) {
+      try {
+        SimpleHttp.Response response =
+            SimpleHttp.doGet(url, context.getSession())
+                .header("Content-Type", "application/json")
+                .header("Authorization", authorization)
+                .asResponse();
+
+        return response;
+
+      } catch (IOException e) {
+        attempt++;
+        log.warnv("doGet: Request failed (attempt {0}): {1}", attempt, e.getMessage());
+
+        if (attempt >= maxRetries) {
+          throw e; // Propagate the exception if max retries are reached
+        }
+
+        // Wait before retrying
+        sleep(baseRetryDelay, attempt);
+      }
+    }
+    throw new IOException("doGet: Failed to execute request after " + maxRetries + " attempts.");
   }
 
   protected Map<String, String> getTemplateMap(Map<String, String> configMap) {
@@ -186,6 +234,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
               configMap.get(Utils.TRANSACTION_NEW_ATTRIBUTE), configMap, authNotesMap);
     } catch (Exception error) {
       log.error("newTransaction: Error rendering template", error);
+      context.getEvent().error(ERROR_FAILED_TO_LOAD_INETUM_FORM);
       throw new IOException(error);
     }
 
@@ -213,9 +262,22 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     }
   }
 
+  private void sleep(int delay, int attempt) throws IOException {
+    // Wait before retrying
+    try {
+      Double interval = delay * Math.pow(2, attempt);
+      log.infov("sleep: Sleeping {0} ms, delay={1}, attempt={2}", interval, delay, attempt);
+      Thread.sleep((int) Math.round(interval));
+      log.infov("sleep: Slept {0} ms, delay={1}, attempt={2}", interval, delay, attempt);
+    } catch (InterruptedException interruptedException) {
+      Thread.currentThread().interrupt();
+      throw new IOException("doGet: Retry interrupted", interruptedException);
+    }
+  }
+
   @Override
   public void action(AuthenticationFlowContext context) {
-    log.info("action(): start");
+    log.info("action(): start inetum-authenticator");
     SimpleHttp.Response result = verifyResults(context);
     if (result == null) {
       // invalid
@@ -263,6 +325,11 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
     log.info("action(): success");
     // valid
+    context
+        .getEvent()
+        .detail("action", "InetumAuthenticator: User validated successfully")
+        .success();
+    ;
     context.success();
   }
 
@@ -283,33 +350,86 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
     Map<String, String> configMap = config.getConfig();
 
+    String uriPath = "/transaction/" + userId + "/status?t=" + tokenDob;
+    SimpleHttp.Response response = null;
+
+    var attempt = 0;
+    int maxRetries = Utils.parseInt(configMap.get(Utils.MAX_RETRIES), Utils.DEFAULT_MAX_RETRIES);
+    int baseRetryDelay = Utils.BASE_RETRY_DELAY;
+
     try {
-      String uriPath = "/transaction/" + userId + "/status?t=" + tokenDob;
-      SimpleHttp.Response response = doGet(configMap, context, uriPath);
+      while (attempt < maxRetries) {
+        response = doGet(configMap, context, uriPath);
+        int responseStatus = response.getStatus();
+        int code = 0;
+        String idStatus = null;
 
-      if (response.getStatus() != 200) {
-        log.error(
-            "verifyResults: Error calling transaction/status, status = " + response.getStatus());
-        log.error(
-            "verifyResults: Error calling transaction/status, response.asString() = "
-                + response.asString());
-        return null;
-      }
+        if (responseStatus != 200) {
+          log.errorv(
+              "verifyResults (attempt {0}): Error calling transaction/status, status = {1}",
+              attempt, responseStatus);
+          log.errorv(
+              "verifyResults (attempt {0}): Error calling transaction/status, response.asString() = {1}",
+              attempt, response.asString());
+          attempt++;
+          if (attempt >= maxRetries) {
+            throw new IOException(
+                "Too many attempts on transaction/status, bad status=" + responseStatus);
+          } else {
+            log.errorv("verifyResults (attempt {0}): Will retry again", attempt);
+            // Wait before retrying
+            sleep(baseRetryDelay, attempt);
+            continue;
+          }
+        }
 
-      int code = response.asJson().get("code").asInt();
-      if (code != 0) {
-        log.error("verifyResults: Error calling transaction/status, code = " + code);
-        return null;
+        code = response.asJson().get("code").asInt();
+        if (code != 0) {
+          log.errorv(
+              "verifyResults (attempt {0}): Error calling transaction/status, code = {1}",
+              attempt, code);
+          log.errorv(
+              "verifyResults (attempt {0}): Error calling transaction/status, response.asString() = {1}",
+              attempt, response.asString());
+          attempt++;
+          if (attempt >= maxRetries) {
+            throw new IOException("Too many attempts on transaction/status, bad code = " + code);
+          } else {
+            log.errorv("verifyResults (attempt {0}): Will retry again", attempt);
+            // Wait before retrying
+            sleep(baseRetryDelay, attempt);
+            continue;
+          }
+        }
+
+        // check that vinetum has already verified the data, or else retry
+        // again after a delay
+        idStatus = response.asJson().get("response").get("idStatus").asText();
+        log.infov(
+            "verifyResults (attempt {0}): transaction/status, idStatus = {1}", attempt, idStatus);
+
+        if (!idStatus.equals("verificationOK") && !idStatus.equals("verificationKO")) {
+          log.errorv(
+              "verifyResults (attempt {0}): incorrect idStatus = {1} in transaction/status",
+              attempt, idStatus);
+          log.errorv(
+              "verifyResults (attempt {0}): Error calling transaction/status, response.asString() = {1}",
+              attempt, response.asString());
+          attempt++;
+          if (attempt >= maxRetries) {
+            throw new IOException(
+                "Too many attempts on transaction/status, bad idStatus = " + idStatus);
+          } else {
+            log.errorv("verifyResults (attempt {0}): Will retry again", attempt);
+            // Wait before retrying
+            sleep(baseRetryDelay, attempt);
+            continue;
+          }
+        }
+
+        // Everything good, so we break the loop
+        break;
       }
-      String idStatus = response.asJson().get("response").get("idStatus").asText();
-      log.info("verifyResults: transaction/status, idStatus = " + idStatus);
-      // TODO: I don't know why I'm getting "processing" instead of
-      // "verificationOk"
-      // if (!idStatus.equals("verificationOk") && !idStatus.equals("processing")) {
-      // log.error("verifyResults: Error calling transaction/status, idStatus = " +
-      // idStatus);
-      // return false;
-      // }
 
       // The status is verification OK. Now we need to retrieve the
       // information
@@ -325,7 +445,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
         return null;
       }
 
-      code = response.asJson().get("code").asInt();
+      int code = response.asJson().get("code").asInt();
       if (code != 0) {
         log.error("verifyResults: Error calling transaction/results, code = " + code);
         return null;
@@ -769,6 +889,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
                         "equalAuthnoteAttributeId": "sequent.read-only.id-card-number",
                         "inetumAttributePath": "/response/mrz/personal_number",
                         "errorMsg": "attributesInetumError"
+
                     }
                 ]
             }
@@ -779,6 +900,12 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
             "-",
             ProviderConfigProperty.TEXT_TYPE,
             "{}"),
+        new ProviderConfigProperty(
+            Utils.MAX_RETRIES,
+            "Maximum number of retries for inetum requests. Will use exponential backoff, starting with 1 second.",
+            "-",
+            ProviderConfigProperty.STRING_TYPE,
+            String.valueOf(Utils.DEFAULT_MAX_RETRIES)),
         new ProviderConfigProperty(
             Utils.ENV_CONFIG_ATTRIBUTE,
             "Configuration for the env_config",

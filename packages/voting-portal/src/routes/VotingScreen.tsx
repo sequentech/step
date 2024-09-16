@@ -280,6 +280,8 @@ const VotingScreen: React.FC = () => {
         return check_voting_not_allowed_next_bool(ballotStyle?.ballot_eml.contests, decodedContests)
     }
 
+    // if true, when the user click next, there will be a dialog that prompts
+    // the user to confirm before going to the next screen
     const showNextDialog = () => {
         return check_voting_error_dialog_bool(ballotStyle?.ballot_eml.contests, decodedContests)
     }

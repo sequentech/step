@@ -169,11 +169,16 @@ export const Question: React.FC<IQuestionProps> = ({
     // when isRadioChecked is true, clicking on another option works as a radio button:
     // it deselects the previously selected option to select the new one
     const isRadioSelection = checkIsRadioSelection(question)
-    const isBlank = isReview && contestState && checkIsBlank(contestState) && !hasBlankCandidate
+    const isBlank = isReview && contestState && checkIsBlank(contestState)
 
     return (
         <Box>
-            <StyledTitle className="contest-title" variant="h5">
+            <StyledTitle
+                className="contest-title"
+                variant="h5"
+                data-min={question.min_votes}
+                data-max={question.max_votes}
+            >
                 {translate(question, "name", i18n.language) || ""}
             </StyledTitle>
             {question.description ? (

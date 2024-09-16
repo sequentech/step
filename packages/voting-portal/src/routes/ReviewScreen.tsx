@@ -28,6 +28,7 @@ import {
     EVotingStatus,
     IElectionEventStatus,
     IAuditableBallot,
+    EVotingPortalAuditButtonCfg,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -93,10 +94,55 @@ const StyledButton = styled(Button)`
     }
 `
 
+interface AuditButtonProps {
+    onClick: () => void
+}
+
+const AuditButton: React.FC<AuditButtonProps> = ({onClick}) => {
+    const {t} = useTranslation()
+
+    return (
+        <StyledButton
+            className="audit-button"
+            sx={{width: {xs: "100%", sm: "200px"}}}
+            variant="warning"
+            onClick={onClick}
+        >
+            <Icon icon={faFire} size="sm" />
+            <Box>{t("reviewScreen.auditButton")}</Box>
+        </StyledButton>
+    )
+}
+
+interface AuditBallotHelpDialogProps {
+    auditBallotHelp: boolean
+    handleClose: (value: boolean) => void
+}
+
+const AuditBallotHelpDialog: React.FC<AuditBallotHelpDialogProps> = ({
+    auditBallotHelp,
+    handleClose,
+}) => {
+    const {t} = useTranslation()
+
+    return (
+        <Dialog
+            handleClose={handleClose}
+            open={auditBallotHelp}
+            title={t("reviewScreen.auditBallotHelpDialog.title")}
+            ok={t("reviewScreen.auditBallotHelpDialog.ok")}
+            cancel={t("reviewScreen.auditBallotHelpDialog.cancel")}
+            variant="warning"
+            maxWidth="md"
+        >
+            {stringToHtml(t("reviewScreen.auditBallotHelpDialog.content"))}
+        </Dialog>
+    )
+}
 interface ActionButtonProps {
     ballotStyle: IBallotStyle
     auditableBallot: IAuditableBallot
-    hideAudit: boolean
+    auditButtonCfg: EVotingPortalAuditButtonCfg
     castVoteConfirmModal: boolean
     ballotId: string
     setErrorMsg: (msg: CastBallotsErrorType) => void
@@ -105,7 +151,7 @@ interface ActionButtonProps {
 const ActionButtons: React.FC<ActionButtonProps> = ({
     ballotStyle,
     auditableBallot,
-    hideAudit,
+    auditButtonCfg,
     castVoteConfirmModal,
     ballotId,
     setErrorMsg,
@@ -232,10 +278,13 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
         }
     }
 
+    console.log("auditButtonCfg", auditButtonCfg)
+
     return (
         <Box sx={{marginBottom: "10px", marginTop: "10px"}}>
-            {hideAudit ? null : (
+            {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW ? (
                 <StyledButton
+                    className="audit-button"
                     sx={{display: {xs: "flex", sm: "none"}, marginBottom: "2px", width: "100%"}}
                     variant="warning"
                     onClick={() => setAuditBallotHelp(true)}
@@ -243,18 +292,14 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                     <Icon icon={faFire} size="sm" />
                     <Box>{t("reviewScreen.auditButton")}</Box>
                 </StyledButton>
-            )}
-            <Dialog
-                handleClose={handleClose}
-                open={auditBallotHelp}
-                title={t("reviewScreen.auditBallotHelpDialog.title")}
-                ok={t("reviewScreen.auditBallotHelpDialog.ok")}
-                cancel={t("reviewScreen.auditBallotHelpDialog.cancel")}
-                variant="warning"
-            >
-                {stringToHtml(t("reviewScreen.auditBallotHelpDialog.content"))}
-            </Dialog>
-            <ActionsContainer>
+            ) : null}
+            {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW ? (
+                <AuditBallotHelpDialog
+                    auditBallotHelp={auditBallotHelp}
+                    handleClose={handleClose}
+                />
+            ) : null}
+            <ActionsContainer className="actions-container">
                 <StyledLink
                     to={`/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/vote${location.search}`}
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
@@ -264,16 +309,9 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                         <Box>{t("reviewScreen.backButton")}</Box>
                     </StyledButton>
                 </StyledLink>
-                {hideAudit ? null : (
-                    <StyledButton
-                        sx={{width: {xs: "100%", sm: "200px"}, display: {xs: "none", sm: "flex"}}}
-                        variant="warning"
-                        onClick={() => setAuditBallotHelp(true)}
-                    >
-                        <Icon icon={faFire} size="sm" />
-                        <Box>{t("reviewScreen.auditButton")}</Box>
-                    </StyledButton>
-                )}
+                {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW ? (
+                    <AuditButton onClick={() => setAuditBallotHelp(true)} />
+                ) : null}
                 <StyledButton
                     className="cast-ballot-button"
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
@@ -303,7 +341,9 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
 export const ReviewScreen: React.FC = () => {
     const {electionId} = useParams<{electionId?: string}>()
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
+    const location = useLocation()
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
+    const [auditBallotHelp, setAuditBallotHelp] = useState<boolean>(false)
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openReviewScreenHelp, setReviewScreenHelp] = useState(false)
     const {t} = useTranslation()
@@ -313,7 +353,9 @@ export const ReviewScreen: React.FC = () => {
     const {tenantId, eventId} = useParams<TenantEventType>()
     const [errorMsg, setErrorMsg] = useState<CastBallotsErrorType>()
 
-    const hideAudit = ballotStyle?.ballot_eml?.election_event_presentation?.hide_audit ?? false
+    const auditButtonCfg =
+        ballotStyle?.ballot_eml?.election_presentation?.audit_button_cfg ??
+        EVotingPortalAuditButtonCfg.SHOW
     const castVoteConfirmModal =
         ballotStyle?.ballot_eml?.election_presentation?.cast_vote_confirm ?? false
     const ballotId = auditableBallot && hashBallot(auditableBallot)
@@ -331,7 +373,16 @@ export const ReviewScreen: React.FC = () => {
         selectBallotSelectionByElectionId(ballotStyle?.election_id ?? "")
     )
 
-    function handleCloseDialog(val: boolean) {
+    const handleCloseDialogAuditHelp = (value: boolean) => {
+        setAuditBallotHelp(false)
+        if (value) {
+            navigate(
+                `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle?.election_id}/audit${location.search}`
+            )
+        }
+    }
+
+    function handleCloseDialogIdHelp(val: boolean) {
         setOpenBallotIdHelp(false)
 
         if (val) {
@@ -340,15 +391,14 @@ export const ReviewScreen: React.FC = () => {
                     `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/audit`
                 )
             } else {
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NO_BALLOT_STYLE}`))
-                return submit({error: VotingPortalErrorType.NO_BALLOT_STYLE}, {method: "post"})
+                navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
             }
         }
     }
 
     useEffect(() => {
         if (!ballotStyle) {
-            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NO_BALLOT_STYLE}`))
+            navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
         } else if (!auditableBallot) {
             setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NO_AUDITABLE_BALLOT}`))
         } else if (!selectionState) {
@@ -386,19 +436,36 @@ export const ReviewScreen: React.FC = () => {
 
     return (
         <PageLimit maxWidth="lg" className="review-screen screen">
-            {hideAudit ? null : (
+            {auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW ? null : (
                 <BallotHash hash={ballotId || ""} onHelpClick={() => setOpenBallotIdHelp(true)} />
             )}
             <Dialog
-                handleClose={handleCloseDialog}
+                handleClose={handleCloseDialogIdHelp}
                 open={openBallotIdHelp}
                 title={t("reviewScreen.ballotIdHelpDialog.title")}
                 ok={t("reviewScreen.ballotIdHelpDialog.ok")}
+                maxWidth="md"
+                middleActions={
+                    auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP
+                        ? [
+                              <AuditButton
+                                  key={"audit-button"}
+                                  onClick={() => setAuditBallotHelp(true)}
+                              />,
+                          ]
+                        : []
+                }
                 cancel={t("reviewScreen.ballotIdHelpDialog.cancel")}
                 variant="info"
             >
                 {stringToHtml(t("reviewScreen.ballotIdHelpDialog.content"))}
             </Dialog>
+            {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP ? (
+                <AuditBallotHelpDialog
+                    auditBallotHelp={auditBallotHelp}
+                    handleClose={handleCloseDialogAuditHelp}
+                />
+            ) : null}
             <Box marginTop="48px">
                 <Stepper selected={2} />
             </Box>
@@ -423,7 +490,10 @@ export const ReviewScreen: React.FC = () => {
             {errorMsg && <WarnBox variant="error">{errorMsg}</WarnBox>}
             <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
                 {stringToHtml(
-                    hideAudit ? t("reviewScreen.descriptionNoAudit") : t("reviewScreen.description")
+                    auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW ||
+                        auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP
+                        ? t("reviewScreen.descriptionNoAudit")
+                        : t("reviewScreen.description")
                 )}
             </Typography>
             {contests.map((question, index) => (
@@ -438,7 +508,7 @@ export const ReviewScreen: React.FC = () => {
             <ActionButtons
                 ballotStyle={ballotStyle}
                 auditableBallot={auditableBallot}
-                hideAudit={hideAudit}
+                auditButtonCfg={auditButtonCfg}
                 castVoteConfirmModal={castVoteConfirmModal}
                 ballotId={ballotId ?? ""}
                 setErrorMsg={setErrorMsg}
