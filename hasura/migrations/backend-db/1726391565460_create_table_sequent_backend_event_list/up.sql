@@ -1,2 +1,0 @@
-CREATE TABLE "sequent_backend"."event_list" ("id" uuid NOT NULL DEFAULT gen_random_uuid(), "name" text NOT NULL, "created_at" timestamptz NOT NULL, "updated_at" timestamptz NOT NULL, "tenant_id" uuid NOT NULL, "schedule" timestamptz NOT NULL, "event_type" text NOT NULL, "recivers" text[] NOT NULL, "template" text NOT NULL, "election_event_id" uuid NOT NULL, PRIMARY KEY ("id") );
-CREATE EXTENSION IF NOT EXISTS pgcrypto;

@@ -96,15 +96,6 @@ const App: React.FC<AppProps> = () => {
             />
 
             <Resource
-                name="sequent_backend_event_list"
-                list={ElectionEventList}
-                create={CreateElectionList}
-                edit={ElectionEventBaseTabs}
-                show={ElectionEventBaseTabs}
-                options={{label: "Election Events", isMenuParent: true}}
-            />
-
-            <Resource
                 name="sequent_backend_election_type"
                 create={SettingsElectionsTypesCreate}
                 edit={SettingsScreen}
