@@ -17,6 +17,7 @@ releaseBranchPrefix: 'release/'
 # ['feature/', 'bugfix/', '- hotfix/', 'merge/']
 workingBranchPrefixes:
   - feat/
+  - fix/
 
 # Whether to remove the working branch prefix from the branch name when generating the preReleaseLabel.
 # Default: true
