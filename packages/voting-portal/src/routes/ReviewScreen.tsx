@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState} from "react"
+import React, {useEffect, useState, useContext} from "react"
 import {
     Link as RouterLink,
     useNavigate,
@@ -60,6 +60,7 @@ import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import Stepper from "../components/Stepper"
 import {selectBallotSelectionByElectionId} from "../store/ballotSelections/ballotSelectionsSlice"
 import {sortContestList, hashBallot} from "@sequentech/ui-core"
+import {SettingsContext} from "../providers/SettingsContextProvider"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -163,11 +164,13 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const location = useLocation()
     const [auditBallotHelp, setAuditBallotHelp] = useState<boolean>(false)
     const [isCastingBallot, setIsCastingBallot] = React.useState<boolean>(false)
+    const [onErrorCastDisabled, setOnErrorCastDisabled] = React.useState<boolean>(false)
     const [isConfirmCastVoteModal, setConfirmCastVoteModal] = React.useState<boolean>(false)
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {toHashableBallot} = provideBallotService()
     const submit = useSubmit()
     const isDemo = !!ballotStyle?.ballot_eml?.public_key?.is_demo
+    const {globalSettings} = useContext(SettingsContext)
 
     const {refetch: refetchElectionEvent} = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
         variables: {
@@ -252,7 +255,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 },
             })
             if (result.errors) {
-                console.log(result.errors.map((e) => e.message))
+                console.log(result.errors.map((e) => e.message)) // As the exception occurs above this error is not set, leading to unknown error.
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`))
             }
 
@@ -263,6 +266,10 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
 
             return submit(null, {method: "post"})
         } catch (error) {
+            setOnErrorCastDisabled(true)
+            setTimeout(() => {
+                setOnErrorCastDisabled(false)
+            }, globalSettings.POLLING_DURATION_TIMEOUT)
             setIsCastingBallot(false)
             // dispatch(clearBallot())
             const ballotError = error as IBallotError
@@ -303,7 +310,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 <StyledButton
                     className="cast-ballot-button"
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
-                    disabled={isCastingBallot}
+                    disabled={isCastingBallot || onErrorCastDisabled}
                     onClick={() =>
                         castVoteConfirmModal ? setConfirmCastVoteModal(true) : castBallotAction()
                     }
