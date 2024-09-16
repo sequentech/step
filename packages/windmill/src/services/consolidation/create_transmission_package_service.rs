@@ -9,7 +9,9 @@ use super::eml_generator::{
     MIRU_AREA_STATION_ID, MIRU_AREA_THRESHOLD, MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA,
 };
 use super::logs::create_transmission_package_log;
-use super::transmission_package::{create_transmission_package, generate_base_compressed_xml};
+use super::transmission_package::{
+    create_logs_package, create_transmission_package, generate_base_compressed_xml,
+};
 use super::zip::compress_folder_to_zip;
 use crate::postgres::area::get_area_by_id;
 use crate::postgres::document::get_document;
@@ -38,6 +40,7 @@ use chrono::{DateTime, Local, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::ballot::Annotations;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
+use sequent_core::types::ceremonies::Log;
 use sequent_core::types::date_time::TimeZone;
 use sequent_core::types::hasura::core::Document;
 use sequent_core::util::date_time::get_system_timezone;
@@ -152,6 +155,7 @@ pub async fn generate_all_servers_document(
     time_zone: TimeZone,
     now_utc: DateTime<Utc>,
     server_signatures: Vec<ACMTrustee>,
+    logs: &Vec<Log>,
 ) -> Result<Document> {
     let acm_key_pair = get_acm_key_pair().await?;
     let temp_dir = tempdir().with_context(|| "Error generating temp directory")?;
@@ -176,6 +180,24 @@ pub async fn generate_all_servers_document(
             &server_signatures,
         )
         .await?;
+        let with_logs = ccs_server.send_logs.clone().unwrap_or_default();
+        if with_logs {
+            let zip_file_path = server_path.join(format!("al_{}.zip", area_station_id));
+            create_logs_package(
+                eml_hash,
+                eml,
+                time_zone.clone(),
+                now_utc.clone(),
+                election_event_annotations,
+                &acm_key_pair,
+                &ccs_server.public_key_pem,
+                area_station_id,
+                &zip_file_path,
+                &server_signatures,
+                logs,
+            )
+            .await?;
+        }
     }
 
     let dst_file = generate_temp_file("all_servers", ".zip")?;
@@ -391,22 +413,6 @@ pub async fn create_transmission_package_service(
     )
     .await?;
 
-    let all_servers_document = generate_all_servers_document(
-        &hasura_transaction,
-        &eml_hash,
-        &eml,
-        base_compressed_xml.clone(),
-        &ccs_servers,
-        &area_station_id,
-        &election_event_annotations,
-        &election_event.id,
-        tenant_id,
-        time_zone.clone(),
-        now_utc.clone(),
-        vec![],
-    )
-    .await?;
-
     let area_name = area.name.clone().unwrap_or("".into());
     let mut logs = if let Some(package) = found_package {
         package.logs.clone()
@@ -420,6 +426,23 @@ pub async fn create_transmission_package_service(
         area_id,
         &area_name,
     ));
+
+    let all_servers_document = generate_all_servers_document(
+        &hasura_transaction,
+        &eml_hash,
+        &eml,
+        base_compressed_xml.clone(),
+        &ccs_servers,
+        &area_station_id,
+        &election_event_annotations,
+        &election_event.id,
+        tenant_id,
+        time_zone.clone(),
+        now_utc.clone(),
+        vec![],
+        &logs,
+    )
+    .await?;
 
     let new_transmission_package_data = MiruTransmissionPackageData {
         election_id: election_id.to_string(),
