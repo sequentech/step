@@ -62,16 +62,10 @@ pub(crate) struct LocalBoard<C: Ctx> {
 
 impl<C: Ctx> LocalBoard<C> {
     pub(crate) fn new(store: Option<PathBuf>, no_cache: bool) -> LocalBoard<C> {
-        
-        let nc = if store.is_none() {
-            false
-        }
-        else {
-            no_cache
-        };
+        let nc = if store.is_none() { false } else { no_cache };
 
         tracing::info!("LocalBoard no_cache: {}", nc);
-        
+
         LocalBoard {
             configuration: None,
             cfg_hash: None,
@@ -100,26 +94,28 @@ impl<C: Ctx> LocalBoard<C> {
             kind: StatementType::Ballots,
             signer_position: PROTOCOL_MANAGER_INDEX,
             batch: 0,
-            mix_number: 0
+            mix_number: 0,
         };
 
         loop {
             sei.batch = sei.batch + 1;
-            if self.statements.get(&sei).is_none() { break; }
+            if self.statements.get(&sei).is_none() {
+                break;
+            }
         }
 
         if sei.batch == 0 {
             return false;
         }
-        
+
         let t = cfg.threshold;
         let n = cfg.trustees.len();
-        
+
         let dkg = 1 + (5 * n);
         let per_batch_tally = 1 + (2 * t) + (t * (t - 1)) + n;
 
         let max = dkg + (sei.batch * per_batch_tally);
-        
+
         self.statements.len() == max
     }
 
@@ -127,7 +123,11 @@ impl<C: Ctx> LocalBoard<C> {
     // Add messages to LocalBoard
     ///////////////////////////////////////////////////////////////////////////
 
-    pub(crate) fn add(&mut self, message: VerifiedMessage, store_id: i64) -> Result<(), ProtocolError> {        
+    pub(crate) fn add(
+        &mut self,
+        message: VerifiedMessage,
+        store_id: i64,
+    ) -> Result<(), ProtocolError> {
         if message.statement.get_kind() == StatementType::Configuration {
             self.add_bootstrap(message)
         } else {
@@ -192,7 +192,11 @@ impl<C: Ctx> LocalBoard<C> {
     // Other statements, including _signed_ configuration
     ///////////////////////////////////////////////////////////////////////////
 
-     fn add_message(&mut self, message: VerifiedMessage, store_id: i64) -> Result<(), ProtocolError> {
+    fn add_message(
+        &mut self,
+        message: VerifiedMessage,
+        store_id: i64,
+    ) -> Result<(), ProtocolError> {
         let bytes = message.statement.strand_serialize()?;
         let statement_hash = strand::hash::hash(&bytes)?;
 
@@ -253,10 +257,10 @@ impl<C: Ctx> LocalBoard<C> {
 
                     if self.store.is_some() && self.no_cache {
                         self.artifacts
-                        .insert(artifact_identifier, (artifact_hash, store_id));
-                    }
-                    else {
-                        self.artifacts_memory.insert(artifact_identifier, (artifact_hash, artifact));
+                            .insert(artifact_identifier, (artifact_hash, store_id));
+                    } else {
+                        self.artifacts_memory
+                            .insert(artifact_identifier, (artifact_hash, artifact));
                     }
 
                     debug!("Artifact inserted");
@@ -277,7 +281,7 @@ impl<C: Ctx> LocalBoard<C> {
             }
         }
     }
-    
+
     ///////////////////////////////////////////////////////////////////////////
     // Raw accessors for Trustee
     ///////////////////////////////////////////////////////////////////////////
@@ -332,7 +336,6 @@ impl<C: Ctx> LocalBoard<C> {
         let bytes = self.get_dkg_artifact(StatementType::Channel, channel_h.0, signer_position)?;
         let bytes = bytes.get_ref();
         Ok(Channel::<C>::strand_deserialize(&bytes)?)
-       
     }
 
     pub(crate) fn get_shares(
@@ -340,11 +343,9 @@ impl<C: Ctx> LocalBoard<C> {
         shares_h: &SharesHash,
         signer_position: TrusteePosition,
     ) -> Result<Shares<C>, ProtocolError> {
-        
         let bytes = self.get_dkg_artifact(StatementType::Shares, shares_h.0, signer_position)?;
         let bytes = bytes.get_ref();
         Ok(Shares::strand_deserialize(&bytes)?)
-
     }
 
     pub(crate) fn get_dkg_public_key(
@@ -352,11 +353,9 @@ impl<C: Ctx> LocalBoard<C> {
         pk_h: &PublicKeyHash,
         signer_position: TrusteePosition,
     ) -> Result<DkgPublicKey<C>, ProtocolError> {
-        
         let bytes = self.get_dkg_artifact(StatementType::PublicKey, pk_h.0, signer_position)?;
         let bytes = bytes.get_ref();
         Ok(DkgPublicKey::<C>::strand_deserialize(&bytes)?)
-
     }
 
     pub(crate) fn get_ballots(
@@ -365,11 +364,9 @@ impl<C: Ctx> LocalBoard<C> {
         batch: BatchNumber,
         signer_position: TrusteePosition,
     ) -> Result<Ballots<C>, ProtocolError> {
-        
         let bytes = self.get_artifact(StatementType::Ballots, b_h.0, signer_position, batch)?;
         let bytes = bytes.get_ref();
         Ok(Ballots::<C>::strand_deserialize(&bytes)?)
-        
     }
 
     pub(crate) fn get_mix(
@@ -378,11 +375,9 @@ impl<C: Ctx> LocalBoard<C> {
         batch: BatchNumber,
         signer_position: TrusteePosition,
     ) -> Result<Mix<C>, ProtocolError> {
-        
         let bytes = self.get_artifact(StatementType::Mix, m_h.0, signer_position, batch)?;
         let bytes = bytes.get_ref();
         Ok(Mix::<C>::strand_deserialize(&bytes)?)
-        
     }
 
     pub(crate) fn get_decryption_factors(
@@ -391,8 +386,12 @@ impl<C: Ctx> LocalBoard<C> {
         batch: BatchNumber,
         signer_position: TrusteePosition,
     ) -> Result<DecryptionFactors<C>, ProtocolError> {
-        
-        let bytes = self.get_artifact(StatementType::DecryptionFactors, d_h.0, signer_position, batch)?;
+        let bytes = self.get_artifact(
+            StatementType::DecryptionFactors,
+            d_h.0,
+            signer_position,
+            batch,
+        )?;
         let bytes = bytes.get_ref();
         Ok(DecryptionFactors::<C>::strand_deserialize(&bytes)?)
     }
@@ -403,7 +402,6 @@ impl<C: Ctx> LocalBoard<C> {
         batch: BatchNumber,
         signer_position: TrusteePosition,
     ) -> Result<Plaintexts<C>, ProtocolError> {
-        
         let bytes = self.get_artifact(StatementType::Plaintexts, p_h.0, signer_position, batch)?;
         let bytes = bytes.get_ref();
         Ok(Plaintexts::<C>::strand_deserialize(&bytes)?)
@@ -462,7 +460,7 @@ impl<C: Ctx> LocalBoard<C> {
     ///////////////////////////////////////////////////////////////////////////
 
     // Updates the message store with the passed in messages. This method can
-    // be called independently of step, to only update the store (when a truncated 
+    // be called independently of step, to only update the store (when a truncated
     // message is received from the bulletin board)
     pub(crate) fn update_store(
         &mut self,
@@ -498,9 +496,8 @@ impl<C: Ctx> LocalBoard<C> {
         &mut self,
         messages: &Vec<GrpcB3Message>,
         last_message_id: i64,
-        ignore_existing: bool
+        ignore_existing: bool,
     ) -> Result<Vec<(Message, i64)>> {
-        
         self.update_store(messages, ignore_existing)?;
 
         let connection = self.get_store()?;
@@ -543,29 +540,35 @@ impl<C: Ctx> LocalBoard<C> {
 
     fn get_artifact_from_store(&self, store_id: i64) -> Result<Vec<u8>> {
         let connection = self.get_store()?;
-        let mut stmt =
-            connection.prepare("SELECT id,message FROM MESSAGES where id = ?1")?;
+        let mut stmt = connection.prepare("SELECT id,message FROM MESSAGES where id = ?1")?;
 
         let mut rows = stmt.query([store_id])?;
         let bytes: Vec<u8> = if let Some(row) = rows.next()? {
             row.get(1)?
-        }
-        else {
+        } else {
             // return Err(ProtocolError::BoardError(format!("Could not find artifact with id {}", store_id)));
-            return Err(anyhow::anyhow!("Could not find message with id {}", store_id));
+            return Err(anyhow::anyhow!(
+                "Could not find message with id {}",
+                store_id
+            ));
         };
 
         let message = Message::strand_deserialize(&bytes)?;
 
         let Some(bytes) = message.artifact else {
-            return Err(anyhow::anyhow!("Message with id {} did not contain artifact", store_id));
+            return Err(anyhow::anyhow!(
+                "Message with id {} did not contain artifact",
+                store_id
+            ));
         };
-        
+
         Ok(bytes)
     }
 
     fn get_store(&self) -> Result<Connection> {
-        let store = self.store.as_ref().ok_or(anyhow::anyhow!("Should be impossible: called get_store when store was None"))?;
+        let store = self.store.as_ref().ok_or(anyhow::anyhow!(
+            "Should be impossible: called get_store when store was None"
+        ))?;
         let connection = Connection::open(&store)?;
         // The autogenerated id column is used to establish an order that cannot be manipulated by the external board. Once a retrieved message is
         // stored and assigned a local id, it is not possible for later messages to have an earlier id.
@@ -604,7 +607,7 @@ impl<C: Ctx> LocalBoard<C> {
             0,
         );
         let entry = self.artifacts_memory.get(&aei)?;
-        
+
         Plaintexts::<C>::strand_deserialize(&entry.1).ok()
     }
 
@@ -613,26 +616,25 @@ impl<C: Ctx> LocalBoard<C> {
     //////////////////////////////////////////////////////////////////////////
 
     fn get_dkg_artifact(
-        &self, 
-        kind: StatementType, 
+        &self,
+        kind: StatementType,
         hash: Hash,
         signer_position: TrusteePosition,
-    )  -> Result<ArtifactRef<Vec<u8>>, ProtocolError> {
+    ) -> Result<ArtifactRef<Vec<u8>>, ProtocolError> {
         self.get_artifact(kind, hash, signer_position, 0)
     }
-    
+
     // Gets an artifact from the store or the bytes cache
     fn get_artifact(
-        &self, 
-        kind: StatementType, 
-        hash: Hash,        
+        &self,
+        kind: StatementType,
+        hash: Hash,
         signer_position: TrusteePosition,
         batch: BatchNumber,
     ) -> Result<ArtifactRef<Vec<u8>>, ProtocolError> {
         // Mix number is always zero for all artifacts, only a signed mix _statement_ has a mixnumber
-        let aei =
-            self.get_artifact_entry_identifier_ext(kind.clone(), signer_position, batch, 0);
-        
+        let aei = self.get_artifact_entry_identifier_ext(kind.clone(), signer_position, batch, 0);
+
         let bytes = if self.store.is_some() && self.no_cache {
             let entry = self
                 .artifacts
@@ -640,37 +642,31 @@ impl<C: Ctx> LocalBoard<C> {
                 .ok_or(ProtocolError::MissingArtifact(kind.clone()))?;
 
             if hash != entry.0 {
-                return Err(ProtocolError::MismatchedArtifactHash(
-                    kind,
-                ))
+                return Err(ProtocolError::MismatchedArtifactHash(kind));
             } else {
                 let bytes = self.get_artifact_from_store(entry.1);
-    
+
                 let Ok(bytes) = bytes else {
                     error!("Error retrieving artifact: {}", bytes.err().unwrap());
                     return Err(ProtocolError::MissingArtifact(kind));
                 };
-                
+
                 ArtifactRef::Owned(bytes)
             }
-        }
-        else {
+        } else {
             let entry = self
                 .artifacts_memory
                 .get(&aei)
                 .ok_or(ProtocolError::MissingArtifact(kind.clone()))?;
-            
+
             if hash != entry.0 {
-                return Err(ProtocolError::MismatchedArtifactHash(
-                    kind,
-                ))
+                return Err(ProtocolError::MismatchedArtifactHash(kind));
             } else {
                 ArtifactRef::Ref(&entry.1)
             }
         };
 
         Ok(bytes)
-        
     }
 }
 

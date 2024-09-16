@@ -26,10 +26,7 @@ impl<C: Ctx, B: Board> Session<C, B> {
     }
 
     pub async fn step(&mut self) -> Result<(), ProtocolError> {
-
-        let mut board = self
-            .board
-            .get_board();
+        let mut board = self.board.get_board();
 
         let external_last_id = self.trustee.get_last_external_id()?;
 

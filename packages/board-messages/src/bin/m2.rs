@@ -109,7 +109,7 @@ fn main() {
 
     // detect db connection errors early
     q(&params).unwrap();
-    
+
     siv.add_global_callback(Event::Refresh, step);
     siv.set_user_data(CData::new(params));
 

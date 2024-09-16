@@ -16,7 +16,7 @@ pub mod rug;
 #[allow(dead_code)]
 pub(crate) mod constants {
     pub(crate) const SAFEPRIME_COFACTOR: &str = "2";
-    
+
     // Unicrypt 2048 primes, faster with small generator
     // https://github.com/bfh-evg/unicrypt/blob/2c9b223c1abc6266aa56ace5562200a5050a0c2a/src/main/java/ch/bfh/unicrypt/helper/prime/SafePrime.java
     pub(crate) const P_STR_2048: &str = "B7E151628AED2A6ABF7158809CF4F3C762E7160F38B4DA56A784D9045190CFEF324E7738926CFBE5F4BF8D8D8C31D763DA06C80ABB1185EB4F7C7B5757F5958490CFD47D7C19BB42158D9554F7B46BCED55C4D79FD5F24D6613C31C3839A2DDF8A9A276BCFBFA1C877C56284DAB79CD4C2B3293D20E9E5EAF02AC60ACC93ED874422A52ECB238FEEE5AB6ADD835FD1A0753D0A8F78E537D2B95BB79D8DCAEC642C1E9F23B829B5C2780BF38737DF8BB300D01334A0D0BD8645CBFA73A6160FFE393C48CBBBCA060F0FF8EC6D31BEB5CCEED7F2F0BB088017163BC60DF45A0ECB1BCD289B06CBBFEA21AD08E1847F3F7378D56CED94640D6EF0D3D37BE69D0063";
@@ -270,7 +270,7 @@ pub(crate) mod tests {
         };
 
         let beg = Instant::now();
-        
+
         let now = Instant::now(); println!("* gen shuffle..");
         let (e_primes, rs, perm) = shuffler.gen_shuffle(&es);
         println!("* gen shuffle {}", now.elapsed().as_millis());

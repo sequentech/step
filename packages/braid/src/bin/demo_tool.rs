@@ -22,13 +22,13 @@ use board_messages::grpc::pgsql;
 use board_messages::grpc::pgsql::PgsqlConnectionParams;
 use board_messages::grpc::pgsql::XPgsqlB3Client;
 use braid::protocol::trustee2::TrusteeConfig;
+use rand::prelude::SliceRandom;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
 use strand::serialization::StrandDeserialize;
 use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strand::symm;
-use rand::prelude::SliceRandom;
 
 const PG_HOST: &'static str = "localhost";
 const PG_DATABASE: &'static str = "protocoldb";
@@ -64,7 +64,7 @@ struct Cli {
 
     #[arg(long, default_value_t = 1)]
     batches: u32,
-    
+
     #[arg(long, default_value_t = 3)]
     num_trustees: usize,
 
@@ -148,7 +148,7 @@ async fn main() -> Result<()> {
 
     match &args.command {
         Command::GenConfigs => {
-            // let threshold = [1, 2];            
+            // let threshold = [1, 2];
             let max: [usize; 12] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
             let all = &max[0..args.num_trustees];
             let mut rng = &mut rand::thread_rng();

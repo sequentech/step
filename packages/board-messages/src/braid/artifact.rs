@@ -7,8 +7,8 @@ use std::iter::FromIterator;
 use std::marker::PhantomData;
 
 use borsh::{BorshDeserialize, BorshSerialize};
-use strand::zkp::{ChaumPedersen, Schnorr};
 use strand::shuffler_product::StrandRectangle;
+use strand::zkp::{ChaumPedersen, Schnorr};
 
 use crate::braid::newtypes::PROTOCOL_MANAGER_INDEX;
 use crate::braid::newtypes::{BatchNumber, MixNumber};
@@ -190,7 +190,6 @@ impl<C: Ctx> BorshDeserialize for Ballots<C> {
     }
 }*/
 
-
 #[derive(Clone, BorshSerialize, BorshDeserialize)]
 pub struct Mix<C: Ctx> {
     pub ciphertexts: StrandVector<Ciphertext<C>>,
@@ -293,7 +292,6 @@ impl<C: Ctx> BorshDeserialize for DecryptionFactors<C> {
 }
     */
 
-
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct Plaintexts<C: Ctx>(pub StrandVector<C::P>);
 
@@ -307,9 +305,7 @@ pub struct BallotsWide<C: Ctx> {
 }
 impl<C: Ctx> BallotsWide<C> {
     pub fn new(ciphertexts: StrandRectangle<Ciphertext<C>>) -> BallotsWide<C> {
-        BallotsWide {
-            ciphertexts,
-        }
+        BallotsWide { ciphertexts }
     }
 }
 
@@ -333,7 +329,7 @@ impl<C: Ctx> MixWide<C> {
     }
     pub fn null(mix_number: MixNumber) -> MixWide<C> {
         let c = StrandRectangle::new(vec![vec![]]).expect("impossible");
-        
+
         MixWide {
             ciphertexts: c,
             proof: None,
@@ -348,11 +344,11 @@ pub struct DecryptionFactorsWide<C: Ctx> {
     pub proofs: StrandRectangle<ChaumPedersen<C>>,
 }
 impl<C: Ctx> DecryptionFactorsWide<C> {
-    pub fn new(factors: StrandRectangle<C::E>, proofs: StrandRectangle<ChaumPedersen<C>>) -> DecryptionFactorsWide<C> {
-        DecryptionFactorsWide {
-            factors,
-            proofs,
-        }
+    pub fn new(
+        factors: StrandRectangle<C::E>,
+        proofs: StrandRectangle<ChaumPedersen<C>>,
+    ) -> DecryptionFactorsWide<C> {
+        DecryptionFactorsWide { factors, proofs }
     }
 }
 

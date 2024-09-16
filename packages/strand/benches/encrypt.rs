@@ -16,7 +16,7 @@ use strand::zkp::Zkp;
 fn encrypt<C: Ctx>(ctx: &C, pk: &PublicKey<C>, data: C::P, n: usize) {
     let mut rng = ctx.get_rng();
     let zkp = Zkp::new(ctx);
-    
+
     for _ in 0..n {
         let plaintext = ctx.encode(&data).unwrap();
         let randomness = ctx.rnd_exp(&mut rng);
@@ -34,8 +34,7 @@ fn encrypt_ristretto(
     let mut csprng = OsRng;
     let mut fill = [0u8; 30];
     csprng.fill_bytes(&mut fill);
-    let plaintext =
-        to_ristretto_plaintext_array(&fill.to_vec());
+    let plaintext = to_ristretto_plaintext_array(&fill.to_vec());
     encrypt(ctx, pk, plaintext, n);
 }
 
@@ -133,9 +132,7 @@ fn bench_encrypt(c: &mut Criterion) {
     group.finish();
 }
 
-pub(crate) fn to_ristretto_plaintext_array(
-    input: &[u8],
-) ->[u8; 30] {
+pub(crate) fn to_ristretto_plaintext_array(input: &[u8]) -> [u8; 30] {
     strand::util::to_u8_array(input).unwrap()
 }
 

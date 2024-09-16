@@ -95,11 +95,10 @@ impl B3Client {
         &self,
         requests: Vec<(String, Vec<Message>)>,
     ) -> Result<Vec<Response<PutMessagesMultiReply>>> {
-        
         if requests.len() == 0 {
-            return Ok(vec![])
+            return Ok(vec![]);
         }
-        
+
         let mut chunker = Chunker::new();
         let mut client = self.get_grpc_client().await?;
         let mut responses = vec![];
@@ -120,13 +119,12 @@ impl B3Client {
         }
 
         Ok(responses)
-        
-        
+
         /* let mut rs = vec![];
         for r in requests {
             let next = Self::put_messages_request(&r.0, &r.1);
             rs.push(next?);
-        } 
+        }
 
         let put_request = PutMessagesMultiRequest { requests: rs };
         let put_request = Request::new(put_request);
@@ -137,7 +135,11 @@ impl B3Client {
         Ok(response)*/
     }
 
-    async fn put_message_batch(&self, chunk: &HashMap<String, Vec<Message>>, client: &mut B3ClientInner<Channel>) -> Result<Response<PutMessagesMultiReply>>  {
+    async fn put_message_batch(
+        &self,
+        chunk: &HashMap<String, Vec<Message>>,
+        client: &mut B3ClientInner<Channel>,
+    ) -> Result<Response<PutMessagesMultiReply>> {
         let mut rs = vec![];
         for r in chunk {
             let next = Self::put_messages_request(&r.0, &r.1);
@@ -169,8 +171,11 @@ impl B3Client {
                 Ok(message)
             })
             .collect();
-        
-        println!("put_messages_request: serialization in {}ms ", now.elapsed().as_millis());
+
+        println!(
+            "put_messages_request: serialization in {}ms ",
+            now.elapsed().as_millis()
+        );
 
         Ok(PutMessagesRequest {
             board: board.to_string(),
@@ -212,13 +217,21 @@ impl Chunker {
             size: 0,
         }
     }
-    fn add_message(&mut self, board: String, message: Message) -> Result<Option<HashMap<String, Vec<Message>>>> {
+    fn add_message(
+        &mut self,
+        board: String,
+        message: Message,
+    ) -> Result<Option<HashMap<String, Vec<Message>>>> {
         let size = message.artifact.as_ref().map(|m| m.len()).unwrap_or(0);
         if size > super::MAX_MESSAGE_SIZE {
-            return Err(anyhow::anyhow!("Found single message with size above limit {} > {}", size, super::MAX_MESSAGE_SIZE));
+            return Err(anyhow::anyhow!(
+                "Found single message with size above limit {} > {}",
+                size,
+                super::MAX_MESSAGE_SIZE
+            ));
         }
         let mut ret: Option<HashMap<String, Vec<Message>>> = None;
-        
+
         if self.size + size > super::MAX_MESSAGE_SIZE {
             if self.next_chunk.len() > 0 {
                 ret = Some(std::mem::replace(&mut self.next_chunk, HashMap::new()));
@@ -229,8 +242,7 @@ impl Chunker {
         let v = self.next_chunk.get_mut(&board);
         if let Some(v) = v {
             v.push(message);
-        }
-        else {
+        } else {
             self.next_chunk.insert(board, vec![message]);
         }
         self.size += size;

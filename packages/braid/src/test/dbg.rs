@@ -18,7 +18,7 @@ use tracing_subscriber::reload::Handle;
 
 use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
-use strand::serialization::{StrandSerialize, StrandDeserialize};
+use strand::serialization::{StrandDeserialize, StrandSerialize};
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
 use crate::protocol::action::Action;
@@ -143,10 +143,12 @@ impl<C: Ctx> Status<C> {
                 .set_header(format!("trustee {}", i.to_string()))
                 .set_align(Align::Left);
 
-            let data1: Vec<String> = self.statement_keys[i].iter()
+            let data1: Vec<String> = self.statement_keys[i]
+                .iter()
                 .map(|k| format!("{}-{}", k.kind.to_string(), k.signer_position))
                 .collect();
-            let data2: Vec<String> = self.artifact_keys[i].iter()
+            let data2: Vec<String> = self.artifact_keys[i]
+                .iter()
                 .map(|k| {
                     format!(
                         "{}-{}",
@@ -154,7 +156,7 @@ impl<C: Ctx> Status<C> {
                     )
                 })
                 .collect();
-            
+
             let data: Vec<Vec<String>> = vec![
                 vec!["stm:".to_string(), data1.join(" ")],
                 vec!["art:".to_string(), data2.join(" ")],
@@ -335,9 +337,7 @@ fn status<C: Ctx>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result<Opt
     let art_keys: Vec<Vec<ArtifactEntryIdentifier>> = context
         .trustees
         .iter()
-        .map(|t| {
-            t.local_board.artifacts_memory.keys().cloned().collect()
-        })
+        .map(|t| t.local_board.artifacts_memory.keys().cloned().collect())
         .collect();
 
     let mut messages = vec![];
@@ -505,7 +505,7 @@ fn step<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option
                 position.unwrap()
             );
             //let (mut messages, actions, _last_id) = t.step(context.remote.get(-1)).unwrap();
-            let mut step_result =  t.step(&context.remote.get(-1)).unwrap();
+            let mut step_result = t.step(&context.remote.get(-1)).unwrap();
             send(&step_result.messages, &mut context.remote);
             context.last_messages.append(&mut step_result.messages);
             context.last_actions.extend(&step_result.actions);

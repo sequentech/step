@@ -30,7 +30,10 @@ impl PgsqlB3Server {
     pub async fn new(connection: PgsqlDbConnectionParams) -> Result<PgsqlB3Server> {
         let config = Config::from_str(&connection.connection_string())?;
         let manager = PostgresConnectionManager::new(config, NoTls);
-        let pool = Pool::builder().max_size(BB8_POOL_SIZE).build(manager).await?;
+        let pool = Pool::builder()
+            .max_size(BB8_POOL_SIZE)
+            .build(manager)
+            .await?;
 
         Ok(PgsqlB3Server { pool })
     }
@@ -146,7 +149,6 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
         &self,
         _request: Request<GetBoardsRequest>,
     ) -> Result<Response<GetBoardsReply>, Status> {
-
         let c = self.pool.get().await;
         let Ok(c) = c else {
             error!("Pgsql connection failed: {:?}", c.err());
@@ -167,7 +169,6 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
 
         let boards: Vec<String> = boards.into_iter().map(|b| b.board_name).collect();
         // info!("get_boards returns {} boards", boards.len());
-        
 
         let reply = GetBoardsReply { boards };
         Ok(Response::new(reply))
@@ -182,11 +183,10 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
         let mut keyed: Vec<KeyedMessages> = vec![];
         let mut total_bytes: usize = 0;
         let mut truncated = false;
-        
+
         for request in &r.requests {
             let ms = self.get_messages_(&request.board, request.last_id).await?;
             if ms.len() > 0 {
-                
                 let mut send: Vec<GrpcB3Message> = vec![];
                 for m in ms.into_iter() {
                     let next_bytes: usize = m.message.len();
@@ -196,7 +196,11 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
                     }
                     total_bytes += next_bytes;
                     if total_bytes > super::MAX_MESSAGE_SIZE {
-                        warn!("get_messages_multi: truncating response to respect limit {} > {}", total_bytes, super::MAX_MESSAGE_SIZE);
+                        warn!(
+                            "get_messages_multi: truncating response to respect limit {} > {}",
+                            total_bytes,
+                            super::MAX_MESSAGE_SIZE
+                        );
                         total_bytes -= next_bytes;
                         truncated = true;
                         break;
@@ -225,7 +229,10 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
             );
         }
 
-        let reply = GetMessagesMultiReply { messages: keyed, truncated };
+        let reply = GetMessagesMultiReply {
+            messages: keyed,
+            truncated,
+        };
         Ok(Response::new(reply))
     }
 
@@ -237,11 +244,19 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
 
         for request in &r.requests {
             let bytes: usize = request.messages.iter().map(|m| m.message.len()).sum();
-            info!("post_messages_multi: received post for '{}' with {} messages", request.board, request.messages.len());
+            info!(
+                "post_messages_multi: received post for '{}' with {} messages",
+                request.board,
+                request.messages.len()
+            );
             let now = std::time::Instant::now();
             self.put_messages_(&request.board, &request.messages)
-                .await?;            
-            info!("messages posted in {}ms ({:.3} MB)", now.elapsed().as_millis(), f64::from(bytes as u32) / (1024.0 * 1024.0));
+                .await?;
+            info!(
+                "messages posted in {}ms ({:.3} MB)",
+                now.elapsed().as_millis(),
+                f64::from(bytes as u32) / (1024.0 * 1024.0)
+            );
         }
 
         let reply = PutMessagesMultiReply {};
@@ -338,11 +353,17 @@ pub(crate) mod tests {
         let cfg = get_test_configuration::<RistrettoCtx>(3, 2);
         let messages = vec![cfg];
         let request = B3Client::put_messages_request(TEST_BOARD, &messages).unwrap();
-        let put = b3_impl.put_messages(tonic::Request::new(request)).await.unwrap();
+        let put = b3_impl
+            .put_messages(tonic::Request::new(request))
+            .await
+            .unwrap();
         let _ = put.get_ref();
 
         let request = B3Client::get_messages_request(TEST_BOARD, -1);
-        let messages_returned = b3_impl.get_messages(tonic::Request::new(request)).await.unwrap();
+        let messages_returned = b3_impl
+            .get_messages(tonic::Request::new(request))
+            .await
+            .unwrap();
         let messages_returned = messages_returned.get_ref();
 
         assert_eq!(messages_returned.messages.len(), 1);

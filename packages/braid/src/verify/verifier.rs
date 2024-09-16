@@ -120,7 +120,11 @@ pub struct Verifier<C: Ctx> {
 }
 impl<C: Ctx> Verifier<C> {
     pub fn new(trustee: Trustee<C>, board: GrpcB3, board_name: &str) -> Verifier<C> {
-        Verifier { trustee, board, board_name: board_name.to_string() }
+        Verifier {
+            trustee,
+            board,
+            board_name: board_name.to_string(),
+        }
     }
 
     pub async fn run(&mut self) -> Result<()> {
@@ -136,9 +140,10 @@ impl<C: Ctx> Verifier<C> {
         );
 
         let messages = self.board.get_messages(&self.board_name, -1).await?;
-        let messages: Vec<(Message, i64)> = messages.
-            iter()
-            .map(|m| (Message::strand_deserialize(&m.message).unwrap(), m.id)).collect();
+        let messages: Vec<(Message, i64)> = messages
+            .iter()
+            .map(|m| (Message::strand_deserialize(&m.message).unwrap(), m.id))
+            .collect();
         // discard ids here
         // let messages: Vec<Message> = messages.into_iter().map(|(m, id)| m).collect();
 
@@ -178,7 +183,7 @@ impl<C: Ctx> Verifier<C> {
             correct_cfg == messages.len(),
             &dbg_hash(&cfg_h),
         );
-        
+
         // Verify message signatures
 
         info!("Verifying signatures for {} messages..", messages.len());

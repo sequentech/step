@@ -2,9 +2,9 @@ use anyhow::Result;
 
 use board_messages::grpc::{GrpcB3Message, KeyedMessages};
 
+use crate::protocol::board::Board;
 use board_messages::braid::message::Message;
 use board_messages::grpc::client::B3Client;
-use crate::protocol::board::Board;
 
 use super::BoardFactory;
 
@@ -33,24 +33,20 @@ impl BoardMulti for GrpcB3 {
 
 impl Board for GrpcB3 {
     type Factory = GrpcB3BoardParams;
-    async fn get_messages(&mut self, board: &str, last_id: i64) -> Result<Vec<GrpcB3Message>> { 
+    async fn get_messages(&mut self, board: &str, last_id: i64) -> Result<Vec<GrpcB3Message>> {
         let messages = self.client.get_messages(board, last_id).await?;
 
         let messages = messages.into_inner();
 
         Ok(messages.messages)
-
     }
     async fn insert_messages(&mut self, board: &str, messages: Vec<Message>) -> Result<()> {
         if messages.len() > 0 {
-            self.client
-                .put_messages(board, &messages)
-                .await?;
+            self.client.put_messages(board, &messages).await?;
         }
 
         Ok(())
     }
-    
 }
 
 pub struct GrpcB3Index {
@@ -78,9 +74,7 @@ impl GrpcB3 {
     pub fn new(url: &str) -> GrpcB3 {
         let client = B3Client::new(url, MAX_MESSAGE_SIZE, GRPC_TIMEOUT);
 
-        GrpcB3 {
-            client,
-        }
+        GrpcB3 { client }
     }
 }
 

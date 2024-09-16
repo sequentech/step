@@ -7,10 +7,10 @@ use anyhow::Result;
 use braid::protocol::board::grpc_m::GrpcB3Index;
 use clap::Parser;
 use log::warn;
-use std::io::Write;
 use std::collections::HashSet;
 use std::fs;
 use std::hash::Hasher;
+use std::io::Write;
 use std::path::PathBuf;
 
 use tokio::time::{sleep, Duration};
@@ -19,7 +19,7 @@ use tracing::{error, info};
 
 use rustc_hash::FxHasher;
 
-use tokio::sync::mpsc::{Sender, Receiver};
+use tokio::sync::mpsc::{Receiver, Sender};
 
 use braid::protocol::session::session_m::{SessionFactory, SessionSet, SessionSetMessage};
 use braid::protocol::trustee2::TrusteeConfig;
@@ -44,7 +44,7 @@ struct Cli {
     #[arg(short, long, default_value_t = false)]
     no_cache: bool,
 
-    #[arg(short, long, default_value_t = 1)]
+    #[arg(short, long, default_value_t = 2)]
     tokio_workers: usize,
 
     #[arg(short, long, default_value_t = 1)]
@@ -56,15 +56,13 @@ fn main() -> Result<()> {
 
     // let runtime = tokio::runtime::Builder::new_current_thread()
     let runtime = tokio::runtime::Builder::new_multi_thread()
-    .worker_threads(args.tokio_workers)
-    .max_blocking_threads(10)
-    .enable_all()
-    .build()
-    .unwrap();
-    
-    runtime.block_on(async { 
-        run(&args).await
-    })
+        .worker_threads(args.tokio_workers)
+        .max_blocking_threads(10)
+        .enable_all()
+        .build()
+        .unwrap();
+
+    runtime.block_on(async { run(&args).await })
 }
 
 /*
@@ -87,13 +85,14 @@ async fn run(args: &Cli) -> Result<()> {
     braid::util::init_log(true);
 
     let default_panic = std::panic::take_hook();
-        std::panic::set_hook(Box::new(move |info| {
-            default_panic(info);
-            std::process::exit(1);
+    std::panic::set_hook(Box::new(move |info| {
+        default_panic(info);
+        std::process::exit(1);
     }));
 
     cfg_if::cfg_if! {
         if #[cfg(feature = "jemalloc")] {
+            let mut max_allocated = 0;
             let e = epoch::mib().unwrap();
             let allocated = stats::allocated::mib().unwrap();
             let resident = stats::resident::mib().unwrap();
@@ -114,15 +113,19 @@ async fn run(args: &Cli) -> Result<()> {
     braid::util::ensure_directory(store_root.clone())?;
 
     let store_root = std::env::current_dir().unwrap().join("message_store");
-    
-    let trustee_name = std::env::var("TRUSTEE_NAME")
-        .unwrap_or(args.trustee_config.clone().into_os_string().into_string().unwrap());
+
+    let trustee_name = std::env::var("TRUSTEE_NAME").unwrap_or(
+        args.trustee_config
+            .clone()
+            .into_os_string()
+            .into_string()
+            .unwrap(),
+    );
 
     let factory = SessionFactory::new(&trustee_name, tc, store_root, args.no_cache)?;
     let mut master = SessionMaster::new(&args.server_url, factory, args.session_workers)?;
 
     loop {
-        
         let b3index = GrpcB3Index::new(&args.server_url);
         let boards_result = b3index.get_boards().await;
 
@@ -149,8 +152,12 @@ async fn run(args: &Cli) -> Result<()> {
                 let res = resident.read();
                 let mb = 1024 * 1024;
 
+
                 if let(Ok(_), Ok(alloc), Ok(res)) = (e_, alloc, res) {
-                    info!("{} MB allocated / {} MB resident ({} boards)", (alloc / mb), (res / mb), boards_len);
+                    if res > max_allocated {
+                        max_allocated = res;
+                    }
+                    info!("{} MB allocated / {} MB resident (max = {} MB) ({} boards)", (alloc / mb), (res / mb), (max_allocated / mb), boards_len);
                 }
             }
         }
@@ -168,7 +175,7 @@ impl SessionSetHandle {
     fn new(sender: Sender<SessionSetMessage>) -> Self {
         SessionSetHandle {
             boards: vec![],
-            sender
+            sender,
         }
     }
 }
@@ -180,22 +187,23 @@ struct SessionMaster {
 }
 impl SessionMaster {
     fn new(b3_url: &str, session_factory: SessionFactory, size: usize) -> Result<Self> {
-        
         let mut session_sets = vec![];
         let mut runners = vec![];
         for i in 0..size {
-            let (s,r): (Sender<SessionSetMessage>, Receiver<SessionSetMessage>)
-                    = tokio::sync::mpsc::channel(1);
+            let (s, r): (Sender<SessionSetMessage>, Receiver<SessionSetMessage>) =
+                tokio::sync::mpsc::channel(1);
             let session_set = SessionSet::new(&i.to_string(), &session_factory, &b3_url, r)?;
             runners.push(session_set);
-            
+
             let handle = SessionSetHandle::new(s);
             session_sets.push(handle);
         }
 
         info!("* Starting {} session sets..", runners.len());
-        runners.into_iter().for_each(|r| {r.run();});
-        
+        runners.into_iter().for_each(|r| {
+            r.run();
+        });
+
         Ok(SessionMaster {
             b3_url: b3_url.to_string(),
             session_factory,
@@ -211,27 +219,30 @@ impl SessionMaster {
         ret as usize
     }
 
-    async fn refresh_sets(&mut self, boards: Vec<String>) -> Result<()> {        
-        
+    async fn refresh_sets(&mut self, boards: Vec<String>) -> Result<()> {
         // info!("Refreshing {} sets with {} boards", self.session_sets.len(), boards.len());
-        
+
         for board in boards {
             let index = self.hash(&board);
             // Assign boards to session sets
             self.session_sets[index].boards.push(board);
         }
-        
+
         for (i, h) in self.session_sets.iter_mut().enumerate() {
             let boards = std::mem::replace(&mut h.boards, vec![]);
-            
 
             if h.sender.is_closed() {
                 warn!("Sender was closed, rebuilding set..");
-                let (s,r): (Sender<SessionSetMessage>, Receiver<SessionSetMessage>)
-                = tokio::sync::mpsc::channel(1);
-                let session_set = SessionSet::new(&format!("rebuilt {}", i), &self.session_factory, &self.b3_url, r)?;
+                let (s, r): (Sender<SessionSetMessage>, Receiver<SessionSetMessage>) =
+                    tokio::sync::mpsc::channel(1);
+                let session_set = SessionSet::new(
+                    &format!("rebuilt {}", i),
+                    &self.session_factory,
+                    &self.b3_url,
+                    r,
+                )?;
                 h.sender = s;
-                
+
                 session_set.run();
             }
             // The only error we care about is checked above with sender.is_closed

@@ -148,10 +148,9 @@ async fn main() -> Result<()> {
                 sk.clone(),
                 ek.clone(),
                 Some(store_root.join(board_name)),
-                true
+                true,
             );
-            let board =
-                GrpcB3BoardParams::new(&args.server_url);
+            let board = GrpcB3BoardParams::new(&args.server_url);
 
             // Try to connect to detect errors early
             /*let board_result = board.get_board();
@@ -191,7 +190,7 @@ async fn main() -> Result<()> {
                     );
                     step_error = true;
                 }
-            };   
+            };
         }
 
         if args.strict && step_error {

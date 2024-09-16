@@ -35,7 +35,7 @@ struct Cli {
 #[instrument]
 async fn main() -> Result<()> {
     braid::util::init_log(true);
-    
+
     // generate dummy values, these are not important
     let dummy_sk = StrandSignatureSk::gen().unwrap();
     let dummy_encryption_key = strand::symm::gen_key();
@@ -45,10 +45,14 @@ async fn main() -> Result<()> {
     let _store_root = std::env::current_dir().unwrap().join("message_store");
 
     info!("Connecting to board '{}'..", args.board);
-    let trustee: Trustee<RistrettoCtx> =
-        Trustee::new("Verifier".to_string(), dummy_sk, dummy_encryption_key, None, true);
-    let board =
-        GrpcB3::new(&args.server_url);
+    let trustee: Trustee<RistrettoCtx> = Trustee::new(
+        "Verifier".to_string(),
+        dummy_sk,
+        dummy_encryption_key,
+        None,
+        true,
+    );
+    let board = GrpcB3::new(&args.server_url);
     let mut session = Verifier::new(trustee, board, &args.board);
     session.run().await?;
 
