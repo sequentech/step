@@ -96,10 +96,11 @@ pub async fn update_custom_url(
                         .and_then(Value::as_str)
                         .unwrap_or("")
                         .to_owned(),
-                    saml: custom_urls_obj.get("saml")
-                    .and_then(Value::as_str)
-                    .unwrap_or("")
-                    .to_owned(),
+                    saml: custom_urls_obj
+                        .get("saml")
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .to_owned(),
                 }
             } else {
                 PreviousCustomUrls {
@@ -174,24 +175,22 @@ pub async fn get_custom_url(
                 .map(|target| target.constraint.value.clone());
 
             match origin {
-                Some(origin) => {
-                    Ok(Json(GetCustomUrlOutput{
-                        success: true,
-                        message: "Page rule found".to_string(),
-                        origin,
-                    }))
-                }
-                None => {
-                    Ok(Json(GetCustomUrlOutput{
-                        success: false,
-                        message: "Error extracting page rule".to_string(),
-                        origin: "".to_string()}))
-                }
+                Some(origin) => Ok(Json(GetCustomUrlOutput {
+                    success: true,
+                    message: "Page rule found".to_string(),
+                    origin,
+                })),
+                None => Ok(Json(GetCustomUrlOutput {
+                    success: false,
+                    message: "Error extracting page rule".to_string(),
+                    origin: "".to_string(),
+                })),
             }
         }
-        None => Ok(Json(GetCustomUrlOutput{
+        None => Ok(Json(GetCustomUrlOutput {
             success: false,
             message: "No matching page rule found".to_string(),
-            origin: "".to_string()}))
+            origin: "".to_string(),
+        })),
     }
 }
