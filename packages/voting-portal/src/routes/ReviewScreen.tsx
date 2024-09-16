@@ -156,35 +156,39 @@ interface LoadingOrCastButtonProps {
     isCastingBallot: boolean
 }
 
-const LoadingOrCastButton: React.FC<LoadingOrCastButtonProps> = ({onClick, loading, isCastingBallot, className}) => {
+const LoadingOrCastButton: React.FC<LoadingOrCastButtonProps> = ({
+    onClick,
+    loading,
+    isCastingBallot,
+    className,
+}) => {
     const {t} = useTranslation()
 
     if (loading) {
         return (
-        <StyledButton
-            className={className}
-            sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
-            disabled={true}
-            onClick={onClick}
-        >
-            <Box
+            <StyledButton
                 className={className}
+                sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
+                disabled={true}
+                onClick={onClick}
             >
-                <CircularProgress style={{ width: '200%', height: '200%' }}/>
-            </Box>
-        </StyledButton>
-        );
+                <Box className={className}>
+                    <CircularProgress style={{width: "200%", height: "200%"}} />
+                </Box>
+            </StyledButton>
+        )
     } else {
         return (
             <StyledButton
                 className={className}
                 sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
                 disabled={isCastingBallot}
-                onClick={onClick}                >
+                onClick={onClick}
+            >
                 <Box>{t("reviewScreen.castBallotButton")}</Box>
                 <Icon icon={faAngleRight} size="sm" />
             </StyledButton>
-        );
+        )
     }
 }
 
