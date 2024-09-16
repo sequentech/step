@@ -32,6 +32,14 @@ export const SettingsLookAndFeel: React.FC<void> = () => {
         (record?.annotations as ITenantTheme | undefined)?.css
     )
 
+    const [saveDisabled, setSaveDisabled] = useState<boolean>(false)
+
+    useEffect(() => {
+        if (saveDisabled) {
+            setSaveDisabled(false)
+        }
+    }, [logoUrl, cssContent])
+
     const onSave = async () => {
         const logoUrlToSave = logoUrl === "" ? null : logoUrl
         const cssContentToSave = cssContent === "" ? null : cssContent
@@ -45,6 +53,7 @@ export const SettingsLookAndFeel: React.FC<void> = () => {
                 css: cssContentToSave,
             },
         })
+        setSaveDisabled(true)
     }
 
     if (isLoading) return null
@@ -59,6 +68,7 @@ export const SettingsLookAndFeel: React.FC<void> = () => {
                                 onSave()
                             }}
                             type="button"
+                            disabled={saveDisabled}
                         />
                     ) : null}
                 </Toolbar>
