@@ -169,23 +169,28 @@ fn bench_verify(c: &mut Criterion) {
     group.sampling_mode(SamplingMode::Flat);
     group.sample_size(10);
 
-    for i in [10usize].iter() {
+    for i in [1000usize].iter() {
         let (ballots, vk) = ballots_ristretto(&rctx, &rpk, *i);
         group.bench_with_input(BenchmarkId::new("ristretto", i), i, |b, _i| {
             b.iter(|| verify_ristretto(&rctx, &ballots, &vk))
         });
+        /* TODO
+        
         #[cfg(feature = "num_bigint")]
+        let (ballots, vk) = ballots_bigint(&rctx, &rpk, *i);
         group.bench_with_input(BenchmarkId::new("bigint", i), i, |b, i| {
             b.iter(|| verify_bigint(&bctx, &bpk, *i))
         });
         #[cfg(feature = "malachite")]
+        let (ballots, vk) = ballots_malachite(&rctx, &rpk, *i);
         group.bench_with_input(BenchmarkId::new("malachite", i), i, |b, i| {
             b.iter(|| verify_malachite(&mctx, &mpk, *i))
         });
         #[cfg(feature = "rug")]
+        let (ballots, vk) = ballots_rug(&rctx, &rpk, *i);
         group.bench_with_input(BenchmarkId::new("rug", i), i, |b, i| {
             b.iter(|| verify_rug(&gctx, &gpk, *i))
-        });
+        });*/
     }
     group.finish();
 }
