@@ -50,7 +50,7 @@ import {MANUAL_VERIFICATION} from "@/queries/ManualVerification"
 import {useLazyQuery, useMutation, useQuery} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
-import {ETaskExecutionStatus, IRole, IUser} from "@sequentech/ui-core"
+import {IRole, IUser} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {FormStyles} from "@/components/styles/FormStyles"
@@ -60,6 +60,7 @@ import {DownloadDocument} from "./DownloadDocument"
 import {IMPORT_USERS} from "@/queries/ImportUsers"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
+import {ElectoralLogFilters, ElectoralLogList} from "@/components/ElectoralLogList"
 
 const OMIT_FIELDS: Array<string> = ["id", "email_verified"]
 
@@ -112,7 +113,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const documentUrlRef = React.useRef(documentUrl)
     const {getDocumentUrl} = useGetPublicDocumentUrl()
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
-
+    const [openUsersLogsModal, setOpenUsersLogsModal] = React.useState(false)
     const [openSendCommunication, setOpenSendCommunication] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
     const [openManualVerificationModal, setOpenManualVerificationModal] = React.useState(false)
@@ -359,6 +360,20 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         )
         setDeleteId(undefined)
         refresh()
+    }
+    //TODO: add this funciton once Yuval's PR is merged
+    const showUsersLogsModal = (id: Identifier) => {
+        if (!electionEventId) {
+            return
+        }
+        setOpen(false)
+        setOpenNew(false)
+        setOpenSendCommunication(false)
+        setOpenManualVerificationModal(false)
+        setOpenDeleteBulkModal(false)
+        setOpenDeleteModal(false)
+        setOpenUsersLogsModal(true)
+        setRecordIds([id])
     }
 
     const actions: Action[] = [
@@ -753,6 +768,23 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         />
                     ) : null}
                 </FormStyles.ReservedProgressSpace>
+            </Dialog>
+
+            <Dialog
+                fullWidth={true}
+                variant="info"
+                title=""
+                ok={t("common.label.close")}
+                open={openUsersLogsModal}
+                handleClose={(results: boolean) => {
+                    setOpenUsersLogsModal(false)
+                }}
+            >
+                <ElectoralLogList
+                    showActions={false}
+                    filterToShow={ElectoralLogFilters.USER_ID}
+                    filterValue={recordIds[0]?.toString()}
+                />
             </Dialog>
         </>
     )
