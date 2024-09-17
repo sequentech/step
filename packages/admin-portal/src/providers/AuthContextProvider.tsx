@@ -9,6 +9,8 @@ import {isArray, isNull, isString, sleep} from "@sequentech/ui-core"
 import {IPermissions} from "@/types/keycloak"
 import {SettingsContext} from "./SettingsContextProvider"
 
+import {useLocation, useNavigate, useParams} from "react-router"
+
 /**
  * AuthContextValues defines the structure for the default values of the {@link AuthContext}.
  */
@@ -123,16 +125,92 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const [tenantId, setTenantId] = useState<string>("")
     const sleepSecs = 50
     const bufferSecs = 10
+    const navigate = useNavigate()
+    const location = useLocation()
+
+    function fetchGraphQL(
+        operationsDoc: string,
+        operationName: string,
+        variables: Record<string, any>
+    ) {
+        return fetch(globalSettings.HASURA_URL, {
+            method: "POST",
+            body: JSON.stringify({
+                query: operationsDoc,
+                variables,
+            }),
+        }).then((result) => result.json())
+    }
+
+    const operation = `
+        query GetAllTenants {
+        sequent_backend_tenant {
+            id
+            slug
+        }
+    }
+`
+    function fetchGetTenant() {
+        return fetchGraphQL(operation, "GetTenant", {})
+    }
+
+    useEffect(() => {
+        const getTenant = async (slug: string) => {
+            try {
+                const {data, errors} = await fetchGetTenant()
+
+                if (errors) {
+                    console.error(errors)
+                    return
+                }
+                const tenants = data.sequent_backend_tenant
+                const tenantIdFromParam = slug
+
+                if (tenants && tenantIdFromParam) {
+                    const matchedTenant = tenants.find(
+                        (tenant: {id: string; slug: string}) => tenant.slug === tenantIdFromParam
+                    )
+
+                    if (matchedTenant) {
+                        const currentTenantId = localStorage.getItem("selected-tenant-id")
+
+                        if (currentTenantId !== matchedTenant.id) {
+                            localStorage.setItem("selected-tenant-id", matchedTenant.id)
+                            createKeycloak()
+                            navigate(`/`)
+                        } else {
+                            navigate(`/`)
+                        }
+                    }
+                } else {
+                    console.error("Tenant not found")
+                }
+            } catch (error) {
+                console.error(error)
+            }
+        }
+
+        if (location.pathname.includes("/admin/login")) {
+            const slug = location.pathname.split("/").pop()
+            if (slug) {
+                getTenant(slug || "")
+            }
+        } else {
+            createKeycloak()
+        }
+    }, [])
 
     const createKeycloak = () => {
         if (keycloak) {
             return
         }
+        let localStoredTenant = localStorage.getItem("selected-tenant-id")
+        let newTenant = localStoredTenant ? localStoredTenant : globalSettings.DEFAULT_TENANT_ID
         /**
          * KeycloakConfig configures the connection to the Keycloak server.
          */
         const keycloakConfig: KeycloakConfig = {
-            realm: `tenant-${globalSettings.DEFAULT_TENANT_ID}`,
+            realm: `tenant-${newTenant}`,
             clientId: globalSettings.ONLINE_VOTING_CLIENT_ID,
             url: globalSettings.KEYCLOAK_URL,
         }
@@ -189,7 +267,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         if (keycloak || !loaded) {
             return
         }
-        createKeycloak()
     }, [loaded, keycloak])
 
     useEffect(() => {

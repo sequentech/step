@@ -80,6 +80,32 @@ const frenchTranslation: TranslationType = {
                 title: "Journal de la Base de Données IAM",
             },
         },
+        tasksScreen: {
+            noPermissions: "Vous n'avez pas la permission d'accéder aux journaux.",
+            title: "Exécution des tâches",
+            subtitle: "Informations sur les tâches exécutées et les journaux de progression",
+            taskInformation: "Informations sur la tâche",
+            status: "statut : {{status}}",
+            ok: "D'accord",
+            column: {
+                id: "Index",
+                name: "Nom de la tâche",
+                type: "Type",
+                execution_status: "Statut",
+                start_at: "Heure de début",
+                end_at: "Heure de fin",
+                executed_by_user: "Exécutant",
+                annotations: "Annotations",
+                labels: "Étiquettes",
+                logs: "Journaux",
+            },
+            tasksExecution: {
+                EXPORT_ELECTION_EVENT: "Exporter l'événement électoral",
+                IMPORT_ELECTION_EVENT: "Importer l'événement électoral",
+                IMPORT_USERS: "Importer des utilisateurs",
+                IMPORT_CANDIDATES: "Importer des candidats",
+            },
+        },
         confirmationScreen: {
             title: "Votre vote a été émis",
             description:
@@ -169,6 +195,8 @@ const frenchTranslation: TranslationType = {
                 createNew: "Créer un Type d'Élection",
                 emptyHeader: "Aucun Type d'Élection pour l'instant.",
                 emptyBody: "Voulez-vous en créer un ?",
+                logoUrl: "URL du Logo",
+                css: "CSS personnalisé",
             },
             create: {
                 title: "Créer un Type d'Élection",
@@ -181,6 +209,7 @@ const frenchTranslation: TranslationType = {
                 electionTypes: "TYPES D'ÉLECTION",
                 communications: "COMMUNICATION",
                 languages: "LANGUES",
+                lookAndFeel: "PERSONNALISATION DE L'APPARENCE",
                 schedules: "ÉVÉNEMENTS PROGRAMMÉS",
                 trustees: "AUTORITÉS",
             },
@@ -236,6 +265,7 @@ const frenchTranslation: TranslationType = {
             edit: {
                 general: "Général",
                 dates: "Dates",
+                customUrls: "Préfixer les URL personnalisées",
                 votingPeriod: "Période de vote",
                 language: "Langues",
                 allowed: "Canaux de Vote Permis",
@@ -244,6 +274,10 @@ const frenchTranslation: TranslationType = {
                 reorder: "Réorganiser les élections",
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importer des Candidats",
+            },
+            customUrls: {
+                login: "Connexion",
+                enrollment: "Inscription",
             },
             localization: {
                 emptyHeader: "Aucune langue n'a été définie pour l'événement",
@@ -345,6 +379,7 @@ const frenchTranslation: TranslationType = {
                 publish: "Publier",
                 logs: "Journaux",
                 events: "Événements",
+                tasks: "Tâches",
             },
             tally: {
                 emptyHeader: "Aucun Comptage pour l'instant.",
@@ -412,6 +447,8 @@ const frenchTranslation: TranslationType = {
                 },
             },
             exportError: "Erreur lors de l'exportation de l'événement électoral",
+            taskNotification:
+                "{{action}} a commencé. Vous pouvez voir son statut dans le tableau d'Exécution des Tâches.",
         },
         electionScreen: {
             common: {
@@ -463,14 +500,17 @@ const frenchTranslation: TranslationType = {
             },
         },
         tenantScreen: {
+            list: {
+                title: "Locataires",
+            },
             common: {
-                title: "Client",
+                title: "Locataire",
             },
             new: {
-                subtitle: "Créer Client",
+                subtitle: "Créer un nouveau locataire",
             },
-            createSuccess: "Client créé",
-            createError: "Erreur lors de la création du client",
+            createSuccess: "Locataire créé",
+            createError: "Erreur lors de la création du locataire",
         },
         usersAndRolesScreen: {
             noPermissions: "Vous n'avez pas la permission d'accéder aux utilisateurs ou rôles.",
@@ -478,6 +518,12 @@ const frenchTranslation: TranslationType = {
                 title: "Utilisateurs et Rôles",
                 subtitle: "Configuration générale",
                 mobileNumber: "Mobile",
+            },
+            editPassword: {
+                label: "Changer le mot de passe",
+                temporatyLabel: "Temporaire",
+                temporatyInfo:
+                    "Si activé, l'utilisateur devra changer le mot de passe lors de la prochaine connexion.",
             },
             users: {
                 title: "Utilisateurs",
@@ -521,6 +567,7 @@ const frenchTranslation: TranslationType = {
                     exportError: "Erreur lors de l'exportation des utilisateurs",
                     deleteError: "Erreur lors de la suppression de l'utilisateur",
                     deleteSuccess: "Utilisateur supprimé",
+                    multipleDeleteSuccess: "Utilisateurs supprimés",
                 },
             },
             voters: {
@@ -533,6 +580,7 @@ const frenchTranslation: TranslationType = {
                     subtitle: "Créer électeur",
                 },
                 manualVerification: {
+                    label: "Vérifier manuellement",
                     verify: "Vérifier manuellement l'électeur",
                     body: "Vérifiez manuellement cet électeur. Vous obtiendrez un PDF avec un lien de code QR qui permettra à l'électeur de se connecter en omettant le KYC en ligne.",
                 },
@@ -550,6 +598,7 @@ const frenchTranslation: TranslationType = {
                     exportError: "Erreur lors de l'exportation des électeurs",
                     deleteError: "Erreur lors de la suppression de l'électeur",
                     deleteSuccess: "Électeur supprimé",
+                    multipleDeleteSuccess: "Électeurs supprimés",
                     manualVerificationError:
                         "Erreur lors de la vérification manuelle de l'électeur",
                     manualVerificationSuccess:
@@ -629,6 +678,7 @@ const frenchTranslation: TranslationType = {
                 "publish-read": "Lire Publication",
                 "publish-write": "Éditer Publication",
                 "logs-read": "Lire Journaux",
+                "tasks-read": "Lire l'Exécution des Tâches",
                 "keys-read": "Lire Clés",
                 "document-upload": "Télécharger Documents",
                 "document-download": "Télécharger Documents",
@@ -1374,6 +1424,9 @@ const frenchTranslation: TranslationType = {
                 isHidden: "Caché",
                 publicUrl: "Lien public",
             },
+        },
+        widget: {
+            logs: "Journaux",
         },
     },
 }

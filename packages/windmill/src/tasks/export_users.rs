@@ -16,14 +16,26 @@ use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction as _};
 use sequent_core::services::keycloak;
+use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
-use sequent_core::types::keycloak::User;
+use sequent_core::types::keycloak::{User, UserProfileAttribute};
 use sequent_core::util;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::{BufWriter, Write};
 use tempfile::NamedTempFile;
 use tracing::{debug, info, instrument};
+
+pub const USER_FIELDS: [&str; 8] = [
+    "id",
+    "email",
+    "first_name",
+    "last_name",
+    "username",
+    "enabled",
+    "email_verified",
+    "area-id",
+];
 
 #[derive(Deserialize, Debug, Clone, Serialize)]
 pub struct ExportUsersBody {
@@ -54,25 +66,38 @@ pub enum ExportBody {
     },
 }
 
-fn get_headers(elections: &Option<Vec<ElectionHead>>) -> Vec<String> {
+fn get_headers(
+    elections: &Option<Vec<ElectionHead>>,
+    user_attributes: &Vec<UserProfileAttribute>,
+) -> Vec<String> {
+    let mut user_headers: Vec<String> = vec![
+        "id".to_string(),
+        "email".to_string(),
+        "email_verified".to_string(),
+        "enabled".to_string(),
+        "first_name".to_string(),
+        "last_name".to_string(),
+        "username".to_string(),
+        "area".to_string(),
+    ];
+    for attr in user_attributes {
+        match (&attr.name, &attr.display_name) {
+            (Some(name), Some(display_name)) => {
+                if (!USER_FIELDS.contains(&name.as_str())) {
+                    user_headers.push(display_name.clone())
+                }
+            }
+            _ => (),
+        }
+    }
     vec![
-        vec![
-            "id".to_string(),
-            "email".to_string(),
-            "email_verified".to_string(),
-            "enabled".to_string(),
-            "first_name".to_string(),
-            "last_name".to_string(),
-            "username".to_string(),
-            "telephone".to_string(),
-            "area".to_string(),
-        ],
+        user_headers,
         match elections {
             Some(ref some_elections) => some_elections
                 .iter()
                 .map(|election| match election.alias {
-                    Some(ref election_alias) => election_alias.clone(),
-                    None => election.name.clone(),
+                    Some(ref election_alias) => format!("election: {}", election_alias.clone()),
+                    None => format!("election: {}", election.name.clone()),
                 })
                 .collect::<Vec<String>>(),
             None => vec![],
@@ -85,28 +110,40 @@ fn get_user_record(
     elections: &Option<Vec<ElectionHead>>,
     areas_by_id: &Option<HashMap<String, String>>,
     user: &User,
+    user_attributes: &Vec<UserProfileAttribute>,
 ) -> Vec<String> {
     let votes_info_map_opt = user.get_votes_info_by_election_id();
+
+    let mut user_info: Vec<String> = vec![
+        user.id.clone().unwrap_or("-".to_string()),
+        user.email.clone().unwrap_or("-".to_string()),
+        format!("{}", user.email_verified.unwrap_or_default()),
+        format!("{}", user.enabled.unwrap_or_default()),
+        user.first_name.clone().unwrap_or("-".to_string()),
+        user.last_name.clone().unwrap_or("-".to_string()),
+        user.username.clone().unwrap_or("-".to_string()),
+        match user.get_area_id() {
+            Some(ref area_id) => areas_by_id
+                .as_ref()
+                .unwrap_or(&HashMap::new())
+                .get(area_id)
+                .unwrap_or(area_id)
+                .to_string(),
+            None => "-".to_string(),
+        },
+    ];
+    for attr in user_attributes {
+        match &attr.name {
+            Some(name) => {
+                if (!USER_FIELDS.contains(&name.as_str())) {
+                    user_info.push(user.get_attribute_val(name).unwrap_or("-".to_string()))
+                }
+            }
+            _ => (),
+        }
+    }
     return vec![
-        vec![
-            user.id.clone().unwrap_or("-".to_string()),
-            user.email.clone().unwrap_or("-".to_string()),
-            format!("{}", user.email_verified.unwrap_or_default()),
-            format!("{}", user.enabled.unwrap_or_default()),
-            user.first_name.clone().unwrap_or("-".to_string()),
-            user.last_name.clone().unwrap_or("-".to_string()),
-            user.username.clone().unwrap_or("-".to_string()),
-            user.get_mobile_phone().unwrap_or("-".to_string()),
-            match user.get_area_id() {
-                Some(ref area_id) => areas_by_id
-                    .as_ref()
-                    .unwrap_or(&HashMap::new())
-                    .get(area_id)
-                    .unwrap_or(area_id)
-                    .to_string(),
-                None => "-".to_string(),
-            },
-        ],
+        user_info,
         match elections {
             Some(ref some_elections) => some_elections
                 .iter()
@@ -192,7 +229,10 @@ pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
         }
         ExportBody::TenantUsers { .. } => (None, None),
     };
-    let headers = get_headers(&elections);
+
+    let client = KeycloakAdminClient::new().await?;
+    let attributes = client.get_user_profile_attributes(&realm).await?;
+    let headers = get_headers(&elections, &attributes);
 
     let batch_size = PgConfig::from_env()?.default_sql_batch_size;
     let mut offset: i32 = 0;
@@ -234,6 +274,11 @@ pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
             limit: Some(batch_size),
             offset: Some(offset),
             user_ids: None,
+            attributes: None,
+            enabled: None,
+            email_verified: None,
+            sort: None,
+            has_voted: None,
         };
 
         let (users, count) = match &body {
@@ -258,7 +303,7 @@ pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
         offset += users.len() as i32;
 
         for user in users {
-            let record = get_user_record(&elections, &areas_by_id, &user);
+            let record = get_user_record(&elections, &areas_by_id, &user, &attributes);
             writer.write_record(&record)?;
         }
 

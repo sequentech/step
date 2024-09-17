@@ -81,6 +81,32 @@ const englishTranslation = {
                 title: "IAM Database Logs",
             },
         },
+        tasksScreen: {
+            noPermissions: "You don't have permission to access logs.",
+            title: "Tasks Execution",
+            subtitle: "Information about the executed tasks",
+            taskInformation: "Task Information",
+            status: "status: {{status}}",
+            ok: "Ok",
+            column: {
+                id: "Index",
+                name: "Task name",
+                type: "Type",
+                execution_status: "Status",
+                start_at: "Start time",
+                end_at: "End time",
+                executed_by_user: "Executer",
+                annotations: "Annotations",
+                labels: "Labels",
+                logs: "Logs",
+            },
+            tasksExecution: {
+                EXPORT_ELECTION_EVENT: "Export Election Event",
+                IMPORT_ELECTION_EVENT: "Import Election Event",
+                IMPORT_USERS: "Import Users",
+                IMPORT_CANDIDATES: "Import Candidates",
+            },
+        },
         confirmationScreen: {
             title: "Your vote has been cast",
             description:
@@ -170,6 +196,8 @@ const englishTranslation = {
                 createNew: "Create Election Type",
                 emptyHeader: "No Election Types yet.",
                 emptyBody: "Do you want to create one?",
+                logoUrl: "Logo URL",
+                css: "Custom CSS",
             },
             create: {
                 title: "Create Election Type",
@@ -182,6 +210,7 @@ const englishTranslation = {
                 electionTypes: "ELECTION TYPES",
                 communications: "COMMUNICATION",
                 languages: "LANGUAGES",
+                lookAndFeel: "Look & Feel",
                 schedules: "SCHEDULED EVENTS",
                 trustees: "TRUSTEES",
             },
@@ -237,6 +266,7 @@ const englishTranslation = {
             edit: {
                 general: "General",
                 dates: "Dates",
+                customUrls: "Custom URLs Prefix",
                 votingPeriod: "Voting Period",
                 language: "Language",
                 allowed: "Voting Channels Allowed",
@@ -245,6 +275,10 @@ const englishTranslation = {
                 reorder: "Reorder elections",
                 advancedConfigurations: "Advanced Configurations",
                 importCandidates: "Import Candidates",
+            },
+            customUrls: {
+                login: "Login",
+                enrollment: "Enrollment",
             },
             localization: {
                 emptyHeader: "No languages were set for the event",
@@ -344,6 +378,7 @@ const englishTranslation = {
                 publish: "Publish",
                 logs: "Logs",
                 events: "Events",
+                tasks: "Tasks",
             },
             tally: {
                 emptyHeader: "No Tally yet.",
@@ -409,6 +444,8 @@ const englishTranslation = {
                 },
             },
             exportError: "Error exporting Election Event",
+            taskNotification:
+                "{{action}} has started. You can see its status at Tasks Execution table.",
         },
         electionScreen: {
             common: {
@@ -460,14 +497,17 @@ const englishTranslation = {
             },
         },
         tenantScreen: {
+            list: {
+                title: "Tenants",
+            },
             common: {
-                title: "Client",
+                title: "Tenant",
             },
             new: {
-                subtitle: "Create Client",
+                subtitle: "Create new tenant",
             },
-            createSuccess: "Customer created",
-            createError: "Error creating customer",
+            createSuccess: "Tenant created",
+            createError: "Error creating tenant",
         },
         usersAndRolesScreen: {
             noPermissions: "You don't have permission to access users or roles.",
@@ -475,6 +515,11 @@ const englishTranslation = {
                 title: "Users and Roles",
                 subtitle: "General configuration",
                 mobileNumber: "Mobile",
+            },
+            editPassword: {
+                label: "Change password",
+                temporatyLabel: "Temporary",
+                temporatyInfo: "If enabled, the user must change the password on next login",
             },
             users: {
                 title: "Users",
@@ -518,6 +563,7 @@ const englishTranslation = {
                     exportError: "Error exporting users",
                     deleteError: "Error deleting user",
                     deleteSuccess: "User deleted",
+                    multipleDeleteSuccess: "Users deleted",
                 },
             },
             voters: {
@@ -528,6 +574,7 @@ const englishTranslation = {
                     subtitle: "Create Voter",
                 },
                 manualVerification: {
+                    label: "Manually Verify",
                     verify: "Manually Verify this voter",
                     body: "Manually Verify this voter. You will obtain a PDF with a QR Code link that allows the voter to login skipping online KYC.",
                 },
@@ -547,6 +594,7 @@ const englishTranslation = {
                     exportError: "Error exporting voters",
                     deleteError: "Error deleting voter",
                     deleteSuccess: "Voter deleted",
+                    multipleDeleteSuccess: "Voters deleted",
                     manualVerificationError: "Error manually verifying the voter",
                     manualVerificationSuccess:
                         "Sucessfully verified manually the voter, downloading PDF..",
@@ -625,6 +673,7 @@ const englishTranslation = {
                 "publish-read": "Read Publish",
                 "publish-write": "Edit Publish",
                 "logs-read": "Read Logs",
+                "tasks-read": "Read Tasks Execution",
                 "keys-read": "Read Keys",
                 "document-upload": "Upload Documents",
                 "document-download": "Download Documents",
@@ -1362,6 +1411,9 @@ const englishTranslation = {
                 isHidden: "Is Hidden",
                 publicUrl: "Public URL",
             },
+        },
+        widget: {
+            logs: "Logs",
         },
     },
 }
