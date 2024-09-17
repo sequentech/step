@@ -301,9 +301,11 @@ type Query {
 }
 
 type Query {
-  logEvent(
-    electionEventId: String!
-    messageType: String!
+  logEvent (
+    election_event_id: String!
+    message_type: String!
+    user_id: String
+    body: String!
   ): LogEventOutput
 }
 
@@ -450,15 +452,17 @@ input PgAuditOrderBy {
 }
 
 input ElectoralLogFilter {
-  id: String
-  StatementKind: String
+  id : String
+  statement_kind : String
+  user_id : String
 }
 
 input ElectoralLogOrderBy {
-  id: OrderDirection
-  created: OrderDirection
-  statement_timestamp: OrderDirection
-  statement_kind: OrderDirection
+  id : OrderDirection
+  created : OrderDirection
+  statement_timestamp : OrderDirection
+  statement_kind : OrderDirection
+  user_id : OrderDirection
 }
 
 input SampleInput {
@@ -707,11 +711,12 @@ type TotalAggregate {
 }
 
 type ElectoralLogRow {
-  id: Int!
-  created: Int!
-  statement_timestamp: Int!
-  statement_kind: String!
-  message: String!
+  id : Int!
+  created : Int!
+  statement_timestamp : Int!
+  statement_kind : String!
+  message : String!
+  user_id : String!
 }
 
 type DataListElectoralLog {
