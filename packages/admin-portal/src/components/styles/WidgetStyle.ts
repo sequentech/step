@@ -5,19 +5,23 @@
 import styled from "@emotion/styled"
 import {Paper, Box, Typography, IconButton, Table, TableCell, AccordionSummary} from "@mui/material"
 
-export const CustomAccordionSummary = styled(AccordionSummary)(({theme}) => ({
-    "backgroundColor": theme.palette.customGrey.main,
-    "color": theme.palette.common.white,
-    "borderTopLeftRadius": "6px",
-    "borderTopRightRadius": "6px",
-    "minHeight": "45px !important",
-    "& .MuiAccordionSummary-expandIconWrapper": {
-        color: theme.palette.common.white,
-    },
-    "& .MuiAccordionSummary-content": {
-        margin: "0",
-    },
-}))
+export const CustomAccordionSummary = styled(AccordionSummary)<{isLoading: boolean}>(
+    ({theme, isLoading}) => ({
+        "backgroundColor": theme.palette.customGrey.main,
+        "color": theme.palette.common.white,
+        "borderTopLeftRadius": "6px",
+        "borderTopRightRadius": "6px",
+        "minHeight": "45px !important",
+        "& .MuiAccordionSummary-expandIconWrapper": {
+            color: theme.palette.common.white,
+            height:isLoading ? "17x" : "100%",
+            rotate: "180deg",
+        },
+        "& .MuiAccordionSummary-content": {
+            margin: "0",
+        },
+    })
+)
 
 export const WidgetContainer = styled(Paper)({
     display: "flex",
@@ -69,7 +73,7 @@ export const IconsBox = styled(Box)({
 })
 
 export const StyledIconButton = styled(IconButton)(({theme}) => ({
-    "marginLeft": 3,
+    "marginRight": 10,
     "color": theme.palette.common.white,
     ":hover": {
         backgroundColor: "rgba(255, 255, 255, 0.8)",
