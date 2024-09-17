@@ -104,6 +104,9 @@ const catalanTranslation: TranslationType = {
                 IMPORT_ELECTION_EVENT: "Importar esdeveniment electoral",
                 IMPORT_USERS: "Importar usuaris",
                 IMPORT_CANDIDATES: "Importar candidats",
+                EXPORT_VOTERS: "Exportar votants",
+                EXPORT_USERS: "Exportar usuaris",
+                EXPORT_TENANT_USERS: "Exportar usuaris del llogater",
             },
         },
         confirmationScreen: {

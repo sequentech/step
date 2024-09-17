@@ -475,6 +475,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
             try {
                 const {data: nextStatus, errors} = await CreateTransmissionPackage({
                     variables: {
+                        electionEventId: record?.id,
                         electionId: election_id,
                         tallySessionId: tallyId,
                         areaId: area_id,

@@ -104,6 +104,9 @@ const spanishTranslation: TranslationType = {
                 IMPORT_ELECTION_EVENT: "Importar evento electoral",
                 IMPORT_USERS: "Importar usuarios",
                 IMPORT_CANDIDATES: "Importar candidatos",
+                EXPORT_VOTERS: "Exportar votantes",
+                EXPORT_USERS: "Exportar usuarios",
+                EXPORT_TENANT_USERS: "Exportar usuarios del inquilino",
             },
         },
         confirmationScreen: {

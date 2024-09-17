@@ -1306,7 +1306,7 @@
         "fields": null,
         "inputFields": [
           {
-            "name": "StatementKind",
+            "name": "id",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -1316,7 +1316,17 @@
             "defaultValue": null
           },
           {
-            "name": "id",
+            "name": "statement_kind",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "user_id",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -1368,6 +1378,16 @@
           },
           {
             "name": "statement_timestamp",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "OrderDirection",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "user_id",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -1460,6 +1480,22 @@
               "ofType": {
                 "kind": "SCALAR",
                 "name": "Int",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "user_id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
                 "ofType": null
               }
             },
@@ -6095,6 +6131,20 @@
             "args": [
               {
                 "name": "area_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "election_event_id",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -12403,6 +12453,34 @@
             "args": [
               {
                 "name": "dns_prefix",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "election_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "key",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",

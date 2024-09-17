@@ -14,7 +14,7 @@ export const CustomAccordionSummary = styled(AccordionSummary)<{isLoading: boole
         "minHeight": "45px !important",
         "& .MuiAccordionSummary-expandIconWrapper": {
             color: theme.palette.common.white,
-            height:isLoading ? "17x" : "100%",
+            height: isLoading ? "17x" : "100%",
             rotate: "180deg",
         },
         "& .MuiAccordionSummary-content": {

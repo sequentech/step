@@ -103,6 +103,9 @@ const tagalogTranslation: TranslationType = {
                 IMPORT_ELECTION_EVENT: "I-import ang Kaganapan sa Halalan",
                 IMPORT_USERS: "I-import ang mga Gumagamit",
                 IMPORT_CANDIDATES: "I-import ang mga Kandidato",
+                EXPORT_VOTERS: "I-export ang mga botante",
+                EXPORT_USERS: "I-export ang mga gumagamit",
+                EXPORT_TENANT_USERS: "I-export ang mga gumagamit ng tenant",
             },
         },
         confirmationScreen: {
