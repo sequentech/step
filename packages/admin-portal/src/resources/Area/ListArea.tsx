@@ -97,12 +97,6 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
     const canView = authContext.isAuthorized(true, tenantId, IPermissions.AREA_READ)
     const canCreate = authContext.isAuthorized(true, tenantId, IPermissions.AREA_WRITE)
 
-    // const rowClickHandler = generateRowClickHandler(["election_event_id"])
-    const rowClickHandler = (id: Identifier, resource: string, record: RaRecord) => {
-        setRecordId(id)
-        return ""
-    }
-
     useEffect(() => {
         if (recordId) {
             setOpen(true)
@@ -121,7 +115,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
             {canCreate && (
                 <>
                     <ActionsBox>
-                        <Button onClick={createAction}>
+                        <Button onClick={createAction} className="area-add-button">
                             <IconButton icon={faPlus} fontSize="24px" />
                             {t("areas.empty.action")}
                         </Button>
@@ -217,8 +211,8 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
     }
 
     const actions: Action[] = [
-        {icon: <EditIcon />, action: editAction},
-        {icon: <DeleteIcon />, action: deleteAction},
+        {icon: <EditIcon className="edit-area-icon" />, action: editAction},
+        {icon: <DeleteIcon className="delete-area-icon" />, action: deleteAction},
     ]
 
     return (
@@ -249,8 +243,8 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
             >
                 <DatagridConfigurable omit={OMIT_FIELDS}>
                     <TextField source="id" />
-                    <TextField source="name" />
-                    <TextField source="description" />
+                    <TextField source="name" className="area-name" />
+                    <TextField source="description" className="area-description" />
 
                     <FunctionField
                         label={t("areas.sequent_backend_area_contest")}

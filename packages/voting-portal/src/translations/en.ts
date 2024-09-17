@@ -49,9 +49,9 @@ const englishTranslation = {
         reviewScreen: {
             title: "Review your ballot",
             description:
-                "To make changes in your selections, click “<b>Edit ballot</b>” button, to confirm your selections, click “<b>Cast your ballot</b>” button below, and to audit your ballot click the “<b>Audit Ballot</b>” button below. Please note than once you submit your ballot, you have voted and you will not be issued another ballot for this Ballot.",
+                "To make changes in your selections, click “<b>Edit ballot</b>” button, to confirm your selections, click “<b>Cast your ballot</b>” button below, and to audit your ballot click the “<b>Audit Ballot</b>” button below.",
             descriptionNoAudit:
-                "To make changes in your selections, click “<b>Edit ballot</b>” button, to confirm your selections, click “<b>Cast your ballot</b>” button below. Please note than once you submit your ballot, you have voted and you will not be issued another ballot for this Ballot.",
+                "To make changes in your selections, click “<b>Edit ballot</b>” button, to confirm your selections, click “<b>Cast your ballot</b>” button below.",
             backButton: "Edit ballot",
             castBallotButton: "Cast your ballot",
             auditButton: "Audit ballot",
@@ -80,6 +80,34 @@ const englishTranslation = {
                 content: "Your vote will no longer be editable once confirmed.",
                 ok: "Yes, I want to CAST my vote",
                 cancel: "Cancel",
+            },
+            error: {
+                NETWORK_ERROR:
+                    "There was a network problem. Please try again later or contact support for assistance.",
+                UNABLE_TO_FETCH_DATA:
+                    "There was a problem fetching the data. Please try again later or contact support for assistance.",
+                LOAD_ELECTION_EVENT: "Cannot load election event. Please try again later.",
+                CAST_VOTE:
+                    "There was an error with graphQL while casting the vote. Please try again later or contact support for assistance.",
+                NO_BALLOT_SELECTION:
+                    "The selection state for this election is not present. Please ensure you have selected your choices correctly or contact support.",
+                NO_BALLOT_STYLE: "The ballot style is not available. Please contact support.",
+                NO_AUDITABLE_BALLOT: "No auditable ballot is available. Please contact support.",
+                INCONSISTENT_HASH:
+                    "There was an error related to the ballot hashing process. BallotId: {{ballotId}} is not consistent with auditable Ballot Hash: {{auditableBallotHash}}. Please report this issue to support.",
+                ELECTION_EVENT_NOT_OPEN: "The election event is closed. Please contact support.",
+                PARSE_ERROR:
+                    "There was an error parsing the ballot. Please try again later or contact support for assistance.",
+                DESERIALIZE_AUDITABLE_ERROR:
+                    "There was an error deserializing the auditable ballot. Please try again later or contact support for assistance.",
+                DESERIALIZE_HASHABLE_ERROR:
+                    "There was an error deserializing the hashable ballot. Please try again later or contact support for assistance.",
+                CONVERT_ERROR:
+                    "There was an error converting the ballot. Please try again later or contact support for assistance.",
+                SERIALIZE_ERROR:
+                    "There was an error serializing the ballot. Please try again later or contact support for assistance.",
+                UNKNOWN_ERROR:
+                    "There was an error. Please try again later or contact support for assistance.",
             },
         },
         confirmationScreen: {
@@ -170,8 +198,26 @@ const englishTranslation = {
                     "You are entering a demo voting booth. <strong>Your vote will NOT be cast.</strong> This voting booth is for demonstration purposes only.",
                 ok: "I accept my vote will Not be cast",
             },
-            noVotingAreaError:
-                "Election Area not assigned to voter. Kindly contact your administrator for assistance",
+            errors: {
+                noVotingArea:
+                    "Election area not assigned to voter. Please try again later or contact support for assistance.",
+                networkError:
+                    "There was a network problem. Please try again later or contact support for assistance.",
+                unableToFetchData:
+                    "There was a problem fetching the data. Please try again later or contact support for assistance.",
+                noElectionEvent:
+                    "Election event doesn’t exist. Please try again later or contact support for assistance.",
+                ballotStylesEmlError:
+                    "There was an error with the publish ballot style. Please try again later or contact support for assistance.",
+                obtainingElectionFromID:
+                    "There was an error obtaining elections associated with the following election IDs: {{electionIds}}. Please try again later or contact support for assistance.",
+            },
+            alerts: {
+                noElections:
+                    "There are no elections you can vote for. This could be because the area doesn’t have any contest associated. Please try again later or contact support for assistance.",
+                electionEventNotPublished:
+                    "The election event hasn’t been published yet. Please try again later or contact support for assistance.",
+            },
         },
         errors: {
             encoding: {
@@ -193,6 +239,8 @@ const englishTranslation = {
                     "Number of selected choices {{numSelected}} for list {{type}} is more than the maximum {{max}}",
                 underVote:
                     "Undervote: Number of selected choices {{numSelected}} is less than the maximum {{max}}",
+                overVoteDisabled:
+                    "Maximum reached: You have selected the maximum {{numSelected}} choices. To change your selection, please deselect another option first.",
                 blankVote: "Blank Vote: 0 choices selected",
             },
             explicit: {

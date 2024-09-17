@@ -22,16 +22,22 @@ use tracing::instrument;
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
+use windmill::services::tasks_execution::*;
 use windmill::services::users::ListUsersFilter;
 use windmill::services::users::{list_users, list_users_with_vote_info};
 use windmill::tasks::export_users;
-use windmill::tasks::import_users;
+use windmill::tasks::import_users::{self, ImportUsersOutput};
+use windmill::types::tasks::ETasksExecution;
 
 #[derive(Deserialize, Debug)]
 pub struct DeleteUserBody {
     tenant_id: String,
     election_event_id: Option<String>,
     user_id: String,
+}
+#[derive(Deserialize, Debug)]
+pub struct ExportTenantUsersBody {
+    tenant_id: String,
 }
 
 #[instrument(skip(claims))]
@@ -423,34 +429,69 @@ pub async fn get_user(
 pub async fn import_users_f(
     claims: jwt::JwtClaims,
     body: Json<import_users::ImportUsersBody>,
-) -> Result<Json<OptionalId>, (Status, String)> {
-    let input = body.into_inner();
+) -> Result<Json<ImportUsersOutput>, (Status, String)> {
+    let input = body.clone().into_inner();
+    let tenant_id = claims.hasura_claims.tenant_id.clone();
+    let election_event_id = input.election_event_id.clone().unwrap_or_default();
+    let executer_name = claims
+        .name
+        .clone()
+        .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
     let required_perm: Permissions = if input.election_event_id.is_some() {
         Permissions::VOTER_CREATE
     } else {
         Permissions::USER_CREATE
     };
+
+    // Insert the task execution record
+    let task_execution = post(
+        &tenant_id,
+        &election_event_id,
+        ETasksExecution::IMPORT_USERS,
+        &executer_name,
+    )
+    .await
+    .map_err(|error| {
+        (
+            Status::InternalServerError,
+            format!("Failed to insert task execution record: {error:?}"),
+        )
+    })?;
+
     authorize(
         &claims,
         true,
         Some(input.tenant_id.clone()),
         vec![required_perm],
     )?;
+    let name = claims
+        .name
+        .clone()
+        .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
     let celery_app = get_celery_app().await;
-    let task = celery_app
-        .send_task(import_users::import_users::new(input))
-        .await
-        .map_err(|e| {
-            (
-                Status::InternalServerError,
-                format!("Error sending import_users task: {:?}", e),
-            )
-        })?;
-    info!("Sent IMPORT_USERS task {}", task.task_id);
 
-    Ok(Json(OptionalId {
-        id: Some(task.task_id),
-    }))
+    let celery_task = match celery_app
+        .send_task(import_users::import_users::new(
+            input,
+            task_execution.clone(),
+        ))
+        .await
+    {
+        Ok(celery_task) => celery_task,
+        Err(_) => {
+            return Ok(Json(ImportUsersOutput {
+                task_execution: task_execution.clone(),
+            }));
+        }
+    };
+
+    info!("Sent IMPORT_USERS task {}", task_execution.id);
+
+    let output = ImportUsersOutput {
+        task_execution: task_execution.clone(),
+    };
+
+    Ok(Json(output))
 }
 
 #[instrument(skip(claims))]
@@ -460,21 +501,33 @@ pub async fn export_users_f(
     input: Json<export_users::ExportUsersBody>,
 ) -> Result<Json<export_users::ExportUsersOutput>, (Status, String)> {
     let body = input.into_inner();
-    let required_perm: Permissions = if body.election_event_id.is_some() {
+
+    let required_perm = if body.election_event_id.is_some() {
         Permissions::VOTER_READ
     } else {
         Permissions::USER_READ
     };
+
     authorize(
         &claims,
         true,
         Some(body.tenant_id.clone()),
         vec![required_perm],
     )?;
+
     let document_id = Uuid::new_v4().to_string();
+
     let celery_app = get_celery_app().await;
+
     let task = celery_app
-        .send_task(export_users::export_users::new(body, document_id.clone()))
+        .send_task(export_users::export_users::new(
+            export_users::ExportBody::Users {
+                tenant_id: body.tenant_id,
+                election_event_id: body.election_event_id,
+                election_id: body.election_id,
+            },
+            document_id.clone(),
+        ))
         .await
         .map_err(|error| {
             (
@@ -482,11 +535,54 @@ pub async fn export_users_f(
                 format!("Error sending export_users task: {error:?}"),
             )
         })?;
+
+    let output = export_users::ExportUsersOutput {
+        document_id,
+        task_id: task.task_id.clone(),
+    };
+
+    info!("Sent EXPORT_USERS task {}", task.task_id);
+
+    Ok(Json(output))
+}
+
+#[instrument(skip(claims))]
+#[post("/export-tenant-users", format = "json", data = "<input>")]
+pub async fn export_tenant_users_f(
+    claims: jwt::JwtClaims,
+    input: Json<ExportTenantUsersBody>,
+) -> Result<Json<export_users::ExportUsersOutput>, (Status, String)> {
+    let body = input.into_inner();
+    let required_perm = Permissions::USER_READ;
+    info!("input-users {:?}", body);
+
+    authorize(
+        &claims,
+        true,
+        Some(body.tenant_id.clone()),
+        vec![Permissions::USER_READ],
+    )?;
+    let document_id = Uuid::new_v4().to_string();
+    let celery_app = get_celery_app().await;
+    let task = celery_app
+        .send_task(export_users::export_users::new(
+            export_users::ExportBody::TenantUsers {
+                tenant_id: body.tenant_id,
+            },
+            document_id.clone(),
+        ))
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Error sending export_tenant_users task: {error:?}"),
+            )
+        })?;
     let output = export_users::ExportUsersOutput {
         document_id: document_id,
         task_id: task.task_id.clone(),
     };
-    info!("Sent EXPORT_USERS task {}", task.task_id);
+    info!("Sent EXPORT_TENANT_USERS task {}", task.task_id);
 
     Ok(Json(output))
 }

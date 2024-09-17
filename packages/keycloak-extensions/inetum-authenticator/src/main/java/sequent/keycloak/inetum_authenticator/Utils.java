@@ -8,6 +8,8 @@
 
 package sequent.keycloak.inetum_authenticator;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import freemarker.template.Template;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
@@ -25,11 +27,14 @@ import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.FormContext;
 import org.keycloak.events.Details;
+import org.keycloak.events.EventBuilder;
 import org.keycloak.events.EventType;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
+import org.keycloak.representations.userprofile.config.UPAttribute;
+import org.keycloak.representations.userprofile.config.UPConfig;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.userprofile.UserProfile;
 import org.keycloak.userprofile.UserProfileContext;
@@ -41,8 +46,8 @@ public class Utils {
   public final String DOC_ID_ATTRIBUTE = "doc-id";
   public final String DOC_ID_TYPE_ATTRIBUTE = "doc-id-type";
   public final String USER_STATUS_ATTRIBUTE = "user-status";
-  public final String USER_STATUS_VERIFIED = "VERFIED";
-  public final String USER_STATUS_NOT_VERIFIED = "NOT-VERFIED";
+  public final String USER_STATUS_VERIFIED = "VERIFIED";
+  public final String USER_STATUS_NOT_VERIFIED = "NOT-VERIFIED";
   public final String SDK_ATTRIBUTE = "sdk";
   public final String API_KEY_ATTRIBUTE = "api-key";
   public final String APP_ID_ATTRIBUTE = "app-id";
@@ -69,6 +74,8 @@ public class Utils {
   public final String FTL_DOC_ID_TYPE = "doc_id_type";
   public final String FTL_ERROR_INTERNAL = "internalInetumError";
   public final String FTL_ERROR_AUTH_INVALID = "internalInetumError";
+  public final String FTL_ERROR_INVALID_SCORE = "scoringInetumError";
+  public final String FTL_ERROR_INVALID_ATTRIBUTES = "attributesInetumError";
 
   private static final String KEYS_USERDATA = "keyUserdata";
   private static final String KEYS_USERDATA_SEPARATOR = ";";
@@ -77,6 +84,19 @@ public class Utils {
   private static final String USER_ID = "userId";
   public static final String MULTIVALUE_SEPARATOR = "##";
   public static final String ATTRIBUTE_TO_VALIDATE_SEPARATOR = ":";
+  public static final String ERROR_USER_NOT_FOUND = "userNotFound";
+  public static final String ERROR_USER_HAS_CREDENTIALS = "userHasCredentials";
+  public static final String ERROR_USER_ATTRIBUTES_NOT_UNSET = "userAttributesNotUnset";
+  public static final String ERROR_USER_ATTRIBUTES_NOT_UNIQUE = "userAttributesNotUnique";
+  public static final String PHONE_NUMBER = "phone_number";
+  public static final String PHONE_NUMBER_ATTRIBUTE = "sequent.read-only.id-mobile-number";
+  public static final String ID_NUMBER_ATTRIBUTE = "sequent.read-only.id-card-number";
+  public static final String ID_NUMBER = "ID_number";
+  public static final String USER_PROFILE_ATTRIBUTES = "user_profile_attributes";
+  public static final String AUTHENTICATOR_CLASS_NAME = "authenticator_class_name";
+  public static final String MAX_RETRIES = "max-retries";
+  public static final int DEFAULT_MAX_RETRIES = 3;
+  public static final int BASE_RETRY_DELAY = 1_000;
 
   /**
    * We store the user data entered in the registration form in the session notes. This information
@@ -246,5 +266,59 @@ public class Utils {
     String userId = context.getAuthenticationSession().getAuthNote(USER_ID);
 
     return context.getSession().users().getUserById(context.getRealm(), userId);
+  }
+
+  public String getUserAttributesString(UserModel user) {
+    if (user != null) {
+      Map<String, List<String>> attributes = user.getAttributes();
+      ObjectMapper mapper = new ObjectMapper();
+      ObjectNode attributesJson = mapper.createObjectNode();
+
+      for (String attributeName : attributes.keySet()) {
+        String value = attributes.get(attributeName).get(0);
+        if (value != null) {
+          attributesJson.put(attributeName, value);
+        }
+      }
+
+      return attributesJson.toString();
+    }
+    return null;
+  }
+
+  public void buildEventDetails(
+      EventBuilder builder,
+      AuthenticationSessionModel authSession,
+      UserModel user,
+      KeycloakSession session,
+      String className) {
+    List<UPAttribute> realmsAttributes = getRealmUserProfileAttributes(session);
+    for (UPAttribute attribute : realmsAttributes) {
+      String authNoteValue = authSession.getAuthNote(attribute.getName());
+      builder.detail(attribute.getName(), authNoteValue);
+    }
+    if (user != null) {
+      builder.user(user.getId());
+      builder.detail(USER_PROFILE_ATTRIBUTES, getUserAttributesString(user));
+    } else {
+      String userId = authSession.getAuthNote(USER_ID);
+      builder.user(userId);
+    }
+    builder.detail(AUTHENTICATOR_CLASS_NAME, className);
+  }
+
+  public List<UPAttribute> getRealmUserProfileAttributes(KeycloakSession session) {
+    UserProfileProvider userProfileProvider = session.getProvider(UserProfileProvider.class);
+    UPConfig userProfileMetadata = userProfileProvider.getConfiguration();
+    return userProfileMetadata.getAttributes();
+  }
+
+  public static int parseInt(String s, int defaultValue) {
+    if (s == null) return defaultValue;
+    try {
+      return Integer.parseInt(s);
+    } catch (NumberFormatException x) {
+      return defaultValue;
+    }
   }
 }

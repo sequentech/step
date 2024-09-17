@@ -1,5 +1,8 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
+
+import {Placeholder} from "react-admin"
+
 // SPDX-License-Identifier: AGPL-3.0-only
 const englishTranslation = {
     translations: {
@@ -78,6 +81,32 @@ const englishTranslation = {
                 title: "IAM Database Logs",
             },
         },
+        tasksScreen: {
+            noPermissions: "You don't have permission to access logs.",
+            title: "Tasks Execution",
+            subtitle: "Information about the executed tasks",
+            taskInformation: "Task Information",
+            status: "status: {{status}}",
+            ok: "Ok",
+            column: {
+                id: "Index",
+                name: "Task name",
+                type: "Type",
+                execution_status: "Status",
+                start_at: "Start time",
+                end_at: "End time",
+                executed_by_user: "Executer",
+                annotations: "Annotations",
+                labels: "Labels",
+                logs: "Logs",
+            },
+            tasksExecution: {
+                EXPORT_ELECTION_EVENT: "Export Election Event",
+                IMPORT_ELECTION_EVENT: "Import Election Event",
+                IMPORT_USERS: "Import Users",
+                IMPORT_CANDIDATES: "Import Candidates",
+            },
+        },
         confirmationScreen: {
             title: "Your vote has been cast",
             description:
@@ -137,6 +166,7 @@ const englishTranslation = {
                     'Welcome to the Voting Booth, this screen shows the list of elections you can cast a ballot. Elections displayed in this list can be open to voting, scheduled, or closed. You will be able to access the ballot only if the voting period is open. In the case an election is closed and your election administrator has published the result you will see an "Election Result" button that will take you to the public result page.',
                 ok: "OK",
             },
+            closedEventError: "Election event is currently closed",
         },
         areas: {
             common: {
@@ -166,6 +196,8 @@ const englishTranslation = {
                 createNew: "Create Election Type",
                 emptyHeader: "No Election Types yet.",
                 emptyBody: "Do you want to create one?",
+                logoUrl: "Logo URL",
+                css: "Custom CSS",
             },
             create: {
                 title: "Create Election Type",
@@ -178,6 +210,7 @@ const englishTranslation = {
                 electionTypes: "ELECTION TYPES",
                 communications: "COMMUNICATION",
                 languages: "LANGUAGES",
+                lookAndFeel: "Look & Feel",
                 schedules: "SCHEDULED EVENTS",
                 trustees: "TRUSTEES",
             },
@@ -222,6 +255,7 @@ const englishTranslation = {
             voteByDay: "Votes by day",
             votersByChannels: "Voters by channel",
             voterLoginURL: "Voter Login URL",
+            voterEnrollURL: "Voter Enroll URL",
         },
         electionEventScreen: {
             common: {
@@ -232,6 +266,8 @@ const englishTranslation = {
             edit: {
                 general: "General",
                 dates: "Dates",
+                customUrls: "Custom URLs Prefix",
+                votingPeriod: "Voting Period",
                 language: "Language",
                 allowed: "Voting Channels Allowed",
                 materials: "Support Materials",
@@ -239,6 +275,10 @@ const englishTranslation = {
                 reorder: "Reorder elections",
                 advancedConfigurations: "Advanced Configurations",
                 importCandidates: "Import Candidates",
+            },
+            customUrls: {
+                login: "Login",
+                enrollment: "Enrollment",
             },
             localization: {
                 emptyHeader: "No languages were set for the event",
@@ -267,7 +307,6 @@ const englishTranslation = {
                 materialActivated: "Support Materials Activated",
                 materialTitle: "Title",
                 materialSubTitle: "Subtitle",
-                hideAudit: "Disable Ballot Audit Support",
                 logoUrl: "Logo URL",
                 redirectFinishUrl: "Redirect Finish URL",
                 css: "Custom CSS",
@@ -285,8 +324,9 @@ const englishTranslation = {
             },
             error: {
                 endDate: "End date must be after start date",
-                noResult: "No Election Event yet",
                 startDate: "Start date must be in the future",
+                noResult: "No Election Event yet",
+                endDateInvalid: "End date must be in the future",
             },
             voters: {
                 title: "Voters",
@@ -337,6 +377,7 @@ const englishTranslation = {
                 tally: "Tally",
                 publish: "Publish",
                 logs: "Logs",
+                tasks: "Tasks",
             },
             tally: {
                 emptyHeader: "No Tally yet.",
@@ -358,6 +399,10 @@ const englishTranslation = {
                     noLogs: "No logs available",
                 },
                 notify: {
+                    noKeysTally:
+                        "The Tally Ceremony cannot start until the Keys Ceremony has been successfully completed.",
+                    noPublication:
+                        "The Tally Ceremony cannot start until you create one publication in the Publish tab.",
                     participateNow:
                         "You have been invited to participate in a Tally ceremony. Please <1>click on the ceremony's Key Action</1> to participate.",
                 },
@@ -398,6 +443,8 @@ const englishTranslation = {
                 },
             },
             exportError: "Error exporting Election Event",
+            taskNotification:
+                "{{action}} has started. You can see its status at Tasks Execution table.",
         },
         electionScreen: {
             common: {
@@ -408,6 +455,7 @@ const englishTranslation = {
             edit: {
                 general: "General",
                 dates: "Dates",
+                votingPeriod: "Voting Period",
                 language: "Language",
                 allowed: "Voting Channels Allowed",
                 default: "Default",
@@ -431,9 +479,11 @@ const englishTranslation = {
                 description: "Description",
             },
             error: {
-                endDate: "End date must be after start date",
                 fileError: "Error uploading file",
                 fileLoaded: "File loaded",
+                endDate: "End date must be after start date",
+                startDate: "Start date must be in the future",
+                endDateInvalid: "End date must be in the future",
             },
             createElectionEventSuccess: "Election Event created",
             createElectionEventError: "Error creating election event",
@@ -611,6 +661,7 @@ const englishTranslation = {
                 "publish-read": "Read Publish",
                 "publish-write": "Edit Publish",
                 "logs-read": "Read Logs",
+                "tasks-read": "Read Tasks Execution",
                 "keys-read": "Read Keys",
                 "document-upload": "Upload Documents",
                 "document-download": "Download Documents",
@@ -625,6 +676,10 @@ const englishTranslation = {
                 "document-write": "Edit Documents",
                 "support-material-read": "Read Support Materials",
                 "support-material-write": "Edit Support Materials",
+                "miru-create": "Miru Create",
+                "miru-download": "Miru Download",
+                "miru-send": "Miru Send",
+                "miru-sign": "Miru Sign",
             },
         },
         generalSettingsScreen: {
@@ -672,6 +727,7 @@ const englishTranslation = {
                 en: "English",
                 fr: "French",
                 cat: "Valencian",
+                tl: "Tagalog",
             },
             channel: {
                 online: "Online",
@@ -797,7 +853,21 @@ const englishTranslation = {
                 "custom": "Custom",
                 "alphabetical": "Alphabetical",
             },
+            auditButtonConfig: {
+                "label": "Audit Button Display Options",
+                "show": "Show",
+                "not-show": "Not Show",
+                "show-in-help": "Show In Help Dialog",
+            },
+            underVotePolicy: {
+                "label": "Under Vote Policy",
+                "allowed": "Allowed",
+                "warn-only-in-review": "Warn in Review",
+                "warn": "Warn",
+                "warn-and-alert": "Warn and Alert",
+            },
             invalidVotePolicy: {
+                "label": "Invalid Vote Policy",
                 "allowed": "Allowed",
                 "warn": "Warn",
                 "warn-invalid-implicit-and-explicit": "Warn Invalid Implicit And Explicit",
@@ -812,8 +882,21 @@ const englishTranslation = {
             blankVotePolicy: {
                 "label": "Blank Vote Policy",
                 "allowed": "Allowed",
+                "warn-only-in-review": "Warn in Review",
                 "warn": "Warn",
                 "not-allowed": "Not Allowed",
+            },
+            overVotePolicy: {
+                "label": "Over Vote Policy",
+                "allowed": "Allowed",
+                "allowed-with-msg": "Allowed with Warning Message",
+                "allowed-with-msg-and-alert": "Allowed with Warning message and Alert",
+                "not-allowed-with-msg-and-alert": "Not Allowed with Warning message and Alert",
+                "not-allowed-with-msg-and-disable":
+                    "Not Allowed with Warning message and Disable further selections",
+            },
+            paginationPolicy: {
+                label: "Page Name",
             },
             error: {},
             createContestSuccess: "Contest created",
@@ -904,7 +987,96 @@ const englishTranslation = {
                 downloaded: "Encrypted Private Key generated successfully.",
             },
         },
+        miruExport: {
+            create: {
+                success: "Creating Transmission Package...",
+                error: "Error creating Transmission Package ",
+            },
+            send: {
+                success: "Sending Transmission Package...",
+                error: "Error sending Transmission Package ",
+            },
+        },
         tally: {
+            errorUploadingSignature: "There was an error uploading signature",
+            downloadTransmissionPackage: "Download Transmission Package",
+            transmissionPackage: {
+                title: "Transmission Package for Area '{{name}}'",
+                description:
+                    "Allows you to export a Transmission Package to Destination Servers or download it.",
+                actions: {
+                    send: {
+                        title: "Send",
+                        dialog: {
+                            title: "Do you want to Send the Transmission Package?",
+                            description:
+                                "Please confirm you want to Send the Transmission Package for Area `{{name}}` to the Destination Servers.",
+                            confirm: "Send Transmission Package",
+                            cancel: "Close",
+                        },
+                    },
+                    regenerate: {
+                        title: "Regenerate",
+                        dialog: {
+                            title: "Do you want to regenerate the Transmission Package?",
+                            description:
+                                "Please confirm you want to regenerate the Transmission Package for Area `{{name}}`",
+                            confirm: "Regenerate Transmission Package",
+                            cancel: "Close",
+                        },
+                    },
+                    sign: {
+                        title: "Regenerate",
+                        dialog: {
+                            title: "Do you want to sign the Transmission Package?",
+                            description:
+                                "Please confirm you want to regenerate the Transmission Package for Area `{{name}}`",
+                            confirm: "Sign Transmission Package",
+                            cancel: "Close",
+                            input: {
+                                placeholder: "Enter your password",
+                            },
+                        },
+                    },
+                    download: {
+                        title: "Download",
+                        emlTitle: "Download EML",
+                        transmissionPackageTitle: "Download Transmission Package",
+                        dialog: {
+                            title: "Do you want to Download the Transmission Package?",
+                            description:
+                                "Please confirm you want to Download the Transmission Package for Area `{{name}}.`",
+                            confirm: "Download Transmission Package",
+                            cancel: "Close",
+                        },
+                    },
+                },
+                destinationServers: {
+                    title: "Destination Servers",
+                    description:
+                        "The table below shows the sending status of each of the Destination Servers.",
+                    status: "Sent to {{signed}} out of {{total}}",
+                    table: {
+                        serverName: "Server Name",
+                        sendStatus: "Sending Status",
+                    },
+                },
+                signatures: {
+                    title: "SBEI Signatures",
+                    description:
+                        "SBEIs can sign the Transmission Package. The table below shows the signing status of each of the SBEI members.",
+                    status: "{{signed}} out of {{total}} Signed, {{minimum}} minimum",
+                    table: {
+                        trusteeName: "Trustee Name",
+                        signed: "Has Signed",
+                    },
+                },
+            },
+            sendToTransmissionPackageServers: "Send Transmission Package for Area '{{name}}'",
+            uploadTransmissionPackage: "Sign Transmission Package",
+            uploadTransmissionPackageDesc:
+                "Upload your Signature to sign the Transmission Package. This is an optional operation.",
+            exportElectionArea: "Send Transmission Package for Area '{{name}}'",
             templateTitle: "Results Template",
             templateSubTitle: "Optionally overwrite the results template.",
             ceremonyTitle: "Elections to Tally",
@@ -1005,9 +1177,9 @@ const englishTranslation = {
                 history: "Publish History",
             },
             action: {
-                start: "Start Election",
-                stop: "Stop Election",
-                pause: "Pause",
+                startVotingPeriod: "Start Voting",
+                stopVotingPeriod: "Stop Voting",
+                pauseVotingPeriod: "Pause Voting",
                 generate: "Regenerate",
                 publish: "Publish Changes",
                 back: "Back",
@@ -1025,6 +1197,11 @@ const englishTranslation = {
             dialog: {
                 title: "Confirm Action",
                 info: "You have clicked on a sensitive action, so we need you to confirm in order to continue",
+                startInfo:
+                    "You are about to start voting period. Are you sure you want to continue?",
+                stopInfo: "You are about to stop voting period. Are you sure you want to continue?",
+                pauseInfo:
+                    "You are about to pause voting period. Are you sure you want to continue?",
                 ok: "Confirm",
                 ko: "Cancel",
                 error: "Error loading ballot publication",
@@ -1118,6 +1295,12 @@ const englishTranslation = {
                 census: "Census",
             },
             common: {
+                tallyCeremony: {
+                    manage: "Manage Tally Ceremony",
+                    view: "View Tally Ceremony",
+                    cancel: "Cancel Tally Ceremony",
+                    addKey: "Add Tally Key",
+                },
                 edit: "Edit",
                 confirm: "Confirm",
                 back: "Back",
@@ -1216,6 +1399,9 @@ const englishTranslation = {
                 isHidden: "Is Hidden",
                 publicUrl: "Public URL",
             },
+        },
+        widget: {
+            logs: "Logs",
         },
     },
 }

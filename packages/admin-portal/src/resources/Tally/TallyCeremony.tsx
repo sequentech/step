@@ -1,8 +1,14 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useEffect, useMemo, useState} from "react"
-import {BreadCrumbSteps, BreadCrumbStepsVariant, Dialog, theme} from "@sequentech/ui-essentials"
+import React, {useCallback, useContext, useEffect, useMemo, useRef, useState} from "react"
+import {
+    BreadCrumbSteps,
+    BreadCrumbStepsVariant,
+    Dialog,
+    DropFile,
+    theme,
+} from "@sequentech/ui-essentials"
 import ChevronRightIcon from "@mui/icons-material/ChevronRight"
 import {useTranslation} from "react-i18next"
 import ElectionHeader from "@/components/ElectionHeader"
@@ -14,8 +20,12 @@ import {
     MenuItem,
     Select,
     FormControl,
+    Button,
+    Box,
+    CircularProgress,
 } from "@mui/material"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
+import CellTowerIcon from "@mui/icons-material/CellTower"
 import {ListActions} from "@/components/ListActions"
 import {TallyElectionsList} from "./TallyElectionsList"
 import {TallyTrusteesList} from "./TallyTrusteesList"
@@ -30,19 +40,22 @@ import {WizardStyles} from "@/components/styles/WizardStyles"
 import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
 import {CREATE_TALLY_CEREMONY} from "@/queries/CreateTallyCeremony"
 import {useMutation} from "@apollo/client"
-import {ILog, ITallyExecutionStatus} from "@/types/ceremonies"
+import {ITallyExecutionStatus} from "@/types/ceremonies"
+
 import {
     CreateTallyCeremonyMutation,
+    CreateTransmissionPackageMutation,
+    SendTransmissionPackageMutation,
+    Sequent_Backend_Area,
     Sequent_Backend_Communication_Template,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Keys_Ceremony,
-    Sequent_Backend_Results_Election,
     Sequent_Backend_Results_Event,
     Sequent_Backend_Tally_Session,
     Sequent_Backend_Tally_Session_Execution,
     UpdateTallyCeremonyMutation,
 } from "@/gql/graphql"
-import {CancelButton, NextButton, StyledTitle} from "./styles"
+import {CancelButton, NextButton} from "./styles"
 import {statusColor} from "./constants"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
@@ -50,28 +63,50 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IResultDocuments} from "@/types/results"
 import {ResultsDataLoader} from "./ResultsDataLoader"
 import {ICommunicationType} from "@/types/communications"
+import {
+    IMiruTallySessionData,
+    IMiruTransmissionPackageData,
+    MIRU_TALLY_SESSION_ANNOTATION_KEY,
+} from "@/types/miru"
+import {IPermissions} from "@/types/keycloak"
+import {CREATE_TRANSMISSION_PACKAGE} from "@/queries/CreateTransmissionPackage"
+import {useAtomValue} from "jotai"
+import {tallyQueryData} from "@/atoms/tally-candidates"
+import {AuthContext} from "@/providers/AuthContextProvider"
 
 const WizardSteps = {
     Start: 0,
     Ceremony: 1,
     Tally: 2,
     Results: 3,
+    Export: 4,
 }
 
-interface IExpanded {
+export interface IExpanded {
     [key: string]: boolean
 }
 
 export const TallyCeremony: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
-
     const {t, i18n} = useTranslation()
-    const {tallyId, setTallyId, setCreatingFlag} = useElectionEventTallyStore()
+    const {
+        tallyId,
+        setTallyId,
+        setCreatingFlag,
+        setElectionEventId,
+        setMiruAreaId,
+        selectedTallySessionData,
+        setSelectedTallySessionData,
+    } = useElectionEventTallyStore()
     const notify = useNotify()
     const {globalSettings} = useContext(SettingsContext)
 
+    // const [selectedTallySessionData, setSelectedTallySessionData] =
+    // useState<IMiruTransmissionPackageData | null>(null)
     const [openModal, setOpenModal] = useState(false)
+    const [confirmSendMiruModal, setConfirmSendMiruModal] = useState(false)
     const [openCeremonyModal, setOpenCeremonyModal] = useState(false)
+    const [transmissionLoading, setTransmissionLoading] = useState<boolean>(false)
     const [page, setPage] = useState<number>(WizardSteps.Start)
     const [tally, setTally] = useState<Sequent_Backend_Tally_Session>()
     const [isButtonDisabled, setIsButtonDisabled] = useState<boolean>(true)
@@ -79,7 +114,8 @@ export const TallyCeremony: React.FC = () => {
     const [isTallyElectionListDisabled, setIsTallyElectionListDisabled] = useState<boolean>(false)
     const [localTallyId, setLocalTallyId] = useState<string | null>(null)
     const [tenantId] = useTenantStore()
-
+    const authContext = useContext(AuthContext)
+    const isTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_CEREMONY)
     const [selectedElections, setSelectedElections] = useState<string[]>([])
     const [selectedTrustees, setSelectedTrustees] = useState<boolean>(false)
 
@@ -87,6 +123,16 @@ export const TallyCeremony: React.FC = () => {
         useMutation<CreateTallyCeremonyMutation>(CREATE_TALLY_CEREMONY)
     const [UpdateTallyCeremonyMutation] =
         useMutation<UpdateTallyCeremonyMutation>(UPDATE_TALLY_CEREMONY)
+
+    const tallyData = useAtomValue(tallyQueryData)
+
+    const area: Sequent_Backend_Area | null = useMemo(
+        () =>
+            tallyData?.sequent_backend_area?.find(
+                (area) => selectedTallySessionData?.area_id === area.id
+            ) ?? null,
+        [selectedTallySessionData?.area_id, tallyData?.sequent_backend_area]
+    )
 
     const [expandedData, setExpandedData] = useState<IExpanded>({
         "tally-data-progress": true,
@@ -100,6 +146,13 @@ export const TallyCeremony: React.FC = () => {
         "tally-results-logs": true,
         "tally-results-general": true,
         "tally-results-results": true,
+    })
+
+    const [expandedExports, setExpandedDataExports] = useState<IExpanded>({
+        "tally-miru-upload": true,
+        "tally-miru-signatures": false,
+        "tally-download-package": false,
+        "tally-miru-servers": false,
     })
 
     const {data} = useGetOne<Sequent_Backend_Tally_Session>(
@@ -150,6 +203,39 @@ export const TallyCeremony: React.FC = () => {
 
     let resultsEventId = tallySessionExecutions?.[0]?.results_event_id ?? null
 
+    const tallySessionData = useMemo(() => {
+        try {
+            let strData = data?.annotations?.[MIRU_TALLY_SESSION_ANNOTATION_KEY]
+            if (!strData) {
+                return []
+            }
+            let parsed = JSON.parse(strData) as IMiruTallySessionData
+            return parsed
+        } catch (e) {
+            return []
+        }
+    }, [data?.annotations?.[MIRU_TALLY_SESSION_ANNOTATION_KEY]])
+    const tallySessionDataRef = useRef(tallySessionData)
+
+    useEffect(() => {
+        tallySessionDataRef.current = tallySessionData
+    }, [tallySessionData])
+
+    useEffect(() => {
+        if (!selectedTallySessionData || !tallySessionData) {
+            return
+        }
+        let found = tallySessionData.find(
+            (el) =>
+                el.area_id === selectedTallySessionData.area_id &&
+                el.election_id === selectedTallySessionData.election_id
+        )
+        if (found && JSON.stringify(found) !== JSON.stringify(selectedTallySessionData)) {
+            setSelectedTallySessionData(found ?? null)
+            setElectionEventId(record?.id)
+        }
+    }, [tallySessionData, selectedTallySessionData])
+
     const {data: resultsEvent, refetch} = useGetList<Sequent_Backend_Results_Event>(
         "sequent_backend_results_event",
         {
@@ -179,21 +265,28 @@ export const TallyCeremony: React.FC = () => {
 
     useEffect(() => {
         if (data) {
-            // if (tally?.last_updated_at !== data.last_updated_at) {
-            setPage(
-                !tallyId
-                    ? WizardSteps.Start
-                    : data.execution_status === ITallyExecutionStatus.STARTED ||
-                      data.execution_status === ITallyExecutionStatus.CONNECTED
-                    ? WizardSteps.Ceremony
-                    : data.execution_status === ITallyExecutionStatus.IN_PROGRESS
-                    ? WizardSteps.Tally
-                    : data.execution_status === ITallyExecutionStatus.SUCCESS
-                    ? WizardSteps.Results
-                    : WizardSteps.Start
-            )
             setTally(data)
-            // }
+            if (!tallyId && data.execution_status !== ITallyExecutionStatus.CANCELLED) {
+                setPage(WizardSteps.Start)
+                return
+            }
+            if (
+                data.execution_status === ITallyExecutionStatus.STARTED ||
+                data.execution_status === ITallyExecutionStatus.CONNECTED ||
+                data.execution_status === ITallyExecutionStatus.CANCELLED
+            ) {
+                setPage(WizardSteps.Ceremony)
+                return
+            }
+            if (data.execution_status === ITallyExecutionStatus.IN_PROGRESS) {
+                setPage(WizardSteps.Tally)
+                return
+            }
+            if (data.execution_status === ITallyExecutionStatus.SUCCESS) {
+                setPage(WizardSteps.Results)
+                return
+            }
+            setPage(WizardSteps.Start)
         }
     }, [data])
 
@@ -294,6 +387,123 @@ export const TallyCeremony: React.FC = () => {
         [resultsEventId, resultsEvent, resultsEvent?.[0]?.id]
     )
     const handleSetTemplate = (event: SelectChangeEvent) => setTemplateId(event.target.value)
+
+    const handleMiruExportSuccess = (e: {
+        election_id?: string
+        area_id?: string
+        existingPackage?: IMiruTransmissionPackageData
+    }) => {
+        //check for task completion and fetch data
+        //set new page status(navigate to miru wizard)
+        if (e.existingPackage) {
+            setSelectedTallySessionData(e.existingPackage)
+            setElectionEventId(record?.id)
+            setMiruAreaId(e.existingPackage.area_id)
+            setTransmissionLoading(false)
+        } else {
+            let packageData: IMiruTransmissionPackageData | null = null
+            let retry = 0
+
+            let intervalId = setInterval(() => {
+                if (!!packageData || retry >= 5) {
+                    notify(t("miruExport.create.error"), {type: "error"})
+                    clearInterval(intervalId)
+                    return
+                }
+                const found =
+                    tallySessionDataRef.current?.find(
+                        (datum) =>
+                            datum.area_id === e.area_id && datum.election_id === e.election_id
+                    ) ?? null
+
+                if (found) {
+                    packageData = found
+                    clearInterval(intervalId)
+                    setSelectedTallySessionData(packageData)
+                    setElectionEventId(record?.id)
+                    setMiruAreaId(packageData.area_id)
+                    setTransmissionLoading(false)
+                } else {
+                    retry = retry + 1
+                }
+            }, globalSettings.QUERY_POLL_INTERVAL_MS)
+        }
+    }
+
+    const [CreateTransmissionPackage] = useMutation<CreateTransmissionPackageMutation>(
+        CREATE_TRANSMISSION_PACKAGE,
+        {
+            context: {
+                headers: {
+                    "x-hasura-role": IPermissions.MIRU_CREATE,
+                },
+            },
+        }
+    )
+
+    const handleCreateTransmissionPackage = useCallback(
+        async ({area_id, election_id}: {area_id: string; election_id: string}) => {
+            setTransmissionLoading(true)
+            console.log({
+                electionId: election_id,
+                tallySessionId: tallyId,
+                areaId: area_id,
+            })
+
+            const found = tallySessionData.find(
+                (datum) => datum.area_id === area_id && datum.election_id === election_id
+            )
+
+            if (!election_id) {
+                notify(t("miruExport.create.error"), {type: "error"})
+                setTransmissionLoading(false)
+                console.log("Unable to get election id.")
+                return
+            }
+
+            if (found) {
+                handleMiruExportSuccess?.({existingPackage: found})
+                return
+            }
+
+            if (isTrustee) {
+                notify(t("Only Admins can send Transmission Package. Please try again later"), {
+                    type: "warning",
+                })
+                setTransmissionLoading(false)
+                return
+            }
+
+            try {
+                const {data: nextStatus, errors} = await CreateTransmissionPackage({
+                    variables: {
+                        electionId: election_id,
+                        tallySessionId: tallyId,
+                        areaId: area_id,
+                        force: false,
+                    },
+                })
+
+                console.log("createTransmissionPackage", {nextStatus, errors})
+
+                if (errors) {
+                    setTransmissionLoading(false)
+                    notify(t("miruExport.create.error"), {type: "error"})
+                    return
+                }
+
+                if (nextStatus) {
+                    notify(t("miruExport.create.success"), {type: "success"})
+                    handleMiruExportSuccess?.({area_id, election_id})
+                }
+            } catch (error) {
+                console.log(`Caught error: ${error}`)
+                setTransmissionLoading(false)
+                notify(t("miruExport.create.error"), {type: "error"})
+            }
+        },
+        [tallySessionData, tally]
+    )
 
     return (
         <>
@@ -453,7 +663,11 @@ export const TallyCeremony: React.FC = () => {
                                 </WizardStyles.AccordionTitle>
                             </AccordionSummary>
                             <WizardStyles.AccordionDetails>
-                                <TallyResults tally={tally} resultsEventId={resultsEventId} />
+                                <TallyResults
+                                    tally={tally}
+                                    resultsEventId={resultsEventId}
+                                    onCreateTransmissionPackage={handleCreateTransmissionPackage}
+                                />
                             </WizardStyles.AccordionDetails>
                         </Accordion>
                     </>
@@ -551,7 +765,12 @@ export const TallyCeremony: React.FC = () => {
                                 </TallyStyles.StyledSpacing>
                             </AccordionSummary>
                             <WizardStyles.AccordionDetails style={{zIndex: 100}}>
-                                <TallyResults tally={tally} resultsEventId={resultsEventId} />
+                                <TallyResults
+                                    tally={tally}
+                                    resultsEventId={resultsEventId}
+                                    onCreateTransmissionPackage={handleCreateTransmissionPackage}
+                                    loading={transmissionLoading}
+                                />
                             </WizardStyles.AccordionDetails>
                         </Accordion>
                     </>
@@ -569,31 +788,32 @@ export const TallyCeremony: React.FC = () => {
                             {t("tally.common.cancel")}
                         </CancelButton>
                     )}
-                    {page < WizardSteps.Results && (
-                        <NextButton
-                            color="primary"
-                            onClick={handleNext}
-                            disabled={isButtonDisabled}
-                        >
-                            <>
-                                {page === WizardSteps.Start
-                                    ? t("tally.common.ceremony")
-                                    : page === WizardSteps.Ceremony
-                                    ? t("tally.common.start")
-                                    : page === WizardSteps.Tally
-                                    ? t("tally.common.results")
-                                    : t("tally.common.next")}
-                                <ChevronRightIcon
-                                    style={{
-                                        transform:
-                                            i18n.dir(i18n.language) === "rtl"
-                                                ? "rotate(180deg)"
-                                                : "rotate(0)",
-                                    }}
-                                />
-                            </>
-                        </NextButton>
-                    )}
+                    {page < WizardSteps.Results &&
+                        tally?.execution_status !== ITallyExecutionStatus.CANCELLED && (
+                            <NextButton
+                                color="primary"
+                                onClick={handleNext}
+                                disabled={isButtonDisabled}
+                            >
+                                <>
+                                    {page === WizardSteps.Start
+                                        ? t("tally.common.ceremony")
+                                        : page === WizardSteps.Ceremony
+                                        ? t("tally.common.start")
+                                        : page === WizardSteps.Tally
+                                        ? t("tally.common.results")
+                                        : t("tally.common.next")}
+                                    <ChevronRightIcon
+                                        style={{
+                                            transform:
+                                                i18n.dir(i18n.language) === "rtl"
+                                                    ? "rotate(180deg)"
+                                                    : "rotate(0)",
+                                        }}
+                                    />
+                                </>
+                            </NextButton>
+                        )}
                 </TallyStyles.StyledFooter>
             </WizardStyles.WizardWrapper>
 

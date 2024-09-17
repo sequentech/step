@@ -2,24 +2,33 @@
 // SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useEffect, useState} from "react"
+import React, {useEffect, useState} from "react"
 import {
     Link as RouterLink,
     useNavigate,
     useParams,
-    useSubmit,
     redirect,
     useLocation,
+    useSubmit,
 } from "react-router-dom"
 import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
-import {PageLimit, Icon, IconButton, theme, BallotHash, Dialog} from "@sequentech/ui-essentials"
+import {
+    PageLimit,
+    Icon,
+    IconButton,
+    theme,
+    BallotHash,
+    Dialog,
+    WarnBox,
+} from "@sequentech/ui-essentials"
 import {
     stringToHtml,
     EVotingStatus,
     IElectionEventStatus,
     IAuditableBallot,
+    EVotingPortalAuditButtonCfg,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -41,11 +50,15 @@ import {provideBallotService} from "../services/BallotService"
 import {ICastVote, addCastVotes} from "../store/castVotes/castVotesSlice"
 import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
-import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
+import {
+    CastBallotsErrorType,
+    VotingPortalErrorType,
+    WasmCastBallotsErrorType,
+} from "../services/VotingPortalError"
+import {IBallotError} from "../types/errors"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import Stepper from "../components/Stepper"
 import {selectBallotSelectionByElectionId} from "../store/ballotSelections/ballotSelectionsSlice"
-import {AuthContext} from "../providers/AuthContextProvider"
 import {sortContestList, hashBallot} from "@sequentech/ui-core"
 
 const StyledLink = styled(RouterLink)`
@@ -70,7 +83,7 @@ const ActionsContainer = styled(Box)`
 `
 
 const StyledButton = styled(Button)`
-    display flex;
+    display: flex;
     padding: 5px;
 
     span {
@@ -81,20 +94,67 @@ const StyledButton = styled(Button)`
     }
 `
 
+interface AuditButtonProps {
+    onClick: () => void
+}
+
+const AuditButton: React.FC<AuditButtonProps> = ({onClick}) => {
+    const {t} = useTranslation()
+
+    return (
+        <StyledButton
+            className="audit-button"
+            sx={{width: {xs: "100%", sm: "200px"}}}
+            variant="warning"
+            onClick={onClick}
+        >
+            <Icon icon={faFire} size="sm" />
+            <Box>{t("reviewScreen.auditButton")}</Box>
+        </StyledButton>
+    )
+}
+
+interface AuditBallotHelpDialogProps {
+    auditBallotHelp: boolean
+    handleClose: (value: boolean) => void
+}
+
+const AuditBallotHelpDialog: React.FC<AuditBallotHelpDialogProps> = ({
+    auditBallotHelp,
+    handleClose,
+}) => {
+    const {t} = useTranslation()
+
+    return (
+        <Dialog
+            handleClose={handleClose}
+            open={auditBallotHelp}
+            title={t("reviewScreen.auditBallotHelpDialog.title")}
+            ok={t("reviewScreen.auditBallotHelpDialog.ok")}
+            cancel={t("reviewScreen.auditBallotHelpDialog.cancel")}
+            variant="warning"
+            maxWidth="md"
+        >
+            {stringToHtml(t("reviewScreen.auditBallotHelpDialog.content"))}
+        </Dialog>
+    )
+}
 interface ActionButtonProps {
     ballotStyle: IBallotStyle
     auditableBallot: IAuditableBallot
-    hideAudit: boolean
+    auditButtonCfg: EVotingPortalAuditButtonCfg
     castVoteConfirmModal: boolean
     ballotId: string
+    setErrorMsg: (msg: CastBallotsErrorType) => void
 }
 
 const ActionButtons: React.FC<ActionButtonProps> = ({
     ballotStyle,
     auditableBallot,
-    hideAudit,
+    auditButtonCfg,
     castVoteConfirmModal,
     ballotId,
+    setErrorMsg,
 }) => {
     const dispatch = useAppDispatch()
     const [insertCastVote] = useMutation<InsertCastVoteMutation>(INSERT_CAST_VOTE)
@@ -113,6 +173,13 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
         variables: {
             electionEventId: eventId,
             tenantId,
+        },
+        onError: (error) => {
+            if (error.networkError) {
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NETWORK_ERROR}`))
+            } else {
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.UNABLE_TO_FETCH_DATA}`))
+            }
         },
     })
 
@@ -162,17 +229,16 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
 
             if (!(data && data.sequent_backend_election_event.length > 0)) {
                 setIsCastingBallot(false)
-                console.error("Cannot load election event")
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.LOAD_ELECTION_EVENT}`))
                 return submit({error: errorType}, {method: "post"})
             }
 
             const record = data?.sequent_backend_election_event?.[0]
-
             const eventStatus = record?.status as IElectionEventStatus | undefined
 
             if (eventStatus?.voting_status !== EVotingStatus.OPEN) {
                 setIsCastingBallot(false)
-                console.warn("Election event is not open")
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.ELECTION_EVENT_NOT_OPEN}`))
                 return submit({error: errorType.toString()}, {method: "post"})
             }
 
@@ -185,6 +251,10 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                     content: JSON.stringify(hashableBallot),
                 },
             })
+            if (result.errors) {
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`))
+            }
+
             let newCastVote = result.data?.insert_cast_vote
             if (newCastVote) {
                 dispatch(addCastVotes([newCastVote]))
@@ -194,33 +264,42 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
         } catch (error) {
             setIsCastingBallot(false)
             // dispatch(clearBallot())
-            console.log(`error casting vote: ${error}`)
+            const ballotError = error as IBallotError
+            if (ballotError.error_type) {
+                setErrorMsg(
+                    t(`reviewScreen.error.${WasmCastBallotsErrorType[ballotError.error_type]}`)
+                )
+            } else {
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.UNKNOWN_ERROR}`))
+            }
             console.log(`error casting vote: ${ballotStyle.election_id}`)
+            console.log(ballotError?.error_msg || error)
             return submit({error: errorType}, {method: "post"})
         }
     }
 
+    console.log("auditButtonCfg", auditButtonCfg)
+
     return (
         <Box sx={{marginBottom: "10px", marginTop: "10px"}}>
-            <StyledButton
-                sx={{display: {xs: "none", sm: "none"}, marginBottom: "2px", width: "100%"}}
-                variant="warning"
-                onClick={() => setAuditBallotHelp(true)}
-            >
-                <Icon icon={faFire} size="sm" />
-                <Box>{t("reviewScreen.auditButton")}</Box>
-            </StyledButton>
-            <Dialog
-                handleClose={handleClose}
-                open={auditBallotHelp}
-                title={t("reviewScreen.auditBallotHelpDialog.title")}
-                ok={t("reviewScreen.auditBallotHelpDialog.ok")}
-                cancel={t("reviewScreen.auditBallotHelpDialog.cancel")}
-                variant="warning"
-            >
-                {stringToHtml(t("reviewScreen.auditBallotHelpDialog.content"))}
-            </Dialog>
-            <ActionsContainer>
+            {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW ? (
+                <StyledButton
+                    className="audit-button"
+                    sx={{display: {xs: "flex", sm: "none"}, marginBottom: "2px", width: "100%"}}
+                    variant="warning"
+                    onClick={() => setAuditBallotHelp(true)}
+                >
+                    <Icon icon={faFire} size="sm" />
+                    <Box>{t("reviewScreen.auditButton")}</Box>
+                </StyledButton>
+            ) : null}
+            {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW ? (
+                <AuditBallotHelpDialog
+                    auditBallotHelp={auditBallotHelp}
+                    handleClose={handleClose}
+                />
+            ) : null}
+            <ActionsContainer className="actions-container">
                 <StyledLink
                     to={`/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/vote${location.search}`}
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
@@ -230,16 +309,9 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                         <Box>{t("reviewScreen.backButton")}</Box>
                     </StyledButton>
                 </StyledLink>
-                {hideAudit ? null : (
-                    <StyledButton
-                        sx={{width: {xs: "100%", sm: "200px"}, display: {xs: "none", sm: "flex"}}}
-                        variant="warning"
-                        onClick={() => setAuditBallotHelp(true)}
-                    >
-                        <Icon icon={faFire} size="sm" />
-                        <Box>{t("reviewScreen.auditButton")}</Box>
-                    </StyledButton>
-                )}
+                {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW ? (
+                    <AuditButton onClick={() => setAuditBallotHelp(true)} />
+                ) : null}
                 <StyledButton
                     className="cast-ballot-button"
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
@@ -269,30 +341,48 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
 export const ReviewScreen: React.FC = () => {
     const {electionId} = useParams<{electionId?: string}>()
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
+    const location = useLocation()
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
+    const [auditBallotHelp, setAuditBallotHelp] = useState<boolean>(false)
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openReviewScreenHelp, setReviewScreenHelp] = useState(false)
     const {t} = useTranslation()
     const backLink = useRootBackLink()
     const navigate = useNavigate()
-    const {tenantId, eventId} = useParams<TenantEventType>()
     const submit = useSubmit()
+    const {tenantId, eventId} = useParams<TenantEventType>()
+    const [errorMsg, setErrorMsg] = useState<CastBallotsErrorType>()
 
-    const hideAudit = ballotStyle?.ballot_eml?.election_event_presentation?.hide_audit ?? false
+    const auditButtonCfg =
+        ballotStyle?.ballot_eml?.election_presentation?.audit_button_cfg ??
+        EVotingPortalAuditButtonCfg.SHOW
     const castVoteConfirmModal =
         ballotStyle?.ballot_eml?.election_presentation?.cast_vote_confirm ?? false
-    const {logout} = useContext(AuthContext)
     const ballotId = auditableBallot && hashBallot(auditableBallot)
+
     if (ballotId && auditableBallot?.ballot_hash && ballotId !== auditableBallot.ballot_hash) {
-        console.log(`ballotId: ${ballotId}\n auditable Ballot Hash: ${auditableBallot.ballot_hash}`)
-        throw new VotingPortalError(VotingPortalErrorType.INCONSISTENT_HASH)
+        setErrorMsg(
+            t("errors.encoding.writeInCharsExceeded", {
+                ballotId,
+                auditableBallotHash: auditableBallot.ballot_hash,
+            })
+        )
     }
 
     const selectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle?.election_id ?? "")
     )
 
-    function handleCloseDialog(val: boolean) {
+    const handleCloseDialogAuditHelp = (value: boolean) => {
+        setAuditBallotHelp(false)
+        if (value) {
+            navigate(
+                `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle?.election_id}/audit${location.search}`
+            )
+        }
+    }
+
+    function handleCloseDialogIdHelp(val: boolean) {
         setOpenBallotIdHelp(false)
 
         if (val) {
@@ -301,21 +391,44 @@ export const ReviewScreen: React.FC = () => {
                     `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/audit`
                 )
             } else {
-                return submit({error: VotingPortalErrorType.NO_BALLOT_STYLE}, {method: "post"})
+                navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
             }
         }
     }
 
     useEffect(() => {
-        if (!ballotStyle || !auditableBallot) {
-            navigate(backLink)
+        if (!ballotStyle) {
+            navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
+        } else if (!auditableBallot) {
+            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NO_AUDITABLE_BALLOT}`))
         } else if (!selectionState) {
-            logout()
+            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NO_BALLOT_SELECTION}`))
         }
-    })
+    }, [])
 
     if (!ballotStyle || !auditableBallot) {
-        return <CircularProgress />
+        return errorMsg ? (
+            <Box sx={{margin: "auto 0"}}>
+                <WarnBox variant="error">{errorMsg}</WarnBox>
+                <Box
+                    sx={{
+                        display: "flex",
+                        justifyContent: "center",
+                        width: "100%",
+                        marginTop: "16px",
+                    }}
+                >
+                    <StyledLink to={backLink} sx={{width: {xs: "100%", sm: "200px"}}}>
+                        <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
+                            <Icon icon={faAngleLeft} size="sm" />
+                            <Box>{t("reviewScreen.backButton")}</Box>
+                        </StyledButton>
+                    </StyledLink>
+                </Box>
+            </Box>
+        ) : (
+            <CircularProgress />
+        )
     }
 
     const contestsOrderType = ballotStyle?.ballot_eml.election_presentation?.contests_order
@@ -323,19 +436,36 @@ export const ReviewScreen: React.FC = () => {
 
     return (
         <PageLimit maxWidth="lg" className="review-screen screen">
-            {hideAudit ? null : (
+            {auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW ? null : (
                 <BallotHash hash={ballotId || ""} onHelpClick={() => setOpenBallotIdHelp(true)} />
             )}
             <Dialog
-                handleClose={handleCloseDialog}
+                handleClose={handleCloseDialogIdHelp}
                 open={openBallotIdHelp}
                 title={t("reviewScreen.ballotIdHelpDialog.title")}
                 ok={t("reviewScreen.ballotIdHelpDialog.ok")}
+                maxWidth="md"
+                middleActions={
+                    auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP
+                        ? [
+                              <AuditButton
+                                  key={"audit-button"}
+                                  onClick={() => setAuditBallotHelp(true)}
+                              />,
+                          ]
+                        : []
+                }
                 cancel={t("reviewScreen.ballotIdHelpDialog.cancel")}
                 variant="info"
             >
                 {stringToHtml(t("reviewScreen.ballotIdHelpDialog.content"))}
             </Dialog>
+            {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP ? (
+                <AuditBallotHelpDialog
+                    auditBallotHelp={auditBallotHelp}
+                    handleClose={handleCloseDialogAuditHelp}
+                />
+            ) : null}
             <Box marginTop="48px">
                 <Stepper selected={2} />
             </Box>
@@ -357,9 +487,13 @@ export const ReviewScreen: React.FC = () => {
                     {stringToHtml(t("reviewScreen.reviewScreenHelpDialog.content"))}
                 </Dialog>
             </StyledTitle>
+            {errorMsg && <WarnBox variant="error">{errorMsg}</WarnBox>}
             <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
                 {stringToHtml(
-                    hideAudit ? t("reviewScreen.descriptionNoAudit") : t("reviewScreen.description")
+                    auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW ||
+                        auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP
+                        ? t("reviewScreen.descriptionNoAudit")
+                        : t("reviewScreen.description")
                 )}
             </Typography>
             {contests.map((question, index) => (
@@ -374,9 +508,10 @@ export const ReviewScreen: React.FC = () => {
             <ActionButtons
                 ballotStyle={ballotStyle}
                 auditableBallot={auditableBallot}
-                hideAudit={hideAudit}
+                auditButtonCfg={auditButtonCfg}
                 castVoteConfirmModal={castVoteConfirmModal}
                 ballotId={ballotId ?? ""}
+                setErrorMsg={setErrorMsg}
             />
         </PageLimit>
     )
@@ -388,11 +523,9 @@ export async function action({request}: {request: Request}) {
     const data = await request.formData()
     const error = data.get("error")
 
-    if (error) {
-        throw new VotingPortalError(
-            VotingPortalErrorType[error as keyof typeof VotingPortalErrorType]
-        )
+    if (!error) {
+        return redirect("../confirmation")
     }
 
-    return redirect(`../confirmation`)
+    return null
 }

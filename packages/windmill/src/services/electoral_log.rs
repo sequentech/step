@@ -7,13 +7,13 @@ use crate::services::protocol_manager::get_protocol_manager;
 use crate::services::protocol_manager::{create_named_param, get_board_client, get_immudb_client};
 use crate::types::resources::{Aggregate, DataList, OrderDirection, TotalAggregate};
 use anyhow::{anyhow, Context, Result};
-use board_messages::braid::message::Signer as _;
+use board_messages::braid::message::{self, Signer as _};
 use board_messages::electoral_log::message::Message;
 use board_messages::electoral_log::message::SigningData;
 use board_messages::electoral_log::newtypes::*;
 use immu_board::assign_value;
 use immu_board::util::get_event_board;
-use immu_board::BoardMessage;
+use immu_board::ElectoralLogMessage;
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue};
 use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
@@ -25,7 +25,7 @@ use strand::backend::ristretto::RistrettoCtx;
 use strand::serialization::StrandDeserialize;
 use strand::signature::StrandSignatureSk;
 use strum_macros::{Display, EnumString, ToString};
-use tracing::{event, instrument, Level};
+use tracing::{event, info, instrument, Level};
 
 pub struct ElectoralLog {
     sd: SigningData,
@@ -112,11 +112,11 @@ impl ElectoralLog {
         &self,
         event_id: String,
         election_id: Option<String>,
+        elections_ids: Option<Vec<String>>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
-        let election = ElectionIdString(election_id);
-
-        let message = Message::election_open_message(event, election, &self.sd)?;
+        let election = election_id.map(|id| ElectionIdString(Some(id)));
+        let message = Message::election_open_message(event, election, elections_ids, &self.sd)?;
 
         self.post(message).await
     }
@@ -128,7 +128,7 @@ impl ElectoralLog {
         election_id: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
-        let election = ElectionIdString(election_id);
+        let election = election_id.map(|id| ElectionIdString(Some(id)));
 
         let message = Message::election_pause_message(event, election, &self.sd)?;
 
@@ -140,12 +140,29 @@ impl ElectoralLog {
         &self,
         event_id: String,
         election_id: Option<String>,
+        elections_ids: Option<Vec<String>>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
-        let election = ElectionIdString(election_id);
+        let election = election_id.map(|id| ElectionIdString(Some(id)));
 
-        let message = Message::election_close_message(event, election, &self.sd)?;
+        let message = Message::election_close_message(event, election, elections_ids, &self.sd)?;
 
+        self.post(message).await
+    }
+
+    #[instrument(skip(self))]
+    pub async fn post_keycloak_event(
+        &self,
+        event_id: String,
+        event_type: String,
+        error_message: String,
+        user_id: Option<String>,
+    ) -> Result<()> {
+        let event = EventIdString(event_id);
+        let error_message = ErrorMessageString(error_message);
+        let event_type = KeycloakEventTypeString(event_type);
+        let message =
+            Message::keycloak_user_event(event, event_type, error_message, user_id, &self.sd)?;
         self.post(message).await
     }
 
@@ -220,7 +237,7 @@ impl ElectoralLog {
     }
 
     async fn post(&self, message: Message) -> Result<()> {
-        let board_message: BoardMessage = message.try_into()?;
+        let board_message: ElectoralLogMessage = message.try_into()?;
         let ms = vec![board_message];
 
         let mut client = get_board_client().await?;
@@ -240,6 +257,7 @@ pub enum OrderField {
     StatementTimestamp,
     StatementKind,
     Message,
+    UserId,
 }
 
 #[derive(Deserialize, Debug)]
@@ -264,6 +282,7 @@ impl GetElectoralLogBody {
             let mut where_clauses = Vec::new();
 
             for (field, value) in filters_map {
+                info!("field = ?: {field}, value = ?: {value}");
                 let param_name = format!("param_{field}");
                 match field {
                     OrderField::Id => {
@@ -326,6 +345,7 @@ pub struct ElectoralLogRow {
     statement_timestamp: i64,
     statement_kind: String,
     message: String,
+    user_id: Option<String>,
 }
 
 impl TryFrom<&Row> for ElectoralLogRow {
@@ -338,6 +358,7 @@ impl TryFrom<&Row> for ElectoralLogRow {
         let mut statement_timestamp: i64 = 0;
         let mut statement_kind = String::from("");
         let mut message = vec![];
+        let mut user_id = None;
 
         for (column, value) in row.columns.iter().zip(row.values.iter()) {
             match column.as_str() {
@@ -359,6 +380,12 @@ impl TryFrom<&Row> for ElectoralLogRow {
                 c if c.ends_with(".message)") => {
                     assign_value!(Value::Bs, value, message)
                 }
+                c if c.ends_with(".user_id)") => match value.value.as_ref() {
+                    Some(Value::S(inner)) => user_id = Some(inner.clone()),
+                    Some(Value::Null(_)) => user_id = None,
+                    None => user_id = None,
+                    _ => return Err(anyhow!("invalid column value for 'user_id'")),
+                },
                 _ => return Err(anyhow!("invalid column found '{}'", column.as_str())),
             }
         }
@@ -372,6 +399,7 @@ impl TryFrom<&Row> for ElectoralLogRow {
                     .with_context(|| "Error deserializing message")?,
             )
             .with_context(|| "Error serializing message to json")?,
+            user_id,
         })
     }
 }
@@ -382,11 +410,11 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
     let board_name = get_event_board(input.tenant_id.as_str(), input.election_event_id.as_str());
 
     event!(Level::INFO, "database name = {board_name}");
-
+    info!("input = {:?}", input);
     client.open_session(&board_name).await?;
     let (clauses, params) = input.as_sql(false)?;
     let (clauses_to_count, count_params) = input.as_sql(true)?;
-
+    info!("clauses ?:= {clauses}");
     let sql = format!(
         r#"
         SELECT
@@ -395,7 +423,8 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
             sender_pk,
             statement_timestamp,
             statement_kind,
-            message
+            message,
+            user_id
         FROM electoral_log_messages
         {clauses}
         "#,

@@ -6,7 +6,8 @@
 
 use std::env;
 
-use super::s3;
+use super::s3::get_minio_url;
+
 use crate::services::{
     documents::upload_and_return_document, temp_path::write_into_named_temp_file,
 };
@@ -76,7 +77,7 @@ async fn get_public_asset_manual_verification_template(tpl_type: TemplateType) -
         TemplateType::User => env::var("PUBLIC_ASSETS_MANUAL_VERIFICATION_USER_TEMPLATE")?,
     };
 
-    let minio_endpoint_base = s3::get_minio_url()?;
+    let minio_endpoint_base = get_minio_url()?;
     let manual_verification_template = format!(
         "{}/{}/{}",
         minio_endpoint_base, public_asset_path, file_manual_verification_template
@@ -101,14 +102,6 @@ async fn get_public_asset_manual_verification_template(tpl_type: TemplateType) -
     let template_hbs: String = response.text().await?;
 
     Ok(template_hbs)
-}
-
-fn get_minio_url() -> Result<String> {
-    let minio_private_uri =
-        env::var("AWS_S3_PRIVATE_URI").map_err(|err| anyhow!("AWS_S3_PRIVATE_URI must be set"))?;
-    let bucket = s3::get_public_bucket()?;
-
-    Ok(format!("{}/{}", minio_private_uri, bucket))
 }
 
 #[instrument(err)]

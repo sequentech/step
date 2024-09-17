@@ -48,6 +48,7 @@ import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {
     CandidatesOrder,
     EInvalidVotePolicy,
+    EUnderVotePolicy,
     EEnableCheckableLists,
     IContestPresentation,
     IElectionEventPresentation,
@@ -55,6 +56,7 @@ import {
     ICandidatePresentation,
     IElectionPresentation,
     EBlankVotePolicy,
+    EOverVotePolicy,
 } from "@sequentech/ui-core"
 import {DropFile} from "@sequentech/ui-essentials"
 import {ICountingAlgorithm, IVotingType} from "./constants"
@@ -368,6 +370,13 @@ export const ContestDataForm: React.FC = () => {
         }))
     }
 
+    const underVotePolicyChoices = (): Array<EnumChoice<EUnderVotePolicy>> => {
+        return Object.values(EUnderVotePolicy).map((value) => ({
+            id: value,
+            name: t(`contestScreen.underVotePolicy.${value.toLowerCase()}`),
+        }))
+    }
+
     const checkableListChoices = (): Array<EnumChoice<EEnableCheckableLists>> => {
         return Object.values(EEnableCheckableLists).map((value) => ({
             id: value,
@@ -379,6 +388,13 @@ export const ContestDataForm: React.FC = () => {
         return Object.values(EBlankVotePolicy).map((value) => ({
             id: value,
             name: t(`contestScreen.blankVotePolicy.${value}`),
+        }))
+    }
+
+    const overVotePolicyChoices = () => {
+        return Object.values(EOverVotePolicy).map((value) => ({
+            id: value,
+            name: t(`contestScreen.overVotePolicy.${value}`),
         }))
     }
 
@@ -434,11 +450,17 @@ export const ContestDataForm: React.FC = () => {
                 newContest.presentation.enable_checkable_lists ||
                 EEnableCheckableLists.CANDIDATES_AND_LISTS
 
-            newContest.presentation.under_vote_alert =
-                newContest.presentation.under_vote_alert ?? false
+            newContest.presentation.under_vote_policy =
+                newContest.presentation.under_vote_policy || EUnderVotePolicy.ALLOWED
 
             newContest.presentation.blank_vote_policy =
                 newContest.presentation.blank_vote_policy || EBlankVotePolicy.ALLOWED
+
+            newContest.presentation.over_vote_policy =
+                newContest.presentation.over_vote_policy || EOverVotePolicy.ALLOWED
+
+            newContest.presentation.pagination_policy =
+                newContest.presentation.pagination_policy || ""
 
             return newContest
         },
@@ -701,14 +723,18 @@ export const ContestDataForm: React.FC = () => {
                                 >
                                     {t("contestScreen.edit.policies")}
                                 </Typography>
-                                <BooleanInput
-                                    source="presentation.under_vote_alert"
-                                    label={"Under-Vote Alert"}
+
+                                <SelectInput
+                                    source="presentation.under_vote_policy"
+                                    choices={underVotePolicyChoices()}
+                                    label={t(`contestScreen.underVotePolicy.label`)}
+                                    validate={required()}
                                 />
 
                                 <SelectInput
                                     source="presentation.invalid_vote_policy"
                                     choices={invalidVotePolicyChoices()}
+                                    label={t(`contestScreen.invalidVotePolicy.label`)}
                                     validate={required()}
                                 />
 
@@ -718,6 +744,19 @@ export const ContestDataForm: React.FC = () => {
                                     label={t(`contestScreen.blankVotePolicy.label`)}
                                     defaultValue={EBlankVotePolicy.ALLOWED}
                                     validate={required()}
+                                />
+
+                                <SelectInput
+                                    source={`presentation.over_vote_policy`}
+                                    choices={overVotePolicyChoices()}
+                                    label={t(`contestScreen.overVotePolicy.label`)}
+                                    defaultValue={EOverVotePolicy.ALLOWED}
+                                    validate={required()}
+                                />
+
+                                <TextInput
+                                    source={`presentation.pagination_policy`}
+                                    label={t(`contestScreen.paginationPolicy.label`)}
                                 />
                             </AccordionDetails>
                         </Accordion>

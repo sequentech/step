@@ -4,6 +4,8 @@
 
 package sequent.keycloak.authenticator.forgot_password;
 
+import static org.keycloak.services.validation.Validation.FIELD_USERNAME;
+
 import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
@@ -18,6 +20,7 @@ import org.keycloak.authentication.AuthenticatorFactory;
 import org.keycloak.authentication.authenticators.browser.AbstractUsernameFormAuthenticator;
 import org.keycloak.common.util.Time;
 import org.keycloak.events.Details;
+import org.keycloak.events.Errors;
 import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.AuthenticationExecutionModel.Requirement;
@@ -28,8 +31,10 @@ import org.keycloak.models.ModelDuplicateException;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.credential.PasswordCredentialModel;
+import org.keycloak.models.utils.FormMessage;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.provider.ProviderConfigProperty;
+import org.keycloak.services.ServicesLogger;
 import org.keycloak.services.managers.AuthenticationManager;
 import org.keycloak.services.messages.Messages;
 import org.keycloak.services.validation.Validation;
@@ -111,10 +116,15 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
       // validateUserAndPassword() already does that
       return false;
     }
+    // If we reach here, password was validated. But now we need to check if
+    // there's an user expiration attribute and if so, if it has expired
+    // already. But of course, this only makese sense if password is not
+    // disabled.
+    boolean disablePassword = getDisablePassword(context);
+    if (disablePassword) {
+      return true;
+    }
 
-    // If we reach here, password was validated. But now we need to check
-    // if there's an user expiration attribute and if so, if it has expired
-    // already
     UserModel user = getUser(context, formData);
     if (user == null) {
       // should not happen. We have validated the form, so we should have
@@ -167,8 +177,11 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
     UserModel user = getUser(context, inputData);
     boolean shouldClearUserFromCtxAfterBadPassword =
         !isUserAlreadySetBeforeUsernamePasswordAuth(context);
+    boolean disablePassword = getDisablePassword(context);
+
     return user != null
-        && validatePassword(context, user, inputData, shouldClearUserFromCtxAfterBadPassword)
+        && (disablePassword
+            || validatePassword(context, user, inputData, shouldClearUserFromCtxAfterBadPassword))
         && validateUser(context, user, inputData);
   }
 
@@ -201,12 +214,15 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
 
   private UserModel getUser(
       AuthenticationFlowContext context, MultivaluedMap<String, String> inputData) {
-    UserModel user = context.getUser();
-    if (user != null) {
-      log.info("getUser(): User is set");
+    if (isUserAlreadySetBeforeUsernamePasswordAuth(context)) {
+      // Get user from the authentication context in case he was already set before this
+      // authenticator
+      UserModel user = context.getUser();
+      testInvalidUser(context, user);
       return user;
     } else {
-      log.info("getUser(): User is null");
+      // Normal login. In this case this authenticator is supposed to establish identity of the user
+      // from the provided username
       return getUserFromForm(context, inputData);
     }
   }
@@ -215,12 +231,21 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
       AuthenticationFlowContext context, MultivaluedMap<String, String> inputData) {
     log.info("getUserFromForm(): start");
     String username = inputData.getFirst(AuthenticationManager.FORM_USERNAME);
-    if (username == null) {
+    if (username == null || username.isEmpty()) {
+      context.getEvent().error(Errors.USER_NOT_FOUND);
+      Response challengeResponse =
+          challenge(context, getDefaultChallengeMessage(context), FIELD_USERNAME);
+      context.failureChallenge(AuthenticationFlowError.INVALID_USER, challengeResponse);
       return null;
     }
 
     // remove leading and trailing whitespace
     username = username.trim();
+
+    context.getEvent().detail(Details.USERNAME, username);
+    context
+        .getAuthenticationSession()
+        .setAuthNote(AbstractUsernameFormAuthenticator.ATTEMPTED_USERNAME, username);
 
     UserModel user = null;
     try {
@@ -231,9 +256,28 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
               Utils.USERNAME_ATTRIBUTES_DEFAULT);
       user = findUser(context.getSession(), context.getRealm(), username, usernameAttributes);
     } catch (ModelDuplicateException mde) {
+      ServicesLogger.LOGGER.modelDuplicateException(mde);
+
+      // Could happen during federation import
+      if (mde.getDuplicateFieldName() != null
+          && mde.getDuplicateFieldName().equals(UserModel.EMAIL)) {
+        setDuplicateUserChallenge(
+            context,
+            Errors.EMAIL_IN_USE,
+            Messages.EMAIL_EXISTS,
+            AuthenticationFlowError.INVALID_USER);
+      } else {
+        setDuplicateUserChallenge(
+            context,
+            Errors.USERNAME_IN_USE,
+            Messages.USERNAME_EXISTS,
+            AuthenticationFlowError.INVALID_USER);
+      }
+
       return user;
     }
 
+    testInvalidUser(context, user);
     return user;
   }
 
@@ -301,14 +345,47 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
 
   protected Response challenge(
       AuthenticationFlowContext context, MultivaluedMap<String, String> formData) {
-    LoginFormsProvider forms = context.form();
+    boolean disablePassword = getDisablePassword(context);
+
+    LoginFormsProvider form = context.form();
     Utils.addRecaptchaChallenge(context, formData);
 
     if (formData.size() > 0) {
-      forms.setFormData(formData);
+      form.setFormData(formData);
     }
 
-    return forms.createLoginUsernamePassword();
+    if (disablePassword) {
+      return form.createPasswordReset();
+    } else {
+      return form.createLoginUsernamePassword();
+    }
+  }
+
+  protected boolean getDisablePassword(AuthenticationFlowContext context) {
+    Map<String, String> config = context.getAuthenticatorConfig().getConfig();
+    String disablePasswordString = config.get(Utils.DISABLE_PASSWORD_ATTRIBUTE);
+    return disablePasswordString != null && disablePasswordString.equals("true");
+  }
+
+  @Override
+  protected Response challenge(AuthenticationFlowContext context, String error, String field) {
+    boolean disablePassword = getDisablePassword(context);
+
+    LoginFormsProvider form = context.form().setExecution(context.getExecution().getId());
+
+    if (error != null) {
+      if (field != null) {
+        form.addError(new FormMessage(field, error));
+      } else {
+        form.setError(error);
+      }
+    }
+
+    if (disablePassword) {
+      return form.createPasswordReset();
+    } else {
+      return form.createLoginUsernamePassword();
+    }
   }
 
   @Override
@@ -381,6 +458,12 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
             "User attribute to use storing the Password Expiration Date. Should be read-only.",
             ProviderConfigProperty.STRING_TYPE,
             Utils.PASSWORD_EXPIRATION_USER_ATTRIBUTE_DEFAULT),
+        new ProviderConfigProperty(
+            Utils.DISABLE_PASSWORD_ATTRIBUTE,
+            "Disable Password Field",
+            "Just enter the username field. Used for example as the form in Forgot Password",
+            ProviderConfigProperty.BOOLEAN_TYPE,
+            false),
         new ProviderConfigProperty(
             Utils.RECAPTCHA_SITE_KEY_ATTRIBUTE,
             "reCAPTCHA v3 Site Key",

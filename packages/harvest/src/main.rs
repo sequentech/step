@@ -13,7 +13,6 @@ use windmill::services::{
     probe::{setup_probe, AppName},
 };
 
-mod pdf;
 mod routes;
 mod services;
 mod types;
@@ -50,6 +49,7 @@ async fn rocket() -> _ {
                 routes::import_areas::import_areas_route,
                 routes::import_areas::upsert_areas_route,
                 routes::electoral_log::list_electoral_log,
+                routes::electoral_log::create_electoral_log,
                 routes::export_election_event::export_election_event_route,
                 routes::export_election_event_logs::export_election_event_logs_route,
                 routes::insert_election_event::insert_election_event_f,
@@ -59,6 +59,7 @@ async fn rocket() -> _ {
                 routes::users::create_user,
                 routes::users::import_users_f,
                 routes::users::export_users_f,
+                routes::users::export_tenant_users_f,
                 routes::users::delete_user,
                 routes::users::get_users,
                 routes::users::get_user,
@@ -87,6 +88,12 @@ async fn rocket() -> _ {
                 routes::tally_sheets::publish_tally_sheet,
                 routes::create_vote_receipt::create_vote_receipt,
                 routes::election_dates::manage_election_dates,
+                routes::custom_urls::update_custom_url,
+                routes::custom_urls::get_custom_url,
+                routes::miru_plugin::create_transmission_package,
+                routes::miru_plugin::send_transmission_package,
+                routes::miru_plugin::upload_signature,
+                // routes::get_task_by_id::get_task_by_id_route,
             ],
         )
 }

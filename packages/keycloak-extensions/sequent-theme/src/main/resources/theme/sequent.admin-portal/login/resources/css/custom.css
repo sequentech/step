@@ -240,6 +240,11 @@ button#kc-current-locale-link img {
 .pf-c-form-control {
     border: 1px solid var(--pf-global--palette--black-200);
     border-radius: 4px;
+    font-size: 12px;
+}
+
+.pf-c-check__label{
+    font-size: 12px;
 }
 
 .footer {
@@ -261,4 +266,26 @@ button#kc-current-locale-link img {
     font-weight: 500;
     color: rgb(25, 29, 35);
     font-family: Roboto, Helvetica, Arial, sans-serif;
+}
+
+.pf-c-form__label-text {
+    font-weight: bold;
+}
+
+button#resend-otp-btn {
+    background: initial;
+    text-wrap: wrap;
+}
+
+button#resend-otp-btn:hover {
+    text-decoration: underline;
+}
+
+.inetum-error-form {
+    font-size: 16px;
+}
+
+.inetum-error-form a.retry-link {
+    display: block;
+    padding: 20px 0;
 }

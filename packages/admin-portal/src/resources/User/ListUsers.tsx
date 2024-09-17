@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {ReactElement, useContext} from "react"
+import React, {ReactElement, useContext, useState} from "react"
 import {
     DatagridConfigurable,
     List,
@@ -37,6 +37,7 @@ import {CreateUser} from "./CreateUser"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {
     DeleteUserMutation,
+    ExportTenantUsersMutation,
     ExportUsersMutation,
     GetDocumentQuery,
     ImportUsersMutation,
@@ -46,7 +47,7 @@ import {
 import {DELETE_USER} from "@/queries/DeleteUser"
 import {GET_DOCUMENT} from "@/queries/GetDocument"
 import {MANUAL_VERIFICATION} from "@/queries/ManualVerification"
-import {useLazyQuery, useMutation} from "@apollo/client"
+import {useLazyQuery, useMutation, useQuery} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {IRole, IUser} from "@sequentech/ui-core"
@@ -54,9 +55,12 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {EXPORT_USERS} from "@/queries/ExportUsers"
+import {EXPORT_TENANT_USERS} from "@/queries/ExportTenantUsers"
 import {DownloadDocument} from "./DownloadDocument"
 import {IMPORT_USERS} from "@/queries/ImportUsers"
-import {useParams} from "react-router-dom"
+import {ETasksExecution} from "@/types/tasksExecution"
+import {useWidgetStore} from "@/providers/WidgetsContextProvider"
+import {ElectoralLogFilters, ElectoralLogList} from "@/components/ElectoralLogList"
 
 const OMIT_FIELDS: Array<string> = ["id", "email_verified"]
 
@@ -108,7 +112,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [getDocument, {data: documentData}] = useLazyQuery<GetDocumentQuery>(GET_DOCUMENT)
     const documentUrlRef = React.useRef(documentUrl)
     const {getDocumentUrl} = useGetPublicDocumentUrl()
-
+    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
+    const [openUsersLogsModal, setOpenUsersLogsModal] = React.useState(false)
     const [openSendCommunication, setOpenSendCommunication] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
     const [openManualVerificationModal, setOpenManualVerificationModal] = React.useState(false)
@@ -124,6 +129,14 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [getManualVerificationPdf] = useMutation<ManualVerificationMutation>(MANUAL_VERIFICATION)
     const [deleteUsers] = useMutation<DeleteUserMutation>(DELETE_USER)
     const [exportUsers] = useMutation<ExportUsersMutation>(EXPORT_USERS)
+    const [exportTenantUsers] = useMutation<ExportTenantUsersMutation>(EXPORT_TENANT_USERS, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.USER_READ,
+            },
+        },
+    })
+
     const notify = useNotify()
     const {data: rolesList} = useGetList<IRole & {id: string}>("role", {
         pagination: {page: 1, perPage: 9999},
@@ -254,7 +267,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setOpenManualVerificationModal(false)
         setOpenDeleteBulkModal(false)
         setOpenSendCommunication(true)
-
         setAudienceSelection(audienceSelection)
         setRecordIds(ids)
     }
@@ -349,6 +361,20 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setDeleteId(undefined)
         refresh()
     }
+    //TODO: add this funciton once Yuval's PR is merged
+    const showUsersLogsModal = (id: Identifier) => {
+        if (!electionEventId) {
+            return
+        }
+        setOpen(false)
+        setOpenNew(false)
+        setOpenSendCommunication(false)
+        setOpenManualVerificationModal(false)
+        setOpenDeleteBulkModal(false)
+        setOpenDeleteModal(false)
+        setOpenUsersLogsModal(true)
+        setRecordIds([id])
+    }
 
     const actions: Action[] = [
         {
@@ -357,14 +383,15 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             showAction: () => canSendCommunications,
         },
         {
-            icon: <EditIcon />,
+            icon: <EditIcon className="edit-voter-icon" />,
             action: editAction,
             showAction: () => canEditUsers,
         },
         {
-            icon: <DeleteIcon />,
+            icon: <DeleteIcon className="delete-voter-icon" />,
             action: deleteAction,
             showAction: () => canEditUsers,
+            className: "delete-voter-icon",
         },
         {
             icon: <CreditScoreIcon />,
@@ -453,31 +480,43 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     }
 
     const confirmExportAction = async () => {
-        setExportDocumentId(undefined)
-        setExporting(true)
-        const {data: exportUsersData, errors} = await exportUsers({
-            variables: {
-                tenantId: tenantId,
-                electionEventId: electionEventId,
-                electionId: electionId,
-            },
-        })
-        if (errors || !exportUsersData) {
-            setExporting(false)
-            setOpenExport(false)
-            notify(
-                t(
-                    `usersAndRolesScreen.${
-                        electionEventId ? "voters" : "users"
-                    }.notifications.exportError`
-                ),
-                {type: "error"}
-            )
-            console.log(`Error exporting users: ${errors}`)
-            return
+        try {
+            setExportDocumentId(undefined)
+            setExporting(true)
+
+            if (electionEventId) {
+                const {data: exportUsersData, errors} = await exportUsers({
+                    variables: {tenantId, electionEventId, electionId},
+                })
+                if (errors || !exportUsersData) {
+                    setExporting(false)
+                    setOpenExport(false)
+                    notify(t(`usersAndRolesScreen.${"voters"}.notifications.exportError`), {
+                        type: "error",
+                    })
+                    return
+                }
+                let documentId = exportUsersData.export_users?.document_id
+                setExportDocumentId(documentId)
+            } else {
+                const {data: exportUsersData, errors} = await exportTenantUsers({
+                    variables: {tenantId},
+                })
+
+                if (errors || !exportUsersData) {
+                    setExporting(false)
+                    setOpenExport(false)
+                    notify(t(`usersAndRolesScreen.${"users"}.notifications.exportError`), {
+                        type: "error",
+                    })
+                    return
+                }
+                let documentId = exportUsersData.export_tenant_users?.document_id
+                setExportDocumentId(documentId)
+            }
+        } catch (err) {
+            console.log(err)
         }
-        let documentId = exportUsersData.export_users?.document_id
-        setExportDocumentId(documentId)
     }
 
     const Empty = () => (
@@ -490,7 +529,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     <Typography variant="body1" paragraph>
                         {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.askCreate`)}
                     </Typography>
-                    <ResourceListStyles.EmptyButtonList>
+                    <ResourceListStyles.EmptyButtonList className="voter-add-button">
                         <Button onClick={() => setOpenNew(true)}>
                             <ResourceListStyles.CreateIcon icon={faPlus} />
                             {t(
@@ -512,20 +551,27 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [importUsers] = useMutation<ImportUsersMutation>(IMPORT_USERS)
 
     const handleImportVoters = async (documentId: string, sha256: string) => {
-        let {data, errors} = await importUsers({
-            variables: {
-                tenantId,
-                documentId,
-                electionEventId: electionEvent.id,
-            },
-        })
+        setOpenImportDrawer(false)
+        const currWidget = addWidget(ETasksExecution.IMPORT_USERS)
+        try {
+            let {data, errors} = await importUsers({
+                variables: {
+                    tenantId,
+                    documentId,
+                    electionEventId: electionEvent.id,
+                },
+            })
+            const task_id = data?.import_users?.task_execution.id
+            setWidgetTaskId(currWidget.identifier, task_id)
 
-        refresh()
+            refresh()
 
-        if (!errors) {
-            notify(t("electionEventScreen.import.importVotersSuccess"), {type: "success"})
-        } else {
-            notify(t("electionEventScreen.import.importVotersError"), {type: "error"})
+            if (errors) {
+                updateWidgetFail(currWidget.identifier)
+                notify(t("electionEventScreen.import.importVotersError"), {type: "error"})
+            }
+        } catch (err) {
+            updateWidgetFail(currWidget.identifier)
         }
     }
 
@@ -543,6 +589,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         doImport={handleImport}
                         withExport
                         doExport={handleExport}
+                        isExportDisabled={openExport}
                         open={openDrawer}
                         setOpen={setOpenDrawer}
                         Component={
@@ -571,16 +618,16 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             >
                 <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<BulkActions />}>
                     <TextField source="id" />
-                    <TextField source="email" />
+                    <TextField source="email" className="email" />
                     <BooleanField source="email_verified" />
                     <BooleanField source="enabled" />
-                    <TextField source="first_name" />
+                    <TextField source="first_name" className="first_name" />
                     <TextField
                         label={t("usersAndRolesScreen.common.mobileNumber")}
                         source="attributes['sequent.read-only.mobile-number']"
                     />
-                    <TextField source="last_name" />
-                    <TextField source="username" />
+                    <TextField source="last_name" className="last_name" />
+                    <TextField source="username" className="username" />
                     {electionEventId && (
                         <FunctionField
                             label={t("usersAndRolesScreen.users.fields.area")}
@@ -721,6 +768,23 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         />
                     ) : null}
                 </FormStyles.ReservedProgressSpace>
+            </Dialog>
+
+            <Dialog
+                fullWidth={true}
+                variant="info"
+                title=""
+                ok={t("common.label.close")}
+                open={openUsersLogsModal}
+                handleClose={(results: boolean) => {
+                    setOpenUsersLogsModal(false)
+                }}
+            >
+                <ElectoralLogList
+                    showActions={false}
+                    filterToShow={ElectoralLogFilters.USER_ID}
+                    filterValue={recordIds[0]?.toString()}
+                />
             </Dialog>
         </>
     )

@@ -47,8 +47,25 @@ import {CommunicationTemplateEdit} from "./resources/CommunicationTemplate/Commu
 import {CommunicationTemplateList} from "./resources/CommunicationTemplate/CommunicationTemplateList"
 import {CommunicationTemplateCreate} from "./resources/CommunicationTemplate/CommunicationTemplateCreate"
 import {ApolloContext} from "./providers/ApolloContextProvider"
+import cssInputLookAndFeel from "@/atoms/css-input-look-and-feel"
+import {Box} from "@mui/material"
+import {styled} from "@mui/material/styles"
+import {useAtomValue} from "jotai"
 
 interface AppProps {}
+
+const StyledApp = styled(Box)<{css: string}>`
+    ${({css}) => css}
+`
+
+const StyledAppAtom: React.FC<{children: React.ReactNode}> = ({children}) => {
+    const css = useAtomValue(cssInputLookAndFeel)
+    return (
+        <StyledApp className="felix-ttt" css={css}>
+            {children}
+        </StyledApp>
+    )
+}
 
 const App: React.FC<AppProps> = () => {
     const {apolloClient} = useContext(ApolloContext)
@@ -73,118 +90,120 @@ const App: React.FC<AppProps> = () => {
     if (!dataProvider) return <p>{t("loadingDataProvider")}</p>
 
     return (
-        <Admin
-            dataProvider={dataProvider || undefined}
-            layout={CustomLayout}
-            theme={fullAdminTheme}
-            i18nProvider={adminI18nProvider}
-        >
-            <CustomRoutes>
-                {/*<Route path="/logs" element={<Logs />} />*/}
-                <Route path="/user-roles" element={<UserAndRoles />} />
-                <Route path="/messages" element={<Messages />} />
-                <Route path="/settings/" element={<SettingsScreen />} />
-            </CustomRoutes>
+        <StyledAppAtom>
+            <Admin
+                dataProvider={dataProvider || undefined}
+                layout={CustomLayout}
+                theme={fullAdminTheme}
+                i18nProvider={adminI18nProvider}
+            >
+                <CustomRoutes>
+                    {/*<Route path="/logs" element={<Logs />} />*/}
+                    <Route path="/user-roles" element={<UserAndRoles />} />
+                    <Route path="/messages" element={<Messages />} />
+                    <Route path="/settings/" element={<SettingsScreen />} />
+                </CustomRoutes>
 
-            <Resource
-                name="sequent_backend_election_event"
-                list={ElectionEventList}
-                create={CreateElectionList}
-                edit={ElectionEventBaseTabs}
-                show={ElectionEventBaseTabs}
-                options={{label: "Election Events", isMenuParent: true}}
-            />
+                <Resource
+                    name="sequent_backend_election_event"
+                    list={ElectionEventList}
+                    create={CreateElectionList}
+                    edit={ElectionEventBaseTabs}
+                    show={ElectionEventBaseTabs}
+                    options={{label: "Election Events", isMenuParent: true}}
+                />
 
-            <Resource
-                name="sequent_backend_election_type"
-                create={SettingsElectionsTypesCreate}
-                edit={SettingsScreen}
-                show={SettingsScreen}
-                options={{label: "Election Type", isMenuParent: true}}
-            />
+                <Resource
+                    name="sequent_backend_election_type"
+                    create={SettingsElectionsTypesCreate}
+                    edit={SettingsScreen}
+                    show={SettingsScreen}
+                    options={{label: "Election Type", isMenuParent: true}}
+                />
 
-            <Resource
-                name="sequent_backend_election"
-                list={ListElection}
-                create={CreateElection}
-                show={ElectionBaseTabs}
-                edit={ElectionBaseTabs}
-                options={{
-                    label: "Elections",
-                    menuParent: "sequent_backend_election_event",
-                    foreignKeyFrom: "election_event_id",
-                }}
-            />
+                <Resource
+                    name="sequent_backend_election"
+                    list={ListElection}
+                    create={CreateElection}
+                    show={ElectionBaseTabs}
+                    edit={ElectionBaseTabs}
+                    options={{
+                        label: "Elections",
+                        menuParent: "sequent_backend_election_event",
+                        foreignKeyFrom: "election_event_id",
+                    }}
+                />
 
-            <Resource
-                name="sequent_backend_contest"
-                list={ListContest}
-                create={CreateContest}
-                edit={ContestBaseTabs}
-                show={ContestBaseTabs}
-                options={{
-                    label: "Contests",
-                    menuParent: "sequent_backend_election",
-                    foreignKeyFrom: "election_id",
-                }}
-            />
-            <Resource
-                name="sequent_backend_candidate"
-                list={ListCandidate}
-                create={CreateCandidate}
-                edit={CandidateBaseTabs}
-                show={CandidateBaseTabs}
-                options={{
-                    label: "Candidates",
-                    menuParent: "sequent_backend_contest",
-                    foreignKeyFrom: "contest_id",
-                }}
-            />
-            <Resource
-                name="sequent_backend_ballot_style"
-                edit={EditBallotStyle}
-                list={ListBallotStyle}
-                create={CreateBallotStyle}
-                options={{label: "Ballot Styles"}}
-            />
-            <Resource
-                name="sequent_backend_area"
-                edit={EditArea}
-                list={ListArea}
-                create={CreateArea}
-                options={{label: "Area"}}
-            />
-            <Resource
-                name="sequent_backend_area_contest"
-                edit={EditAreaContest}
-                list={ListAreaContest}
-                create={CreateAreaContest}
-                options={{label: "Area Contest"}}
-            />
-            <Resource
-                name="sequent_backend_tenant"
-                edit={EditTenant}
-                list={ListTenant}
-                create={CreateTenant}
-                options={{label: "Customer"}}
-            />
-            <Resource
-                name="sequent_backend_document"
-                show={ShowDocument}
-                list={ListDocument}
-                create={CreateDocument}
-                options={{label: "Document"}}
-            />
+                <Resource
+                    name="sequent_backend_contest"
+                    list={ListContest}
+                    create={CreateContest}
+                    edit={ContestBaseTabs}
+                    show={ContestBaseTabs}
+                    options={{
+                        label: "Contests",
+                        menuParent: "sequent_backend_election",
+                        foreignKeyFrom: "election_id",
+                    }}
+                />
+                <Resource
+                    name="sequent_backend_candidate"
+                    list={ListCandidate}
+                    create={CreateCandidate}
+                    edit={CandidateBaseTabs}
+                    show={CandidateBaseTabs}
+                    options={{
+                        label: "Candidates",
+                        menuParent: "sequent_backend_contest",
+                        foreignKeyFrom: "contest_id",
+                    }}
+                />
+                <Resource
+                    name="sequent_backend_ballot_style"
+                    edit={EditBallotStyle}
+                    list={ListBallotStyle}
+                    create={CreateBallotStyle}
+                    options={{label: "Ballot Styles"}}
+                />
+                <Resource
+                    name="sequent_backend_area"
+                    edit={EditArea}
+                    list={ListArea}
+                    create={CreateArea}
+                    options={{label: "Area"}}
+                />
+                <Resource
+                    name="sequent_backend_area_contest"
+                    edit={EditAreaContest}
+                    list={ListAreaContest}
+                    create={CreateAreaContest}
+                    options={{label: "Area Contest"}}
+                />
+                <Resource
+                    name="sequent_backend_tenant"
+                    edit={EditTenant}
+                    list={ListTenant}
+                    create={CreateTenant}
+                    options={{label: "Customer"}}
+                />
+                <Resource
+                    name="sequent_backend_document"
+                    show={ShowDocument}
+                    list={ListDocument}
+                    create={CreateDocument}
+                    options={{label: "Document"}}
+                />
 
-            <Resource
-                name="sequent_backend_communication_template"
-                edit={CommunicationTemplateEdit}
-                list={CommunicationTemplateList}
-                create={CommunicationTemplateCreate}
-                options={{label: "Communication Template"}}
-            />
-            <Resource name="user" edit={EditArea} list={ListUsers} options={{label: "Users"}} />
-        </Admin>
+                <Resource
+                    name="sequent_backend_communication_template"
+                    edit={CommunicationTemplateEdit}
+                    list={CommunicationTemplateList}
+                    create={CommunicationTemplateCreate}
+                    options={{label: "Communication Template"}}
+                />
+                <Resource name="user" edit={EditArea} list={ListUsers} options={{label: "Users"}} />
+            </Admin>
+        </StyledAppAtom>
     )
 }
 

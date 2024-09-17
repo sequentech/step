@@ -8,7 +8,9 @@
 
 extern crate lazy_static;
 
-use anyhow::Result;
+use std::collections::HashMap;
+
+use anyhow::{anyhow, Result};
 use sequent_core::util::init_log::init_log;
 
 use dotenv::dotenv;
@@ -45,6 +47,24 @@ enum CeleryOpt {
     Produce,
 }
 
+fn find_duplicates(input: Vec<&str>) -> Vec<&str> {
+    let mut occurrences = HashMap::new();
+    let mut duplicates = Vec::new();
+
+    for &item in &input {
+        let count = occurrences.entry(item).or_insert(0);
+        *count += 1;
+    }
+
+    for (&item, &count) in &occurrences {
+        if count > 1 {
+            duplicates.push(item);
+        }
+    }
+
+    duplicates
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     dotenv().ok();
@@ -75,6 +95,11 @@ async fn main() -> Result<()> {
 
             let vec_str: Vec<&str> = queues.iter().map(AsRef::as_ref).collect();
 
+            let duplicates = find_duplicates(vec_str.clone());
+            if duplicates.len() > 0 {
+                return Err(anyhow!("Found duplicate queues: {:?}", duplicates));
+            }
+
             set_is_app_active(true);
             celery_app.consume_from(&vec_str[..]).await?;
             set_is_app_active(false);
@@ -86,6 +111,5 @@ async fn main() -> Result<()> {
             celery_app.close().await?;
         }
     };
-
     Ok(())
 }

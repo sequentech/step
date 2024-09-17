@@ -1,0 +1,12 @@
+mutation CreateUser($tenantId: String!, $electionEventId: String, $user: KeycloakUser2!) {
+        create_user(tenant_id: $tenantId, election_event_id: $electionEventId, user: $user) {
+            id
+            attributes
+            email
+            email_verified
+            enabled
+            first_name
+            last_name
+            username
+        }
+    }

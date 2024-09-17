@@ -8,7 +8,6 @@ import {useTranslation} from "react-i18next"
 import {
     IExpiryCountdown,
     StyledButton,
-    StyledButtonContainer,
     StyledButtonContainerWrapper,
     StyledButtonTooltip,
     UserProfile,
@@ -156,27 +155,30 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                     },
                 }}
             >
-                <StyledButtonContainerWrapper style={{width: 60}}>
-                    <StyledButtonContainer className="logout-button-container">
-                        <StyledButton
-                            className="logout-button"
-                            aria-label="log out button"
-                            onClick={handleMenu}
-                        >
-                            <AccountCircle sx={{fontSize: 40}} />
-                            {/* <Box
-									sx={{
-										display: {xs: "none", sm: "block"},
-									}}
-								>
-									Profile
-								</Box> */}
-                        </StyledButton>
-                    </StyledButtonContainer>
-
+                <StyledButtonContainerWrapper className="logout-button-container-wrapper">
                     {expiry && timeLeft > 0 && timeLeft < totalDuration && (
                         <CountdownTimer progress={(timeLeft / totalDuration) * 100} />
                     )}
+                    <StyledButton
+                        className="logout-button"
+                        aria-label="log out button"
+                        onClick={handleMenu}
+                    >
+                        <AccountCircle sx={{fontSize: 40}} />
+                        <Box
+                            className="user-first-name"
+                            sx={{
+                                display: {xs: "none", sm: "block"},
+                                maxWidth: "70px",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                                overflowX: "clip",
+                            }}
+                            title={userProfile.firstName ?? userProfile.username}
+                        >
+                            {userProfile.firstName ?? userProfile.username}
+                        </Box>
+                    </StyledButton>
                 </StyledButtonContainerWrapper>
             </StyledButtonTooltip>
             <Menu
@@ -195,8 +197,8 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                 open={Boolean(anchorEl)}
                 onClose={handleClose}
             >
-                {(!!userProfile.username || !!userProfile.email) && (
-                    <MenuItem>
+                {(!!userProfile.firstName || !!userProfile.username || !!userProfile.email) && (
+                    <MenuItem className="user-details">
                         <Box
                             sx={{
                                 textOverflow: "ellipsis",
@@ -206,18 +208,26 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                         >
                             {!!userProfile.username && (
                                 <>
-                                    <span title={userProfile.username}>{userProfile.username}</span>
+                                    <span
+                                        className="firstname-or-username"
+                                        title={userProfile.firstName ?? userProfile.username}
+                                    >
+                                        {userProfile.firstName ?? userProfile.username}
+                                    </span>
                                     <br />
                                 </>
                             )}
                             {!!userProfile.email && (
-                                <Span title={userProfile.email}>{userProfile.email}</Span>
+                                <Span className="email" title={userProfile.email}>
+                                    {userProfile.email}
+                                </Span>
                             )}
                         </Box>
                     </MenuItem>
                 )}
                 {userProfile.openLink && (
                     <MenuItem
+                        className="profile"
                         onClick={() => {
                             handleClose()
                             userProfile?.openLink?.()

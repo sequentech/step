@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement, useContext} from "react"
+import React, {ReactElement, useContext, useMemo} from "react"
 import {styled as MUIStiled} from "@mui/material/styles"
 import {
     DatagridConfigurable,
@@ -16,9 +16,11 @@ import {
     DateField,
     useGetList,
     useNotify,
+    useRefresh,
 } from "react-admin"
+import CellTowerIcon from "@mui/icons-material/CellTower"
 import {ListActions} from "../../components/ListActions"
-import {Alert, Button, Drawer, Typography} from "@mui/material"
+import {Alert, Button, Drawer, Tooltip, Typography} from "@mui/material"
 import {
     Sequent_Backend_Election_Event,
     Sequent_Backend_Tally_Session,
@@ -44,6 +46,7 @@ import styled from "@emotion/styled"
 import {IExecutionStatus, ITallyCeremonyStatus, ITallyExecutionStatus} from "@/types/ceremonies"
 import {useMutation} from "@apollo/client"
 import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
+import {IPermissions} from "@/types/keycloak"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -79,14 +82,25 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     const {canAdminCeremony, canTrusteeCeremony} = useActionPermissions()
     const notify = useNotify()
 
-    const record = useRecordContext<Sequent_Backend_Election_Event>()
+    const electionEventRecord = useRecordContext<Sequent_Backend_Election_Event>()
+    const refresh = useRefresh()
 
     const [tenantId] = useTenantStore()
     const {setTallyId, setCreatingFlag} = useElectionEventTallyStore()
+    const isTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_CEREMONY)
+    const canDoMiruAction = authContext.isAuthorized(true, tenantId, [
+        IPermissions.MIRU_SIGN,
+        IPermissions.MIRU_CREATE,
+        IPermissions.MIRU_DOWNLOAD,
+        IPermissions.MIRU_SEND,
+    ])
 
     const [openCancelTally, openCancelTallySet] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
-    const electionEvent = useRecordContext<Sequent_Backend_Election_Event>()
+
+    const isKeyCeremonyFinished =
+        electionEventRecord?.status && electionEventRecord.status.keys_ceremony_finished
+    const isPublished = electionEventRecord?.status && electionEventRecord.status.is_published
 
     const [UpdateTallyCeremonyMutation] =
         useMutation<UpdateTallyCeremonyMutation>(UPDATE_TALLY_CEREMONY)
@@ -97,7 +111,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
             sort: {field: "created_at", order: "DESC"},
             filter: {
                 tenant_id: tenantId,
-                election_event_id: electionEvent?.id,
+                election_event_id: electionEventRecord?.id,
             },
         },
         {
@@ -127,7 +141,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     const CreateButton = () => (
         <Button
             onClick={() => setCreatingFlag(true)}
-            disabled={!record?.status && !record?.status?.keys_ceremony_finished}
+            disabled={!isKeyCeremonyFinished || !isPublished}
         >
             <IconButton icon={faPlus} fontSize="24px" />
             {t("electionEventScreen.tally.create.createButton")}
@@ -136,6 +150,16 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
 
     const Empty = () => (
         <ResourceListStyles.EmptyBox>
+            {canAdminCeremony && !isKeyCeremonyFinished && (
+                <Alert severity="warning">
+                    {t("electionEventScreen.tally.notify.noKeysTally")}
+                </Alert>
+            )}
+            {canAdminCeremony && isKeyCeremonyFinished && !isPublished && (
+                <Alert severity="warning">
+                    {t("electionEventScreen.tally.notify.noPublication")}
+                </Alert>
+            )}
             <Typography variant="h4" paragraph>
                 {t("electionEventScreen.tally.emptyHeader")}
             </Typography>
@@ -165,18 +189,44 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
 
     const actions = (record: RaRecord) => [
         {
-            icon: <DescriptionIcon />,
+            icon: isTrustee ? (
+                <Tooltip title={t("tallysheet.common.tallyCeremony.manage")}>
+                    <CellTowerIcon />
+                </Tooltip>
+            ) : (
+                <Tooltip title={t("tallysheet.common.tallyCeremony.view")}>
+                    <DescriptionIcon />
+                </Tooltip>
+            ),
             action: viewAdminTally,
-            showAction: (id: Identifier) => canAdminCeremony,
+            showAction: (id: Identifier) => canAdminCeremony || canDoMiruAction,
         },
         {
-            icon: <DoNotDisturbOnIcon />,
+            icon: (
+                <Tooltip title={t("tallysheet.common.tallyCeremony.cancel")}>
+                    <DoNotDisturbOnIcon />
+                </Tooltip>
+            ),
             action: cancelAdminTally,
             showAction: (id: Identifier) =>
-                canAdminCeremony && record.execution_status === ITallyExecutionStatus.STARTED,
+                canAdminCeremony &&
+                (record.execution_status === ITallyExecutionStatus.NOT_STARTED ||
+                    record.execution_status === ITallyExecutionStatus.STARTED ||
+                    record.execution_status === ITallyExecutionStatus.CONNECTED),
         },
         {
-            icon: <TrusteeKeyIcon />,
+            icon:
+                record.execution_status === ITallyExecutionStatus.NOT_STARTED ||
+                record.execution_status === ITallyExecutionStatus.STARTED ||
+                record.execution_status === ITallyExecutionStatus.CONNECTED ? (
+                    <Tooltip title={t("tallysheet.common.tallyCeremony.addKey")}>
+                        <TrusteeKeyIcon />
+                    </Tooltip>
+                ) : (
+                    <Tooltip title={t("tallysheet.common.tallyCeremony.view")}>
+                        <DescriptionIcon />
+                    </Tooltip>
+                ),
             action: viewTrusteeTally,
             showAction: (id: Identifier) => canTrusteeCeremony,
         },
@@ -186,7 +236,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         try {
             const {data: nextStatus, errors} = await UpdateTallyCeremonyMutation({
                 variables: {
-                    election_event_id: record?.id,
+                    election_event_id: electionEventRecord?.id,
                     tally_session_id: deleteId,
                     status: ITallyExecutionStatus.CANCELLED,
                 },
@@ -199,6 +249,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
             if (nextStatus) {
                 notify(t("tally.cancelTallyCeremonySuccess"), {type: "success"})
                 setCreatingFlag(false)
+                refresh()
             }
         } catch (error) {
             console.log("TallyCeremony :: confirmCeremonyAction :: error", error)
@@ -273,13 +324,13 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                 sx={{flexGrow: 2}}
                 filter={{
                     tenant_id: tenantId || undefined,
-                    election_event_id: record?.id || undefined,
+                    election_event_id: electionEventRecord?.id || undefined,
                 }}
                 filters={Filters}
             >
                 <ElectionHeader title={"electionEventScreen.tally.title"} subtitle="" />
 
-                <DatagridConfigurable omit={OMIT_FIELDS}>
+                <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={false}>
                     <TextField source="tenant_id" />
                     <DateField source="created_at" showTime={true} />
 

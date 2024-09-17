@@ -80,6 +80,32 @@ const frenchTranslation: TranslationType = {
                 title: "Journal de la Base de Données IAM",
             },
         },
+        tasksScreen: {
+            noPermissions: "Vous n'avez pas la permission d'accéder aux journaux.",
+            title: "Exécution des tâches",
+            subtitle: "Informations sur les tâches exécutées et les journaux de progression",
+            taskInformation: "Informations sur la tâche",
+            status: "statut : {{status}}",
+            ok: "D'accord",
+            column: {
+                id: "Index",
+                name: "Nom de la tâche",
+                type: "Type",
+                execution_status: "Statut",
+                start_at: "Heure de début",
+                end_at: "Heure de fin",
+                executed_by_user: "Exécutant",
+                annotations: "Annotations",
+                labels: "Étiquettes",
+                logs: "Journaux",
+            },
+            tasksExecution: {
+                EXPORT_ELECTION_EVENT: "Exporter l'événement électoral",
+                IMPORT_ELECTION_EVENT: "Importer l'événement électoral",
+                IMPORT_USERS: "Importer des utilisateurs",
+                IMPORT_CANDIDATES: "Importer des candidats",
+            },
+        },
         confirmationScreen: {
             title: "Votre vote a été émis",
             description:
@@ -139,6 +165,7 @@ const frenchTranslation: TranslationType = {
                     'Bienvenue dans le bureau de vote, cet écran affiche la liste des élections dans lesquelles vous pouvez émettre votre vote. Les élections qui apparaissent dans cette liste peuvent être ouvertes à la votation, programmées ou fermées. Vous ne pourrez accéder à la votation que si la période de votation est ouverte. Dans le cas où une élection est fermée et que son administrateur électoral a publié le résultat, vous verrez un bouton "Résultat électoral" qui vous mènera à la page publique des résultats.',
                 ok: "OK",
             },
+            closedEventError: "L'événement électoral est actuellement fermé",
         },
         areas: {
             common: {
@@ -168,6 +195,8 @@ const frenchTranslation: TranslationType = {
                 createNew: "Créer un Type d'Élection",
                 emptyHeader: "Aucun Type d'Élection pour l'instant.",
                 emptyBody: "Voulez-vous en créer un ?",
+                logoUrl: "URL du Logo",
+                css: "CSS personnalisé",
             },
             create: {
                 title: "Créer un Type d'Élection",
@@ -180,6 +209,7 @@ const frenchTranslation: TranslationType = {
                 electionTypes: "TYPES D'ÉLECTION",
                 communications: "COMMUNICATION",
                 languages: "LANGUES",
+                lookAndFeel: "PERSONNALISATION DE L'APPARENCE",
                 schedules: "ÉVÉNEMENTS PROGRAMMÉS",
                 trustees: "AUTORITÉS",
             },
@@ -224,6 +254,7 @@ const frenchTranslation: TranslationType = {
             voteByDay: "Votes par jour",
             votersByChannels: "Votants par canaux",
             voterLoginURL: "URL de connexion des électeurs",
+            voterEnrollURL: "URL d'inscription des électeurs",
         },
         electionEventScreen: {
             common: {
@@ -234,6 +265,8 @@ const frenchTranslation: TranslationType = {
             edit: {
                 general: "Général",
                 dates: "Dates",
+                customUrls: "Préfixer les URL personnalisées",
+                votingPeriod: "Période de vote",
                 language: "Langues",
                 allowed: "Canaux de Vote Permis",
                 materials: "Matériaux de Support",
@@ -241,6 +274,10 @@ const frenchTranslation: TranslationType = {
                 reorder: "Réorganiser les élections",
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importer des Candidats",
+            },
+            customUrls: {
+                login: "Connexion",
+                enrollment: "Inscription",
             },
             localization: {
                 emptyHeader: "Aucune langue n'a été définie pour l'événement",
@@ -269,7 +306,6 @@ const frenchTranslation: TranslationType = {
                 materialActivated: "Matériaux de Support activés",
                 materialTitle: "Titre",
                 materialSubTitle: "Sous-titre",
-                hideAudit: "Désactiver le Support d'Audit du Bulletin",
                 logoUrl: "URL du Logo",
                 redirectFinishUrl: "URL de redirection à la fin",
                 css: "CSS personnalisé",
@@ -291,6 +327,7 @@ const frenchTranslation: TranslationType = {
                 endDate: "La date de fin doit être postérieure à la date de début",
                 noResult: "Pas encore d'Événement Électoral",
                 startDate: "La date de début doit être dans le futur",
+                endDateInvalid: "La date de fin doit être dans le futur",
             },
             voters: {
                 title: "Électeurs",
@@ -341,6 +378,7 @@ const frenchTranslation: TranslationType = {
                 tally: "Comptage",
                 publish: "Publier",
                 logs: "Journaux",
+                tasks: "Tâches",
             },
             tally: {
                 emptyHeader: "Aucun Comptage pour l'instant.",
@@ -362,6 +400,10 @@ const frenchTranslation: TranslationType = {
                     noLogs: "Aucun journal disponible",
                 },
                 notify: {
+                    noKeysTally:
+                        "La Cérémonie de Comptage ne peut pas commencer tant que la Cérémonie de Fideicomisarios n'a pas été réalisée avec succès.",
+                    noPublication:
+                        "La Cérémonie de Dépouillement ne peut pas commencer tant que vous n'avez pas créé une publication dans l'onglet Publier.",
                     participateNow:
                         "Vous avez été invité à participer à une Cérémonie de Comptage. Veuillez <1>cliquer ci-dessous sur l'action de clé de la cérémonie</1> pour participer.",
                 },
@@ -404,6 +446,8 @@ const frenchTranslation: TranslationType = {
                 },
             },
             exportError: "Erreur lors de l'exportation de l'événement électoral",
+            taskNotification:
+                "{{action}} a commencé. Vous pouvez voir son statut dans le tableau d'Exécution des Tâches.",
         },
         electionScreen: {
             common: {
@@ -414,6 +458,7 @@ const frenchTranslation: TranslationType = {
             edit: {
                 general: "Général",
                 dates: "Dates",
+                votingPeriod: "Période de vote",
                 language: "Langue",
                 allowed: "Canaux de Vote Permis",
                 default: "Par défaut",
@@ -440,6 +485,8 @@ const frenchTranslation: TranslationType = {
                 endDate: "La date de fin doit être postérieure à la date de début",
                 fileError: "Erreur lors du chargement du fichier",
                 fileLoaded: "Fichier chargé",
+                startDate: "La date de début doit être dans le futur",
+                endDateInvalid: "La date de fin doit être dans le futur",
             },
             createElectionEventSuccess: "Élection créée",
             createElectionEventError: "Erreur lors de la création de l'élection",
@@ -618,6 +665,7 @@ const frenchTranslation: TranslationType = {
                 "publish-read": "Lire Publication",
                 "publish-write": "Éditer Publication",
                 "logs-read": "Lire Journaux",
+                "tasks-read": "Lire l'Exécution des Tâches",
                 "keys-read": "Lire Clés",
                 "document-upload": "Télécharger Documents",
                 "document-download": "Télécharger Documents",
@@ -632,6 +680,10 @@ const frenchTranslation: TranslationType = {
                 "document-write": "Éditer Documents",
                 "support-material-read": "Lire Matériaux de Support",
                 "support-material-write": "Éditer Matériaux de Support",
+                "miru-create": "Miru Create",
+                "miru-download": "Miru Download",
+                "miru-send": "Miru Send",
+                "miru-sign": "Miru Sign",
             },
         },
         generalSettingsScreen: {
@@ -679,6 +731,7 @@ const frenchTranslation: TranslationType = {
                 en: "Anglais",
                 fr: "Français",
                 cat: "Valencien",
+                tl: "Tagalog",
             },
             channel: {
                 online: "En ligne",
@@ -804,7 +857,21 @@ const frenchTranslation: TranslationType = {
                 "custom": "Personnalisé",
                 "alphabetical": "Alphabétique",
             },
+            auditButtonConfig: {
+                "label": "Options d'affichage du bouton d'audit",
+                "show": "Afficher",
+                "not-show": "Ne pas afficher",
+                "show-in-help": "Afficher dans la boîte de dialogue d'aide",
+            },
+            underVotePolicy: {
+                "label": "Politique de Sous-Vote",
+                "allowed": "Autorisé",
+                "warn-only-in-review": "Avertir en Révision",
+                "warn": "Avertir",
+                "warn-and-alert": "Avertir et Alerter",
+            },
             invalidVotePolicy: {
+                "label": "Politique de vote invalide",
                 "allowed": "Permis",
                 "warn": "Avertissement",
                 "warn-invalid-implicit-and-explicit": "Avertir Inválidos Implicites et Explicites",
@@ -819,8 +886,23 @@ const frenchTranslation: TranslationType = {
             blankVotePolicy: {
                 "label": "Politique de vote blanc",
                 "allowed": "Autorisé",
+                "warn-only-in-review": "Avertir en Révision",
                 "warn": "Avertir",
                 "not-allowed": "Non autorisé",
+            },
+            overVotePolicy: {
+                "label": "Politique de vote excessive",
+                "allowed": "Autorisé",
+                "allowed-with-msg": "Autorisé avec un message d'avertissement",
+                "allowed-with-msg-and-alert":
+                    "Autorisé avec un message d'avertissement et d'alerte",
+                "not-allowed-with-msg-and-alert":
+                    "Non autorisé avec un message d'avertissement et d'alerte",
+                "not-allowed-with-msg-and-disable":
+                    "Non autorisé avec un message d'avertissement et désactiver d'autres sélections",
+            },
+            paginationPolicy: {
+                label: "Nom de la page",
             },
             error: {},
             createContestSuccess: "Question créée",
@@ -913,7 +995,98 @@ const frenchTranslation: TranslationType = {
                 downloaded: "Clé Privée Cryptée générée avec succès.",
             },
         },
+        miruExport: {
+            create: {
+                success: "",
+                error: "",
+            },
+            send: {
+                success: "",
+                error: "",
+            },
+        },
         tally: {
+            errorUploadingSignature:
+                "Une erreur s'est produite lors du téléchargement de la signature",
+            downloadTransmissionPackage: "Télécharger le paquet",
+            transmissionPackage: {
+                title: "Paquet de Transmission pour la Zone '{{name}}'",
+                description:
+                    "Vous permet d'exporter un Paquet de Transmission vers des Serveurs de Destination ou de le télécharger.",
+                actions: {
+                    sign: {
+                        title: "Régénérer",
+                        dialog: {
+                            title: "Voulez-vous signer le paquet de transmission ?",
+                            description:
+                                "Veuillez confirmer que vous souhaitez régénérer le paquet de transmission pour la zone `{{name}}`",
+                            confirm: "Signer le paquet de transmission",
+                            cancel: "Fermer",
+                            input: {
+                                placeholder: "Entrez votre mot de passe",
+                            },
+                        },
+                    },
+                    send: {
+                        title: "Envoyer",
+                        dialog: {
+                            title: "Voulez-vous envoyer le Paquet de Transmission?",
+                            description:
+                                "Veuillez confirmer que vous souhaitez envoyer le Paquet de Transmission pour la Zone '{{name}}' aux Serveurs de Destination.",
+                            confirm: "Envoyer le Paquet de Transmission",
+                            cancel: "Fermer",
+                        },
+                    },
+                    regenerate: {
+                        title: "Régénérer",
+                        dialog: {
+                            title: "Voulez-vous régénérer le paquet de transmission?",
+                            description:
+                                "Veuillez confirmer que vous souhaitez régénérer le paquet de transmission pour la zone `{{name}}`",
+                            confirm: "Régénérer le paquet de transmission",
+                            cancel: "Fermer",
+                        },
+                    },
+                    download: {
+                        title: "Télécharger",
+                        emlTitle: "Download EML",
+                        transmissionPackageTitle: "Télécharger le Paquet de Transmission",
+                        dialog: {
+                            title: "Voulez-vous télécharger le Paquet de Transmission?",
+                            description:
+                                "Veuillez confirmer que vous souhaitez télécharger le Paquet de Transmission pour la Zone '{{name}}.'",
+                            confirm: "Télécharger le Paquet de Transmission",
+                            cancel: "Fermer",
+                        },
+                    },
+                },
+                destinationServers: {
+                    title: "Serveurs de Destination",
+                    description:
+                        "Le tableau ci-dessous montre l'état d'envoi de chacun des Serveurs de Destination.",
+                    status: "Envoyé à {{signed}} sur {{total}}",
+                    table: {
+                        serverName: "Nom du Serveur",
+                        sendStatus: "État de l'Envoi",
+                    },
+                },
+                signatures: {
+                    title: "Signatures SBEI",
+                    description:
+                        "Les SBEI peuvent signer le Paquet de Transmission. Le tableau ci-dessous montre l'état de signature de chacun des membres du SBEI.",
+                    table: {
+                        trusteeName: "Nom du Fiduciaire",
+                        signed: "A Signé",
+                    },
+                    status: "{{signed}} sur {{total}} Ont Signé",
+                },
+            },
+            sendToTransmissionPackageServers:
+                "Envoyer le paquet de transmission pour la zone '{{name}}'",
+            uploadTransmissionPackage: "Télécharger",
+            uploadTransmissionPackageDesc:
+                "Téléchargez votre signature pour signer le paquet des Résultats Électoraux. Cette opération est optionnelle.",
+            exportElectionArea: "Envoyer le paquet de transmission pour la zone '{{name}}'",
             templateTitle: "Modèle de Résultats",
             templateSubTitle: "Éventuellement écraser le modèle de résultats.",
             ceremonyTitle: "Élections pour le Comptage",
@@ -1014,9 +1187,9 @@ const frenchTranslation: TranslationType = {
                 history: "Historique des Changements",
             },
             action: {
-                start: "Commencer élection",
-                stop: "Arrêter élection",
-                pause: "pauser",
+                startVotingPeriod: "Commencer la période de vote",
+                stopVotingPeriod: "Arrêter la période de vote",
+                pauseVotingPeriod: "Mettre en pause la période de vote",
                 generate: "régénérer",
                 publish: "Publier Changements",
                 back: "Arrière",
@@ -1028,6 +1201,12 @@ const frenchTranslation: TranslationType = {
             dialog: {
                 title: "Confirmer Action",
                 info: "Vous avez cliqué sur une action sensible, nous avons donc besoin que vous la confirmiez pour pouvoir continuer.",
+                startInfo:
+                    "Vous êtes sur le point de commencer la période de vote. Êtes-vous sûr de vouloir continuer?",
+                stopInfo:
+                    "Vous êtes sur le point d'arrêter la période de vote. Êtes-vous sûr de vouloir continuer?",
+                pauseInfo:
+                    "Vous êtes sur le point de mettre en pause la période de vote. Êtes-vous sûr de vouloir continuer?",
                 ok: "Confirmer",
                 ko: "Annuler",
                 error: "Erreur lors du chargement des bulletins publiés",
@@ -1127,6 +1306,12 @@ const frenchTranslation: TranslationType = {
                 census: "Recensement",
             },
             common: {
+                tallyCeremony: {
+                    manage: "Gérer la Cérémonie de Décompte",
+                    view: "Voir la Cérémonie de Décompte",
+                    cancel: "Annuler la Cérémonie de Décompte",
+                    addKey: "Ajouter une Clé de Décompte",
+                },
                 edit: "Éditer",
                 confirm: "Confirmer",
                 back: "Arrière",
@@ -1226,6 +1411,9 @@ const frenchTranslation: TranslationType = {
                 isHidden: "Caché",
                 publicUrl: "Lien public",
             },
+        },
+        widget: {
+            logs: "Journaux",
         },
     },
 }

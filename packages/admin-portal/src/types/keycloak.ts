@@ -53,6 +53,7 @@ export enum IPermissions {
     PUBLISH_WRITE = "publish-write",
     LOGS_READ = "logs-read",
     KEYS_READ = "keys-read",
+    TASKS_READ = "tasks-read",
     DOCUMENT_UPLOAD = "document-upload",
     DOCUMENT_DOWNLOAD = "document-download",
     ADMIN_CEREMONY = "admin-ceremony",
@@ -62,4 +63,8 @@ export enum IPermissions {
     DOCUMENT_WRITE = "document-write",
     SUPPORT_MATERIAL_READ = "support-material-read",
     SUPPORT_MATERIAL_WRITE = "support-material-write",
+    MIRU_CREATE = "miru-create",
+    MIRU_DOWNLOAD = "miru-download",
+    MIRU_SEND = "miru-send",
+    MIRU_SIGN = "miru-sign",
 }

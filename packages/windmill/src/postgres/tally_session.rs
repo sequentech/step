@@ -3,9 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
-use sequent_core::types::{
-    ceremonies::TallyExecutionStatus,
-    hasura::core::{TallySession, TallySessionConfiguration},
+use sequent_core::{
+    serialization::deserialize_with_path::deserialize_value,
+    types::{
+        ceremonies::TallyExecutionStatus,
+        hasura::core::{TallySession, TallySessionConfiguration},
+    },
 };
 use serde_json::value::Value;
 use tokio_postgres::row::Row;
@@ -50,7 +53,7 @@ impl TryFrom<Row> for TallySessionWrapper {
             threshold: item.try_get::<_, i32>("threshold")? as i64,
             configuration: item
                 .try_get::<_, Option<Value>>("configuration")?
-                .map(|val| serde_json::from_value(val))
+                .map(|val| deserialize_value(val))
                 .transpose()?,
         }))
     }
@@ -134,7 +137,7 @@ pub async fn insert_tally_session(
     Ok(value.clone())
 }
 
-#[instrument(err, skip_all)]
+#[instrument(err, skip(hasura_transaction))]
 pub async fn get_tally_session_by_id(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -179,4 +182,43 @@ pub async fn get_tally_session_by_id(
         .get(0)
         .map(|tally_session: &TallySession| tally_session.clone())
         .ok_or(anyhow!("Tally Session {tally_session_id} not found"))
+}
+
+#[instrument(err, skip_all)]
+pub async fn update_tally_session_annotation(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+    annotations: Value,
+) -> Result<()> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            UPDATE
+                sequent_backend.tally_session
+            SET
+                annotations = $1
+            WHERE
+                id = $2 AND
+                tenant_id = $3 AND
+                election_event_id = $4;
+        "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &annotations,
+                &Uuid::parse_str(tally_session_id)?,
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(&election_event_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error running query: {err}"))?;
+
+    Ok(())
 }
