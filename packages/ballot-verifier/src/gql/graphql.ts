@@ -217,16 +217,11 @@ export type ExportTasksOutput = {
     task_id: Scalars["String"]["output"]
 }
 
-export type ExportTenantUsersOutput = {
-    __typename?: "ExportTenantUsersOutput"
-    document_id: Scalars["String"]["output"]
-    task_id: Scalars["String"]["output"]
-}
-
 export type ExportUsersOutput = {
     __typename?: "ExportUsersOutput"
     document_id: Scalars["String"]["output"]
-    task_id: Scalars["String"]["output"]
+    error_msg?: Maybe<Scalars["String"]["output"]>
+    task_execution?: Maybe<Tasks_Execution_Type>
 }
 
 export type FetchDocumentOutput = {
@@ -825,7 +820,7 @@ export type Mutation_Root = {
     export_election_event?: Maybe<DocumentTaskOutput>
     export_election_event_logs?: Maybe<ExportLogsOutput>
     export_election_event_tasks?: Maybe<ExportTasksOutput>
-    export_tenant_users?: Maybe<ExportTenantUsersOutput>
+    export_tenant_users?: Maybe<ExportUsersOutput>
     export_users?: Maybe<ExportUsersOutput>
     generate_ballot_publication?: Maybe<PublishBallotOutput>
     get_ballot_publication_changes?: Maybe<GetBallotPublicationChangesOutput>

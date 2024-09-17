@@ -135,7 +135,7 @@ type Mutation {
 type Mutation {
   export_tenant_users (
     tenant_id: String!
-  ): ExportTenantUsersOutput
+  ): ExportUsersOutput
 }
 
 type Mutation {
@@ -829,7 +829,8 @@ type OptionalId {
 }
 
 type ExportUsersOutput {
-  task_id : String!
+  error_msg : String
+  task_execution : tasks_execution_type
   document_id : String!
 }
 
