@@ -19,7 +19,6 @@ import {
     Button as ReactAdminButton,
     useRecordContext,
     BooleanInput,
-    SelectInput,
     DateInput,
     useSidebarState,
     useUnselectAll,
@@ -50,7 +49,6 @@ import {
     GetUserProfileAttributesQuery,
     ImportUsersMutation,
     ManualVerificationMutation,
-    Sequent_Backend_Area,
     Sequent_Backend_Election_Event,
     UserProfileAttribute,
 } from "@/gql/graphql"
@@ -78,6 +76,7 @@ import {DELETE_USERS} from "@/queries/DeleteUsers"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {ElectoralLogFilters, ElectoralLogList} from "@/components/ElectoralLogList"
+import SelectArea from "@/components/area/SelectArea"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -162,11 +161,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         }
     )
 
-    const {data: areas} = useGetList<Sequent_Backend_Area>("sequent_backend_area", {
-        pagination: {page: 1, perPage: 9999},
-        filter: {election_event_id: electionEventId, tenant_id: tenantId},
-    })
-
     const Filters = useMemo(() => {
         let filters: ReactElement[] = []
         if (userAttributes?.get_user_profile_attributes) {
@@ -196,13 +190,12 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             })
             filters.push(<BooleanInput key="enabled" source={"enabled"} />)
             filters.push(<BooleanInput key="email_verified" source={"email_verified"} />)
-            if (electionEventId && areas) {
+            if (electionEventId) {
                 filters.push(
-                    <SelectInput
+                    <SelectArea
+                        tenantId={tenantId}
+                        electionEventId={electionEventId}
                         source="attributes.area-id"
-                        choices={areas?.map((area) => {
-                            return {id: area.id, name: area.name}
-                        })}
                         label={t("usersAndRolesScreen.users.fields.area")}
                     />
                 )
@@ -691,10 +684,10 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const listFields = useMemo(() => {
         const basicInfoFields: UserProfileAttribute[] = []
         const attributesFields: UserProfileAttribute[] = []
-        const omitFields = ["id", "email_verified"]
+        const omitFields = ["id", "email_verified", "email"]
 
         userAttributes?.get_user_profile_attributes.forEach((attr) => {
-            if (attr.name && (userBasicInfo.includes(attr.name) || attr.name?.includes("mobile"))) {
+            if (attr.name && userBasicInfo.includes(attr.name)) {
                 basicInfoFields.push(attr)
             } else {
                 omitFields.push(`attributes['${attr.name}']`)
@@ -708,11 +701,20 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         fields.map((attr) => {
             if (attr.annotations?.inputType === "html5-date") {
                 return (
-                    <CustomDateField
+                    <FunctionField
                         key={attr.name}
-                        source={`${attr.name}`}
+                        source={`attributes['${attr.name}']`}
                         label={getAttributeLabel(attr.display_name ?? "")}
-                        emptyText=""
+                        render={(record: IUser, source: string | undefined) => {
+                            return (
+                                <CustomDateField
+                                    key={attr.name}
+                                    source={`${attr.name}`}
+                                    label={getAttributeLabel(attr.display_name ?? "")}
+                                    emptyText=""
+                                />
+                            )
+                        }}
                     />
                 )
             }
@@ -752,7 +754,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                 close={handleClose}
                                 rolesList={rolesList || []}
                                 userAttributes={userAttributes?.get_user_profile_attributes || []}
-                                areas={areas}
                             />
                         }
                         extraActions={[
@@ -825,7 +826,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     close={handleClose}
                     rolesList={rolesList || []}
                     userAttributes={userAttributes?.get_user_profile_attributes || []}
-                    areas={areas}
                 />
             </ResourceListStyles.Drawer>
             <ResourceListStyles.Drawer
@@ -846,7 +846,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     close={handleClose}
                     rolesList={rolesList || []}
                     userAttributes={userAttributes?.get_user_profile_attributes || []}
-                    areas={areas}
                 />
             </ResourceListStyles.Drawer>
             <Dialog
