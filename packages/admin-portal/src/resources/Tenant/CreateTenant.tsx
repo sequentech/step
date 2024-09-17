@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {CircularProgress, Typography} from "@mui/material"
+import {CircularProgress, Drawer, Typography} from "@mui/material"
 import React, {useContext, useEffect, useState} from "react"
 import {
     SimpleForm,
@@ -21,7 +21,12 @@ import {useNavigate} from "react-router"
 import {isNull} from "@sequentech/ui-core"
 import {AuthContext} from "@/providers/AuthContextProvider"
 
-export const CreateTenant: React.FC = () => {
+interface CreateTenantProps {
+    isDrawerOpen: boolean
+    setIsDrawerOpen: (value: boolean) => void
+}
+
+export const CreateTenant: React.FC<CreateTenantProps> = ({isDrawerOpen, setIsDrawerOpen}) => {
     const [createTenant] = useMutation<InsertTenantMutation>(INSERT_TENANT)
     const notify = useNotify()
     const [newId, setNewId] = useState<string | null>(null)
@@ -35,7 +40,7 @@ export const CreateTenant: React.FC = () => {
         isLoading: isOneLoading,
         error,
     } = useGetOne("sequent_backend_tenant", {
-        id: newId,
+        id: authContext?.tenantId,
     })
 
     useEffect(() => {
@@ -45,11 +50,13 @@ export const CreateTenant: React.FC = () => {
         if (isLoading && error && !isOneLoading) {
             setIsLoading(false)
             notify(t("tenantScreen.createError"), {type: "error"})
+            setIsDrawerOpen(false)
             refresh()
             return
         }
         if (isLoading && !error && !isOneLoading && newTenant) {
             setIsLoading(false)
+            setIsDrawerOpen(false)
             notify(t("tenantScreen.createSuccess"), {type: "success"})
         }
     }, [isLoading, newTenant, isOneLoading, error, newId, refresh, authContext, navigate])
@@ -70,13 +77,22 @@ export const CreateTenant: React.FC = () => {
         }
     }
     return (
-        <Create>
+        <Drawer
+            anchor="right"
+            open={isDrawerOpen}
+            onClose={() => setIsDrawerOpen(false)}
+            PaperProps={{
+                sx: {width: "30%"},
+            }}
+        >
             <SimpleForm onSubmit={onSubmit}>
-                <Typography variant="h4">{t("tenantScreen.common.title")}</Typography>
+                <Typography variant="h4">{`${t("tenantScreen.common.title")} ${
+                    newTenant?.slug
+                }`}</Typography>
                 <Typography variant="body2">{t("tenantScreen.new.subtitle")}</Typography>
                 <TextInput source="slug" />
                 {isLoading ? <CircularProgress /> : null}
             </SimpleForm>
-        </Create>
+        </Drawer>
     )
 }

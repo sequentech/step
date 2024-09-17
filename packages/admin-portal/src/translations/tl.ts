@@ -19,7 +19,7 @@ const tagalogTranslation: TranslationType = {
             ballotHelpDialog: {
                 title: "Impormasyon: Screen ng Balota",
                 content:
-                    "Dito makikita ang mga halalan na maaari mong botohan. Piliin ang iyong mga sagot sa pamamagitan ng pag-check ng kahon sa kanan ng Kandidato/Sagot. Upang magsimula ulit sa pagpili, i-click ang “<b>Burahin and mga Napili</b>” na button. Upang magpatuloy sa susunod na hakbang, i-click ang “<b>Magpatuloy</b>” na button sa ibaba.",
+                    "Dito makikita ang mga halalan na maaari mong pagbotohan. Piliin ang iyong mga sagot sa pamamagitan ng pag-check ng kahon sa kanan ng Kandidato/Sagot. Upang magsimula ulit sa pagpili, i-click ang “<b>Burahin and mga Napili</b>” na button. Upang magpatuloy sa susunod na hakbang, i-click ang “<b>Magpatuloy</b>” na button sa ibaba.",
                 ok: "OK",
             },
         },
@@ -343,6 +343,7 @@ const tagalogTranslation: TranslationType = {
                 tally: "Tally",
                 publish: "I-publish",
                 logs: "Mga Log",
+                events: "mga panghitabo",
             },
             tally: {
                 emptyHeader: "Walang pang Tally.",
@@ -460,14 +461,17 @@ const tagalogTranslation: TranslationType = {
             },
         },
         tenantScreen: {
+            list: {
+                title: 'Uupa',
+            },
             common: {
-                title: "Kliyente",
+                title: "Uupa",
             },
             new: {
-                subtitle: "Lumikha ng Kliyente",
+                subtitle: "Lumikha ng bagong uupa",
             },
-            createSuccess: "Nalikha ang Customer",
-            createError: "Error sa paglikha ng Customer",
+            createSuccess: "Nagawa ang uupa",
+            createError: "Error sa paggawa ng uupa",
         },
         usersAndRolesScreen: {
             noPermissions: "Wala kang pahintulot na ma-access ang mga tagagamit o tungkulin.",

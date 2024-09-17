@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useEffect} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {useGetOne, useRefresh, useSidebarState} from "react-admin"
 import {faThLarge, faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 import {IconButton, adminTheme} from "@sequentech/ui-essentials"
@@ -14,6 +14,7 @@ import {IPermissions} from "../../../types/keycloak"
 import AccountCircleIcon from "@mui/icons-material/AccountCircle"
 import {useTranslation} from "react-i18next"
 import styled from "@emotion/styled"
+import {CreateTenant} from "@/resources/Tenant/CreateTenant"
 
 const SelectTenants: React.FC = () => {
     const refresh = useRefresh()
@@ -21,6 +22,7 @@ const SelectTenants: React.FC = () => {
     const authContext = useContext(AuthContext)
     const {i18n} = useTranslation()
     const [isOpenSidebar] = useSidebarState()
+    const [isNewTenantOpen, setIsNewTenantOpen] = useState(false)
 
     const showAddTenant = authContext.isAuthorized(true, null, IPermissions.TENANT_CREATE)
 
@@ -38,25 +40,31 @@ const SelectTenants: React.FC = () => {
     }, [data, tenantId, authContext.tenantId, setTenantId])
 
     return (
-        <Container hasSingle={true}>
-            <AccountCircleIcon />
-            {isOpenSidebar && !!data && (
-                <>
-                    <SingleDataContainer
-                        style={{
-                            textAlign: i18n.dir(i18n.language) === "rtl" ? "start" : "start",
-                        }}
-                    >
-                        {data.slug}
-                    </SingleDataContainer>
-                    {showAddTenant ? (
-                        <Link to="/sequent_backend_tenant/create">
-                            <StyledIcon icon={faPlusCircle} />
-                        </Link>
-                    ) : null}
-                </>
+        <>
+            <Container hasSingle={true}>
+                <AccountCircleIcon />
+                {isOpenSidebar && !!data && (
+                    <>
+                        <SingleDataContainer
+                            style={{
+                                textAlign: i18n.dir(i18n.language) === "rtl" ? "start" : "start",
+                            }}
+                        >
+                            {data.slug}
+                        </SingleDataContainer>
+                        {showAddTenant ? (
+                            <StyledIcon
+                                icon={faPlusCircle}
+                                onClick={() => setIsNewTenantOpen(true)}
+                            />
+                        ) : null}
+                    </>
+                )}
+            </Container>
+            {isNewTenantOpen && (
+                <CreateTenant isDrawerOpen={isNewTenantOpen} setIsDrawerOpen={setIsNewTenantOpen} />
             )}
-        </Container>
+        </>
     )
 }
 

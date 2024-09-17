@@ -344,6 +344,7 @@ const catalanTranslation: TranslationType = {
                 tally: "Recompte",
                 publish: "Publicar",
                 logs: "Registres",
+                events: "Esdeveniments",
             },
             tally: {
                 emptyHeader: "Encara no hi ha Recompte.",
@@ -461,14 +462,17 @@ const catalanTranslation: TranslationType = {
             },
         },
         tenantScreen: {
+            list: {
+                title: 'Tenants',
+            },
             common: {
-                title: "Client",
+                title: "Llogaters",
             },
             new: {
-                subtitle: "Crear Client",
+                subtitle: "Crear nou llogater",
             },
-            createSuccess: "Client creat",
-            createError: "Error creant client",
+            createSuccess: "Llogater creat",
+            createError: "Error creant llogater",
         },
         usersAndRolesScreen: {
             noPermissions: "No tens permís per accedir als usuaris o rols.",

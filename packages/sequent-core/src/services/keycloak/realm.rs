@@ -59,7 +59,7 @@ impl KeycloakAdminClient {
         let response = builder.send().await?;
         Ok(error_check(response).await?.json().await?)
     }
-
+    
     #[instrument(skip(self, json_realm_config), err)]
     pub async fn upsert_realm(
         self,
@@ -67,6 +67,7 @@ impl KeycloakAdminClient {
         json_realm_config: &str,
         tenant_id: &str,
         replace_ids: bool,
+        display_name: Option<String>,
     ) -> Result<()> {
         let real_get_result = self.client.realm_get(board_name).await;
         let replaced_ids_config = if replace_ids {
@@ -76,11 +77,11 @@ impl KeycloakAdminClient {
         };
         let mut realm: RealmRepresentation =
             serde_json::from_str(&replaced_ids_config)?;
-
-        // set realm name
         realm.realm = Some(board_name.into());
-
-        // set tenant id attribute on all users
+        if let Some(name) = display_name {
+            realm.display_name = Some(name);
+        }
+    
         realm.users = Some(
             realm
                 .users
