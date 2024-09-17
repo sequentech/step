@@ -59,7 +59,7 @@ impl KeycloakAdminClient {
         let response = builder.send().await?;
         Ok(error_check(response).await?.json().await?)
     }
-    
+
     #[instrument(skip(self, json_realm_config), err)]
     pub async fn upsert_realm(
         self,
@@ -81,7 +81,7 @@ impl KeycloakAdminClient {
         if let Some(name) = display_name {
             realm.display_name = Some(name);
         }
-    
+
         realm.users = Some(
             realm
                 .users

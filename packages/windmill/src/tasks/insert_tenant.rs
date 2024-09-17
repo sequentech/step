@@ -24,7 +24,13 @@ pub async fn upsert_keycloak_realm(tenant_id: &str, slug: &str) -> Result<()> {
     let client = KeycloakAdminClient::new().await?;
     let realm = get_tenant_realm(tenant_id);
     client
-        .upsert_realm(realm.as_str(), &realm_config, tenant_id, true, Some(slug.to_string()))
+        .upsert_realm(
+            realm.as_str(),
+            &realm_config,
+            tenant_id,
+            true,
+            Some(slug.to_string()),
+        )
         .await?;
     upsert_realm_jwks(realm.as_str()).await?;
     Ok(())
@@ -77,7 +83,7 @@ pub async fn insert_tenant(tenant_id: String, slug: String) -> Result<()> {
         event!(Level::INFO, "Tenant with slug {} already exists", slug);
         return Ok(());
     }
-    upsert_keycloak_realm(tenant_id.as_str(),slug.as_str()).await?;
+    upsert_keycloak_realm(tenant_id.as_str(), slug.as_str()).await?;
     insert_tenant_db(&auth_headers, &tenant_id, &slug).await?;
     Ok(())
 }
