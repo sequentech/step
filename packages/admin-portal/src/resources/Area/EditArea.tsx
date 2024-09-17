@@ -9,6 +9,7 @@ import {
     RecordContext,
     SaveButton,
     AutocompleteInput,
+    ReferenceArrayInput,
     ReferenceInput,
     SimpleForm,
     TextInput,
@@ -25,8 +26,8 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {INSERT_AREA_CONTESTS} from "../../queries/InsertAreaContest"
 import {DELETE_AREA_CONTESTS} from "@/queries/DeleteAreaContest"
 import {Sequent_Backend_Area} from "@/gql/graphql"
-import {keyBy} from "@sequentech/ui-core"
-
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {gridColumnGroupsLookupSelector} from "@mui/x-data-grid"
 interface EditAreaProps {
     id?: Identifier | undefined
     electionEventId: Identifier | undefined
@@ -54,17 +55,21 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
 
     const [renderUI, setRenderUI] = useState(false)
 
-    const {data: contests} = useGetList("sequent_backend_contest", {
-        pagination: {page: 1, perPage: 9999},
-        filter: {election_event_id: electionEventId},
-    })
-
     const {data: areas} = useQuery(GET_AREAS_EXTENDED, {
         variables: {
             electionEventId,
             areaId: id,
         },
     })
+
+    const aliasRenderer = useAliasRenderer()
+
+    const contestFilterToQuery = (searchText: string) => {
+        if (!searchText || searchText.length == 0) {
+            return {name: ""}
+        }
+        return {"name@_ilike,alias@_ilike": searchText.trim()}
+    }
 
     const areaFilterToQuery = (searchText: string) => {
         if (!searchText || searchText.length == 0) {
@@ -74,10 +79,10 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
     }
 
     useEffect(() => {
-        if (contests && areas) {
+        if (areas) {
             setRenderUI(true)
         }
-    }, [areas, contests])
+    }, [areas])
 
     const parseValues = (incoming: any) => {
         const temp = {...incoming}
@@ -211,17 +216,25 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
                                         <TextInput source="name" />
                                         <TextInput source="description" />
 
-                                        {contests ? (
+                                        <ReferenceArrayInput
+                                            label={t("areas.sequent_backend_area_contest")}
+                                            reference="sequent_backend_contest"
+                                            source="area_contest_ids"
+                                            filter={{
+                                                tenant_id: tenantId,
+                                                election_event_id: electionEventId,
+                                            }}
+                                            perPage={100} // // Setting initial larger records size
+                                            enableGetChoices={({q}) => q && q.length >= 3}
+                                        >
                                             <AutocompleteArrayInput
                                                 className="area-contest"
-                                                label={t("areas.sequent_backend_area_contest")}
-                                                source="area_contest_ids"
-                                                choices={contests}
-                                                optionText="name"
-                                                optionValue="id"
-                                                fullWidth
+                                                fullWidth={true}
+                                                optionText={aliasRenderer}
+                                                filterToQuery={contestFilterToQuery}
+                                                debounce={100}
                                             />
-                                        ) : null}
+                                        </ReferenceArrayInput>
                                         <ReferenceInput
                                             fullWidth={true}
                                             reference="sequent_backend_area"

@@ -263,6 +263,7 @@ const englishTranslation = {
             edit: {
                 general: "General",
                 dates: "Dates",
+                customUrls: "Custom URLs Prefix",
                 votingPeriod: "Voting Period",
                 language: "Language",
                 allowed: "Voting Channels Allowed",
@@ -271,6 +272,10 @@ const englishTranslation = {
                 reorder: "Reorder elections",
                 advancedConfigurations: "Advanced Configurations",
                 importCandidates: "Import Candidates",
+            },
+            customUrls: {
+                login: "Login",
+                enrollment: "Enrollment",
             },
             localization: {
                 emptyHeader: "No languages were set for the event",

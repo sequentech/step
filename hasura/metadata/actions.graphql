@@ -312,6 +312,16 @@ type Mutation {
 }
 
 type Mutation {
+  set_custom_urls (
+    origin: String!
+    redirect_to: String!
+    dns_prefix: String!
+    election_id: String!
+    key: String!
+  ): SetCustomUrlsOutput
+}
+
+type Mutation {
   set_role_permission(
     tenant_id: String!
     role_id: String!
@@ -924,4 +934,13 @@ type documentTaskOutput {
 
 type LogEventOutput {
   electionEventId: String
+}
+
+type SetCustomUrlOutput {
+  url : String!
+}
+
+type SetCustomUrlsOutput {
+  success : Boolean!
+  message : String
 }

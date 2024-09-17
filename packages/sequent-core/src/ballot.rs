@@ -584,6 +584,7 @@ pub struct ElectionEventPresentation {
     pub show_user_profile: Option<bool>, // default is true
     pub elections_order: Option<ElectionsOrder>,
     pub voting_portal_countdown_policy: Option<VotingPortalCountdownPolicy>,
+    pub custom_urls: Option<CustomUrls>,
 }
 
 #[derive(
@@ -1132,4 +1133,22 @@ pub struct BallotStyle {
     pub election_event_presentation: Option<ElectionEventPresentation>,
     pub election_presentation: Option<ElectionPresentation>,
     pub election_dates: Option<ElectionDates>,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Default,
+)]
+pub struct CustomUrls {
+    pub login: Option<String>,
+    pub enrollment: Option<String>,
+    pub saml: Option<String>,
 }

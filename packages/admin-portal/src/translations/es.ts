@@ -262,6 +262,7 @@ const spanishTranslation: TranslationType = {
             edit: {
                 general: "General",
                 dates: "Fechas",
+                customUrls: "Prefixo de URLs personalizados",
                 votingPeriod: "Período de votación",
                 language: "Idiomas",
                 allowed: "Canales de Voto Permitidos",
@@ -270,6 +271,10 @@ const spanishTranslation: TranslationType = {
                 reorder: "Reordenar elecciones",
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importar Candidatos",
+            },
+            customUrls: {
+                login: "Inicio de sesión",
+                enrollment: "Inscripción",
             },
             localization: {
                 emptyHeader: "No se han establecido idiomas para el evento",

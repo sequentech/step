@@ -263,6 +263,7 @@ const tagalogTranslation: TranslationType = {
             edit: {
                 general: "Pangkalahatan",
                 dates: "Petsa",
+                customUrls: "Pasadyang Unang Bahagi ng URL",
                 votingPeriod: "Panahon ng Pagboto",
                 language: "Wika",
                 allowed: "Pinapayagang Mga Channel ng Pagboto",
@@ -271,6 +272,10 @@ const tagalogTranslation: TranslationType = {
                 reorder: "I-reorder ang mga halalan",
                 advancedConfigurations: "Mga Advanced na Pag-configure",
                 importCandidates: "Mag-import ng mga Kandidato",
+            },
+            customUrls: {
+                login: "Pag-login",
+                enrollment: "Pag-enroll",
             },
             localization: {
                 emptyHeader: "Walang nakatakdang wika para sa kaganapan",
