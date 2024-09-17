@@ -8,45 +8,35 @@ services:
     image: ghcr.io/cachix/devenv:v1.0.7
     container_name: devcontainer
     volumes:
-    - type: bind
-      source: ../..
-      target: /workspaces
-      bind:
-        create_host_path: true
-        selinux: z
+      - type: bind
+        source: ../..
+        target: /workspaces
+        bind:
+          create_host_path: true
+          selinux: z
     # support ptrace-based debuggers like C++, Go, and Rust
     cap_add:
-     - SYS_PTRACE
+      - SYS_PTRACE
     security_opt:
       - label:disable
     environment:
       # postgres database to store Hasura metadata
       HASURA_GRAPHQL_METADATA_DATABASE_URL: ${HASURA_GRAPHQL_METADATA_DATABASE_URL}
-      # this env var can be used to add the above postgres database to Hasura 
+      # this env var can be used to add the above postgres database to Hasura
       # as a data source. this can be removed/updated based on your needs
       PG_DATABASE_URL: ${HASURA_PG_DATABASE_URL}
-
-  simplesaml:
-    profiles: ["full"]
-    image: kenchan0130/simplesamlphp
-    container_name: simplesamlphp
-    ports:
-      - "8083:8080"    
-    volumes:
-      - ./simplesaml/authsources.php:/var/www/simplesamlphp/config/authsources.php
-      - ./simplesaml/saml20-sp-remote.php:/var/www/simplesamlphp/metadata/saml20-sp-remote.php
 
   # Needed to set up proper permissions for non root user in postgres
   postgres-volume-init:
     profiles: ["full", "base"]
     image: alpine
     container_name: postgres-volume-init
-    volumes: 
+    volumes:
       - db_logs:/logs
       - keycloak_db_logs:/keycloak_logs
     user: root
     group_add:
-      - '999'
+      - "999"
     command: chown -R 999:999 /logs /keycloak_logs
 
   postgres:
@@ -96,7 +86,7 @@ services:
     #restart: always
     #depends_on:
     #  - graphql-engine
-  
+
   # used to add headers to minio
   minio-proxy:
     profiles: ["full", "base"]
@@ -108,7 +98,7 @@ services:
       - ./minio/nginx:/etc/nginx/conf.d
     depends_on:
       - minio
-  
+
   configure-minio:
     profiles: ["full", "base"]
     container_name: configure-minio
@@ -142,8 +132,8 @@ services:
       - "8201:8201"
       - "8200:8200"
     environment:
-      VAULT_API_ADDR: 'http://0.0.0.0:8200'
-      VAULT_ADDR: 'http://0.0.0.0:8201'
+      VAULT_API_ADDR: "http://0.0.0.0:8200"
+      VAULT_ADDR: "http://0.0.0.0:8201"
       VAULT_UNSEAL_KEY: ciWE5G/CT7/uo5mfaGeRvSyuGRnbtijzvLDg3ru/jv0=
       VAULT_TOKEN: hvs.s0djsk0LLBI19K0DkW4Fajs7
     cap_add:
@@ -162,7 +152,7 @@ services:
       - "8080:8080"
     restart: always
     volumes_from:
-    - devcontainer
+      - devcontainer
     environment:
       # applies migrations on start
       HASURA_GRAPHQL_MIGRATIONS_SERVER_TIMEOUT: 60
@@ -174,7 +164,7 @@ services:
       PG_DATABASE_URL: ${HASURA_PG_DATABASE_URL}
       ## enable the console served by server
       # set to "false" to disable console
-      HASURA_GRAPHQL_ENABLE_CONSOLE: ${HASURA_GRAPHQL_ENABLE_CONSOLE} 
+      HASURA_GRAPHQL_ENABLE_CONSOLE: ${HASURA_GRAPHQL_ENABLE_CONSOLE}
       ## enable debugging mode. It is recommended to disable this in production
       HASURA_GRAPHQL_DEV_MODE: ${HASURA_GRAPHQL_DEV_MODE}
       # https://hasura.io/docs/latest/deployment/graphql-engine-flags/config-examples/#console-assets-on-server
@@ -185,6 +175,8 @@ services:
       # keycloak jwks endpoint
       HASURA_GRAPHQL_JWT_SECRET: ${HASURA_GRAPHQL_JWT_SECRET}
       HASURA_GRAPHQL_ADMIN_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
+      # Hasura role for unauthorized users
+      HASURA_GRAPHQL_UNAUTHORIZED_ROLE: "${HASURA_GRAPHQL_UNAUTHORIZED_ROLE}"
       ACTIONS_ADMIN_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
       HARVEST_DOMAIN: ${HARVEST_DOMAIN}
     depends_on:
@@ -361,7 +353,7 @@ services:
       - immudb_logs:/var/log/immudb
     depends_on:
       - immudb-init
-  
+
   harvest:
     profiles: ["full", "base"]
     stdin_open: true
@@ -376,16 +368,16 @@ services:
       - devcontainer
     working_dir: /workspaces/step/packages/harvest
     entrypoint: [
-      "cargo",
-      "watch",
-      "--why",
-      # ignoring rust-local-target/ since it's used for local builds and
-      # otherwise triggers a rebuild all the time (probably rust analyzer)
-      "--ignore",
-      "rust-local-target/",
-      "-x",
-      "run"
-    ]
+        "cargo",
+        "watch",
+        "--why",
+        # ignoring rust-local-target/ since it's used for local builds and
+        # otherwise triggers a rebuild all the time (probably rust analyzer)
+        "--ignore",
+        "rust-local-target/",
+        "-x",
+        "run",
+      ]
     environment:
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
       LOG_LEVEL: ${LOG_LEVEL}
@@ -410,7 +402,6 @@ services:
       KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
       KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
-      HASURA_ENDPOINT: ${HASURA_ENDPOINT}
       HASURA_DB__USER: ${HASURA_DB__USER}
       HASURA_DB__PASSWORD: ${HASURA_DB__PASSWORD}
       HASURA_DB__HOST: ${HASURA_DB__HOST}
@@ -446,14 +437,10 @@ services:
       AWS_REGION: ${AWS_REGION}
       AWS_S3_MAX_UPLOAD_BYTES: ${AWS_S3_MAX_UPLOAD_BYTES}
 
-      CLOUDFLARE_ZONE: ${CLOUDFLARE_ZONE}
-      CLOUDFLARE_API_KEY: ${CLOUDFLARE_API_KEY}
-      CUSTOM_URLS_IP_DNS_CONTENT: ${CUSTOM_URLS_IP_DNS_CONTENT}
-
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     ports:
-     - ${HARVEST_PORT}:${HARVEST_PORT}
+      - ${HARVEST_PORT}:${HARVEST_PORT}
 
   trustee1:
     profiles: ["full"]
@@ -467,19 +454,19 @@ services:
       context: ../packages/
       dockerfile: ./braid/Dockerfile
     environment:
-        IMMUDB_USER: ${IMMUDB_USER}
-        IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-        IMMUDB_URL: ${IMMUDB_SERVER_URL}
-        IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
-        TRUSTEE_NAME: trustee1
-        TRUSTEE_CONFIG: ${TRUSTEE1_CONFIG}
-        IGNORE_BOARDS: ${IGNORE_BOARDS}
-        SECRETS_BACKEND: ${SECRETS_BACKEND}
-        VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-        VAULT_TOKEN: ${VAULT_TOKEN}
+      IMMUDB_USER: ${IMMUDB_USER}
+      IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
+      IMMUDB_URL: ${IMMUDB_SERVER_URL}
+      IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
+      TRUSTEE_NAME: trustee1
+      TRUSTEE_CONFIG: ${TRUSTEE1_CONFIG}
+      IGNORE_BOARDS: ${IGNORE_BOARDS}
+      SECRETS_BACKEND: ${SECRETS_BACKEND}
+      VAULT_SERVER_URL: ${VAULT_SERVER_URL}
+      VAULT_TOKEN: ${VAULT_TOKEN}
     depends_on:
       - immudb
-  
+
   trustee2:
     profiles: ["full"]
     stdin_open: true
@@ -494,17 +481,17 @@ services:
       - trustee1
       - immudb
     environment:
-        IMMUDB_USER: ${IMMUDB_USER}
-        IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-        IMMUDB_URL: ${IMMUDB_SERVER_URL}
-        IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
-        TRUSTEE_NAME: trustee2
-        TRUSTEE_CONFIG: ${TRUSTEE2_CONFIG}
-        IGNORE_BOARDS: ${IGNORE_BOARDS}
-        SECRETS_BACKEND: ${SECRETS_BACKEND}
-        VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-        VAULT_TOKEN: ${VAULT_TOKEN}
-  
+      IMMUDB_USER: ${IMMUDB_USER}
+      IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
+      IMMUDB_URL: ${IMMUDB_SERVER_URL}
+      IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
+      TRUSTEE_NAME: trustee2
+      TRUSTEE_CONFIG: ${TRUSTEE2_CONFIG}
+      IGNORE_BOARDS: ${IGNORE_BOARDS}
+      SECRETS_BACKEND: ${SECRETS_BACKEND}
+      VAULT_SERVER_URL: ${VAULT_SERVER_URL}
+      VAULT_TOKEN: ${VAULT_TOKEN}
+
   # trustee3:
   #   profiles: ["full"]
   #   stdin_open: true
@@ -567,9 +554,9 @@ services:
       --immudb-host ${IMMUDB_HOST}
       --immudb-port ${IMMUDB_PORT}
       --immudb-database ${IMMUDB_LOGS_DB}
-    volumes: 
-      - 'immudb_log_audit_data:/data'
-      - 'db_logs:/logs'
+    volumes:
+      - "immudb_log_audit_data:/data"
+      - "db_logs:/logs"
     # make sure to depend on the `immudb-log-audit-init` container to ensure
     # that the `sequentech.local/immudb-log-audit` image is locally build, so
     # that we can reuse it:
@@ -616,9 +603,9 @@ services:
       --immudb-host ${IMMUDB_HOST}
       --immudb-port ${IMMUDB_PORT}
       --immudb-database ${IMMUDB_LOGS_DB}
-    volumes: 
-      - 'keycloak_immudb_log_audit_data:/data'
-      - 'keycloak_db_logs:/logs'
+    volumes:
+      - "keycloak_immudb_log_audit_data:/data"
+      - "keycloak_db_logs:/logs"
     # make sure to depend on the `immudb-log-audit-init` container to ensure
     # that the `sequentech.local/immudb-log-audit` image is locally build, so
     # that we can reuse it:
@@ -626,7 +613,6 @@ services:
       - postgres
       - immudb
       - immudb-log-audit-init-keycloak
-
 
   rabbitmq:
     profiles: ["full", "base"]
@@ -654,26 +640,27 @@ services:
       - ../packages/:/app:z
     restart: always
     working_dir: /app/immu-board
-    entrypoint: [
-      "cargo",
-      "run",
-      "--bin",
-      "bb_helper",
-      "--",
-      "--server-url",
-      "${IMMUDB_SERVER_URL}",
-      "--username",
-      "${IMMUDB_USER}",
-      "--password",
-      "${IMMUDB_PASSWORD}",
-      "--index-dbname",
-      "${IMMUDB_INDEX_DB}",
-      "--board-dbname",
-      "${IMMUDB_BOARD_DB_NAME}",
-      "--cache-dir",
-      "/tmp/immu-board",
-      "upsert-init-db"
-    ]
+    entrypoint:
+      [
+        "cargo",
+        "run",
+        "--bin",
+        "bb_helper",
+        "--",
+        "--server-url",
+        "${IMMUDB_SERVER_URL}",
+        "--username",
+        "${IMMUDB_USER}",
+        "--password",
+        "${IMMUDB_PASSWORD}",
+        "--index-dbname",
+        "${IMMUDB_INDEX_DB}",
+        "--board-dbname",
+        "${IMMUDB_BOARD_DB_NAME}",
+        "--cache-dir",
+        "/tmp/immu-board",
+        "upsert-init-db",
+      ]
     env_file:
       - .env
 
@@ -688,16 +675,16 @@ services:
     restart: always
     working_dir: /workspaces/step/packages/windmill
     entrypoint: [
-      "cargo",
-      "watch",
-      "--why",
-      # ignoring rust-local-target/ since it's used for local builds and
-      # otherwise triggers a rebuild all the time (probably rust analyzer)
-      "--ignore",
-      "rust-local-target/",
-      "-x",
-      "run --bin main consume -q short_queue tally_queue reports_queue beat communication_queue import_export_queue"
-    ]
+        "cargo",
+        "watch",
+        "--why",
+        # ignoring rust-local-target/ since it's used for local builds and
+        # otherwise triggers a rebuild all the time (probably rust analyzer)
+        "--ignore",
+        "rust-local-target/",
+        "-x",
+        "run --bin main consume -q short_queue tally_queue reports_queue beat communication_queue import_export_queue",
+      ]
     volumes_from:
       - devcontainer
     depends_on:
@@ -778,8 +765,9 @@ services:
       PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE: ${PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE}
       PUBLIC_ASSETS_EML_BASE_TEMPLATE: ${PUBLIC_ASSETS_EML_BASE_TEMPLATE}
       VOTE_RECEIPT_TEMPLATE_TITLE: ${VOTE_RECEIPT_TEMPLATE_TITLE}
-      VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE: ${VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE}
-       #Demo key
+      VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE:
+        ${VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE}
+        #Demo key
       DEMO_PUBLIC_KEY: ${DEMO_PUBLIC_KEY}
 
   beat:
@@ -797,16 +785,16 @@ services:
       - harvest
     working_dir: /workspaces/step/packages/windmill
     entrypoint: [
-      "cargo",
-      "watch",
-      "--why",
-      # ignoring rust-local-target/ since it's used for local builds and
-      # otherwise triggers a rebuild all the time (probably rust analyzer)
-      "--ignore",
-      "rust-local-target/",
-      "-x",
-      "run --bin beat"
-    ]
+        "cargo",
+        "watch",
+        "--why",
+        # ignoring rust-local-target/ since it's used for local builds and
+        # otherwise triggers a rebuild all the time (probably rust analyzer)
+        "--ignore",
+        "rust-local-target/",
+        "-x",
+        "run --bin beat",
+      ]
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
       LOG_LEVEL: ${LOG_LEVEL}
