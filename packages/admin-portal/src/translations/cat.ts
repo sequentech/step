@@ -80,6 +80,32 @@ const catalanTranslation: TranslationType = {
                 title: "Bitàcola de Base de Dades de IAM",
             },
         },
+        tasksScreen: {
+            noPermissions: "No tens permís per accedir als registres.",
+            title: "Execució de tasques",
+            subtitle: "Informació sobre les tasques executades",
+            taskInformation: "Informació de la tasca",
+            status: "estat: {{status}}",
+            ok: "D'acord",
+            column: {
+                id: "Índex",
+                name: "Nom de la tasca",
+                type: "Tipus",
+                execution_status: "Estat",
+                start_at: "Hora d'inici",
+                end_at: "Hora de finalització",
+                executed_by_user: "Executor",
+                annotations: "Annotations",
+                labels: "Etiquetes",
+                logs: "Registres",
+            },
+            tasksExecution: {
+                EXPORT_ELECTION_EVENT: "Exportar esdeveniment electoral",
+                IMPORT_ELECTION_EVENT: "Importar esdeveniment electoral",
+                IMPORT_USERS: "Importar usuaris",
+                IMPORT_CANDIDATES: "Importar candidats",
+            },
+        },
         confirmationScreen: {
             title: "El seu vot ha estat emès",
             description:
@@ -169,6 +195,8 @@ const catalanTranslation: TranslationType = {
                 createNew: "Crear un Tipus d'Elecció",
                 emptyHeader: "No hi ha Tipus d'Elecció encara.",
                 emptyBody: "Vols crear-ne un?",
+                logoUrl: "URL del Logotip",
+                css: "CSS personalitzat",
             },
             create: {
                 title: "Crear Tipus d'Elecció",
@@ -181,6 +209,7 @@ const catalanTranslation: TranslationType = {
                 electionTypes: "TIPUS D'ELECCIÓ",
                 communications: "COMUNICACIÓ",
                 languages: "IDIOMES",
+                lookAndFeel: "PERSONALITZACIÓ D'APARENÇA",
                 schedules: "ESDEVENIMENTS PROGRAMATS",
                 trustees: "AUTORITATS",
             },
@@ -236,6 +265,7 @@ const catalanTranslation: TranslationType = {
             edit: {
                 general: "General",
                 dates: "Dates",
+                customUrls: "Prefix d'URL personalitzats",
                 language: "Idiomes",
                 votingPeriod: "Període de votació",
                 allowed: "Canals de Vot Permesos",
@@ -244,6 +274,10 @@ const catalanTranslation: TranslationType = {
                 reorder: "Reordenar eleccions",
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importar Candidats",
+            },
+            customUrls: {
+                login: "Inici de sessió",
+                enrollment: "Inscripció",
             },
             localization: {
                 emptyHeader: "No s'han establert idiomes per a l'esdeveniment",
@@ -344,6 +378,8 @@ const catalanTranslation: TranslationType = {
                 tally: "Recompte",
                 publish: "Publicar",
                 logs: "Registres",
+                events: "Esdeveniments",
+                tasks: "Tasques",
             },
             tally: {
                 emptyHeader: "Encara no hi ha Recompte.",
@@ -410,6 +446,8 @@ const catalanTranslation: TranslationType = {
                 },
             },
             exportError: "Error exportant l'esdeveniment electoral",
+            taskNotification:
+                "{{action}} ha començat. Podeu veure el seu estat a la taula d'Execució de Tasques.",
         },
         electionScreen: {
             common: {
@@ -461,14 +499,17 @@ const catalanTranslation: TranslationType = {
             },
         },
         tenantScreen: {
+            list: {
+                title: "Tenants",
+            },
             common: {
-                title: "Client",
+                title: "Llogaters",
             },
             new: {
-                subtitle: "Crear Client",
+                subtitle: "Crear nou llogater",
             },
-            createSuccess: "Client creat",
-            createError: "Error creant client",
+            createSuccess: "Llogater creat",
+            createError: "Error creant llogater",
         },
         usersAndRolesScreen: {
             noPermissions: "No tens permís per accedir als usuaris o rols.",
@@ -476,6 +517,12 @@ const catalanTranslation: TranslationType = {
                 title: "Usuaris i Rols",
                 subtitle: "Configuració general",
                 mobileNumber: "Mòbil",
+            },
+            editPassword: {
+                label: "Canviar contrasenya",
+                temporatyLabel: "Temporal",
+                temporatyInfo:
+                    "Si està habilitat, l'usuari haurà de canviar la contrasenya en el pròxim inici de sessió.",
             },
             users: {
                 title: "Usuaris",
@@ -519,6 +566,7 @@ const catalanTranslation: TranslationType = {
                     exportError: "Error exportant usuaris",
                     deleteError: "Error esborrant usuari",
                     deleteSuccess: "Usuari esborrat",
+                    multipleDeleteSuccess: "Usuaris esborrats",
                 },
             },
             voters: {
@@ -531,6 +579,7 @@ const catalanTranslation: TranslationType = {
                     subtitle: "Crear votant",
                 },
                 manualVerification: {
+                    label: "Verificar manualment",
                     verify: "Verificar manualment al votant",
                     body: "Verifiqueu manualment a aquest votant. Obtindrà un PDF amb un enllaç de codi QR que permet al votant iniciar sessió ometent el KYC en línia.",
                 },
@@ -548,6 +597,7 @@ const catalanTranslation: TranslationType = {
                     exportError: "Error exportant votants",
                     deleteError: "Error esborrant votant",
                     deleteSuccess: "Votant esborrat",
+                    multipleDeleteSuccess: "Votants esborrats",
                     manualVerificationError: "Error verificant manualment al votant",
                     manualVerificationSuccess:
                         "Verificat amb èxit manualment al votant, descarregar PDF..",
@@ -626,6 +676,7 @@ const catalanTranslation: TranslationType = {
                 "publish-read": "Llegir Publicació",
                 "publish-write": "Editar Publicació",
                 "logs-read": "Llegir Registres",
+                "tasks-read": "Llegir l'Execució de Tasques",
                 "keys-read": "Llegir Claus",
                 "document-upload": "Pujar Documents",
                 "document-download": "Descarregar Documents",
@@ -1367,6 +1418,9 @@ const catalanTranslation: TranslationType = {
                 isHidden: "Ocult",
                 publicUrl: "Enllaç públic",
             },
+        },
+        widget: {
+            logs: "Registres",
         },
     },
 }

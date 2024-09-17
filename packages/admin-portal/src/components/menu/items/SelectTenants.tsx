@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useEffect} from "react"
-import {useGetList, useRefresh, useSidebarState} from "react-admin"
+import React, {useContext, useEffect, useState} from "react"
+import {useGetOne, useRefresh, useSidebarState} from "react-admin"
 import {faThLarge, faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 import {IconButton, adminTheme} from "@sequentech/ui-essentials"
 import {Box, MenuItem, Select, SelectChangeEvent} from "@mui/material"
@@ -14,6 +14,7 @@ import {IPermissions} from "../../../types/keycloak"
 import AccountCircleIcon from "@mui/icons-material/AccountCircle"
 import {useTranslation} from "react-i18next"
 import styled from "@emotion/styled"
+import {CreateTenant} from "@/resources/Tenant/CreateTenant"
 
 const SelectTenants: React.FC = () => {
     const refresh = useRefresh()
@@ -21,13 +22,12 @@ const SelectTenants: React.FC = () => {
     const authContext = useContext(AuthContext)
     const {i18n} = useTranslation()
     const [isOpenSidebar] = useSidebarState()
+    const [isNewTenantOpen, setIsNewTenantOpen] = useState(false)
 
     const showAddTenant = authContext.isAuthorized(true, null, IPermissions.TENANT_CREATE)
 
-    const {data, total} = useGetList("sequent_backend_tenant", {
-        pagination: {page: 1, perPage: 10},
-        sort: {field: "updated_at", order: "DESC"},
-        filter: {is_active: true},
+    const {data} = useGetOne("sequent_backend_tenant", {
+        id: tenantId,
     })
 
     useEffect(() => {
@@ -39,49 +39,32 @@ const SelectTenants: React.FC = () => {
         }
     }, [data, tenantId, authContext.tenantId, setTenantId])
 
-    const hasSingle = total === 1
-
-    const handleChange = (event: SelectChangeEvent<unknown>) => {
-        const tenantId: string = event.target.value as string
-        setTenantId(tenantId)
-        refresh()
-    }
-
     return (
-        <Container hasSingle={hasSingle}>
-            <AccountCircleIcon />
-            {isOpenSidebar && !!data && (
-                <>
-                    {hasSingle ? (
+        <>
+            <Container hasSingle={true}>
+                <AccountCircleIcon />
+                {isOpenSidebar && !!data && (
+                    <>
                         <SingleDataContainer
                             style={{
                                 textAlign: i18n.dir(i18n.language) === "rtl" ? "start" : "start",
                             }}
                         >
-                            {data[0].slug}
+                            {data.slug}
                         </SingleDataContainer>
-                    ) : (
-                        <StyledSelect
-                            labelId="tenant-select-label"
-                            id="tenant-select"
-                            value={tenantId}
-                            onChange={handleChange}
-                        >
-                            {data?.map((tenant) => (
-                                <MenuItem key={tenant.id} value={tenant.id}>
-                                    {tenant.slug}
-                                </MenuItem>
-                            ))}
-                        </StyledSelect>
-                    )}
-                    {showAddTenant ? (
-                        <Link to="/sequent_backend_tenant/create">
-                            <StyledIcon icon={faPlusCircle} />
-                        </Link>
-                    ) : null}
-                </>
+                        {showAddTenant ? (
+                            <StyledIcon
+                                icon={faPlusCircle}
+                                onClick={() => setIsNewTenantOpen(true)}
+                            />
+                        ) : null}
+                    </>
+                )}
+            </Container>
+            {isNewTenantOpen && (
+                <CreateTenant isDrawerOpen={isNewTenantOpen} setIsDrawerOpen={setIsNewTenantOpen} />
             )}
-        </Container>
+        </>
     )
 }
 

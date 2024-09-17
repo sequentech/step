@@ -17,6 +17,7 @@ interface ImportScreenProps {
     uploadCallback?: (documentId: string) => Promise<void>
     doCancel: () => void
     errors: string | null
+    disableImport?: boolean
     refresh?: string
 }
 
@@ -34,7 +35,7 @@ export const ImportStyles = {
 
 export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenProps>> = memo(
     (props: ImportScreenProps): React.JSX.Element => {
-        const {doCancel, uploadCallback, doImport, refresh, errors} = props
+        const {doCancel, uploadCallback, doImport, disableImport, refresh, errors} = props
 
         const {t} = useTranslation()
         const notify = useNotify()
@@ -145,7 +146,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                         {t("electionEventScreen.import.cancel")}
                     </ImportStyles.CancelButton>
                     <ImportStyles.ImportButton
-                        disabled={!documentId || isWorking()}
+                        disabled={!documentId || isWorking() || disableImport}
                         onClick={onImportButtonClick}
                     >
                         {t("electionEventScreen.import.import")}
