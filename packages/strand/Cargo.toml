@@ -109,5 +109,9 @@ harness = false
 [[bench]]
 name = "encrypt"
 harness = false
+
+[[bench]]
+name = "verify_ballot"
+harness = false
 # remove this to run benchmark
 # bench = false
