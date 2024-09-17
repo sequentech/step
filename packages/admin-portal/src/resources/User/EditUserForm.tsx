@@ -342,7 +342,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             if (attr.annotations?.inputType === "select") {
                 return (
                     <FormControl fullWidth>
-                        <InputLabel id="select-label">{attr.display_name}</InputLabel>
+                        <InputLabel id="select-label">{getAttributeLabel(displayName)}</InputLabel>
                         <Select
                             name={displayName}
                             defaultValue={value}
