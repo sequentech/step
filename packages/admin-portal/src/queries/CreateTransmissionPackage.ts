@@ -5,12 +5,14 @@ import {gql} from "@apollo/client"
 
 export const CREATE_TRANSMISSION_PACKAGE = gql`
     mutation CreateTransmissionPackage(
+        $electionEventId: uuid!
         $electionId: uuid!
         $tallySessionId: uuid!
         $areaId: uuid!
         $force: Boolean!
     ) {
         create_transmission_package(
+            election_event_id: $electionEventId
             election_id: $electionId
             tally_session_id: $tallySessionId
             area_id: $areaId

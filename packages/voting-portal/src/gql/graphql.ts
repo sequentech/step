@@ -1244,6 +1244,7 @@ export type Mutation_RootCreate_Tally_CeremonyArgs = {
 /** mutation root */
 export type Mutation_RootCreate_Transmission_PackageArgs = {
   area_id: Scalars['uuid']['input'];
+  election_event_id: Scalars['uuid']['input'];
   election_id: Scalars['uuid']['input'];
   force: Scalars['Boolean']['input'];
   tally_session_id: Scalars['uuid']['input'];

@@ -6358,6 +6358,20 @@
                 "defaultValue": null
               },
               {
+                "name": "election_event_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              },
+              {
                 "name": "election_id",
                 "description": null,
                 "type": {

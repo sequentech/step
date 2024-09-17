@@ -73,6 +73,8 @@ import {CREATE_TRANSMISSION_PACKAGE} from "@/queries/CreateTransmissionPackage"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {AuthContext} from "@/providers/AuthContextProvider"
+import {ETasksExecution} from "@/types/tasksExecution"
+import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 
 const WizardSteps = {
     Start: 0,
@@ -118,6 +120,7 @@ export const TallyCeremony: React.FC = () => {
     const isTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_CEREMONY)
     const [selectedElections, setSelectedElections] = useState<string[]>([])
     const [selectedTrustees, setSelectedTrustees] = useState<boolean>(false)
+    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
 
     const [CreateTallyCeremonyMutation] =
         useMutation<CreateTallyCeremonyMutation>(CREATE_TALLY_CEREMONY)
@@ -477,6 +480,7 @@ export const TallyCeremony: React.FC = () => {
             try {
                 const {data: nextStatus, errors} = await CreateTransmissionPackage({
                     variables: {
+                        electionEventId: record?.id,
                         electionId: election_id,
                         tallySessionId: tallyId,
                         areaId: area_id,

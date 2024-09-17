@@ -105,6 +105,9 @@ const englishTranslation = {
                 IMPORT_ELECTION_EVENT: "Import Election Event",
                 IMPORT_USERS: "Import Users",
                 IMPORT_CANDIDATES: "Import Candidates",
+                EXPORT_VOTERS: "Export Voters",
+                EXPORT_USERS: "Export Users",
+                EXPORT_TENANT_USERS: "Export Tenant Users",
             },
         },
         confirmationScreen: {
