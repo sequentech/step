@@ -80,6 +80,32 @@ const catalanTranslation: TranslationType = {
                 title: "Bitàcola de Base de Dades de IAM",
             },
         },
+        tasksScreen: {
+            noPermissions: "No tens permís per accedir als registres.",
+            title: "Execució de tasques",
+            subtitle: "Informació sobre les tasques executades",
+            taskInformation: "Informació de la tasca",
+            status: "estat: {{status}}",
+            ok: "D'acord",
+            column: {
+                id: "Índex",
+                name: "Nom de la tasca",
+                type: "Tipus",
+                execution_status: "Estat",
+                start_at: "Hora d'inici",
+                end_at: "Hora de finalització",
+                executed_by_user: "Executor",
+                annotations: "Annotations",
+                labels: "Etiquetes",
+                logs: "Registres",
+            },
+            tasksExecution: {
+                EXPORT_ELECTION_EVENT: "Exportar esdeveniment electoral",
+                IMPORT_ELECTION_EVENT: "Importar esdeveniment electoral",
+                IMPORT_USERS: "Importar usuaris",
+                IMPORT_CANDIDATES: "Importar candidats",
+            },
+        },
         confirmationScreen: {
             title: "El seu vot ha estat emès",
             description:
@@ -349,6 +375,7 @@ const catalanTranslation: TranslationType = {
                 tally: "Recompte",
                 publish: "Publicar",
                 logs: "Registres",
+                tasks: "Tasques",
             },
             tally: {
                 emptyHeader: "Encara no hi ha Recompte.",
@@ -415,6 +442,8 @@ const catalanTranslation: TranslationType = {
                 },
             },
             exportError: "Error exportant l'esdeveniment electoral",
+            taskNotification:
+                "{{action}} ha començat. Podeu veure el seu estat a la taula d'Execució de Tasques.",
         },
         electionScreen: {
             common: {
@@ -631,6 +660,7 @@ const catalanTranslation: TranslationType = {
                 "publish-read": "Llegir Publicació",
                 "publish-write": "Editar Publicació",
                 "logs-read": "Llegir Registres",
+                "tasks-read": "Llegir l'Execució de Tasques",
                 "keys-read": "Llegir Claus",
                 "document-upload": "Pujar Documents",
                 "document-download": "Descarregar Documents",
@@ -1372,6 +1402,9 @@ const catalanTranslation: TranslationType = {
                 isHidden: "Ocult",
                 publicUrl: "Enllaç públic",
             },
+        },
+        widget: {
+            logs: "Registres",
         },
     },
 }

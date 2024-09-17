@@ -13,6 +13,7 @@ pub mod error_catchers;
 pub mod export_election_event;
 pub mod export_election_event_logs;
 pub mod fetch_document;
+// pub mod get_task_by_id;
 pub mod immudb_log_audit;
 pub mod import_areas;
 pub mod import_candidates;

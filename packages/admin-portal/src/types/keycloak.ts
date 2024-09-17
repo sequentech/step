@@ -53,6 +53,7 @@ export enum IPermissions {
     PUBLISH_WRITE = "publish-write",
     LOGS_READ = "logs-read",
     KEYS_READ = "keys-read",
+    TASKS_READ = "tasks-read",
     DOCUMENT_UPLOAD = "document-upload",
     DOCUMENT_DOWNLOAD = "document-download",
     ADMIN_CEREMONY = "admin-ceremony",
