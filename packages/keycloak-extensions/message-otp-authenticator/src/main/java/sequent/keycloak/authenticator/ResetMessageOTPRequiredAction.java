@@ -123,7 +123,12 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
     UserModel user = context.getUser();
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
     String resendTimer = config.get().getConfig().get(Utils.RESEND_ACTIVATION_TIMER);
-    boolean isOtl = config.get().getConfig().get(Utils.ONE_TIME_LINK).equals("true");
+    boolean isOtl =
+        Optional.ofNullable(config.get())
+            .map(c -> c.getConfig())
+            .map(c -> c.get(Utils.ONE_TIME_LINK))
+            .map(c -> c.equals("true"))
+            .orElse(false);
 
     try {
       Utils.sendCode(

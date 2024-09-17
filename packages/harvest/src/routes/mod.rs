@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pub mod ballot_publication;
 pub mod create_vote_receipt;
+pub mod custom_urls;
 pub mod election_dates;
 pub mod election_event_stats;
 pub mod election_stats;

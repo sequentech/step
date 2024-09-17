@@ -236,6 +236,7 @@ const catalanTranslation: TranslationType = {
             edit: {
                 general: "General",
                 dates: "Dates",
+                customUrls: "Prefix d'URL personalitzats",
                 language: "Idiomes",
                 votingPeriod: "Període de votació",
                 allowed: "Canals de Vot Permesos",
@@ -244,6 +245,10 @@ const catalanTranslation: TranslationType = {
                 reorder: "Reordenar eleccions",
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importar Candidats",
+            },
+            customUrls: {
+                login: "Inici de sessió",
+                enrollment: "Inscripció",
             },
             localization: {
                 emptyHeader: "No s'han establert idiomes per a l'esdeveniment",

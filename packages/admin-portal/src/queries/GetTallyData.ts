@@ -37,6 +37,7 @@ export const GET_TALLY_DATA = gql`
         ) {
             tenant_id
             status
+            alias
             statistics
             spoil_ballot_option
             receipts
