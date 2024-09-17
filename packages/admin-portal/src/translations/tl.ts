@@ -195,6 +195,8 @@ const tagalogTranslation: TranslationType = {
                 createNew: "Lumikha ng Uri ng Halalan",
                 emptyHeader: "Wala pang Uri ng Halalan.",
                 emptyBody: "Gusto mo bang lumikha ng isa?",
+                logoUrl: "URL ng Logo",
+                css: "Custom CSS",
             },
             create: {
                 title: "Lumikha ng Uri ng Halalan",
@@ -207,6 +209,7 @@ const tagalogTranslation: TranslationType = {
                 electionTypes: "URI NG HALALAN",
                 communications: "KOMUNIKASYON",
                 languages: "WIKA",
+                lookAndFeel: "PAGPASADYA KAN ITSURA",
                 schedules: "NAISKEDYUL NA MGA KAGANAPAN",
                 trustees: "TAGAPANGALAGA",
             },

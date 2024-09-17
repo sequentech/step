@@ -195,6 +195,8 @@ const catalanTranslation: TranslationType = {
                 createNew: "Crear un Tipus d'Elecció",
                 emptyHeader: "No hi ha Tipus d'Elecció encara.",
                 emptyBody: "Vols crear-ne un?",
+                logoUrl: "URL del Logotip",
+                css: "CSS personalitzat",
             },
             create: {
                 title: "Crear Tipus d'Elecció",
@@ -207,6 +209,7 @@ const catalanTranslation: TranslationType = {
                 electionTypes: "TIPUS D'ELECCIÓ",
                 communications: "COMUNICACIÓ",
                 languages: "IDIOMES",
+                lookAndFeel: "PERSONALITZACIÓ D'APARENÇA",
                 schedules: "ESDEVENIMENTS PROGRAMATS",
                 trustees: "AUTORITATS",
             },
