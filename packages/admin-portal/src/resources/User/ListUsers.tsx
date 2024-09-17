@@ -178,7 +178,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         <DateInput
                             key={attr.name}
                             source={`attributes.${attr.name}`}
-                            label={attr.display_name ?? ""}
+                            label={getAttributeLabel(attr.display_name ?? "")}
                         />
                     )
                 }
