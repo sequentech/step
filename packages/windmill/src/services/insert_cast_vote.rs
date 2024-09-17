@@ -237,7 +237,10 @@ pub async fn try_insert_cast_vote(
     }
 }
 
-#[instrument(skip(input, hasura_transaction, signing_key, auth_headers), err)]
+#[instrument(
+    skip(input, hasura_transaction, election_event, auth_headers, signing_key),
+    err
+)]
 pub async fn insert_cast_vote_and_commit<'a>(
     input: InsertCastVoteInput,
     hasura_transaction: Transaction<'_>,
