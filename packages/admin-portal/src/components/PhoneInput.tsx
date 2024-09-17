@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState} from "react"
 import IntlTelInput from "intl-tel-input/react"
-import "intl-tel-input/build/css/intlTelInput.css"
 import {Box, InputLabel} from "@mui/material"
 import {data} from "../lib/timezone-countrycode-data"
 
