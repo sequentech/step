@@ -13,6 +13,7 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IResultDocuments} from "@/types/results"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {useAtomValue} from "jotai"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 interface TallyResultsContestProps {
     areas: RaRecord<Identifier>[] | undefined
@@ -130,6 +131,8 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
         [contestId, contests]
     )
 
+    const aliasRenderer = useAliasRenderer()
+
     return (
         <>
             <Box
@@ -149,7 +152,7 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
                     {contestsData?.map((contest, index) => (
                         <Tab
                             key={index}
-                            label={contest.name}
+                            label={aliasRenderer(contest)}
                             onClick={() => tabClicked(contest.id, index)}
                         />
                     ))}

@@ -16,6 +16,7 @@ interface ImportVotersTabsProps {
     subtitle: string
     paragraph: string
     doImport: (documentId: string, sha256: string) => Promise<void>
+    disableImport?: boolean
     uploadCallback?: (documentId: string) => Promise<void>
     errors: string | null
 }
@@ -27,6 +28,7 @@ export const ImportDataDrawer: React.FC<ImportVotersTabsProps> = ({
     subtitle,
     paragraph,
     doImport,
+    disableImport,
     uploadCallback,
     errors,
 }) => {
@@ -51,6 +53,7 @@ export const ImportDataDrawer: React.FC<ImportVotersTabsProps> = ({
                                 refresh="electionEventScreen.import.voters"
                                 doCancel={closeDrawer}
                                 doImport={doImport}
+                                disableImport={disableImport}
                                 uploadCallback={uploadCallback}
                                 errors={errors}
                             />

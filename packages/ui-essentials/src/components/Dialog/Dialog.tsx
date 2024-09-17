@@ -4,7 +4,7 @@
 import React, {PropsWithChildren} from "react"
 import DialogTitle from "@mui/material/DialogTitle"
 import MaterialDialog from "@mui/material/Dialog"
-import {Backdrop, Box, Breakpoint, Button} from "@mui/material"
+import {Backdrop, Box, Button, Breakpoint} from "@mui/material"
 import DialogContent from "@mui/material/DialogContent"
 import DialogActions from "@mui/material/DialogActions"
 import {faTimesCircle, faInfoCircle, faExclamationTriangle} from "@fortawesome/free-solid-svg-icons"

@@ -40,6 +40,7 @@ export const getElectoralLog = (fields: any) => {
                     statement_timestamp
                     statement_kind
                     message
+                    user_id
                 }
                 total {
                     aggregate {

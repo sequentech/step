@@ -26,6 +26,7 @@ import {
     defaultApolloContextValues,
 } from "./providers/ApolloContextProvider"
 import {BrowserRouter as Router} from "react-router-dom"
+import {WidgetsContextProvider} from "./providers/WidgetsContextProvider"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
