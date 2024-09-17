@@ -5,65 +5,6 @@ import {TranslationType} from "./en"
 
 const tagalogTranslation: TranslationType = {
     translations: {
-        loadingDataProvider: "Naglo-load ng tagapagbigay ng datos...",
-        breadcrumbSteps: {
-            electionList: "Listahan ng mga Halalan",
-            ballot: "Balota",
-            review: "Pagsusuri",
-            confirmation: "Kumpirmasyon",
-            audit: "Pagsisiyasat",
-        },
-        votingScreen: {
-            backButton: "Bumalik",
-            reviewButton: "Magpatuloy",
-            ballotHelpDialog: {
-                title: "Impormasyon: Screen ng Balota",
-                content:
-                    "Dito makikita ang mga halalan na maaari mong pagbotohan. Piliin ang iyong mga sagot sa pamamagitan ng pag-check ng kahon sa kanan ng Kandidato/Sagot. Upang magsimula ulit sa pagpili, i-click ang “<b>Burahin and mga Napili</b>” na button. Upang magpatuloy sa susunod na hakbang, i-click ang “<b>Magpatuloy</b>” na button sa ibaba.",
-                ok: "OK",
-            },
-        },
-        startScreen: {
-            startButton: "Simulan ang Pagboto",
-            instructionsTitle: "Mga Tagubilin",
-            instructionsDescription: "Sundin ang mga hakbang na ito para bumoto:",
-            step1Title: "1. Piliin ang iyong mga sagot",
-            step1Description:
-                "Sagutin ang mga tanong ng halalan isa-isa habang ipinapakita ang mga ito. Sa ganitong paraan, maisasama ang iyong mga napili sa iyong balota.",
-            step2Title: "2. Suriin ang iyong balota",
-            step2Description:
-                "Pagkatapos piliin ang iyong mga sagot, idadaan ito sa proseso ng pag-encrypt at ipapakita sa iyo ang tracker ID ng balota. Makikita mo rin ang buod ng nilalaman ng iyong balota para iyong masuri.",
-            step3Title: "3. I-submit ang iyong balota",
-            step3Description:
-                "Maaaring i-submit na ang balota upang maisama sa mga natanggap na boto. Maaari mo ring siyasatin kung tama ang pagkaka-encrypt ng iyong balota.",
-        },
-        reviewScreen: {
-            title: "Suriin ang iyong balota",
-            description:
-                "Upang baguhin ang iyong mga pinili, i-click ang “<b>Baguhin ang balota</b>” na button. Upang kumpirmahin ang iyong mga pinili, i-click ang “<b>I-submit ang Balota</b>” na button sa ibaba, at upang siyasatin ang iyong balota, i-click ang “<b>Siyasatin ang Balota</b>” na button sa ibaba. Tandaan na kapag na-submit mo ang iyong balota, ikaw ay nakaboto na at hindi ka na maaring bigyan ng panibagong balota para sa eleksyon na ito.",
-            backButton: "Baguhin ang balota",
-            castBallotButton: "I-submit ang balota",
-            auditButton: "Siyasatin ang balota",
-            reviewScreenHelpDialog: {
-                title: "Impormasyon: Suriin ang Screen",
-                content: "Dito maaring suriin ang iyong mga pinili bago i-submit ang iyong balota.",
-                ok: "OK",
-            },
-            ballotIdHelpDialog: {
-                title: "Ang boto ay hindi pa naisumite",
-                content:
-                    "<p>Ito ang iyong Ballot Tracker ID, ngunit <b>ang iyong boto ay hindi pa naisumite</b>. Kung susubukan mong i-track ang balota, hindi mo ito mahahanap.</p><p>Ang dahilan kung bakit ipinapakita ang Ballot Tracker ID sa yugtong ito ay upang masuri mo ang pagiging tama ng naka-encrypt na balota bago ito i-submit.</p>",
-                ok: "Tanggap ko na ang aking boto ay HINDI pa nai-submit",
-                cancel: "Kanselahin",
-            },
-            auditBallotHelpDialog: {
-                title: "Gusto mo bang siyasatin ang balota?",
-                content:
-                    "<p>Ang pagsisiyasat ng balota ay magpapawalang bisa dito at kakailanganin mong simulan muli ang proseso ng pagboto kung nais mong i-submit ang iyong boto. Ang proseso ng pagsisiyasat ng balota ay nagbibigay-daan upang matiyak mo kung tama ang pagkakatala. Ang pagdaan sa prosesong ito ay nangangailangan ng mahalagang teknikal na kaalaman, kaya't hindi namin ito inirerekomenda kung hindi mo alam ang iyong ginagawa.</p><p><b>Kung nais mo lamang i-cast ang iyong balota, i-click ang <u>Kanselahin</u> upang bumalik sa screen ng pagsusuri ng balota.</b></p>",
-                ok: "Oo, gusto kong IBASURA ang aking balota upang masiyasat ito",
-                cancel: "Kanselahin",
-            },
-        },
         logsScreen: {
             noPermissions: "Wala kang permiso upang ma-access ang mga log.",
             title: "Mga Log",
@@ -78,68 +19,6 @@ const tagalogTranslation: TranslationType = {
             iam: {
                 title: "Mga Log ng IAM Database",
             },
-        },
-        confirmationScreen: {
-            title: "Ang iyong boto ay nai-submit na",
-            description:
-                "Ang confirmation code sa ibaba ay nagpapatunay na <b>ang iyong balota ay matagumpay na nai-submit</b>. Maaari mong gamitin ang code na ito upang tiyakin na ang iyong balota ay nabilang.",
-            ballotId: "Ballot ID",
-            printButton: "I-print",
-            finishButton: "Tapusin",
-            verifyCastTitle: "Tiyakin na ang iyong balota ay nai-submit",
-            verifyCastDescription:
-                "Maaari mong tiyakin na ang iyong balota ay nai-submit ng tama sa anumang oras gamit ang sumusunod na QR code:",
-            confirmationHelpDialog: {
-                title: "Impormasyon: Kumpirmasyon",
-                content:
-                    "Ang pahinang na ito ay nagpapakita na ang iyong boto ay matagumpay na nai-submit. Ang impormasyong makikita dito ay nagpapahintulot sa iyo na tiyakin na ang balota ay naiimbak sa ballot box, ang prosesong ito ay maaaring isagawa anumang oras sa panahon ng pagboto at pagkatapos ng eleksyon.",
-                ok: "OK",
-            },
-            ballotIdHelpDialog: {
-                title: "Impormasyon: Ballot ID",
-                content:
-                    "Ang Ballot ID ay isang code na nagbibigay-daan sa iyo na mahanap ang iyong balota sa ballot box, ang ID na ito ay natatangi at hindi naglalaman ng impormasyon tungkol sa iyong mga pinili.",
-                ok: "OK",
-            },
-        },
-        auditScreen: {
-            printButton: "I-print",
-            restartButton: "Simulan ang Pagboto",
-            title: "Siyasatin ang Iyong Balota",
-            description:
-                "Upang tiyakin ang iyong balota, kailangan mong sundin ang mga sumusunod na hakbang:",
-            step1Title: "1. I-download o kopyahin ang sumusunod na impormasyon",
-            step1Description:
-                "Ang iyong <b>Ballot ID</b> na makikita sa itaas ng screen at ang iyong naka-encrypt na balota sa ibaba:",
-            step1HelpDialog: {
-                title: "Kopyahin ang Naka-encrypt na Balota",
-                content:
-                    "Maaari mong i-download o kopyahin ang iyong naka-encrypt na balota upang siyasatin ang balota at tiyakin na ang naka-encrypt na nilalaman ay naglalaman ng iyong mga pinili.",
-                ok: "OK",
-            },
-            downloadButton: "I-download",
-            step2Title: "2. Sundin ang mga hakbang sa tutorial na ito",
-            step2Description:
-                '(<a href="https://github.com/sequentech/new-ballot-verifier/blob/main/README.md">i-click dito</a>, magbubukas ang bagong tab sa iyong browser)',
-            step2HelpDialog: {
-                title: "Tutorial sa Pagsisiyasat ng Balota",
-                content:
-                    "Upang siyasatin ang iyong balota, kailangan mong sundin ang mga hakbang na ipinapakita sa tutorial. Kasama rito ang pag-download ng desktop application na ginagamit upang tiyakin ang naka-encrypt na balota nang hiwalay mula sa website.",
-                ok: "OK",
-            },
-            bottomWarning:
-                "Para sa mga kadahilanang pang-seguridad, kapag sisiyasatin mo ang iyong balota, kailangan itong ibasura. Upang ipagpatuloy ang proseso ng pagboto, kailangan mong i-click ang ‘<b>Simulan ang Pagboto</b>’ sa ibaba.",
-        },
-        electionSelectionScreen: {
-            title: "Listahan ng Eleksyon",
-            description: "Pumili ng eleksyon na nais mong botohan",
-            chooserHelpDialog: {
-                title: "Impormasyon: Listahan ng Eleksyon",
-                content:
-                    'Maligayang pagdating sa Voting Booth, ang screen na ito ay nagpapakita ng listahan ng mga eleksyon kung saan maaari kang bumoto. Ang mga eleksyon na nakalista dito ay maaaring bukas sa pagboto, nakatakda, o sarado. Maaari lamang mabuksan ang balota kung ang panahon ng pagboto ay bukas. Kung ang isang eleksyon ay sarado na at ang tagapangasiwa ng eleksyon ay nailathala ang resulta, makikita ang pindutang "Resulta ng Eleksyon" na dadalhin ka sa pampublikong pahina ng resulta.',
-                ok: "OK",
-            },
-            closedEventError: "Ang kaganapan ng eleksyon ay kasalukuyang sarado",
         },
         areas: {
             common: {
