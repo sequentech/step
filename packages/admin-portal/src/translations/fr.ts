@@ -80,6 +80,32 @@ const frenchTranslation: TranslationType = {
                 title: "Journal de la Base de Données IAM",
             },
         },
+        tasksScreen: {
+            noPermissions: "Vous n'avez pas la permission d'accéder aux journaux.",
+            title: "Exécution des tâches",
+            subtitle: "Informations sur les tâches exécutées et les journaux de progression",
+            taskInformation: "Informations sur la tâche",
+            status: "statut : {{status}}",
+            ok: "D'accord",
+            column: {
+                id: "Index",
+                name: "Nom de la tâche",
+                type: "Type",
+                execution_status: "Statut",
+                start_at: "Heure de début",
+                end_at: "Heure de fin",
+                executed_by_user: "Exécutant",
+                annotations: "Annotations",
+                labels: "Étiquettes",
+                logs: "Journaux",
+            },
+            tasksExecution: {
+                EXPORT_ELECTION_EVENT: "Exporter l'événement électoral",
+                IMPORT_ELECTION_EVENT: "Importer l'événement électoral",
+                IMPORT_USERS: "Importer des utilisateurs",
+                IMPORT_CANDIDATES: "Importer des candidats",
+            },
+        },
         confirmationScreen: {
             title: "Votre vote a été émis",
             description:
@@ -239,6 +265,7 @@ const frenchTranslation: TranslationType = {
             edit: {
                 general: "Général",
                 dates: "Dates",
+                customUrls: "Préfixer les URL personnalisées",
                 votingPeriod: "Période de vote",
                 language: "Langues",
                 allowed: "Canaux de Vote Permis",
@@ -247,6 +274,10 @@ const frenchTranslation: TranslationType = {
                 reorder: "Réorganiser les élections",
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importer des Candidats",
+            },
+            customUrls: {
+                login: "Connexion",
+                enrollment: "Inscription",
             },
             localization: {
                 emptyHeader: "Aucune langue n'a été définie pour l'événement",
@@ -347,6 +378,7 @@ const frenchTranslation: TranslationType = {
                 tally: "Comptage",
                 publish: "Publier",
                 logs: "Journaux",
+                tasks: "Tâches",
             },
             tally: {
                 emptyHeader: "Aucun Comptage pour l'instant.",
@@ -414,6 +446,8 @@ const frenchTranslation: TranslationType = {
                 },
             },
             exportError: "Erreur lors de l'exportation de l'événement électoral",
+            taskNotification:
+                "{{action}} a commencé. Vous pouvez voir son statut dans le tableau d'Exécution des Tâches.",
         },
         electionScreen: {
             common: {
@@ -631,6 +665,7 @@ const frenchTranslation: TranslationType = {
                 "publish-read": "Lire Publication",
                 "publish-write": "Éditer Publication",
                 "logs-read": "Lire Journaux",
+                "tasks-read": "Lire l'Exécution des Tâches",
                 "keys-read": "Lire Clés",
                 "document-upload": "Télécharger Documents",
                 "document-download": "Télécharger Documents",
@@ -1376,6 +1411,9 @@ const frenchTranslation: TranslationType = {
                 isHidden: "Caché",
                 publicUrl: "Lien public",
             },
+        },
+        widget: {
+            logs: "Journaux",
         },
     },
 }

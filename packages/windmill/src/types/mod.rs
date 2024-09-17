@@ -7,3 +7,4 @@ pub mod hasura_types;
 pub mod miru_plugin;
 pub mod resources;
 pub mod scheduled_event;
+pub mod tasks;

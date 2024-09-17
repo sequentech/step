@@ -4,6 +4,8 @@
 
 package sequent.keycloak.authenticator;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
@@ -27,7 +29,6 @@ import org.keycloak.email.EmailException;
 import org.keycloak.email.EmailSenderProvider;
 import org.keycloak.email.EmailTemplateProvider;
 import org.keycloak.email.freemarker.beans.ProfileBean;
-import org.keycloak.events.Details;
 import org.keycloak.forms.login.freemarker.model.UrlBean;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.Constants;
@@ -35,6 +36,8 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakUriInfo;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.representations.userprofile.config.UPAttribute;
+import org.keycloak.representations.userprofile.config.UPConfig;
 import org.keycloak.services.Urls;
 import org.keycloak.services.resources.LoginActionsService;
 import org.keycloak.services.resources.RealmsResource;
@@ -44,6 +47,7 @@ import org.keycloak.theme.FreeMarkerException;
 import org.keycloak.theme.Theme;
 import org.keycloak.theme.beans.MessageFormatterMethod;
 import org.keycloak.theme.freemarker.FreeMarkerProvider;
+import org.keycloak.userprofile.UserProfileProvider;
 import sequent.keycloak.authenticator.gateway.SmsSenderProvider;
 import sequent.keycloak.authenticator.otl.OTLActionToken;
 
@@ -79,6 +83,8 @@ public class Utils {
 
   public static final String ID_NUMBER = "ID_number";
   public static final String PHONE_NUMBER = "Phone_number";
+  public static final String USER_PROFILE_ATTRIBUTES = "user_profile_attributes";
+  public static final String AUTHENTICATOR_CLASS_NAME = "authenticator_class_name";
 
   public enum MessageCourier {
     SMS,
@@ -558,22 +564,40 @@ public class Utils {
     }
   }
 
-  public void buildEventDetails(AuthenticationFlowContext context) {
+  public void buildEventDetails(AuthenticationFlowContext context, String className) {
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
-    String email = authSession.getAuthNote(Details.EMAIL);
-    String firstName = authSession.getAuthNote(UserModel.FIRST_NAME);
-    String lastName = authSession.getAuthNote(UserModel.LAST_NAME);
-    String idNumber = authSession.getAuthNote(ID_NUMBER);
-    String userId = context.getAuthenticationSession().getAuthNote(USER_ID);
-    String phoneNumber = context.getAuthenticationSession().getAuthNote(PHONE_NUMBER_ATTRIBUTE);
+    UserModel user = context.getUser();
+    List<UPAttribute> realmsAttributesList = getRealmUserProfileAttributes(context.getSession());
+    for (UPAttribute attribute : realmsAttributesList) {
+      String authNoteValue = authSession.getAuthNote(attribute.getName());
+      context.getEvent().detail(attribute.getName(), authNoteValue);
+    }
+    if (user != null) {
+      context.getEvent().detail(USER_PROFILE_ATTRIBUTES, getUserAttributesString(user));
+      context.getEvent().user(user.getId());
+    } else {
+      String userId = context.getAuthenticationSession().getAuthNote(USER_ID);
+      context.getEvent().user(userId);
+    }
+    context.getEvent().detail(AUTHENTICATOR_CLASS_NAME, className);
+  }
 
-    context.getEvent().user(userId);
-    context.getEvent().detail(Details.EMAIL, email);
-    context.getEvent().detail(ID_NUMBER, idNumber);
-    context.getEvent().detail(Details.FIRST_NAME, firstName);
-    context.getEvent().detail(Details.LAST_NAME, lastName);
-    context.getEvent().detail(PHONE_NUMBER, phoneNumber);
+  public String getUserAttributesString(UserModel user) {
+    Map<String, List<String>> attributes = user.getAttributes();
+    ObjectMapper mapper = new ObjectMapper();
+    ObjectNode attributesJson = mapper.createObjectNode();
 
-    context.getEvent().getEvent();
+    for (String attributeName : attributes.keySet()) {
+      String value = attributes.get(attributeName).get(0);
+      attributesJson.put(attributeName, value);
+    }
+
+    return attributesJson.toString();
+  }
+
+  public List<UPAttribute> getRealmUserProfileAttributes(KeycloakSession session) {
+    UserProfileProvider userProfileProvider = session.getProvider(UserProfileProvider.class);
+    UPConfig userProfileConfig = userProfileProvider.getConfiguration();
+    return userProfileConfig.getAttributes();
   }
 }

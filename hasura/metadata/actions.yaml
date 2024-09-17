@@ -10,7 +10,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input.object}}'
+          template: "{{$body.input.object}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -28,7 +28,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -45,7 +45,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input.object}}'
+          template: "{{$body.input.object}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -60,7 +60,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input.body}}'
+          template: "{{$body.input.body}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -73,7 +73,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -86,7 +86,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -100,7 +100,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -114,7 +114,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -127,7 +127,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -141,7 +141,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -154,7 +154,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -167,7 +167,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -180,7 +180,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -193,7 +193,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -206,7 +206,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input.body}}'
+          template: "{{$body.input.body}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -219,7 +219,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -232,12 +232,23 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
       - role: election-event-read
       - role: logs-read
+  - name: export_election_event_tasks
+    definition:
+      kind: synchronous
+      handler: http://{{HARVEST_DOMAIN}}/export-election-event-tasks
+      forward_client_headers: true
+      request_transform:
+        body:
+          action: transform
+          template: "{{$body.input}}"
+        template_engine: Kriti
+        version: 2
   - name: export_tenant_users
     definition:
       kind: synchronous
@@ -246,7 +257,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -259,7 +270,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -268,7 +279,7 @@ actions:
       - role: user-read
   - name: fetchDocument
     definition:
-      kind: ""
+      kind: synchronous
       handler: http://{{HARVEST_DOMAIN}}/fetch-document
       forward_client_headers: true
       headers:
@@ -295,7 +306,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -303,13 +314,13 @@ actions:
       - role: admin-user
   - name: getElectionEventStats
     definition:
-      kind: ""
+      kind: synchronous
       handler: http://{{HARVEST_DOMAIN}}/election-event/stats
       forward_client_headers: true
       request_transform:
         body:
           action: transform
-          template: '{{$body.input.object}}'
+          template: "{{$body.input.object}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -318,13 +329,13 @@ actions:
     comment: get election event stats
   - name: getElectionStats
     definition:
-      kind: ""
+      kind: synchronous
       handler: http://{{HARVEST_DOMAIN}}/election/stats
       forward_client_headers: true
       request_transform:
         body:
           action: transform
-          template: '{{$body.input.object}}'
+          template: "{{$body.input.object}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -339,7 +350,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -353,20 +364,20 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input.body}}'
+          template: "{{$body.input.body}}"
         template_engine: Kriti
         version: 2
     permissions:
       - role: admin-user
   - name: get_permissions
     definition:
-      kind: ""
+      kind: synchronous
       handler: http://{{HARVEST_DOMAIN}}/get-permissions
       forward_client_headers: true
       request_transform:
         body:
           action: transform
-          template: '{{$body.input.body}}'
+          template: "{{$body.input.body}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -383,7 +394,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input.object}}'
+          template: "{{$body.input.object}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -392,13 +403,13 @@ actions:
     comment: get private key
   - name: get_roles
     definition:
-      kind: ""
+      kind: synchronous
       handler: http://{{HARVEST_DOMAIN}}/get-roles
       forward_client_headers: true
       request_transform:
         body:
           action: transform
-          template: '{{$body.input.body}}'
+          template: "{{$body.input.body}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -411,7 +422,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -425,7 +436,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -434,13 +445,13 @@ actions:
       - role: admin-user
   - name: get_users
     definition:
-      kind: ""
+      kind: synchronous
       handler: http://{{HARVEST_DOMAIN}}/get-users
       forward_client_headers: true
       request_transform:
         body:
           action: transform
-          template: '{{$body.input.body}}'
+          template: "{{$body.input.body}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -455,7 +466,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -468,7 +479,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -481,7 +492,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -498,7 +509,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -516,7 +527,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input.object}}'
+          template: "{{$body.input.object}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -532,7 +543,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -546,7 +557,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -554,7 +565,7 @@ actions:
     comment: insert_cast_vote
   - name: listElectoralLog
     definition:
-      kind: ""
+      kind: synchronous
       handler: http://{{HARVEST_DOMAIN}}/immudb/electoral-log
       forward_client_headers: true
       request_transform:
@@ -577,7 +588,7 @@ actions:
     comment: List Electoral Log
   - name: listPgaudit
     definition:
-      kind: ""
+      kind: synchronous
       handler: http://{{HARVEST_DOMAIN}}/immudb/pgaudit-list
       forward_client_headers: true
       headers:
@@ -604,13 +615,13 @@ actions:
     comment: List PostgreSQL audit logs
   - name: list_user_roles
     definition:
-      kind: ""
+      kind: synchronous
       handler: http://{{HARVEST_DOMAIN}}/list-user-roles
       forward_client_headers: true
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -622,7 +633,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -636,7 +647,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -650,7 +661,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -664,7 +675,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -679,7 +690,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input.object}}'
+          template: "{{$body.input.object}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -693,11 +704,24 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
       - role: miru-send
+  - name: set_custom_urls
+    definition:
+      kind: synchronous
+      handler: http://{{HARVEST_DOMAIN}}/set-custom-url
+      forward_client_headers: true
+      request_transform:
+        body:
+          action: transform
+          template: '{{$body.input}}'
+        template_engine: Kriti
+        version: 2
+    permissions:
+      - role: election-event-write
       - role: admin-user
   - name: set_role_permission
     definition:
@@ -707,7 +731,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -720,7 +744,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -733,7 +757,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -747,7 +771,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -761,7 +785,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -775,7 +799,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -789,7 +813,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: "{{$body.input}}"
         template_engine: Kriti
         version: 2
     permissions:
@@ -891,5 +915,14 @@ custom_types:
     - name: ExportLogsOutput
     - name: ExportAllUsersOutput
     - name: ExportTenantUsersOutput
+    - name: ExportTasksOutput
+    - name: ExportTaskOutput
+    - name: sequent_backend_tasks_execution_ActionType
+    - name: TaskOutput
+    - name: tasks_execution_type
+    - name: taskOutput
+    - name: documentTaskOutput
     - name: LogEventOutput
+    - name: SetCustomUrlOutput
+    - name: SetCustomUrlsOutput
   scalars: []

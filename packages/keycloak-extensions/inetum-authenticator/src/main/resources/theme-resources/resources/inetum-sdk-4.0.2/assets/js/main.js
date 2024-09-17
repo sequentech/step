@@ -37,45 +37,97 @@ let session;      // Session parametes (obligatorio)
 let env_config;   // Configuration parametres for Environments
 
 function flow() {
-  if (design === DesignType.capture) {
-    if (isPassportFlow === true) {
-      console.log("Pilippine Passport YES");
-      // Esto simplemente es un ejemplo en caso de ser un flujo para pasaporte
-      return [
-        new InitialStep('permissions-passport'),
-        new DocCaptureStep('passport-capture', DocSide.front, Evidence.imgPassport, SDKUtils.isMobile() ? 'environment' : 'user', VideoType.photo, true, -1),
-        //new DocCaptureStep('certificate-capture', DocSide.front, Evidence.imgEUResidenceCertificate, SDKUtils.isMobile() ? 'environment' : 'user', VideoType.photo, true, -1),
-        new InstructionsStep('instructions-face', SDKUtils.isMobile() ? 'videoidentification_white' : 'videoidentification_desktop', InstructionsResourceType.video, -1),
-        new VideoIdentificationStep('show_front', 'user', VideoType.webrtc, DocSide.front, Evidence.imgPassport, 22),
-        //new VideoIdentificationStep('show_front', 'user', VideoType.webrtc, DocSide.front, Evidence.imgEUResidenceCertificate, 22),
-        new FaceCaptureStep('face-capture', 'user', VideoType.photo, 30),
-        new EndStep('end-passport')
-      ];
-    } else {
-      console.log("Pilippine Passport NO");
-      // Esto simplemente es un ejemplo en caso de ser un flujo para dni
-      return [
-        new InitialStep('permissions'),
-        // new InstructionsStep('show-doc-front', SDKUtils.isMobile() ? 'showfrontdesktop' : 'showfrontdesktop', InstructionsResourceType.video, -1),
-        new DocCaptureStep('front-capture', DocSide.front, Evidence.imgDocFront, SDKUtils.isMobile() ? 'environment' : 'user', VideoType.photo, true, 10),
-        new DocCaptureStep('back-capture', DocSide.back, Evidence.imgDocReverse, SDKUtils.isMobile() ? 'environment' : 'user', VideoType.photo, true, 10),
-        // TODO: Reactivate
-        new InstructionsStep('instructions-face', SDKUtils.isMobile() ? 'videoidentification_white' : 'videoidentification_desktop', InstructionsResourceType.video, -1),
-        new VideoIdentificationStep('show_front', 'user', VideoType.webrtc, DocSide.front, Evidence.imgDocFront, 22),
-        new VideoIdentificationStep('show_back', 'user', VideoType.webrtc, DocSide.back, Evidence.imgDocReverse, 22),
-        new FaceCaptureStep('face-capture', 'user', VideoType.photo, 30),
-        new EndStep('EndStep')
-      ];
-    }
-  } else if (design === DesignType.attach) {
-    // Por ejemplo: si el ciudadano no es de la UE pedimos el Documento de Identidad, en caso contrario pedimos pasaporte y certificado de residencia
-    const isEU = false;
+  let disableStreaming = env_config.sequent?.disableStreaming ?? false;
+  let videoStepLength = env_config.sequent?.videoStepLength ?? 22;
+  let photoStepLength = env_config.sequent?.photoStepLength ?? 10;
+  let userPhotoLength = env_config.sequent?.userPhotoLength ?? 30;
+  if (isPassportFlow === true) {
+    // Passportflow
     return [
-      isEU ? new AttachStep('attach_passport', Evidence.imgPassport, true, true) : new AttachStep('attach_front', Evidence.imgDocFront, true, true),
-      isEU ? new AttachStep('attach_ue', Evidence.imgEUResidenceCertificate, true, true) : new AttachStep('attach_back', Evidence.imgDocReverse, true, true),
-      //new AttachStep('attach_video', Evidence.videoSelfie, false, false),
-      new AttachStep('attach_selfie', Evidence.imgSelfie, false, true),
-      new EndStep('EndStep')
+      ...[
+        new InitialStep('permissions-passport'),
+        new DocCaptureStep(
+          'passport-capture',
+          DocSide.front,
+          Evidence.imgPassport,
+          SDKUtils.isMobile() ? 'environment' : 'user',
+          VideoType.photo,
+          true,
+          -1
+        ),
+      ],
+      ...(disableStreaming ? [] : [
+        new InstructionsStep(
+          'instructions-face',
+          SDKUtils.isMobile() ? 'videoidentification_white' : 'videoidentification_desktop',
+          InstructionsResourceType.video,
+          -1
+        ),
+        new VideoIdentificationStep(
+          'show_front',
+          'user',
+          VideoType.webrtc,
+          DocSide.front,
+          Evidence.imgPassport,
+          videoStepLength
+        ),
+      ]),
+      ...[
+        new FaceCaptureStep('face-capture', 'user', VideoType.photo, userPhotoLength),
+        new EndStep('end-passport')
+      ]
+    ];
+  } else {
+    return [
+      ...[
+        new InitialStep('permissions'),
+        new DocCaptureStep(
+          'front-capture',
+          DocSide.front,
+          Evidence.imgDocFront,
+          SDKUtils.isMobile() ? 'environment' : 'user',
+          VideoType.photo,
+          true,
+          photoStepLength
+        ),
+        new DocCaptureStep(
+          'back-capture',
+          DocSide.back,
+          Evidence.imgDocReverse,
+          SDKUtils.isMobile() ? 'environment' : 'user',
+          VideoType.photo,
+          true,
+          photoStepLength
+        ),
+      ],
+      ...(disableStreaming ? [] : [
+        new InstructionsStep(
+          'instructions-face',
+          SDKUtils.isMobile() ? 'videoidentification_white' : 'videoidentification_desktop',
+          InstructionsResourceType.video,
+          -1
+        ),
+        new VideoIdentificationStep(
+          'show_front',
+          'user',
+          VideoType.webrtc,
+          DocSide.front,
+          Evidence.imgDocFront,
+          videoStepLength
+        ),
+        new VideoIdentificationStep(
+          'show_back',
+          'user',
+          VideoType.webrtc,
+          DocSide.back,
+          Evidence.imgDocReverse,
+          videoStepLength
+        ),
+      ]),
+      ...[
+        new FaceCaptureStep('face-capture', 'user', VideoType.photo, userPhotoLength),
+        new EndStep('EndStep')
+      ]
     ];
   }
 }
@@ -233,7 +285,7 @@ let myStrings = {
     'There was an unknown error while trying to access your video/audio device',
     'Please restart the video identification process'
   ],
- 'unknown_attach_exception_tips': [
+  'unknown_attach_exception_tips': [
     'There was an unknown error when attaching the evidence',
     'Please try again later'
   ],
@@ -293,7 +345,7 @@ let myStrings = {
   'manual_multi_face_detector_exception_tips': [
     'Several faces have been detected in the selfie photo:',
     [
-     'Please, only one face can appear.',
+      'Please, only one face can appear.',
     ]
   ],
   'card_detector_timeout_exception_tips':
@@ -353,7 +405,7 @@ let myStrings = {
   ],
   'dob_api_too_many_faces_tips': [
     'There are too many faces in the selfie.',
-'Center your face in the oval when taking the photo and make sure it looks good.'
+    'Center your face in the oval when taking the photo and make sure it looks good.'
   ],
   'dob_api_face_too_small_tips': [
     'The face is too small in the selfie.',
@@ -413,7 +465,7 @@ let myStrings = {
     'Place yourself in a bright place',
     'Try to place your face within the guide that appears on the screen',
     'Look straight into the camera',
-'Remember to show your ID on both sides',
+    'Remember to show your ID on both sides',
     'Remember that no more people should appear in the video'
   ],
   'secondarytoolbar_help_button': 'CLOSE',
@@ -449,7 +501,7 @@ let myStrings = {
   'secondarytoolbar_exit_button': 'Exit',
   'dob_tooltip_show_help': 'Show Help',
   'dob_tooltip_leave_process': 'Leave',
-  'dob_tootltip_take_photo': '¡Make a photo!',  
+  'dob_tootltip_take_photo': '¡Make a photo!',
   // INFOBAR COMPONENT
   'card_detector_verifying': 'Verifying document...',
   'infobar_start_text': 'Configuring scanner',
@@ -521,19 +573,17 @@ let myStrings = {
   'custom_instructions_step_description': 'First we will start with capturing the passport.'
 };
 
+env_config = eval("(" + window.DOB_ENV_CONFIG + ")");
+
 // Configuramos el SDK
 sdk = {
   ak: window.DOB_API_KEY,
   flow: flow(),
-	applicationId: window.DOB_APP_ID
+  applicationId: window.DOB_APP_ID
 };
 
-// TODO: HACK: We should improve this by interpolating it in the server-side
-// after the demo
-env_config = eval("(" + window.DOB_ENV_CONFIG + ")");
-
 // Add default assets if not set in configuration
-if(!env_config.baseAssetsUrl) {
+if (!env_config.baseAssetsUrl) {
   env_config.baseAssetsUrl = window.ASSETS_URL;
 }
 

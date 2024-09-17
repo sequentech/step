@@ -15,7 +15,7 @@ const StyledChips = styled.div`
     display: flex;
     padding: 1px 7px;
     flex-direction: row;
-    align-items: flex-start;
+    align-items: center;
     gap: 4px;
 `
 
@@ -34,7 +34,7 @@ const StyledChipLabel = styled.div`
     font-family: Roboto;
     font-size: 12px;
     font-style: normal;
-    font-weight: 400;
+    font-weight: 500;
     line-height: 18px;
 `
 

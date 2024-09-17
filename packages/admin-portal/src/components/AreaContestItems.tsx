@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {GET_AREA_WITH_AREA_CONTESTS} from "@/queries/GetAreaWithAreaContest"
 import {useQuery} from "@apollo/client"
 import styled from "@emotion/styled"
@@ -33,11 +34,13 @@ export const AreaContestItems: React.FC<AreaContestItemsProps> = (props) => {
         },
     })
 
+    const aliasRenderer = useAliasRenderer()
+
     return (
         <>
             {data && data.sequent_backend_area_contest
                 ? data.sequent_backend_area_contest.map((item: any, index: number) => (
-                      <Chip key={index} label={item?.contest?.name} />
+                      <Chip key={index} label={aliasRenderer(item?.contest)} />
                   ))
                 : null}
         </>
