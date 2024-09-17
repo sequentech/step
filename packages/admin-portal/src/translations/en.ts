@@ -377,6 +377,7 @@ const englishTranslation = {
                 tally: "Tally",
                 publish: "Publish",
                 logs: "Logs",
+                events: "Events",
                 tasks: "Tasks",
             },
             tally: {
@@ -496,14 +497,17 @@ const englishTranslation = {
             },
         },
         tenantScreen: {
+            list: {
+                title: "Tenants",
+            },
             common: {
-                title: "Client",
+                title: "Tenant",
             },
             new: {
-                subtitle: "Create Client",
+                subtitle: "Create new tenant",
             },
-            createSuccess: "Customer created",
-            createError: "Error creating customer",
+            createSuccess: "Tenant created",
+            createError: "Error creating tenant",
         },
         usersAndRolesScreen: {
             noPermissions: "You don't have permission to access users or roles.",

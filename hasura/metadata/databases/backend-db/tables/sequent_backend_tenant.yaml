@@ -46,9 +46,7 @@ select_permissions:
     - slug
     - updated_at
     - voting_channels
-    filter:
-      id:
-        _eq: X-Hasura-Tenant-Id
+    filter: {}
   role: admin-user
 - comment: ""
   permission:
@@ -68,6 +66,14 @@ select_permissions:
 - comment: ""
   permission:
     columns:
+    - id
+    - is_active
+    - slug
+    filter: {}
+  role: unauthorized
+- comment: ""
+  permission:
+    columns:
     - is_active
     - annotations
     - labels
@@ -77,9 +83,7 @@ select_permissions:
     - created_at
     - updated_at
     - id
-    filter:
-      id:
-        _eq: X-Hasura-Tenant-Id
+    filter: {}
   role: user
 update_permissions:
 - comment: ""
