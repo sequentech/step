@@ -7,8 +7,8 @@ use super::{
     },
     eml_generator::{
         find_miru_annotation, prepend_miru_annotation, ValidateAnnotations, MIRU_AREA_CCS_SERVERS,
-        MIRU_AREA_STATION_ID, MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA, MIRU_TRUSTEE_ID,
-        MIRU_TRUSTEE_NAME,
+        MIRU_AREA_STATION_ID, MIRU_AREA_TRUSTEE_USERS, MIRU_PLUGIN_PREPEND,
+        MIRU_TALLY_SESSION_DATA, MIRU_TRUSTEE_ID, MIRU_TRUSTEE_NAME,
     },
     eml_types::ACMTrustee,
     logs::{
@@ -111,8 +111,8 @@ async fn update_signatures(
 
             Ok(ACMTrustee {
                 id: trustee_id,
-                signature: miru_signature.signature.clone(),
-                publickey: miru_signature.pub_key.clone(),
+                signature: Some(miru_signature.signature.clone()),
+                publickey: Some(miru_signature.pub_key.clone()),
                 name: trustee_name,
             })
         })
@@ -193,8 +193,7 @@ pub async fn upload_transmission_package_signature_service(
     )
     .await?
     else {
-        info!("Election not found");
-        return Ok(());
+        return Err(anyhow!("Election not found"));
     };
     let area = get_area_by_id(&hasura_transaction, tenant_id, &area_id)
         .await
@@ -220,6 +219,23 @@ pub async fn upload_transmission_package_signature_service(
         })?;
     let ccs_servers: Vec<MiruCcsServer> =
         deserialize_str(&ccs_servers_js).map_err(|err| anyhow!("{}", err))?;
+
+    let trustees_js = find_miru_annotation(MIRU_AREA_TRUSTEE_USERS, &area_annotations)
+        .with_context(|| {
+            format!(
+                "Missing area annotation: '{}:{}'",
+                MIRU_PLUGIN_PREPEND, MIRU_AREA_TRUSTEE_USERS
+            )
+        })?;
+    let trustees: Vec<String> = deserialize_str(&trustees_js).map_err(|err| anyhow!("{}", err))?;
+
+    if !trustees.contains(&trustee_name.to_string()) {
+        return Err(anyhow!(
+            "Trustee '{}' not found in the valid trustees list {:?}",
+            trustee_name,
+            trustees
+        ));
+    }
 
     let tally_session = get_tally_session_by_id(
         &hasura_transaction,
@@ -312,6 +328,17 @@ pub async fn upload_transmission_package_signature_service(
         .collect();
     new_signatures.push(server_signature.clone());
     // generate zip of zips
+    let mut new_transmission_package_data = transmission_area_election.clone();
+    new_transmission_package_data
+        .logs
+        .push(sign_transmission_package_log(
+            &now_local,
+            election_id,
+            &election.name,
+            area_id,
+            &area_name,
+            &trustee_name,
+        ));
 
     let (compressed_xml, rendered_xml_hash) = compress_hash_eml(&eml)?;
     let all_servers_document = generate_all_servers_document(
@@ -327,12 +354,12 @@ pub async fn upload_transmission_package_signature_service(
         time_zone.clone(),
         now_utc.clone(),
         new_acm_signatures,
+        &new_transmission_package_data.logs,
     )
     .await?;
 
     // upload zip of zips
     let area_name = area.name.clone().unwrap_or_default();
-    let mut new_transmission_package_data = transmission_area_election.clone();
     let Some(first_document) = new_transmission_package_data.documents.first() else {
         return Err(anyhow!("Missing initial document"));
     };
@@ -347,16 +374,6 @@ pub async fn upload_transmission_package_signature_service(
         created_at: ISO8601::to_string(&now_local),
         signatures: new_miru_signatures,
     });
-    new_transmission_package_data
-        .logs
-        .push(sign_transmission_package_log(
-            &now_local,
-            election_id,
-            &election.name,
-            area_id,
-            &area_name,
-            &trustee_name,
-        ));
     update_transmission_package_annotations(
         &hasura_transaction,
         tenant_id,

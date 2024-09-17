@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {ReactElement, useContext} from "react"
+import React, {ReactElement, useContext, useState} from "react"
 import {
     DatagridConfigurable,
     List,
@@ -47,7 +47,7 @@ import {
 import {DELETE_USER} from "@/queries/DeleteUser"
 import {GET_DOCUMENT} from "@/queries/GetDocument"
 import {MANUAL_VERIFICATION} from "@/queries/ManualVerification"
-import {useLazyQuery, useMutation} from "@apollo/client"
+import {useLazyQuery, useMutation, useQuery} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {IRole, IUser} from "@sequentech/ui-core"
@@ -58,6 +58,9 @@ import {EXPORT_USERS} from "@/queries/ExportUsers"
 import {EXPORT_TENANT_USERS} from "@/queries/ExportTenantUsers"
 import {DownloadDocument} from "./DownloadDocument"
 import {IMPORT_USERS} from "@/queries/ImportUsers"
+import {ETasksExecution} from "@/types/tasksExecution"
+import {useWidgetStore} from "@/providers/WidgetsContextProvider"
+import {ElectoralLogFilters, ElectoralLogList} from "@/components/ElectoralLogList"
 
 const OMIT_FIELDS: Array<string> = ["id", "email_verified"]
 
@@ -109,7 +112,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [getDocument, {data: documentData}] = useLazyQuery<GetDocumentQuery>(GET_DOCUMENT)
     const documentUrlRef = React.useRef(documentUrl)
     const {getDocumentUrl} = useGetPublicDocumentUrl()
-
+    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
+    const [openUsersLogsModal, setOpenUsersLogsModal] = React.useState(false)
     const [openSendCommunication, setOpenSendCommunication] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
     const [openManualVerificationModal, setOpenManualVerificationModal] = React.useState(false)
@@ -263,7 +267,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setOpenManualVerificationModal(false)
         setOpenDeleteBulkModal(false)
         setOpenSendCommunication(true)
-
         setAudienceSelection(audienceSelection)
         setRecordIds(ids)
     }
@@ -357,6 +360,20 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         )
         setDeleteId(undefined)
         refresh()
+    }
+    //TODO: add this funciton once Yuval's PR is merged
+    const showUsersLogsModal = (id: Identifier) => {
+        if (!electionEventId) {
+            return
+        }
+        setOpen(false)
+        setOpenNew(false)
+        setOpenSendCommunication(false)
+        setOpenManualVerificationModal(false)
+        setOpenDeleteBulkModal(false)
+        setOpenDeleteModal(false)
+        setOpenUsersLogsModal(true)
+        setRecordIds([id])
     }
 
     const actions: Action[] = [
@@ -534,20 +551,27 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [importUsers] = useMutation<ImportUsersMutation>(IMPORT_USERS)
 
     const handleImportVoters = async (documentId: string, sha256: string) => {
-        let {data, errors} = await importUsers({
-            variables: {
-                tenantId,
-                documentId,
-                electionEventId: electionEvent.id,
-            },
-        })
+        setOpenImportDrawer(false)
+        const currWidget = addWidget(ETasksExecution.IMPORT_USERS)
+        try {
+            let {data, errors} = await importUsers({
+                variables: {
+                    tenantId,
+                    documentId,
+                    electionEventId: electionEvent.id,
+                },
+            })
+            const task_id = data?.import_users?.task_execution.id
+            setWidgetTaskId(currWidget.identifier, task_id)
 
-        refresh()
+            refresh()
 
-        if (!errors) {
-            notify(t("electionEventScreen.import.importVotersSuccess"), {type: "success"})
-        } else {
-            notify(t("electionEventScreen.import.importVotersError"), {type: "error"})
+            if (errors) {
+                updateWidgetFail(currWidget.identifier)
+                notify(t("electionEventScreen.import.importVotersError"), {type: "error"})
+            }
+        } catch (err) {
+            updateWidgetFail(currWidget.identifier)
         }
     }
 
@@ -565,6 +589,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         doImport={handleImport}
                         withExport
                         doExport={handleExport}
+                        isExportDisabled={openExport}
                         open={openDrawer}
                         setOpen={setOpenDrawer}
                         Component={
@@ -743,6 +768,23 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         />
                     ) : null}
                 </FormStyles.ReservedProgressSpace>
+            </Dialog>
+
+            <Dialog
+                fullWidth={true}
+                variant="info"
+                title=""
+                ok={t("common.label.close")}
+                open={openUsersLogsModal}
+                handleClose={(results: boolean) => {
+                    setOpenUsersLogsModal(false)
+                }}
+            >
+                <ElectoralLogList
+                    showActions={false}
+                    filterToShow={ElectoralLogFilters.USER_ID}
+                    filterValue={recordIds[0]?.toString()}
+                />
             </Dialog>
         </>
     )

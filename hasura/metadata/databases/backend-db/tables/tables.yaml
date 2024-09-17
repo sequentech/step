@@ -26,5 +26,6 @@
 - "!include sequent_backend_tally_session_contest.yaml"
 - "!include sequent_backend_tally_session_execution.yaml"
 - "!include sequent_backend_tally_sheet.yaml"
+- "!include sequent_backend_tasks_execution.yaml"
 - "!include sequent_backend_tenant.yaml"
 - "!include sequent_backend_trustee.yaml"

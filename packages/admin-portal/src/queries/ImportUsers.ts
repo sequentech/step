@@ -10,7 +10,21 @@ export const IMPORT_USERS = gql`
             election_event_id: $electionEventId
             document_id: $documentId
         ) {
-            id
+            task_execution {
+                id
+                name
+                execution_status
+                created_at
+                start_at
+                end_at
+                logs
+                annotations
+                labels
+                executed_by_user
+                tenant_id
+                election_event_id
+                type
+            }
         }
     }
 `

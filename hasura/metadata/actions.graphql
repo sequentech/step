@@ -1,7 +1,5 @@
 type Mutation {
-  check_private_key(
-    object: CheckPrivateKeyInput!
-  ): CheckPrivateKeyOutput
+  check_private_key(object: CheckPrivateKeyInput!): CheckPrivateKeyOutput
 }
 
 type Mutation {
@@ -22,16 +20,11 @@ type Mutation {
 }
 
 type Mutation {
-  create_permission(
-    body: CreatePermissionInput!
-  ): KeycloakPermission
+  create_permission(body: CreatePermissionInput!): KeycloakPermission
 }
 
 type Mutation {
-  create_role(
-    tenant_id: String!
-    role: KeycloakRole2!
-  ): KeycloakRole!
+  create_role(tenant_id: String!, role: KeycloakRole2!): KeycloakRole!
 }
 
 type Mutation {
@@ -77,10 +70,7 @@ type Mutation {
 }
 
 type Mutation {
-  delete_role(
-    tenant_id: String!
-    role_id: String!
-  ): SetUserRoleOutput
+  delete_role(tenant_id: String!, role_id: String!): SetUserRoleOutput
 }
 
 type Mutation {
@@ -108,27 +98,23 @@ type Mutation {
 }
 
 type Mutation {
-  edit_user(
-    body: EditUsersInput!
-  ): KeycloakUser!
+  edit_user(body: EditUsersInput!): KeycloakUser!
 }
 
 type Mutation {
-  export_election_event(
-    election_event_id: String
-  ): ExportUsersOutput
+  export_election_event(election_event_id: String): documentTaskOutput
 }
 
 type Mutation {
-  export_election_event_logs(
-    election_event_id: String
-  ): ExportLogsOutput
+  export_election_event_logs(election_event_id: String): ExportLogsOutput
 }
 
 type Mutation {
-  export_tenant_users(
-    tenant_id: String!
-  ): ExportTenantUsersOutput
+  export_election_event_tasks(election_event_id: String): ExportTasksOutput
+}
+
+type Mutation {
+  export_tenant_users(tenant_id: String!): ExportTenantUsersOutput
 }
 
 type Mutation {
@@ -160,9 +146,7 @@ type Query {
 }
 
 type Query {
-  getElectionStats(
-    object: ElectionStatsInput!
-  ): ElectionStatsOutput
+  getElectionStats(object: ElectionStatsInput!): ElectionStatsOutput
 }
 
 type Mutation {
@@ -180,21 +164,15 @@ type Mutation {
 }
 
 type Query {
-  get_permissions(
-    body: GetPermissionsInput!
-  ): GetPermissionsOutput!
+  get_permissions(body: GetPermissionsInput!): GetPermissionsOutput!
 }
 
 type Mutation {
-  get_private_key(
-    object: GetPrivateKeyInput!
-  ): GetPrivateKeyOutput
+  get_private_key(object: GetPrivateKeyInput!): GetPrivateKeyOutput
 }
 
 type Query {
-  get_roles(
-    body: GetRolesInput!
-  ): GetRolesOutput!
+  get_roles(body: GetRolesInput!): GetRolesOutput!
 }
 
 type Mutation {
@@ -217,23 +195,18 @@ type Mutation {
 }
 
 type Query {
-  get_users(
-    body: GetUsersInput!
-  ): GetUsersOutput!
+  get_users(body: GetUsersInput!): GetUsersOutput!
 }
 
 type Mutation {
-  import_areas(
-    election_event_id: String!
-    document_id: String!
-  ): OptionalId
+  import_areas(election_event_id: String!, document_id: String!): OptionalId
 }
 
 type Mutation {
   import_candidates(
     election_event_id: String!
     document_id: String!
-  ): OptionalId
+  ): documentTaskOutput
 }
 
 type Mutation {
@@ -249,7 +222,7 @@ type Mutation {
     tenant_id: String!
     election_event_id: String
     document_id: String!
-  ): OptionalId
+  ): taskOutput
 }
 
 type Mutation {
@@ -259,9 +232,7 @@ type Mutation {
 }
 
 type Mutation {
-  insertTenant(
-    slug: String!
-  ): InsertTenantOutput
+  insertTenant(slug: String!): InsertTenantOutput
 }
 
 type Mutation {
@@ -301,10 +272,7 @@ type Query {
 }
 
 type Query {
-  logEvent(
-    electionEventId: String!
-    messageType: String!
-  ): LogEventOutput
+  logEvent(electionEventId: String!, messageType: String!): LogEventOutput
 }
 
 type Mutation {
@@ -332,9 +300,7 @@ type Mutation {
 }
 
 type Mutation {
-  restore_private_key(
-    object: RestorePrivateKeyInput!
-  ): RestorePrivateKeyOutput
+  restore_private_key(object: RestorePrivateKeyInput!): RestorePrivateKeyOutput
 }
 
 type Mutation {
@@ -343,6 +309,16 @@ type Mutation {
     area_id: uuid!
     tally_session_id: uuid!
   ): OptionalId
+}
+
+type Mutation {
+  set_custom_urls (
+    origin: String!
+    redirect_to: String!
+    dns_prefix: String!
+    election_id: String!
+    key: String!
+  ): SetCustomUrlsOutput
 }
 
 type Mutation {
@@ -395,10 +371,7 @@ type Mutation {
 }
 
 type Mutation {
-  upsert_areas(
-    election_event_id: String!
-    document_id: String!
-  ): OptionalId
+  upsert_areas(election_event_id: String!, document_id: String!): OptionalId
 }
 
 enum OrderDirection {
@@ -440,15 +413,17 @@ input PgAuditOrderBy {
 }
 
 input ElectoralLogFilter {
-  id: String
-  StatementKind: String
+  id : String
+  statement_kind : String
+  user_id : String
 }
 
 input ElectoralLogOrderBy {
-  id: OrderDirection
-  created: OrderDirection
-  statement_timestamp: OrderDirection
-  statement_kind: OrderDirection
+  id : OrderDirection
+  created : OrderDirection
+  statement_timestamp : OrderDirection
+  statement_kind : OrderDirection
+  user_id : OrderDirection
 }
 
 input SampleInput {
@@ -697,11 +672,12 @@ type TotalAggregate {
 }
 
 type ElectoralLogRow {
-  id: Int!
-  created: Int!
-  statement_timestamp: Int!
-  statement_kind: String!
-  message: String!
+  id : Int!
+  created : Int!
+  statement_timestamp : Int!
+  statement_kind : String!
+  message : String!
+  user_id : String!
 }
 
 type DataListElectoralLog {
@@ -881,6 +857,7 @@ type OptionalImportEvent {
   id: String
   message: String
   error: String
+  task_execution: tasks_execution_type
 }
 
 type ManageElectionDatesOutput {
@@ -902,7 +879,71 @@ type ExportTenantUsersOutput {
   document_id: String!
 }
 
+type ExportTasksOutput {
+  task_id: String!
+  document_id: String!
+}
+
+type ExportTaskOutput {
+  task: sequent_backend_tasks_execution_ActionType!
+  document_id: String!
+}
+
+type sequent_backend_tasks_execution_ActionType {
+  annotations: jsonb
+  created_at: timestamptz!
+  election_event_id: uuid!
+  end_at: timestamptz
+  executed_by_user: String!
+  execution_status: String!
+  id: uuid!
+  labels: jsonb
+  logs: json
+  name: String!
+  start_at: timestamptz!
+  tenant_id: uuid!
+  type: String!
+}
+
+type TaskOutput {
+  task: tasks_execution_type!
+}
+
+type tasks_execution_type {
+  annotations: jsonb
+  created_at: timestamptz!
+  election_event_id: uuid!
+  end_at: timestamptz
+  executed_by_user: String!
+  execution_status: String!
+  id: uuid!
+  labels: jsonb
+  logs: json
+  name: String!
+  start_at: timestamptz!
+  tenant_id: uuid!
+  type: String!
+}
+
+type taskOutput {
+  task_execution: tasks_execution_type!
+}
+
+type documentTaskOutput {
+  error_msg: String
+  task_execution: tasks_execution_type!
+  document_id: String!
+}
+
 type LogEventOutput {
   electionEventId: String
 }
 
+type SetCustomUrlOutput {
+  url : String!
+}
+
+type SetCustomUrlsOutput {
+  success : Boolean!
+  message : String
+}

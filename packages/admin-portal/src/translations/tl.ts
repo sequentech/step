@@ -79,6 +79,32 @@ const tagalogTranslation: TranslationType = {
                 title: "Mga Log ng IAM Database",
             },
         },
+        tasksScreen: {
+            noPermissions: "Wala kang pahintulot na ma-access ang mga log.",
+            title: "Pagpapatupad ng Mga Gawain",
+            subtitle: "Impormasyon tungkol sa mga naisagawang gawain",
+            taskInformation: "Impormasyon ng Gawain",
+            status: "katayuan: {{status}}",
+            ok: "Sige",
+            column: {
+                id: "Indeks",
+                name: "Pangalan ng Gawain",
+                type: "Uri",
+                execution_status: "Katayuan",
+                start_at: "Oras ng Pagsisimula",
+                end_at: "Oras ng Pagtatapos",
+                executed_by_user: "Tagapagpatupad",
+                annotations: "Mga Anotasyon",
+                labels: "Mga Label",
+                logs: "Mga Log",
+            },
+            tasksExecution: {
+                EXPORT_ELECTION_EVENT: "I-export ang Kaganapan sa Halalan",
+                IMPORT_ELECTION_EVENT: "I-import ang Kaganapan sa Halalan",
+                IMPORT_USERS: "I-import ang mga Gumagamit",
+                IMPORT_CANDIDATES: "I-import ang mga Kandidato",
+            },
+        },
         confirmationScreen: {
             title: "Ang iyong boto ay nai-submit na",
             description:
@@ -169,6 +195,8 @@ const tagalogTranslation: TranslationType = {
                 createNew: "Lumikha ng Uri ng Halalan",
                 emptyHeader: "Wala pang Uri ng Halalan.",
                 emptyBody: "Gusto mo bang lumikha ng isa?",
+                logoUrl: "URL ng Logo",
+                css: "Custom CSS",
             },
             create: {
                 title: "Lumikha ng Uri ng Halalan",
@@ -181,6 +209,7 @@ const tagalogTranslation: TranslationType = {
                 electionTypes: "URI NG HALALAN",
                 communications: "KOMUNIKASYON",
                 languages: "WIKA",
+                lookAndFeel: "PAGPASADYA KAN ITSURA",
                 schedules: "NAISKEDYUL NA MGA KAGANAPAN",
                 trustees: "TAGAPANGALAGA",
             },
@@ -237,6 +266,7 @@ const tagalogTranslation: TranslationType = {
             edit: {
                 general: "Pangkalahatan",
                 dates: "Petsa",
+                customUrls: "Pasadyang Unang Bahagi ng URL",
                 votingPeriod: "Panahon ng Pagboto",
                 language: "Wika",
                 allowed: "Pinapayagang Mga Channel ng Pagboto",
@@ -245,6 +275,10 @@ const tagalogTranslation: TranslationType = {
                 reorder: "I-reorder ang mga halalan",
                 advancedConfigurations: "Mga Advanced na Pag-configure",
                 importCandidates: "Mag-import ng mga Kandidato",
+            },
+            customUrls: {
+                login: "Pag-login",
+                enrollment: "Pag-enroll",
             },
             localization: {
                 emptyHeader: "Walang nakatakdang wika para sa kaganapan",
@@ -343,6 +377,7 @@ const tagalogTranslation: TranslationType = {
                 tally: "Tally",
                 publish: "I-publish",
                 logs: "Mga Log",
+                tasks: "Mga Gawain",
             },
             tally: {
                 emptyHeader: "Walang pang Tally.",
@@ -421,6 +456,8 @@ const tagalogTranslation: TranslationType = {
                 exportSuccess: "Matagumpay na nai-export ang Kaganapang Halalan",
                 exportError: "Error sa pag-export ng Kaganapang Halalan",
             },
+            taskNotification:
+                "{{action}} ay nagsimula na. Maaari mong makita ang status nito sa Talahanayan ng Pagpapatupad ng Mga Gawain.",
         },
         electionScreen: {
             common: {
@@ -638,6 +675,7 @@ const tagalogTranslation: TranslationType = {
                 "publish-read": "Basahin ang Publish",
                 "publish-write": "I-edit ang Publish",
                 "logs-read": "Basahin ang Logs",
+                "tasks-read": "Basahin ang Pagpapatupad ng Mga Gawain",
                 "keys-read": "Basahin ang Mga Susi",
                 "document-upload": "Mag-upload ng Mga Dokumento",
                 "document-download": "I-download ang Mga Dokumento",
@@ -1379,6 +1417,9 @@ const tagalogTranslation: TranslationType = {
                 isHidden: "Nakatago",
                 publicUrl: "Publikong URL",
             },
+        },
+        widget: {
+            logs: "Mga Log",
         },
     },
 }

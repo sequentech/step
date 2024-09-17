@@ -3,49 +3,55 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 name: Automated Release Process
-run-name: ${{ format('Automated Release Process - {0}', inputs.releaseType )}}
+run-name: 'Automated Release Process'
 on:
   workflow_dispatch:
     inputs:
-      releaseType:
-        description: 'Release Type (major, minor, patch). For example, if last version was 1.9.0 and release type is minor, the new release will be 1.10.0'
-        required: true
-        type: choice
-        default: 'patch'
-        options:
-          - patch
-          - minor
-          - major
+      createMajorReleaseBranch:
+        description: 'Create a major release branch from the main branch, then release (or pre-release) it. Run it only from the main branch'
+        required: false
+        type: boolean
+        default: false
+      createMinorReleaseBranch:
+        description: 'Create a minor release branch from the main branch, then release (or pre-release) it. Run it only from the main branch'
+        required: false
+        type: boolean
+        default: false
       preRelease:
         description: 'Pre-release - If true, the release will be marked as pre-release'
         required: false
         type: boolean
-        default: false
-      incrementPreRelease:
-        description: 'Increment Pre-release. Only applicable if Pre-release is true. If true, the pre-release version type will be incremented. For example, if last version was 1.9.0, releaseType is minor, preRelease is true and increment pre-release is true, the new release will be 1.10.0-rc.0. If Increment Pre-release is false, the new release will be 1.9.0-rc.0'
-        required: false
-        type: boolean
-        default: false
+        default: true
 
 permissions:
   contents: write
   actions: read
 
 jobs:
-  release:
+  create-release-branch:
     runs-on: ubuntu-latest
     outputs:
-      VERSION: ${{ steps.Release.outputs.VERSION }}
+      NEW_RELEASE_BRANCH: ${{ steps.CreateReleaseBranch.outputs.NEW_RELEASE_BRANCH }}
     steps:
+    - name: Input Validation
+      run: |
+        # Validate inputs, check its none or it is one of createMajorReleaseBranch or createMinorReleaseBranch and it is triggered from main branch
+        if [ "${{ github.event.inputs.createMajorReleaseBranch }}" = "true" ] && [ "${{ github.event.inputs.createMinorReleaseBranch }}" = "true" ]; then
+          echo "Error: Both createMajorReleaseBranch and createMinorReleaseBranch cannot be true at the same time"
+          exit 1
+        fi
+        # Detect if at least one of the inputs is true, if so, check it has been triggered from main branch
+        if [ "${{ github.event.inputs.createMajorReleaseBranch }}" = "true" ] || [ "${{ github.event.inputs.createMinorReleaseBranch }}" = "true" ]; then
+          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "Error: This action can only be triggered from the main branch"
+            exit 1
+          fi
+        fi
+
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         fetch-depth: 0 # Fetches all history for all tags and branches
-
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
 
     - name: Configure Git
       run: |
@@ -55,21 +61,115 @@ jobs:
     - name: Install release-it
       run: npm install --global release-it
 
+    - name: Create Release Branch if required
+      id: CreateReleaseBranch
+      run: |
+        releaseBranchVersion=""
+        if [ "${{ github.event.inputs.createMajorReleaseBranch }}" = "true" ]; then
+          releaseBranchVersion=$(release-it -i major --release-version --git.getLatestTagFromAllRefs=true | tail -n 1)
+        elif [ "${{ github.event.inputs.createMinorReleaseBranch }}" = "true" ]; then
+          releaseBranchVersion=$(release-it -i minor --release-version --git.getLatestTagFromAllRefs=true | tail -n 1)
+        fi
+        # Create the branch if createMajorReleaseBranch or createMinorReleaseBranch is true
+        if [ "${{ github.event.inputs.createMajorReleaseBranch }}" = "true" ] || [ "${{ github.event.inputs.createMinorReleaseBranch }}" = "true" ]; then
+          # Trim the patch version from $releaseBranchVersion
+          initialReleaseTag=v$releaseBranchVersion-rc.0
+          releaseBranchVersion=$(echo $releaseBranchVersion | cut -d. -f1,2)
+          releaseBranchName="release/$releaseBranchVersion"
+
+          # Check if the branch already exists without failing
+          branchExists=$(git ls-remote --heads origin $releaseBranchName)
+          if [ -n "$branchExists" ]; then
+            echo "Info: Branch $releaseBranchName already exists"
+            echo "Error: You can not create a new release branch without releasing a final version on the existing release branch"
+            exit 1
+          else
+            git checkout -b $releaseBranchName
+            # Add an empty commit to the new branch
+            git commit --allow-empty -m "Release branch $releaseBranchName"
+            git tag $initialReleaseTag
+            git push origin $releaseBranchName
+            git push origin --tags
+          fi
+          echo NEW_RELEASE_BRANCH=$releaseBranchName | tee -a $GITHUB_ENV $GITHUB_OUTPUT
+        else
+          echo NEW_RELEASE_BRANCH="" | tee -a $GITHUB_ENV $GITHUB_OUTPUT
+        fi
+
+  release:
+    runs-on: ubuntu-latest
+    needs: create-release-branch
+    outputs:
+      RELEASE_FLOW_VERSION: ${{ steps.ReleaseFlow.outputs.VERSION }}
+      RELEASE_VERSION: ${{ steps.Release.outputs.VERSION }}
+      VERSION: ${{ steps.Release.outputs.VERSION }}
+    steps:
+
+    - name: Checkout new release branch
+      # If the output of the previous job is not empty, then checkout the new branch
+      if: needs.create-release-branch.outputs.NEW_RELEASE_BRANCH != ''
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # Fetches all history for all tags and branches
+        ref: ${{ needs.create-release-branch.outputs.NEW_RELEASE_BRANCH }}
+
+    - name: Checkout selected branch
+      # If the output of the previous job is empty, then checkout as usual
+      if: needs.create-release-branch.outputs.NEW_RELEASE_BRANCH == ''
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # Fetches all history for all tags and branches
+
+    - name: Fetch main branch
+      run: git fetch origin main:main
+      if: github.ref != 'refs/heads/main' || needs.create-release-branch.outputs.NEW_RELEASE_BRANCH != ''
+
+    - name: Configure Git
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Setup jq
+      run: |
+        sudo apt-get update
+        sudo apt-get install jq
+
+    - name: Install release tools
+      run: |
+        npm install --global @release-flow/release-flow
+        npm install --global release-it
+
+    - name: Release Flow
+      id: ReleaseFlow
+      shell: bash
+      run: |
+        lastCommitSha=$(git rev-parse HEAD)
+        echo "$lastCommitSha" > .release-commit
+        git add .release-commit
+        git commit -m "Preparation for release"
+        git push origin HEAD
+        npx rfver --debug --verbose --pretty
+        if [ "${{ github.event.inputs.preRelease }}" = "true" ]; then
+          version=$(npx rfver | jq -r '.semVer')
+          buildType=$(npx rfver | jq -r '.buildType')
+          version=$(echo $version | sed "s/$buildType/rc/")
+        else
+          version=$(npx rfver | jq -r '.majorMinorPatch')
+        fi
+        echo VERSION=$version | tee -a $GITHUB_ENV $GITHUB_OUTPUT
+
     - name: Release
       id: Release
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        if [ "${{ github.event.inputs.preRelease }}" = "true" ]; then
-          if [ "${{ github.event.inputs.incrementPreRelease }}" = "true" ]; then
-            release-it --ci --increment=${{ github.event.inputs.releaseType }} --preRelease=rc
-          else
-            release-it --ci --preRelease
-          fi
-        else
-          release-it --ci --increment=${{ github.event.inputs.releaseType }}
-        fi
-        # Capture the Release Version
+        echo "Release Version (is prerelease: ${{ inputs.preRelease }}): ${{ steps.ReleaseFlow.outputs.VERSION }}"
+        release-it --ci --increment=${{ steps.ReleaseFlow.outputs.VERSION }}
         echo VERSION=$(git describe --tags --abbrev=0) | tee -a $GITHUB_ENV $GITHUB_OUTPUT
 
 

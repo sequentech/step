@@ -19,6 +19,7 @@ import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {MiruExport} from "@/components/MiruExport"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 interface TallyResultsProps {
     tally: Sequent_Backend_Tally_Session | undefined
@@ -119,6 +120,8 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
             [resultsEventId, resultsElection, resultsElection?.[0]?.id]
         )
 
+        const aliasRenderer = useAliasRenderer()
+
         return (
             <>
                 <Box
@@ -138,7 +141,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                         {electionsData?.map((election, index) => (
                             <Tab
                                 key={index}
-                                label={election.name}
+                                label={aliasRenderer(election)}
                                 onClick={() => tabClicked(election.id, index)}
                             />
                         ))}
