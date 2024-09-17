@@ -61,38 +61,28 @@ export const StyledButtonTooltip = styled(({className, ...props}: TooltipProps) 
 
 export const StyledButtonContainerWrapper = styled.div`
     position: relative;
+    display: inline-block;
     padding: 0;
     margin: 0;
-    height: 44px;
-    width: 138px;
-`
-
-export const StyledButtonContainer = styled.div`
-    position: absolute;
-    top: 0px;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: row;
-    justify-content: center;
-    align-items: center;
-    height: 100%;
-    flex: 1;
 `
 
 export const StyledButton = styled(Button)`
+    z-index: 1;
+    position: relative;
     color: ${({theme}) => theme.palette.brandColor} !important;
     background: transparent !important;
+    border-radius: 5px;
     border: none;
     display: flex;
     outline: "none";
+    overflow: hidden;
 
     &:hover,
     &:focus,
     &:active {
         color: ${({theme}) => theme.palette.white} !important;
         background: ${({theme}) => theme.palette.brandColor} !important;
-        boxshadow: none !important;
+        box-shadow: none !important;
     }
 `
 
@@ -172,21 +162,19 @@ export default function Header({
                             <Version version={appVersion ?? {main: "0.0.0"}} />
                             <LanguageMenu languagesList={languagesList} />
                             {errorVariant === HeaderErrorVariant.HIDE_PROFILE && !!logoutFn ? (
-                                <StyledButtonContainerWrapper>
-                                    <StyledButtonContainer className="logout-button-container">
-                                        <StyledButton
-                                            className="logout-button"
-                                            aria-label="log out button"
-                                            onClick={() => {
-                                                setOpenModal(true)
-                                            }}
-                                        >
-                                            <LogoutIcon />
-                                            <Box sx={{display: {xs: "none", sm: "block"}}}>
-                                                {t("logout.buttonText")}
-                                            </Box>
-                                        </StyledButton>
-                                    </StyledButtonContainer>
+                                <StyledButtonContainerWrapper className="logout-button-container-wrapper">
+                                    <StyledButton
+                                        className="logout-button"
+                                        aria-label="log out button"
+                                        onClick={() => {
+                                            setOpenModal(true)
+                                        }}
+                                    >
+                                        <LogoutIcon />
+                                        <Box sx={{display: {xs: "none", sm: "block"}}}>
+                                            {t("logout.buttonText")}
+                                        </Box>
+                                    </StyledButton>
                                 </StyledButtonContainerWrapper>
                             ) : (
                                 userProfile && (

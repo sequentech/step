@@ -8,7 +8,6 @@ import {useTranslation} from "react-i18next"
 import {
     IExpiryCountdown,
     StyledButton,
-    StyledButtonContainer,
     StyledButtonContainerWrapper,
     StyledButtonTooltip,
     UserProfile,
@@ -156,32 +155,30 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                     },
                 }}
             >
-                <StyledButtonContainerWrapper>
+                <StyledButtonContainerWrapper className="logout-button-container-wrapper">
                     {expiry && timeLeft > 0 && timeLeft < totalDuration && (
                         <CountdownTimer progress={(timeLeft / totalDuration) * 100} />
                     )}
-                    <StyledButtonContainer className="logout-button-container">
-                        <StyledButton
-                            className="logout-button"
-                            aria-label="log out button"
-                            onClick={handleMenu}
+                    <StyledButton
+                        className="logout-button"
+                        aria-label="log out button"
+                        onClick={handleMenu}
+                    >
+                        <AccountCircle sx={{fontSize: 40}} />
+                        <Box
+                            className="user-first-name"
+                            sx={{
+                                display: {xs: "none", sm: "block"},
+                                maxWidth: "70px",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                                overflowX: "clip",
+                            }}
+                            title={userProfile.firstName ?? userProfile.username}
                         >
-                            <AccountCircle sx={{fontSize: 40}} />
-                            <Box
-                                className="user-first-name"
-                                sx={{
-                                    display: {xs: "none", sm: "block"},
-                                    maxWidth: "70px",
-                                    textOverflow: "ellipsis",
-                                    whiteSpace: "nowrap",
-                                    overflowX: "clip",
-                                }}
-                                title={userProfile.firstName ?? userProfile.username}
-                            >
-                                {userProfile.firstName ?? userProfile.username}
-                            </Box>
-                        </StyledButton>
-                    </StyledButtonContainer>
+                            {userProfile.firstName ?? userProfile.username}
+                        </Box>
+                    </StyledButton>
                 </StyledButtonContainerWrapper>
             </StyledButtonTooltip>
             <Menu
