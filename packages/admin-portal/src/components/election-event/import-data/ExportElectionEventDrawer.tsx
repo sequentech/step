@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import React, {useState} from "react"
 import {ExportElectionEventMutation} from "@/gql/graphql"
 import {EXPORT_ELECTION_EVENT} from "@/queries/ExportElectionEvent"
@@ -151,7 +155,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                     <DownloadDocument
                         documentId={exportDocumentId}
                         electionEventId={electionEventId ?? ""}
-                        fileName={`election-event-${electionEventId}-export.json`}
+                        fileName={`election-event-${electionEventId}-export.zip`}
                         onDownload={() => {
                             console.log("onDownload called")
                             setExportDocumentId(undefined)

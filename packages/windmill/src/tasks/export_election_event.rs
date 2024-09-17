@@ -2,8 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::tasks_execution::*;
-use crate::services::{database::get_hasura_pool, export_election_event::process_export};
 use crate::types::error::{Error, Result};
+use crate::services::database::get_hasura_pool;
+use crate::services::export_election_event::process_export_zip;
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -41,7 +42,7 @@ pub async fn export_election_event(
     };
 
     // Process the export
-    match process_export(&tenant_id, &election_event_id, &document_id).await {
+    match process_export_zip(&tenant_id, &election_event_id, &document_id).await {
         Ok(_) => (),
         Err(err) => {
             update_fail(&task_execution, "Failed to export election event data").await?;
