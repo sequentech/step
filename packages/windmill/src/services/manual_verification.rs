@@ -64,11 +64,13 @@ impl ToMap for UserTemplateData {
     }
 }
 
+#[derive(Debug)]
 enum TemplateType {
     System,
     User,
 }
 
+#[instrument(err)]
 async fn get_public_asset_manual_verification_template(tpl_type: TemplateType) -> Result<String> {
     let public_asset_path = env::var("PUBLIC_ASSETS_PATH")?;
 
@@ -84,13 +86,10 @@ async fn get_public_asset_manual_verification_template(tpl_type: TemplateType) -
     );
 
     let client = reqwest::Client::new();
-    let response = client.get(manual_verification_template).send().await?;
+    let response = client.get(&manual_verification_template).send().await?;
 
     if response.status() == reqwest::StatusCode::NOT_FOUND {
-        return Err(anyhow!(
-            "File not found: {}",
-            file_manual_verification_template
-        ));
+        return Err(anyhow!("File not found: {}", manual_verification_template));
     }
     if !response.status().is_success() {
         return Err(anyhow!(
