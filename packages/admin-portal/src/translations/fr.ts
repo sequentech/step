@@ -501,7 +501,7 @@ const frenchTranslation: TranslationType = {
         },
         tenantScreen: {
             list: {
-                title: 'Locataires',
+                title: "Locataires",
             },
             common: {
                 title: "Locataire",

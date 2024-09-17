@@ -499,7 +499,7 @@ const spanishTranslation: TranslationType = {
         },
         tenantScreen: {
             list: {
-                title: 'Inquilini',
+                title: "Inquilini",
             },
             common: {
                 title: "Inquilino",
