@@ -515,6 +515,12 @@ const frenchTranslation: TranslationType = {
                 subtitle: "Configuration générale",
                 mobileNumber: "Mobile",
             },
+            editPassword: {
+                label: "Changer le mot de passe",
+                temporatyLabel: "Temporaire",
+                temporatyInfo:
+                    "Si activé, l'utilisateur devra changer le mot de passe lors de la prochaine connexion.",
+            },
             users: {
                 title: "Utilisateurs",
                 subtitle: "Voir et éditer les données de l'utilisateur",
@@ -557,6 +563,7 @@ const frenchTranslation: TranslationType = {
                     exportError: "Erreur lors de l'exportation des utilisateurs",
                     deleteError: "Erreur lors de la suppression de l'utilisateur",
                     deleteSuccess: "Utilisateur supprimé",
+                    multipleDeleteSuccess: "Utilisateurs supprimés",
                 },
             },
             voters: {
@@ -569,6 +576,7 @@ const frenchTranslation: TranslationType = {
                     subtitle: "Créer électeur",
                 },
                 manualVerification: {
+                    label: "Vérifier manuellement",
                     verify: "Vérifier manuellement l'électeur",
                     body: "Vérifiez manuellement cet électeur. Vous obtiendrez un PDF avec un lien de code QR qui permettra à l'électeur de se connecter en omettant le KYC en ligne.",
                 },
@@ -586,6 +594,7 @@ const frenchTranslation: TranslationType = {
                     exportError: "Erreur lors de l'exportation des électeurs",
                     deleteError: "Erreur lors de la suppression de l'électeur",
                     deleteSuccess: "Électeur supprimé",
+                    multipleDeleteSuccess: "Électeurs supprimés",
                     manualVerificationError:
                         "Erreur lors de la vérification manuelle de l'électeur",
                     manualVerificationSuccess:

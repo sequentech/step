@@ -514,6 +514,12 @@ const catalanTranslation: TranslationType = {
                 subtitle: "Configuració general",
                 mobileNumber: "Mòbil",
             },
+            editPassword: {
+                label: "Canviar contrasenya",
+                temporatyLabel: "Temporal",
+                temporatyInfo:
+                    "Si està habilitat, l'usuari haurà de canviar la contrasenya en el pròxim inici de sessió.",
+            },
             users: {
                 title: "Usuaris",
                 subtitle: "Veure i editar dades de l'usuari",
@@ -556,6 +562,7 @@ const catalanTranslation: TranslationType = {
                     exportError: "Error exportant usuaris",
                     deleteError: "Error esborrant usuari",
                     deleteSuccess: "Usuari esborrat",
+                    multipleDeleteSuccess: "Usuaris esborrats",
                 },
             },
             voters: {
@@ -568,6 +575,7 @@ const catalanTranslation: TranslationType = {
                     subtitle: "Crear votant",
                 },
                 manualVerification: {
+                    label: "Verificar manualment",
                     verify: "Verificar manualment al votant",
                     body: "Verifiqueu manualment a aquest votant. Obtindrà un PDF amb un enllaç de codi QR que permet al votant iniciar sessió ometent el KYC en línia.",
                 },
@@ -585,6 +593,7 @@ const catalanTranslation: TranslationType = {
                     exportError: "Error exportant votants",
                     deleteError: "Error esborrant votant",
                     deleteSuccess: "Votant esborrat",
+                    multipleDeleteSuccess: "Votants esborrats",
                     manualVerificationError: "Error verificant manualment al votant",
                     manualVerificationSuccess:
                         "Verificat amb èxit manualment al votant, descarregar PDF..",

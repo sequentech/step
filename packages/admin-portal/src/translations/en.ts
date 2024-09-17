@@ -512,6 +512,11 @@ const englishTranslation = {
                 subtitle: "General configuration",
                 mobileNumber: "Mobile",
             },
+            editPassword: {
+                label: "Change password",
+                temporatyLabel: "Temporary",
+                temporatyInfo: "If enabled, the user must change the password on next login",
+            },
             users: {
                 title: "Users",
                 subtitle: "View and edit user data",
@@ -554,6 +559,7 @@ const englishTranslation = {
                     exportError: "Error exporting users",
                     deleteError: "Error deleting user",
                     deleteSuccess: "User deleted",
+                    multipleDeleteSuccess: "Users deleted",
                 },
             },
             voters: {
@@ -564,6 +570,7 @@ const englishTranslation = {
                     subtitle: "Create Voter",
                 },
                 manualVerification: {
+                    label: "Manually Verify",
                     verify: "Manually Verify this voter",
                     body: "Manually Verify this voter. You will obtain a PDF with a QR Code link that allows the voter to login skipping online KYC.",
                 },
@@ -583,6 +590,7 @@ const englishTranslation = {
                     exportError: "Error exporting voters",
                     deleteError: "Error deleting voter",
                     deleteSuccess: "Voter deleted",
+                    multipleDeleteSuccess: "Voters deleted",
                     manualVerificationError: "Error manually verifying the voter",
                     manualVerificationSuccess:
                         "Sucessfully verified manually the voter, downloading PDF..",

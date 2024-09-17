@@ -513,6 +513,12 @@ const spanishTranslation: TranslationType = {
                 subtitle: "Configuración general",
                 mobileNumber: "Móvil",
             },
+            editPassword: {
+                label: "Cambiar contraseña",
+                temporatyLabel: "Temporal",
+                temporatyInfo:
+                    "Si está habilitado, el usuario deberá cambiar la contraseña en el próximo inicio de sesión.",
+            },
             users: {
                 title: "Usuarios",
                 subtitle: "Ver y editar datos del usuario",
@@ -555,6 +561,7 @@ const spanishTranslation: TranslationType = {
                     exportError: "Error al exportar usuarios",
                     deleteError: "Error borrando usuario",
                     deleteSuccess: "Usuario borrado",
+                    multipleDeleteSuccess: "Usuarios borrados",
                 },
             },
             voters: {
@@ -567,6 +574,7 @@ const spanishTranslation: TranslationType = {
                     subtitle: "Crear votante",
                 },
                 manualVerification: {
+                    label: "Verificar manualmente",
                     verify: "Verificar manualmente al votante",
                     body: "Verifique manualmente a este votante. Obtendrá un PDF con un enlace de código QR que le permite al votante iniciar sesión omitiendo el KYC en línea.",
                 },
@@ -584,6 +592,7 @@ const spanishTranslation: TranslationType = {
                     exportError: "Error al exportar votantes",
                     deleteError: "Error borrando votante",
                     deleteSuccess: "Votante borrado",
+                    multipleDeleteSuccess: "Votantes borrado",
                     manualVerificationError: "Error verificando manualmente al votante",
                     manualVerificationSuccess:
                         "Verificado exitosamente manualmente al elector, descargar PDF..",

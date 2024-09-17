@@ -18,6 +18,7 @@ export type Scalars = {
     Float: {input: number; output: number}
     bytea: {input: any; output: any}
     date: {input: any; output: any}
+    json: {input: any; output: any}
     jsonb: {input: any; output: any}
     numeric: {input: any; output: any}
     timestamptz: {input: any; output: any}
@@ -137,6 +138,11 @@ export type DeleteUserOutput = {
     id?: Maybe<Scalars["String"]["output"]>
 }
 
+export type DeleteUsersOutput = {
+    __typename?: "DeleteUsersOutput"
+    ids?: Maybe<Scalars["String"]["output"]>
+}
+
 export type EditUsersInput = {
     attributes?: InputMaybe<Scalars["jsonb"]["input"]>
     election_event_id?: InputMaybe<Scalars["String"]["input"]>
@@ -146,6 +152,7 @@ export type EditUsersInput = {
     groups?: InputMaybe<Array<Scalars["String"]["input"]>>
     last_name?: InputMaybe<Scalars["String"]["input"]>
     password?: InputMaybe<Scalars["String"]["input"]>
+    temporary?: InputMaybe<Scalars["Boolean"]["input"]>
     tenant_id: Scalars["String"]["input"]
     user_id: Scalars["String"]["input"]
     username?: InputMaybe<Scalars["String"]["input"]>
@@ -181,8 +188,9 @@ export type ElectionStatsOutput = {
 }
 
 export type ElectoralLogFilter = {
-    StatementKind?: InputMaybe<Scalars["String"]["input"]>
     id?: InputMaybe<Scalars["String"]["input"]>
+    statement_kind?: InputMaybe<Scalars["String"]["input"]>
+    user_id?: InputMaybe<Scalars["String"]["input"]>
 }
 
 export type ElectoralLogOrderBy = {
@@ -190,6 +198,7 @@ export type ElectoralLogOrderBy = {
     id?: InputMaybe<OrderDirection>
     statement_kind?: InputMaybe<OrderDirection>
     statement_timestamp?: InputMaybe<OrderDirection>
+    user_id?: InputMaybe<OrderDirection>
 }
 
 export type ElectoralLogRow = {
@@ -199,10 +208,17 @@ export type ElectoralLogRow = {
     message: Scalars["String"]["output"]
     statement_kind: Scalars["String"]["output"]
     statement_timestamp: Scalars["Int"]["output"]
+    user_id: Scalars["String"]["output"]
 }
 
 export type ExportLogsOutput = {
     __typename?: "ExportLogsOutput"
+    document_id: Scalars["String"]["output"]
+    task_id: Scalars["String"]["output"]
+}
+
+export type ExportTasksOutput = {
+    __typename?: "ExportTasksOutput"
     document_id: Scalars["String"]["output"]
     task_id: Scalars["String"]["output"]
 }
@@ -285,15 +301,20 @@ export type GetUploadUrlOutput = {
 }
 
 export type GetUsersInput = {
+    attributes?: InputMaybe<Scalars["jsonb"]["input"]>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
     email?: InputMaybe<Scalars["String"]["input"]>
+    email_verified?: InputMaybe<Scalars["Boolean"]["input"]>
+    enabled?: InputMaybe<Scalars["Boolean"]["input"]>
     first_name?: InputMaybe<Scalars["String"]["input"]>
+    has_voted?: InputMaybe<Scalars["Boolean"]["input"]>
     last_name?: InputMaybe<Scalars["String"]["input"]>
     limit?: InputMaybe<Scalars["Int"]["input"]>
     offset?: InputMaybe<Scalars["Int"]["input"]>
     search?: InputMaybe<Scalars["String"]["input"]>
     show_votes_info?: InputMaybe<Scalars["Boolean"]["input"]>
+    sort?: InputMaybe<Scalars["jsonb"]["input"]>
     tenant_id: Scalars["uuid"]["input"]
     username?: InputMaybe<Scalars["String"]["input"]>
 }
@@ -446,6 +467,7 @@ export type OptionalImportEvent = {
     error?: Maybe<Scalars["String"]["output"]>
     id?: Maybe<Scalars["String"]["output"]>
     message?: Maybe<Scalars["String"]["output"]>
+    task_execution?: Maybe<Tasks_Execution_Type>
 }
 
 export enum OrderDirection {
@@ -589,6 +611,20 @@ export type UpdateEventVotingStatusOutput = {
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
 }
 
+export type UserProfileAttribute = {
+    __typename?: "UserProfileAttribute"
+    annotations?: Maybe<Scalars["jsonb"]["output"]>
+    display_name?: Maybe<Scalars["String"]["output"]>
+    group?: Maybe<Scalars["String"]["output"]>
+    multivalued?: Maybe<Scalars["Boolean"]["output"]>
+    name?: Maybe<Scalars["String"]["output"]>
+    permissions?: Maybe<Scalars["jsonb"]["output"]>
+    read_only?: Maybe<Scalars["Boolean"]["output"]>
+    required?: Maybe<Scalars["jsonb"]["output"]>
+    selector?: Maybe<Scalars["jsonb"]["output"]>
+    validations?: Maybe<Scalars["jsonb"]["output"]>
+}
+
 export type VotesInfo = {
     __typename?: "VotesInfo"
     election_id: Scalars["String"]["output"]
@@ -615,6 +651,26 @@ export enum Cursor_Ordering {
     Asc = "ASC",
     /** descending ordering of the cursor */
     Desc = "DESC",
+}
+
+export type DocumentTaskOutput = {
+    __typename?: "documentTaskOutput"
+    document_id: Scalars["String"]["output"]
+    error_msg?: Maybe<Scalars["String"]["output"]>
+    task_execution: Tasks_Execution_Type
+}
+
+/** Boolean expression to compare columns of type "json". All fields are combined with logical 'AND'. */
+export type Json_Comparison_Exp = {
+    _eq?: InputMaybe<Scalars["json"]["input"]>
+    _gt?: InputMaybe<Scalars["json"]["input"]>
+    _gte?: InputMaybe<Scalars["json"]["input"]>
+    _in?: InputMaybe<Array<Scalars["json"]["input"]>>
+    _is_null?: InputMaybe<Scalars["Boolean"]["input"]>
+    _lt?: InputMaybe<Scalars["json"]["input"]>
+    _lte?: InputMaybe<Scalars["json"]["input"]>
+    _neq?: InputMaybe<Scalars["json"]["input"]>
+    _nin?: InputMaybe<Array<Scalars["json"]["input"]>>
 }
 
 export type Jsonb_Cast_Exp = {
@@ -776,6 +832,10 @@ export type Mutation_Root = {
     delete_sequent_backend_tally_sheet?: Maybe<Sequent_Backend_Tally_Sheet_Mutation_Response>
     /** delete single row from the table: "sequent_backend.tally_sheet" */
     delete_sequent_backend_tally_sheet_by_pk?: Maybe<Sequent_Backend_Tally_Sheet>
+    /** delete data from the table: "sequent_backend.tasks_execution" */
+    delete_sequent_backend_tasks_execution?: Maybe<Sequent_Backend_Tasks_Execution_Mutation_Response>
+    /** delete single row from the table: "sequent_backend.tasks_execution" */
+    delete_sequent_backend_tasks_execution_by_pk?: Maybe<Sequent_Backend_Tasks_Execution>
     /** delete data from the table: "sequent_backend.tenant" */
     delete_sequent_backend_tenant?: Maybe<Sequent_Backend_Tenant_Mutation_Response>
     /** delete single row from the table: "sequent_backend.tenant" */
@@ -786,9 +846,12 @@ export type Mutation_Root = {
     delete_sequent_backend_trustee_by_pk?: Maybe<Sequent_Backend_Trustee>
     delete_user?: Maybe<DeleteUserOutput>
     delete_user_role?: Maybe<SetUserRoleOutput>
+    /** delete users */
+    delete_users?: Maybe<DeleteUsersOutput>
     edit_user: KeycloakUser
-    export_election_event?: Maybe<ExportUsersOutput>
+    export_election_event?: Maybe<DocumentTaskOutput>
     export_election_event_logs?: Maybe<ExportLogsOutput>
+    export_election_event_tasks?: Maybe<ExportTasksOutput>
     export_tenant_users?: Maybe<ExportTenantUsersOutput>
     export_users?: Maybe<ExportUsersOutput>
     generate_ballot_publication?: Maybe<PublishBallotOutput>
@@ -799,10 +862,10 @@ export type Mutation_Root = {
     get_upload_url?: Maybe<GetUploadUrlOutput>
     get_user: KeycloakUser
     import_areas?: Maybe<OptionalId>
-    import_candidates?: Maybe<OptionalId>
+    import_candidates?: Maybe<DocumentTaskOutput>
     /** import_election_event */
     import_election_event?: Maybe<OptionalImportEvent>
-    import_users?: Maybe<OptionalId>
+    import_users?: Maybe<TaskOutput>
     insertElectionEvent?: Maybe<CreateElectionEventOutput>
     /** insertTenant */
     insertTenant?: Maybe<InsertTenantOutput>
@@ -920,6 +983,10 @@ export type Mutation_Root = {
     insert_sequent_backend_tally_sheet?: Maybe<Sequent_Backend_Tally_Sheet_Mutation_Response>
     /** insert a single row into the table: "sequent_backend.tally_sheet" */
     insert_sequent_backend_tally_sheet_one?: Maybe<Sequent_Backend_Tally_Sheet>
+    /** insert data into the table: "sequent_backend.tasks_execution" */
+    insert_sequent_backend_tasks_execution?: Maybe<Sequent_Backend_Tasks_Execution_Mutation_Response>
+    /** insert a single row into the table: "sequent_backend.tasks_execution" */
+    insert_sequent_backend_tasks_execution_one?: Maybe<Sequent_Backend_Tasks_Execution>
     /** insert data into the table: "sequent_backend.tenant" */
     insert_sequent_backend_tenant?: Maybe<Sequent_Backend_Tenant_Mutation_Response>
     /** insert a single row into the table: "sequent_backend.tenant" */
@@ -1159,6 +1226,14 @@ export type Mutation_Root = {
     update_sequent_backend_tally_sheet_many?: Maybe<
         Array<Maybe<Sequent_Backend_Tally_Sheet_Mutation_Response>>
     >
+    /** update data of the table: "sequent_backend.tasks_execution" */
+    update_sequent_backend_tasks_execution?: Maybe<Sequent_Backend_Tasks_Execution_Mutation_Response>
+    /** update single row of the table: "sequent_backend.tasks_execution" */
+    update_sequent_backend_tasks_execution_by_pk?: Maybe<Sequent_Backend_Tasks_Execution>
+    /** update multiples rows of table: "sequent_backend.tasks_execution" */
+    update_sequent_backend_tasks_execution_many?: Maybe<
+        Array<Maybe<Sequent_Backend_Tasks_Execution_Mutation_Response>>
+    >
     /** update data of the table: "sequent_backend.tenant" */
     update_sequent_backend_tenant?: Maybe<Sequent_Backend_Tenant_Mutation_Response>
     /** update single row of the table: "sequent_backend.tenant" */
@@ -1223,6 +1298,7 @@ export type Mutation_RootCreate_Tally_CeremonyArgs = {
 export type Mutation_RootCreate_Transmission_PackageArgs = {
     area_id: Scalars["uuid"]["input"]
     election_id: Scalars["uuid"]["input"]
+    force: Scalars["Boolean"]["input"]
     tally_session_id: Scalars["uuid"]["input"]
 }
 
@@ -1231,6 +1307,7 @@ export type Mutation_RootCreate_UserArgs = {
     election_event_id?: InputMaybe<Scalars["String"]["input"]>
     tenant_id: Scalars["String"]["input"]
     user: KeycloakUser2
+    user_roles_ids?: InputMaybe<Array<Scalars["String"]["input"]>>
 }
 
 /** mutation root */
@@ -1587,6 +1664,18 @@ export type Mutation_RootDelete_Sequent_Backend_Tally_Sheet_By_PkArgs = {
 }
 
 /** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Tasks_ExecutionArgs = {
+    where: Sequent_Backend_Tasks_Execution_Bool_Exp
+}
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Tasks_Execution_By_PkArgs = {
+    election_event_id: Scalars["uuid"]["input"]
+    id: Scalars["uuid"]["input"]
+    tenant_id: Scalars["uuid"]["input"]
+}
+
+/** mutation root */
 export type Mutation_RootDelete_Sequent_Backend_TenantArgs = {
     where: Sequent_Backend_Tenant_Bool_Exp
 }
@@ -1621,6 +1710,13 @@ export type Mutation_RootDelete_User_RoleArgs = {
 }
 
 /** mutation root */
+export type Mutation_RootDelete_UsersArgs = {
+    election_event_id?: InputMaybe<Scalars["String"]["input"]>
+    tenant_id: Scalars["String"]["input"]
+    users_id: Array<Scalars["String"]["input"]>
+}
+
+/** mutation root */
 export type Mutation_RootEdit_UserArgs = {
     body: EditUsersInput
 }
@@ -1632,6 +1728,11 @@ export type Mutation_RootExport_Election_EventArgs = {
 
 /** mutation root */
 export type Mutation_RootExport_Election_Event_LogsArgs = {
+    election_event_id?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** mutation root */
+export type Mutation_RootExport_Election_Event_TasksArgs = {
     election_event_id?: InputMaybe<Scalars["String"]["input"]>
 }
 
@@ -2067,6 +2168,18 @@ export type Mutation_RootInsert_Sequent_Backend_Tally_Sheet_OneArgs = {
 }
 
 /** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Tasks_ExecutionArgs = {
+    objects: Array<Sequent_Backend_Tasks_Execution_Insert_Input>
+    on_conflict?: InputMaybe<Sequent_Backend_Tasks_Execution_On_Conflict>
+}
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Tasks_Execution_OneArgs = {
+    object: Sequent_Backend_Tasks_Execution_Insert_Input
+    on_conflict?: InputMaybe<Sequent_Backend_Tasks_Execution_On_Conflict>
+}
+
+/** mutation root */
 export type Mutation_RootInsert_Sequent_Backend_TenantArgs = {
     objects: Array<Sequent_Backend_Tenant_Insert_Input>
     on_conflict?: InputMaybe<Sequent_Backend_Tenant_On_Conflict>
@@ -2126,6 +2239,8 @@ export type Mutation_RootSend_Transmission_PackageArgs = {
 /** mutation root */
 export type Mutation_RootSet_Custom_UrlsArgs = {
     dns_prefix: Scalars["String"]["input"]
+    election_id: Scalars["String"]["input"]
+    key: Scalars["String"]["input"]
     origin: Scalars["String"]["input"]
     redirect_to: Scalars["String"]["input"]
 }
@@ -2928,6 +3043,33 @@ export type Mutation_RootUpdate_Sequent_Backend_Tally_Sheet_ManyArgs = {
 }
 
 /** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Tasks_ExecutionArgs = {
+    _append?: InputMaybe<Sequent_Backend_Tasks_Execution_Append_Input>
+    _delete_at_path?: InputMaybe<Sequent_Backend_Tasks_Execution_Delete_At_Path_Input>
+    _delete_elem?: InputMaybe<Sequent_Backend_Tasks_Execution_Delete_Elem_Input>
+    _delete_key?: InputMaybe<Sequent_Backend_Tasks_Execution_Delete_Key_Input>
+    _prepend?: InputMaybe<Sequent_Backend_Tasks_Execution_Prepend_Input>
+    _set?: InputMaybe<Sequent_Backend_Tasks_Execution_Set_Input>
+    where: Sequent_Backend_Tasks_Execution_Bool_Exp
+}
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Tasks_Execution_By_PkArgs = {
+    _append?: InputMaybe<Sequent_Backend_Tasks_Execution_Append_Input>
+    _delete_at_path?: InputMaybe<Sequent_Backend_Tasks_Execution_Delete_At_Path_Input>
+    _delete_elem?: InputMaybe<Sequent_Backend_Tasks_Execution_Delete_Elem_Input>
+    _delete_key?: InputMaybe<Sequent_Backend_Tasks_Execution_Delete_Key_Input>
+    _prepend?: InputMaybe<Sequent_Backend_Tasks_Execution_Prepend_Input>
+    _set?: InputMaybe<Sequent_Backend_Tasks_Execution_Set_Input>
+    pk_columns: Sequent_Backend_Tasks_Execution_Pk_Columns_Input
+}
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Tasks_Execution_ManyArgs = {
+    updates: Array<Sequent_Backend_Tasks_Execution_Updates>
+}
+
+/** mutation root */
 export type Mutation_RootUpdate_Sequent_Backend_TenantArgs = {
     _append?: InputMaybe<Sequent_Backend_Tenant_Append_Input>
     _delete_at_path?: InputMaybe<Sequent_Backend_Tenant_Delete_At_Path_Input>
@@ -2993,8 +3135,9 @@ export type Mutation_RootUpdate_Tally_CeremonyArgs = {
 /** mutation root */
 export type Mutation_RootUpload_SignatureArgs = {
     area_id: Scalars["uuid"]["input"]
+    document_id: Scalars["uuid"]["input"]
     election_id: Scalars["uuid"]["input"]
-    private_key: Scalars["String"]["input"]
+    password: Scalars["String"]["input"]
     tally_session_id: Scalars["uuid"]["input"]
 }
 
@@ -3044,6 +3187,7 @@ export type Query_Root = {
     /** list permissions */
     get_permissions: GetPermissionsOutput
     get_roles: GetRolesOutput
+    get_user_profile_attributes: Array<UserProfileAttribute>
     get_users: GetUsersOutput
     /** List Electoral Log */
     listElectoralLog?: Maybe<DataListElectoralLog>
@@ -3220,6 +3364,12 @@ export type Query_Root = {
     sequent_backend_tally_sheet_aggregate: Sequent_Backend_Tally_Sheet_Aggregate
     /** fetch data from the table: "sequent_backend.tally_sheet" using primary key columns */
     sequent_backend_tally_sheet_by_pk?: Maybe<Sequent_Backend_Tally_Sheet>
+    /** fetch data from the table: "sequent_backend.tasks_execution" */
+    sequent_backend_tasks_execution: Array<Sequent_Backend_Tasks_Execution>
+    /** fetch aggregated fields from the table: "sequent_backend.tasks_execution" */
+    sequent_backend_tasks_execution_aggregate: Sequent_Backend_Tasks_Execution_Aggregate
+    /** fetch data from the table: "sequent_backend.tasks_execution" using primary key columns */
+    sequent_backend_tasks_execution_by_pk?: Maybe<Sequent_Backend_Tasks_Execution>
     /** fetch data from the table: "sequent_backend.tenant" */
     sequent_backend_tenant: Array<Sequent_Backend_Tenant>
     /** fetch aggregated fields from the table: "sequent_backend.tenant" */
@@ -3253,6 +3403,11 @@ export type Query_RootGet_PermissionsArgs = {
 
 export type Query_RootGet_RolesArgs = {
     body: GetRolesInput
+}
+
+export type Query_RootGet_User_Profile_AttributesArgs = {
+    election_event_id?: InputMaybe<Scalars["String"]["input"]>
+    tenant_id: Scalars["String"]["input"]
 }
 
 export type Query_RootGet_UsersArgs = {
@@ -3886,6 +4041,28 @@ export type Query_RootSequent_Backend_Tally_Sheet_AggregateArgs = {
 }
 
 export type Query_RootSequent_Backend_Tally_Sheet_By_PkArgs = {
+    election_event_id: Scalars["uuid"]["input"]
+    id: Scalars["uuid"]["input"]
+    tenant_id: Scalars["uuid"]["input"]
+}
+
+export type Query_RootSequent_Backend_Tasks_ExecutionArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Tasks_Execution_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Tasks_Execution_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Tasks_Execution_Bool_Exp>
+}
+
+export type Query_RootSequent_Backend_Tasks_Execution_AggregateArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Tasks_Execution_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Tasks_Execution_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Tasks_Execution_Bool_Exp>
+}
+
+export type Query_RootSequent_Backend_Tasks_Execution_By_PkArgs = {
     election_event_id: Scalars["uuid"]["input"]
     id: Scalars["uuid"]["input"]
     tenant_id: Scalars["uuid"]["input"]
@@ -14865,6 +15042,327 @@ export type Sequent_Backend_Tally_Sheet_Updates = {
     where: Sequent_Backend_Tally_Sheet_Bool_Exp
 }
 
+/** columns and relationships of "sequent_backend.tasks_execution" */
+export type Sequent_Backend_Tasks_Execution = {
+    __typename?: "sequent_backend_tasks_execution"
+    annotations?: Maybe<Scalars["jsonb"]["output"]>
+    created_at: Scalars["timestamptz"]["output"]
+    election_event_id: Scalars["uuid"]["output"]
+    end_at?: Maybe<Scalars["timestamptz"]["output"]>
+    executed_by_user: Scalars["String"]["output"]
+    execution_status: Scalars["String"]["output"]
+    id: Scalars["uuid"]["output"]
+    labels?: Maybe<Scalars["jsonb"]["output"]>
+    logs?: Maybe<Scalars["json"]["output"]>
+    name: Scalars["String"]["output"]
+    start_at: Scalars["timestamptz"]["output"]
+    /** An object relationship */
+    tenant: Sequent_Backend_Tenant
+    tenant_id: Scalars["uuid"]["output"]
+    type: Scalars["String"]["output"]
+}
+
+/** columns and relationships of "sequent_backend.tasks_execution" */
+export type Sequent_Backend_Tasks_ExecutionAnnotationsArgs = {
+    path?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** columns and relationships of "sequent_backend.tasks_execution" */
+export type Sequent_Backend_Tasks_ExecutionLabelsArgs = {
+    path?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** columns and relationships of "sequent_backend.tasks_execution" */
+export type Sequent_Backend_Tasks_ExecutionLogsArgs = {
+    path?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** aggregated selection of "sequent_backend.tasks_execution" */
+export type Sequent_Backend_Tasks_Execution_Aggregate = {
+    __typename?: "sequent_backend_tasks_execution_aggregate"
+    aggregate?: Maybe<Sequent_Backend_Tasks_Execution_Aggregate_Fields>
+    nodes: Array<Sequent_Backend_Tasks_Execution>
+}
+
+/** aggregate fields of "sequent_backend.tasks_execution" */
+export type Sequent_Backend_Tasks_Execution_Aggregate_Fields = {
+    __typename?: "sequent_backend_tasks_execution_aggregate_fields"
+    count: Scalars["Int"]["output"]
+    max?: Maybe<Sequent_Backend_Tasks_Execution_Max_Fields>
+    min?: Maybe<Sequent_Backend_Tasks_Execution_Min_Fields>
+}
+
+/** aggregate fields of "sequent_backend.tasks_execution" */
+export type Sequent_Backend_Tasks_Execution_Aggregate_FieldsCountArgs = {
+    columns?: InputMaybe<Array<Sequent_Backend_Tasks_Execution_Select_Column>>
+    distinct?: InputMaybe<Scalars["Boolean"]["input"]>
+}
+
+/** append existing jsonb value of filtered columns with new jsonb value */
+export type Sequent_Backend_Tasks_Execution_Append_Input = {
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
+    labels?: InputMaybe<Scalars["jsonb"]["input"]>
+}
+
+/** Boolean expression to filter rows from the table "sequent_backend.tasks_execution". All fields are combined with a logical 'AND'. */
+export type Sequent_Backend_Tasks_Execution_Bool_Exp = {
+    _and?: InputMaybe<Array<Sequent_Backend_Tasks_Execution_Bool_Exp>>
+    _not?: InputMaybe<Sequent_Backend_Tasks_Execution_Bool_Exp>
+    _or?: InputMaybe<Array<Sequent_Backend_Tasks_Execution_Bool_Exp>>
+    annotations?: InputMaybe<Jsonb_Comparison_Exp>
+    created_at?: InputMaybe<Timestamptz_Comparison_Exp>
+    election_event_id?: InputMaybe<Uuid_Comparison_Exp>
+    end_at?: InputMaybe<Timestamptz_Comparison_Exp>
+    executed_by_user?: InputMaybe<String_Comparison_Exp>
+    execution_status?: InputMaybe<String_Comparison_Exp>
+    id?: InputMaybe<Uuid_Comparison_Exp>
+    labels?: InputMaybe<Jsonb_Comparison_Exp>
+    logs?: InputMaybe<Json_Comparison_Exp>
+    name?: InputMaybe<String_Comparison_Exp>
+    start_at?: InputMaybe<Timestamptz_Comparison_Exp>
+    tenant?: InputMaybe<Sequent_Backend_Tenant_Bool_Exp>
+    tenant_id?: InputMaybe<Uuid_Comparison_Exp>
+    type?: InputMaybe<String_Comparison_Exp>
+}
+
+/** unique or primary key constraints on table "sequent_backend.tasks_execution" */
+export enum Sequent_Backend_Tasks_Execution_Constraint {
+    /** unique or primary key constraint on columns "id", "tenant_id", "election_event_id" */
+    TasksExecutionPkey = "tasks_execution_pkey",
+}
+
+/** delete the field or element with specified path (for JSON arrays, negative integers count from the end) */
+export type Sequent_Backend_Tasks_Execution_Delete_At_Path_Input = {
+    annotations?: InputMaybe<Array<Scalars["String"]["input"]>>
+    labels?: InputMaybe<Array<Scalars["String"]["input"]>>
+}
+
+/** delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array */
+export type Sequent_Backend_Tasks_Execution_Delete_Elem_Input = {
+    annotations?: InputMaybe<Scalars["Int"]["input"]>
+    labels?: InputMaybe<Scalars["Int"]["input"]>
+}
+
+/** delete key/value pair or string element. key/value pairs are matched based on their key value */
+export type Sequent_Backend_Tasks_Execution_Delete_Key_Input = {
+    annotations?: InputMaybe<Scalars["String"]["input"]>
+    labels?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** input type for inserting data into table "sequent_backend.tasks_execution" */
+export type Sequent_Backend_Tasks_Execution_Insert_Input = {
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
+    created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
+    end_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    executed_by_user?: InputMaybe<Scalars["String"]["input"]>
+    execution_status?: InputMaybe<Scalars["String"]["input"]>
+    id?: InputMaybe<Scalars["uuid"]["input"]>
+    labels?: InputMaybe<Scalars["jsonb"]["input"]>
+    logs?: InputMaybe<Scalars["json"]["input"]>
+    name?: InputMaybe<Scalars["String"]["input"]>
+    start_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    tenant?: InputMaybe<Sequent_Backend_Tenant_Obj_Rel_Insert_Input>
+    tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
+    type?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** aggregate max on columns */
+export type Sequent_Backend_Tasks_Execution_Max_Fields = {
+    __typename?: "sequent_backend_tasks_execution_max_fields"
+    created_at?: Maybe<Scalars["timestamptz"]["output"]>
+    election_event_id?: Maybe<Scalars["uuid"]["output"]>
+    end_at?: Maybe<Scalars["timestamptz"]["output"]>
+    executed_by_user?: Maybe<Scalars["String"]["output"]>
+    execution_status?: Maybe<Scalars["String"]["output"]>
+    id?: Maybe<Scalars["uuid"]["output"]>
+    name?: Maybe<Scalars["String"]["output"]>
+    start_at?: Maybe<Scalars["timestamptz"]["output"]>
+    tenant_id?: Maybe<Scalars["uuid"]["output"]>
+    type?: Maybe<Scalars["String"]["output"]>
+}
+
+/** aggregate min on columns */
+export type Sequent_Backend_Tasks_Execution_Min_Fields = {
+    __typename?: "sequent_backend_tasks_execution_min_fields"
+    created_at?: Maybe<Scalars["timestamptz"]["output"]>
+    election_event_id?: Maybe<Scalars["uuid"]["output"]>
+    end_at?: Maybe<Scalars["timestamptz"]["output"]>
+    executed_by_user?: Maybe<Scalars["String"]["output"]>
+    execution_status?: Maybe<Scalars["String"]["output"]>
+    id?: Maybe<Scalars["uuid"]["output"]>
+    name?: Maybe<Scalars["String"]["output"]>
+    start_at?: Maybe<Scalars["timestamptz"]["output"]>
+    tenant_id?: Maybe<Scalars["uuid"]["output"]>
+    type?: Maybe<Scalars["String"]["output"]>
+}
+
+/** response of any mutation on the table "sequent_backend.tasks_execution" */
+export type Sequent_Backend_Tasks_Execution_Mutation_Response = {
+    __typename?: "sequent_backend_tasks_execution_mutation_response"
+    /** number of rows affected by the mutation */
+    affected_rows: Scalars["Int"]["output"]
+    /** data from the rows affected by the mutation */
+    returning: Array<Sequent_Backend_Tasks_Execution>
+}
+
+/** on_conflict condition type for table "sequent_backend.tasks_execution" */
+export type Sequent_Backend_Tasks_Execution_On_Conflict = {
+    constraint: Sequent_Backend_Tasks_Execution_Constraint
+    update_columns?: Array<Sequent_Backend_Tasks_Execution_Update_Column>
+    where?: InputMaybe<Sequent_Backend_Tasks_Execution_Bool_Exp>
+}
+
+/** Ordering options when selecting data from "sequent_backend.tasks_execution". */
+export type Sequent_Backend_Tasks_Execution_Order_By = {
+    annotations?: InputMaybe<Order_By>
+    created_at?: InputMaybe<Order_By>
+    election_event_id?: InputMaybe<Order_By>
+    end_at?: InputMaybe<Order_By>
+    executed_by_user?: InputMaybe<Order_By>
+    execution_status?: InputMaybe<Order_By>
+    id?: InputMaybe<Order_By>
+    labels?: InputMaybe<Order_By>
+    logs?: InputMaybe<Order_By>
+    name?: InputMaybe<Order_By>
+    start_at?: InputMaybe<Order_By>
+    tenant?: InputMaybe<Sequent_Backend_Tenant_Order_By>
+    tenant_id?: InputMaybe<Order_By>
+    type?: InputMaybe<Order_By>
+}
+
+/** primary key columns input for table: sequent_backend.tasks_execution */
+export type Sequent_Backend_Tasks_Execution_Pk_Columns_Input = {
+    election_event_id: Scalars["uuid"]["input"]
+    id: Scalars["uuid"]["input"]
+    tenant_id: Scalars["uuid"]["input"]
+}
+
+/** prepend existing jsonb value of filtered columns with new jsonb value */
+export type Sequent_Backend_Tasks_Execution_Prepend_Input = {
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
+    labels?: InputMaybe<Scalars["jsonb"]["input"]>
+}
+
+/** select columns of table "sequent_backend.tasks_execution" */
+export enum Sequent_Backend_Tasks_Execution_Select_Column {
+    /** column name */
+    Annotations = "annotations",
+    /** column name */
+    CreatedAt = "created_at",
+    /** column name */
+    ElectionEventId = "election_event_id",
+    /** column name */
+    EndAt = "end_at",
+    /** column name */
+    ExecutedByUser = "executed_by_user",
+    /** column name */
+    ExecutionStatus = "execution_status",
+    /** column name */
+    Id = "id",
+    /** column name */
+    Labels = "labels",
+    /** column name */
+    Logs = "logs",
+    /** column name */
+    Name = "name",
+    /** column name */
+    StartAt = "start_at",
+    /** column name */
+    TenantId = "tenant_id",
+    /** column name */
+    Type = "type",
+}
+
+/** input type for updating data in table "sequent_backend.tasks_execution" */
+export type Sequent_Backend_Tasks_Execution_Set_Input = {
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
+    created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
+    end_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    executed_by_user?: InputMaybe<Scalars["String"]["input"]>
+    execution_status?: InputMaybe<Scalars["String"]["input"]>
+    id?: InputMaybe<Scalars["uuid"]["input"]>
+    labels?: InputMaybe<Scalars["jsonb"]["input"]>
+    logs?: InputMaybe<Scalars["json"]["input"]>
+    name?: InputMaybe<Scalars["String"]["input"]>
+    start_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
+    type?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** Streaming cursor of the table "sequent_backend_tasks_execution" */
+export type Sequent_Backend_Tasks_Execution_Stream_Cursor_Input = {
+    /** Stream column input with initial value */
+    initial_value: Sequent_Backend_Tasks_Execution_Stream_Cursor_Value_Input
+    /** cursor ordering */
+    ordering?: InputMaybe<Cursor_Ordering>
+}
+
+/** Initial value of the column from where the streaming should start */
+export type Sequent_Backend_Tasks_Execution_Stream_Cursor_Value_Input = {
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
+    created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
+    end_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    executed_by_user?: InputMaybe<Scalars["String"]["input"]>
+    execution_status?: InputMaybe<Scalars["String"]["input"]>
+    id?: InputMaybe<Scalars["uuid"]["input"]>
+    labels?: InputMaybe<Scalars["jsonb"]["input"]>
+    logs?: InputMaybe<Scalars["json"]["input"]>
+    name?: InputMaybe<Scalars["String"]["input"]>
+    start_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
+    type?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** update columns of table "sequent_backend.tasks_execution" */
+export enum Sequent_Backend_Tasks_Execution_Update_Column {
+    /** column name */
+    Annotations = "annotations",
+    /** column name */
+    CreatedAt = "created_at",
+    /** column name */
+    ElectionEventId = "election_event_id",
+    /** column name */
+    EndAt = "end_at",
+    /** column name */
+    ExecutedByUser = "executed_by_user",
+    /** column name */
+    ExecutionStatus = "execution_status",
+    /** column name */
+    Id = "id",
+    /** column name */
+    Labels = "labels",
+    /** column name */
+    Logs = "logs",
+    /** column name */
+    Name = "name",
+    /** column name */
+    StartAt = "start_at",
+    /** column name */
+    TenantId = "tenant_id",
+    /** column name */
+    Type = "type",
+}
+
+export type Sequent_Backend_Tasks_Execution_Updates = {
+    /** append existing jsonb value of filtered columns with new jsonb value */
+    _append?: InputMaybe<Sequent_Backend_Tasks_Execution_Append_Input>
+    /** delete the field or element with specified path (for JSON arrays, negative integers count from the end) */
+    _delete_at_path?: InputMaybe<Sequent_Backend_Tasks_Execution_Delete_At_Path_Input>
+    /** delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array */
+    _delete_elem?: InputMaybe<Sequent_Backend_Tasks_Execution_Delete_Elem_Input>
+    /** delete key/value pair or string element. key/value pairs are matched based on their key value */
+    _delete_key?: InputMaybe<Sequent_Backend_Tasks_Execution_Delete_Key_Input>
+    /** prepend existing jsonb value of filtered columns with new jsonb value */
+    _prepend?: InputMaybe<Sequent_Backend_Tasks_Execution_Prepend_Input>
+    /** sets the columns of the filtered rows to the given values */
+    _set?: InputMaybe<Sequent_Backend_Tasks_Execution_Set_Input>
+    /** filter the rows which have to be updated */
+    where: Sequent_Backend_Tasks_Execution_Bool_Exp
+}
+
 /** columns and relationships of "sequent_backend.tenant" */
 export type Sequent_Backend_Tenant = {
     __typename?: "sequent_backend_tenant"
@@ -15038,6 +15536,13 @@ export type Sequent_Backend_Tenant_Mutation_Response = {
     affected_rows: Scalars["Int"]["output"]
     /** data from the rows affected by the mutation */
     returning: Array<Sequent_Backend_Tenant>
+}
+
+/** input type for inserting object relation for remote table "sequent_backend.tenant" */
+export type Sequent_Backend_Tenant_Obj_Rel_Insert_Input = {
+    data: Sequent_Backend_Tenant_Insert_Input
+    /** upsert condition */
+    on_conflict?: InputMaybe<Sequent_Backend_Tenant_On_Conflict>
 }
 
 /** on_conflict condition type for table "sequent_backend.tenant" */
@@ -15741,6 +16246,14 @@ export type Subscription_Root = {
     sequent_backend_tally_sheet_by_pk?: Maybe<Sequent_Backend_Tally_Sheet>
     /** fetch data from the table in a streaming manner: "sequent_backend.tally_sheet" */
     sequent_backend_tally_sheet_stream: Array<Sequent_Backend_Tally_Sheet>
+    /** fetch data from the table: "sequent_backend.tasks_execution" */
+    sequent_backend_tasks_execution: Array<Sequent_Backend_Tasks_Execution>
+    /** fetch aggregated fields from the table: "sequent_backend.tasks_execution" */
+    sequent_backend_tasks_execution_aggregate: Sequent_Backend_Tasks_Execution_Aggregate
+    /** fetch data from the table: "sequent_backend.tasks_execution" using primary key columns */
+    sequent_backend_tasks_execution_by_pk?: Maybe<Sequent_Backend_Tasks_Execution>
+    /** fetch data from the table in a streaming manner: "sequent_backend.tasks_execution" */
+    sequent_backend_tasks_execution_stream: Array<Sequent_Backend_Tasks_Execution>
     /** fetch data from the table: "sequent_backend.tenant" */
     sequent_backend_tenant: Array<Sequent_Backend_Tenant>
     /** fetch aggregated fields from the table: "sequent_backend.tenant" */
@@ -16532,6 +17045,34 @@ export type Subscription_RootSequent_Backend_Tally_Sheet_StreamArgs = {
     where?: InputMaybe<Sequent_Backend_Tally_Sheet_Bool_Exp>
 }
 
+export type Subscription_RootSequent_Backend_Tasks_ExecutionArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Tasks_Execution_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Tasks_Execution_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Tasks_Execution_Bool_Exp>
+}
+
+export type Subscription_RootSequent_Backend_Tasks_Execution_AggregateArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Tasks_Execution_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Tasks_Execution_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Tasks_Execution_Bool_Exp>
+}
+
+export type Subscription_RootSequent_Backend_Tasks_Execution_By_PkArgs = {
+    election_event_id: Scalars["uuid"]["input"]
+    id: Scalars["uuid"]["input"]
+    tenant_id: Scalars["uuid"]["input"]
+}
+
+export type Subscription_RootSequent_Backend_Tasks_Execution_StreamArgs = {
+    batch_size: Scalars["Int"]["input"]
+    cursor: Array<InputMaybe<Sequent_Backend_Tasks_Execution_Stream_Cursor_Input>>
+    where?: InputMaybe<Sequent_Backend_Tasks_Execution_Bool_Exp>
+}
+
 export type Subscription_RootSequent_Backend_TenantArgs = {
     distinct_on?: InputMaybe<Array<Sequent_Backend_Tenant_Select_Column>>
     limit?: InputMaybe<Scalars["Int"]["input"]>
@@ -16582,6 +17123,28 @@ export type Subscription_RootSequent_Backend_Trustee_StreamArgs = {
     batch_size: Scalars["Int"]["input"]
     cursor: Array<InputMaybe<Sequent_Backend_Trustee_Stream_Cursor_Input>>
     where?: InputMaybe<Sequent_Backend_Trustee_Bool_Exp>
+}
+
+export type TaskOutput = {
+    __typename?: "taskOutput"
+    task_execution: Tasks_Execution_Type
+}
+
+export type Tasks_Execution_Type = {
+    __typename?: "tasks_execution_type"
+    annotations?: Maybe<Scalars["jsonb"]["output"]>
+    created_at: Scalars["timestamptz"]["output"]
+    election_event_id: Scalars["uuid"]["output"]
+    end_at?: Maybe<Scalars["timestamptz"]["output"]>
+    executed_by_user: Scalars["String"]["output"]
+    execution_status: Scalars["String"]["output"]
+    id: Scalars["uuid"]["output"]
+    labels?: Maybe<Scalars["jsonb"]["output"]>
+    logs?: Maybe<Scalars["json"]["output"]>
+    name: Scalars["String"]["output"]
+    start_at: Scalars["timestamptz"]["output"]
+    tenant_id: Scalars["uuid"]["output"]
+    type: Scalars["String"]["output"]
 }
 
 /** Boolean expression to compare columns of type "timestamptz". All fields are combined with logical 'AND'. */

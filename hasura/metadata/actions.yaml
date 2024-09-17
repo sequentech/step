@@ -198,6 +198,20 @@ actions:
         version: 2
     permissions:
       - role: admin-user
+  - name: delete_users
+    definition:
+      kind: synchronous
+      handler: http://{{HARVEST_DOMAIN}}/delete-users
+      forward_client_headers: true
+      request_transform:
+        body:
+          action: transform
+          template: '{{$body.input}}'
+        template_engine: Kriti
+        version: 2
+    permissions:
+      - role: admin-user
+    comment: delete users
   - name: edit_user
     definition:
       kind: synchronous
@@ -442,6 +456,21 @@ actions:
     permissions:
       - role: user-read
       - role: voter-read
+      - role: admin-user
+  - name: get_user_profile_attributes
+    definition:
+      kind: synchronous
+      handler: http://{{HARVEST_DOMAIN}}/get-user-profile-attributes
+      forward_client_headers: true
+      request_transform:
+        body:
+          action: transform
+          template: '{{$body.input}}'
+        template_engine: Kriti
+        version: 2
+    permissions:
+      - role: voter-read
+      - role: user-read
       - role: admin-user
   - name: get_users
     definition:
@@ -821,108 +850,112 @@ actions:
     comment: upsert_areas
 custom_types:
   enums:
-    - name: OrderDirection
-      values:
-        - description: null
-          is_deprecated: null
-          value: asc
-        - description: null
-          is_deprecated: null
-          value: desc
-    - name: PgAuditTable
-      values:
-        - description: null
-          is_deprecated: null
-          value: pgaudit_hasura
-        - description: null
-          is_deprecated: null
-          value: pgaudit_keycloak
+  - name: OrderDirection
+    values:
+    - description: null
+      is_deprecated: null
+      value: asc
+    - description: null
+      is_deprecated: null
+      value: desc
+  - name: PgAuditTable
+    values:
+    - description: null
+      is_deprecated: null
+      value: pgaudit_hasura
+    - description: null
+      is_deprecated: null
+      value: pgaudit_keycloak
   input_objects:
-    - name: TemplateInput
-    - name: PgAuditFilter
-    - name: PgAuditOrderBy
-    - name: ElectoralLogFilter
-    - name: ElectoralLogOrderBy
-    - name: SampleInput
-    - name: CreateElectionEventInput
-    - name: GetUsersInput
-    - name: CreateKeysCeremonyInput
-    - name: ElectionEventStatsInput
-    - name: ElectionStatsInput
-    - name: GetPrivateKeyInput
-    - name: CheckPrivateKeyInput
-    - name: GetPermissionsInput
-    - name: GetRolesInput
-    - name: EditUsersInput
-    - name: DeleteUserInput
-    - name: KeycloakUser2
-    - name: CreateUserInput
-    - name: KeycloakPermission2
-    - name: CreatePermissionInput
-    - name: GetManualVerificationInput
-    - name: KeycloakRole2
-    - name: RestorePrivateKeyInput
+  - name: TemplateInput
+  - name: PgAuditFilter
+  - name: PgAuditOrderBy
+  - name: ElectoralLogFilter
+  - name: ElectoralLogOrderBy
+  - name: SampleInput
+  - name: CreateElectionEventInput
+  - name: GetUsersInput
+  - name: CreateKeysCeremonyInput
+  - name: ElectionEventStatsInput
+  - name: ElectionStatsInput
+  - name: GetPrivateKeyInput
+  - name: CheckPrivateKeyInput
+  - name: GetPermissionsInput
+  - name: GetRolesInput
+  - name: EditUsersInput
+  - name: DeleteUserInput
+  - name: KeycloakUser2
+  - name: CreateUserInput
+  - name: KeycloakPermission2
+  - name: CreatePermissionInput
+  - name: GetManualVerificationInput
+  - name: KeycloakRole2
+  - name: RestorePrivateKeyInput
+  - name: UserProfileAttributesInput
   objects:
-    - name: GetManualVerificationOutput
-    - name: CreateKeysCeremonyOutput
-    - name: GetPrivateKeyOutput
-    - name: CastVotesPerDay
-    - name: ElectionEventStatsOutput
-    - name: ElectionStatsOutput
-    - name: CheckPrivateKeyOutput
-    - name: TemplateOutput
-    - name: FetchDocumentOutput
-    - name: ScheduledEventOutput
-    - name: PgAuditRow
-    - name: Aggregate
-    - name: DataListPgAudit
-    - name: TotalAggregate
-    - name: ElectoralLogRow
-    - name: DataListElectoralLog
-    - name: ScheduledEventOutput2
-    - name: ScheduledEventOutput3
-    - name: SampleOutput
-    - name: CreateElectionEventOutput
-    - name: InsertTenantOutput
-    - name: KeycloakUserArea
-    - name: VotesInfo
-    - name: KeycloakUser
-    - name: GetUsersOutput
-    - name: GetPermissionsOutput
-    - name: KeycloakPermission
-    - name: GetRolesOutput
-    - name: KeycloakRole
-    - name: GetUploadUrlOutput
-    - name: DeleteUserOutput
-    - name: CreateUserOutput
-    - name: SetRolePermissionOutput
-    - name: OptionalId
-    - name: ExportUsersOutput
-    - name: SetUserRoleOutput
-    - name: CreateTallyOutput
-    - name: StartTallyOutput
-    - name: PublishBallotOutput
-    - name: UpdateEventVotingStatusOutput
-    - name: UpdateElectionVotingStatusOutput
-    - name: BallotPublicationStyles
-    - name: GetBallotPublicationChangesOutput
-    - name: RestorePrivateKeyOutput
-    - name: PublishTallyOutput
-    - name: InsertCastVoteOutput
-    - name: CreateVoteReceiptOutput
-    - name: OptionalImportEvent
-    - name: ManageElectionDatesOutput
-    - name: ExportLogsOutput
-    - name: ExportAllUsersOutput
-    - name: ExportTenantUsersOutput
-    - name: ExportTasksOutput
-    - name: ExportTaskOutput
-    - name: sequent_backend_tasks_execution_ActionType
-    - name: TaskOutput
-    - name: tasks_execution_type
-    - name: taskOutput
-    - name: documentTaskOutput
-    - name: LogEventOutput
-    - name: SetCustomUrlOutput
-    - name: SetCustomUrlsOutput
+  - name: GetManualVerificationOutput
+  - name: CreateKeysCeremonyOutput
+  - name: GetPrivateKeyOutput
+  - name: CastVotesPerDay
+  - name: ElectionEventStatsOutput
+  - name: ElectionStatsOutput
+  - name: CheckPrivateKeyOutput
+  - name: TemplateOutput
+  - name: FetchDocumentOutput
+  - name: ScheduledEventOutput
+  - name: PgAuditRow
+  - name: Aggregate
+  - name: DataListPgAudit
+  - name: TotalAggregate
+  - name: ElectoralLogRow
+  - name: DataListElectoralLog
+  - name: ScheduledEventOutput2
+  - name: ScheduledEventOutput3
+  - name: SampleOutput
+  - name: CreateElectionEventOutput
+  - name: InsertTenantOutput
+  - name: KeycloakUserArea
+  - name: VotesInfo
+  - name: KeycloakUser
+  - name: GetUsersOutput
+  - name: GetPermissionsOutput
+  - name: KeycloakPermission
+  - name: GetRolesOutput
+  - name: KeycloakRole
+  - name: GetUploadUrlOutput
+  - name: DeleteUserOutput
+  - name: CreateUserOutput
+  - name: SetRolePermissionOutput
+  - name: OptionalId
+  - name: ExportUsersOutput
+  - name: SetUserRoleOutput
+  - name: CreateTallyOutput
+  - name: StartTallyOutput
+  - name: PublishBallotOutput
+  - name: UpdateEventVotingStatusOutput
+  - name: UpdateElectionVotingStatusOutput
+  - name: BallotPublicationStyles
+  - name: GetBallotPublicationChangesOutput
+  - name: RestorePrivateKeyOutput
+  - name: PublishTallyOutput
+  - name: InsertCastVoteOutput
+  - name: CreateVoteReceiptOutput
+  - name: OptionalImportEvent
+  - name: ManageElectionDatesOutput
+  - name: ExportLogsOutput
+  - name: ExportAllUsersOutput
+  - name: ExportTenantUsersOutput
+  - name: ExportTasksOutput
+  - name: ExportTaskOutput
+  - name: sequent_backend_tasks_execution_ActionType
+  - name: TaskOutput
+  - name: tasks_execution_type
+  - name: taskOutput
+  - name: documentTaskOutput
+  - name: LogEventOutput
+  - name: UserProfileAttributes
+  - name: UserProfileAttribute
+  - name: DeleteUsersOutput
+  - name: SetCustomUrlOutput
+  - name: SetCustomUrlsOutput
   scalars: []

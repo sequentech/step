@@ -513,6 +513,12 @@ const tagalogTranslation: TranslationType = {
                 subtitle: "Pangkalahatang pag-configure",
                 mobileNumber: "Mobile",
             },
+            editPassword: {
+                label: "Palitan ang password",
+                temporatyLabel: "Pansamantala",
+                temporatyInfo:
+                    "Kung naka-enable, kinakailangang palitan ng tagagamit ang password sa susunod na pag-login",
+            },
             users: {
                 title: "Mga Tagagamit",
                 subtitle: "Tingnan at i-edit ang data ng tagagamit",
@@ -556,6 +562,7 @@ const tagalogTranslation: TranslationType = {
                     exportError: "Error sa pag-export ng mga tagagamit",
                     deleteError: "Error sa pagtanggal ng tagagamit",
                     deleteSuccess: "Natanggal ang tagagamit",
+                    multipleDeleteSuccess: "Natanggal ang mga tagagamit",
                 },
             },
             voters: {
@@ -566,6 +573,7 @@ const tagalogTranslation: TranslationType = {
                     subtitle: "Lumikha ng Botante",
                 },
                 manualVerification: {
+                    label: "Manwal na I-verify",
                     verify: "Manu-manong i-verify ang botante",
                     body: "Manu-manong i-verify ang botante. Makakakuha ka ng PDF na may QR Code link na nagpapahintulot sa botante na mag-login na hindi dumaan sa online KYC.",
                 },
@@ -585,6 +593,7 @@ const tagalogTranslation: TranslationType = {
                     exportError: "Error sa pag-export ng mga botante",
                     deleteError: "Error sa pagtanggal ng botante",
                     deleteSuccess: "Natanggal na ang botante",
+                    multipleDeleteSuccess: "Natanggal na ang mga botante",
                     manualVerificationError: "Error sa manu-manong pag-verify ng botante",
                     manualVerificationSuccess:
                         "Matagumpay na na-verify nang manu-mano ang botante, nagda-download ng PDF..",

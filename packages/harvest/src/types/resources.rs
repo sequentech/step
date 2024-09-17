@@ -27,6 +27,12 @@ pub enum OrderDirection {
     Desc,
 }
 
+#[derive(Deserialize, Debug)]
+pub struct SortPayload {
+    pub field: String,
+    pub order: String,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DataList<T> {
     pub items: Vec<T>,
