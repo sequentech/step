@@ -80,6 +80,32 @@ const spanishTranslation: TranslationType = {
                 title: "Bitácora de Base de Datos de IAM",
             },
         },
+        tasksScreen: {
+            noPermissions: "No tienes permiso para acceder a los registros.",
+            title: "Ejecución de tareas",
+            subtitle: "Información sobre las tareas ejecutadas",
+            taskInformation: "Información de la tarea",
+            status: "estado: {{status}}",
+            ok: "Aceptar",
+            column: {
+                id: "Índice",
+                name: "Nombre de la tarea",
+                type: "Tipo",
+                execution_status: "Estado",
+                start_at: "Hora de inicio",
+                end_at: "Hora de finalización",
+                executed_by_user: "Ejecutor",
+                annotations: "Anotaciones",
+                labels: "Etiquetas",
+                logs: "Registros",
+            },
+            tasksExecution: {
+                EXPORT_ELECTION_EVENT: "Exportar evento electoral",
+                IMPORT_ELECTION_EVENT: "Importar evento electoral",
+                IMPORT_USERS: "Importar usuarios",
+                IMPORT_CANDIDATES: "Importar candidatos",
+            },
+        },
         confirmationScreen: {
             title: "Su voto ha sido emitido",
             description:
@@ -169,6 +195,8 @@ const spanishTranslation: TranslationType = {
                 createNew: "Crear un Tipo de Elección",
                 emptyHeader: "No hay Tipos de Elección aún.",
                 emptyBody: "¿Quieres crear uno?",
+                logoUrl: "Logo URL",
+                css: "CSS personalizado",
             },
             create: {
                 title: "Crear Tipo de Elección",
@@ -181,6 +209,7 @@ const spanishTranslation: TranslationType = {
                 electionTypes: "TIPOS DE ELECCIÓN",
                 communications: "COMUNICACIÓN",
                 languages: "IDIOMAS",
+                lookAndFeel: "PERSONILIZACIÓN DE APARIENCIA",
                 schedules: "EVENTOS PROGRAMADOS",
                 trustees: "AUTORIDADES",
             },
@@ -236,6 +265,7 @@ const spanishTranslation: TranslationType = {
             edit: {
                 general: "General",
                 dates: "Fechas",
+                customUrls: "Prefixo de URLs personalizados",
                 votingPeriod: "Período de votación",
                 language: "Idiomas",
                 allowed: "Canales de Voto Permitidos",
@@ -244,6 +274,10 @@ const spanishTranslation: TranslationType = {
                 reorder: "Reordenar elecciones",
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importar Candidatos",
+            },
+            customUrls: {
+                login: "Inicio de sesión",
+                enrollment: "Inscripción",
             },
             localization: {
                 emptyHeader: "No se han establecido idiomas para el evento",
@@ -344,6 +378,7 @@ const spanishTranslation: TranslationType = {
                 tally: "Recuento",
                 publish: "Publicar",
                 logs: "Logs",
+                tasks: "Tareas",
             },
             tally: {
                 emptyHeader: "Ningún Recuento aún.",
@@ -409,6 +444,8 @@ const spanishTranslation: TranslationType = {
                 },
             },
             exportError: "Error al exportar el Evento Electoral",
+            taskNotification:
+                "{{action}} ha comenzado. Puedes ver su estado en la tabla de Ejecución de Tareas.",
         },
         electionScreen: {
             common: {
@@ -634,6 +671,7 @@ const spanishTranslation: TranslationType = {
                 "publish-read": "Leer Publicación",
                 "publish-write": "Editar Publicación",
                 "logs-read": "Leer Registros",
+                "tasks-read": "Leer la Ejecución de Tareas",
                 "keys-read": "Leer Claves",
                 "document-upload": "Subir Documentos",
                 "document-download": "Descargar Documentos",
@@ -1375,6 +1413,9 @@ const spanishTranslation: TranslationType = {
                 isHidden: "Oculto",
                 publicUrl: "Enlace público",
             },
+        },
+        widget: {
+            logs: "Registros",
         },
     },
 }

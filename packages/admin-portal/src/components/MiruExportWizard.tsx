@@ -387,7 +387,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
     )
 
     let minimumSignatures = () => {
-        return 1
+        return selectedTallySessionData?.threshold ?? 1
     }
 
     const disableSendButton = useMemo(() => {
@@ -501,8 +501,6 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
         },
         [tallySessionData, tally]
     )
-
-    console.log({disableSendButton})
 
     return (
         <>
@@ -644,7 +642,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
                                 selectedTallySessionData?.documents.length - 1
                             ].signatures ?? []
                         }
-                        tallySessionExecution={tallySessionExecution}
+                        area={area}
                     />
                 </WizardStyles.AccordionDetails>
             </Accordion>

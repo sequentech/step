@@ -52,7 +52,7 @@ public class MessageOTPAuthenticator
 
     String resend = context.getHttpRequest().getDecodedFormParameters().getFirst("resend");
     UserModel user = context.getUser();
-    Utils.buildEventDetails(context);
+    Utils.buildEventDetails(context, this.getClass().getSimpleName());
 
     if (resend != null && resend.equals("true")) {
       intiateForm(context, /*resend*/ true);
@@ -160,10 +160,9 @@ public class MessageOTPAuthenticator
     Utils.MessageCourier messageCourier =
         Utils.MessageCourier.fromString(config.getConfig().get(Utils.MESSAGE_COURIER_ATTRIBUTE));
     boolean deferredUser = config.getConfig().get(Utils.DEFERRED_USER_ATTRIBUTE).equals("true");
-    log.info("defferedUser: " + deferredUser);
     boolean codeJustSent = false;
     UserModel user = context.getUser();
-    Utils.buildEventDetails(context);
+    Utils.buildEventDetails(context, this.getClass().getSimpleName());
 
     // handle OTL
     boolean isOtl = config.getConfig().get(Utils.ONE_TIME_LINK).equals("true");
