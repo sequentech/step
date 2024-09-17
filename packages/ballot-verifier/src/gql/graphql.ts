@@ -226,13 +226,15 @@ export type ExportTasksOutput = {
 export type ExportTenantUsersOutput = {
     __typename?: "ExportTenantUsersOutput"
     document_id: Scalars["String"]["output"]
-    task_id: Scalars["String"]["output"]
+    error_msg?: Maybe<Scalars["String"]["output"]>
+    task_execution?: Maybe<Tasks_Execution_Type>
 }
 
 export type ExportUsersOutput = {
     __typename?: "ExportUsersOutput"
     document_id: Scalars["String"]["output"]
-    task_id: Scalars["String"]["output"]
+    error_msg?: Maybe<Scalars["String"]["output"]>
+    task_execution?: Maybe<Tasks_Execution_Type>
 }
 
 export type FetchDocumentOutput = {

@@ -7,6 +7,7 @@ use crate::postgres::area::get_areas_by_id;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::services::election::{get_election_event_elections, ElectionHead};
 use crate::services::s3;
+use crate::services::tasks_execution::*;
 use crate::services::temp_path::generate_temp_file;
 use crate::services::users::ListUsersFilter;
 use crate::services::users::{list_users, list_users_with_vote_info};
@@ -19,6 +20,7 @@ use sequent_core::services::keycloak;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::keycloak::{User, UserProfileAttribute};
+use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::util;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -51,7 +53,8 @@ pub struct ExportTenantUsersBody {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ExportUsersOutput {
     pub document_id: String,
-    pub task_id: String,
+    pub error_msg: Option<String>,
+    pub task_execution: Option<TasksExecution>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -167,7 +170,11 @@ fn get_user_record(
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 0)]
-pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
+pub async fn export_users(
+    body: ExportBody,
+    document_id: String,
+    task_execution: Option<TasksExecution>,
+) -> Result<()> {
     let realm = match &body {
         ExportBody::Users {
             tenant_id,
@@ -177,27 +184,54 @@ pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
         ExportBody::TenantUsers { tenant_id } => get_tenant_realm(tenant_id),
     };
 
-    let mut hasura_db_client = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|err| anyhow!("Error getting hasura db pool: {err}"))?;
+    let mut hasura_db_client: DbClient = match get_hasura_pool().await.get().await {
+        Ok(client) => client,
+        Err(err) => {
+            if let Some(task_execution) = &task_execution {
+                update_fail(task_execution, "Failed to get Hasura DB pool").await;
+            }
+            return Err(Error::String(format!(
+                "Error getting Hasura DB pool: {}",
+                err
+            )));
+        }
+    };
 
-    let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .map_err(|err| anyhow!("Error starting hasura transaction: {err}"))?;
+    let hasura_transaction = match hasura_db_client.transaction().await {
+        Ok(transaction) => transaction,
+        Err(err) => {
+            if let Some(task_execution) = &task_execution {
+                update_fail(&task_execution, "Failed to start Hasura transaction").await?;
+            }
+            return Err(Error::String(format!(
+                "Error starting Hasura transaction: {err}"
+            )));
+        }
+    };
 
-    let mut keycloak_db_client = get_keycloak_pool()
-        .await
-        .get()
-        .await
-        .map_err(|err| anyhow!("Error getting keycloak db pool: {err}"))?;
+    let mut keycloak_db_client = match get_keycloak_pool().await.get().await {
+        Ok(keycloak_db_client) => keycloak_db_client,
+        Err(err) => {
+            if let Some(task_execution) = &task_execution {
+                update_fail(&task_execution, "Error getting keycloak db pool").await?;
+            }
+            return Err(Error::String(format!(
+                "Error getting keycloak db pool: {err}"
+            )));
+        }
+    };
 
-    let keycloak_transaction = keycloak_db_client
-        .transaction()
-        .await
-        .map_err(|err| anyhow!("Error starting keycloak transaction: {err}"))?;
+    let keycloak_transaction = match keycloak_db_client.transaction().await {
+        Ok(transaction) => transaction,
+        Err(err) => {
+            if let Some(task_execution) = &task_execution {
+                update_fail(&task_execution, "Failed to start Keycloak transaction").await?;
+            }
+            return Err(Error::String(format!(
+                "Error starting Keycloak transaction: {err}"
+            )));
+        }
+    };
 
     let (elections, areas_by_id) = match &body {
         ExportBody::Users {
@@ -206,23 +240,45 @@ pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
             ..
         } => {
             let elections = Some(
-                get_election_event_elections(
+                match get_election_event_elections(
                     &hasura_transaction,
                     tenant_id,
                     election_event_id.as_deref().unwrap_or(""),
                 )
                 .await
-                .with_context(|| "Error listing election event's elections")?,
+                {
+                    Ok(elections) => elections,
+                    Err(err) => {
+                        if let Some(task_execution) = &task_execution {
+                            update_fail(&task_execution, "Failed to get election event elections")
+                                .await?;
+                        }
+                        return Err(Error::String(format!(
+                            "Error getting election event elections: {err}"
+                        )));
+                    }
+                },
             );
 
             let areas_by_id = Some(
-                get_areas_by_id(
+                match get_areas_by_id(
                     &hasura_transaction,
                     tenant_id,
                     election_event_id.as_deref().unwrap_or(""),
                 )
                 .await
-                .with_context(|| "Error listing election event's areas")?,
+                {
+                    Ok(areas_by_id) => areas_by_id,
+                    Err(err) => {
+                        if let Some(task_execution) = &task_execution {
+                            update_fail(&task_execution, "Failed to get election event areas")
+                                .await?;
+                        }
+                        return Err(Error::String(format!(
+                            "Error getting election event areas: {err}"
+                        )));
+                    }
+                },
             );
 
             (elections, areas_by_id)
@@ -284,21 +340,38 @@ pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
         let (users, count) = match &body {
             ExportBody::Users {
                 election_event_id, ..
-            } if election_event_id.is_some() => list_users_with_vote_info(
-                &hasura_transaction,
-                &keycloak_transaction,
-                filter.clone(),
-            )
-            .await
-            .map_err(|error| anyhow!("Error listing users with vote info: {error:?}"))?,
-            _ => list_users(&hasura_transaction, &keycloak_transaction, filter.clone())
+            } if election_event_id.is_some() => {
+                match list_users_with_vote_info(
+                    &hasura_transaction,
+                    &keycloak_transaction,
+                    filter.clone(),
+                )
                 .await
-                .map_err(|error| anyhow!("Error listing users: {error:?}"))?,
+                {
+                    Ok(result) => result,
+                    Err(error) => {
+                        if let Some(task_execution) = &task_execution {
+                            update_fail(&task_execution, "Error listing users with vote info")
+                                .await?;
+                        }
+                        return Err(Error::String(format!(
+                            "Error listing users with vote info: {error:?}"
+                        )));
+                    }
+                }
+            }
+            _ => {
+                match list_users(&hasura_transaction, &keycloak_transaction, filter.clone()).await {
+                    Ok(result) => result,
+                    Err(error) => {
+                        if let Some(task_execution) = &task_execution {
+                            update_fail(&task_execution, "Error listing users").await?;
+                        }
+                        return Err(Error::String(format!("Error listing users: {error:?}")));
+                    }
+                }
+            }
         };
-
-        if total_count.is_none() {
-            total_count = Some(count);
-        }
 
         offset += users.len() as i32;
 
@@ -318,7 +391,15 @@ pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
 
     let size = file2.metadata()?.len();
     let temp_path = file.into_temp_path();
-    let timestamp = util::date::timestamp().with_context(|| "Error obtaining timestamp")?;
+    let timestamp = match util::date::timestamp() {
+        Ok(timestamp) => timestamp,
+        Err(err) => {
+            if let Some(task_execution) = &task_execution {
+                update_fail(&task_execution, "Failed to obtain timestamp").await?;
+            }
+            return Err(Error::String(format!("Error obtaining timestamp: {err}")));
+        }
+    };
     let name = format!("users-export-{timestamp}.csv");
 
     let tenant_id = match &body {
@@ -337,7 +418,7 @@ pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
 
     let media_type = "text/csv".to_string();
 
-    s3::upload_file_to_s3(
+    match s3::upload_file_to_s3(
         key,
         false,
         s3::get_private_bucket()?,
@@ -346,13 +427,28 @@ pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
         None,
     )
     .await
-    .with_context(|| "Error uploading file to s3")?;
+    {
+        Ok(_) => (),
+        Err(err) => {
+            if let Some(task_execution) = &task_execution {
+                update_fail(&task_execution, "Failed to upload file to s3").await?;
+            }
+            return Err(Error::String(format!("Error uploading file to s3: {err}")));
+        }
+    }
 
     temp_path
         .close()
         .with_context(|| "Error closing temp file path")?;
 
     if size > get_max_upload_size()? as u64 {
+        if let Some(task_execution) = &task_execution {
+            update_fail(
+                &task_execution,
+                "File is too big: file.metadata().len() [{}] > get_max_upload_size() [{}]",
+            )
+            .await?;
+        }
         return Err(anyhow!(
             "File is too big: file.metadata().len() [{}] > get_max_upload_size() [{}]",
             size,
@@ -361,9 +457,17 @@ pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
         .into());
     }
 
-    let auth_headers = keycloak::get_client_credentials()
-        .await
-        .map_err(|error| anyhow!("Error acquiring client credentials: {error:?}"))?;
+    let auth_headers = match keycloak::get_client_credentials().await {
+        Ok(auth_headers) => auth_headers,
+        Err(err) => {
+            if let Some(task_execution) = &task_execution {
+                update_fail(&task_execution, "Error acquiring client credentials").await?;
+            }
+            return Err(Error::String(format!(
+                "Error acquiring client credentials: {err:?}"
+            )));
+        }
+    };
 
     let _document = &hasura::document::insert_document(
         auth_headers,
@@ -386,6 +490,12 @@ pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
     .insert_sequent_backend_document
     .ok_or(anyhow!("expected document"))?
     .returning[0];
+
+    if let Some(task_execution) = &task_execution {
+        update_complete(&task_execution)
+            .await
+            .context("Failed to update task execution status to COMPLETED")?;
+    }
 
     Ok(())
 }
