@@ -694,20 +694,19 @@ impl BoardClient {
                     statement_kind,
                     statement_timestamp,
                     message,
-                    version,
-                    user_id,
+                    version
                 ) VALUES (
                     @created,
                     @sender_pk,
                     @statement_kind,
                     @statement_timestamp,
                     @message,
-                    @version,
-                    @user_id
+                    @version
                 );
             "#,
                 table.as_str()
             );
+            info!("message: {}", message_sql);
             let params = vec![
                 NamedParam {
                     name: String::from("created"),
