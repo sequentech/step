@@ -1497,7 +1497,7 @@
         "signSpMetadata": "false",
         "wantAssertionsEncrypted": "false",
         "sendClientIdOnLogout": "false",
-        "metadataDescriptorUrl": "http://simplesamlphp:8080/simplesaml/saml2/idp/metadata.php",
+        "metadataDescriptorUrl": "https://simplesamlphp:8080/simplesaml/saml2/idp/metadata.php",
         "wantAssertionsSigned": "false",
         "sendIdTokenOnLogout": "true",
         "postBindingAuthnRequest": "false",
