@@ -6,7 +6,7 @@ import Dialog from "@mui/material/Dialog"
 import DialogTitle from "@mui/material/DialogTitle"
 import {useTranslation} from "react-i18next"
 import {BooleanInput, SaveButton, SimpleForm, useNotify, useRefresh} from "react-admin"
-import {Box, DialogContent, InputLabel, Popover} from "@mui/material"
+import {Box, DialogContent, InputLabel} from "@mui/material"
 import {IUser} from "sequent-core"
 import {useMutation} from "@apollo/client"
 import {EditUsersInput} from "@/gql/graphql"
@@ -17,7 +17,6 @@ import {IconButton} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import IconTooltip from "@/components/IconTooltip"
-
 interface EditPasswordProps {
     open: boolean
     handleClose: () => void
