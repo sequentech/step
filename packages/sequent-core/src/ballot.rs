@@ -585,6 +585,7 @@ pub struct ElectionEventPresentation {
     pub elections_order: Option<ElectionsOrder>,
     pub voting_portal_countdown_policy: Option<VotingPortalCountdownPolicy>,
     pub custom_urls: Option<CustomUrls>,
+    pub custom_tpl_usr_verfication: Option<String>,
 }
 
 #[derive(

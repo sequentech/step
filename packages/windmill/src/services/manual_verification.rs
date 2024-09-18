@@ -7,15 +7,18 @@
 use std::env;
 
 use super::s3::{self, get_minio_url};
+use crate::postgres::election_event;
+use crate::services::database::get_hasura_pool;
 use crate::services::{
     documents::upload_and_return_document, temp_path::write_into_named_temp_file,
 };
 use anyhow::{anyhow, Context, Result};
+use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::services::keycloak;
 use sequent_core::services::{pdf, reports};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
-use tracing::{event, instrument, Level};
+use tracing::{info, instrument, Level};
 
 const QR_CODE_TEMPLATE: &'static str = "<div id=\"qrcode\"></div>";
 const LOGO_TEMPLATE: &'static str = "<div class=\"logo\"></div>";
@@ -122,7 +125,7 @@ async fn get_manual_verification_url(
 
     let client = reqwest::Client::new();
 
-    event!(Level::INFO, "Requesting HTTP GET {:?}", generate_token_url);
+    info!("Requesting HTTP GET {:?}", generate_token_url);
     let response = client.get(generate_token_url).send().await?;
 
     let unwrapped_response = if response.status() != reqwest::StatusCode::OK {
@@ -133,6 +136,42 @@ async fn get_manual_verification_url(
     let response_body: ManualVerificationOutput = unwrapped_response.json().await?;
 
     Ok(response_body.link)
+}
+
+#[instrument(err)]
+pub async fn get_custom_user_template(
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Option<String>> {
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .with_context(|| "Error getting hasura db pool")?;
+
+    let transaction = hasura_db_client
+        .transaction()
+        .await
+        .with_context(|| "Error starting hasura transaction")?;
+
+    let election_event =
+        election_event::get_election_event_by_id(&transaction, tenant_id, election_event_id)
+            .await?;
+
+    let presentation = match election_event.presentation {
+        Some(p) => p,
+        None => {
+            return Err(anyhow!("Error: Election event has no presentation"));
+        }
+    };
+
+    match presentation
+        .get("custom_tpl_usr_verfication")
+        .and_then(Value::as_str)
+    {
+        Some(temp) if !temp.is_empty() => Ok(Some(temp.to_string())),
+        _ => Ok(None),
+    }
 }
 
 #[instrument(err)]
@@ -157,14 +196,23 @@ pub async fn get_manual_verification_pdf(
     }
     .to_map()?;
 
-    // TODO: make it configurable per election event, like vote_receipt.rs
-    let user_template = get_public_asset_manual_verification_template(TemplateType::User).await?;
-    event!(Level::INFO, "user template: {user_template:?}");
+    let custom_user_template: Option<String> =
+        get_custom_user_template(tenant_id, election_event_id).await?;
+
+    let user_template = match custom_user_template {
+        Some(template) => {
+            info!("Found a custom user template for manual verification!");
+            template
+        }
+        None => {
+            info!("Setting default user template for manual verification!");
+            get_public_asset_manual_verification_template(TemplateType::User).await?
+        }
+    };
+    info!("user template: {user_template:?}");
+
     let rendered_user_template = reports::render_template_text(&user_template, user_template_data)?;
-    event!(
-        Level::INFO,
-        "rendered user template: {rendered_user_template:?}"
-    );
+    info!("rendered user template: {rendered_user_template:?}");
 
     let system_template_data = SystemTemplateData {
         rendered_user_template,
@@ -182,13 +230,10 @@ pub async fn get_manual_verification_pdf(
 
     let system_template =
         get_public_asset_manual_verification_template(TemplateType::System).await?;
-    event!(Level::INFO, "system template: {system_template:?}");
+    info!("system template: {system_template:?}");
     let rendered_system_template =
         reports::render_template_text(&system_template, system_template_data)?;
-    event!(
-        Level::INFO,
-        "rendered system template: {rendered_system_template:?}"
-    );
+    info!("rendered system template: {rendered_system_template:?}");
 
     // Gen pdf
     let bytes_pdf = pdf::html_to_pdf(rendered_system_template)

@@ -33,4 +33,5 @@ export interface IElectionEventPresentation {
     elections_order?: ElectionsOrder
     voting_portal_countdown_policy?: IVotingPortalCountdownPolicy
     custom_urls?: ICustomUrls
+    custom_tpl_usr_verfication?: string
 }
