@@ -499,13 +499,13 @@ const catalanTranslation: TranslationType = {
         },
         tenantScreen: {
             common: {
-                title: "Client",
+                title: "Llogaters",
             },
             new: {
-                subtitle: "Crear Client",
+                subtitle: "Crear nou llogater",
             },
-            createSuccess: "Client creat",
-            createError: "Error creant client",
+            createSuccess: "Llogater creat",
+            createError: "Error en crear el llogater",
         },
         usersAndRolesScreen: {
             noPermissions: "No tens permís per accedir als usuaris o rols.",
