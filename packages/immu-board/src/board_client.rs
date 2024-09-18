@@ -695,7 +695,6 @@ impl BoardClient {
                     statement_timestamp,
                     message,
                     version,
-                    user_id,
                 ) VALUES (
                     @created,
                     @sender_pk,
@@ -703,7 +702,6 @@ impl BoardClient {
                     @statement_timestamp,
                     @message,
                     @version,
-                    @user_id
                 );
             "#,
                 table.as_str()
