@@ -297,7 +297,7 @@ fn gen_configs<C: Ctx>(n_trustees: usize, threshold: &[usize]) -> Result<()> {
         file.write_all(toml.as_bytes())?;
         let path = path.join("run.sh");
         if !Path::exists(&path) {
-            let mut file = File::create(path.join("run.sh"))?;
+            let mut file = File::create(path)?;
             let run = "cargo run --manifest-path ../../Cargo.toml --release --bin main -- --server-url http://127.0.0.1:50051 --trustee-config trustee.toml";
             file.write_all(run.as_bytes())?;
         }

@@ -1,1 +1,1 @@
-cargo run --bin m2 --release --features=monitor -- --host localhost --port=49153 --password=postgres
+cargo run --bin m2 --release --features=monitor -- --host localhost --port=5432 --password=postgres
