@@ -44,13 +44,14 @@ import {SettingsElectionsTypesCreate} from "./resources/Settings/SettingsElectio
 import {adminI18nProvider} from "./services/AdminTranslation"
 import {useTranslation} from "react-i18next"
 import {CommunicationTemplateEdit} from "./resources/CommunicationTemplate/CommunicationTemplateEdit"
-import {CommunicationTemplateList} from "./resources/CommunicationTemplate/CommunicationTemplateList"
 import {CommunicationTemplateCreate} from "./resources/CommunicationTemplate/CommunicationTemplateCreate"
 import {ApolloContext} from "./providers/ApolloContextProvider"
 import cssInputLookAndFeel from "@/atoms/css-input-look-and-feel"
 import {Box} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import {useAtomValue} from "jotai"
+import EditEvents from "./resources/ElectionEvent/EditEvents"
+import {CommunicationTemplateList} from "./resources/CommunicationTemplate/CommunicationTemplateList"
 
 interface AppProps {}
 
@@ -200,6 +201,12 @@ const App: React.FC<AppProps> = () => {
                     list={CommunicationTemplateList}
                     create={CommunicationTemplateCreate}
                     options={{label: "Communication Template"}}
+                />
+                <Resource
+                    name="sequent_backend_scheduled_event"
+                    edit={EditEvents}
+                    list={EditEvents}
+                    options={{label: "Scheduled Events"}}
                 />
                 <Resource name="user" edit={EditArea} list={ListUsers} options={{label: "Users"}} />
             </Admin>

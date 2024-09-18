@@ -23,6 +23,7 @@ import {ElectoralLog} from "./ElectoralLog"
 import EditElectionEventTextData from "./EditElectionEventTextData"
 import {v4 as uuidv4} from "uuid"
 import {EditElectionEventTasks} from "./EditElectionEventTasks"
+import EditEvents from "./EditEvents"
 
 export const ElectionEventTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -71,7 +72,11 @@ export const ElectionEventTabs: React.FC = () => {
         authContext.tenantId,
         IPermissions.TASKS_READ
     )
-
+    const showEvents = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.ELECTION_EVENT_READ
+    )
     const {t} = useTranslation()
     const {setTallyId, setCreatingFlag, setSelectedTallySessionData} = useElectionEventTallyStore()
 
@@ -187,6 +192,11 @@ export const ElectionEventTabs: React.FC = () => {
                         className="election-event-logs-tab"
                     >
                         <ElectoralLog />
+                    </TabbedShowLayout.Tab>
+                ) : null}
+                {showEvents ? (
+                    <TabbedShowLayout.Tab label={"Events"} className="election-event-logs-tab">
+                        <EditEvents />
                     </TabbedShowLayout.Tab>
                 ) : null}
             </TabbedShowLayout>

@@ -26,8 +26,8 @@ const EditEvents = () => {
     const OMIT_FIELDS: Array<string> = ["id", "email_verified"]
 
     const Filters: Array<ReactElement> = [
-        <TextInput key="email" source="email" />,
-        <TextInput key="first_name" source="first_name" />,
+        <TextInput key="Election" source="event_processor" />,
+        <TextInput key="Schedule" source="cron_config" />,
         <TextInput key="last_name" source="last_name" />,
         <TextInput key="username" source="username" />,
     ]
@@ -113,10 +113,19 @@ const EditEvents = () => {
                         </Typography>
                     )}
                 />
-                <BooleanField source="email_verified" label={"Event Type"} />
-                <BooleanField source="enabled" />
-                <TextField source="last_name" className="last_name" />
-                <TextField source="username" className="username" />
+                <FunctionField
+                    source="cron_config"
+                    label={"Event Type"}
+                    render={(record: any) => (
+                        <Typography>
+                            {new Date(record?.cron_config.scheduled_date).toLocaleString()
+                                ? "event"
+                                : ""}
+                        </Typography>
+                    )}
+                />
+                <BooleanField source="last_name" label={"Receivers"} />
+                <TextField source="last_name" label={"Template"} />
                 {/* {electionEventId && (
                     <FunctionField
                         label={t("usersAndRolesScreen.users.fields.area")}
