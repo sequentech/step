@@ -445,7 +445,7 @@ async fn create_board_ine(client: &mut Client, board: &str) -> Result<()> {
             statement_kind VARCHAR,
             batch INT,
             mix_number INT,
-            message BYTEA,
+            message BYTEA STORAGE EXTERNAL,
             version VARCHAR,
             UNIQUE (sender_pk, statement_kind, batch, mix_number)
         );
