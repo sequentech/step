@@ -234,6 +234,7 @@ impl Chunker {
 
         if self.size + size > super::MAX_MESSAGE_SIZE {
             if self.next_chunk.len() > 0 {
+                tracing::info!("grpc::client chunking at {}", self.size);
                 ret = Some(std::mem::replace(&mut self.next_chunk, HashMap::new()));
                 self.size = 0;
             }
