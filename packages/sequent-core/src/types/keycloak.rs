@@ -9,7 +9,10 @@ use std::collections::HashMap;
 
 pub const AREA_ID_ATTR_NAME: &str = "area-id";
 pub const TENANT_ID_ATTR_NAME: &str = "tenant-id";
+pub const PERMISSION_TO_EDIT: &str = "admin";
 pub const MOBILE_PHONE_ATTR_NAME: &str = "sequent.read-only.mobile-number";
+pub const FIRST_NAME: &str = "firstName";
+pub const LAST_NAME: &str = "lastName";
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct UserArea {
@@ -55,4 +58,34 @@ pub struct Role {
     pub access: Option<HashMap<String, bool>>,
     pub attributes: Option<HashMap<String, Vec<String>>>,
     pub client_roles: Option<HashMap<String, Vec<String>>>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+pub struct UPAttributePermissions {
+    pub edit: Option<Vec<String>>,
+    pub view: Option<Vec<String>>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+pub struct UPAttributeSelector {
+    pub scopes: Option<Vec<String>>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+pub struct UPAttributeRequired {
+    pub roles: Option<Vec<String>>,
+    pub scopes: Option<Vec<String>>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+pub struct UserProfileAttribute {
+    pub annotations: Option<HashMap<String, Value>>,
+    pub display_name: Option<String>,
+    pub group: Option<String>,
+    pub multivalued: Option<bool>,
+    pub name: Option<String>,
+    pub required: Option<UPAttributeRequired>,
+    pub validations: Option<HashMap<String, HashMap<String, Value>>>,
+    pub permissions: Option<UPAttributePermissions>,
+    pub selector: Option<UPAttributeSelector>,
 }

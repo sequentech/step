@@ -12,7 +12,7 @@ mod statement;
 #[cfg(test)]
 pub(crate) mod tests {
     use immu_board::board_client::BoardClient;
-    use immu_board::BoardMessage;
+    use immu_board::{BoardMessage, ElectoralLogMessage};
     use serial_test::serial;
     use strand::serialization::StrandDeserialize;
     use strand::signature::{StrandSignaturePk, StrandSignatureSk};
@@ -78,7 +78,7 @@ pub(crate) mod tests {
         let pseudonym = PseudonymHash::new(DUMMY_H);
         let vote = CastVoteHash::new(DUMMY_H);
         let message = Message::cast_vote_message(event, election, pseudonym, vote, &sd).unwrap();
-        let mut board_message: BoardMessage = message.try_into().unwrap();
+        let mut board_message: ElectoralLogMessage = message.try_into().unwrap();
         // We do this so that the id matches the auto generated id in the db, otherwise the assert_eq fails
         board_message.id = 1;
         let messages = vec![board_message];

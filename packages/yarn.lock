@@ -6611,6 +6611,13 @@
   dependencies:
     "@types/node" "*"
 
+"@types/intl-tel-input@^18.1.4":
+  version "18.1.4"
+  resolved "https://registry.yarnpkg.com/@types/intl-tel-input/-/intl-tel-input-18.1.4.tgz#0eb5211a7490f8a8d7aa940ee594a85138d514c9"
+  integrity sha512-UT4dQ4dQA0w0uxU161aPROEEwMOQj5Qedm3ImdDNfkxi3JXzBX2FhcUS72pTyZ8ypaUr2e9ruJBiK6bwSGfbew==
+  dependencies:
+    "@types/jquery" "*"
+
 "@types/is-empty@^1.0.0":
   version "1.2.1"
   resolved "https://registry.npmjs.org/@types/is-empty/-/is-empty-1.2.1.tgz"
@@ -6679,6 +6686,13 @@
   dependencies:
     jest-matcher-utils "^27.0.0"
     pretty-format "^27.0.0"
+
+"@types/jquery@*":
+  version "3.5.30"
+  resolved "https://registry.yarnpkg.com/@types/jquery/-/jquery-3.5.30.tgz#888d584cbf844d3df56834b69925085038fd80f7"
+  integrity sha512-nbWKkkyb919DOUxjmRVk8vwtDb0/k8FKncmUKFi+NY+QXqWltooxTrswvz4LspQwxvLdvzBN1TImr6cw3aQx2A==
+  dependencies:
+    "@types/sizzle" "*"
 
 "@types/js-cookie@^2.2.6":
   version "2.2.7"
@@ -6970,6 +6984,11 @@
     "@types/http-errors" "*"
     "@types/mime" "*"
     "@types/node" "*"
+
+"@types/sizzle@*":
+  version "2.3.8"
+  resolved "https://registry.yarnpkg.com/@types/sizzle/-/sizzle-2.3.8.tgz#518609aefb797da19bf222feb199e8f653ff7627"
+  integrity sha512-0vWLNK2D5MT9dg0iOo8GlKguPAU02QjmZitPEsXRuJXU/OGIOt9vT9Fc26wtYuavLxtO45v9PGleoL9Z0k1LHg==
 
 "@types/sockjs@^0.3.33":
   version "0.3.33"
@@ -13566,6 +13585,11 @@ interpret@^3.1.1:
   version "3.1.1"
   resolved "https://registry.npmjs.org/interpret/-/interpret-3.1.1.tgz"
   integrity sha512-6xwYfHbajpoF0xLW+iwLkhwgvLoZDfjYfoFNu8ftMoXINzwuymNLd9u/KmwtdT2GbR+/Cz66otEGEVVUHX9QLQ==
+
+intl-tel-input@^24.5.0:
+  version "24.5.0"
+  resolved "https://registry.yarnpkg.com/intl-tel-input/-/intl-tel-input-24.5.0.tgz#1a7589f046b72a97f8cd30ebae4c0615635f542d"
+  integrity sha512-utSW+7a2JpUFdRRwo6CAiEQuAMwWxnCurPr2VDkfnW7W9g9ZprvPJPj00vxkiGV8h3GMRAD7aUtX9+oYwD/8OQ==
 
 invariant@^2.0.0, invariant@^2.2.4:
   version "2.2.4"
