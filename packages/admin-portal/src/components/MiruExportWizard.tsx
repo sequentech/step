@@ -28,6 +28,7 @@ import {
     GetUploadUrlMutation,
     SendTransmissionPackageMutation,
     Sequent_Backend_Area,
+    Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Results_Event,
     Sequent_Backend_Tally_Session,
@@ -56,6 +57,7 @@ import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {CREATE_TRANSMISSION_PACKAGE} from "@/queries/CreateTransmissionPackage"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
+import {translateElection} from "@sequentech/ui-core"
 
 interface IMiruExportWizardProps {}
 
@@ -83,7 +85,6 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
     const [passwordState, setPasswordState] = useState<string>("")
     const [signatureId, setSignatureId] = useState<string>("")
     const authContext = useContext(AuthContext)
-    console.log({authContext})
     const isTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_CEREMONY)
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL, {
         context: {
@@ -386,6 +387,14 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
         [selectedTallySessionData?.area_id, tallyData?.sequent_backend_area]
     )
 
+    const election = useMemo(
+        () =>
+            tallyData?.sequent_backend_election?.find(
+                (election) => selectedTallySessionData?.election_id === election.id
+            ) ?? null,
+        [selectedTallySessionData?.election_id, tallyData?.sequent_backend_election]
+    )
+
     let minimumSignatures = () => {
         return selectedTallySessionData?.threshold ?? 1
     }
@@ -509,6 +518,13 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
                     <ElectionHeaderStyles.Title ref={elementRef}>
                         {t("tally.transmissionPackage.title", {
                             name: area?.name,
+                            eventName:
+                                (election &&
+                                    (translateElection(election, "alias", i18n.language) ||
+                                        translateElection(election, "name", i18n.language))) ||
+                                election?.alias ||
+                                election?.name ||
+                                "-",
                         })}
                     </ElectionHeaderStyles.Title>
                     <ElectionHeaderStyles.SubTitle>

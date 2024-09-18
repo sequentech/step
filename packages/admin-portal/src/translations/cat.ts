@@ -1013,7 +1013,7 @@ const catalanTranslation: TranslationType = {
             errorUploadingSignature: "S'ha produït un error en carregar la signatura",
             downloadTransmissionPackage: "Descarregar paquet",
             transmissionPackage: {
-                title: "Paquet de Transmissió per a l'Àrea '{{name}}'",
+                title: "Paquet de Transmissió per a l'Àrea '{{name}}' y Elección '{{eventName}}'",
                 description:
                     "Et permet exportar un Paquet de Transmissió als Servidors de Destinació o descarregar-lo.",
                 actions: {

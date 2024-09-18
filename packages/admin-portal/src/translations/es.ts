@@ -1012,7 +1012,7 @@ const spanishTranslation: TranslationType = {
             errorUploadingSignature: "Hubo un error al subir la firma",
             downloadTransmissionPackage: "Descargar paquete",
             transmissionPackage: {
-                title: "Paquete de Transmisión para el Área '{{name}}'",
+                title: "Paquete de Transmisión para el Área '{{name}}' y Elección '{{eventName}}'",
                 description:
                     "Te permite exportar un Paquete de Transmisión a los Servidores de Destino o descargarlo.",
                 actions: {

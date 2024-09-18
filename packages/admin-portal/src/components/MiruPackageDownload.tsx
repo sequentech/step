@@ -46,12 +46,6 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) =
         setAnchorEl(null)
     }
 
-    const handleDownload = (documentId: string) => {
-        console.log({documentId})
-
-        setDocumentToDownload(documentId)
-    }
-
     const emlDocumentId = documents?.[0]?.document_ids.eml
     return (
         <Box>
