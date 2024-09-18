@@ -127,12 +127,14 @@ pub async fn get_custom_url(
         vec![Permissions::ELECTION_EVENT_READ],
     )?;
     // TODO FIX
-    let rule = get_page_rule(&body.redirect_to, "").await.map_err(|error| {
-        (
-            Status::InternalServerError,
-            format!("Error reading custom url: {error:?}"),
-        )
-    })?;
+    let rule = get_page_rule(&body.redirect_to, "")
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Error reading custom url: {error:?}"),
+            )
+        })?;
 
     match rule {
         Some(r) => {
