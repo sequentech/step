@@ -161,8 +161,10 @@ async fn main() -> Result<()> {
         }
         Command::InitProtocol => {
             let path = Path::new(DEMO_DIR).join(CONFIG);
-            let cfg_bytes = fs::read(&path)
-                .expect(&format!("Should have been able to read session configuration file at '{:?}'", path));
+            let cfg_bytes = fs::read(&path).expect(&format!(
+                "Should have been able to read session configuration file at '{:?}'",
+                path
+            ));
             let configuration = Configuration::<RistrettoCtx>::strand_deserialize(&cfg_bytes)
                 .map_err(|e| anyhow!("Could not deserialize configuration {}", e))?;
 

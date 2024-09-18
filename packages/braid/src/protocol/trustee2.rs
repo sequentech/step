@@ -58,6 +58,7 @@ pub struct Trustee<C: Ctx> {
     pub(crate) local_board: LocalBoard<C>,
     pub(crate) last_message_id: i64,
     pub(crate) step_counter: i64,
+    pub(crate) batch_parallelism: usize,
 }
 
 impl<C: Ctx> board_messages::braid::message::Signer for Trustee<C> {
@@ -77,6 +78,12 @@ impl<C: Ctx> Trustee<C> {
         store: Option<PathBuf>,
         in_memory: bool,
     ) -> Trustee<C> {
+        let batch_parallelism = 10;
+
+        info!(
+            "Trustee {} created, in_memory = {}, batch_parallelism = {}",
+            name, in_memory, batch_parallelism
+        );
         let local_board = LocalBoard::new(store, in_memory);
 
         Trustee {
@@ -86,6 +93,7 @@ impl<C: Ctx> Trustee<C> {
             local_board,
             last_message_id: -1,
             step_counter: 0,
+            batch_parallelism,
         }
     }
 
@@ -410,6 +418,10 @@ impl<C: Ctx> Trustee<C> {
         if actions.len() == 0 {
             trace!("-- Idle --");
         }
+
+        // If there are more than batch_parallelism actions they will be skipped
+        // until the next step.
+        let actions: Vec<Action> = actions.into_iter().take(self.batch_parallelism).collect();
 
         // Cross-Action parallelism (which in effect is cross-batch parallelism)
         let results: Result<Vec<Vec<Message>>, ProtocolError> = actions
