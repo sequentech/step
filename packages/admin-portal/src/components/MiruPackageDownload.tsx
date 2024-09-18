@@ -15,11 +15,13 @@ import DownloadIcon from "@mui/icons-material/Download"
 import {useGetOne} from "react-admin"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {DownloadDocument} from "@/resources/User/DownloadDocument"
+import {StringMap} from "i18next"
 
 interface MiruPackageDownloadProps {
     documents: IMiruDocument[] | null
     areaName: string | null | undefined
     electionEventId: string
+    eventName: string
 }
 
 interface IDocumentData {
@@ -28,8 +30,12 @@ interface IDocumentData {
     name: string
 }
 
-export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) => {
-    const {areaName, documents, electionEventId} = props
+export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
+    areaName,
+    documents,
+    electionEventId,
+    eventName,
+}) => {
     const {t} = useTranslation()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
     const [openModal, setOpenModal] = useState(false)
