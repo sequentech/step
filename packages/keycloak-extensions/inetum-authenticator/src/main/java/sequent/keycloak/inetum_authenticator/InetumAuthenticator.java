@@ -593,11 +593,6 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
           }
 
           if (validationError != null) {
-            log.info("attributeToCheck: " + attributeToCheck);
-            log.info("attribute: " + attribute);
-            log.info("typeError: " + typeError);
-            log.info("inetumValue: " + inetumValue);
-            log.info("inetumField: " + inetumField);
             return validationError;
           }
         }
@@ -698,7 +693,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     collator.setStrength(0);
 
     if (collator.compare(attributeValue.trim(), inetumValue.trim()) != 0) {
-      String errorMessage = String.format("attribute %s with value %s  does not match inetum value %s",attributeToCheck, attributeValue, inetumValue);
+      String errorMessage = String.format("attribute %s with value %s  does not match inetum value %s",inetumField, attributeValue, inetumValue);
       log.errorv(
           "equalValue: FALSE; attribute: {0}, inetumField: {1}, attributeValue: {2}, inetumValue: {3}",
           attributeValue, inetumField, attributeValue, inetumValue);
