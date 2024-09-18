@@ -51,6 +51,7 @@ import cssInputLookAndFeel from "@/atoms/css-input-look-and-feel"
 import {Box} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import {useAtomValue} from "jotai"
+import EditElectionEvents from "./resources/ElectionEvent/EditElectionEvents"
 
 interface AppProps {}
 
@@ -202,8 +203,23 @@ const App: React.FC<AppProps> = () => {
                     options={{label: "Communication Template"}}
                 />
                 <Resource name="user" edit={EditArea} list={ListUsers} options={{label: "Users"}} />
+
+            <Resource
+                name="sequent_backend_communication_template"
+                edit={CommunicationTemplateEdit}
+                list={CommunicationTemplateList}
+                create={CommunicationTemplateCreate}
+                options={{label: "Communication Template"}}
+            />
+            <Resource name="user" edit={EditArea} list={ListUsers} options={{label: "Users"}} />
+            <Resource
+                name="sequent_backend_scheduled_event"
+                edit={EditElectionEvents}
+                list={EditElectionEvents}
+                options={{label: "Scheduled Events"}}
+            />
             </Admin>
-        </StyledAppAtom>
+            </StyledAppAtom>
     )
 }
 
