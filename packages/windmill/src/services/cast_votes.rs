@@ -253,6 +253,7 @@ pub async fn get_users_with_vote_info(
     tenant_id: &str,
     election_event_id: &str,
     users: Vec<User>,
+    filter_by_has_voted: Option<bool>,
 ) -> Result<Vec<User>> {
     let tenant_uuid =
         Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
@@ -337,22 +338,32 @@ pub async fn get_users_with_vote_info(
     }
 
     // Construct the final Vec<User> in the same order as the input users
-    Ok(users
-        .iter()
-        .map(|user| {
-            let user_id = user
-                .id
-                .clone()
-                .ok_or_else(|| anyhow!("Encountered a user without an ID"))?;
-            let votes_info = user_votes_map
-                .get(&user_id)
-                .cloned()
-                .ok_or_else(|| anyhow!("Missing vote info for user ID {user_id}"))?;
-            Ok(User {
+    let mut filtered_users: Vec<User> = Vec::new();
+    for user in users.iter() {
+        let user_id = user
+            .id
+            .clone()
+            .ok_or_else(|| anyhow!("Encountered a user without an ID"))?;
+
+        let votes_info = user_votes_map
+            .get(&user_id)
+            .cloned()
+            .ok_or_else(|| anyhow!("Missing vote info for user ID {}", user_id))?;
+
+        match filter_by_has_voted {
+            Some(has_voted) => {
+                if (has_voted && votes_info.len() > 0) || (!has_voted && votes_info.len() == 0) {
+                    filtered_users.push(User {
+                        votes_info: Some(votes_info),
+                        ..user.clone()
+                    });
+                }
+            }
+            None => filtered_users.push(User {
                 votes_info: Some(votes_info),
                 ..user.clone()
-            })
-        })
-        .collect::<Result<Vec<User>>>()
-        .with_context(|| "Error constructing users result")?)
+            }),
+        }
+    }
+    Ok(filtered_users)
 }

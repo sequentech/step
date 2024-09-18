@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::tasks_execution::update_fail;
 use ::keycloak::types::RealmRepresentation;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -19,6 +20,7 @@ use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClient};
 use sequent_core::services::replace_uuids::replace_uuids;
 use sequent_core::types::hasura::core::AreaContest;
+use sequent_core::types::hasura::core::TasksExecution;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use std::env;
@@ -254,76 +256,158 @@ pub async fn process(
     object: ImportElectionEventBody,
     election_event_id: String,
     tenant_id: String,
+    task_execution: TasksExecution,
 ) -> Result<()> {
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|err| anyhow!("Error getting hasura db pool: {err}"))?;
+    let mut hasura_db_client: DbClient = match get_hasura_pool().await.get().await {
+        Ok(client) => client,
+        Err(err) => {
+            update_fail(&task_execution, "Error getting Hasura DB pool").await?;
+            return Err(anyhow!("Error getting Hasura DB pool: {err}"));
+        }
+    };
 
-    let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .map_err(|err| anyhow!("Error starting hasura transaction: {err}"))?;
+    // Start a transaction
+    let hasura_transaction = match hasura_db_client.transaction().await {
+        Ok(transaction) => transaction,
+        Err(err) => {
+            update_fail(&task_execution, "Error starting Hasura transaction").await?;
+            return Err(anyhow!("Error starting Hasura transaction: {err}"));
+        }
+    };
 
-    let mut data: ImportElectionEventSchema = get_document(
+    // Get the document
+    let mut data: ImportElectionEventSchema = match get_document(
         &hasura_transaction,
         object,
-        Some(election_event_id),
+        Some(election_event_id.clone()),
         tenant_id.clone(),
     )
-    .await?;
-    let tenant_id = &data.tenant_id.to_string();
-    let election_event_id = &data.election_event.id;
+    .await
+    {
+        Ok(doc) => doc,
+        Err(err) => {
+            update_fail(&task_execution, "Error getting document for election event").await?;
+            return Err(anyhow!("Error getting document for election event ID {election_event_id} and tenant ID {tenant_id}: {err}"));
+        }
+    };
 
-    let board = upsert_immu_board(tenant_id.as_str(), &election_event_id).await?;
+    // Upsert immutable board
+    let board = match upsert_immu_board(tenant_id.as_str(), &election_event_id).await {
+        Ok(board) => board,
+        Err(err) => {
+            update_fail(&task_execution, "Error upserting immutable board").await?;
+            return Err(anyhow!("Error upserting immutable board for tenant ID {tenant_id} and election event ID {election_event_id}: {err}"));
+        }
+    };
     data.election_event.bulletin_board_reference = Some(board);
     data.election_event.public_key = None;
-    data.election_event.statistics =
-        Some(serde_json::to_value(ElectionEventStatistics::default())?);
-    data.election_event.status = Some(serde_json::to_value(ElectionEventStatus::default())?);
+    data.election_event.statistics = match serde_json::to_value(ElectionEventStatistics::default())
+    {
+        Ok(statistics) => Some(statistics),
+        Err(err) => {
+            update_fail(&task_execution, "Error serializing election event").await?;
+            return Err(anyhow!(
+                "Error serializing election event statistics: {err}"
+            ));
+        }
+    };
+    data.election_event.status = match serde_json::to_value(ElectionEventStatus::default()) {
+        Ok(status) => Some(status),
+        Err(err) => {
+            update_fail(&task_execution, "Error serializing election event status").await?;
+            return Err(anyhow!("Error serializing election event status: {err}"));
+        }
+    };
 
-    data.elections = data
+    // Process elections
+    data.elections = match data
         .elections
         .into_iter()
         .map(|election| -> Result<Election> {
             let mut clone = election.clone();
-            clone.statistics = Some(serde_json::to_value(ElectionStatistics::default())?);
-            clone.status = Some(serde_json::to_value(ElectionStatus::default())?);
+            clone.statistics = match serde_json::to_value(ElectionStatistics::default()) {
+                Ok(statistics) => Some(statistics),
+                Err(err) => return Err(anyhow!("Error serializing election statistics: {err}")),
+            };
+            clone.status = match serde_json::to_value(ElectionStatus::default()) {
+                Ok(status) => Some(status),
+                Err(err) => return Err(anyhow!("Error serializing election status: {err}")),
+            };
             Ok(clone)
         })
-        .collect::<Result<Vec<Election>>>()?;
+        .collect::<Result<Vec<Election>>>()
+    {
+        Ok(elections) => elections,
+        Err(err) => {
+            update_fail(&task_execution, "Error processing elections").await?;
+            return Err(anyhow!("Error processing elections: {err}"));
+        }
+    };
 
-    upsert_keycloak_realm(
+    if let Err(err) = upsert_keycloak_realm(
         tenant_id.as_str(),
         &election_event_id,
         data.keycloak_event_realm.clone(),
     )
-    .await?;
-    insert_election_event(&hasura_transaction, &data).await?;
-    manage_dates(&data, &hasura_transaction).await?;
-    insert_election(&hasura_transaction, &data).await?;
-    insert_contest(&hasura_transaction, &data).await?;
-    insert_candidates(
+    .await
+    {
+        update_fail(&task_execution, "Error upserting Keycloak realm").await?;
+        return Err(anyhow!("Error upserting Keycloak realm for tenant ID {tenant_id} and election event ID {election_event_id}: {err}"));
+    }
+
+    if let Err(err) = insert_election_event(&hasura_transaction, &data).await {
+        update_fail(&task_execution, "Error inserting election event").await?;
+        return Err(anyhow!("Error inserting election event: {err}"));
+    }
+
+    if let Err(err) = manage_dates(&data, &hasura_transaction).await {
+        update_fail(&task_execution, "Error managing dates").await?;
+        return Err(anyhow!("Error managing dates: {err}"));
+    }
+
+    if let Err(err) = insert_election(&hasura_transaction, &data).await {
+        update_fail(&task_execution, "Error inserting election").await?;
+        return Err(anyhow!("Error inserting election: {err}"));
+    }
+
+    if let Err(err) = insert_contest(&hasura_transaction, &data).await {
+        update_fail(&task_execution, "Error inserting contests").await?;
+        return Err(anyhow!("Error inserting contest: {err}"));
+    }
+
+    if let Err(err) = insert_candidates(
         &hasura_transaction,
-        &data.tenant_id.to_string(),
-        &data.election_event.id,
+        &tenant_id,
+        &election_event_id,
         &data.candidates,
     )
-    .await?;
-    insert_areas(&hasura_transaction, &data.areas).await?;
-    insert_area_contests(
+    .await
+    {
+        update_fail(&task_execution, "Error inserting candidates").await?;
+        return Err(anyhow!("Error inserting candidates: {err}"));
+    }
+
+    if let Err(err) = insert_areas(&hasura_transaction, &data.areas).await {
+        update_fail(&task_execution, "Error inserting areas").await?;
+        return Err(anyhow!("Error inserting areas: {err}"));
+    }
+
+    if let Err(err) = insert_area_contests(
         &hasura_transaction,
-        &data.tenant_id.to_string(),
-        &data.election_event.id,
+        &tenant_id,
+        &election_event_id,
         &data.area_contests,
     )
-    .await?;
+    .await
+    {
+        update_fail(&task_execution, "Error inserting area contests").await?;
+        return Err(anyhow!("Error inserting area contests: {err}"));
+    }
 
-    let _commit = hasura_transaction
-        .commit()
-        .await
-        .map_err(|e| anyhow!("Commit failed: {}", e));
+    if let Err(err) = hasura_transaction.commit().await {
+        update_fail(&task_execution, "commit failed").await?;
+        return Err(anyhow!("Commit failed: {err}"));
+    }
 
     Ok(())
 }

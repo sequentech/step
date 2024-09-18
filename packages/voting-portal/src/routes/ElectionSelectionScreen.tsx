@@ -351,6 +351,7 @@ const ElectionSelectionScreen: React.FC = () => {
                         image_document_id: "",
                         contests: [],
                         description: election.description ?? undefined,
+                        alias: election.alias ?? undefined,
                     })
                 )
             }

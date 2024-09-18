@@ -14,6 +14,7 @@ import java.util.concurrent.CompletableFuture;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.events.Event;
 import org.keycloak.events.EventListenerProvider;
+import org.keycloak.events.EventType;
 import org.keycloak.events.admin.AdminEvent;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.util.JsonSerialization;
@@ -31,7 +32,6 @@ public class CustomEventListereProvider implements EventListenerProvider {
 
   public CustomEventListereProvider(KeycloakSession session) {
     this.session = session;
-    authenticate();
   }
 
   @Override
@@ -42,8 +42,11 @@ public class CustomEventListereProvider implements EventListenerProvider {
     if (this.access_token == null) {
       authenticate();
     }
-    log.info("access token: " + this.access_token);
-    logEvent();
+    logEvent(
+        getElectionEventId(event.getRealmId()),
+        event.getType(),
+        event.getError(),
+        event.getUserId());
   }
 
   public void authenticate() {
@@ -94,18 +97,28 @@ public class CustomEventListereProvider implements EventListenerProvider {
     return "tenant-" + tenantId;
   }
 
-  private void logEvent() {
+  private String getElectionEventId(String realmId) {
+    String realmName = session.realms().getRealm(realmId).getName();
+    String[] parts = realmName.split("event-");
+    if (parts.length > 1) {
+      return parts[1];
+    }
+    return null;
+  }
+
+  private void logEvent(String electionEventId, EventType eventType, String body, String userId) {
     HttpClient client = HttpClient.newHttpClient();
     String url = "http://" + this.harvestUrl + "/immudb/log-event";
-    log.info("url: " + url);
+    String requestBody =
+        String.format(
+            "{\"election_event_id\": \"%s\", \"message_type\": \"%s\", \"body\" : \"%s\", \"user_id\": \"%s\"}",
+            electionEventId, eventType, body, userId);
     HttpRequest request =
         HttpRequest.newBuilder()
             .uri(URI.create(url))
             .header("Content-Type", "application/json")
             .header("Authorization", "Bearer " + this.access_token)
-            .POST(
-                HttpRequest.BodyPublishers.ofString(
-                    "{\"election_event_id\": \"test\", \"messageType\": \"testMessageType\"}"))
+            .POST(HttpRequest.BodyPublishers.ofString(requestBody))
             .build();
     CompletableFuture<HttpResponse<String>> response =
         client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
