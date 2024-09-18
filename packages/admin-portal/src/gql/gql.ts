@@ -34,6 +34,7 @@ const documents = {
     "\n    mutation ExportUsers($tenantId: String!, $electionEventId: String, $electionId: String) {\n        export_users(\n            tenant_id: $tenantId\n            election_event_id: $electionEventId\n            election_id: $electionId\n        ) {\n            document_id\n            task_id\n        }\n    }\n": types.ExportUsersDocument,
     "\n    query FetchDocument($electionEventId: String, $documentId: String!) {\n        fetchDocument(election_event_id: $electionEventId, document_id: $documentId) {\n            url\n        }\n    }\n": types.FetchDocumentDocument,
     "\n    mutation GenerateBallotPublication($electionEventId: uuid!, $electionId: uuid) {\n        generate_ballot_publication(election_event_id: $electionEventId, election_id: $electionId) {\n            ballot_publication_id\n        }\n    }\n": types.GenerateBallotPublicationDocument,
+    "\n    query GetAllTenants {\n        sequent_backend_tenant {\n            id\n            slug\n        }\n    }\n": types.GetAllTenantsDocument,
     "\n    query get_area_with_area_contests($areaId: uuid!, $electionEventId: uuid!) {\n        sequent_backend_area_contest(\n            where: {_and: {area_id: {_eq: $areaId}, election_event_id: {_eq: $electionEventId}}}\n        ) {\n            contest {\n                name\n                alias\n            }\n            id\n        }\n    }\n": types.Get_Area_With_Area_ContestsDocument,
     "\n    query sequent_backend_area_extended($electionEventId: uuid!, $areaId: uuid!) {\n        sequent_backend_area_contest(\n            where: {_and: {election_event_id: {_eq: $electionEventId}, area_id: {_eq: $areaId}}}\n        ) {\n            contest {\n                id\n                name\n            }\n        }\n    }\n": types.Sequent_Backend_Area_ExtendedDocument,
     "\n    mutation GetBallotPublicationChange(\n        $ballotPublicationId: uuid!\n        $electionEventId: uuid!\n        $limit: Int\n    ) {\n        get_ballot_publication_changes(\n            ballot_publication_id: $ballotPublicationId\n            election_event_id: $electionEventId\n            limit: $limit\n        ) {\n            current {\n                ballot_publication_id\n                ballot_styles\n            }\n            previous {\n                ballot_publication_id\n                ballot_styles\n            }\n        }\n    }\n": types.GetBallotPublicationChangeDocument,
@@ -185,6 +186,10 @@ export function graphql(source: "\n    query FetchDocument($electionEventId: Str
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n    mutation GenerateBallotPublication($electionEventId: uuid!, $electionId: uuid) {\n        generate_ballot_publication(election_event_id: $electionEventId, election_id: $electionId) {\n            ballot_publication_id\n        }\n    }\n"): (typeof documents)["\n    mutation GenerateBallotPublication($electionEventId: uuid!, $electionId: uuid) {\n        generate_ballot_publication(election_event_id: $electionEventId, election_id: $electionId) {\n            ballot_publication_id\n        }\n    }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n    query GetAllTenants {\n        sequent_backend_tenant {\n            id\n            slug\n        }\n    }\n"): (typeof documents)["\n    query GetAllTenants {\n        sequent_backend_tenant {\n            id\n            slug\n        }\n    }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
