@@ -18,8 +18,6 @@ import {
     InputLabel,
     FormGroup,
     FormLabel,
-    Autocomplete,
-    TextField,
 } from "@mui/material"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {
@@ -27,7 +25,6 @@ import {
     DeleteUserRoleMutation,
     EditUsersInput,
     ListUserRolesQuery,
-    Sequent_Backend_Area,
     SetUserRoleMutation,
     UserProfileAttribute,
 } from "@/gql/graphql"
@@ -41,6 +38,7 @@ import {FormStyles} from "@/components/styles/FormStyles"
 import {CREATE_USER} from "@/queries/CreateUser"
 import {formatUserAtributes, getAttributeLabel, userBasicInfo} from "@/services/UserService"
 import PhoneInput from "@/components/PhoneInput"
+import SelectArea from "@/components/area/SelectArea"
 
 interface ListUserRolesProps {
     userId?: string
@@ -156,7 +154,6 @@ interface EditUserFormProps {
     rolesList: Array<IRole>
     userAttributes: UserProfileAttribute[]
     createMode?: boolean
-    areas?: Sequent_Backend_Area[]
 }
 
 export const EditUserForm: React.FC<EditUserFormProps> = ({
@@ -166,12 +163,12 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     rolesList,
     userAttributes,
     createMode = false,
-    areas,
 }) => {
     const {t} = useTranslation()
     const {data, isLoading} = useListContext<IUser & {id: string}>()
     let userOriginal: IUser | undefined = data?.find((element) => element.id === id)
     const [user, setUser] = useState<IUser | undefined>(createMode ? {enabled: true} : userOriginal)
+    const [selectedArea, setSelectedArea] = useState<string>("")
     const [selectedRolesOnCreate, setSelectedRolesOnCreate] = useState<string[]>([])
     const [tenantId] = useTenantStore()
     const refresh = useRefresh()
@@ -218,7 +215,10 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         enabled: user?.enabled,
                         email: user?.email,
                         username: user?.username,
-                        attributes: formatUserAtributes(user?.attributes),
+                        attributes: {
+                            ...formatUserAtributes(user?.attributes),
+                            ...(selectedArea && {"area-id": [selectedArea]}),
+                        },
                     },
                     userRolesIds: selectedRolesOnCreate,
                 },
@@ -253,7 +253,10 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             last_name: user?.last_name,
                             enabled: user?.enabled,
                             email: user?.email,
-                            attributes: formatUserAtributes(user?.attributes),
+                            attributes: {
+                                ...formatUserAtributes(user?.attributes),
+                                ...(selectedArea && {"area-id": [selectedArea]}),
+                            },
                         },
                     },
                 })
@@ -269,25 +272,27 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
     const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const {name, value} = e.target
-        let newUser = {...user, [name]: value}
-        setUser(newUser)
+        setUser((prev) => {
+            return {
+                ...prev,
+                [name]: value,
+            }
+        })
     }
 
     const handleAttrChange =
         (attrName: string) => async (e: React.ChangeEvent<HTMLInputElement>) => {
             const {value} = e.target
-            let newUser = {
-                ...user,
-                attributes: {
-                    ...(user?.attributes ?? {}),
-                    [attrName]: [value],
-                },
-            }
-            setUser(newUser)
+            setUser((prev) => {
+                return {
+                    ...prev,
+                    attributes: {
+                        ...(prev?.attributes ?? {}),
+                        [attrName]: [value],
+                    },
+                }
+            })
         }
-
-    let areaIdAttribute = user?.attributes?.["area-id"] as string | undefined
-    let defaultAreaId = areaIdAttribute ?? undefined
 
     const handleSelectChange = (attrName: string) => async (e: SelectChangeEvent) => {
         setUser((prev) => {
@@ -473,16 +478,17 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             <ElectionHeaderStyles.Title>
                                 {t("usersAndRolesScreen.users.fields.area")}
                             </ElectionHeaderStyles.Title>
-                            <Autocomplete
-                                renderInput={(params) => <TextField {...params} hiddenLabel />}
-                                options={
-                                    areas?.map((area) => {
-                                        return {id: area.id, label: area.name}
-                                    }) ?? []
-                                }
-                                onChange={(e, value) =>
-                                    handleAttrStringValueChange("area-id")(value?.id)
-                                }
+                            <SelectArea
+                                tenantId={tenantId}
+                                electionEventId={electionEventId}
+                                source={createMode ? "attributes.area-id" : "area.id"}
+                                onSelectArea={setSelectedArea}
+                                label=""
+                                customStyle={{
+                                    "& legend": {
+                                        display: "none",
+                                    },
+                                }}
                             />
                         </FormControl>
                     )}
