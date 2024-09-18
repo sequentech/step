@@ -91,7 +91,7 @@ export const Widget: React.FC<WidgetProps> = ({
     const [expanded, setExpanded] = useState(false)
     const [openTaskModal, setOpenTaskModal] = useState(false)
     const [taskDataType, setTaskDataType] = useState<ETasksExecution | undefined>(type)
-    const [taskDataStatus, setTaskDataStatus] = useState<ETaskExecutionStatus | undefined>(status)
+    const [taskDataStatus, setTaskDataStatus] = useState<ETaskExecutionStatus>(status)
     const [taskDataLogs, setTaskDataLogs] = useState<Array<ITaskLog>>(logs || [])
 
     const initialLog: ITaskLog[] = [
@@ -114,13 +114,13 @@ export const Widget: React.FC<WidgetProps> = ({
     }, [taskData])
 
     useEffect(() => {
-        if (status === ETaskExecutionStatus.FAILED) {
+        if (taskDataStatus === ETaskExecutionStatus.FAILED) {
             setExpanded(true)
             onFailure && onFailure()
-        } else if (status === ETaskExecutionStatus.SUCCESS) {
+        } else if (taskDataStatus === ETaskExecutionStatus.SUCCESS) {
             onSuccess && onSuccess()
         }
-    }, [status, onFailure, onSuccess])
+    }, [taskDataStatus, onFailure, onSuccess])
 
     const onSetViewTask = (event: React.MouseEvent<HTMLElement>) => {
         event.stopPropagation()
@@ -132,6 +132,7 @@ export const Widget: React.FC<WidgetProps> = ({
             <WidgetContainer>
                 <Accordion expanded={expanded} onChange={() => setExpanded(!expanded)}>
                     <CustomAccordionSummary
+                        isLoading={taskDataStatus === ETaskExecutionStatus.IN_PROGRESS}
                         expandIcon={<ExpandMoreIcon />}
                         sx={{backgroundColor: "#0F054C"}}
                     >
@@ -142,7 +143,7 @@ export const Widget: React.FC<WidgetProps> = ({
                                     {t(`tasksScreen.tasksExecution.${taskDataType || type}`)}
                                 </TypeTypography>
                                 <StatusIconsBox>
-                                    <StatusChip status={taskDataStatus || status} />
+                                    <StatusChip status={taskDataStatus} />
                                     <IconsBox>
                                         <StyledIconButton size="small" onClick={onSetViewTask}>
                                             <Visibility />
