@@ -488,33 +488,29 @@ pub async fn maybe_create_scheduled_event(
     start_date: String,
     election_id: Option<&str>,
 ) -> Result<()> {
-    let now = ISO8601::now();
-    let date = ISO8601::to_date(&start_date).ok();
     let is_start = event_processor == EventProcessors::START_ELECTION;
-    if date > Some(now) {
-        let start_task_id =
-            generate_manage_date_task_name(tenant_id, election_event_id, election_id, is_start);
-        let payload = ManageElectionDatePayload {
-            election_id: match election_id {
-                Some(id) => Some(id.to_string()),
-                None => None,
-            },
-        };
-        let cron_config = CronConfig {
-            cron: None,
-            scheduled_date: Some(start_date.to_string()),
-        };
-        insert_scheduled_event(
-            hasura_transaction,
-            tenant_id,
-            election_event_id,
-            event_processor,
-            &start_task_id,
-            cron_config,
-            serde_json::to_value(payload)?,
-        )
-        .await?;
-    }
+    let start_task_id =
+        generate_manage_date_task_name(tenant_id, election_event_id, election_id, is_start);
+    let payload = ManageElectionDatePayload {
+        election_id: match election_id {
+            Some(id) => Some(id.to_string()),
+            None => None,
+        },
+    };
+    let cron_config = CronConfig {
+        cron: None,
+        scheduled_date: Some(start_date.to_string()),
+    };
+    insert_scheduled_event(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        event_processor,
+        &start_task_id,
+        cron_config,
+        serde_json::to_value(payload)?,
+    )
+    .await?;
 
     Ok(())
 }
