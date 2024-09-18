@@ -708,6 +708,7 @@ impl BoardClient {
             "#,
                 table.as_str()
             );
+            info!("message: {}", message_sql);
             let params = vec![
                 NamedParam {
                     name: String::from("created"),

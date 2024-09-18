@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {useMutation} from "@apollo/client"
+import {useMutation, useQuery} from "@apollo/client"
 import React, {useContext, useEffect, useState} from "react"
 import {
     CreateElectionEventMutation,
@@ -21,9 +21,7 @@ import {
     useGetOne,
     useNotify,
     useRefresh,
-    Button,
     RaRecord,
-    Identifier,
     useGetList,
 } from "react-admin"
 import {JsonInput} from "react-admin-json-view"
@@ -38,10 +36,12 @@ import {styled} from "@mui/material/styles"
 import {useTreeMenuData} from "@/components/menu/items/use-tree-menu-hook"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {IMPORT_ELECTION_EVENT} from "@/queries/ImportElectionEvent"
 import {ExportButton} from "@/components/tally/ExportElectionMenu"
 import {addDefaultTranslationsToElement} from "@/services/i18n"
+import {ETasksExecution} from "@/types/tasksExecution"
 
 const Hidden = styled(Box)`
     display: none;
@@ -106,15 +106,15 @@ export const CreateElectionList: React.FC = () => {
     const {t} = useTranslation()
     const navigate = useNavigate()
     const refresh = useRefresh()
+    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
+    const {setLastCreatedResource} = useContext(NewResourceContext)
+    const {refetch: refetchTreeMenu} = useTreeMenuData(false)
 
     const postDefaultValues = () => ({id: v4()})
 
     const {data: tenant} = useGetOne("sequent_backend_tenant", {
         id: tenantId,
     })
-
-    const {setLastCreatedResource} = useContext(NewResourceContext)
-    const {refetch: refetchTreeMenu} = useTreeMenuData(false)
 
     useEffect(() => {
         if (tenant) {
@@ -211,7 +211,7 @@ export const CreateElectionList: React.FC = () => {
 
     const uploadCallback = async (documentId: string) => {
         setErrors(null)
-        let {data, errors} = await importElectionEvent({
+        let {data: importData, errors} = await importElectionEvent({
             variables: {
                 tenantId,
                 documentId,
@@ -219,31 +219,42 @@ export const CreateElectionList: React.FC = () => {
             },
         })
 
-        if (data?.import_election_event?.error) {
-            setErrors(data.import_election_event.error)
-            throw new Error(data?.import_election_event?.error)
+        if (importData?.import_election_event?.error) {
+            setErrors(importData.import_election_event.error)
+            throw new Error(importData?.import_election_event?.error)
         }
     }
 
     const handleImportElectionEvent = async (documentId: string, sha256: string) => {
+        closeImportDrawer()
         setErrors(null)
-        let {data, errors} = await importElectionEvent({
-            variables: {
-                tenantId,
-                documentId,
-            },
-        })
+        const currWidget = addWidget(ETasksExecution.IMPORT_ELECTION_EVENT)
 
-        if (data?.import_election_event?.error) {
-            setErrors(data.import_election_event.error)
-            return
-        }
+        try {
+            let {data, errors} = await importElectionEvent({
+                variables: {
+                    tenantId,
+                    documentId,
+                },
+            })
+            if (data?.import_election_event?.error) {
+                setErrors(data.import_election_event.error)
+                updateWidgetFail(currWidget.identifier)
+                return
+            }
 
-        let id = data?.import_election_event?.id
-        if (id) {
-            setNewId(id)
-            setLastCreatedResource({id, type: "sequent_backend_election_event"})
-            setIsLoading(true)
+            let id = data?.import_election_event?.id
+            if (id) {
+                setWidgetTaskId(
+                    currWidget.identifier,
+                    data?.import_election_event?.task_execution?.id
+                )
+                setNewId(id)
+                setLastCreatedResource({id, type: "sequent_backend_election_event"})
+                setIsLoading(true)
+            }
+        } catch (err) {
+            updateWidgetFail(currWidget.identifier)
         }
     }
 
@@ -359,6 +370,7 @@ export const CreateElectionList: React.FC = () => {
                 subtitle="electionEventScreen.import.eesubtitle"
                 paragraph={"electionEventScreen.import.electionEventParagraph"}
                 doImport={handleImportElectionEvent}
+                disableImport={!!errors}
                 uploadCallback={uploadCallback}
                 errors={errors}
             />

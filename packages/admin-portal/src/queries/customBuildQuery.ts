@@ -5,7 +5,7 @@
 import {buildQuery, buildVariables} from "ra-data-hasura"
 import {getPgauditVariables, getPgAudit} from "./ListPgAudit"
 import {getElectoralLogVariables, getElectoralLog} from "./ListElectoralLog"
-import {getUsers} from "./GetUsers"
+import {LIST_USERS, customBuildGetUsersVariables} from "./GetUsers"
 import {getPermissions} from "./GetPermissions"
 import {getRoles} from "./GetRoles"
 import {isString} from "lodash"
@@ -99,8 +99,8 @@ export const customBuildQuery =
                 },
             }
             return {
-                query: getUsers(params),
-                variables: buildVariables(introspectionResults)(
+                query: LIST_USERS,
+                variables: customBuildGetUsersVariables(introspectionResults)(
                     resource,
                     raFetchType,
                     params,
