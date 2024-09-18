@@ -215,6 +215,12 @@ export type ExportLogsOutput = {
   task_id: Scalars['String']['output'];
 };
 
+export type ExportTasksExecutionOutput = {
+  __typename?: 'ExportTasksExecutionOutput';
+  document_id: Scalars['String']['output'];
+  error_msg?: Maybe<Scalars['String']['output']>;
+};
+
 export type ExportTasksOutput = {
   __typename?: 'ExportTasksOutput';
   document_id: Scalars['String']['output'];
@@ -852,6 +858,7 @@ export type Mutation_Root = {
   export_election_event?: Maybe<DocumentTaskOutput>;
   export_election_event_logs?: Maybe<ExportLogsOutput>;
   export_election_event_tasks?: Maybe<ExportTasksOutput>;
+  export_tasks_execution?: Maybe<ExportTasksExecutionOutput>;
   export_tenant_users?: Maybe<ExportTenantUsersOutput>;
   export_users?: Maybe<ExportUsersOutput>;
   generate_ballot_publication?: Maybe<PublishBallotOutput>;
@@ -1758,6 +1765,13 @@ export type Mutation_RootExport_Election_Event_LogsArgs = {
 /** mutation root */
 export type Mutation_RootExport_Election_Event_TasksArgs = {
   election_event_id?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+/** mutation root */
+export type Mutation_RootExport_Tasks_ExecutionArgs = {
+  election_event_id?: InputMaybe<Scalars['String']['input']>;
+  tenant_id: Scalars['String']['input'];
 };
 
 

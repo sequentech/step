@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Félix Robles <dev@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement} from "react"
+import React, {ReactElement, useState} from "react"
 import {
     List,
     TextInput,
@@ -13,11 +13,16 @@ import {
     Identifier,
 } from "react-admin"
 import {useTranslation} from "react-i18next"
-import {Sequent_Backend_Election_Event} from "@/gql/graphql"
+import {ExportTasksExecutionMutation, Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {Visibility} from "@mui/icons-material"
 import {Action, ActionsColumn} from "@/components/ActionButons"
 import {ListActions} from "@/components/ListActions"
 import {StatusChip} from "@/components/StatusChip"
+import {useMutation} from "@apollo/client"
+import {EXPORT_TASKS_EXECUTION} from "@/queries/ExportTasksExecution"
+import {FormStyles} from "@/components/styles/FormStyles"
+import {DownloadDocument} from "../User/DownloadDocument"
+import {Dialog} from "@sequentech/ui-essentials"
 
 export interface ListTasksProps {
     onViewTask: (id: Identifier) => void
@@ -25,7 +30,11 @@ export interface ListTasksProps {
 }
 export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRecord}) => {
     const {t} = useTranslation()
-    const [openExport, setOpenExport] = React.useState(false)
+    const [openExport, setOpenExport] = useState(false)
+    const [exporting, setExporting] = useState(false)
+    const [exportDocumentId, setExportDocumentId] = useState<string | undefined>()
+    const [exportTasksExecution] = useMutation<ExportTasksExecutionMutation>(EXPORT_TASKS_EXECUTION)
+
     const OMIT_FIELDS: string[] = []
 
     const filters: Array<ReactElement> = [
@@ -46,8 +55,34 @@ export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRe
     ]
 
     const handleExport = () => {
-        console.log("EXPORT")
+        setExporting(false)
+        setExportDocumentId(undefined)
         setOpenExport(true)
+    }
+    console.log({electionEventRecord})
+
+    const confirmExportAction = async () => {
+        //TODO: add notifications
+        try {
+            setExporting(true)
+            const {data: exportTasksExecutionData, errors} = await exportTasksExecution({
+                variables: {
+                    tenantId: electionEventRecord?.tenant_id,
+                    electiionEventId: electionEventRecord?.id,
+                },
+            })
+            if (errors || !exportTasksExecutionData) {
+                setExporting(false)
+                setOpenExport(false)
+                return
+            }
+            let documentId = exportTasksExecutionData.export_tasks_execution?.document_id
+            setExportDocumentId(documentId)
+        } catch (err) {
+            setExporting(false)
+            setOpenExport(false)
+            console.log(err)
+        }
     }
 
     return (
@@ -75,6 +110,42 @@ export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRe
                     <ActionsColumn actions={actions} label={t("common.label.actions")} />
                 </DatagridConfigurable>
             </List>
+
+            <Dialog
+                variant="info"
+                open={openExport}
+                ok={t("common.label.export")}
+                okEnabled={() => !exporting}
+                cancel={t("common.label.cancel")}
+                title={t("common.label.export")}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        confirmExportAction()
+                    } else {
+                        setExportDocumentId(undefined)
+                        setExporting(false)
+                        setOpenExport(false)
+                    }
+                }}
+            >
+                {t("common.export")}
+                <FormStyles.ReservedProgressSpace>
+                    {exporting ? <FormStyles.ShowProgress /> : null}
+                    {exporting && exportDocumentId ? (
+                        <DownloadDocument
+                            documentId={exportDocumentId}
+                            electionEventId={electionEventRecord?.id || ""}
+                            fileName={`users-export.csv`}
+                            onDownload={() => {
+                                console.log("onDownload called")
+                                setExportDocumentId(undefined)
+                                setExporting(false)
+                                setOpenExport(false)
+                            }}
+                        />
+                    ) : null}
+                </FormStyles.ReservedProgressSpace>
+            </Dialog>
         </>
     )
 }
