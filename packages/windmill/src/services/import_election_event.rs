@@ -127,6 +127,7 @@ pub async fn upsert_keycloak_realm(
             &realm_config,
             tenant_id,
             keycloak_event_realm.is_none(),
+            None,
         )
         .await?;
     upsert_realm_jwks(realm_name.as_str()).await?;

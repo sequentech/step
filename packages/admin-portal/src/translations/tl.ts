@@ -498,13 +498,13 @@ const tagalogTranslation: TranslationType = {
         },
         tenantScreen: {
             common: {
-                title: "Kliyente",
+                title: "Mga Nangungupahan",
             },
             new: {
-                subtitle: "Lumikha ng Kliyente",
+                subtitle: "Lumikha ng bagong nangungupahan",
             },
-            createSuccess: "Nalikha ang Customer",
-            createError: "Error sa paglikha ng Customer",
+            createSuccess: "Nangungupahan na nilikha",
+            createError: "Error sa paglikha ng nangungupahan",
         },
         usersAndRolesScreen: {
             noPermissions: "Wala kang pahintulot na ma-access ang mga tagagamit o tungkulin.",
