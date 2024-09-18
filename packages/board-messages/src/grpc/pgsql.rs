@@ -825,13 +825,16 @@ async fn get(
 
 async fn insert(client: &mut Client, board_name: &str, messages: &[B3MessageRow]) -> Result<()> {
     // Start a new transaction
-    let transaction = client.transaction().await?;
+    
     // http://disq.us/p/2ficy6c
-    let lock = format!("select pg_advisory_xact_lock(id) from {}", board_name);
-    transaction.execute(&lock, &[]).await?;
+    
     let mut batches: i32 = 0;
 
     for message in messages {
+        let transaction = client.transaction().await?;
+        let lock = format!("select pg_advisory_xact_lock(id) from {}", board_name);
+        transaction.execute(&lock, &[]).await?;
+        
         if message.statement_kind == StatementType::Ballots.to_string() {
             batches = batches + 1;
         }
@@ -883,9 +886,9 @@ async fn insert(client: &mut Client, board_name: &str, messages: &[B3MessageRow]
                 ],
             )
             .await?;
-    }
 
-    transaction.commit().await?;
+        transaction.commit().await?;
+    }
 
     // We do not care if any of these operations fail, they are statistics
     if let Some(last) = messages.last() {
