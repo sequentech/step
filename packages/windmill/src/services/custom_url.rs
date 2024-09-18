@@ -113,7 +113,10 @@ impl fmt::Display for CloudflareError {
 impl Error for CloudflareError {}
 
 #[instrument]
-pub async fn get_page_rule(redirect_to: &str, dns_prefix: &str) -> Result<Option<PageRule>, Box<dyn Error>> {
+pub async fn get_page_rule(
+    redirect_to: &str,
+    dns_prefix: &str,
+) -> Result<Option<PageRule>, Box<dyn Error>> {
     info!("target_value {:?}", redirect_to);
     let page_rules = get_all_page_rules().await?;
     info!("get_page_rules: {:?}", page_rules);
@@ -307,7 +310,11 @@ fn find_matching_dns_record(records: Vec<DnsRecord>, expected_name: &str) -> Opt
 }
 
 #[instrument]
-fn find_matching_target(rules: Vec<PageRule>, expected_redirect_url: &str, dns_prefix: &str) -> Option<PageRule> {
+fn find_matching_target(
+    rules: Vec<PageRule>,
+    expected_redirect_url: &str,
+    dns_prefix: &str,
+) -> Option<PageRule> {
     for rule in rules {
         for action in &rule.actions {
             if let ActionValue::ForwardURL(fwd) = action.value.clone() {
@@ -318,7 +325,10 @@ fn find_matching_target(rules: Vec<PageRule>, expected_redirect_url: &str, dns_p
         }
 
         for target in &rule.targets {
-            info!("find_matching_target target.constraint.value {:?}", &target.constraint.value);
+            info!(
+                "find_matching_target target.constraint.value {:?}",
+                &target.constraint.value
+            );
             info!("find_matching_target dns_prefix {:?}", dns_prefix);
             if target.constraint.value.contains(dns_prefix) {
                 return Some(rule);
@@ -413,10 +423,7 @@ pub async fn create_dns_record(dns_prefix: &str) -> Result<(), Box<dyn Error>> {
     }
 }
 
-pub async fn update_dns_record(
-    id: &str,
-    dns_prefix: &str,
-) -> Result<(), Box<dyn Error>> {
+pub async fn update_dns_record(id: &str, dns_prefix: &str) -> Result<(), Box<dyn Error>> {
     let client = Client::new();
     let (zone_id, api_key) = match get_cloudflare_vars() {
         Ok(vars) => vars,
@@ -469,7 +476,7 @@ async fn update_page_rule(
 ) -> Result<(), Box<dyn Error>> {
     let (zone_id, api_key) = get_cloudflare_vars()?;
     let client = Client::new();
-    let request_body = create_payload(origin, redirect_to );
+    let request_body = create_payload(origin, redirect_to);
     let page_rules = get_all_page_rules().await?;
     info!("Existing page rules: {:?}", page_rules);
 
@@ -500,7 +507,7 @@ async fn create_page_rule(redirect_to: &str, origin: &str) -> Result<(), Box<dyn
     let (zone_id, api_key) = get_cloudflare_vars()?;
     let client = Client::new();
     info!("create_page_rule");
-    let request_body = create_payload(origin, redirect_to );
+    let request_body = create_payload(origin, redirect_to);
     let response = client
         .post(&format!(
             "https://api.cloudflare.com/client/v4/zones/{}/pagerules",
