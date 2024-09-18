@@ -6,7 +6,7 @@ import {List, useListContext} from "react-admin"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {IRole} from "@sequentech/ui-core"
 import {EditUserForm} from "./EditUserForm"
-import {Sequent_Backend_Area, UserProfileAttribute} from "@/gql/graphql"
+import {UserProfileAttribute} from "@/gql/graphql"
 
 interface EditUserProps {
     id?: string
@@ -14,7 +14,6 @@ interface EditUserProps {
     close?: () => void
     rolesList: Array<IRole>
     userAttributes: UserProfileAttribute[]
-    areas?: Sequent_Backend_Area[]
 }
 
 export const EditUser: React.FC<EditUserProps> = ({
@@ -23,7 +22,6 @@ export const EditUser: React.FC<EditUserProps> = ({
     electionEventId,
     rolesList,
     userAttributes,
-    areas,
 }) => {
     const {data, isLoading} = useListContext()
 
@@ -52,7 +50,6 @@ export const EditUser: React.FC<EditUserProps> = ({
                     close={close}
                     rolesList={rolesList}
                     userAttributes={userAttributes}
-                    areas={areas}
                 />
             </List>
         )
