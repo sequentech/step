@@ -2311,19 +2311,6 @@ checksum = "e8566979429cf69b49a5c740c60791108e86440e8be149bbea4fe54d2c32d6e2"
 
 [[package]]
 name = "deadpool"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb84100978c1c7b37f09ed3ce3e5f843af02c2a2c431bae5b19230dad2c1b490"
-dependencies = [
- "async-trait",
- "deadpool-runtime",
- "num_cpus",
- "serde",
- "tokio",
-]
-
-[[package]]
-name = "deadpool"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6541a3916932fe57768d4be0b1ffb5ec7cbf74ca8c903fdfd5c0fe8aa958f0ed"
@@ -2336,24 +2323,11 @@ dependencies = [
 
 [[package]]
 name = "deadpool-postgres"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "40b75ba49590d27f677d3bebaf76cd15889ca8b308bc7ba99bfa25f1d7269c13"
-dependencies = [
- "deadpool 0.10.0",
- "serde",
- "tokio",
- "tokio-postgres",
- "tracing",
-]
-
-[[package]]
-name = "deadpool-postgres"
 version = "0.14.0"
 dependencies = [
  "async-trait",
  "config 0.14.0",
- "deadpool 0.12.1",
+ "deadpool",
  "dotenvy",
  "futures",
  "futures-util",
@@ -3387,7 +3361,7 @@ dependencies = [
  "board-messages",
  "celery 0.5.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "chrono",
- "deadpool-postgres 0.11.0",
+ "deadpool-postgres",
  "dotenv",
  "either",
  "graphql_client",
@@ -8502,8 +8476,8 @@ dependencies = [
  "chrono",
  "config 0.13.4",
  "csv",
- "deadpool 0.12.1",
- "deadpool-postgres 0.14.0",
+ "deadpool",
+ "deadpool-postgres",
  "dotenv",
  "ecies",
  "encoding_rs",

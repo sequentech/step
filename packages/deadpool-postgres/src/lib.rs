@@ -37,6 +37,7 @@ use std::{
 };
 
 use deadpool::managed;
+use tracing::instrument;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::spawn;
 use tokio::task::JoinHandle;
@@ -484,6 +485,7 @@ impl DerefMut for ClientWrapper {
 }
 
 impl Drop for ClientWrapper {
+    #[instrument(name = "ClientWrapper::drop", skip_all)]
     fn drop(&mut self) {
         self.conn_task.abort()
     }

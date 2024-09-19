@@ -45,7 +45,7 @@ sequent-core = { path="../sequent-core", features = ["keycloak", "probe"] }
 windmill = { path="../windmill" }
 
 # To connect to the Database
-deadpool-postgres = { version = "0.11.0", features = ["rt_tokio_1", "serde"] }
+deadpool-postgres = { path="../deadpool-postgres", features = ["rt_tokio_1", "serde"] }
 tokio-postgres = { version = "0.7", features = ["with-uuid-1", "with-chrono-0_4"] }
 
 # used for sanitizing input
