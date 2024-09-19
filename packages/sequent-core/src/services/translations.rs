@@ -4,7 +4,8 @@
 
 use crate::{
     ballot::{
-        Contest, ElectionEventPresentation, ElectionPresentation, I18nContent,
+        Contest, ContestPresentation, ElectionEventPresentation,
+        ElectionPresentation, I18nContent,
     },
     serialization::deserialize_with_path::deserialize_value,
     types::hasura::core::{Election, ElectionEvent},
@@ -41,6 +42,7 @@ fn get_name_from_i18n(
     let Some(i18n) = i18n_ref.clone() else {
         return None;
     };
+
     let lang_name = if let Some(lang_i18n) = i18n.get(language) {
         let alias = lang_i18n.get("alias").cloned().flatten();
         let name = lang_i18n.get("name").cloned().flatten();
@@ -76,6 +78,31 @@ impl Name for Election {
 
 impl Name for Contest {
     fn get_name(&self, language: &str) -> String {
-        self.name.clone().unwrap_or("".into())
+        let alias = self
+            .alias_i18n
+            .clone()
+            .map(|alias_i18n| {
+                alias_i18n
+                    .get(language)
+                    .cloned()
+                    .or(alias_i18n.get(DEFAULT_LANG).cloned())
+                    .or(Some(self.alias.clone()))
+                    .flatten()
+            })
+            .flatten();
+        let name = self
+            .name_i18n
+            .clone()
+            .map(|name_i18n| {
+                name_i18n
+                    .get(language)
+                    .cloned()
+                    .or(name_i18n.get(DEFAULT_LANG).cloned())
+                    .or(Some(self.name.clone()))
+                    .flatten()
+            })
+            .flatten();
+
+        alias.or(name).unwrap_or("-".into())
     }
 }
