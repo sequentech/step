@@ -86,30 +86,6 @@ pub struct ElectionEvent {
     pub statistics: Option<Value>,
 }
 
-pub const DEFAULT_LANG: &str = "en";
-
-impl ElectionEvent {
-    pub fn get_default_language(&self) -> String {
-        let Some(presentation_val) = self.presentation.clone() else {
-            return DEFAULT_LANG.into();
-        };
-        let Ok(presentation) =
-            deserialize_value::<ElectionEventPresentation>(presentation_val)
-        else {
-            return DEFAULT_LANG.into();
-        };
-        let language_conf = presentation.language_conf.unwrap_or_default();
-        let lang = language_conf
-            .default_language_code
-            .unwrap_or(DEFAULT_LANG.into());
-        lang
-    }
-}
-
-pub trait Name {
-    fn get_name(&self, default_language: &str) -> String;
-}
-
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Election {
     pub id: String,
@@ -134,39 +110,6 @@ pub struct Election {
     pub image_document_id: Option<String>,
     pub statistics: Option<Value>,
     pub receipts: Option<Value>,
-}
-
-impl Name for Election {
-    fn get_name(&self, language: &str) -> String {
-        let base_name = self.name.clone();
-        let Some(presentation_val) = self.presentation.clone() else {
-            return base_name;
-        };
-        let Ok(presentation) =
-            deserialize_value::<ElectionPresentation>(presentation_val)
-        else {
-            return base_name;
-        };
-        let Some(i18n) = presentation.i18n.clone() else {
-            return base_name;
-        };
-        let lang_name = if let Some(lang_i18n) = i18n.get(language) {
-            let alias = lang_i18n.get("alias").cloned().flatten();
-            let name = lang_i18n.get("name").cloned().flatten();
-            alias.or(name)
-        } else {
-            None
-        };
-        let default_lang_name =
-            if let Some(def_lang_i18n) = i18n.get(DEFAULT_LANG) {
-                let alias = def_lang_i18n.get("alias").cloned().flatten();
-                let name = def_lang_i18n.get("name").cloned().flatten();
-                alias.or(name)
-            } else {
-                None
-            };
-        lang_name.or(default_lang_name).unwrap_or(base_name)
-    }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
