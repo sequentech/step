@@ -18,6 +18,7 @@ pub struct ImportElectionEventBody {
     pub tenant_id: String,
     pub document_id: String,
     pub check_only: Option<bool>,
+    pub sha256: String,
 }
 
 #[instrument(err)]

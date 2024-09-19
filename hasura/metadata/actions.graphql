@@ -248,6 +248,7 @@ type Mutation {
   import_areas (
     election_event_id: String!
     document_id: String!
+    sha256: String!
   ): OptionalId
 }
 
@@ -255,6 +256,7 @@ type Mutation {
   import_candidates (
     election_event_id: String!
     document_id: String!
+    sha256: String!
   ): documentTaskOutput
 }
 
@@ -263,6 +265,7 @@ type Mutation {
     tenant_id: String!
     document_id: String!
     check_only: Boolean
+    sha256: String!
   ): OptionalImportEvent
 }
 
@@ -271,6 +274,7 @@ type Mutation {
     tenant_id: String!
     election_event_id: String
     document_id: String!
+    sha256: String!
   ): taskOutput
 }
 

@@ -64,6 +64,7 @@ pub struct ImportUsersBody {
     pub tenant_id: String,
     pub election_event_id: Option<String>,
     pub document_id: String,
+    pub sha256: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

@@ -216,6 +216,7 @@ export const CreateElectionList: React.FC = () => {
                 tenantId,
                 documentId,
                 checkOnly: true,
+                sha256: "?", // TODO: Fix this. Why is uploadCallback invoking importElectionEvent?
             },
         })
 
@@ -235,6 +236,7 @@ export const CreateElectionList: React.FC = () => {
                 variables: {
                     tenantId,
                     documentId,
+                    sha256,
                 },
             })
             if (data?.import_election_event?.error) {

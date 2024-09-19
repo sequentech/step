@@ -181,6 +181,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
             variables: {
                 documentId,
                 electionEventId: record.id,
+                sha256,
             },
         })
 
