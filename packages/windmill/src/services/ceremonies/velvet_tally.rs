@@ -4,6 +4,7 @@
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::GetLastTallySessionExecutionSequentBackendTallySessionContest;
 use crate::postgres::area::get_event_areas;
 use crate::postgres::election::export_elections;
+use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::cast_votes::ElectionCastVotes;
 use crate::services::database::get_hasura_pool;
 use crate::services::s3;
@@ -176,6 +177,7 @@ pub fn create_election_configs_blocking(
     cast_votes_count: &Vec<ElectionCastVotes>,
     elections_single_map: HashMap<String, Election>,
     areas: Vec<TreeNodeArea>,
+    default_lang: String,
 ) -> Result<()> {
     let mut elections_map: HashMap<String, ElectionConfig> = HashMap::new();
     for area_contest in area_contests {
@@ -280,6 +282,8 @@ pub async fn create_election_configs(
         .await
         .with_context(|| "Error acquiring hasura transaction")?;
 
+    let election_event = get_election_event_by_id(&hasura_transaction, tenant_id, election_event_id).await?;
+    let default_language: String = election_event.get_default_language()?;
     let elections = export_elections(&hasura_transaction, tenant_id, election_event_id).await?;
 
     let elections_single_map: HashMap<String, Election> = elections
@@ -299,6 +303,7 @@ pub async fn create_election_configs(
             &cast_votes_count_r,
             elections_single_map.clone(),
             areas_clone.clone(),
+            default_language.clone(),
         )
     });
 

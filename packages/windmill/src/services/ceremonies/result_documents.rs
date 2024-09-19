@@ -29,6 +29,7 @@ use velvet::pipes::generate_reports::{
     ElectionReportDataComputed, ReportDataComputed, OUTPUT_HTML, OUTPUT_JSON, OUTPUT_PDF,
 };
 use velvet::pipes::vote_receipts::OUTPUT_FILE_PDF as OUTPUT_RECEIPT_PDF;
+use crate::services::ceremonies::renamer::*;
 
 use super::renamer::rename_folders;
 
@@ -454,12 +455,16 @@ pub fn generate_ids_map(
         .flat_map(|inner_vec| inner_vec)
         .collect::<Vec<ReportDataComputed>>();
 
+    const UUID_LEN: usize = 36;
+    const MAX_LEN: usize = FOLDER_MAX_CHARS - UUID_LEN - 2;
+
     for election_report in election_reports {
+        let election_name = election_report.election_name;
         rename_map.insert(
             election_report.contest.election_id.clone(),
             format!(
-                "{:.30}__{}",
-                election_report.election_name, election_report.contest.election_id
+                "{}__{}",
+                take_first_n_chars(&election_name, MAX_LEN), election_report.contest.election_id
             ),
         );
 
@@ -468,7 +473,7 @@ pub fn generate_ids_map(
         };
         rename_map.insert(
             election_report.contest.id.clone(),
-            format!("{:.30}__{}", contest_name, election_report.contest.id),
+            format!("{}__{}", take_first_n_chars(&contest_name, MAX_LEN), election_report.contest.id),
         );
     }
 

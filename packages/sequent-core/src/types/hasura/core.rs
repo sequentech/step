@@ -82,6 +82,12 @@ pub struct ElectionEvent {
     pub statistics: Option<Value>,
 }
 
+impl ElectionEvent {
+    fn get_default_language(&self) -> Result<String> {
+        
+    }
+}
+
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Election {
     pub id: String,
