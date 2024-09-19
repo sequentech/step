@@ -71,7 +71,10 @@ public class MessageOTPAuthenticator
       context.getEvent().error(INTERNAL_ERROR + " Missing ttl or code configurations");
       context.failureChallenge(
           AuthenticationFlowError.INTERNAL_ERROR,
-          context.form().setError("code_id:" + sessionId).createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+          context
+              .form()
+              .setError("code_id:" + sessionId)
+              .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
       return;
     }
 
@@ -83,7 +86,10 @@ public class MessageOTPAuthenticator
             AuthenticationFlowError.ACCESS_DENIED,
             context
                 .form()
-                .setError(context.form().getMessage("messageOtp.auth.codeWithOtl") + "<br>code_id: " + sessionId)
+                .setError(
+                    context.form().getMessage("messageOtp.auth.codeWithOtl")
+                        + "<br>code_id: "
+                        + sessionId)
                 .createErrorPage(Response.Status.BAD_REQUEST));
         return;
       } else if (execution.isConditional() || execution.isAlternative()) {
@@ -104,7 +110,10 @@ public class MessageOTPAuthenticator
             AuthenticationFlowError.EXPIRED_CODE,
             context
                 .form()
-                .setError(context.form().getMessage("messageOtp.auth.codeExpired" + "<br>code_id: " + sessionId))
+                .setError(
+                    context
+                        .form()
+                        .getMessage("messageOtp.auth.codeExpired" + "<br>code_id: " + sessionId))
                 .createErrorPage(Response.Status.BAD_REQUEST));
       } else {
         // Set email as verified in the auth note only if we actually verified
@@ -137,7 +146,10 @@ public class MessageOTPAuthenticator
             AuthenticationFlowError.INVALID_CREDENTIALS,
             context
                 .form()
-                .setError(context.form().getMessage("messageOtp.auth.codeInvalid") + "<br>code_id: " + sessionId)
+                .setError(
+                    context.form().getMessage("messageOtp.auth.codeInvalid")
+                        + "<br>code_id: "
+                        + sessionId)
                 .setAttribute("realm", context.getRealm())
                 .setAttribute("courier", messageCourier)
                 .setAttribute("isOtl", isOtl)
