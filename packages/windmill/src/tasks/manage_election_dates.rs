@@ -23,7 +23,7 @@ use uuid::Uuid;
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(time_limit = 30, max_retries = 0)]
+#[celery::task(time_limit = 10, max_retries = 0)]
 pub async fn manage_election_date(
     tenant_id: String,
     election_event_id: String,
