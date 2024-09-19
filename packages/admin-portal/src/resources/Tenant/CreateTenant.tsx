@@ -78,10 +78,7 @@ export const CreateTenant: React.FC<CreateTenantProps> = ({isDrawerOpen, setIsDr
             }}
         >
             <SimpleForm onSubmit={onSubmit}>
-                <Typography variant="h4">{`${t("tenantScreen.common.title")} ${
-                    newTenant?.slug
-                }`}</Typography>
-                <Typography variant="body2">{t("tenantScreen.new.subtitle")}</Typography>
+                <Typography variant="h4">{t("tenantScreen.new.subtitle")}</Typography>
                 <TextInput source="slug" />
                 {isLoading ? <CircularProgress /> : null}
             </SimpleForm>
