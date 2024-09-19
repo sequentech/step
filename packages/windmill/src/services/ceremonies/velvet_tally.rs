@@ -14,6 +14,7 @@ use deadpool_postgres::Client as DbClient;
 use sequent_core::ballot::{BallotStyle, Contest};
 use sequent_core::ballot_codec::PlaintextCodec;
 use sequent_core::services::area_tree::TreeNodeArea;
+use sequent_core::types::hasura::core::Name;
 use sequent_core::types::hasura::core::{Area, Election, TallySessionConfiguration, TallySheet};
 use serde::Serialize;
 use std::collections::HashMap;
@@ -185,7 +186,7 @@ pub fn create_election_configs_blocking(
 
         let election_name_opt = elections_single_map
             .get(&election_id)
-            .map(|election| election.name.clone());
+            .map(|election| election.get_name(&default_lang));
 
         let election_cast_votes_count = cast_votes_count
             .iter()
@@ -282,8 +283,9 @@ pub async fn create_election_configs(
         .await
         .with_context(|| "Error acquiring hasura transaction")?;
 
-    let election_event = get_election_event_by_id(&hasura_transaction, tenant_id, election_event_id).await?;
-    let default_language: String = election_event.get_default_language()?;
+    let election_event =
+        get_election_event_by_id(&hasura_transaction, tenant_id, election_event_id).await?;
+    let default_language: String = election_event.get_default_language();
     let elections = export_elections(&hasura_transaction, tenant_id, election_event_id).await?;
 
     let elections_single_map: HashMap<String, Election> = elections

@@ -41,13 +41,18 @@ pub fn rename_folders(replacements: &HashMap<String, String>, folder_path: &Path
 }
 
 pub fn take_last_n_chars(s: &str, n: usize) -> String {
-    s.chars().rev().take(n).collect::<Vec<_>>().into_iter().rev().collect()
+    s.chars()
+        .rev()
+        .take(n)
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect()
 }
 
 pub fn take_first_n_chars(s: &str, n: usize) -> String {
     s.chars().take(n).collect()
 }
-
 
 // Function to sanitize filenames
 fn sanitize_filename(filename: &str) -> String {

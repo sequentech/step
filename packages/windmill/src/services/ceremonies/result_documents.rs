@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::ceremonies::renamer::*;
 use crate::{
     postgres::{
         results_area_contest::update_results_area_contest_documents,
@@ -29,7 +30,6 @@ use velvet::pipes::generate_reports::{
     ElectionReportDataComputed, ReportDataComputed, OUTPUT_HTML, OUTPUT_JSON, OUTPUT_PDF,
 };
 use velvet::pipes::vote_receipts::OUTPUT_FILE_PDF as OUTPUT_RECEIPT_PDF;
-use crate::services::ceremonies::renamer::*;
 
 use super::renamer::rename_folders;
 
@@ -464,7 +464,8 @@ pub fn generate_ids_map(
             election_report.contest.election_id.clone(),
             format!(
                 "{}__{}",
-                take_first_n_chars(&election_name, MAX_LEN), election_report.contest.election_id
+                take_first_n_chars(&election_name, MAX_LEN),
+                election_report.contest.election_id
             ),
         );
 
@@ -473,7 +474,11 @@ pub fn generate_ids_map(
         };
         rename_map.insert(
             election_report.contest.id.clone(),
-            format!("{}__{}", take_first_n_chars(&contest_name, MAX_LEN), election_report.contest.id),
+            format!(
+                "{}__{}",
+                take_first_n_chars(&contest_name, MAX_LEN),
+                election_report.contest.id
+            ),
         );
     }
 
