@@ -19,6 +19,7 @@ use windmill::{
 pub struct ImportAreasInput {
     election_event_id: String,
     document_id: String,
+    sha256: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

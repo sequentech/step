@@ -465,6 +465,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                 variables: {
                     documentId,
                     electionEventId: record.id,
+                    sha256,
                 },
             })
 

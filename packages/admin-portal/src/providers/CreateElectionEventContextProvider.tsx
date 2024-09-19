@@ -247,7 +247,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
     //     setErrors(null)
     // }
 
-    const uploadCallback = async (documentId: string, password: string = "") => {
+    const uploadCallback = async (documentId: string, password: string = "", sha256: string) => {
         setErrors(null)
         let {data: importData, errors} = await importElectionEvent({
             variables: {
@@ -255,6 +255,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
                 documentId,
                 password,
                 checkOnly: true,
+                sha256,
             },
         })
 
@@ -282,6 +283,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
                     tenantId,
                     documentId,
                     password,
+                    sha256,
                 },
             })
             if (data?.import_election_event?.error) {
