@@ -139,6 +139,12 @@ jobs:
     - name: Check if the latest tag is a pre-release
       id: CheckLatestRelease
       run: |
+        lastCommitSha=$(git rev-parse HEAD)
+        echo "$lastCommitSha" > .release-commit
+        git add .release-commit
+        git commit -m "Preparation for release"
+        git push origin HEAD
+
         latestTag=$(git describe --tags --abbrev=0)
         if [[ $latestTag == *-* ]]; then
           echo "Latest tag is a pre-release"
