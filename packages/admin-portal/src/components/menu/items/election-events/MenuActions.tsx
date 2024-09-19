@@ -17,6 +17,10 @@ import {useActionPermissions, useTreeMenuData} from "../use-tree-menu-hook"
 import {useTranslation} from "react-i18next"
 import styled from "@emotion/styled"
 import {divContainer} from "@/components/styles/Menu"
+import {useMutation} from "@apollo/client"
+import {DeleteElectionEvent} from "@/gql/graphql"
+import {DELETE_ELECTION_EVENT} from "@/queries/DeleteElectionEvent"
+import {IPermissions} from "@/types/keycloak"
 
 const mapRemoveResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "sideMenu.menuActions.remove.electionEvent",
@@ -65,6 +69,13 @@ export default function MenuAction({
 
     const [deleteOne] = useDelete()
     const [update] = useUpdate()
+    const [delete_election_event] = useMutation<DeleteElectionEvent>(DELETE_ELECTION_EVENT, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.ELECTION_EVENT_DELETE,
+            },
+        },
+    })
 
     const notify = useNotify()
 
@@ -162,33 +173,55 @@ export default function MenuAction({
         }
     }
 
-    function confirmDeleteAction() {
+    const deleteElectionEventAction = async (payload: ActionPayload) => {
+        try {
+            await delete_election_event({
+                variables: {
+                    electionEventId: payload.id,
+                },
+            })
+            notify(t("sideMenu.menuActions.messages.notification.success.delete"), {
+                type: "success",
+            })
+            setSelectedActionModal(null)
+        } catch (error) {
+            notify(t("sideMenu.menuActions.messages.notification.error.delete"), {
+                type: "error",
+            })
+        }
+    }
+
+    async function confirmDeleteAction() {
         const payload = selectedActionModal?.payload ?? null
 
         if (!payload) {
             return
         }
 
-        deleteOne(
-            payload.type,
-            {id: payload.id},
-            {
-                onSuccess: () => {
-                    refetch()
-                    notify(t("sideMenu.menuActions.messages.notification.success.delete"), {
-                        type: "success",
-                    })
-                },
-                onError: () => {
-                    notify(t("sideMenu.menuActions.messages.notification.error.delete"), {
-                        type: "error",
-                    })
-                },
-                onSettled: () => {
-                    setSelectedActionModal(null)
-                },
-            }
-        )
+        if (payload.type === "sequent_backend_election_event") {
+            deleteElectionEventAction(payload)
+        } else {
+            deleteOne(
+                payload.type,
+                {id: payload.id},
+                {
+                    onSuccess: () => {
+                        refetch()
+                        notify(t("sideMenu.menuActions.messages.notification.success.delete"), {
+                            type: "success",
+                        })
+                    },
+                    onError: () => {
+                        notify(t("sideMenu.menuActions.messages.notification.error.delete"), {
+                            type: "error",
+                        })
+                    },
+                    onSettled: () => {
+                        setSelectedActionModal(null)
+                    },
+                }
+            )
+        }
     }
 
     const openActionMenu = Boolean(anchorEl)

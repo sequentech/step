@@ -333,6 +333,10 @@ delete_permissions:
   role: admin-user
 - comment: ""
   permission:
+    filter: {}
+  role: election-event-delete
+- comment: ""
+  permission:
     filter:
       tenant_id:
         _eq: X-Hasura-Tenant-Id

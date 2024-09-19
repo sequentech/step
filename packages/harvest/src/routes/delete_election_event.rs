@@ -22,7 +22,6 @@ pub struct DeleteElectionEventOutput {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DeleteElectionEventInput {
     election_event_id: String,
-    tenant_id: String,
 }
 
 #[instrument(skip(claims))]
@@ -35,15 +34,19 @@ pub async fn delete_election_event_f(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::ELECTION_EVENT_CREATE], //TODO: change?
+        vec![Permissions::ELECTION_EVENT_DELETE],
     )?;
     let celery_app = get_celery_app().await;
     let input = body.into_inner();
 
-    let realm = get_event_realm(&input.tenant_id, &input.election_event_id);
+    let realm = get_event_realm(
+        &claims.hasura_claims.tenant_id,
+        &input.election_event_id,
+    );
 
     let task = celery_app
         .send_task(delete_election_event::delete_election_event_t::new(
+            claims.hasura_claims.tenant_id.clone(),
             input.election_event_id.clone(),
             realm.clone(),
         ))
