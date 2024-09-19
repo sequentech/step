@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
-use windmill::tasks::export_tasks_execution::export_tasks_execution;
+use windmill::tasks::export_tasks_execution;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ExportTasksExecutionBody {
@@ -27,17 +27,13 @@ pub struct ExportTasksExecutionOutput {
 
 #[instrument(skip(claims))]
 #[post("/export-tasks-execution", format = "json", data = "<input>")]
-pub async fn export_users_f(
+pub async fn export_tasks_execution_route(
     claims: jwt::JwtClaims,
     input: Json<ExportTasksExecutionBody>,
 ) -> Result<Json<ExportTasksExecutionOutput>, (Status, String)> {
     let body = input.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let election_event_id = body.election_event_id.clone();
-    let executer_name = claims
-        .name
-        .clone()
-        .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
 
     authorize(
         &claims,
@@ -50,7 +46,7 @@ pub async fn export_users_f(
     let celery_app = get_celery_app().await;
 
     let celery_task = celery_app
-        .send_task(export_tasks_execution::new(
+        .send_task(export_tasks_execution::export_tasks_execution::new(
             tenant_id,
             election_event_id,
             document_id.clone(),

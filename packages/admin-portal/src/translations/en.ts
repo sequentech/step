@@ -109,6 +109,10 @@ const englishTranslation = {
                 EXPORT_USERS: "Export Users",
                 EXPORT_TENANT_USERS: "Export Tenant Users",
             },
+            exportTasksExecution: {
+                success: "Export finished successfully",
+                error: "Error exporting Tasks Execution",
+            },
         },
         confirmationScreen: {
             title: "Your vote has been cast",

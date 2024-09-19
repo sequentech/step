@@ -274,6 +274,8 @@ actions:
         template: '{{$body.input}}'
       template_engine: Kriti
       version: 2
+  permissions:
+  - role: tasks-read
 - name: export_tenant_users
   definition:
     kind: synchronous

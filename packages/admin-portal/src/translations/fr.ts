@@ -108,6 +108,10 @@ const frenchTranslation: TranslationType = {
                 EXPORT_USERS: "Exporter les utilisateurs",
                 EXPORT_TENANT_USERS: "Exporter les utilisateurs du locataire",
             },
+            exportTasksExecution: {
+                success: "L'exportation s'est terminée avec succès",
+                error: "Erreur lors de l'exportation de l'exécution des tâches",
+            },
         },
         confirmationScreen: {
             title: "Votre vote a été émis",

@@ -108,6 +108,10 @@ const catalanTranslation: TranslationType = {
                 EXPORT_USERS: "Exportar usuaris",
                 EXPORT_TENANT_USERS: "Exportar usuaris del llogater",
             },
+            exportTasksExecution: {
+                success: "L'exportació s'ha completat amb èxit",
+                error: "Error en exportar l'Execució de Tasques",
+            },
         },
         confirmationScreen: {
             title: "El seu vot ha estat emès",

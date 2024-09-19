@@ -107,6 +107,10 @@ const tagalogTranslation: TranslationType = {
                 EXPORT_USERS: "I-export ang mga gumagamit",
                 EXPORT_TENANT_USERS: "I-export ang mga gumagamit ng tenant",
             },
+            exportTasksExecution: {
+                success: "Matagumpay na natapos ang pag-export",
+                error: "Error sa pag-export ng Tasks Execution",
+            },
         },
         confirmationScreen: {
             title: "Ang iyong boto ay nai-submit na",

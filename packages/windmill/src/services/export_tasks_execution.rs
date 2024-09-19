@@ -19,7 +19,7 @@ pub async fn read_export_data(
     transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-) -> Result<TasksExecution> {
+) -> Result<Vec<TasksExecution>> {
     let client = KeycloakAdminClient::new().await?;
     let other_client = KeycloakAdminClient::pub_new().await?;
     let board_name = get_event_realm(tenant_id, election_event_id);
@@ -27,43 +27,39 @@ pub async fn read_export_data(
     let tasks = get_tasks_by_election_event_id(&transaction, tenant_id, election_event_id).await?;
 
     Ok(tasks)
-    // Ok(ImportElectionEventSchema {
-    //     tenant_id: Uuid::parse_str(&tenant_id)?,
-    //     keycloak_event_realm: Some(realm),
-    //     election_event: election_event,
-    //     elections: elections,
-    //     contests: contests,
-    //     candidates: candidates,
-    //     areas: areas,
-    //     area_contests: area_contests,
-    // })
 }
 
 pub async fn write_export_document(
     transaction: &Transaction<'_>,
-    data: TasksExecution,
+    data: Vec<TasksExecution>,
+    election_event_id: &str,
     document_id: &str,
 ) -> Result<Document> {
     let data_str = serde_json::to_string(&data)?;
     let data_bytes = data_str.into_bytes();
 
-    let name = format!("tasks_execution-{}", &data.election_event_id);
+    let name = format!("tasks_execution-{}", election_event_id);
 
     let (temp_path, temp_path_string, file_size) =
         write_into_named_temp_file(&data_bytes, &name, ".json")?;
 
-    upload_and_return_document_postgres(
-        transaction,
-        &temp_path_string,
-        file_size,
-        "application/json",
-        &data.tenant_id.to_string(),
-        &data.election_event_id,
-        &name,
-        Some(document_id.to_string()),
-        false,
-    )
-    .await
+    // Using the first task to get the tenant_id and election_event_id
+    if let Some(first_task) = data.first() {
+        upload_and_return_document_postgres(
+            transaction,
+            &temp_path_string,
+            file_size,
+            "application/json",
+            &first_task.tenant_id.to_string(),
+            &first_task.election_event_id.to_string(),
+            &name,
+            Some(document_id.to_string()),
+            false,
+        )
+        .await
+    } else {
+        Err(anyhow::anyhow!("No tasks available to write"))
+    }
 }
 
 pub async fn process_export(
@@ -83,7 +79,13 @@ pub async fn process_export(
         .map_err(|err| anyhow!("Error starting hasura transaction: {err}"))?;
 
     let export_data = read_export_data(&hasura_transaction, tenant_id, election_event_id).await?;
-    write_export_document(&hasura_transaction, export_data, document_id).await?;
+    write_export_document(
+        &hasura_transaction,
+        export_data,
+        &election_event_id,
+        document_id,
+    )
+    .await?;
 
     let _commit = hasura_transaction
         .commit()

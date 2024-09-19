@@ -108,6 +108,10 @@ const spanishTranslation: TranslationType = {
                 EXPORT_USERS: "Exportar usuarios",
                 EXPORT_TENANT_USERS: "Exportar usuarios del inquilino",
             },
+            exportTasksExecution: {
+                success: "La exportación se completó con éxito",
+                error: "Error al exportar la Ejecución de Tareas",
+            },
         },
         confirmationScreen: {
             title: "Su voto ha sido emitido",

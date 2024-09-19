@@ -23,17 +23,28 @@ import {EXPORT_TASKS_EXECUTION} from "@/queries/ExportTasksExecution"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {DownloadDocument} from "../User/DownloadDocument"
 import {Dialog} from "@sequentech/ui-essentials"
+import {IPermissions} from "@/types/keycloak"
 
 export interface ListTasksProps {
     onViewTask: (id: Identifier) => void
     electionEventRecord: Sequent_Backend_Election_Event
 }
 export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRecord}) => {
+    const notify = useNotify()
     const {t} = useTranslation()
     const [openExport, setOpenExport] = useState(false)
     const [exporting, setExporting] = useState(false)
     const [exportDocumentId, setExportDocumentId] = useState<string | undefined>()
-    const [exportTasksExecution] = useMutation<ExportTasksExecutionMutation>(EXPORT_TASKS_EXECUTION)
+    const [exportTasksExecution] = useMutation<ExportTasksExecutionMutation>(
+        EXPORT_TASKS_EXECUTION,
+        {
+            context: {
+                headers: {
+                    "x-hasura-role": IPermissions.TASKS_READ,
+                },
+            },
+        }
+    )
 
     const OMIT_FIELDS: string[] = []
 
@@ -61,8 +72,12 @@ export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRe
     }
 
     const confirmExportAction = async () => {
-        if (!electionEventRecord) return
-        //TODO:: add notifications
+        if (!electionEventRecord) {
+            notify(t("tasksScreen.exportTasksExecution.error"))
+            setOpenExport(false)
+            return
+        }
+
         try {
             setExporting(true)
             const {data: exportTasksExecutionData, errors} = await exportTasksExecution({
@@ -74,6 +89,7 @@ export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRe
             if (errors || !exportTasksExecutionData) {
                 setExporting(false)
                 setOpenExport(false)
+                notify(t("tasksScreen.exportTasksExecution.error"))
                 return
             }
             let documentId = exportTasksExecutionData.export_tasks_execution?.document_id
@@ -81,6 +97,7 @@ export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRe
         } catch (err) {
             setExporting(false)
             setOpenExport(false)
+            notify(t("tasksScreen.exportTasksExecution.error"))
             console.log(err)
         }
     }
@@ -135,12 +152,13 @@ export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRe
                         <DownloadDocument
                             documentId={exportDocumentId}
                             electionEventId={electionEventRecord?.id || ""}
-                            fileName={`users-export.csv`}
+                            fileName={`export-tasks-execution.json`}
                             onDownload={() => {
                                 console.log("onDownload called")
                                 setExportDocumentId(undefined)
                                 setExporting(false)
                                 setOpenExport(false)
+                                notify(t("tasksScreen.exportTasksExecution.success"), {type: "success"})
                             }}
                         />
                     ) : null}
