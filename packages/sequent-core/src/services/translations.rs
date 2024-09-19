@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::{
-    ballot::{ElectionEventPresentation, ElectionPresentation, I18nContent},
+    ballot::{
+        Contest, ElectionEventPresentation, ElectionPresentation, I18nContent,
+    },
     serialization::deserialize_with_path::deserialize_value,
     types::hasura::core::{Election, ElectionEvent},
 };
@@ -69,5 +71,11 @@ impl Name for Election {
             return base_name;
         };
         get_name_from_i18n(&presentation.i18n, language).unwrap_or(base_name)
+    }
+}
+
+impl Name for Contest {
+    fn get_name(&self, language: &str) -> String {
+        self.name.clone().unwrap_or("".into())
     }
 }
