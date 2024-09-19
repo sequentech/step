@@ -76,7 +76,7 @@ sequent-core = { path="../sequent-core", features = ["reports", "keycloak", "log
 velvet = { path="../velvet" }
 
 # To connect to the Database
-deadpool = { version = "0.12.1", features = ["rt_tokio_1", "serde"] }
+deadpool = { path="../deadpool", features = ["rt_tokio_1", "serde"] }
 deadpool-postgres = { path="../deadpool-postgres", features = ["rt_tokio_1", "serde"] }
 tokio-postgres = { version = "0.7", features = ["with-uuid-1", "with-chrono-0_4", "with-serde_json-1"] }
 config = "0.13.1"

@@ -16,5 +16,6 @@ members = [
     "windmill",
     "wrap-map-err",
     "step-cli",
+    "deadpool",
     "deadpool-postgres"
 ]

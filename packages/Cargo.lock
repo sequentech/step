@@ -346,6 +346,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-attributes"
+version = "1.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a3203e79f4dd9bdda415ed03cf14dae5a2bf775c683a00f94e9cd1faf0f596e5"
+dependencies = [
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "async-channel"
 version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -521,6 +531,7 @@ version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c634475f29802fde2b8f0b505b1bd00dfe4df7d4a000f0b36f7671197d5c3615"
 dependencies = [
+ "async-attributes",
  "async-channel 1.9.0",
  "async-global-executor",
  "async-io 2.3.4",
@@ -2058,6 +2069,7 @@ dependencies = [
  "ciborium",
  "clap 4.5.16",
  "criterion-plot",
+ "futures",
  "is-terminal",
  "itertools 0.10.5",
  "num-traits",
@@ -2070,6 +2082,7 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "tinytemplate",
+ "tokio",
  "walkdir",
 ]
 
@@ -2312,10 +2325,24 @@ checksum = "e8566979429cf69b49a5c740c60791108e86440e8be149bbea4fe54d2c32d6e2"
 [[package]]
 name = "deadpool"
 version = "0.12.1"
+dependencies = [
+ "async-std",
+ "config 0.14.0",
+ "criterion 0.5.1",
+ "deadpool-runtime 0.1.4",
+ "itertools 0.12.1",
+ "num_cpus",
+ "serde",
+ "tokio",
+]
+
+[[package]]
+name = "deadpool"
+version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6541a3916932fe57768d4be0b1ffb5ec7cbf74ca8c903fdfd5c0fe8aa958f0ed"
 dependencies = [
- "deadpool-runtime",
+ "deadpool-runtime 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus",
  "serde",
  "tokio",
@@ -2327,7 +2354,7 @@ version = "0.14.0"
 dependencies = [
  "async-trait",
  "config 0.14.0",
- "deadpool",
+ "deadpool 0.12.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "dotenvy",
  "futures",
  "futures-util",
@@ -2336,6 +2363,14 @@ dependencies = [
  "tokio",
  "tokio-postgres",
  "tracing",
+]
+
+[[package]]
+name = "deadpool-runtime"
+version = "0.1.4"
+dependencies = [
+ "async-std",
+ "tokio",
 ]
 
 [[package]]
@@ -8476,7 +8511,7 @@ dependencies = [
  "chrono",
  "config 0.13.4",
  "csv",
- "deadpool",
+ "deadpool 0.12.1",
  "deadpool-postgres",
  "dotenv",
  "ecies",
