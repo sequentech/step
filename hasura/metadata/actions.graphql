@@ -144,7 +144,7 @@ type Mutation {
 type Mutation {
   export_tasks_execution (
     tenant_id: String!
-    election_event_id: String
+    election_event_id: String!
   ): ExportTasksExecutionOutput
 }
 

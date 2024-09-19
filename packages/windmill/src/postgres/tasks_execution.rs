@@ -185,3 +185,43 @@ pub async fn get_task_by_id(task_id: &str) -> Result<TasksExecution> {
 
     Ok(task_execution)
 }
+
+//TODO: make sure i dont need to change the return type to TasksExecution[]
+#[instrument(skip(), err)]
+pub async fn get_tasks_by_election_event_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<TasksExecution> {
+    let tenant_uuid =
+        Uuid::parse_str(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {}", err))?;
+    let election_event_uuid = Uuid::parse_str(election_event_id)
+        .map_err(|err| anyhow!("Error parsing task UUID: {}", err))?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    *
+                FROM 
+                    sequent_backend.tasks_execution
+                WHERE
+                    tenant_id = $1,
+                    election_event_id = $2
+            "#,
+        )
+        .await?;
+
+    let row = hasura_transaction
+        .query_one(&statement, &[&tenant_uuid, &election_event_uuid])
+        .await
+        .map_err(|err| anyhow!("Error fetching tasks: {}", err))?;
+
+    // Convert the resulting row into `TasksExecution` struct
+    let tasks_execution: TasksExecution = row
+        .try_into()
+        .map(|wrapper: TasksExecutionWrapper| wrapper.0)
+        .context("Error converting database row to TasksExecution")?;
+
+    Ok(tasks_execution)
+}

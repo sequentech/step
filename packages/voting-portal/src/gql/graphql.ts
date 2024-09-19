@@ -1770,7 +1770,7 @@ export type Mutation_RootExport_Election_Event_TasksArgs = {
 
 /** mutation root */
 export type Mutation_RootExport_Tasks_ExecutionArgs = {
-  election_event_id?: InputMaybe<Scalars['String']['input']>;
+  election_event_id: Scalars['String']['input'];
   tenant_id: Scalars['String']['input'];
 };
 

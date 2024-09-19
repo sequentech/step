@@ -59,16 +59,16 @@ export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRe
         setExportDocumentId(undefined)
         setOpenExport(true)
     }
-    console.log({electionEventRecord})
 
     const confirmExportAction = async () => {
-        //TODO: add notifications
+        if (!electionEventRecord) return
+        //TODO:: add notifications
         try {
             setExporting(true)
             const {data: exportTasksExecutionData, errors} = await exportTasksExecution({
                 variables: {
-                    tenantId: electionEventRecord?.tenant_id,
-                    electiionEventId: electionEventRecord?.id,
+                    tenantId: electionEventRecord.tenant_id,
+                    electionEventId: electionEventRecord.id,
                 },
             })
             if (errors || !exportTasksExecutionData) {

@@ -561,28 +561,28 @@ pub async fn export_users_f(
     };
 
     // Create task execution record only if election_event_id is present
-    let task_execution = if let Some(ref election_event_id) = body.election_event_id
-    {
-        Some(
-            post(
-                &tenant_id,
-                &election_event_id,
-                ETasksExecution::EXPORT_VOTERS,
-                &executer_name,
-            )
-            .await
-            .map_err(|error| {
-                (
-                    Status::InternalServerError,
-                    format!(
-                        "Failed to insert task execution record: {error:?}"
-                    ),
+    let task_execution =
+        if let Some(ref election_event_id) = body.election_event_id {
+            Some(
+                post(
+                    &tenant_id,
+                    &election_event_id,
+                    ETasksExecution::EXPORT_VOTERS,
+                    &executer_name,
                 )
-            })?,
-        )
-    } else {
-        None
-    };
+                .await
+                .map_err(|error| {
+                    (
+                        Status::InternalServerError,
+                        format!(
+                            "Failed to insert task execution record: {error:?}"
+                        ),
+                    )
+                })?,
+            )
+        } else {
+            None
+        };
 
     authorize(
         &claims,
@@ -605,18 +605,18 @@ pub async fn export_users_f(
             task_execution.clone(),
         ))
         .await
-        {
-            Ok(celery_task) => celery_task,
-            Err(err) => {
-                return Ok(Json(ExportUsersOutput {
-                    document_id,
-                    error_msg: Some(format!(
-                        "Error sending Export Users task: ${err}"
-                    )),
-                    task_execution: task_execution.clone(),
-                }));
-            }
-        };
+    {
+        Ok(celery_task) => celery_task,
+        Err(err) => {
+            return Ok(Json(ExportUsersOutput {
+                document_id,
+                error_msg: Some(format!(
+                    "Error sending Export Users task: ${err}"
+                )),
+                task_execution: task_execution.clone(),
+            }));
+        }
+    };
 
     let output = export_users::ExportUsersOutput {
         document_id,
@@ -656,18 +656,18 @@ pub async fn export_tenant_users_f(
             None,
         ))
         .await
-        {
-            Ok(celery_task) => celery_task,
-            Err(err) => {
-                return Ok(Json(ExportUsersOutput {
-                    document_id,
-                    error_msg: Some(format!(
-                        "Error sending Export Users task: ${err}"
-                    )),
-                    task_execution: None,
-                }));
-            }
-        };
+    {
+        Ok(celery_task) => celery_task,
+        Err(err) => {
+            return Ok(Json(ExportUsersOutput {
+                document_id,
+                error_msg: Some(format!(
+                    "Error sending Export Users task: ${err}"
+                )),
+                task_execution: None,
+            }));
+        }
+    };
 
     let output = export_users::ExportUsersOutput {
         document_id: document_id,

@@ -4,7 +4,7 @@
 import {gql} from "@apollo/client"
 
 export const EXPORT_TASKS_EXECUTION = gql`
-    mutation ExportTasksExecution($tenantId: String!, $electionEventId: String) {
+    mutation ExportTasksExecution($tenantId: String!, $electionEventId: String!) {
         export_tasks_execution(tenant_id: $tenantId, election_event_id: $electionEventId) {
             error_msg
             document_id
