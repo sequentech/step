@@ -897,6 +897,7 @@ async fn write(writer: BinaryCopyInWriter, messages: &[B3MessageRow]) -> Result<
         ts.push((created, statement_timestamp));
     }
     for (i, message) in messages.iter().enumerate() {
+        row.clear();
         row.push(&ts[i].0);
         row.push(&message.sender_pk);
         row.push(&ts[i].1);
@@ -905,7 +906,6 @@ async fn write(writer: BinaryCopyInWriter, messages: &[B3MessageRow]) -> Result<
         row.push(&message.mix_number);
         row.push(&message.message);
         row.push(&message.version);
-        row.clear();
         
         writer.as_mut().write(&row).await?;
     }
