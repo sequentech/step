@@ -912,6 +912,39 @@ export const EditElectionEventDataForm: React.FC = () => {
 
                             <Accordion
                                 sx={{width: "100%"}}
+                                expanded={
+                                    expanded === "election-event-data-user-verfication-template"
+                                }
+                                onChange={() =>
+                                    setExpanded("election-event-data-user-verfication-template")
+                                }
+                            >
+                                <AccordionSummary
+                                    expandIcon={
+                                        <ExpandMoreIcon id="election-event-data-user-verfication-template" />
+                                    }
+                                >
+                                    <ElectionHeaderStyles.Wrapper>
+                                        <ElectionHeaderStyles.Title>
+                                            {t("electionEventScreen.edit.userVerification")}
+                                        </ElectionHeaderStyles.Title>
+                                    </ElectionHeaderStyles.Wrapper>
+                                </AccordionSummary>
+                                <AccordionDetails>
+                                    <TextInput
+                                        resettable={true}
+                                        multiline={true}
+                                        source={"presentation.custom_tpl_usr_verfication"}
+                                        label={
+                                            '<div> <img src="https..." /> </div> <div> <p> <a href="{{manual_verification_url}}">Login Link</a> </p> {{{qrcode}}} </div>'
+                                        }
+                                        helperText={t("electionEventScreen.field.userVerification")}
+                                    />
+                                </AccordionDetails>
+                            </Accordion>
+
+                            <Accordion
+                                sx={{width: "100%"}}
                                 expanded={expanded === "election-event-data-allowed"}
                                 onChange={() => setExpanded("election-event-data-allowed")}
                             >
