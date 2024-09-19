@@ -8,20 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 For more details, refer to the [official Release Flow documentation](http://releaseflow.org/).
 
-## Configuration
-
-Refer to the [`.rfconfig.yml`](../rfconfig.yml) file [reference](https://github.com/release-flow/release-flow?tab=readme-ov-file#configuration) for configuration details.
-
-This file is pre-configured with the following settings:
-
-- The `trunk` branch is named `main`.
-- The version number to be used on the `trunk` branch is defined.
-- The prefix for working branches is set to `feat/meta-*` or `fix/meta-*` (as usual).
-- The prefix for release branches is set to `release/*`, followed by the major and minor version numbers, e.g., `release/1.0`, `release/1.1`, etc.
-
 ## Important Notes
-
-I faced some challenges using [`release-flow`](https://github.com/release-flow/release-flow) alongside [`release-it`](https://github.com/release-it/release-it), but eventually found the optimal configuration.
 
 ### Branching and Tagging
 
@@ -35,7 +22,7 @@ The key solution is:
 
 ### Commit Messages
 
-To ensure `release-flow` and `release-it` work well together, a few special commits are necessary:
+To ensure `release-it` work well, a few special commits are necessary:
 
 - When creating a new branch, use the following command:  
   `git commit --allow-empty -m "Release branch $releaseBranchName"`
@@ -46,7 +33,7 @@ To ensure `release-flow` and `release-it` work well together, a few special comm
 
 ### Initial Tag
 
-The `main` branch must have an initial tag that matches the version number specified in the `.rfconfig.yml` file. This is essential for `release-it` to function properly.
+New releass branches are tagged with the version number, e.g., `v2.7.0`.
 
 ## Example Flow
 
