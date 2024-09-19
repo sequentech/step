@@ -505,13 +505,13 @@ const spanishTranslation: TranslationType = {
         },
         tenantScreen: {
             common: {
-                title: "Cliente",
+                title: "Inquilinos",
             },
             new: {
-                subtitle: "Crear Cliente",
+                subtitle: "Crear nuevo inquilino",
             },
-            createSuccess: "Cliente creado",
-            createError: "Error creando cliente",
+            createSuccess: "Inquilino creado",
+            createError: "Error al crear el inquilino",
         },
         usersAndRolesScreen: {
             noPermissions: "No tienes permiso para acceder a los usuarios o roles.",

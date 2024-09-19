@@ -507,13 +507,13 @@ const frenchTranslation: TranslationType = {
         },
         tenantScreen: {
             common: {
-                title: "Client",
+                title: "Locataires",
             },
             new: {
-                subtitle: "Créer Client",
+                subtitle: "Créer un nouveau locataire",
             },
-            createSuccess: "Client créé",
-            createError: "Erreur lors de la création du client",
+            createSuccess: "Locataire créé",
+            createError: "Erreur lors de la création du locataire",
         },
         usersAndRolesScreen: {
             noPermissions: "Vous n'avez pas la permission d'accéder aux utilisateurs ou rôles.",
