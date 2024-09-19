@@ -22,8 +22,8 @@
 
 mod config;
 mod generic_client;
-mod init_log;
-use init_log::init_log;
+//mod init_log;
+//use init_log::init_log;
 
 use std::{
     borrow::Cow,
@@ -224,7 +224,7 @@ where
             let fut = pg_config.connect(tls);
             let (client, connection) = fut.await?;
             let conn_task = spawn(async move {
-                init_log(true);
+                //init_log(true);
                 if let Err(e) = connection.await {
                     tracing::warn!(target: "deadpool.postgres", "Connection error: {}", e);
                 }

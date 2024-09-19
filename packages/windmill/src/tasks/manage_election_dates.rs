@@ -19,7 +19,7 @@ use deadpool_postgres::Transaction;
 use sequent_core::ballot::{ElectionStatus, VotingStatus};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
-use tracing::{event, Level};
+use tracing::{event, info, Level};
 use uuid::Uuid;
 
 #[instrument(err)]
@@ -71,7 +71,10 @@ async fn manage_election_date_wrapper(
         EventProcessors::START_ELECTION => VotingStatus::OPEN,
         EventProcessors::END_ELECTION => VotingStatus::CLOSED,
         _ => {
-            return Err(anyhow!("Invalid scheduled event type: {event_processor:?}"));
+            info!("Invalid scheduled event type: {:?}", event_processor);
+            stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id)
+                .await?;
+            return Ok(());
         }
     };
 
@@ -133,7 +136,9 @@ pub async fn manage_election_date(
             commit?;
         }
         Err(err) => {
+            let rollback = hasura_transaction.rollback().await;
             lock.release().await?;
+            rollback?;
             return Err(anyhow!("{}", err).into());
         }
     }
