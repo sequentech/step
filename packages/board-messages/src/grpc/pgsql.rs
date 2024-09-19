@@ -728,7 +728,7 @@ async fn insert_configuration<C: Ctx>(
         version: crate::get_schema_version(),
     }];
 
-    insert(client, board_name, &rows).await?;
+    insert2(client, board_name, &rows).await?;
 
     update_index(client, board_name, &cfg).await
 }
@@ -741,7 +741,7 @@ async fn insert_messages(
 ) -> Result<()> {
     for chunk in messages.chunks(PG_DEFAULT_ENTRIES_TX_LIMIT) {
         // let chunk_vec: Vec<B3MessageRow> = chunk.to_vec();
-        insert(client, board_name, chunk).await?;
+        insert2(client, board_name, chunk).await?;
     }
     Ok(())
 }
@@ -823,18 +823,107 @@ async fn get(
     Ok(messages)
 }
 
-async fn insert(client: &mut Client, board_name: &str, messages: &[B3MessageRow]) -> Result<()> {
+
+use tokio_postgres::binary_copy::BinaryCopyInWriter;
+use tokio_postgres::types::{ToSql, Type};
+use futures::pin_mut;
+
+async fn insert2(client: &mut Client, board_name: &str, messages: &[B3MessageRow]) -> Result<()> {
     // Start a new transaction
+    let transaction = client.transaction().await?;
+    let types: Vec<Type> =  vec![Type::TIMESTAMP, Type::VARCHAR, Type::TIMESTAMP, Type::VARCHAR, Type::INT4, Type::INT4, Type::BYTEA, Type::VARCHAR];
+    let stmt = format!("COPY {} (created, sender_pk, statement_timestamp, statement_kind, batch, mix_number, message, version) FROM STDIN BINARY", board_name);
+    
     
     // http://disq.us/p/2ficy6c
+    let lock = format!("select pg_advisory_xact_lock(id) from {}", board_name);
+    transaction.execute(&lock, &[]).await?;
+    let sink = transaction.copy_in(&stmt).await?;
+    let writer = BinaryCopyInWriter::new(sink, &types);
+    let batches = write(writer, &messages).await?;
+    transaction.commit().await?;
+
+    // We do not care if any of these operations fail, they are statistics
+    if let Some(last) = messages.last() {
+        let Ok(transaction) = client.transaction().await else {
+            return Ok(());
+        };
+
+        let message_sql = format!(
+            r#"
+           UPDATE {}
+           SET
+           last_message_kind = $1,
+           message_count = (SELECT COUNT(*) FROM {}),
+           batch_count = batch_count + $2,
+           last_updated = localtimestamp
+           WHERE board_name = $3
+        "#,
+            INDEX_TABLE, board_name,
+        );
+
+        let Ok(_) = transaction
+            .execute(&message_sql, &[&last.statement_kind, &batches, &board_name])
+            .await
+        else {
+            return Ok(());
+        };
+
+        let _ = transaction.commit().await;
+    }
+
+    Ok(())
+}
+
+async fn write(writer: BinaryCopyInWriter, messages: &[B3MessageRow]) -> Result<i32> {
+    pin_mut!(writer);
+
+    let mut row: Vec<&'_ (dyn ToSql + Sync)> = vec![];
+    let mut ts: Vec<(SystemTime, SystemTime)> = vec![];
+    let mut batches = 0;
     
+    for message in messages {
+        if message.statement_kind == StatementType::Ballots.to_string() {
+            batches = batches + 1;
+        }
+        
+        let created = crate::system_time_from_timestamp(message.created).ok_or(anyhow!(
+            "Could not extract system time from 'created' value"
+        ))?;
+        let statement_timestamp = crate::system_time_from_timestamp(message.created).ok_or(
+            anyhow!("Could not extract system time from 'statement_timestamp' value"),
+        )?;
+        
+        ts.push((created, statement_timestamp));
+    }
+    for (i, message) in messages.iter().enumerate() {
+        row.push(&ts[i].0);
+        row.push(&message.sender_pk);
+        row.push(&ts[i].1);
+        row.push(&message.statement_kind);
+        row.push(&message.batch);
+        row.push(&message.mix_number);
+        row.push(&message.message);
+        row.push(&message.version);
+        row.clear();
+        
+        writer.as_mut().write(&row).await?;
+    }
+
+    writer.finish().await?;
+
+    Ok(batches)
+}
+
+async fn insert(client: &mut Client, board_name: &str, messages: &[B3MessageRow]) -> Result<()> {
+    // Start a new transaction
+    let transaction = client.transaction().await?;
+    // http://disq.us/p/2ficy6c
+    let lock = format!("select pg_advisory_xact_lock(id) from {}", board_name);
+    transaction.execute(&lock, &[]).await?;
     let mut batches: i32 = 0;
 
     for message in messages {
-        let transaction = client.transaction().await?;
-        let lock = format!("select pg_advisory_xact_lock(id) from {}", board_name);
-        transaction.execute(&lock, &[]).await?;
-        
         if message.statement_kind == StatementType::Ballots.to_string() {
             batches = batches + 1;
         }
@@ -886,9 +975,9 @@ async fn insert(client: &mut Client, board_name: &str, messages: &[B3MessageRow]
                 ],
             )
             .await?;
-
-        transaction.commit().await?;
     }
+
+    transaction.commit().await?;
 
     // We do not care if any of these operations fail, they are statistics
     if let Some(last) = messages.last() {
