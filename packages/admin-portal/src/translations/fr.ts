@@ -570,7 +570,7 @@ const frenchTranslation: TranslationType = {
                 title: "Électeurs",
                 subtitle: "Voir et éditer les données de l'électeur",
                 logs: {
-                    label: "Journaux de l'utilisateur"
+                    label: "Journaux de l'utilisateur",
                 },
                 emptyHeader: "Aucun électeur pour l'instant.",
                 askCreate: "Voulez-vous en créer un ?",

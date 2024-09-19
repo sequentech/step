@@ -569,7 +569,7 @@ const catalanTranslation: TranslationType = {
                 title: "Votants",
                 subtitle: "Veure i editar dades del votant",
                 logs: {
-                    label: "Registres de l'usuari"
+                    label: "Registres de l'usuari",
                 },
                 emptyHeader: "Encara no hi ha votant.",
                 askCreate: "Vols crear-ne un?",

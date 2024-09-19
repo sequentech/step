@@ -569,7 +569,7 @@ const tagalogTranslation: TranslationType = {
                 title: "Mga Botante",
                 subtitle: "Tingnan at i-edit ang data ng botante",
                 logs: {
-                    label: "Mga Log ng Gumagamit"
+                    label: "Mga Log ng Gumagamit",
                 },
                 create: {
                     title: "Botante",

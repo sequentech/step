@@ -511,7 +511,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             showAction: () => !!electionEventId,
             label: t(`usersAndRolesScreen.voters.logs.label`),
         },
-        
     ]
 
     async function confirmDeleteBulkAction() {
@@ -953,7 +952,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 fullWidth={true}
                 variant="info"
                 maxWidth={"xl"}
-                title= {t("usersAndRolesScreen.voters.logs.label")}
+                title={t("usersAndRolesScreen.voters.logs.label")}
                 ok={t("common.label.close")}
                 open={openUsersLogsModal}
                 handleClose={(results: boolean) => {
