@@ -36,6 +36,7 @@ import MailIcon from "@mui/icons-material/Mail"
 import CreditScoreIcon from "@mui/icons-material/CreditScore"
 import PasswordIcon from "@mui/icons-material/Password"
 import DeleteIcon from "@mui/icons-material/Delete"
+import VisibilityIcon from "@mui/icons-material/Visibility"
 import {EditUser} from "./EditUser"
 import {AudienceSelection, SendCommunication} from "./SendCommunication"
 import {CreateUser} from "./CreateUser"
@@ -504,6 +505,13 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             showAction: () => canEditUsers,
             label: t(`usersAndRolesScreen.editPassword.label`),
         },
+        {
+            icon: <VisibilityIcon />,
+            action: showUsersLogsModal,
+            showAction: () => !!electionEventId,
+            label: t(`usersAndRolesScreen.voters.logs.label`),
+        },
+        
     ]
 
     async function confirmDeleteBulkAction() {
@@ -944,7 +952,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             <Dialog
                 fullWidth={true}
                 variant="info"
-                title=""
+                maxWidth={"xl"}
+                title="Users Logs"
                 ok={t("common.label.close")}
                 open={openUsersLogsModal}
                 handleClose={(results: boolean) => {
