@@ -953,7 +953,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 fullWidth={true}
                 variant="info"
                 maxWidth={"xl"}
-                title="Users Logs"
+                title= {t("usersAndRolesScreen.voters.logs.label")}
                 ok={t("common.label.close")}
                 open={openUsersLogsModal}
                 handleClose={(results: boolean) => {
