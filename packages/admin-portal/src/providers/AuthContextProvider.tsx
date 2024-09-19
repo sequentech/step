@@ -11,7 +11,7 @@ import {SettingsContext} from "./SettingsContextProvider"
 import {useLocation, useNavigate} from "react-router"
 import {ExecutionResult} from "graphql"
 import {GetAllTenantsQuery} from "@/gql/graphql"
-
+ 
 /**
  * AuthContextValues defines the structure for the default values of the {@link AuthContext}.
  */
