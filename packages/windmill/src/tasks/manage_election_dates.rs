@@ -23,7 +23,7 @@ use uuid::Uuid;
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task]
+#[celery::task(time_limit = 30, max_retries = 0)]
 pub async fn manage_election_date(
     tenant_id: String,
     election_event_id: String,
@@ -99,22 +99,46 @@ pub async fn manage_election_date(
         }
     };
 
-    voting_status::update_election_status(
+    let result = voting_status::update_election_status(
         tenant_id.clone(),
         &hasura_transaction,
         &election_event_id,
         &election_id,
         &election_status.voting_status,
     )
-    .await?;
+    .await;
 
-    stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id).await?;
+    match result.err() {
+        Some(error) => {
+            lock.release().await?;
+            return Err(Error::Anyhow(error));
+        }
+        None => (),
+    }
 
-    let _commit = hasura_transaction
+    let result =
+        stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id).await;
+
+    match result.err() {
+        Some(error) => {
+            lock.release().await?;
+            return Err(Error::Anyhow(error));
+        }
+        None => (),
+    }
+
+    let commit = hasura_transaction
         .commit()
         .await
         .map_err(|e| anyhow!("Commit failed manae_election_dates: {}", e));
     lock.release().await?;
+
+    match commit.err() {
+        Some(error) => {
+            return Err(Error::Anyhow(error));
+        }
+        None => (),
+    }
 
     Ok(())
 }
