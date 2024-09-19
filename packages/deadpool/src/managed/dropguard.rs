@@ -1,9 +1,12 @@
+use tracing::info;
+
 /// This structure calls a function/closure when it is dropped.
 /// The [`DropGuard::disarm`] method stops this from happening.
 pub(crate) struct DropGuard<F: Fn()>(pub(crate) F);
 
 impl<F: Fn()> DropGuard<F> {
     pub(crate) fn disarm(self) {
+        info!("DropGuard::disarm");
         std::mem::forget(self)
     }
 }
@@ -13,6 +16,7 @@ where
     F: Fn(),
 {
     fn drop(&mut self) {
+        info!("DropGuard::drop");
         (self.0)()
     }
 }

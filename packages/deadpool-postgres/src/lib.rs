@@ -22,6 +22,8 @@
 
 mod config;
 mod generic_client;
+mod init_log;
+use init_log::init_log;
 
 use std::{
     borrow::Cow,
@@ -37,7 +39,6 @@ use std::{
 };
 
 use deadpool::managed;
-use tracing::instrument;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::spawn;
 use tokio::task::JoinHandle;
@@ -45,6 +46,7 @@ use tokio_postgres::{
     types::Type, Client as PgClient, Config as PgConfig, Error, IsolationLevel, Statement,
     Transaction as PgTransaction, TransactionBuilder as PgTransactionBuilder,
 };
+use tracing::instrument;
 
 #[cfg(not(target_arch = "wasm32"))]
 use tokio_postgres::{
@@ -222,6 +224,7 @@ where
             let fut = pg_config.connect(tls);
             let (client, connection) = fut.await?;
             let conn_task = spawn(async move {
+                init_log(true);
                 if let Err(e) = connection.await {
                     tracing::warn!(target: "deadpool.postgres", "Connection error: {}", e);
                 }

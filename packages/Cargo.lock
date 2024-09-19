@@ -2334,6 +2334,7 @@ dependencies = [
  "num_cpus",
  "serde",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -2363,6 +2364,9 @@ dependencies = [
  "tokio",
  "tokio-postgres",
  "tracing",
+ "tracing-log 0.1.4",
+ "tracing-subscriber",
+ "tracing-tree",
 ]
 
 [[package]]

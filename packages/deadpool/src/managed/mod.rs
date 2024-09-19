@@ -47,6 +47,7 @@
 //!
 //! For a more complete example please see
 //! [`deadpool-postgres`](https://crates.io/crates/deadpool-postgres) crate.
+use tracing::info;
 
 mod builder;
 mod config;
@@ -162,6 +163,7 @@ impl<'a, M: Manager> UnreadyObject<'a, M> {
 
 impl<'a, M: Manager> Drop for UnreadyObject<'a, M> {
     fn drop(&mut self) {
+        info!("UnreadyObject::drop");
         if let Some(mut inner) = self.inner.take() {
             self.pool.slots.lock().unwrap().size -= 1;
             self.pool.manager.detach(&mut inner.obj);
