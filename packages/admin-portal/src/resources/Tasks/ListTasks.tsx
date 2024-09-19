@@ -158,7 +158,9 @@ export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRe
                                 setExportDocumentId(undefined)
                                 setExporting(false)
                                 setOpenExport(false)
-                                notify(t("tasksScreen.exportTasksExecution.success"), {type: "success"})
+                                notify(t("tasksScreen.exportTasksExecution.success"), {
+                                    type: "success",
+                                })
                             }}
                         />
                     ) : null}

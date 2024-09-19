@@ -89,7 +89,7 @@ export interface IExpanded {
 }
 
 export const TallyCeremony: React.FC = () => {
-    const record = useRecordContext<Sequent_Backend_Election_Event>()
+    const record = useRecordContext<Sequent_Backend_Election_Event>() //this is the election event
     const {t, i18n} = useTranslation()
     const {
         tallyId,
@@ -204,7 +204,7 @@ export const TallyCeremony: React.FC = () => {
         }
     )
 
-    let resultsEventId = tallySessionExecutions?.[0]?.results_event_id ?? null
+    let resultsEventId = tallySessionExecutions?.[0]?.id ?? null //TODO: make sure this is the correct id
 
     const tallySessionData = useMemo(() => {
         try {
@@ -446,6 +446,7 @@ export const TallyCeremony: React.FC = () => {
 
     const handleCreateTransmissionPackage = useCallback(
         async ({area_id, election_id}: {area_id: string; election_id: string}) => {
+            console.log("---------------handleCreateTransmissionPackage")
             setTransmissionLoading(true)
             console.log({
                 electionId: election_id,
@@ -477,6 +478,7 @@ export const TallyCeremony: React.FC = () => {
                 return
             }
 
+            const currWidget = addWidget(ETasksExecution.CREATE_TRANSMISSION_PACKAGE)
             try {
                 const {data: nextStatus, errors} = await CreateTransmissionPackage({
                     variables: {
@@ -491,16 +493,19 @@ export const TallyCeremony: React.FC = () => {
                 console.log("createTransmissionPackage", {nextStatus, errors})
 
                 if (errors) {
+                    updateWidgetFail(currWidget.identifier)
                     setTransmissionLoading(false)
-                    notify(t("miruExport.create.error"), {type: "error"})
                     return
                 }
 
                 if (nextStatus) {
+                    // const task_id = exportUsersData?.export_users?.task_execution.id //TODO: fix action
+                    // setWidgetTaskId(currWidget.identifier, task_id)
                     notify(t("miruExport.create.success"), {type: "success"})
                     handleMiruExportSuccess?.({area_id, election_id})
                 }
             } catch (error) {
+                updateWidgetFail(currWidget.identifier)
                 console.log(`Caught error: ${error}`)
                 setTransmissionLoading(false)
                 notify(t("miruExport.create.error"), {type: "error"})
@@ -666,13 +671,13 @@ export const TallyCeremony: React.FC = () => {
                                     {t("tally.resultsTitle")}
                                 </WizardStyles.AccordionTitle>
                             </AccordionSummary>
-                            <WizardStyles.AccordionDetails>
-                                <TallyResults
-                                    tally={tally}
-                                    resultsEventId={resultsEventId}
-                                    onCreateTransmissionPackage={handleCreateTransmissionPackage}
-                                />
-                            </WizardStyles.AccordionDetails>
+                            {/* <WizardStyles.AccordionDetails> */}
+                            <TallyResults
+                                tally={tally}
+                                resultsEventId={resultsEventId}
+                                onCreateTransmissionPackage={handleCreateTransmissionPackage}
+                            />
+                            {/* </WizardStyles.AccordionDetails> */}
                         </Accordion>
                     </>
                 )}

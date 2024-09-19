@@ -121,6 +121,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
         )
 
         const aliasRenderer = useAliasRenderer()
+        console.log({electionId})
 
         return (
             <>
@@ -153,13 +154,14 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                             itemName={resultsElection?.[0]?.name ?? "election"}
                         />
                     ) : null}
-                    {globalSettings?.ACTIVATE_MIRU_EXPORT ? (
-                        <MiruExport
-                            electionId={electionId}
-                            onCreateTransmissionPackage={onCreateTransmissionPackage}
-                            loading={loading}
-                        />
-                    ) : null}
+                    {/* {globalSettings?.ACTIVATE_MIRU_EXPORT ? ( */}
+                    <div>sdghfdfhdfhdfh</div>
+                    <MiruExport
+                        electionId={electionId}
+                        onCreateTransmissionPackage={onCreateTransmissionPackage}
+                        loading={loading}
+                    />
+                    {/* ) : null} */}
                 </Box>
                 {electionsData?.map((election, index) => (
                     <CustomTabPanel key={index} index={index} value={value}>
