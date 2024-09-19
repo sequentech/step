@@ -1062,6 +1062,8 @@ pub async fn transactions_wrapper(
                 &tally_session_id,
             )
             .await?;
+            hasura_transaction.rollback().await?;
+            keycloak_transaction.rollback().await?;
             Err(err)
         }
     }

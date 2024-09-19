@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use tracing::{info, instrument};
 use walkdir::{DirEntry, WalkDir};
 
-pub const FOLDER_MAX_CHARS: usize = 80;
+pub const FOLDER_MAX_CHARS: usize = 200;
 
 #[instrument(skip_all, err)]
 pub fn rename_folders(replacements: &HashMap<String, String>, folder_path: &PathBuf) -> Result<()> {
