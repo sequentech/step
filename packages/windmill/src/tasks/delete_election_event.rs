@@ -1,9 +1,10 @@
-// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::{
-    services::delete_election_event::{delete_election_event_db, delete_keycloak_realm},
+    services::delete_election_event::{
+        delete_election_event_db, delete_election_event_immudb, delete_keycloak_realm,
+    },
     types::error::Result,
 };
 use celery::error::TaskError;
@@ -17,7 +18,8 @@ pub async fn delete_election_event_t(
     election_event_id: String,
     realm: String,
 ) -> Result<()> {
-    delete_keycloak_realm(&realm).await?;
+    delete_election_event_immudb(&tenant_id, &election_event_id).await?;
     delete_election_event_db(tenant_id.clone(), election_event_id.clone()).await?;
+    delete_keycloak_realm(&realm).await?;
     Ok(())
 }
