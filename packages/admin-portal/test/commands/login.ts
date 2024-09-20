@@ -8,7 +8,7 @@ exports.command = function (
     username = admin_portal_username,
     password = admin_portal_password
 ): NightWatchLogin {
-	console.log({testUrl})
+    console.log({testUrl})
     this.username = "input[name=username]"
     this.password = "input[name=password]"
     this.submitButton = "*[type=submit]"
