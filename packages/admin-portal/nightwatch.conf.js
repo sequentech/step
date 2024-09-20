@@ -55,13 +55,9 @@ module.exports = {
             },
 
             desiredCapabilities: {
-                //     "browserName": "firefox",
-                //     "acceptInsecureCerts": true,
-                //     "moz:firefoxOptions": {
-                //         args: ["--headless"],
-                // },
                 browserName: "chrome",
                 chromeOptions: {
+                    args: ["--no-sandbox", "--headless"],
                     prefs: {
                         download: {
                             prompt_for_download: false,
@@ -70,13 +66,12 @@ module.exports = {
                             ),
                         },
                     },
-                    // args: ["headless"],
                 },
             },
 
             webdriver: {
                 start_process: true,
-                server_path: "",
+                server_path: "/usr/bin/chromedriver",
             },
         },
 

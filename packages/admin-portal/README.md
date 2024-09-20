@@ -69,3 +69,33 @@ another place and then copy it to `rust/sequent-core-0.1.0.tgz`. Note that if
 its version is changed you may need to update its hash in
 `packages/admin-portal/yarn.lock` (use `sha1sum rust/sequent-core-0.1.0.tgz` to
 get the hash, or `shasum` instead of `sha1sum` if you're in Mac OS X.
+
+
+### Run Nightwatch end to end tests
+
+Chrome workspaces e2e test running configurations
+
+in
+
+`/packages/admin-portal`
+
+, run the following commands to setup and configure chrome driver and google chrome for running the tests
+
+```
+sudo apt-get update
+sudo apt-get install libglib2.0-0
+sudo apt-get install libnss3
+sudo apt-get install libatk1.0-0
+
+
+wget https://mirror.cs.uchicago.edu/google-chrome/pool/main/g/google-chrome-stable/google-chrome-stable_92.0.4515.159-1_amd64.deb
+sudo dpkg -i google-chrome-stable_92.0.4515.159-1_amd64.deb
+sudo apt-get install -f
+
+
+wget https://chromedriver.storage.googleapis.com/92.0.4515.107/chromedriver_linux64.zip
+unzip chromedriver_linux64.zip
+sudo mv chromedriver /usr/bin/chromedriver
+sudo chown root:root /usr/bin/chromedriver
+sudo chmod +x /usr/bin/chromedriver
+```

@@ -67,7 +67,8 @@
     "dev": "NODE_OPTIONS=--openssl-legacy-provider tsc --watch",
     "generate": "NODE_OPTIONS=--openssl-legacy-provider ADMIN_SECRET=admin graphql-codegen --config codegen.ts",
     "postinstall": "node ./postinstall.js",
-    "serve": "NODE_OPTIONS=--openssl-legacy-provider webpack serve"
+    "serve": "NODE_OPTIONS=--openssl-legacy-provider webpack serve",
+	"e2e": "npx nightwatch test/e2e/ --serial"
   },
   "proxy": "https://i.imgur.com",
   "browserslist": {
