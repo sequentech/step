@@ -75,27 +75,22 @@ get the hash, or `shasum` instead of `sha1sum` if you're in Mac OS X.
 
 Chrome workspaces e2e test running configurations
 
-in
-
-`/packages/admin-portal`
-
-, run the following commands to setup and configure chrome driver and google chrome for running the tests
+Run the following commands to setup and configure chrome driver and google
+chrome for running the tests:
 
 ```
-sudo apt-get update
-sudo apt-get install libglib2.0-0
-sudo apt-get install libnss3
-sudo apt-get install libatk1.0-0
+cd /workspaces/step/packages/admin-portal
 
-
-wget https://mirror.cs.uchicago.edu/google-chrome/pool/main/g/google-chrome-stable/google-chrome-stable_92.0.4515.159-1_amd64.deb
-sudo dpkg -i google-chrome-stable_92.0.4515.159-1_amd64.deb
-sudo apt-get install -f
-
-
-wget https://chromedriver.storage.googleapis.com/92.0.4515.107/chromedriver_linux64.zip
-unzip chromedriver_linux64.zip
-sudo mv chromedriver /usr/bin/chromedriver
-sudo chown root:root /usr/bin/chromedriver
+sudo apt-get update && \
+sudo apt-get install -y libnss3 libglib2.0-0 libatk1.0-0 && \
+wget https://mirror.cs.uchicago.edu/google-chrome/pool/main/g/google-chrome-stable/google-chrome-stable_92.0.4515.159-1_amd64.deb && \
+sudo dpkg -i google-chrome-stable_92.0.4515.159-1_amd64.deb;
+rm google-chrome-stable_92.0.4515.159-1_amd64.deb && \
+sudo apt-get install -f -y && \
+wget https://chromedriver.storage.googleapis.com/92.0.4515.107/chromedriver_linux64.zip && \
+unzip chromedriver_linux64.zip && \
+rm chromedriver_linux64.zip && \
+sudo mv chromedriver /usr/bin/chromedriver && \
+sudo chown root:root /usr/bin/chromedriver && \
 sudo chmod +x /usr/bin/chromedriver
 ```
