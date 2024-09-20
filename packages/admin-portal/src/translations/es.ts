@@ -502,7 +502,7 @@ const spanishTranslation: TranslationType = {
                 title: "Inquilini",
             },
             common: {
-                title: "Inquilino",
+                title: "Inquilinos",
             },
             new: {
                 subtitle: "Crear nuevo inquilino",

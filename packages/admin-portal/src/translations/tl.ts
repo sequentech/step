@@ -502,13 +502,13 @@ const tagalogTranslation: TranslationType = {
                 title: "Uupa",
             },
             common: {
-                title: "Uupa",
+                title: "Mga Nangungupahan",
             },
             new: {
-                subtitle: "Lumikha ng bagong uupa",
+                subtitle: "Lumikha ng bagong nangungupahan",
             },
-            createSuccess: "Nagawa ang uupa",
-            createError: "Error sa paggawa ng uupa",
+            createSuccess: "Nangungupahan na nilikha",
+            createError: "Error sa paglikha ng nangungupahan",
         },
         usersAndRolesScreen: {
             noPermissions: "Wala kang pahintulot na ma-access ang mga tagagamit o tungkulin.",

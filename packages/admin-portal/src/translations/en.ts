@@ -501,7 +501,7 @@ const englishTranslation = {
                 title: "Tenants",
             },
             common: {
-                title: "Tenant",
+                title: "Tenants",
             },
             new: {
                 subtitle: "Create new tenant",

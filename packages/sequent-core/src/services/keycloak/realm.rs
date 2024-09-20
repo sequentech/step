@@ -82,6 +82,11 @@ impl KeycloakAdminClient {
             realm.display_name = Some(name);
         }
 
+        if let Some(name) = display_name {
+            realm.display_name = Some(name);
+        }
+
+        // set tenant id attribute on all users
         realm.users = Some(
             realm
                 .users

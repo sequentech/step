@@ -504,7 +504,7 @@ const frenchTranslation: TranslationType = {
                 title: "Locataires",
             },
             common: {
-                title: "Locataire",
+                title: "Locataires",
             },
             new: {
                 subtitle: "Créer un nouveau locataire",

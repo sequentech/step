@@ -3,15 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {CircularProgress, Drawer, Typography} from "@mui/material"
 import React, {useContext, useEffect, useState} from "react"
-import {
-    SimpleForm,
-    TextInput,
-    Create,
-    useNotify,
-    useRefresh,
-    useGetOne,
-    useGetList,
-} from "react-admin"
+import {SimpleForm, TextInput, Create, useNotify, useRefresh, useGetOne} from "react-admin"
 import {useMutation} from "@apollo/client"
 import {INSERT_TENANT} from "../../queries/InsertTenant"
 import {InsertTenantMutation} from "../../gql/graphql"
@@ -58,6 +50,7 @@ export const CreateTenant: React.FC<CreateTenantProps> = ({isDrawerOpen, setIsDr
             setIsLoading(false)
             setIsDrawerOpen(false)
             notify(t("tenantScreen.createSuccess"), {type: "success"})
+            setIsDrawerOpen(false)
         }
     }, [isLoading, newTenant, isOneLoading, error, newId, refresh, authContext, navigate])
 

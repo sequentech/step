@@ -509,7 +509,7 @@ const catalanTranslation: TranslationType = {
                 subtitle: "Crear nou llogater",
             },
             createSuccess: "Llogater creat",
-            createError: "Error creant llogater",
+            createError: "Error en crear el llogater",
         },
         usersAndRolesScreen: {
             noPermissions: "No tens permís per accedir als usuaris o rols.",

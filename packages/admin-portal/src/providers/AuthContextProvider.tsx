@@ -5,9 +5,12 @@ import React, {useContext} from "react"
 
 import Keycloak, {KeycloakConfig, KeycloakInitOptions} from "keycloak-js"
 import {createContext, useEffect, useState} from "react"
-import {isArray, isNull, isString, sleep} from "@sequentech/ui-core"
+import {isNull, isString, sleep} from "@sequentech/ui-core"
 import {IPermissions} from "@/types/keycloak"
 import {SettingsContext} from "./SettingsContextProvider"
+import {useLocation, useNavigate} from "react-router"
+import {ExecutionResult} from "graphql"
+import {GetAllTenantsQuery} from "@/gql/graphql"
 
 import {useLocation, useNavigate, useParams} from "react-router"
 
@@ -128,18 +131,19 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const navigate = useNavigate()
     const location = useLocation()
 
-    function fetchGraphQL(
+    const fetchGraphQL = async (
         operationsDoc: string,
         operationName: string,
         variables: Record<string, any>
-    ) {
-        return fetch(globalSettings.HASURA_URL, {
+    ): Promise<ExecutionResult<GetAllTenantsQuery>> => {
+        let result = await fetch(globalSettings.HASURA_URL, {
             method: "POST",
             body: JSON.stringify({
                 query: operationsDoc,
                 variables,
             }),
-        }).then((result) => result.json())
+        })
+        return result.json()
     }
 
     const operation = `
@@ -150,7 +154,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         }
     }
 `
-    function fetchGetTenant() {
+    const fetchGetTenant = async (): Promise<ExecutionResult<GetAllTenantsQuery>> => {
         return fetchGraphQL(operation, "GetTenant", {})
     }
 
@@ -163,7 +167,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                     console.error(errors)
                     return
                 }
-                const tenants = data.sequent_backend_tenant
+                const tenants = data?.sequent_backend_tenant
                 const tenantIdFromParam = slug
 
                 if (tenants && tenantIdFromParam) {
@@ -209,6 +213,9 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         /**
          * KeycloakConfig configures the connection to the Keycloak server.
          */
+        let localStoredTenant = localStorage.getItem("selected-tenant-id")
+        let newTenant = localStoredTenant ? localStoredTenant : globalSettings.DEFAULT_TENANT_ID
+
         const keycloakConfig: KeycloakConfig = {
             realm: `tenant-${newTenant}`,
             clientId: globalSettings.ONLINE_VOTING_CLIENT_ID,
