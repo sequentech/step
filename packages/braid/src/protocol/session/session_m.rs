@@ -39,9 +39,6 @@ impl<C: Ctx> SessionM<C> {
             trustee,
         };
 
-        // fail early
-        // ret.get_store()?;
-
         Ok(ret)
     }
 
@@ -172,6 +169,8 @@ impl SessionSet {
                     requests.push((session.board_name.to_string(), last_id));
                 }
 
+                /*
+                Use this block for load testing
                 // dkg messages = 1 + 5n
                 // tally messages = b * (n + (t * t + 1) + 1)
                 // threshold 3: 32 messages
@@ -186,7 +185,7 @@ impl SessionSet {
                 {
                     println!("*** Remove this code!");
                     std::process::exit(0);
-                }
+                }*/
 
                 let board = GrpcB3BoardParams::new(&self.b3_url);
                 let board = board.get_board();

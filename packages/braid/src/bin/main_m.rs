@@ -72,13 +72,6 @@ Example run command
 
 cargo run --release --bin main_m -- --server-url --server-url http://127.0.0.1:50051 --trustee-config trustee.toml
 
-A mixnet trustee will periodically:
-
-    1) Poll the board index for active protocol boards
-    2) For each protocol board
-        a) Poll the protocol board for new messages
-        b) Update the local store with new messages
-        c) Execute the protocol with the existing messages in the local store
 */
 #[instrument(skip_all)]
 async fn run(args: &Cli) -> Result<()> {

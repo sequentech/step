@@ -158,8 +158,7 @@ impl<C: Ctx> Trustee<C> {
         &mut self,
         messages: Vec<(Message, i64)>,
     ) -> Result<(i64, i64), ProtocolError> {
-        // trace!("Updating with {} messages", messages.len());
-
+        
         let configuration = self.local_board.get_configuration_raw();
         if let Some(configuration) = configuration {
             self.update(messages, configuration)
