@@ -6,6 +6,7 @@ pub mod date;
 pub mod date_time;
 pub mod mime;
 pub mod normalize_vote;
+pub mod verify_file_hash;
 
 #[cfg(feature = "log")]
 pub mod init_log;

@@ -2,9 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::area::get_areas_by_name;
 use crate::postgres::document::get_document;
-use crate::services::database::{get_hasura_pool, get_keycloak_pool};
+use crate::services::database::get_hasura_pool;
 use crate::services::documents::get_document_as_temp_file;
 use crate::services::import::import_users::import_users_file;
 use crate::services::s3;
@@ -15,14 +14,12 @@ use celery::error::TaskError;
 use deadpool_postgres::Transaction;
 use deadpool_postgres::{Client as DbClient, Transaction as _};
 use sequent_core::services::keycloak::get_client_credentials;
-use sequent_core::services::{keycloak, reports};
 use sequent_core::types::hasura::core::TasksExecution;
+use sequent_core::util::verify_file_hash::{verify_file_sha256, HashFileVerifyError};
 use serde::{Deserialize, Serialize};
 use std::io::Seek;
-use std::num::NonZeroU32;
 use tempfile::NamedTempFile;
-use tracing::{debug, info, instrument};
-
+use tracing::{error, info, instrument};
 #[derive(Deserialize, Debug, Clone, Serialize)]
 pub struct ImportUsersBody {
     pub tenant_id: String,
@@ -124,6 +121,28 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
             }
         };
     voters_file.rewind()?;
+
+    match verify_file_sha256(&voters_file, body.sha256.clone()) {
+        Ok(_) => {
+            info!("Hash verified !");
+        }
+        Err(HashFileVerifyError::HashMismatch) => {
+            update_fail(&task_execution, "Hash of voters file does not match!").await?;
+            return Err(Error::String(
+                "Hash of voters file does not match!".to_string(),
+            ));
+        }
+        Err(HashFileVerifyError::IoError(str, err)) => {
+            error!("{}: {:?}", str, err);
+            update_fail(&task_execution, &str).await?;
+            return Err(err.into());
+        }
+        Err(HashFileVerifyError::HashComputingError(str, err)) => {
+            error!("{}: {:?}", str, err);
+            update_fail(&task_execution, &str).await?;
+            return Err(err.into());
+        }
+    }
 
     match import_users_file(
         &hasura_transaction,
