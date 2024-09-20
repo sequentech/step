@@ -120,10 +120,10 @@ const catalanTranslation: TranslationType = {
         header: {
             profile: "Perfil",
             session: {
-                title: "Your session is going to expire.",
-                timeLeft: "You have {{time}} left to cast your vote.",
-                timeLeftMinutesAndSeconds: "{{timeLeftInMinutes}} minutes and {{time}} seconds",
-                timeLeftSeconds: "{{timeLeft}} seconds",
+                title: "La seva sessió està a punt d'expirar.",
+                timeLeft: "Li queden {{time}} per emetre el seu vot.",
+                timeLeftMinutesAndSeconds: "{{timeLeftInMinutes}} minuts i {{time}} segons",
+                timeLeftSeconds: "{{timeLeft}} segons",
             },
         },
     },
