@@ -5,35 +5,13 @@
 import {Box, Menu, MenuItem} from "@mui/material"
 import React, {useMemo, useState} from "react"
 import {useTranslation} from "react-i18next"
-import {Sequent_Backend_Document} from "@/gql/graphql"
 import {Dialog} from "@sequentech/ui-essentials"
-import {downloadUrl} from "@sequentech/ui-core"
+import {sanitizeFilename, FOLDER_MAX_CHARS} from "@sequentech/ui-core"
 import {EExportFormat} from "@/types/results"
 import {IMiruDocument} from "@/types/miru"
 import {TallyStyles} from "@/components/styles/TallyStyles"
 import DownloadIcon from "@mui/icons-material/Download"
-import {useGetOne} from "react-admin"
-import {useTenantStore} from "@/providers/TenantContextProvider"
 import {DownloadDocument} from "@/resources/User/DownloadDocument"
-import {StringMap} from "i18next"
-
-const FOLDER_MAX_CHARS = 200 // Define the maximum number of characters
-
-const takeLastNChars = (s: string, n: number): string => {
-    return s.slice(-n)
-}
-
-const sanitizeFilename = (filename: string, max = FOLDER_MAX_CHARS): string => {
-    // Regular expression to match invalid filename characters
-    const invalidCharsRegex = /[<>:"\/\\|?*\x00-\x1F]/g
-
-    // Replace invalid characters with an underscore or remove them
-    const sanitized = filename
-        .replace(invalidCharsRegex, "") // Remove invalid characters
-        .replace(/[\s.]+$/, "") // Remove trailing spaces and dots
-
-    return takeLastNChars(sanitized, max)
-}
 
 interface MiruPackageDownloadProps {
     documents: IMiruDocument[] | null
