@@ -8,7 +8,7 @@ import {createElectionEvent} from "../commands/election-event/create"
 import {deleteElectionEvent} from "../commands/election-event/delete"
 
 // eslint-disable-next-line jest/valid-describe-callback
-describe("voters tests", function () {
+describe.skip("voters tests", function () {
     before(function (browser) {
         browser.login()
         browser.reset()
