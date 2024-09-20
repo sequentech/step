@@ -255,6 +255,13 @@ services:
       retries: 25
       start_period: 5s
 
+  keycloak-local:
+    container_name: keycloak-local
+    image: keycloak-local
+    build:
+      context: ../packages/
+      dockerfile: Dockerfile.keycloak
+
   admin-portal:
     image: ghcr.io/sequentech/step/admin-portal:latest
     platform: linux/amd64

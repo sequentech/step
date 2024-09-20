@@ -192,7 +192,7 @@
             "command": "bash",
             "args": [
                 "-c",
-                "docker compose stop keycloak; docker compose build keycloak && docker compose up -d --no-deps keycloak && docker compose logs -f --tail 100 keycloak"
+                "docker compose stop keycloak; docker rm keycloak && docker image rm ghcr.io/sequentech/step/keycloak:latest && docker compose build keycloak-local && docker compose stop keycloak-local && docker tag keycloak-local ghcr.io/sequentech/step/keycloak:latest && docker compose up -d --no-deps keycloak && docker compose logs -f --tail 100 keycloak"
             ],
             "options": {
                 "env": {
