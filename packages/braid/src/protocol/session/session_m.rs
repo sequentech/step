@@ -58,7 +58,7 @@ impl<C: Ctx> SessionM<C> {
     }
 
     pub(crate) fn update_store(
-        &mut self,
+        &self,
         messages: &Vec<GrpcB3Message>,
     ) -> Result<(), ProtocolError> {
         self.trustee.update_store(messages)

@@ -463,7 +463,7 @@ impl<C: Ctx> LocalBoard<C> {
     // be called independently of step, to only update the store (when a truncated
     // message is received from the bulletin board)
     pub(crate) fn update_store(
-        &mut self,
+        &self,
         messages: &Vec<GrpcB3Message>,
         ignore_existing: bool,
     ) -> Result<()> {

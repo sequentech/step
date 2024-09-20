@@ -18,6 +18,8 @@ borsh = { version = "=1.5.1", features = ["derive"] }
 strum = { version = "0.24.1", features = ["derive"] }
 anyhow = "1.0"
 rayon = "1.5"
+
+# only needed to use the postgresql COPY command
 futures = "0.3"
 
 # logging

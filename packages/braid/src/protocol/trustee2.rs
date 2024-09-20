@@ -32,7 +32,7 @@ use strand::util::StrandError;
 
 use strand::symm::{self, EncryptionData};
 
-const RETRIEVE_ALL_MESSAGES_PERIOD: i64 = 60 * 30;
+const RETRIEVE_ALL_MESSAGES_PERIOD: i64 = 60 * 60;
 
 ///////////////////////////////////////////////////////////////////////////
 // Trustee
@@ -76,15 +76,15 @@ impl<C: Ctx> Trustee<C> {
         signing_key: StrandSignatureSk,
         encryption_key: symm::SymmetricKey,
         store: Option<PathBuf>,
-        in_memory: bool,
+        no_cache: bool,
     ) -> Trustee<C> {
         let action_parallelism = 10;
 
         info!(
-            "Trustee {} created, in_memory = {}, action_parallelism = {}",
-            name, in_memory, action_parallelism
+            "Trustee {} created, no_cache = {}, action_parallelism = {}",
+            name, no_cache, action_parallelism
         );
-        let local_board = LocalBoard::new(store, in_memory);
+        let local_board = LocalBoard::new(store, no_cache);
 
         Trustee {
             name,
@@ -170,7 +170,7 @@ impl<C: Ctx> Trustee<C> {
 
     // Updates the message store, but not the local board
     pub(crate) fn update_store(
-        &mut self,
+        &self,
         messages: &Vec<GrpcB3Message>,
     ) -> Result<(), ProtocolError> {
         self.local_board
