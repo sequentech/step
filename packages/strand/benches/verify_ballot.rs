@@ -175,7 +175,7 @@ fn bench_verify(c: &mut Criterion) {
             b.iter(|| verify_ristretto(&rctx, &ballots, &vk))
         });
         /* TODO
-        
+
         #[cfg(feature = "num_bigint")]
         let (ballots, vk) = ballots_bigint(&rctx, &rpk, *i);
         group.bench_with_input(BenchmarkId::new("bigint", i), i, |b, i| {

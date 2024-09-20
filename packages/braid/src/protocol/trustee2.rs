@@ -158,7 +158,6 @@ impl<C: Ctx> Trustee<C> {
         &mut self,
         messages: Vec<(Message, i64)>,
     ) -> Result<(i64, i64), ProtocolError> {
-        
         let configuration = self.local_board.get_configuration_raw();
         if let Some(configuration) = configuration {
             self.update(messages, configuration)
@@ -168,10 +167,7 @@ impl<C: Ctx> Trustee<C> {
     }
 
     // Updates the message store, but not the local board
-    pub(crate) fn update_store(
-        &self,
-        messages: &Vec<GrpcB3Message>,
-    ) -> Result<(), ProtocolError> {
+    pub(crate) fn update_store(&self, messages: &Vec<GrpcB3Message>) -> Result<(), ProtocolError> {
         self.local_board
             .update_store(messages, false)
             .map_err(|e| ProtocolError::BoardError(format!("{}", e)))

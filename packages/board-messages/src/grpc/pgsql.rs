@@ -945,17 +945,30 @@ async fn get_one(client: &Client, board_name: &str, id: i64) -> Result<Option<B3
     }
 }
 
+use futures::pin_mut;
 use tokio_postgres::binary_copy::BinaryCopyInWriter;
 use tokio_postgres::types::{ToSql, Type};
-use futures::pin_mut;
 
 // Uses the COPY postgresql command
-async fn _insert_copy(client: &mut Client, board_name: &str, messages: &[B3MessageRow]) -> Result<()> {
+async fn _insert_copy(
+    client: &mut Client,
+    board_name: &str,
+    messages: &[B3MessageRow],
+) -> Result<()> {
     // Start a new transaction
     let transaction = client.transaction().await?;
-    let types: Vec<Type> =  vec![Type::TIMESTAMP, Type::VARCHAR, Type::TIMESTAMP, Type::VARCHAR, Type::INT4, Type::INT4, Type::BYTEA, Type::VARCHAR];
+    let types: Vec<Type> = vec![
+        Type::TIMESTAMP,
+        Type::VARCHAR,
+        Type::TIMESTAMP,
+        Type::VARCHAR,
+        Type::INT4,
+        Type::INT4,
+        Type::BYTEA,
+        Type::VARCHAR,
+    ];
     let stmt = format!("COPY {} (created, sender_pk, statement_timestamp, statement_kind, batch, mix_number, message, version) FROM STDIN BINARY", board_name);
-     
+
     // http://disq.us/p/2ficy6c
     let lock = format!("select pg_advisory_xact_lock(id) from {}", board_name);
     transaction.execute(&lock, &[]).await?;
@@ -1002,19 +1015,19 @@ async fn _write(writer: BinaryCopyInWriter, messages: &[B3MessageRow]) -> Result
     let mut row: Vec<&'_ (dyn ToSql + Sync)> = vec![];
     let mut ts: Vec<(SystemTime, SystemTime)> = vec![];
     let mut batches = 0;
-    
+
     for message in messages {
         if message.statement_kind == StatementType::Ballots.to_string() {
             batches = batches + 1;
         }
-        
+
         let created = crate::system_time_from_timestamp(message.created).ok_or(anyhow!(
             "Could not extract system time from 'created' value"
         ))?;
         let statement_timestamp = crate::system_time_from_timestamp(message.created).ok_or(
             anyhow!("Could not extract system time from 'statement_timestamp' value"),
         )?;
-        
+
         ts.push((created, statement_timestamp));
     }
     for (i, message) in messages.iter().enumerate() {
@@ -1027,7 +1040,7 @@ async fn _write(writer: BinaryCopyInWriter, messages: &[B3MessageRow]) -> Result
         row.push(&message.mix_number);
         row.push(&message.message);
         row.push(&message.version);
-        
+
         writer.as_mut().write(&row).await?;
     }
 

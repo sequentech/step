@@ -54,10 +54,7 @@ impl<C: Ctx> SessionM<C> {
         self.trustee.get_last_external_id()
     }
 
-    pub(crate) fn update_store(
-        &self,
-        messages: &Vec<GrpcB3Message>,
-    ) -> Result<(), ProtocolError> {
+    pub(crate) fn update_store(&self, messages: &Vec<GrpcB3Message>) -> Result<(), ProtocolError> {
         self.trustee.update_store(messages)
     }
 }
