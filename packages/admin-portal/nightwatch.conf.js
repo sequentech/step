@@ -44,7 +44,7 @@ module.exports = {
     test_settings: {
         default: {
             disable_error_log: false,
-            launch_url: "https://admin-portal-dev.sequent.vote",
+            launch_url: "about:blank",
             screenshots: {
                 enabled: true,
                 path: "screens",

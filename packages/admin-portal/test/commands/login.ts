@@ -8,17 +8,24 @@ exports.command = function (
     username = admin_portal_username,
     password = admin_portal_password
 ): NightWatchLogin {
-    console.log({testUrl})
     this.username = "input[name=username]"
     this.password = "input[name=password]"
     this.submitButton = "*[type=submit]"
 
+    console.log(`login: url=${testUrl} username=${username}, password=${password}`)
+
     this.window
         .maximize()
         .navigateTo(testUrl)
+        .getCurrentUrl((currentUrl) => {
+            console.log(`login: currentUrl=${currentUrl.value}`)
+        })
         .waitForElementVisible(this.username)
         .waitForElementVisible(this.password)
         .assert.visible("input[name=username]")
+        .getCurrentUrl((currentUrl) => {
+            console.log(`login: currentUrl=${currentUrl.value}`)
+        })
         .sendKeys(this.username, username)
         .assert.visible("input[name=password]")
         .sendKeys(this.password, password)

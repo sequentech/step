@@ -663,16 +663,53 @@ Examples:
  
 These assets are located here: `step/.devcontainer/minio/public-assets` and are uploaded to `minio` using the `configure-minio` container.
 
-## Nightwatch e2e
+## Nightwatch E2E Tests
 
-### Running nightwatch(Admin-Portal)
+### Setup
 
-Requires running both codespace instance as well as local instance at least for the client side.
- - run codespace
- - run local instance of client application to test
- - change directory to specific client application
- - npx nightwatch path/to/testfile.test.ts e.g `admin-portal% npx nightwatch test/e2e/voter.test.ts`
- 
- ### Running Nightwatch(Voting-Portal)
- refer to voting-portal/test/readme
+Run the following commands to setup and configure chrome driver and google
+chrome for running the tests:
+
+```bash
+cd /workspaces/step/packages/admin-portal
+
+sudo apt-get update && \
+sudo apt-get install -y libnss3 libglib2.0-0 libatk1.0-0 && \
+wget https://mirror.cs.uchicago.edu/google-chrome/pool/main/g/google-chrome-stable/google-chrome-stable_92.0.4515.159-1_amd64.deb && \
+sudo dpkg -i google-chrome-stable_92.0.4515.159-1_amd64.deb;
+rm google-chrome-stable_92.0.4515.159-1_amd64.deb && \
+sudo apt-get install -f -y && \
+wget https://chromedriver.storage.googleapis.com/92.0.4515.107/chromedriver_linux64.zip && \
+unzip chromedriver_linux64.zip && \
+rm chromedriver_linux64.zip && \
+sudo mv chromedriver /usr/bin/chromedriver && \
+sudo chown root:root /usr/bin/chromedriver && \
+sudo chmod +x /usr/bin/chromedriver
+```
+
+### Nightwatch E2E Tests: admin-portal
+
+To execute the tests you need:
+
+1. Run the DevContainer.
+2. Run local instance of client application to test at `http://127.0.0.1:3002`
+3. Execute the test:
+
+```bash
+cd /workspaces/step/packages/admin-portal
+
+# to execute one test, you can do something like:
+npx nightwatch test/e2e/area.test.ts
+
+# to execute all admin-portal tests:
+npx nightwatch test/e2e/*.ts --serial
+```
+
+Please note that screenshots will be created in
+`/workspaces/step/packages/admin-portal/screens` folder. You can delete this
+folder if you want to stop accumulating them and start fresh to populate it.
+
+### Nightwatch E2E Tests: voting-portal
+
+Refer to voting-portal/test/readme
  

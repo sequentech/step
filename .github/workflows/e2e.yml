@@ -34,9 +34,9 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     env:
-      TEST_URL: ${{ github.event.inputs.urlTest }}
-      ADMIN_PORTAL_TEST_USERNAME: ${{ github.event.inputs.adminUser }}
-      ADMIN_PORTAL_TEST_PASSWORD: ${{ github.event.inputs.adminPassword }}
+      E2E_TEST_URL: ${{ github.event.inputs.urlTest }}
+      E2E_ADMIN_PORTAL_TEST_USERNAME: ${{ github.event.inputs.adminUser }}
+      E2E_ADMIN_PORTAL_TEST_PASSWORD: ${{ github.event.inputs.adminPassword }}
       BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
       BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
     strategy:
@@ -71,17 +71,17 @@ jobs:
     #     cp .env.development .env
     #     docker compose build
     #     docker compose up
-    #     export TEST_URL='http://localhost:3002'
-    #     export ADMIN_PORTAL_TEST_USERNAME='admin'
-    #     export ADMIN_PORTAL_TEST_PASSWORD='admin'
+    #     export E2E_TEST_URL='http://localhost:3002'
+    #     export E2E_ADMIN_PORTAL_TEST_USERNAME='admin'
+    #     export E2E_ADMIN_PORTAL_TEST_PASSWORD='admin'
     #     cd packages/admin-portal/node_modules
     #     cp -r ../../node_modules/@nightwatch .
     #     cp -r ../../node_modules/nightwatch .
     #     cd ..
     #     xvfb-run --auto-servernum npx nightwatch test/e2e/*.ts -c nightwatch.conf-ghaction.js  --env ${{ matrix.browser }}
         # env:
-        #   TEST_URL: ${{ github.event.inputs.urlTest }}
-        #   ADMIN_PORTAL_TEST_USERNAME: ${{ github.event.inputs.adminUser }}
-        #   ADMIN_PORTAL_TEST_PASSWORD: ${{ github.event.inputs.adminPassword }}
+        #   E2E_TEST_URL: ${{ github.event.inputs.urlTest }}
+        #   E2E_ADMIN_PORTAL_TEST_USERNAME: ${{ github.event.inputs.adminUser }}
+        #   E2E_ADMIN_PORTAL_TEST_PASSWORD: ${{ github.event.inputs.adminPassword }}
         #   BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
         #   BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
