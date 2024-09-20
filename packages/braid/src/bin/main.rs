@@ -152,20 +152,6 @@ async fn main() -> Result<()> {
             );
             let board = GrpcB3BoardParams::new(&args.server_url);
 
-            // Try to connect to detect errors early
-            /*let board_result = board.get_board();
-            match board_result {
-                Ok(_) => (),
-                Err(error) => {
-                    error!(
-                        "Error connecting to board '{}': '{}'",
-                        board_name.clone(),
-                        error
-                    );
-                    continue;
-                }
-            };*/
-
             let session = Session::new(&board_name, trustee, board);
             session_map.insert(board_name.clone(), session);
         }
@@ -173,16 +159,11 @@ async fn main() -> Result<()> {
         // This code is sequential, see main_m for an alternative implementation
         for s in session_map.values_mut() {
             let board_name = s.board_name.clone();
-            // info!("* Running trustee for board '{}'..", board_name);
-            // PRINT
-            // use std::io::Write;
-            // print!("{} ", i); std::io::stdout().flush();
 
             let result = s.step().await;
             match result {
                 Ok(_) => (),
                 Err(error) => {
-                    // FIXME should handle a bulletin board refusing messages maliciously
                     error!(
                         "Error executing step for board '{}': '{:?}'",
                         board_name.clone(),
