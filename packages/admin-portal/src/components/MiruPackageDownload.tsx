@@ -36,6 +36,7 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
     const [openModal, setOpenModal] = useState(false)
     const [documentToDownload, setDocumentToDownload] = useState<string | null>(null)
+    const [fileNameWithExt, setFileNameWithExt] = useState<string>("all_servers.tar.gz")
     const [performDownload, setPerformDownload] = useState<boolean>(false)
 
     const fileName = useMemo(() => {
@@ -47,7 +48,7 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
             `__event__${eventName}`,
             Math.floor(FOLDER_MAX_CHARS / 2)
         )
-        return sanitizeFilename(`${sanitizedAreaName}-${sanitizedEventName}.tar.gz`)
+        return sanitizeFilename(`${sanitizedAreaName}-${sanitizedEventName}`)
     }, [areaName, eventName])
 
     const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
@@ -80,7 +81,7 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
                             setDocumentToDownload(null)
                             setPerformDownload(false)
                         }}
-                        fileName={fileName}
+                        fileName={fileNameWithExt}
                         documentId={documentToDownload}
                         electionEventId={electionEventId}
                         withProgress={true}
@@ -111,6 +112,7 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
                             e.preventDefault()
                             e.stopPropagation()
                             handleClose()
+                            setFileNameWithExt(fileName + ".eml")
                             setDocumentToDownload(emlDocumentId)
                             setOpenModal(true)
                         }}
@@ -135,6 +137,7 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
                             e.preventDefault()
                             e.stopPropagation()
                             handleClose()
+                            setFileNameWithExt(fileName + ".tar.gz")
                             setDocumentToDownload(doc.document_ids.all_servers)
                             setOpenModal(true)
                         }}
