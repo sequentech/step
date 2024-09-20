@@ -4,6 +4,7 @@
 pub mod convert_vec;
 pub mod date;
 pub mod date_time;
+pub mod hash_file_verify;
 pub mod normalize_vote;
 
 #[cfg(feature = "log")]

@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::hasura::election_event::get_election_event;
 use crate::postgres::area::get_areas_by_name;
 use crate::postgres::document::get_document;
 use crate::postgres::keycloak_realm;
@@ -18,24 +17,22 @@ use csv::StringRecord;
 use deadpool_postgres::Transaction;
 use deadpool_postgres::{Client as DbClient, Transaction as _};
 use futures::pin_mut;
-use rand::prelude::*;
 use rand::{thread_rng, Rng};
 use regex::Regex;
 use ring::{digest, pbkdf2};
-use rocket::futures::SinkExt as _;
-use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::services::{keycloak, reports};
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::keycloak::{AREA_ID_ATTR_NAME, TENANT_ID_ATTR_NAME};
+use sequent_core::util::hash_file_verify::{verify_file_sha256, HashFileVerifyError};
 use serde::{Deserialize, Serialize};
-use std::fs::File;
-use std::io::Seek;
+use std::fmt::Write;
+use std::io::{Read, Seek};
 use std::num::NonZeroU32;
 use tempfile::NamedTempFile;
 use tokio_postgres::binary_copy::BinaryCopyInWriter;
-use tokio_postgres::types::{ToSql, Type};
-use tracing::{debug, info, instrument};
+use tokio_postgres::types::Type;
+use tracing::{error, info, instrument};
 use uuid::Uuid;
 
 lazy_static! {
@@ -546,6 +543,28 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
             }
         };
     voters_file.rewind()?;
+
+    match verify_file_sha256(&voters_file, body.sha256.clone()) {
+        Ok(_) => {
+            info!("Hash verified !");
+        }
+        Err(HashFileVerifyError::HashMismatch) => {
+            update_fail(&task_execution, "Hash of voters file does not match!").await?;
+            return Err(Error::String(
+                "Hash of voters file does not match!".to_string(),
+            ));
+        }
+        Err(HashFileVerifyError::IoError(str, err)) => {
+            error!("{}: {:?}", str, err);
+            update_fail(&task_execution, &str).await?;
+            return Err(err.into());
+        }
+        Err(HashFileVerifyError::HashComputingError(str, err)) => {
+            error!("{}: {:?}", str, err);
+            update_fail(&task_execution, &str).await?;
+            return Err(err.into());
+        }
+    }
 
     // Read the first line of the file to get the columns
     let mut rdr = csv::ReaderBuilder::new()
