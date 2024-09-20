@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {Box, Menu, MenuItem} from "@mui/material"
-import React, {useState} from "react"
+import React, {useMemo, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {Sequent_Backend_Document} from "@/gql/graphql"
 import {Dialog} from "@sequentech/ui-essentials"
@@ -16,6 +16,24 @@ import {useGetOne} from "react-admin"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {DownloadDocument} from "@/resources/User/DownloadDocument"
 import {StringMap} from "i18next"
+
+const FOLDER_MAX_CHARS = 200 // Define the maximum number of characters
+
+const takeLastNChars = (s: string, n: number): string => {
+    return s.slice(-n)
+}
+
+const sanitizeFilename = (filename: string, max = FOLDER_MAX_CHARS): string => {
+    // Regular expression to match invalid filename characters
+    const invalidCharsRegex = /[<>:"\/\\|?*\x00-\x1F]/g
+
+    // Replace invalid characters with an underscore or remove them
+    const sanitized = filename
+        .replace(invalidCharsRegex, "") // Remove invalid characters
+        .replace(/[\s.]+$/, "") // Remove trailing spaces and dots
+
+    return takeLastNChars(sanitized, max)
+}
 
 interface MiruPackageDownloadProps {
     documents: IMiruDocument[] | null
@@ -41,6 +59,18 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
     const [openModal, setOpenModal] = useState(false)
     const [documentToDownload, setDocumentToDownload] = useState<string | null>(null)
     const [performDownload, setPerformDownload] = useState<boolean>(false)
+
+    const fileName = useMemo(() => {
+        const sanitizedAreaName = sanitizeFilename(
+            `area__${areaName ?? ""}`,
+            Math.floor(FOLDER_MAX_CHARS / 2)
+        )
+        const sanitizedEventName = sanitizeFilename(
+            `__event__${eventName}`,
+            Math.floor(FOLDER_MAX_CHARS / 2)
+        )
+        return sanitizeFilename(`${sanitizedAreaName}-${sanitizedEventName}.tar.gz`)
+    }, [areaName, eventName])
 
     const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
         event.preventDefault()
@@ -72,7 +102,7 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
                             setDocumentToDownload(null)
                             setPerformDownload(false)
                         }}
-                        fileName={null}
+                        fileName={fileName}
                         documentId={documentToDownload}
                         electionEventId={electionEventId}
                         withProgress={true}
