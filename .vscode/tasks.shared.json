@@ -85,7 +85,7 @@
             "command": "bash",
             "args": [
               "-c",
-              "docker compose stop admin-portal voting-portal ballot-verifier; docker rm admin-portal voting-portal ballot-verifier; docker image rm ghcr.io/sequentech/step/admin-portal:latest; docker compose build admin-portal-local && docker compose stop admin-portal-local && docker tag admin-portal-local ghcr.io/sequentech/step/admin-portal:latest && docker compose up -d --no-deps admin-portal voting-portal ballot-verifier && docker compose logs -f --tail 100 admin-portal voting-portal ballot-verifier"
+              "docker compose stop admin-portal voting-portal ballot-verifier; docker rm admin-portal voting-portal ballot-verifier; docker image rm ghcr.io/sequentech/step/admin-portal:latest; docker compose -f docker-compose.dev.yml build admin-portal-local; docker compose stop admin-portal-local; docker tag admin-portal-local ghcr.io/sequentech/step/admin-portal:latest && docker compose up -d --no-deps admin-portal voting-portal ballot-verifier && docker compose logs -f --tail 100 admin-portal voting-portal ballot-verifier"
             ],
             "options": {
                 "env": {
@@ -196,7 +196,7 @@
             "command": "bash",
             "args": [
                 "-c",
-                "docker compose stop keycloak; docker rm keycloak && docker image rm ghcr.io/sequentech/step/keycloak:latest && docker compose build keycloak-local && docker compose stop keycloak-local && docker tag keycloak-local ghcr.io/sequentech/step/keycloak:latest && docker compose up -d --no-deps keycloak && docker compose logs -f --tail 100 keycloak"
+                "docker compose stop keycloak; docker rm keycloak && docker image rm ghcr.io/sequentech/step/keycloak:latest && docker compose -f docker-compose.dev.yml build keycloak-local && docker compose stop keycloak-local; docker tag keycloak-local ghcr.io/sequentech/step/keycloak:latest && docker compose up -d --no-deps keycloak && docker compose logs -f --tail 100 keycloak"
             ],
             "options": {
                 "env": {

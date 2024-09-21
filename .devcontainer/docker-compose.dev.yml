@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: 2023-2024 Eduardo Robles <edu@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+services:
+  keycloak-local:
+    profiles: ["full"]
+    container_name: keycloak-local
+    image: keycloak-local
+    build:
+      context: ../packages/
+      dockerfile: Dockerfile.keycloak
+  admin-portal-local:
+    profiles: ["full"]
+    container_name: admin-portal-local
+    image: admin-portal-local
+    build:
+      context: ../packages/
+      dockerfile: Dockerfile.admin-portal

@@ -15,6 +15,6 @@ source .devcontainer/.env
 # Set LOCAL_WORKSPACE_FOLDER environment variable if not already set
 [ ! -z "${localWorkspaceFolder}" ] || printf "\nLOCAL_WORKSPACE_FOLDER=${SCRIPT_DIR}/..\n" >> .devcontainer/.env
 
-echo "Worskspace are in ${LOCAL_WORKSPACE_FOLDER}"
+echo "Worskspace is in ${LOCAL_WORKSPACE_FOLDER}"
 
 echo "$(pwd)/.devcontainer/.env file initialized successfully"

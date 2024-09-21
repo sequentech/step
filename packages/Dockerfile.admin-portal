@@ -10,7 +10,13 @@ RUN apk add --no-cache yarn
 WORKDIR /app/
 
 #copy only necessary files, exclude source code from the runtime image
-COPY . /app/
+COPY ./admin-portal /app/admin-portal
+COPY ./voting-portal /app/voting-portal
+COPY ./ballot-verifier /app/ballot-verifier
+COPY ./ui-core /app/ui-core
+COPY ./ui-essentials /app/ui-essentials
+COPY ./package.json /app/package.json
+COPY ./yarn.lock ./yarn.lock
 
 # Install dependencies
 RUN yarn --pure-lockfile --non-interactive
