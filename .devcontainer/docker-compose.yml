@@ -293,12 +293,12 @@ services:
     ports:
       - 3002:3002
     stdin_open: true
-    entrypoint: ["yarn", "start:admin-portal"]
+    entrypoint: ["./init-frontend.sh", "start:admin-portal"]
     volumes_from:
       - devcontainer
     depends_on:
       - devcontainer
-    working_dir: /
+    working_dir: /workspaces/step/packages/
     environment:
         MAX_DIFF_LINES: ${MAX_DIFF_LINES}
         SECONDS_TO_SHOW_COUNTDOWN: ${SECONDS_TO_SHOW_COUNTDOWN}
@@ -316,44 +316,36 @@ services:
     image: ghcr.io/sequentech/step/admin-portal:latest
     platform: linux/amd64
     container_name: voting-portal
-    # depending on the `admin-portal` container to ensure that the
-    # `sequentech.local/frontend` image is locally build, so that we can reuse
-    # it:
-    depends_on:
-      - admin-portal
+    entrypoint: ["./init-frontend.sh", "start:voting-portal"]
+    volumes_from:
       - devcontainer
+    depends_on:
+      - devcontainer
+    working_dir: /workspaces/step/packages/
     restart: always
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     ports:
       - 3000:3000
     stdin_open: true
-    entrypoint: ["yarn", "start:voting-portal"]
-    volumes_from:
-      - devcontainer
-    working_dir: /
 
   ballot-verifier:
     profiles: ["full", "base"]
     image: ghcr.io/sequentech/step/admin-portal:latest
     platform: linux/amd64
     container_name: ballot-verifier
-    # depending on the `admin-portal` container to ensure that the
-    # `sequentech.local/frontend` image is locally build, so that we can reuse
-    # it:
-    depends_on:
-      - admin-portal
+    entrypoint: ["./init-frontend.sh", "start:ballot-verifier"]
+    volumes_from:
       - devcontainer
+    depends_on:
+      - devcontainer
+    working_dir: /workspaces/step/packages/
     restart: always
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     ports:
       - 3001:3001
     stdin_open: true
-    entrypoint: ["yarn", "start:ballot-verifier"]
-    volumes_from:
-      - devcontainer
-    working_dir: /
 
   immudb:
     profiles: ["full", "base"]

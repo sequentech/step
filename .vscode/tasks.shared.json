@@ -81,11 +81,11 @@
             "problemMatcher": []
         },
         {
-            "label": "logs.restart.admin-portal",
+            "label": "logs.restart.frontend",
             "command": "bash",
             "args": [
               "-c",
-              "docker compose stop admin-portal voting-portal ballot-verifier; docker rm admin-portal voting-portal ballot-verifier; docker image rm ghcr.io/sequentech/step/admin-portal:latest && docker compose build admin-portal-local && docker compose stop admin-portal-local && docker tag admin-portal-local ghcr.io/sequentech/step/admin-portal:latest && docker compose up -d --no-deps admin-portal voting-portal ballot-verifier && docker compose logs -f --tail 100 admin-portal"
+              "docker compose stop admin-portal voting-portal ballot-verifier; docker rm admin-portal voting-portal ballot-verifier; docker image rm ghcr.io/sequentech/step/admin-portal:latest; docker compose build admin-portal-local && docker compose stop admin-portal-local && docker tag admin-portal-local ghcr.io/sequentech/step/admin-portal:latest && docker compose up -d --no-deps admin-portal voting-portal ballot-verifier && docker compose logs -f --tail 100 admin-portal voting-portal ballot-verifier"
             ],
             "options": {
                 "env": {
@@ -109,7 +109,7 @@
             "problemMatcher": []
         },
         {
-            "label": "start.voting-portal",
+            "label": "logs.voting-portal",
             "command": "bash",
             "args": [
                 "-c",
@@ -137,7 +137,7 @@
             "problemMatcher": []
         },
         {
-            "label": "start.ballot-verifier",
+            "label": "logs.ballot-verifier",
             "command": "devenv",
             "args": [
                 "shell",

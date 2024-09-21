@@ -7,10 +7,10 @@ FROM node:20-alpine
 # Install Yarn
 RUN apk add --no-cache yarn
 
-WORKDIR /usr/src/app/
+WORKDIR /app/
 
 #copy only necessary files, exclude source code from the runtime image
-COPY . /
+COPY . /app/
 
 # Install dependencies
 RUN yarn --pure-lockfile --non-interactive
