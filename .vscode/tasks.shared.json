@@ -53,39 +53,11 @@
             "problemMatcher": []
         },
         {
-            "label": "logs.admin-portal",
-            "command": "bash",
-            "args": [
-                "-c",
-                "docker compose logs -f --tail 100 admin-portal"
-            ],
-            "options": {
-                "env": {
-                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base"
-                },
-                "cwd": "${workspaceFolder}/.devcontainer"
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
             "label": "logs.restart.frontend",
             "command": "bash",
             "args": [
               "-c",
-              "docker compose stop admin-portal voting-portal ballot-verifier; docker rm admin-portal voting-portal ballot-verifier; docker image rm ghcr.io/sequentech/step/admin-portal:latest; docker compose -f docker-compose.dev.yml build admin-portal-local; docker compose stop admin-portal-local; docker tag admin-portal-local ghcr.io/sequentech/step/admin-portal:latest && docker compose up -d --no-deps admin-portal voting-portal ballot-verifier && docker compose logs -f --tail 100 admin-portal voting-portal ballot-verifier"
+              "docker compose stop admin-portal voting-portal ballot-verifier; docker rm admin-portal voting-portal ballot-verifier; docker image rm ghcr.io/sequentech/step/admin-portal:latest; docker compose -f docker-compose.dev.yml build admin-portal-local; docker compose stop admin-portal-local; docker tag admin-portal-local ghcr.io/sequentech/step/admin-portal:latest && docker compose up -d --no-deps admin-portal voting-portal ballot-verifier && docker system prune --all --force && docker compose logs -f --tail 100 admin-portal voting-portal ballot-verifier"
             ],
             "options": {
                 "env": {
@@ -109,11 +81,11 @@
             "problemMatcher": []
         },
         {
-            "label": "logs.voting-portal",
+            "label": "logs.frontend",
             "command": "bash",
             "args": [
                 "-c",
-                "docker compose up -d --no-deps voting-portal"
+                "docker compose up -d --no-deps admin-portal voting-portal ballot-verifier"
             ],
             "options": {
                 "env": {
@@ -122,30 +94,6 @@
                 },
                 "cwd": "${workspaceFolder}/.devcontainer"
             },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "logs.ballot-verifier",
-            "command": "devenv",
-            "args": [
-                "shell",
-                "bash",
-                "--",
-                "-c",
-                "cd packages && yarn start:ballot-verifier"
-            ],
             "presentation": {
                 "echo": true,
                 "reveal": "always",
@@ -196,7 +144,7 @@
             "command": "bash",
             "args": [
                 "-c",
-                "docker compose stop keycloak; docker rm keycloak && docker image rm ghcr.io/sequentech/step/keycloak:latest && docker compose -f docker-compose.dev.yml build keycloak-local && docker compose stop keycloak-local; docker tag keycloak-local ghcr.io/sequentech/step/keycloak:latest && docker compose up -d --no-deps keycloak && docker compose logs -f --tail 100 keycloak"
+                "docker compose stop keycloak; docker rm keycloak && docker image rm ghcr.io/sequentech/step/keycloak:latest && docker compose -f docker-compose.dev.yml build keycloak-local && docker compose stop keycloak-local; docker tag keycloak-local ghcr.io/sequentech/step/keycloak:latest && docker compose up -d --no-deps keycloak; docker system prune --all --force && docker compose logs -f --tail 100 keycloak"
             ],
             "options": {
                 "env": {
@@ -224,7 +172,7 @@
           "command": "bash",
           "args": [
             "-c",
-            "docker compose stop simplesaml; docker compose build simplesaml && docker compose up -d --no-deps simplesaml && docker compose logs -f --tail 100 simplesaml"
+            "docker compose stop simplesaml; docker compose build simplesaml && docker compose up -d --no-deps simplesaml && docker system prune --all --force && docker compose logs -f --tail 100 simplesaml"
           ],
           "options": {
             "env": {
