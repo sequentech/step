@@ -4,6 +4,7 @@
 
 services:
   devcontainer:
+    profiles: ["full", "base"]
     image: ghcr.io/cachix/devenv:v1.0.8
     container_name: devcontainer
     volumes:
@@ -25,8 +26,19 @@ services:
       # as a data source. this can be removed/updated based on your needs
       PG_DATABASE_URL: ${HASURA_PG_DATABASE_URL}
 
+  simplesaml:
+    profiles: ["full"]
+    image: kenchan0130/simplesamlphp
+    container_name: simplesamlphp
+    ports:
+      - "8083:8080"
+    volumes:
+      - ./simplesaml/authsources.php:/var/www/simplesamlphp/config/authsources.php
+      - ./simplesaml/saml20-sp-remote.php:/var/www/simplesamlphp/metadata/saml20-sp-remote.php
+
   # Needed to set up proper permissions for non root user in postgres
   postgres-volume-init:
+    profiles: ["full", "base"]
     image: alpine
     container_name: postgres-volume-init
     volumes: 
@@ -38,6 +50,7 @@ services:
     command: chown -R 999:999 /logs /keycloak_logs
 
   postgres:
+    profiles: ["full", "base"]
     image: ghcr.io/sequentech/step/postgres:latest
     container_name: postgres
     restart: unless-stopped
@@ -57,6 +70,7 @@ services:
       - postgres-volume-init
 
   minio:
+    profiles: ["full", "base"]
     container_name: minio
     image: minio/minio
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
@@ -82,6 +96,7 @@ services:
   
   # used to add headers to minio
   minio-proxy:
+    profiles: ["full", "base"]
     container_name: minio-proxy
     image: nginx:latest
     ports:
@@ -92,6 +107,7 @@ services:
       - minio
   
   configure-minio:
+    profiles: ["full", "base"]
     container_name: configure-minio
     image: ghcr.io/sequentech/step/minio:latest
     depends_on:
@@ -108,6 +124,7 @@ services:
 
   # hashicorp vault to store secrets
   vault:
+    profiles: ["full", "base"]
     container_name: vault
     image: ghcr.io/sequentech/step/vault:latest
     restart: on-failure:10
@@ -130,6 +147,7 @@ services:
     entrypoint: /opt/vault/entrypoint.sh
 
   graphql-engine:
+    profiles: ["full", "base"]
     image: hasura/graphql-engine:v2.33.1.cli-migrations-v3
     container_name: hasura
     ports:
@@ -173,6 +191,7 @@ services:
         condition: service_healthy
 
   data-connector-agent:
+    profiles: ["full", "base"]
     container_name: data-connector-agent
     image: hasura/graphql-data-connector:v2.31.0
     restart: always
@@ -191,6 +210,7 @@ services:
       start_period: 5s
 
   postgres-keycloak:
+    profiles: ["full", "base"]
     image: ghcr.io/sequentech/step/postgres:latest
     container_name: postgres-keycloak
     restart: unless-stopped
@@ -213,6 +233,7 @@ services:
       - postgres
 
   keycloak:
+    profiles: ["full", "base"]
     container_name: keycloak
     image: ghcr.io/sequentech/step/keycloak:latest
     restart: always
@@ -263,6 +284,7 @@ services:
       dockerfile: Dockerfile.keycloak
 
   admin-portal:
+    profiles: ["full", "base"]
     image: ghcr.io/sequentech/step/admin-portal:latest
     platform: linux/amd64
     container_name: admin-portal
@@ -283,6 +305,7 @@ services:
         SECONDS_TO_SHOW_ALRET: ${SECONDS_TO_SHOW_ALRET}
 
   voting-portal:
+    profiles: ["full", "base"]
     image: ghcr.io/sequentech/step/admin-portal:latest
     platform: linux/amd64
     container_name: voting-portal
@@ -304,6 +327,7 @@ services:
     working_dir: /
 
   ballot-verifier:
+    profiles: ["full", "base"]
     image: ghcr.io/sequentech/step/admin-portal:latest
     platform: linux/amd64
     container_name: ballot-verifier
@@ -325,6 +349,7 @@ services:
     working_dir: /
 
   immudb:
+    profiles: ["full", "base"]
     container_name: immudb
     image: ghcr.io/sequentech/step/immudb:latest
     restart: always
@@ -343,6 +368,7 @@ services:
       - immudb-init
   
   harvest:
+    profiles: ["full", "base"]
     stdin_open: true
     image: ghcr.io/sequentech/step/cargo-packages:latest
     container_name: harvest
@@ -422,78 +448,72 @@ services:
     ports:
      - ${HARVEST_PORT}:${HARVEST_PORT}
 
-  # trustee1:
-  #   stdin_open: true
-  #   container_name: trustee1
-  #   image: ghcr.io/sequentech/step/trustee:latest
-  #   volumes:
-  #     - trustee1_data:/opt/braid
-  #   environment:
-  #       IMMUDB_USER: ${IMMUDB_USER}
-  #       IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-  #       IMMUDB_URL: ${IMMUDB_SERVER_URL}
-  #       IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
-  #       TRUSTEE_NAME: trustee1
-  #       TRUSTEE_CONFIG: ${TRUSTEE1_CONFIG}
-  #       IGNORE_BOARDS: ${IGNORE_BOARDS}
-  #       SECRETS_BACKEND: ${SECRETS_BACKEND}
-  #       VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-  #       VAULT_TOKEN: ${VAULT_TOKEN}
-  #   depends_on:
-  #     - immudb
+  trustee1:
+    profiles: ["full"]
+    stdin_open: true
+    container_name: trustee1
+    image: ghcr.io/sequentech/step/trustee:latest
+    volumes:
+      - trustee1_data:/opt/braid
+    environment:
+        IMMUDB_USER: ${IMMUDB_USER}
+        IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
+        IMMUDB_URL: ${IMMUDB_SERVER_URL}
+        IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
+        TRUSTEE_NAME: trustee1
+        TRUSTEE_CONFIG: ${TRUSTEE1_CONFIG}
+        IGNORE_BOARDS: ${IGNORE_BOARDS}
+        SECRETS_BACKEND: ${SECRETS_BACKEND}
+        VAULT_SERVER_URL: ${VAULT_SERVER_URL}
+        VAULT_TOKEN: ${VAULT_TOKEN}
+    depends_on:
+      - immudb
+
+  trustee2:
+    profiles: ["full"]
+    stdin_open: true
+    image: ghcr.io/sequentech/step/trustee:latest
+    container_name: trustee2
+    volumes:
+      - trustee2_data:/opt/braid
+    depends_on:
+      - immudb
+    environment:
+        IMMUDB_USER: ${IMMUDB_USER}
+        IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
+        IMMUDB_URL: ${IMMUDB_SERVER_URL}
+        IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
+        TRUSTEE_NAME: trustee2
+        TRUSTEE_CONFIG: ${TRUSTEE2_CONFIG}
+        IGNORE_BOARDS: ${IGNORE_BOARDS}
+        SECRETS_BACKEND: ${SECRETS_BACKEND}
+        VAULT_SERVER_URL: ${VAULT_SERVER_URL}
+        VAULT_TOKEN: ${VAULT_TOKEN}
   
-  # trustee2:
-  #   #profiles: ["full"]
-  #   stdin_open: true
-  #   image: sequentech.local/braid
-  #   container_name: trustee2
-  #   volumes:
-  #     - trustee2_data:/opt/braid
-  #   # depending on the `trustee1` container to ensure that the
-  #   # `sequentech.local/braid` image is locally build, so that we can reuse
-  #   # it:
-  #   depends_on:
-  #     - trustee1
-  #     - immudb
-  #   environment:
-  #       IMMUDB_USER: ${IMMUDB_USER}
-  #       IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-  #       IMMUDB_URL: ${IMMUDB_SERVER_URL}
-  #       IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
-  #       TRUSTEE_NAME: trustee2
-  #       TRUSTEE_CONFIG: ${TRUSTEE2_CONFIG}
-  #       IGNORE_BOARDS: ${IGNORE_BOARDS}
-  #       SECRETS_BACKEND: ${SECRETS_BACKEND}
-  #       VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-  #       VAULT_TOKEN: ${VAULT_TOKEN}
-  
-  # trustee3:
-  #   profiles: ["full"]
-  #   stdin_open: true
-  #   image: sequentech.local/braid
-  #   container_name: trustee3
-  #   volumes:
-  #     - trustee3_data:/opt/braid
-  #   # depending on the `trustee1` container to ensure that the
-  #   # `sequentech.local/braid` image is locally build, so that we can reuse
-  #   # it:
-  #   depends_on:
-  #     - trustee1
-  #     - immudb
-  #   environment:
-  #       IMMUDB_USER: ${IMMUDB_USER}
-  #       IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-  #       IMMUDB_URL: ${IMMUDB_SERVER_URL}
-  #       IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
-  #       TRUSTEE_NAME: trustee3
-  #       TRUSTEE_CONFIG: ${TRUSTEE3_CONFIG}
-  #       IGNORE_BOARDS: ${IGNORE_BOARDS}
-  #       SECRETS_BACKEND: ${SECRETS_BACKEND}
-  #       VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-  #       VAULT_TOKEN: ${VAULT_TOKEN}
+  trustee3:
+    profiles: ["full"]
+    stdin_open: true
+    image: ghcr.io/sequentech/step/trustee:latest
+    container_name: trustee3
+    volumes:
+      - trustee3_data:/opt/braid
+    depends_on:
+      - immudb
+    environment:
+        IMMUDB_USER: ${IMMUDB_USER}
+        IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
+        IMMUDB_URL: ${IMMUDB_SERVER_URL}
+        IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
+        TRUSTEE_NAME: trustee3
+        TRUSTEE_CONFIG: ${TRUSTEE3_CONFIG}
+        IGNORE_BOARDS: ${IGNORE_BOARDS}
+        SECRETS_BACKEND: ${SECRETS_BACKEND}
+        VAULT_SERVER_URL: ${VAULT_SERVER_URL}
+        VAULT_TOKEN: ${VAULT_TOKEN}
 
   # Create collection in immudb
   immudb-log-audit-init:
+    profiles: ["full", "base"]
     image: ghcr.io/sequentech/step/immudb-log-audit:latest
     container_name: immudb-log-audit-init
     command: >
@@ -511,6 +531,7 @@ services:
 
   # Send audit logs to immudb
   immudb-log-audit:
+    profiles: ["full", "base"]
     image: ghcr.io/sequentech/step/immudb-log-audit:latest
     container_name: immudb-log-audit
     command: >
@@ -540,6 +561,7 @@ services:
 
   # Create collection in immudb
   immudb-log-audit-init-keycloak:
+    profiles: ["full", "base"]
     image: ghcr.io/sequentech/step/immudb-log-audit:latest
     container_name: immudb-log-audit-init-keycloak
     command: >
@@ -558,6 +580,7 @@ services:
 
   # Send audit logs to immudb
   immudb-log-audit-keycloak:
+    profiles: ["full", "base"]
     image: ghcr.io/sequentech/step/immudb-log-audit:latest
     container_name: immudb-log-audit-keycloak
     command: >
@@ -583,6 +606,7 @@ services:
       - immudb-log-audit-init-keycloak
 
   rabbitmq:
+    profiles: ["full", "base"]
     image: rabbitmq:3.12.11-management
     container_name: rabbitmq
     environment:
@@ -593,6 +617,7 @@ services:
       - "15672:15672"
 
   immudb-init:
+    profiles: ["full", "base"]
     stdin_open: true
     image: ghcr.io/sequentech/step/cargo-packages:latest
     container_name: immudb-init
@@ -611,6 +636,7 @@ services:
       - .env
 
   windmill:
+    profiles: ["full", "base"]
     stdin_open: true
     image: ghcr.io/sequentech/step/cargo-packages:latest
     container_name: windmill
@@ -714,39 +740,40 @@ services:
        #Demo key
       DEMO_PUBLIC_KEY: ${DEMO_PUBLIC_KEY}
 
-  # beat:
-  #   stdin_open: true
-  #   image: ghcr.io/sequentech/step/cargo-packages:latest
-  #   container_name: beat
-  #   volumes_from:
-  #     - devcontainer
-  #   # make sure to depend on the `harvest` container to ensure
-  #   # that the `sequentech.local/cargo-packages` image is locally build, so
-  #   # that we can reuse it:
-  #   depends_on:
-  #     - devcontainer
-  #     - harvest
-  #   working_dir: /workspaces/step/packages/windmill
-  #   entrypoint: [
-  #     "cargo",
-  #     "watch",
-  #     "--why",
-  #     # ignoring rust-local-target/ since it's used for local builds and
-  #     # otherwise triggers a rebuild all the time (probably rust analyzer)
-  #     "--ignore",
-  #     "rust-local-target/",
-  #     "-x",
-  #     "run --bin beat"
-  #   ]
-  #   environment:
-  #     RUSTFLAGS: ${RUSTFLAGS}
-  #     LOG_LEVEL: ${LOG_LEVEL}
-  #     CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
-  #     HASURA_ENDPOINT: ${HASURA_ENDPOINT}
-  #     AMQP_ADDR: ${AMQP_ADDR}
-  #     BEAT_PROBE_ADDR: ${BEAT_PROBE_ADDR}
-  #     BEAT_PROBE_LIVE_PATH: ${BEAT_PROBE_LIVE_PATH}
-  #     BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
+  beat:
+    profiles: ["full", "base"]
+    stdin_open: true
+    image: ghcr.io/sequentech/step/cargo-packages:latest
+    container_name: beat
+    volumes_from:
+      - devcontainer
+    # make sure to depend on the `harvest` container to ensure
+    # that the `sequentech.local/cargo-packages` image is locally build, so
+    # that we can reuse it:
+    depends_on:
+      - devcontainer
+      - harvest
+    working_dir: /workspaces/step/packages/windmill
+    entrypoint: [
+      "cargo",
+      "watch",
+      "--why",
+      # ignoring rust-local-target/ since it's used for local builds and
+      # otherwise triggers a rebuild all the time (probably rust analyzer)
+      "--ignore",
+      "rust-local-target/",
+      "-x",
+      "run --bin beat"
+    ]
+    environment:
+      RUSTFLAGS: ${RUSTFLAGS}
+      LOG_LEVEL: ${LOG_LEVEL}
+      CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
+      HASURA_ENDPOINT: ${HASURA_ENDPOINT}
+      AMQP_ADDR: ${AMQP_ADDR}
+      BEAT_PROBE_ADDR: ${BEAT_PROBE_ADDR}
+      BEAT_PROBE_LIVE_PATH: ${BEAT_PROBE_LIVE_PATH}
+      BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
 
 volumes:
   db_data:
