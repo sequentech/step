@@ -53,11 +53,11 @@
             "problemMatcher": []
         },
         {
-            "label": "start.admin-portal",
+            "label": "logs.admin-portal",
             "command": "bash",
             "args": [
                 "-c",
-                "docker compose up -d --no-deps admin-portal"
+                "docker compose logs -f --tail 100 admin-portal"
             ],
             "options": {
                 "env": {
@@ -81,15 +81,19 @@
             "problemMatcher": []
         },
         {
-            "label": "start.build.admin-portal",
-            "command": "devenv",
+            "label": "logs.restart.admin-portal",
+            "command": "bash",
             "args": [
-                "shell",
-                "bash",
-                "--",
-                "-c",
-                "cd packages && yarn && yarn build:ui-core && yarn build:ui-essentials && yarn start:admin-portal"
+              "-c",
+              "docker compose stop admin-portal voting-portal ballot-verifier; docker rm admin-portal voting-portal ballot-verifier; docker image rm ghcr.io/sequentech/step/admin-portal:latest && docker compose build admin-portal-local && docker compose stop admin-portal-local && docker tag admin-portal-local ghcr.io/sequentech/step/admin-portal:latest && docker compose up -d --no-deps admin-portal voting-portal ballot-verifier && docker compose logs -f --tail 100 admin-portal"
             ],
+            "options": {
+                "env": {
+                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
+                    "COMPOSE_PROFILES": "base"
+                },
+                "cwd": "${workspaceFolder}/.devcontainer"
+            },
             "presentation": {
                 "echo": true,
                 "reveal": "always",

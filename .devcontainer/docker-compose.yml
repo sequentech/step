@@ -304,6 +304,13 @@ services:
         SECONDS_TO_SHOW_COUNTDOWN: ${SECONDS_TO_SHOW_COUNTDOWN}
         SECONDS_TO_SHOW_ALRET: ${SECONDS_TO_SHOW_ALRET}
 
+  admin-portal-local:
+    container_name: admin-portal-local
+    image: admin-portal-local
+    build:
+      context: ../packages/
+      dockerfile: Dockerfile.admin-portal
+
   voting-portal:
     profiles: ["full", "base"]
     image: ghcr.io/sequentech/step/admin-portal:latest
