@@ -11,7 +11,8 @@ use crate::services::pg_lock::PgLock;
 use crate::services::voting_status::{self};
 use crate::types::error::{Error, Result};
 use crate::types::scheduled_event::EventProcessors;
-use anyhow::{anyhow, Result as AnyhowResult};
+use anyhow::{anyhow, Context, Result as AnyhowResult};
+use async_trait::async_trait;
 use celery::error::TaskError;
 use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
@@ -19,7 +20,7 @@ use deadpool_postgres::Transaction;
 use sequent_core::ballot::{ElectionStatus, VotingStatus};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
-use tracing::{event, info, Level};
+use tracing::{error, event, info, Level};
 use uuid::Uuid;
 
 #[instrument(err)]
