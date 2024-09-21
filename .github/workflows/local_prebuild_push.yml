@@ -5,8 +5,9 @@
 name: Local images Prebuild and Push
 
 on:
-  schedule:
-    - cron: "0 0 * * *"
+  pull_request:
+  push:
+    branches: [ 'main' ]
   workflow_dispatch:
 
 jobs:
