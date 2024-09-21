@@ -8,6 +8,7 @@ use crate::postgres::scheduled_event::*;
 use crate::services::database::get_hasura_pool;
 use crate::services::date::ISO8601;
 use crate::services::pg_lock::PgLock;
+use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::voting_status::{self};
 use crate::types::error::{Error, Result};
 use crate::types::scheduled_event::EventProcessors;
@@ -110,6 +111,25 @@ pub async fn manage_election_date(
         Uuid::new_v4().to_string(),
         ISO8601::now() + Duration::seconds(120),
     )
+    .await?;
+
+    provide_hasura_transaction(|hasura_transaction| {
+        let tenant_id = tenant_id.clone();
+        let election_event_id = election_event_id.clone();
+        let scheduled_event_id = scheduled_event_id.clone();
+        let election_id = election_id.clone();
+        Box::pin(async move {
+            // Your async code here
+            manage_election_date_wrapper(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                scheduled_event_id,
+                election_id,
+            )
+            .await
+        })
+    })
     .await?;
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await

@@ -6,13 +6,14 @@ use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use std::future::Future;
-use tracing::instrument;
+use std::pin::Pin;
+use tokio::runtime::Runtime;
+use tracing::{info, instrument};
 
 #[instrument(skip(handler), err)]
-pub async fn provide_transaction<F, Fut>(handler: F, mut db_client: DbClient) -> Result<()>
+pub async fn provide_transaction<F>(handler: F, mut db_client: DbClient) -> Result<()>
 where
-    F: Fn(&Transaction<'_>) -> Fut,
-    Fut: Future<Output = Result<()>>,
+    for<'a> F: FnOnce(&'a Transaction<'a>) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>>,
 {
     let hasura_transaction = db_client.transaction().await?;
 
@@ -39,15 +40,16 @@ where
 }
 
 #[instrument(skip(handler), err)]
-pub async fn provide_hasura_transaction<F, Fut>(handler: F) -> Result<()>
+pub async fn provide_hasura_transaction<F>(handler: F) -> Result<()>
 where
-    F: Fn(&Transaction<'_>) -> Fut,
-    Fut: Future<Output = Result<()>>,
+    for<'a> F: FnOnce(&'a Transaction<'a>) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>>,
 {
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
         .await
         .map_err(|e| anyhow!("Error getting hasura client {}", e))?;
-    provide_transaction(handler, hasura_db_client).await
+    let hasura_transaction = hasura_db_client.transaction().await?;
+
+    handler(&hasura_transaction).await
 }
