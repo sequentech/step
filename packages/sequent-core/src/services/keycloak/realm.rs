@@ -77,11 +77,9 @@ impl KeycloakAdminClient {
         };
         let mut realm: RealmRepresentation =
             serde_json::from_str(&replaced_ids_config)?;
-        realm.realm = Some(board_name.into());
-        if let Some(name) = display_name {
-            realm.display_name = Some(name);
-        }
 
+        // set realm name
+        realm.realm = Some(board_name.into());
         if let Some(name) = display_name {
             realm.display_name = Some(name);
         }
