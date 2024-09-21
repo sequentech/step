@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
 //
-// SPDX-License-Identifier: AGPL-3.0-only 
+// SPDX-License-Identifier: AGPL-3.0-only
 #![recursion_limit = "256"]
 #![feature(result_flattening)]
 #[macro_use]

@@ -94,7 +94,7 @@ async fn manage_election_date_wrapper(
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task]
+#[celery::task(time_limit = 10, max_retries = 0, expires = 30)]
 pub async fn manage_election_date(
     tenant_id: String,
     election_event_id: String,
