@@ -12,8 +12,6 @@ import {useLocation, useNavigate} from "react-router"
 import {ExecutionResult} from "graphql"
 import {GetAllTenantsQuery} from "@/gql/graphql"
 
-import {useLocation, useNavigate, useParams} from "react-router"
-
 /**
  * AuthContextValues defines the structure for the default values of the {@link AuthContext}.
  */
@@ -208,8 +206,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         if (keycloak) {
             return
         }
-        let localStoredTenant = localStorage.getItem("selected-tenant-id")
-        let newTenant = localStoredTenant ? localStoredTenant : globalSettings.DEFAULT_TENANT_ID
         /**
          * KeycloakConfig configures the connection to the Keycloak server.
          */
@@ -274,6 +270,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         if (keycloak || !loaded) {
             return
         }
+        createKeycloak()
     }, [loaded, keycloak])
 
     useEffect(() => {

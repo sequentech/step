@@ -378,7 +378,6 @@ const catalanTranslation: TranslationType = {
                 tally: "Recompte",
                 publish: "Publicar",
                 logs: "Registres",
-                events: "Esdeveniments",
                 tasks: "Tasques",
             },
             tally: {
@@ -499,9 +498,6 @@ const catalanTranslation: TranslationType = {
             },
         },
         tenantScreen: {
-            list: {
-                title: "Tenants",
-            },
             common: {
                 title: "Llogaters",
             },

@@ -80,6 +80,7 @@ impl KeycloakAdminClient {
 
         // set realm name
         realm.realm = Some(board_name.into());
+
         if let Some(name) = display_name {
             realm.display_name = Some(name);
         }

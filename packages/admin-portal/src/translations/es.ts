@@ -378,7 +378,6 @@ const spanishTranslation: TranslationType = {
                 tally: "Recuento",
                 publish: "Publicar",
                 logs: "Logs",
-                events: "Eventos",
                 tasks: "Tareas",
             },
             tally: {
@@ -498,9 +497,6 @@ const spanishTranslation: TranslationType = {
             },
         },
         tenantScreen: {
-            list: {
-                title: "Inquilini",
-            },
             common: {
                 title: "Inquilinos",
             },

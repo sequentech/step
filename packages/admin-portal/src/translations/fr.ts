@@ -378,7 +378,6 @@ const frenchTranslation: TranslationType = {
                 tally: "Comptage",
                 publish: "Publier",
                 logs: "Journaux",
-                events: "Événements",
                 tasks: "Tâches",
             },
             tally: {
@@ -500,9 +499,6 @@ const frenchTranslation: TranslationType = {
             },
         },
         tenantScreen: {
-            list: {
-                title: "Locataires",
-            },
             common: {
                 title: "Locataires",
             },

@@ -377,7 +377,6 @@ const englishTranslation = {
                 tally: "Tally",
                 publish: "Publish",
                 logs: "Logs",
-                events: "Events",
                 tasks: "Tasks",
             },
             tally: {
@@ -497,9 +496,6 @@ const englishTranslation = {
             },
         },
         tenantScreen: {
-            list: {
-                title: "Tenants",
-            },
             common: {
                 title: "Tenants",
             },

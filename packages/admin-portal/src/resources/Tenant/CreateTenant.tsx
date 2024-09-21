@@ -48,7 +48,6 @@ export const CreateTenant: React.FC<CreateTenantProps> = ({isDrawerOpen, setIsDr
         }
         if (isLoading && !error && !isOneLoading && newTenant) {
             setIsLoading(false)
-            setIsDrawerOpen(false)
             notify(t("tenantScreen.createSuccess"), {type: "success"})
             setIsDrawerOpen(false)
         }
