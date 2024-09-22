@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
-// SPDX-License-IdentifierText: 2024 David Ruescas <david@sequentech.io>
-// SPDX-License-IdentifierText: 2024 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2024 David Ruescas <david@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -54,7 +54,7 @@ pub async fn insert_cast_vote(
     .map_err(|cast_vote_err| {
         let duration = start.elapsed();
         info!(
-            "insert-cast-vote took {} ms to complete but failed.",
+            "insert-cast-vote took {} ms to complete but failed with error={cast_vote_err:?}",
             duration.as_millis()
         );
 
@@ -65,116 +65,116 @@ pub async fn insert_cast_vote(
                 "Area not found",
                 ErrorCode::AreaNotFound,
             ),
-            CastVoteError::ElectionEventNotFound(error_str) => {
+            CastVoteError::ElectionEventNotFound(_) => {
                 ErrorResponse::new(
                     Status::NotFound,
-                    &error_str,
+                    "Election Event Not Found",
                     ErrorCode::ElectionEventNotFound,
                 )
             }
-            CastVoteError::ElectoralLogNotFound(error_str) => {
+            CastVoteError::ElectoralLogNotFound(_) => {
                 ErrorResponse::new(
                     Status::NotFound,
-                    &error_str,
+                    "Electoral Log Not Found",
                     ErrorCode::ElectoralLogNotFound,
                 )
             }
-            CastVoteError::CheckStatusFailed(error_str) => ErrorResponse::new(
-                Status::BadRequest,
-                &error_str,
-                ErrorCode::CheckStatusFailed,
+            CastVoteError::CheckStatusFailed(_) => ErrorResponse::new(
+                Status::InternalServerError,
+                ErrorCode::InternalServerError.to_string().as_str(),
+                ErrorCode::InternalServerError,
             ),
-            CastVoteError::CheckPreviousVotesFailed(error_str) => {
+            CastVoteError::CheckPreviousVotesFailed(_) => {
                 ErrorResponse::new(
-                    Status::Conflict,
-                    &error_str,
+                    Status::BadRequest,
+                    ErrorCode::CheckPreviousVotesFailed.to_string().as_str(),
                     ErrorCode::CheckPreviousVotesFailed,
                 )
             }
-            CastVoteError::InsertFailed(error_str) => ErrorResponse::new(
+            CastVoteError::InsertFailed(_) => ErrorResponse::new(
                 Status::InternalServerError,
-                &error_str,
-                ErrorCode::InsertFailed,
+                ErrorCode::InternalServerError.to_string().as_str(),
+                ErrorCode::InternalServerError,
             ),
-            CastVoteError::CommitFailed(error_str) => ErrorResponse::new(
+            CastVoteError::CommitFailed(_) => ErrorResponse::new(
                 Status::InternalServerError,
-                &error_str,
-                ErrorCode::CommitFailed,
+                ErrorCode::InternalServerError.to_string().as_str(),
+                ErrorCode::InternalServerError,
             ),
-            CastVoteError::GetDbClientFailed(error_str) => ErrorResponse::new(
+            CastVoteError::GetDbClientFailed(_) => ErrorResponse::new(
                 Status::InternalServerError,
-                &error_str,
-                ErrorCode::GetDbClientFailed,
+                ErrorCode::InternalServerError.to_string().as_str(),
+                ErrorCode::InternalServerError,
             ),
-            CastVoteError::GetClientCredentialsFailed(error_str) => {
+            CastVoteError::GetClientCredentialsFailed(_) => {
                 ErrorResponse::new(
                     Status::Unauthorized,
-                    &error_str,
+                    ErrorCode::GetClientCredentialsFailed.to_string().as_str(),
                     ErrorCode::GetClientCredentialsFailed,
                 )
             }
-            CastVoteError::GetAreaIdFailed(error_str) => ErrorResponse::new(
+            CastVoteError::GetAreaIdFailed(_) => ErrorResponse::new(
                 Status::BadRequest,
-                &error_str,
+                ErrorCode::GetAreaIdFailed.to_string().as_str(),
                 ErrorCode::GetAreaIdFailed,
             ),
-            CastVoteError::GetTransactionFailed(error_str) => {
+            CastVoteError::GetTransactionFailed(_) => {
                 ErrorResponse::new(
                     Status::InternalServerError,
-                    &error_str,
+                    ErrorCode::InternalServerError.to_string().as_str(),
                     ErrorCode::GetTransactionFailed,
                 )
             }
-            CastVoteError::DeserializeBallotFailed(error_str) => {
+            CastVoteError::DeserializeBallotFailed(_) => {
                 ErrorResponse::new(
                     Status::BadRequest,
-                    &error_str,
+                    ErrorCode::DeserializeBallotFailed.to_string().as_str(),
                     ErrorCode::DeserializeBallotFailed,
                 )
             }
-            CastVoteError::DeserializeContestsFailed(error_str) => {
+            CastVoteError::DeserializeContestsFailed(_) => {
                 ErrorResponse::new(
                     Status::BadRequest,
-                    &error_str,
+                    ErrorCode::DeserializeContestsFailed.to_string().as_str(),
                     ErrorCode::DeserializeContestsFailed,
                 )
             }
-            CastVoteError::SerializeVoterIdFailed(error_str) => {
+            CastVoteError::SerializeVoterIdFailed(_) => {
                 ErrorResponse::new(
                     Status::InternalServerError,
-                    &error_str,
-                    ErrorCode::SerializeVoterIdFailed,
+                    ErrorCode::InternalServerError.to_string().as_str(),
+                    ErrorCode::InternalServerError,
                 )
             }
-            CastVoteError::SerializeBallotFailed(error_str) => {
+            CastVoteError::SerializeBallotFailed(_) => {
                 ErrorResponse::new(
                     Status::InternalServerError,
-                    &error_str,
-                    ErrorCode::SerializeBallotFailed,
+                    ErrorCode::InternalServerError.to_string().as_str(),
+                    ErrorCode::InternalServerError,
                 )
             }
-            CastVoteError::PokValidationFailed(error_str) => {
+            CastVoteError::PokValidationFailed(_) => {
                 ErrorResponse::new(
                     Status::BadRequest,
-                    &error_str,
+                    ErrorCode::PokValidationFailed.to_string().as_str(),
                     ErrorCode::PokValidationFailed,
                 )
             }
-            CastVoteError::BallotSignFailed(error_str) => ErrorResponse::new(
+            CastVoteError::BallotSignFailed(_) => ErrorResponse::new(
                 Status::InternalServerError,
-                &error_str,
-                ErrorCode::BallotSignFailed,
+                ErrorCode::InternalServerError.to_string().as_str(),
+                ErrorCode::InternalServerError,
             ),
-            CastVoteError::UuidParseFailed(error_str1, error_str2) => {
+            CastVoteError::UuidParseFailed(_, _) => {
                 ErrorResponse::new(
                     Status::BadRequest,
-                    &format!("{} Error parsing: {}", error_str1, error_str2),
+                    ErrorCode::UuidParseFailed.to_string().as_str(),
                     ErrorCode::UuidParseFailed,
                 )
             }
-            CastVoteError::UnknownError(error_str) => ErrorResponse::new(
+            CastVoteError::UnknownError(_) => ErrorResponse::new(
                 Status::InternalServerError,
-                &error_str,
+                ErrorCode::UnknownError.to_string().as_str(),
                 ErrorCode::UnknownError,
             ),
         }

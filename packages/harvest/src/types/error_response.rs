@@ -6,13 +6,14 @@ use rocket::http::Status;
 use rocket::response::status::Custom;
 use rocket::serde::{json::Json, Serialize};
 use std::convert::AsRef;
-use strum_macros::AsRefStr;
+use strum_macros::{Display, AsRefStr};
 use tracing::instrument;
 
 pub type JsonError = Custom<Json<ErrorResponse>>;
 
-#[derive(Serialize, AsRefStr, Debug)]
+#[derive(Serialize, AsRefStr, Display, Debug)]
 pub enum ErrorCode {
+    InternalServerError,
     QueueError,
     Unauthorized,
     AreaNotFound,

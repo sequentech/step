@@ -170,9 +170,11 @@ const LoadingOrCastButton: React.FC<LoadingOrCastButtonProps> = ({
             onClick={onClick}
         >
             <Box>{t("reviewScreen.castBallotButton")}</Box>
-            {isCastingBallot 
-                ? <CircularProgress style={{width: "200%", height: "200%"}} />
-                : <Icon icon={faAngleRight} size="sm" />}
+            {isCastingBallot ? (
+                <CircularProgress style={{width: "200%", height: "200%"}} />
+            ) : (
+                <Icon icon={faAngleRight} size="sm" />
+            )}
         </StyledButton>
     )
 }
@@ -284,11 +286,15 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             if (result.errors) {
                 // As the exception occurs above this error is not set, leading
                 // to unknown error.
-                console.log(result.errors.map((e) => e.message)) 
+                console.log(result.errors.map((e) => e.message))
                 setIsCastingBallot(false)
                 if (result?.extensions?.code) {
-                    console.log(result?.extensions?.code) 
-                    setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}.${result?.extensions?.code}`))
+                    console.log(result?.extensions?.code)
+                    setErrorMsg(
+                        t(
+                            `reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}.${result?.extensions?.code}`
+                        )
+                    )
                 } else {
                     setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`))
                 }
