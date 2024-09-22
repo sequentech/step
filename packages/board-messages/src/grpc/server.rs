@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use std::time::Instant;
 
 use anyhow::{anyhow, Result};
 use bb8_postgres::bb8::Pool;
@@ -180,6 +181,8 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
     ) -> Result<Response<GetMessagesMultiReply>, Status> {
         let r: &GetMessagesMultiRequest = request.get_ref();
 
+        let now = Instant::now();
+        
         let mut keyed: Vec<KeyedMessages> = vec![];
         let mut total_bytes: usize = 0;
         let mut truncated = false;
@@ -223,9 +226,10 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
 
         if keyed.len() > 0 {
             info!(
-                "get_messages_multi: returning {} keyed messages, size = {:.3} MB",
+                "get_messages_multi: returning {} keyed messages in {}ms, size = {:.3} MB",
                 keyed.len(),
-                f64::from(total_bytes as u32) / (1024.0 * 1024.0)
+                f64::from(total_bytes as u32) / (1024.0 * 1024.0),
+                now.elapsed().as_millis()
             );
         }
 

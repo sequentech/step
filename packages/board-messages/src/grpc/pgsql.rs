@@ -4,6 +4,7 @@ use bb8_postgres::PostgresConnectionManager;
 use std::borrow::BorrowMut;
 use std::ops::Deref;
 use std::ops::DerefMut;
+use std::time::Instant;
 use std::time::SystemTime;
 use tokio_postgres::Client;
 use tokio_postgres::{NoTls, Row};
@@ -244,6 +245,7 @@ pub async fn drop_database(c: &PgsqlConnectionParams, dbname: &str) -> Result<()
     Ok(())
 }
 
+// Version using database connection pool. Rename
 pub struct ZPgsqlB3Client<'a> {
     client: PooledConnection<'a, PostgresConnectionManager<NoTls>>,
 }
@@ -297,6 +299,7 @@ impl<'a> ZPgsqlB3Client<'a> {
     }
 }
 
+// Non-pool version. Rename
 pub struct XPgsqlB3Client {
     client: Client,
 }
@@ -479,6 +482,8 @@ async fn get_messages(
     board_name: &str,
     last_id: i64,
 ) -> Result<Vec<B3MessageRow>> {
+    let now = Instant::now();
+    
     let mut offset: usize = 0;
     let mut start = get(
         client,
@@ -505,6 +510,9 @@ async fn get_messages(
         // messages.extend(last_batch.clone());
         start.extend(next);
     }
+
+    tracing::info!("pgsql::get_messages: query time: {}ms", now.elapsed().as_millis());
+
     Ok(start)
 }
 
