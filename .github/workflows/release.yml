@@ -73,7 +73,7 @@ jobs:
         # Create the branch if createMajorReleaseBranch or createMinorReleaseBranch is true
         if [ "${{ github.event.inputs.createMajorReleaseBranch }}" = "true" ] || [ "${{ github.event.inputs.createMinorReleaseBranch }}" = "true" ]; then
           # Trim the patch version from $releaseBranchVersion
-          initialReleaseTag=v$releaseBranchVersion-rc.0
+          initialReleaseTag=v$releaseBranchVersion
           releaseBranchVersion=$(echo $releaseBranchVersion | cut -d. -f1,2)
           releaseBranchName="release/$releaseBranchVersion"
 
@@ -100,8 +100,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: create-release-branch
     outputs:
-      RELEASE_FLOW_VERSION: ${{ steps.ReleaseFlow.outputs.VERSION }}
-      RELEASE_VERSION: ${{ steps.Release.outputs.VERSION }}
       VERSION: ${{ steps.Release.outputs.VERSION }}
     steps:
 
@@ -134,42 +132,45 @@ jobs:
       with:
         node-version: '18'
 
-    - name: Setup jq
-      run: |
-        sudo apt-get update
-        sudo apt-get install jq
-
     - name: Install release tools
       run: |
-        npm install --global @release-flow/release-flow
         npm install --global release-it
 
-    - name: Release Flow
-      id: ReleaseFlow
-      shell: bash
+    - name: Check if the latest tag is a pre-release
+      id: CheckLatestRelease
       run: |
         lastCommitSha=$(git rev-parse HEAD)
         echo "$lastCommitSha" > .release-commit
         git add .release-commit
         git commit -m "Preparation for release"
         git push origin HEAD
-        npx rfver --debug --verbose --pretty
-        if [ "${{ github.event.inputs.preRelease }}" = "true" ]; then
-          version=$(npx rfver | jq -r '.semVer')
-          buildType=$(npx rfver | jq -r '.buildType')
-          version=$(echo $version | sed "s/$buildType/rc/")
+
+        latestTag=$(git describe --tags --abbrev=0)
+        if [[ $latestTag == *-* ]]; then
+          echo "Latest tag is a pre-release"
+          echo "latestReleaseIsPreRelease=true" | tee -a $GITHUB_ENV $GITHUB_OUTPUT
         else
-          version=$(npx rfver | jq -r '.majorMinorPatch')
+          echo "Latest tag is not a pre-release"
+          echo "latestReleaseIsPreRelease=false" | tee -a $GITHUB_ENV $GITHUB_OUTPUT
         fi
-        echo VERSION=$version | tee -a $GITHUB_ENV $GITHUB_OUTPUT
 
     - name: Release
       id: Release
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        echo "Release Version (is prerelease: ${{ inputs.preRelease }}): ${{ steps.ReleaseFlow.outputs.VERSION }}"
-        release-it --ci --increment=${{ steps.ReleaseFlow.outputs.VERSION }}
+        echo "Release Version (is prerelease: ${{ inputs.preRelease }}): ${{ steps.Release.outputs.VERSION }}"
+        if [ "${{ github.event.inputs.preRelease }}" = "true" ]; then
+          # Check if the latest tag is a pre-release
+          if [ "${{ steps.CheckLatestRelease.outputs.latestReleaseIsPreRelease }}" = "true" ]; then
+            # Then increment the pre-release version
+            release-it --ci --increment=pre --preRelease=rc
+          else
+            release-it --ci --increment=patch --preRelease=rc
+          fi
+        else
+          release-it --ci --increment=patch --git.tagExclude=*[-]*
+        fi
         echo VERSION=$(git describe --tags --abbrev=0) | tee -a $GITHUB_ENV $GITHUB_OUTPUT
 
 

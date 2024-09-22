@@ -138,6 +138,11 @@ export type DeleteUserOutput = {
     id?: Maybe<Scalars["String"]["output"]>
 }
 
+export type DeleteUsersOutput = {
+    __typename?: "DeleteUsersOutput"
+    ids?: Maybe<Scalars["String"]["output"]>
+}
+
 export type EditUsersInput = {
     attributes?: InputMaybe<Scalars["jsonb"]["input"]>
     election_event_id?: InputMaybe<Scalars["String"]["input"]>
@@ -147,6 +152,7 @@ export type EditUsersInput = {
     groups?: InputMaybe<Array<Scalars["String"]["input"]>>
     last_name?: InputMaybe<Scalars["String"]["input"]>
     password?: InputMaybe<Scalars["String"]["input"]>
+    temporary?: InputMaybe<Scalars["Boolean"]["input"]>
     tenant_id: Scalars["String"]["input"]
     user_id: Scalars["String"]["input"]
     username?: InputMaybe<Scalars["String"]["input"]>
@@ -295,15 +301,20 @@ export type GetUploadUrlOutput = {
 }
 
 export type GetUsersInput = {
+    attributes?: InputMaybe<Scalars["jsonb"]["input"]>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
     email?: InputMaybe<Scalars["String"]["input"]>
+    email_verified?: InputMaybe<Scalars["Boolean"]["input"]>
+    enabled?: InputMaybe<Scalars["Boolean"]["input"]>
     first_name?: InputMaybe<Scalars["String"]["input"]>
+    has_voted?: InputMaybe<Scalars["Boolean"]["input"]>
     last_name?: InputMaybe<Scalars["String"]["input"]>
     limit?: InputMaybe<Scalars["Int"]["input"]>
     offset?: InputMaybe<Scalars["Int"]["input"]>
     search?: InputMaybe<Scalars["String"]["input"]>
     show_votes_info?: InputMaybe<Scalars["Boolean"]["input"]>
+    sort?: InputMaybe<Scalars["jsonb"]["input"]>
     tenant_id: Scalars["uuid"]["input"]
     username?: InputMaybe<Scalars["String"]["input"]>
 }
@@ -600,6 +611,20 @@ export type UpdateEventVotingStatusOutput = {
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
 }
 
+export type UserProfileAttribute = {
+    __typename?: "UserProfileAttribute"
+    annotations?: Maybe<Scalars["jsonb"]["output"]>
+    display_name?: Maybe<Scalars["String"]["output"]>
+    group?: Maybe<Scalars["String"]["output"]>
+    multivalued?: Maybe<Scalars["Boolean"]["output"]>
+    name?: Maybe<Scalars["String"]["output"]>
+    permissions?: Maybe<Scalars["jsonb"]["output"]>
+    read_only?: Maybe<Scalars["Boolean"]["output"]>
+    required?: Maybe<Scalars["jsonb"]["output"]>
+    selector?: Maybe<Scalars["jsonb"]["output"]>
+    validations?: Maybe<Scalars["jsonb"]["output"]>
+}
+
 export type VotesInfo = {
     __typename?: "VotesInfo"
     election_id: Scalars["String"]["output"]
@@ -821,6 +846,8 @@ export type Mutation_Root = {
     delete_sequent_backend_trustee_by_pk?: Maybe<Sequent_Backend_Trustee>
     delete_user?: Maybe<DeleteUserOutput>
     delete_user_role?: Maybe<SetUserRoleOutput>
+    /** delete users */
+    delete_users?: Maybe<DeleteUsersOutput>
     edit_user: KeycloakUser
     export_election_event?: Maybe<DocumentTaskOutput>
     export_election_event_logs?: Maybe<ExportLogsOutput>
@@ -1280,6 +1307,7 @@ export type Mutation_RootCreate_UserArgs = {
     election_event_id?: InputMaybe<Scalars["String"]["input"]>
     tenant_id: Scalars["String"]["input"]
     user: KeycloakUser2
+    user_roles_ids?: InputMaybe<Array<Scalars["String"]["input"]>>
 }
 
 /** mutation root */
@@ -1679,6 +1707,13 @@ export type Mutation_RootDelete_User_RoleArgs = {
     role_id: Scalars["String"]["input"]
     tenant_id: Scalars["String"]["input"]
     user_id: Scalars["String"]["input"]
+}
+
+/** mutation root */
+export type Mutation_RootDelete_UsersArgs = {
+    election_event_id?: InputMaybe<Scalars["String"]["input"]>
+    tenant_id: Scalars["String"]["input"]
+    users_id: Array<Scalars["String"]["input"]>
 }
 
 /** mutation root */
@@ -3152,6 +3187,7 @@ export type Query_Root = {
     /** list permissions */
     get_permissions: GetPermissionsOutput
     get_roles: GetRolesOutput
+    get_user_profile_attributes: Array<UserProfileAttribute>
     get_users: GetUsersOutput
     /** List Electoral Log */
     listElectoralLog?: Maybe<DataListElectoralLog>
@@ -3367,6 +3403,11 @@ export type Query_RootGet_PermissionsArgs = {
 
 export type Query_RootGet_RolesArgs = {
     body: GetRolesInput
+}
+
+export type Query_RootGet_User_Profile_AttributesArgs = {
+    election_event_id?: InputMaybe<Scalars["String"]["input"]>
+    tenant_id: Scalars["String"]["input"]
 }
 
 export type Query_RootGet_UsersArgs = {

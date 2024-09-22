@@ -28,6 +28,7 @@ import {DELETE_AREA_CONTESTS} from "@/queries/DeleteAreaContest"
 import {Sequent_Backend_Area} from "@/gql/graphql"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {gridColumnGroupsLookupSelector} from "@mui/x-data-grid"
+import SelectArea from "@/components/area/SelectArea"
 interface EditAreaProps {
     id?: Identifier | undefined
     electionEventId: Identifier | undefined
@@ -69,13 +70,6 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
             return {name: ""}
         }
         return {"name@_ilike,alias@_ilike": searchText.trim()}
-    }
-
-    const areaFilterToQuery = (searchText: string) => {
-        if (!searchText || searchText.length == 0) {
-            return {name: ""}
-        }
-        return {name: searchText.trim()}
     }
 
     useEffect(() => {
@@ -235,24 +229,11 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
                                                 debounce={100}
                                             />
                                         </ReferenceArrayInput>
-                                        <ReferenceInput
-                                            fullWidth={true}
-                                            reference="sequent_backend_area"
+                                        <SelectArea
+                                            tenantId={tenantId}
+                                            electionEventId={electionEventId}
                                             source="parent_id"
-                                            filter={{
-                                                tenant_id: tenantId,
-                                                election_event_id: electionEventId,
-                                            }}
-                                            perPage={100} // // Setting initial larger records size of areas
-                                            enableGetChoices={({q}) => q && q.length >= 3}
-                                        >
-                                            <AutocompleteInput
-                                                fullWidth={true}
-                                                optionText={(area) => area.name}
-                                                filterToQuery={areaFilterToQuery}
-                                                debounce={100}
-                                            />
-                                        </ReferenceInput>
+                                        />
                                     </>
                                 </SimpleForm>
                             )
