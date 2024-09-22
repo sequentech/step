@@ -48,7 +48,6 @@ where
         .get()
         .await
         .map_err(|e| anyhow!("Error getting hasura client {}", e))?;
-    let hasura_transaction = hasura_db_client.transaction().await?;
 
-    handler(&hasura_transaction).await
+    provide_transaction(handler, hasura_db_client).await
 }
