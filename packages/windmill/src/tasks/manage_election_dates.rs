@@ -131,6 +131,7 @@ pub async fn manage_election_date(
         })
     })
     .await?;
+
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -147,22 +148,9 @@ pub async fn manage_election_date(
     )
     .await;
 
-    match res {
-        Ok(data) => {
-            let commit = hasura_transaction
-                .commit()
-                .await
-                .map_err(|e| anyhow!("Commit failed manage_election_dates: {}", e));
-            lock.release().await?;
-            commit?;
-        }
-        Err(err) => {
-            let rollback = hasura_transaction.rollback().await;
-            lock.release().await?;
-            rollback?;
-            return Err(anyhow!("{}", err).into());
-        }
-    }
+    info!("result: {:?}", res);
 
-    Ok(())
+    lock.release().await?;
+
+    Ok(res?)
 }
