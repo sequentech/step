@@ -21,11 +21,10 @@ where
 
     match res {
         Ok(_) => {
-            let commit = hasura_transaction
+            hasura_transaction
                 .commit()
                 .await
-                .map_err(|e| anyhow!("Commit failed manage_election_dates: {}", e));
-            commit?;
+                .map_err(|e| anyhow!("Commit failed manage_election_dates: {}", e))?;
         }
         Err(err) => {
             hasura_transaction
