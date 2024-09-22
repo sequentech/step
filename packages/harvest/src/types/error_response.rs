@@ -6,7 +6,7 @@ use rocket::http::Status;
 use rocket::response::status::Custom;
 use rocket::serde::{json::Json, Serialize};
 use std::convert::AsRef;
-use strum_macros::{Display, AsRefStr};
+use strum_macros::{AsRefStr, Display};
 use tracing::instrument;
 
 pub type JsonError = Custom<Json<ErrorResponse>>;
