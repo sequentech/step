@@ -113,7 +113,7 @@ pub async fn manage_election_date(
     )
     .await?;
 
-    provide_hasura_transaction(|hasura_transaction| {
+    let res = provide_hasura_transaction(|hasura_transaction| {
         let tenant_id = tenant_id.clone();
         let election_event_id = election_event_id.clone();
         let scheduled_event_id = scheduled_event_id.clone();
@@ -130,22 +130,6 @@ pub async fn manage_election_date(
             .await
         })
     })
-    .await?;
-
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|e| anyhow!("Error getting hasura client {}", e))?;
-    let hasura_transaction = hasura_db_client.transaction().await?;
-
-    let res = manage_election_date_wrapper(
-        &hasura_transaction,
-        tenant_id.clone(),
-        election_event_id.clone(),
-        scheduled_event_id.clone(),
-        election_id.clone(),
-    )
     .await;
 
     info!("result: {:?}", res);
