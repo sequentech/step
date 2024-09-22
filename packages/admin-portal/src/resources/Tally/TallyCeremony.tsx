@@ -493,7 +493,6 @@ export const TallyCeremony: React.FC = () => {
 
                 if (errors) {
                     updateWidgetFail(currWidget.identifier)
-                    return
                 } else if (nextStatus) {
                     const task_id = nextStatus?.create_transmission_package?.task_execution?.id
                     setWidgetTaskId(currWidget.identifier, task_id)
