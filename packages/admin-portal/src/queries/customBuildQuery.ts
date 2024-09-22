@@ -5,7 +5,7 @@
 import {buildQuery, buildVariables} from "ra-data-hasura"
 import {getPgauditVariables, getPgAudit} from "./ListPgAudit"
 import {getElectoralLogVariables, getElectoralLog} from "./ListElectoralLog"
-import {getUsers} from "./GetUsers"
+import {LIST_USERS, customBuildGetUsersVariables} from "./GetUsers"
 import {getPermissions} from "./GetPermissions"
 import {getRoles} from "./GetRoles"
 import {isString} from "lodash"
@@ -72,6 +72,35 @@ export const customBuildQuery =
                 },
             }
         } else if (
+            resourceName === "sequent_backend_tasks_execution" &&
+            raFetchType === "GET_LIST"
+        ) {
+            let ret = buildQuery(introspectionResults)(raFetchType, resourceName, params)
+            if (ret?.variables?.order_by) {
+                const validOrderBy = [
+                    "annotations",
+                    "created_at",
+                    "election_event_id",
+                    "end_at",
+                    "executed_by_user",
+                    "execution_status",
+                    "id",
+                    "labels",
+                    "logs",
+                    "name",
+                    "start_at",
+                    "tenant",
+                    "tenant_id",
+                    "type",
+                ]
+                ret.variables.order_by = Object.fromEntries(
+                    Object.entries(ret?.variables?.order_by || {}).filter(([key]) =>
+                        validOrderBy.includes(key)
+                    )
+                )
+            }
+            return ret
+        } else if (
             resourceName === "sequent_backend_ballot_publication" &&
             raFetchType === "GET_LIST"
         ) {
@@ -99,8 +128,8 @@ export const customBuildQuery =
                 },
             }
             return {
-                query: getUsers(params),
-                variables: buildVariables(introspectionResults)(
+                query: LIST_USERS,
+                variables: customBuildGetUsersVariables(introspectionResults)(
                     resource,
                     raFetchType,
                     params,

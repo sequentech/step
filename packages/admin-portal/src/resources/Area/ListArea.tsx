@@ -97,12 +97,6 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
     const canView = authContext.isAuthorized(true, tenantId, IPermissions.AREA_READ)
     const canCreate = authContext.isAuthorized(true, tenantId, IPermissions.AREA_WRITE)
 
-    // const rowClickHandler = generateRowClickHandler(["election_event_id"])
-    const rowClickHandler = (id: Identifier, resource: string, record: RaRecord) => {
-        setRecordId(id)
-        return ""
-    }
-
     useEffect(() => {
         if (recordId) {
             setOpen(true)
@@ -245,6 +239,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                     tenant_id: tenantId || undefined,
                     election_event_id: record?.id || undefined,
                 }}
+                storeKey={false}
                 filters={Filters}
             >
                 <DatagridConfigurable omit={OMIT_FIELDS}>

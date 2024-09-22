@@ -6,65 +6,6 @@ import {TranslationType} from "./en"
 const frenchTranslation: TranslationType = {
     translations: {
         loadingDataProvider: "Chargement du fournisseur de données...",
-        breadcrumbSteps: {
-            electionList: "Liste des Élections",
-            ballot: "Bulletin",
-            review: "Révision",
-            confirmation: "Confirmation",
-            audit: "Auditer",
-        },
-        votingScreen: {
-            backButton: "Retour",
-            reviewButton: "Suivant",
-            ballotHelpDialog: {
-                title: "Information: Écran de vote",
-                content:
-                    "Cet écran montre le vote pour lequel vous êtes éligible. Vous pouvez sélectionner votre section en activant la case à droite Candidat/Réponse. Pour réinitialiser vos sélections, cliquez sur le bouton “<b>Effacer la sélection</b>”, pour passer à l'étape suivante, cliquez sur le bouton “<b>Suivant</b>”.",
-                ok: "OK",
-            },
-        },
-        startScreen: {
-            startButton: "Commencer à voter",
-            instructionsTitle: "Instructions",
-            instructionsDescription: "Vous suivrez ces étapes pour émettre votre vote:",
-            step1Title: "1. Sélectionnez votre option de vote",
-            step1Description:
-                "Sélectionnez vos options de vote qui sont présentées une par une. Vous configurerez ainsi les préférences de votre bulletin.",
-            step2Title: "2. Revoyez votre bulletin",
-            step2Description:
-                "Une fois vos préférences choisies, nous les chiffrerons et vous obtiendrez un localisateur. Nous vous montrerons le contenu de votre bulletin pour que vous puissiez le réviser.",
-            step3Title: "3. Envoyez votre vote",
-            step3Description:
-                "Vous pouvez envoyer votre vote à l'urne électronique pour qu'il soit dûment enregistré.",
-        },
-        reviewScreen: {
-            title: "Révisez votre bulletin",
-            description:
-                "Pour modifier vos sélections, cliquez sur le bouton “<b>Changer la sélection</b>”, pour confirmer vos sélections, cliquez sur le bouton “<b>Soumettre le Bulletin</b>” ci-dessous, et pour auditer votre bulletin cliquez sur le bouton “<b>Auditer le Bulletin</b>” ci-dessous. Veuillez noter qu'une fois que vous soumettez votre bulletin, vous avez voté et il ne vous sera pas délivré un autre bulletin pour cette élection.",
-            backButton: "Modifier le bulletin",
-            castBallotButton: "Soumettre votre bulletin",
-            auditButton: "Auditer le bulletin",
-            reviewScreenHelpDialog: {
-                title: "Information: Écran de révision",
-                content:
-                    "Cet écran vous permet de réviser vos sélections avant de soumettre votre vote.",
-                ok: "OK",
-            },
-            ballotIdHelpDialog: {
-                title: "Vote non émis",
-                content:
-                    "<p>Vous êtes sur le point de copier le Localisateur de Vote, mais <b>votre vote n'a pas encore été émis</b>. Si vous essayez de rechercher le Localisateur de Vote, vous ne le trouverez pas.</p><p>La raison pour laquelle nous affichons le Localisateur de Vote à ce moment est pour que vous puissiez auditer la correction du vote chiffré avant de l'émettre. Si c'est la raison pour laquelle vous souhaitez copier le Localisateur de Vote, procédez à la copie puis auditez votre vote.</p>",
-                ok: "J'accepte que mon vote N'a PAS été émis",
-                cancel: "Annuler",
-            },
-            auditBallotHelpDialog: {
-                title: "Voulez-vous vraiment Auditer votre bulletin?",
-                content:
-                    "<p>L'audit du bulletin l'invalidera et vous devrez recommencer le processus de vote si vous souhaitez émettre votre vote. Le processus d'audit du bulletin permet de vérifier qu'il est correctement codé. Faire ce processus nécessite des connaissances techniques importantes, donc il n'est pas recommandé si vous ne savez pas ce que vous faites.</p><p><b>Si vous souhaitez émettre votre vote, cliquez sur <u>Annuler</u> pour revenir à l'écran de révision du vote.</b></p>",
-                ok: "Oui, je veux INVALIDER mon bulletin pour l'AUDITER",
-                cancel: "Annuler",
-            },
-        },
         logsScreen: {
             noPermissions: "Vous n'avez pas la permission d'accéder aux journaux.",
             title: "Journaux",
@@ -80,66 +21,31 @@ const frenchTranslation: TranslationType = {
                 title: "Journal de la Base de Données IAM",
             },
         },
-        confirmationScreen: {
-            title: "Votre vote a été émis",
-            description:
-                "Le code de confirmation qui apparaît ci-dessous vérifie que <b>votre vote a été correctement émis</b>. Vous pouvez utiliser ce code pour vérifier que votre vote a été comptabilisé.",
-            ballotId: "Localisateur de Vote",
-            printButton: "Imprimer",
-            finishButton: "Terminer",
-            verifyCastTitle: "Vérifiez que votre vote a été émis",
-            verifyCastDescription:
-                "Vous pouvez vérifier à tout moment que votre bulletin a été correctement émis en utilisant le code QR suivant:",
-            confirmationHelpDialog: {
-                title: "Information: Écran de confirmation",
-                content:
-                    "Cet écran montre que votre vote a été correctement émis. Les informations fournies sur cette page vous permettent de vérifier que le bulletin a été stocké dans l'urne, ce processus peut être exécuté à tout moment pendant la période de votation et après que l'élection a été clôturée.",
-                ok: "OK",
+        tasksScreen: {
+            noPermissions: "Vous n'avez pas la permission d'accéder aux journaux.",
+            title: "Exécution des tâches",
+            subtitle: "Informations sur les tâches exécutées et les journaux de progression",
+            taskInformation: "Informations sur la tâche",
+            status: "statut : {{status}}",
+            ok: "D'accord",
+            column: {
+                id: "Index",
+                name: "Nom de la tâche",
+                type: "Type",
+                execution_status: "Statut",
+                start_at: "Heure de début",
+                end_at: "Heure de fin",
+                executed_by_user: "Exécutant",
+                annotations: "Annotations",
+                labels: "Étiquettes",
+                logs: "Journaux",
             },
-            ballotIdHelpDialog: {
-                title: "Information: Localisateur de Vote",
-                content:
-                    "Le Localisateur de Vote de bulletin est un code qui vous permet de trouver votre bulletin dans l'urne, ce Localisateur est unique et ne contient pas d'informations sur vos sélections.",
-                ok: "OK",
+            tasksExecution: {
+                EXPORT_ELECTION_EVENT: "Exporter l'événement électoral",
+                IMPORT_ELECTION_EVENT: "Importer l'événement électoral",
+                IMPORT_USERS: "Importer des utilisateurs",
+                IMPORT_CANDIDATES: "Importer des candidats",
             },
-        },
-        auditScreen: {
-            printButton: "Imprimer",
-            restartButton: "Démarrer le vote",
-            title: "Auditez votre Bulletin",
-            description: "Pour vérifier votre bulletin, vous devrez suivre les étapes suivantes:",
-            step1Title: "1. Téléchargez ou copiez les informations suivantes",
-            step1Description:
-                "Votre <b>Localisateur de Vote</b> qui apparaît en haut de l'écran et votre bulletin chiffré ci-dessous:",
-            step1HelpDialog: {
-                title: "Copier le Vote Chiffré",
-                content:
-                    "Vous pouvez télécharger ou copier votre Vote Chiffré pour l'auditer et vérifier que le contenu chiffré contient vos sélections.",
-                ok: "OK",
-            },
-            downloadButton: "Télécharger",
-            step2Title: "2. Suivez les étapes de ce tutoriel",
-            step2Description:
-                '(<a href="https://github.com/sequentech/new-ballot-verifier/blob/main/README.md">cliquez ici</a>, cela ouvrira un nouvel onglet dans votre navigateur)',
-            step2HelpDialog: {
-                title: "Tutoriel sur l'Audit du Vote",
-                content:
-                    "Pour auditer votre vote, vous devrez suivre les étapes indiquées dans le tutoriel, qui incluent le téléchargement d'une application de bureau utilisée pour vérifier le vote chiffré indépendamment du site web.",
-                ok: "OK",
-            },
-            bottomWarning:
-                "Pour des raisons de sécurité, lorsque vous auditez votre bulletin, vous devrez l'invalider. Pour continuer avec le processus de vote, cliquez sur ‘<b>Démarrer le vote/b>’.",
-        },
-        electionSelectionScreen: {
-            title: "Liste des Élections",
-            description: "Sélectionnez l'élection dans laquelle vous souhaitez voter",
-            chooserHelpDialog: {
-                title: "Information: Liste des Élections",
-                content:
-                    'Bienvenue dans le bureau de vote, cet écran affiche la liste des élections dans lesquelles vous pouvez émettre votre vote. Les élections qui apparaissent dans cette liste peuvent être ouvertes à la votation, programmées ou fermées. Vous ne pourrez accéder à la votation que si la période de votation est ouverte. Dans le cas où une élection est fermée et que son administrateur électoral a publié le résultat, vous verrez un bouton "Résultat électoral" qui vous mènera à la page publique des résultats.',
-                ok: "OK",
-            },
-            closedEventError: "L'événement électoral est actuellement fermé",
         },
         areas: {
             common: {
@@ -169,6 +75,8 @@ const frenchTranslation: TranslationType = {
                 createNew: "Créer un Type d'Élection",
                 emptyHeader: "Aucun Type d'Élection pour l'instant.",
                 emptyBody: "Voulez-vous en créer un ?",
+                logoUrl: "URL du Logo",
+                css: "CSS personnalisé",
             },
             create: {
                 title: "Créer un Type d'Élection",
@@ -181,6 +89,7 @@ const frenchTranslation: TranslationType = {
                 electionTypes: "TYPES D'ÉLECTION",
                 communications: "COMMUNICATION",
                 languages: "LANGUES",
+                lookAndFeel: "PERSONNALISATION DE L'APPARENCE",
                 schedules: "ÉVÉNEMENTS PROGRAMMÉS",
                 trustees: "AUTORITÉS",
             },
@@ -236,6 +145,7 @@ const frenchTranslation: TranslationType = {
             edit: {
                 general: "Général",
                 dates: "Dates",
+                customUrls: "Préfixer les URL personnalisées",
                 votingPeriod: "Période de vote",
                 language: "Langues",
                 allowed: "Canaux de Vote Permis",
@@ -244,6 +154,10 @@ const frenchTranslation: TranslationType = {
                 reorder: "Réorganiser les élections",
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importer des Candidats",
+            },
+            customUrls: {
+                login: "Connexion",
+                enrollment: "Inscription",
             },
             localization: {
                 emptyHeader: "Aucune langue n'a été définie pour l'événement",
@@ -344,6 +258,7 @@ const frenchTranslation: TranslationType = {
                 tally: "Comptage",
                 publish: "Publier",
                 logs: "Journaux",
+                tasks: "Tâches",
             },
             tally: {
                 emptyHeader: "Aucun Comptage pour l'instant.",
@@ -411,6 +326,8 @@ const frenchTranslation: TranslationType = {
                 },
             },
             exportError: "Erreur lors de l'exportation de l'événement électoral",
+            taskNotification:
+                "{{action}} a commencé. Vous pouvez voir son statut dans le tableau d'Exécution des Tâches.",
         },
         electionScreen: {
             common: {
@@ -463,13 +380,13 @@ const frenchTranslation: TranslationType = {
         },
         tenantScreen: {
             common: {
-                title: "Client",
+                title: "Locataires",
             },
             new: {
-                subtitle: "Créer Client",
+                subtitle: "Créer un nouveau locataire",
             },
-            createSuccess: "Client créé",
-            createError: "Erreur lors de la création du client",
+            createSuccess: "Locataire créé",
+            createError: "Erreur lors de la création du locataire",
         },
         usersAndRolesScreen: {
             noPermissions: "Vous n'avez pas la permission d'accéder aux utilisateurs ou rôles.",
@@ -477,6 +394,12 @@ const frenchTranslation: TranslationType = {
                 title: "Utilisateurs et Rôles",
                 subtitle: "Configuration générale",
                 mobileNumber: "Mobile",
+            },
+            editPassword: {
+                label: "Changer le mot de passe",
+                temporatyLabel: "Temporaire",
+                temporatyInfo:
+                    "Si activé, l'utilisateur devra changer le mot de passe lors de la prochaine connexion.",
             },
             users: {
                 title: "Utilisateurs",
@@ -520,6 +443,7 @@ const frenchTranslation: TranslationType = {
                     exportError: "Erreur lors de l'exportation des utilisateurs",
                     deleteError: "Erreur lors de la suppression de l'utilisateur",
                     deleteSuccess: "Utilisateur supprimé",
+                    multipleDeleteSuccess: "Utilisateurs supprimés",
                 },
             },
             voters: {
@@ -532,6 +456,7 @@ const frenchTranslation: TranslationType = {
                     subtitle: "Créer électeur",
                 },
                 manualVerification: {
+                    label: "Vérifier manuellement",
                     verify: "Vérifier manuellement l'électeur",
                     body: "Vérifiez manuellement cet électeur. Vous obtiendrez un PDF avec un lien de code QR qui permettra à l'électeur de se connecter en omettant le KYC en ligne.",
                 },
@@ -549,6 +474,7 @@ const frenchTranslation: TranslationType = {
                     exportError: "Erreur lors de l'exportation des électeurs",
                     deleteError: "Erreur lors de la suppression de l'électeur",
                     deleteSuccess: "Électeur supprimé",
+                    multipleDeleteSuccess: "Électeurs supprimés",
                     manualVerificationError:
                         "Erreur lors de la vérification manuelle de l'électeur",
                     manualVerificationSuccess:
@@ -628,6 +554,7 @@ const frenchTranslation: TranslationType = {
                 "publish-read": "Lire Publication",
                 "publish-write": "Éditer Publication",
                 "logs-read": "Lire Journaux",
+                "tasks-read": "Lire l'Exécution des Tâches",
                 "keys-read": "Lire Clés",
                 "document-upload": "Télécharger Documents",
                 "document-download": "Télécharger Documents",
@@ -1373,6 +1300,9 @@ const frenchTranslation: TranslationType = {
                 isHidden: "Caché",
                 publicUrl: "Lien public",
             },
+        },
+        widget: {
+            logs: "Journaux",
         },
     },
 }

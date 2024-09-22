@@ -8,6 +8,8 @@
 
 package sequent.keycloak.inetum_authenticator;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import freemarker.template.Template;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
@@ -25,11 +27,14 @@ import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.FormContext;
 import org.keycloak.events.Details;
+import org.keycloak.events.EventBuilder;
 import org.keycloak.events.EventType;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
+import org.keycloak.representations.userprofile.config.UPAttribute;
+import org.keycloak.representations.userprofile.config.UPConfig;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.userprofile.UserProfile;
 import org.keycloak.userprofile.UserProfileContext;
@@ -87,6 +92,11 @@ public class Utils {
   public static final String PHONE_NUMBER_ATTRIBUTE = "sequent.read-only.id-mobile-number";
   public static final String ID_NUMBER_ATTRIBUTE = "sequent.read-only.id-card-number";
   public static final String ID_NUMBER = "ID_number";
+  public static final String USER_PROFILE_ATTRIBUTES = "user_profile_attributes";
+  public static final String AUTHENTICATOR_CLASS_NAME = "authenticator_class_name";
+  public static final String MAX_RETRIES = "max-retries";
+  public static final int DEFAULT_MAX_RETRIES = 3;
+  public static final int BASE_RETRY_DELAY = 1_000;
 
   /**
    * We store the user data entered in the registration form in the session notes. This information
@@ -258,20 +268,57 @@ public class Utils {
     return context.getSession().users().getUserById(context.getRealm(), userId);
   }
 
-  public void buildEventDetails(AuthenticationFlowContext context) {
-    AuthenticationSessionModel authSession = context.getAuthenticationSession();
-    String email = authSession.getAuthNote(Details.EMAIL);
-    String firstName = authSession.getAuthNote(UserModel.FIRST_NAME);
-    String lastName = authSession.getAuthNote(UserModel.LAST_NAME);
-    String phoneNumber = authSession.getAuthNote(PHONE_NUMBER_ATTRIBUTE);
-    String userId = context.getAuthenticationSession().getAuthNote(USER_ID);
-    String idNumber = authSession.getAuthNote(ID_NUMBER);
+  public String getUserAttributesString(UserModel user) {
+    if (user != null) {
+      Map<String, List<String>> attributes = user.getAttributes();
+      ObjectMapper mapper = new ObjectMapper();
+      ObjectNode attributesJson = mapper.createObjectNode();
 
-    context.getEvent().detail(ID_NUMBER, idNumber);
-    context.getEvent().user(userId);
-    context.getEvent().detail(Details.EMAIL, email);
-    context.getEvent().detail(Details.FIRST_NAME, firstName);
-    context.getEvent().detail(Details.LAST_NAME, lastName);
-    context.getEvent().detail(PHONE_NUMBER, phoneNumber);
+      for (String attributeName : attributes.keySet()) {
+        String value = attributes.get(attributeName).get(0);
+        if (value != null) {
+          attributesJson.put(attributeName, value);
+        }
+      }
+
+      return attributesJson.toString();
+    }
+    return null;
+  }
+
+  public void buildEventDetails(
+      EventBuilder builder,
+      AuthenticationSessionModel authSession,
+      UserModel user,
+      KeycloakSession session,
+      String className) {
+    List<UPAttribute> realmsAttributes = getRealmUserProfileAttributes(session);
+    for (UPAttribute attribute : realmsAttributes) {
+      String authNoteValue = authSession.getAuthNote(attribute.getName());
+      builder.detail(attribute.getName(), authNoteValue);
+    }
+    if (user != null) {
+      builder.user(user.getId());
+      builder.detail(USER_PROFILE_ATTRIBUTES, getUserAttributesString(user));
+    } else {
+      String userId = authSession.getAuthNote(USER_ID);
+      builder.user(userId);
+    }
+    builder.detail(AUTHENTICATOR_CLASS_NAME, className);
+  }
+
+  public List<UPAttribute> getRealmUserProfileAttributes(KeycloakSession session) {
+    UserProfileProvider userProfileProvider = session.getProvider(UserProfileProvider.class);
+    UPConfig userProfileMetadata = userProfileProvider.getConfiguration();
+    return userProfileMetadata.getAttributes();
+  }
+
+  public static int parseInt(String s, int defaultValue) {
+    if (s == null) return defaultValue;
+    try {
+      return Integer.parseInt(s);
+    } catch (NumberFormatException x) {
+      return defaultValue;
+    }
   }
 }

@@ -77,7 +77,12 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
     // Lookup user by attributes in authNotes
     UserModel user = lookupUserByAuthNotes(context, searchAttributesList);
-    Utils.buildEventDetails(context);
+    Utils.buildEventDetails(
+        context.getEvent(),
+        context.getAuthenticationSession(),
+        user,
+        context.getSession(),
+        this.getClass().getSimpleName());
 
     // check user was found
     if (user == null) {
