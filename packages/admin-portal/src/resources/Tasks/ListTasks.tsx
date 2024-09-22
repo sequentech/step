@@ -109,6 +109,7 @@ export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRe
                 resource="sequent_backend_tasks_execution"
                 filters={filters}
                 filter={{election_event_id: electionEventRecord?.id || undefined}}
+                storeKey={false}
                 sort={{field: "start_at", order: "DESC"}}
                 perPage={10}
             >
