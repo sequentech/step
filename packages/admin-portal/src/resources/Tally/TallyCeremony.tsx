@@ -500,7 +500,6 @@ export const TallyCeremony: React.FC = () => {
                     handleMiruExportSuccess?.({area_id, election_id})
                 }
                 setTransmissionLoading(false)
-
             } catch (error) {
                 updateWidgetFail(currWidget.identifier)
                 console.log(`Caught error: ${error}`)
