@@ -48,6 +48,11 @@ pub async fn update_event_voting_status(
 
     let current_voting_status = status.voting_status.clone();
 
+    if current_voting_status == new_status.clone() {
+        info!("Current voting status is the same as the new voting status, skipping");
+        return Ok(election_event);
+    }
+
     let expected_next_status = match current_voting_status {
         VotingStatus::NOT_STARTED => {
             vec![VotingStatus::OPEN]
