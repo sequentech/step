@@ -77,11 +77,26 @@ export const customBuildQuery =
         ) {
             let ret = buildQuery(introspectionResults)(raFetchType, resourceName, params)
             if (ret?.variables?.order_by) {
-                const validOrderBy = ['annotations', 'created_at', 'election_event_id', 'end_at', 'executed_by_user', 'execution_status', 'id', 'labels', 'logs', 'name', 'start_at', 'tenant', 'tenant_id', 'type']
+                const validOrderBy = [
+                    "annotations",
+                    "created_at",
+                    "election_event_id",
+                    "end_at",
+                    "executed_by_user",
+                    "execution_status",
+                    "id",
+                    "labels",
+                    "logs",
+                    "name",
+                    "start_at",
+                    "tenant",
+                    "tenant_id",
+                    "type",
+                ]
                 ret.variables.order_by = Object.fromEntries(
-                    Object
-                        .entries(ret?.variables?.order_by || {})
-                        .filter(([key]) => validOrderBy.includes(key))
+                    Object.entries(ret?.variables?.order_by || {}).filter(([key]) =>
+                        validOrderBy.includes(key)
+                    )
                 )
             }
             return ret
