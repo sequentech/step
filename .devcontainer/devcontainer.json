@@ -19,7 +19,7 @@
 	"userEnvProbe": "loginShell",
 	"updateRemoteUserUID": false,
 	"remoteUser": "root",
-	"postAttachCommand": "cat ~/.docker/config.json | jq -r 'del(.credsStore)' | tee ~/.docker/config.json && OUTPUT=$(cat .devcontainer/scripts/vscode-settings.sh) && devenv shell bash -- -c \"$OUTPUT\" || true",
+	"postAttachCommand": "cat ~/.docker/config.json | jq -r 'del(.credsStore)' | tee ~/.docker/config.json",
 	"onCreateCommand": "git config --global --add safe.directory '*' && direnv allow . && OUTPUT=$(cat .devcontainer/scripts/vscode-settings.sh) && devenv shell bash -- -c \"$OUTPUT\" || true",
 	// "postCreateCommand": "git config --global --add safe.directory '*' && direnv allow . && OUTPUT=$(cat .devcontainer/scripts/init-cli.sh) && devenv shell bash -- -c \"$OUTPUT\"",
 	// Adding host requirements so that there is no need to manually select the

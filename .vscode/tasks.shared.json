@@ -85,7 +85,7 @@
             "command": "bash",
             "args": [
                 "-c",
-                "docker compose up -d --no-deps admin-portal voting-portal ballot-verifier"
+                "docker compose -f --tail 100 admin-portal voting-portal ballot-verifier"
             ],
             "options": {
                 "env": {
