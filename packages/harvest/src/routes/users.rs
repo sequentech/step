@@ -18,6 +18,7 @@ use sequent_core::types::keycloak::{
 };
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
+use windmill::services::export_users::{ExportUsersOutput, ExportUsersBody, ExportBody, ExportTenantUsersBody};
 use std::collections::HashMap;
 use std::env;
 use tracing::instrument;
@@ -36,10 +37,6 @@ pub struct DeleteUserBody {
     tenant_id: String,
     election_event_id: Option<String>,
     user_id: String,
-}
-#[derive(Deserialize, Debug)]
-pub struct ExportTenantUsersBody {
-    tenant_id: String,
 }
 
 #[instrument(skip(claims))]
@@ -545,8 +542,8 @@ pub async fn import_users_f(
 #[post("/export-users", format = "json", data = "<input>")]
 pub async fn export_users_f(
     claims: jwt::JwtClaims,
-    input: Json<export_users::ExportUsersBody>,
-) -> Result<Json<export_users::ExportUsersOutput>, (Status, String)> {
+    input: Json<ExportUsersBody>,
+) -> Result<Json<ExportUsersOutput>, (Status, String)> {
     let body = input.into_inner();
 
     let required_perm = if body.election_event_id.is_some() {
@@ -568,7 +565,7 @@ pub async fn export_users_f(
 
     let task = celery_app
         .send_task(export_users::export_users::new(
-            export_users::ExportBody::Users {
+            ExportBody::Users {
                 tenant_id: body.tenant_id,
                 election_event_id: body.election_event_id,
                 election_id: body.election_id,
@@ -583,7 +580,7 @@ pub async fn export_users_f(
             )
         })?;
 
-    let output = export_users::ExportUsersOutput {
+    let output = ExportUsersOutput {
         document_id,
         task_id: task.task_id.clone(),
     };
@@ -598,7 +595,7 @@ pub async fn export_users_f(
 pub async fn export_tenant_users_f(
     claims: jwt::JwtClaims,
     input: Json<ExportTenantUsersBody>,
-) -> Result<Json<export_users::ExportUsersOutput>, (Status, String)> {
+) -> Result<Json<ExportUsersOutput>, (Status, String)> {
     let body = input.into_inner();
     let required_perm = Permissions::USER_READ;
     info!("input-users {:?}", body);
@@ -613,7 +610,7 @@ pub async fn export_tenant_users_f(
     let celery_app = get_celery_app().await;
     let task = celery_app
         .send_task(export_users::export_users::new(
-            export_users::ExportBody::TenantUsers {
+            ExportBody::TenantUsers {
                 tenant_id: body.tenant_id,
             },
             document_id.clone(),
@@ -625,7 +622,7 @@ pub async fn export_tenant_users_f(
                 format!("Error sending export_tenant_users task: {error:?}"),
             )
         })?;
-    let output = export_users::ExportUsersOutput {
+    let output = ExportUsersOutput {
         document_id: document_id,
         task_id: task.task_id.clone(),
     };

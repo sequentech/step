@@ -12,15 +12,15 @@ use crate::services::import_election_event::ImportElectionEventSchema;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::try_join;
+use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
-use sequent_core::{services::keycloak::get_event_realm, types::hasura::core::Document};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Map, Value};
+use std::env;
 use std::fs::File;
-use std::io::{Write};
+use std::io::Write;
+use tempfile::NamedTempFile;
 use uuid::Uuid;
 use zip::write::FileOptions;
-use tempfile::NamedTempFile;
 
 use super::{
     documents::upload_and_return_document_postgres, temp_path::write_into_named_temp_file,
@@ -56,23 +56,17 @@ pub async fn read_export_data(
     })
 }
 
-pub async fn write_export_document(
-    data: ImportElectionEventSchema,
-) -> Result<NamedTempFile> {
+pub async fn write_export_document(data: ImportElectionEventSchema) -> Result<NamedTempFile> {
     // Serialize the data into JSON string
     let data_str = serde_json::to_string(&data)?;
     let data_bytes = data_str.into_bytes();
 
-    // Create a temporary file
+    // Create and write the data into a temporary file
     let mut tmp_file = NamedTempFile::new()?;
-
-    // Write the JSON data into the temporary file
     tmp_file.write_all(&data_bytes)?;
 
-    // Return the temporary file (it's automatically cleaned up when dropped)
     Ok(tmp_file)
 }
-
 
 pub async fn process_export_zip(
     tenant_id: &str,
@@ -92,25 +86,24 @@ pub async fn process_export_zip(
 
     // Temporary file path for the ZIP archive
     let zip_filename = format!("export-election-event-{}.zip", election_event_id);
-    let zip_path = std::env::temp_dir().join(&zip_filename);
+    let zip_path = env::temp_dir().join(&zip_filename);
 
     // Create a new ZIP file
     let zip_file = File::create(&zip_path)?;
     let mut zip_writer = zip::ZipWriter::new(zip_file);
 
-    // Election event data file
+    // Add election event data file to the ZIP archive
     let export_data = read_export_data(&hasura_transaction, tenant_id, election_event_id).await?;
     let temp_file = write_export_document(export_data).await?;
-
-    // Add the temp file to the ZIP
-    let options: FileOptions<()> = FileOptions::default().compression_method(zip::CompressionMethod::Stored);
+    let options: FileOptions<()> =
+        FileOptions::default().compression_method(zip::CompressionMethod::Stored);
     let json_filename = format!("export-election-event-{}.json", election_event_id);
     zip_writer.start_file(&json_filename, options)?;
 
     let mut file = File::open(temp_file.path())?;
     std::io::copy(&mut file, &mut zip_writer)?;
 
-    // TODO: Users file
+    // TODO: Add voters data file to the ZIP archive
 
     // Finalize the ZIP file
     zip_writer.finish()?;

@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::tasks_execution::*;
-use crate::types::error::{Error, Result};
 use crate::services::database::get_hasura_pool;
 use crate::services::export_election_event::process_export_zip;
+use crate::services::tasks_execution::*;
+use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction};
