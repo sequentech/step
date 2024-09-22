@@ -1,0 +1,71 @@
+// SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+use rocket::http::Status;
+use rocket::response::status::Custom;
+use rocket::serde::{json::Json, Serialize};
+use std::convert::AsRef;
+use strum_macros::AsRefStr;
+use tracing::instrument;
+
+pub type JsonError = Custom<Json<ErrorResponse>>;
+
+#[derive(Serialize, AsRefStr, Debug)]
+pub enum ErrorCode {
+    QueueError,
+    Unauthorized,
+    AreaNotFound,
+    ElectionEventNotFound,
+    ElectoralLogNotFound,
+    CheckStatusFailed,
+    CheckPreviousVotesFailed,
+    InsertFailed,
+    CommitFailed,
+    GetDbClientFailed,
+    GetClientCredentialsFailed,
+    GetAreaIdFailed,
+    GetTransactionFailed,
+    DeserializeBallotFailed,
+    DeserializeContestsFailed,
+    SerializeVoterIdFailed,
+    SerializeBallotFailed,
+    PokValidationFailed,
+    BallotSignFailed,
+    UuidParseFailed,
+    UnknownError,
+    // Add any other needed error codes
+}
+
+#[derive(Serialize)]
+pub struct ErrorResponse {
+    pub errors: Vec<ErrorItem>,
+}
+
+impl ErrorResponse {
+    #[instrument]
+    pub fn new(status: Status, message: &str, code: ErrorCode) -> JsonError {
+        return Custom(
+            status,
+            Json(ErrorResponse {
+                errors: vec![ErrorItem {
+                    message: message.into(),
+                    extensions: ErrorExtensions {
+                        code: code.as_ref().into(),
+                    },
+                }],
+            }),
+        );
+    }
+}
+
+#[derive(Serialize)]
+pub struct ErrorItem {
+    pub message: String,
+    pub extensions: ErrorExtensions,
+}
+
+#[derive(Serialize)]
+pub struct ErrorExtensions {
+    pub code: String,
+}

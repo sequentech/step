@@ -151,45 +151,30 @@ interface ActionButtonProps {
 
 interface LoadingOrCastButtonProps {
     onClick: () => void
-    loading: boolean
     className?: string
     isCastingBallot: boolean
 }
 
 const LoadingOrCastButton: React.FC<LoadingOrCastButtonProps> = ({
     onClick,
-    loading,
     isCastingBallot,
     className,
 }) => {
     const {t} = useTranslation()
 
-    if (loading) {
-        return (
-            <StyledButton
-                className={className}
-                sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
-                disabled={true}
-                onClick={onClick}
-            >
-                <Box className={className}>
-                    <CircularProgress style={{width: "200%", height: "200%"}} />
-                </Box>
-            </StyledButton>
-        )
-    } else {
-        return (
-            <StyledButton
-                className={className}
-                sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
-                disabled={isCastingBallot}
-                onClick={onClick}
-            >
-                <Box>{t("reviewScreen.castBallotButton")}</Box>
-                <Icon icon={faAngleRight} size="sm" />
-            </StyledButton>
-        )
-    }
+    return (
+        <StyledButton
+            className={className}
+            sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
+            disabled={isCastingBallot}
+            onClick={onClick}
+        >
+            <Box>{t("reviewScreen.castBallotButton")}</Box>
+            {isCastingBallot 
+                ? <CircularProgress style={{width: "200%", height: "200%"}} />
+                : <Icon icon={faAngleRight} size="sm" />}
+        </StyledButton>
+    )
 }
 
 const ActionButtons: React.FC<ActionButtonProps> = ({
@@ -207,7 +192,6 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const location = useLocation()
     const [auditBallotHelp, setAuditBallotHelp] = useState<boolean>(false)
     const [isCastingBallot, setIsCastingBallot] = React.useState<boolean>(false)
-    const [onErrorCastDisabled, setOnErrorCastDisabled] = React.useState<boolean>(false)
     const [isConfirmCastVoteModal, setConfirmCastVoteModal] = React.useState<boolean>(false)
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {toHashableBallot} = provideBallotService()
@@ -298,8 +282,16 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 },
             })
             if (result.errors) {
-                console.log(result.errors.map((e) => e.message)) // As the exception occurs above this error is not set, leading to unknown error.
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`))
+                // As the exception occurs above this error is not set, leading
+                // to unknown error.
+                console.log(result.errors.map((e) => e.message)) 
+                setIsCastingBallot(false)
+                if (result?.extensions?.code) {
+                    console.log(result?.extensions?.code) 
+                    setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}.${result?.extensions?.code}`))
+                } else {
+                    setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`))
+                }
             }
 
             let newCastVote = result.data?.insert_cast_vote
@@ -309,12 +301,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
 
             return submit(null, {method: "post"})
         } catch (error) {
-            setOnErrorCastDisabled(true)
-            setTimeout(() => {
-                setOnErrorCastDisabled(false)
-            }, globalSettings.POLLING_DURATION_TIMEOUT)
             setIsCastingBallot(false)
-            // dispatch(clearBallot())
             const ballotError = error as IBallotError
             if (ballotError.error_type) {
                 setErrorMsg(
@@ -353,7 +340,6 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 <LoadingOrCastButton
                     className="cast-ballot-button"
                     isCastingBallot={isCastingBallot}
-                    loading={onErrorCastDisabled}
                     onClick={() =>
                         castVoteConfirmModal ? setConfirmCastVoteModal(true) : castBallotAction()
                     }
