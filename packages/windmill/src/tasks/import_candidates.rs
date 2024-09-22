@@ -13,6 +13,7 @@ use crate::{
 use anyhow::{anyhow, Context, Result};
 use csv::ReaderBuilder;
 use deadpool_postgres::Client as DbClient;
+use deadpool_postgres::Transaction;
 use encoding_rs::WINDOWS_1252;
 use encoding_rs_io::DecodeReaderBytesBuilder;
 use sequent_core::ballot::ContestPresentation;
