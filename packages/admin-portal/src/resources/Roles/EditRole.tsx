@@ -22,7 +22,7 @@ type EnumObjectEnum<E extends EnumObject> = E extends {[key: string]: infer ET |
     ? ET
     : never
 
-function getEnumValues<E extends EnumObject>(enumObject: E): EnumObjectEnum<E>[] {
+export function getEnumValues<E extends EnumObject>(enumObject: E): EnumObjectEnum<E>[] {
     return Object.keys(enumObject)
         .filter((key) => Number.isNaN(Number(key)))
         .map((key) => enumObject[key] as EnumObjectEnum<E>)
@@ -65,9 +65,12 @@ export const EditRole: React.FC<EditRoleProps> = ({id, close, permissions}) => {
 
     const editRolePermission = (props: GridRenderCellParams<any, boolean>) => async () => {
         const permission = (permissions || []).find((el) => el.id === props.row.id)
+        console.log(permission)
+
         if (!permission?.name || !role) {
             return
         }
+        console.log(permission.name)
 
         // remove/add permission to role
         const {errors} = await (props.value ? deleteRolePermission : setRolePermission)({

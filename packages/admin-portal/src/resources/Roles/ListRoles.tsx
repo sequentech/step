@@ -107,7 +107,9 @@ export const ListRoles: React.FC<ListRolesProps> = ({aside}) => {
                         withFilter={false}
                         open={openDrawer}
                         setOpen={setOpenDrawer}
-                        Component={<CreateRole close={handleCloseCreateDrawer} />}
+                        Component={
+                            <CreateRole close={handleCloseCreateDrawer} permissions={permissions} />
+                        }
                     />
                 }
                 filter={{tenant_id: tenantId}}

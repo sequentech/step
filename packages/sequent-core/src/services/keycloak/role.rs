@@ -100,7 +100,7 @@ impl KeycloakAdminClient {
 
     #[instrument(skip(self), err)]
     pub async fn set_user_role(
-        self,
+        self: &KeycloakAdminClient,
         realm: &str,
         user_id: &str,
         role_id: &str,
@@ -146,5 +146,20 @@ impl KeycloakAdminClient {
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
         Ok(role.clone())
+    }
+
+    #[instrument(skip(self), err)]
+    pub async fn get_role_by_name(
+        self,
+        realm: &str,
+        role: &Role,
+    ) -> Result<Role> {
+        let (roles, count) = self.list_roles(realm, None, None, None).await?;
+        let role_by_named = roles.iter().find(|r| role.name == r.name);
+        let new_role = match role_by_named {
+            Some(new_rolee) => new_rolee,
+            None => role,
+        };
+        Ok(new_role.clone())
     }
 }

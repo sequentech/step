@@ -40,6 +40,7 @@ pub struct MiruCcsServer {
     pub tag: String,
     pub address: String,
     pub public_key_pem: String,
+    pub send_logs: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
