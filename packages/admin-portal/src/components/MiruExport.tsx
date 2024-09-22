@@ -82,7 +82,6 @@ export const MiruExport: React.FC<MiruExportProps> = ({
     console.log({areas})
     return (
         <Box>
-            <div>ssssss</div>
             <ExportButton
                 aria-label="export election data"
                 aria-controls="export-menu"
