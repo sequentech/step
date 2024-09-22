@@ -28,23 +28,13 @@ cfg_if::cfg_if! {
     }
 }
 
-const IMMUDB_USER: &str = "immudb";
-const IMMUDB_PW: &str = "immudb";
-const IMMUDB_URL: &str = "http://immudb:3322";
-
 #[derive(Parser)]
 struct Cli {
-    #[arg(short, long, default_value_t = IMMUDB_URL.to_string())]
+    #[arg(short, long)]
     server_url: String,
 
     #[arg(short, long)]
     trustee_config: PathBuf,
-
-    #[arg(short, long, default_value_t = IMMUDB_USER.to_string())]
-    user: String,
-
-    #[arg(short, long, default_value_t = IMMUDB_PW.to_string())]
-    password: String,
 
     #[arg(long, default_value_t = false)]
     strict: bool,
