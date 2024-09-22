@@ -45,9 +45,6 @@ pub async fn create_transmission_package(
     claims: jwt::JwtClaims,
     input: Json<CreateTransmissionPackageInput>,
 ) -> Result<Json<CreateTransmissionPackageOutput>, (Status, String)> {
-    info!(
-        "---------------------------------------"
-    );
     let body = input.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let election_event_id = body.election_event_id.clone();

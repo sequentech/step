@@ -60,14 +60,10 @@ export const MiruExport: React.FC<MiruExportProps> = ({
         return uniq(areaIds)
     }, [resultsAreaContests])
 
-    // const areas: Array<Sequent_Backend_Area> = useMemo(
-    //     () => tallyData?.sequent_backend_area?.filter((area) => areaIds.includes(area.id)) ?? [],
-    //     [areaIds, tallyData?.sequent_backend_area]
-    // )
-    const areas = [
-        {id: "2f312a36-f39c-46e4-9670-1d1ce4625745", name: "area1"},
-        {id: "8ad3d1c2-2f07-424f-a151-4b7c8f70ebbe", name: "area2"},
-    ]
+    const areas: Array<Sequent_Backend_Area> = useMemo(
+        () => tallyData?.sequent_backend_area?.filter((area) => areaIds.includes(area.id)) ?? [],
+        [areaIds, tallyData?.sequent_backend_area]
+    )
 
     const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
         event.preventDefault()
@@ -79,7 +75,6 @@ export const MiruExport: React.FC<MiruExportProps> = ({
         setAnchorEl(null)
     }
 
-    console.log({areas})
     return (
         <Box>
             <ExportButton

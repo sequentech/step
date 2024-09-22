@@ -49,7 +49,7 @@ type Mutation {
     area_id: uuid!
     tally_session_id: uuid!
     force: Boolean!
-  ): OptionalId
+  ): createTransmissionPackageOutput
 }
 
 type Mutation {
@@ -1059,5 +1059,10 @@ type SetCustomUrlsOutput {
 type ExportTasksExecutionOutput {
   error_msg : String
   document_id : String!
+}
+
+type createTransmissionPackageOutput {
+  error_msg : String
+  task_execution : tasks_execution_type
 }
 

@@ -493,21 +493,18 @@ export const TallyCeremony: React.FC = () => {
 
                 if (errors) {
                     updateWidgetFail(currWidget.identifier)
-                    setTransmissionLoading(false)
                     return
-                }
-
-                if (nextStatus) {
-                    // const task_id = exportUsersData?.export_users?.task_execution.id //TODO: fix action
-                    // setWidgetTaskId(currWidget.identifier, task_id)
-                    notify(t("miruExport.create.success"), {type: "success"})
+                } else if (nextStatus) {
+                    const task_id = nextStatus?.create_transmission_package?.task_execution?.id
+                    setWidgetTaskId(currWidget.identifier, task_id)
                     handleMiruExportSuccess?.({area_id, election_id})
                 }
+                setTransmissionLoading(false)
+
             } catch (error) {
                 updateWidgetFail(currWidget.identifier)
                 console.log(`Caught error: ${error}`)
                 setTransmissionLoading(false)
-                notify(t("miruExport.create.error"), {type: "error"})
             }
         },
         [tallySessionData, tally]

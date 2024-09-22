@@ -104,8 +104,7 @@ const tagalogTranslation: TranslationType = {
                 IMPORT_USERS: "I-import ang mga Gumagamit",
                 IMPORT_CANDIDATES: "I-import ang mga Kandidato",
                 EXPORT_VOTERS: "I-export ang mga botante",
-                EXPORT_USERS: "I-export ang mga gumagamit",
-                EXPORT_TENANT_USERS: "I-export ang mga gumagamit ng tenant",
+                CREATE_TRANSMISSION_PACKAGE: "Lumikha ng Transmission Package",
             },
             exportTasksExecution: {
                 success: "Matagumpay na natapos ang pag-export",

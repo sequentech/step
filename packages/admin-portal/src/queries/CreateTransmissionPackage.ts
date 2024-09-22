@@ -18,7 +18,22 @@ export const CREATE_TRANSMISSION_PACKAGE = gql`
             area_id: $areaId
             force: $force
         ) {
-            id
+            error_msg
+            task_execution {
+                id
+                name
+                execution_status
+                created_at
+                start_at
+                end_at
+                logs
+                annotations
+                labels
+                executed_by_user
+                tenant_id
+                election_event_id
+                type
+            }
         }
     }
 `

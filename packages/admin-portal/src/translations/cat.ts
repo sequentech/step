@@ -105,8 +105,7 @@ const catalanTranslation: TranslationType = {
                 IMPORT_USERS: "Importar usuaris",
                 IMPORT_CANDIDATES: "Importar candidats",
                 EXPORT_VOTERS: "Exportar votants",
-                EXPORT_USERS: "Exportar usuaris",
-                EXPORT_TENANT_USERS: "Exportar usuaris del llogater",
+                CREATE_TRANSMISSION_PACKAGE: "Crear paquet de transmissió",
             },
             exportTasksExecution: {
                 success: "L'exportació s'ha completat amb èxit",

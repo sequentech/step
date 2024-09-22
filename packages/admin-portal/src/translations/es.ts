@@ -105,8 +105,7 @@ const spanishTranslation: TranslationType = {
                 IMPORT_USERS: "Importar usuarios",
                 IMPORT_CANDIDATES: "Importar candidatos",
                 EXPORT_VOTERS: "Exportar votantes",
-                EXPORT_USERS: "Exportar usuarios",
-                EXPORT_TENANT_USERS: "Exportar usuarios del inquilino",
+                CREATE_TRANSMISSION_PACKAGE: "Crear paquete de transmisión",
             },
             exportTasksExecution: {
                 success: "La exportación se completó con éxito",

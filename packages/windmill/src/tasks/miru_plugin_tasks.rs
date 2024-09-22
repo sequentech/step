@@ -7,8 +7,8 @@ use crate::services::consolidation::upload_signature_service::upload_transmissio
 use crate::services::tasks_execution::*;
 use crate::types::error::Error;
 use crate::types::error::Result;
-use anyhow::{anyhow, Context};
 use anyhow::Result as AnyhowResult;
+use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use sequent_core::types::hasura::core::TasksExecution;
 use tracing::{info, instrument};
@@ -36,11 +36,11 @@ pub async fn create_transmission_package_task(
                     &tally_session_id,
                     force,
                 )
-                .await {
+                .await
+                {
                     Ok(_) => Ok(()),
                     Err(err) => {
-                        update_fail(&task_execution_clone, "Failed to create transmission package")
-                            .await?;
+                        update_fail(&task_execution_clone, &err.to_string()).await?;
                         return Err(anyhow!("Failed to create transmission package: {}", err));
                     }
                 }
@@ -55,8 +55,8 @@ pub async fn create_transmission_package_task(
     }?;
 
     update_complete(&task_execution)
-    .await
-    .context("Failed to update task execution status to COMPLETED")?;
+        .await
+        .context("Failed to update task execution status to COMPLETED")?;
 
     Ok(())
 }

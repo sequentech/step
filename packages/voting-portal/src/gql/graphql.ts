@@ -651,6 +651,12 @@ export type Bytea_Comparison_Exp = {
   _nin?: InputMaybe<Array<Scalars['bytea']['input']>>;
 };
 
+export type CreateTransmissionPackageOutput = {
+  __typename?: 'createTransmissionPackageOutput';
+  error_msg?: Maybe<Scalars['String']['output']>;
+  task_execution?: Maybe<Tasks_Execution_Type>;
+};
+
 /** ordering argument of a cursor */
 export enum Cursor_Ordering {
   /** ascending ordering of the cursor */
@@ -719,7 +725,7 @@ export type Mutation_Root = {
   create_permission?: Maybe<KeycloakPermission>;
   create_role: KeycloakRole;
   create_tally_ceremony?: Maybe<CreateTallyOutput>;
-  create_transmission_package?: Maybe<OptionalId>;
+  create_transmission_package?: Maybe<CreateTransmissionPackageOutput>;
   create_user: KeycloakUser;
   /** create_vote_receipt */
   create_vote_receipt?: Maybe<CreateVoteReceiptOutput>;

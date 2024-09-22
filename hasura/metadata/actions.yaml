@@ -972,4 +972,5 @@ custom_types:
   - name: SetCustomUrlOutput
   - name: SetCustomUrlsOutput
   - name: ExportTasksExecutionOutput
+  - name: createTransmissionPackageOutput
   scalars: []
