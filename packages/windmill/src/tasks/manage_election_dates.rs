@@ -80,16 +80,19 @@ async fn manage_election_date_wrapper(
         }
     };
 
-    voting_status::update_election_status(
+    let result = voting_status::update_election_status(
         tenant_id.clone(),
         hasura_transaction,
         &election_event_id,
         &election_id,
         &election_status.voting_status,
     )
-    .await?;
+    .await;
+    info!("result: {:?}", result);
 
     stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id).await?;
+
+    result?;
 
     Ok(())
 }

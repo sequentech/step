@@ -109,6 +109,7 @@ pub async fn update_election_voting_status_impl(
     election_event_id: String,
     election_id: String,
     new_status: VotingStatus,
+    bulletin_board_reference: Option<Value>,
     hasura_transaction: &Transaction<'_>,
 ) -> Result<()> {
     let Some(election) = get_election_by_id(
@@ -128,6 +129,11 @@ pub async fn update_election_voting_status_impl(
     });
 
     let current_voting_status = status.voting_status.clone();
+
+    if new_status == current_voting_status {
+        info!("New status is the same as the current voting status, skipping");
+        return Ok(());
+    }
 
     let expected_next_status = match current_voting_status {
         VotingStatus::NOT_STARTED => {
@@ -152,7 +158,7 @@ pub async fn update_election_voting_status_impl(
         ));
     }
 
-    status.voting_status = new_status;
+    status.voting_status = new_status.clone();
 
     let status_js = serde_json::to_value(&status)?;
 
@@ -162,6 +168,15 @@ pub async fn update_election_voting_status_impl(
         &election_event_id,
         &election_id,
         status_js,
+    )
+    .await?;
+
+    update_board_on_status_change(
+        election_event_id.to_string(),
+        bulletin_board_reference.clone(),
+        new_status.clone(),
+        Some(election_id.to_string()),
+        None,
     )
     .await?;
 
