@@ -329,7 +329,7 @@ const englishTranslation = {
                 encryptWithPassword: "Encrypt with Password",
                 includeVoters: "Include Voters",
                 activityLogs: "Activity Logs",
-                ballotingBoard: "Balloting Board",
+                bulletinBoard: "Bulletin Board",
                 publications: "Publications",
                 s3Files: "S3 Files",
                 exportSuccess: "Election Event exported successfully",

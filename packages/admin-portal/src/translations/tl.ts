@@ -330,7 +330,7 @@ const tagalogTranslation: TranslationType = {
                 encryptWithPassword: "I-encrypt gamit ang Password",
                 includeVoters: "Isama ang mga Botante",
                 activityLogs: "Mga Log ng Aktibidad",
-                ballotingBoard: "Lupon ng Balota",
+                bulletinBoard: "Bulletin Board",
                 publications: "Mga Publikasyon",
                 s3Files: "Mga File ng S3",
                 exportSuccess: "Matagumpay na nai-export ang Kaganapang Halalan",

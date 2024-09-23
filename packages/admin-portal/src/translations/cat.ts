@@ -331,7 +331,7 @@ const catalanTranslation: TranslationType = {
                 encryptWithPassword: "Xifrar amb Contrasenya",
                 includeVoters: "Incloure Votants",
                 activityLogs: "Registres d'Activitat",
-                ballotingBoard: "Junta Electoral",
+                bulletinBoard: "Tauler d'Anuncis",
                 publications: "Publicacions",
                 s3Files: "Fitxers S3",
                 exportSuccess: "Esdeveniment Electoral exportat amb èxit",

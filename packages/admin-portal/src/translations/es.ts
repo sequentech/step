@@ -330,7 +330,7 @@ const spanishTranslation: TranslationType = {
                 encryptWithPassword: "Cifrar con Contraseña",
                 includeVoters: "Incluir Votantes",
                 activityLogs: "Registros de Actividad",
-                ballotingBoard: "Junta Electoral",
+                bulletinBoard: "Tablón de Anuncios",
                 publications: "Publicaciones",
                 s3Files: "Archivos S3",
                 exportSuccess: "Evento Electoral exportado con éxito",

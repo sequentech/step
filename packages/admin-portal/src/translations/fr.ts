@@ -332,7 +332,7 @@ const frenchTranslation: TranslationType = {
                 encryptWithPassword: "Chiffrer avec Mot de Passe",
                 includeVoters: "Inclure les Électeurs",
                 activityLogs: "Journaux d'Activité",
-                ballotingBoard: "Conseil de Scrutin",
+                bulletinBoard: "Tableau d'Affichage",
                 publications: "Publications",
                 s3Files: "Fichiers S3",
                 exportSuccess: "Événement Électoral exporté avec succès",

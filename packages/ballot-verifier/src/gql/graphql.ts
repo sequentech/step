@@ -217,6 +217,15 @@ export type ExportLogsOutput = {
     task_id: Scalars["String"]["output"]
 }
 
+export type ExportOptions = {
+    activity_logs?: InputMaybe<Scalars["Boolean"]["input"]>
+    bulletin_board?: InputMaybe<Scalars["Boolean"]["input"]>
+    encrypt_with_password?: InputMaybe<Scalars["Boolean"]["input"]>
+    include_voters?: InputMaybe<Scalars["Boolean"]["input"]>
+    publications?: InputMaybe<Scalars["Boolean"]["input"]>
+    s3_files?: InputMaybe<Scalars["Boolean"]["input"]>
+}
+
 export type ExportTasksOutput = {
     __typename?: "ExportTasksOutput"
     document_id: Scalars["String"]["output"]
@@ -1724,6 +1733,7 @@ export type Mutation_RootEdit_UserArgs = {
 /** mutation root */
 export type Mutation_RootExport_Election_EventArgs = {
     election_event_id?: InputMaybe<Scalars["String"]["input"]>
+    export_configurations?: InputMaybe<ExportOptions>
 }
 
 /** mutation root */

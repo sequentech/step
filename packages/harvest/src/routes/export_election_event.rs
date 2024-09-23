@@ -15,12 +15,13 @@ use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::tasks_execution::*;
-use windmill::tasks::export_election_event;
+use windmill::tasks::export_election_event::{self, ExportOptions};
 use windmill::types::tasks::ETasksExecution;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ExportElectionEventInput {
     election_event_id: String,
+    export_configurations: ExportOptions,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -42,6 +43,7 @@ pub async fn export_election_event_route(
         .name
         .clone()
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
+    let export_config = body.export_configurations.clone();
 
     // Insert the task execution record
     let task_execution = post(
@@ -72,6 +74,7 @@ pub async fn export_election_event_route(
         .send_task(export_election_event::export_election_event::new(
             tenant_id,
             election_event_id,
+            export_config,
             document_id.clone(),
             task_execution.clone(),
         ))

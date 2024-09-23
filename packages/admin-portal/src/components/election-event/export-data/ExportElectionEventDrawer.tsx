@@ -40,7 +40,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
     const [encryptWithPassword, setEncryptWithPassword] = useState(false)
     const [includeVoters, setIncludeVoters] = useState(false)
     const [activityLogs, setActivityLogs] = useState(false)
-    const [ballotingBoard, setBallotingBoard] = useState(false)
+    const [bulletinBoard, setBulletinBoard] = useState(false)
     const [publications, setPublications] = useState(false)
     const [s3Files, setS3Files] = useState(false)
 
@@ -57,7 +57,17 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
         setOpenExport(false)
         const currWidget = addWidget(ETasksExecution.EXPORT_ELECTION_EVENT)
         const {data: exportElectionEventData, errors} = await exportElectionEvent({
-            variables: {electionEventId},
+            variables: {
+                electionEventId,
+                exportConfigurations: {
+                    encrypt_with_password: encryptWithPassword,
+                    include_voters: includeVoters,
+                    activity_logs: activityLogs,
+                    bulletin_board: bulletinBoard,
+                    publications: publications,
+                    s3_files: s3Files,
+                },
+            },
         })
 
         const documentId = exportElectionEventData?.export_election_event?.document_id
@@ -121,11 +131,11 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                     <FormControlLabel
                         control={
                             <StyledCheckbox
-                                checked={ballotingBoard}
-                                onChange={() => setBallotingBoard(!ballotingBoard)}
+                                checked={bulletinBoard}
+                                onChange={() => setBulletinBoard(!bulletinBoard)}
                             />
                         }
-                        label={t("electionEventScreen.export.ballotingBoard")}
+                        label={t("electionEventScreen.export.bulletinBoard")}
                     />
                     <FormControlLabel
                         control={

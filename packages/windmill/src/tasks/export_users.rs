@@ -4,7 +4,6 @@
 
 use crate::hasura;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
-use crate::services::election::{get_election_event_elections, ElectionHead};
 use crate::services::export_users::{export_users_file, ExportBody};
 use crate::services::s3;
 use crate::types::error::{Error, Result};
@@ -12,9 +11,7 @@ use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction as _};
 use sequent_core::services::keycloak;
-use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::util;
-use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use tempfile::{NamedTempFile, TempPath};

@@ -9,12 +9,12 @@ use crate::postgres::election::export_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::database::get_hasura_pool;
 use crate::services::import_election_event::ImportElectionEventSchema;
+use crate::tasks::export_election_event::ExportOptions;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::try_join;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
-use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs::File;
 use std::io::Write;
@@ -74,6 +74,7 @@ pub async fn process_export_zip(
     tenant_id: &str,
     election_event_id: &str,
     document_id: &str,
+    export_config: ExportOptions,
 ) -> Result<()> {
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
@@ -106,20 +107,23 @@ pub async fn process_export_zip(
     std::io::copy(&mut election_event_file, &mut zip_writer)?;
 
     // Add voters data file to the ZIP archive
-    let temp_voters_file_path = export_users_file(
-        &hasura_transaction,
-        ExportBody::Users {
-            tenant_id: tenant_id.to_string(),
-            election_event_id: Some(election_event_id.to_string()),
-            election_id: None,
-        },
-    )
-    .await?;
-    let voters_filename = format!("export-voters-{}.csv", election_event_id);
-    zip_writer.start_file(&voters_filename, options)?;
+    let is_include_voters = export_config.include_voters;
+    if is_include_voters {
+        let temp_voters_file_path = export_users_file(
+            &hasura_transaction,
+            ExportBody::Users {
+                tenant_id: tenant_id.to_string(),
+                election_event_id: Some(election_event_id.to_string()),
+                election_id: None,
+            },
+        )
+        .await?;
+        let voters_filename = format!("export-voters-{}.csv", election_event_id);
+        zip_writer.start_file(&voters_filename, options)?;
 
-    let mut voters_file = File::open(temp_voters_file_path)?;
-    std::io::copy(&mut voters_file, &mut zip_writer)?;
+        let mut voters_file = File::open(temp_voters_file_path)?;
+        std::io::copy(&mut voters_file, &mut zip_writer)?;
+    }
 
     // Finalize the ZIP file
     zip_writer.finish()?;

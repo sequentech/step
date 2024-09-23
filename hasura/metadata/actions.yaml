@@ -892,6 +892,7 @@ custom_types:
   - name: KeycloakRole2
   - name: RestorePrivateKeyInput
   - name: UserProfileAttributesInput
+  - name: ExportOptions
   objects:
   - name: GetManualVerificationOutput
   - name: CreateKeysCeremonyOutput
