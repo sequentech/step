@@ -191,9 +191,8 @@ type Mutation {
 type Mutation {
   get_event_list (
     tenant_id: String!
-    election_event_id: String
-    election_id: String
-  ): GetEventListOutput
+    election_event_id: String!
+  ): [GetEventListOutput]
 }
 
 type Mutation {
@@ -1063,5 +1062,6 @@ type GetEventListOutput {
   event_type : String!
   receivers : [String]
   template : jsonb
+  name : String!
 }
 
