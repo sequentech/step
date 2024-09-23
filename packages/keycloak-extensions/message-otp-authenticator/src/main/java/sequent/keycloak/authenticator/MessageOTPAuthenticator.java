@@ -88,7 +88,7 @@ public class MessageOTPAuthenticator
                 .form()
                 .setError(
                     context.form().getMessage("messageOtp.auth.codeWithOtl")
-                        + "<br>code_id: "
+                        + "<br><br>code_id: "
                         + sessionId)
                 .createErrorPage(Response.Status.BAD_REQUEST));
         return;
@@ -113,7 +113,7 @@ public class MessageOTPAuthenticator
                 .setError(
                     context
                         .form()
-                        .getMessage("messageOtp.auth.codeExpired" + "<br>code_id: " + sessionId))
+                        .getMessage("messageOtp.auth.codeExpired" + "<br><br>code_id: " + sessionId))
                 .createErrorPage(Response.Status.BAD_REQUEST));
       } else {
         // Set email as verified in the auth note only if we actually verified
@@ -148,7 +148,7 @@ public class MessageOTPAuthenticator
                 .form()
                 .setError(
                     context.form().getMessage("messageOtp.auth.codeInvalid")
-                        + "<br>code_id: "
+                        + "<br><br>code_id: "
                         + sessionId)
                 .setAttribute("realm", context.getRealm())
                 .setAttribute("courier", messageCourier)

@@ -694,14 +694,14 @@ impl BoardClient {
                     statement_kind,
                     statement_timestamp,
                     message,
-                    version,
+                    version
                 ) VALUES (
                     @created,
                     @sender_pk,
                     @statement_kind,
                     @statement_timestamp,
                     @message,
-                    @version,
+                    @version
                 );
             "#,
                 table.as_str()
