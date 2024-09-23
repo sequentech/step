@@ -84,65 +84,65 @@ const catalanTranslation: TranslationType = {
                 cancel: "Cancel·lar",
             },
             error: {
-                "NETWORK_ERROR":
+                NETWORK_ERROR:
                     "Hi ha hagut un problema de xarxa. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
-                "UNABLE_TO_FETCH_DATA":
+                UNABLE_TO_FETCH_DATA:
                     "Hi ha hagut un problema en recuperar les dades. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
-                "LOAD_ELECTION_EVENT":
+                LOAD_ELECTION_EVENT:
                     "No es pot carregar l'esdeveniment electoral. Si us plau, torna-ho a intentar més tard.",
-                "CAST_VOTE":
+                CAST_VOTE:
                     "Hi ha hagut un error desconegut en emetre el vot. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
-                "CAST_VOTE_AreaNotFound":
+                CAST_VOTE_AreaNotFound:
                     "Hi ha hagut un error en emetre el vot: Àrea no trobada. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
-                "CAST_VOTE_InternalServerError":
+                CAST_VOTE_InternalServerError:
                     "Hi ha hagut un error intern en emetre el vot. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
-                "CAST_VOTE_QueueError":
+                CAST_VOTE_QueueError:
                     "Hi ha hagut un problema en processar el seu vot. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
-                "CAST_VOTE_Unauthorized":
+                CAST_VOTE_Unauthorized:
                     "No està autoritzat per emetre un vot. Si us plau, contacti amb el suport per obtenir ajuda.",
-                "CAST_VOTE_ElectionEventNotFound":
+                CAST_VOTE_ElectionEventNotFound:
                     "No s'ha pogut trobar l'esdeveniment electoral. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
-                "CAST_VOTE_ElectoralLogNotFound":
+                CAST_VOTE_ElectoralLogNotFound:
                     "No s'ha pogut trobar el seu registre de vot. Si us plau, contacti amb el suport per obtenir ajuda.",
-                "CAST_VOTE_CheckPreviousVotesFailed":
+                CAST_VOTE_CheckPreviousVotesFailed:
                     "Hi ha hagut un error en comprovar el seu estat de votació. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
-                "CAST_VOTE_GetClientCredentialsFailed":
+                CAST_VOTE_GetClientCredentialsFailed:
                     "No s'han pogut verificar les seves credencials. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
-                "CAST_VOTE_GetAreaIdFailed":
+                CAST_VOTE_GetAreaIdFailed:
                     "Hi ha hagut un error en verificar la seva àrea de votació. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
-                "CAST_VOTE_GetTransactionFailed":
+                CAST_VOTE_GetTransactionFailed:
                     "Hi ha hagut un error en processar el seu vot. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
-                "CAST_VOTE_DeserializeBallotFailed":
+                CAST_VOTE_DeserializeBallotFailed:
                     "Hi ha hagut un error en llegir la seva papereta. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
-                "CAST_VOTE_DeserializeContestsFailed":
+                CAST_VOTE_DeserializeContestsFailed:
                     "Hi ha hagut un error en llegir les seves seleccions. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
-                "CAST_VOTE_PokValidationFailed":
+                CAST_VOTE_PokValidationFailed:
                     "No s'ha pogut validar el seu vot. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
-                "CAST_VOTE_UuidParseFailed":
+                CAST_VOTE_UuidParseFailed:
                     "Hi ha hagut un error en processar la seva sol·licitud. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
-                "CAST_VOTE_UnknownError":
+                CAST_VOTE_UnknownError:
                     "Hi ha hagut un error desconegut en emetre el vot. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
-                "NO_BALLOT_SELECTION":
+                NO_BALLOT_SELECTION:
                     "No es troba l'estat de selecció per aquesta elecció. Si us plau, assegura't d'haver seleccionat les teves opcions correctament o contacta amb el servei d'assistència.",
-                "NO_BALLOT_STYLE":
+                NO_BALLOT_STYLE:
                     "L'estil de la papereta no està disponible. Si us plau, contacta amb el servei d'assistència.",
-                "NO_AUDITABLE_BALLOT":
+                NO_AUDITABLE_BALLOT:
                     "No hi ha cap papereta auditable disponible. Si us plau, contacta amb el servei d'assistència.",
-                "INCONSISTENT_HASH":
+                INCONSISTENT_HASH:
                     "Hi ha hagut un error relacionat amb el procés de hashing de la papereta. El BallotId: {{ballotId}} no és consistent amb el Hash de la Papereta Auditable: {{auditableBallotHash}}. Si us plau, informa d'aquest problema al servei d'assistència.",
-                "ELECTION_EVENT_NOT_OPEN":
+                ELECTION_EVENT_NOT_OPEN:
                     "L'esdeveniment electoral està tancat. Si us plau, contacta amb el servei d'assistència.",
-                "PARSE_ERROR":
+                PARSE_ERROR:
                     "Hi ha hagut un error en analitzar la papereta. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
-                "DESERIALIZE_AUDITABLE_ERROR":
+                DESERIALIZE_AUDITABLE_ERROR:
                     "Hi ha hagut un error en deserialitzar la papereta auditable. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
-                "DESERIALIZE_HASHABLE_ERROR":
+                DESERIALIZE_HASHABLE_ERROR:
                     "Hi ha hagut un error en deserialitzar la papereta hashable. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
-                "CONVERT_ERROR":
+                CONVERT_ERROR:
                     "Hi ha hagut un error en convertir la papereta. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
-                "SERIALIZE_ERROR":
+                SERIALIZE_ERROR:
                     "Hi ha hagut un error en serialitzar la papereta. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
-                "UNKNOWN_ERROR":
+                UNKNOWN_ERROR:
                     "Hi ha hagut un error. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
             },
         },

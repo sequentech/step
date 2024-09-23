@@ -91,35 +91,35 @@ const frenchTranslation: TranslationType = {
                     "Impossible de charger l'événement électoral. Veuillez réessayer plus tard.",
                 CAST_VOTE:
                     "Une erreur inconnue est survenue lors du vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
-                "CAST_VOTE_AreaNotFound":
+                CAST_VOTE_AreaNotFound:
                     "Une erreur est survenue lors du vote : Zone introuvable. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
-                "CAST_VOTE_InternalServerError":
+                CAST_VOTE_InternalServerError:
                     "Une erreur interne est survenue lors du vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
-                "CAST_VOTE_QueueError":
+                CAST_VOTE_QueueError:
                     "Un problème est survenu lors du traitement de votre vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
-                "CAST_VOTE_Unauthorized":
+                CAST_VOTE_Unauthorized:
                     "Vous n'êtes pas autorisé à voter. Veuillez contacter le support pour obtenir de l'aide.",
-                "CAST_VOTE_ElectionEventNotFound":
+                CAST_VOTE_ElectionEventNotFound:
                     "L'événement électoral n'a pas pu être trouvé. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
-                "CAST_VOTE_ElectoralLogNotFound":
+                CAST_VOTE_ElectoralLogNotFound:
                     "Votre enregistrement de vote n'a pas pu être trouvé. Veuillez contacter le support pour obtenir de l'aide.",
-                "CAST_VOTE_CheckPreviousVotesFailed":
+                CAST_VOTE_CheckPreviousVotesFailed:
                     "Une erreur est survenue lors de la vérification de votre statut de vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
-                "CAST_VOTE_GetClientCredentialsFailed":
+                CAST_VOTE_GetClientCredentialsFailed:
                     "Échec de la vérification de vos informations d'identification. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
-                "CAST_VOTE_GetAreaIdFailed":
+                CAST_VOTE_GetAreaIdFailed:
                     "Une erreur est survenue lors de la vérification de votre zone de vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
-                "CAST_VOTE_GetTransactionFailed":
+                CAST_VOTE_GetTransactionFailed:
                     "Une erreur est survenue lors du traitement de votre vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
-                "CAST_VOTE_DeserializeBallotFailed":
+                CAST_VOTE_DeserializeBallotFailed:
                     "Une erreur est survenue lors de la lecture de votre bulletin de vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
-                "CAST_VOTE_DeserializeContestsFailed":
+                CAST_VOTE_DeserializeContestsFailed:
                     "Une erreur est survenue lors de la lecture de vos sélections. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
-                "CAST_VOTE_PokValidationFailed":
+                CAST_VOTE_PokValidationFailed:
                     "Échec de la validation de votre vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
-                "CAST_VOTE_UuidParseFailed":
+                CAST_VOTE_UuidParseFailed:
                     "Une erreur est survenue lors du traitement de votre demande. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
-                "CAST_VOTE_UnknownError":
+                CAST_VOTE_UnknownError:
                     "Une erreur inconnue est survenue lors du vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
                 NO_BALLOT_SELECTION:
                     "L'état de sélection pour cette élection est introuvable. Veuillez vous assurer que vous avez sélectionné vos choix correctement ou contactez le support.",

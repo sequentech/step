@@ -84,65 +84,65 @@ const spanishTranslation: TranslationType = {
                 cancel: "Cancelar",
             },
             error: {
-                "NETWORK_ERROR":
+                NETWORK_ERROR:
                     "Hubo un problema de red. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
-                "UNABLE_TO_FETCH_DATA":
+                UNABLE_TO_FETCH_DATA:
                     "Hubo un problema al recuperar los datos. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
-                "LOAD_ELECTION_EVENT":
+                LOAD_ELECTION_EVENT:
                     "No se puede cargar el evento electoral. Por favor, inténtalo de nuevo más tarde.",
-                "CAST_VOTE":
+                CAST_VOTE:
                     "Ha ocurrido un error desconocido al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
-                "CAST_VOTE_AreaNotFound":
+                CAST_VOTE_AreaNotFound:
                     "Ha ocurrido un error al emitir el voto: Área no encontrada. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
-                "CAST_VOTE_InternalServerError":
+                CAST_VOTE_InternalServerError:
                     "Ha ocurrido un error interno al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
-                "CAST_VOTE_QueueError":
+                CAST_VOTE_QueueError:
                     "Ha ocurrido un problema al procesar su voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
-                "CAST_VOTE_Unauthorized":
+                CAST_VOTE_Unauthorized:
                     "No está autorizado para emitir un voto. Por favor, contacte con soporte para obtener ayuda.",
-                "CAST_VOTE_ElectionEventNotFound":
+                CAST_VOTE_ElectionEventNotFound:
                     "No se pudo encontrar el evento electoral. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
-                "CAST_VOTE_ElectoralLogNotFound":
+                CAST_VOTE_ElectoralLogNotFound:
                     "No se pudo encontrar su registro de votación. Por favor, contacte con soporte para obtener ayuda.",
-                "CAST_VOTE_CheckPreviousVotesFailed":
+                CAST_VOTE_CheckPreviousVotesFailed:
                     "Ha ocurrido un error al verificar su estado de votación. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
-                "CAST_VOTE_GetClientCredentialsFailed":
+                CAST_VOTE_GetClientCredentialsFailed:
                     "No se pudieron verificar sus credenciales. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
-                "CAST_VOTE_GetAreaIdFailed":
+                CAST_VOTE_GetAreaIdFailed:
                     "Ha ocurrido un error al verificar su área de votación. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
-                "CAST_VOTE_GetTransactionFailed":
+                CAST_VOTE_GetTransactionFailed:
                     "Ha ocurrido un error al procesar su voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
-                "CAST_VOTE_DeserializeBallotFailed":
+                CAST_VOTE_DeserializeBallotFailed:
                     "Ha ocurrido un error al leer su papeleta. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
-                "CAST_VOTE_DeserializeContestsFailed":
+                CAST_VOTE_DeserializeContestsFailed:
                     "Ha ocurrido un error al leer sus selecciones. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
-                "CAST_VOTE_PokValidationFailed":
+                CAST_VOTE_PokValidationFailed:
                     "No se pudo validar su voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
-                "CAST_VOTE_UuidParseFailed":
+                CAST_VOTE_UuidParseFailed:
                     "Ha ocurrido un error al procesar su solicitud. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
-                "CAST_VOTE_UnknownError":
+                CAST_VOTE_UnknownError:
                     "Ha ocurrido un error desconocido al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
-                "NO_BALLOT_SELECTION":
+                NO_BALLOT_SELECTION:
                     "El estado de selección para esta elección no está presente. Asegúrate de haber seleccionado correctamente tus opciones o contacta con el soporte.",
-                "NO_BALLOT_STYLE":
+                NO_BALLOT_STYLE:
                     "El estilo de la papeleta no está disponible. Por favor, contacta con el soporte.",
-                "NO_AUDITABLE_BALLOT":
+                NO_AUDITABLE_BALLOT:
                     "No hay una papeleta verificable disponible. Por favor, contacta con el soporte.",
-                "INCONSISTENT_HASH":
+                INCONSISTENT_HASH:
                     "Hubo un error relacionado con el proceso de hash de la papeleta. El BallotId: {{ballotId}} no es coherente con el Hash de la Papeleta Verificable: {{auditableBallotHash}}. Por favor, informa de este problema al soporte.",
-                "ELECTION_EVENT_NOT_OPEN":
+                ELECTION_EVENT_NOT_OPEN:
                     "El evento electoral está cerrado. Por favor, contacta con el soporte.",
-                "PARSE_ERROR":
+                PARSE_ERROR:
                     "Hubo un error al analizar la papeleta. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
-                "DESERIALIZE_AUDITABLE_ERROR":
+                DESERIALIZE_AUDITABLE_ERROR:
                     "Hubo un error al deserializar la papeleta verificable. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
-                "DESERIALIZE_HASHABLE_ERROR":
+                DESERIALIZE_HASHABLE_ERROR:
                     "Hubo un error al deserializar la papeleta hashable. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
-                "CONVERT_ERROR":
+                CONVERT_ERROR:
                     "Hubo un error al convertir la papeleta. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
-                "SERIALIZE_ERROR":
+                SERIALIZE_ERROR:
                     "Hubo un error al serializar la papeleta. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
-                "UNKNOWN_ERROR":
+                UNKNOWN_ERROR:
                     "Hubo un error. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
             },
         },

@@ -84,63 +84,63 @@ const tagalogTranslation: TranslationType = {
                 cancel: "Kanselahin",
             },
             error: {
-                "NETWORK_ERROR":
+                NETWORK_ERROR:
                     "Nagkaroon ng problema sa network. Pakisubukan ulit mamaya o makipag-ugnayan sa helpdesk para sa tulong.",
-                "UNABLE_TO_FETCH_DATA":
+                UNABLE_TO_FETCH_DATA:
                     "Nagkaroon ng problema sa pagkuha ng data. Pakisubukan ulit mamaya o makipag-ugnayan sa helpdesk para sa tulong.",
-                "LOAD_ELECTION_EVENT":
+                LOAD_ELECTION_EVENT:
                     "Hindi ma-load ang kaganapan ng eleksyon. Pakisubukan ulit mamaya.",
-                "CAST_VOTE":
+                CAST_VOTE:
                     "Nagkaroon ng hindi inaasahang error habang bumoboto. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
-                "CAST_VOTE_AreaNotFound":
+                CAST_VOTE_AreaNotFound:
                     "Nagkaroon ng error habang bumoboto: Hindi natagpuan ang lugar. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
-                "CAST_VOTE_InternalServerError":
+                CAST_VOTE_InternalServerError:
                     "Nagkaroon ng internal na error habang bumoboto. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
-                "CAST_VOTE_QueueError":
+                CAST_VOTE_QueueError:
                     "Nagkaroon ng problema sa pagproseso ng iyong boto. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
-                "CAST_VOTE_Unauthorized":
+                CAST_VOTE_Unauthorized:
                     "Hindi ka awtorisadong bumoto. Pakikontak ang suporta para sa tulong.",
-                "CAST_VOTE_ElectionEventNotFound":
+                CAST_VOTE_ElectionEventNotFound:
                     "Hindi matagpuan ang kaganapang elektoral. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
-                "CAST_VOTE_ElectoralLogNotFound":
+                CAST_VOTE_ElectoralLogNotFound:
                     "Hindi matagpuan ang iyong tala ng pagboto. Pakikontak ang suporta para sa tulong.",
-                "CAST_VOTE_CheckPreviousVotesFailed":
+                CAST_VOTE_CheckPreviousVotesFailed:
                     "Nagkaroon ng error habang sinusuri ang iyong status sa pagboto. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
-                "CAST_VOTE_GetClientCredentialsFailed":
+                CAST_VOTE_GetClientCredentialsFailed:
                     "Nabigo sa pag-verify ng iyong mga kredensyal. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
-                "CAST_VOTE_GetAreaIdFailed":
+                CAST_VOTE_GetAreaIdFailed:
                     "Nagkaroon ng error sa pag-verify ng iyong lugar ng pagboto. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
-                "CAST_VOTE_GetTransactionFailed":
+                CAST_VOTE_GetTransactionFailed:
                     "Nagkaroon ng error sa pagproseso ng iyong boto. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
-                "CAST_VOTE_DeserializeBallotFailed":
+                CAST_VOTE_DeserializeBallotFailed:
                     "Nagkaroon ng error sa pagbasa ng iyong balota. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
-                "CAST_VOTE_DeserializeContestsFailed":
+                CAST_VOTE_DeserializeContestsFailed:
                     "Nagkaroon ng error sa pagbasa ng iyong mga napili. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
-                "CAST_VOTE_PokValidationFailed":
+                CAST_VOTE_PokValidationFailed:
                     "Nabigo sa pag-validate ng iyong boto. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
-                "CAST_VOTE_UuidParseFailed":
+                CAST_VOTE_UuidParseFailed:
                     "Nagkaroon ng error sa pagproseso ng iyong kahilingan. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
-                "CAST_VOTE_UnknownError":
+                CAST_VOTE_UnknownError:
                     "Nagkaroon ng hindi kilalang error habang bumoboto. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
-                "NO_BALLOT_SELECTION":
+                NO_BALLOT_SELECTION:
                     "Walang estado ng pagpili para sa eleksyon na ito. Pakitiyak na tama ang iyong pagpili o makipag-ugnayan sa helpdesk.",
-                "NO_BALLOT_STYLE": "Walang estilo ng balota. Pakikontak ang helpdesk.",
-                "NO_AUDITABLE_BALLOT": "Walang balota na maaring suriin. Pakikontak ang helpdesk.",
-                "INCONSISTENT_HASH":
+                NO_BALLOT_STYLE: "Walang estilo ng balota. Pakikontak ang helpdesk.",
+                NO_AUDITABLE_BALLOT: "Walang balota na maaring suriin. Pakikontak ang helpdesk.",
+                INCONSISTENT_HASH:
                     "Nagkaroon ng error kaugnay sa proseso ng pag-hash ng balota. BallotId: {{ballotId}} ay hindi tugma sa sinusuring Hash ng Balota: {{auditableBallotHash}}. Pakireport itong isyu sa helpdesk.",
-                "ELECTION_EVENT_NOT_OPEN":
+                ELECTION_EVENT_NOT_OPEN:
                     "Ang kaganapan ng eleksyon ay sarado na. Pakikontak ang helpdesk.",
-                "PARSE_ERROR":
+                PARSE_ERROR:
                     "Nagkaroon ng error sa pag-parse ng balota. Pakisubukan ulit mamaya o makipag-ugnayan sa helpdesk para sa tulong.",
-                "DESERIALIZE_AUDITABLE_ERROR":
+                DESERIALIZE_AUDITABLE_ERROR:
                     "Nagkaroon ng error sa pag-deserialize ng sinusuring balota. Pakisubukan ulit mamaya o makipag-ugnayan sa helpdesk para sa tulong.",
-                "DESERIALIZE_HASHABLE_ERROR":
+                DESERIALIZE_HASHABLE_ERROR:
                     "Nagkaroon ng error sa pag-deserialize ng hashable na balota. Pakisubukan ulit mamaya o makipag-ugnayan sa helpdesk para sa tulong.",
-                "CONVERT_ERROR":
+                CONVERT_ERROR:
                     "Nagkaroon ng error sa pag-convert ng balota. Pakisubukan ulit mamaya o makipag-ugnayan sa helpdesk para sa tulong.",
-                "SERIALIZE_ERROR":
+                SERIALIZE_ERROR:
                     "Nagkaroon ng error sa pag-serialize ng balota. Pakisubukan ulit mamaya o makipag-ugnayan sa helodesk para sa tulong.",
-                "UNKNOWN_ERROR":
+                UNKNOWN_ERROR:
                     "Nagkaroon ng error. Pakisubukan ulit mamaya o makipag-ugnayan sa helpdesk para sa tulong.",
             },
         },
