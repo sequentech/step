@@ -165,7 +165,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         let filters: ReactElement[] = []
         if (userAttributes?.get_user_profile_attributes) {
             filters = userAttributes.get_user_profile_attributes.map((attr) => {
-                //covert to valid source string (if attr name is for example sequent.read-only.otp-method)
+                //covert to valid source string (if attr namec is for example sequent.read-only.otp-method)
                 const source = attr.name?.replaceAll(".", "%")
                 if (attr.annotations?.inputType === "html5-date") {
                     return (

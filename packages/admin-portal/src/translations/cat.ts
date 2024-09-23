@@ -433,6 +433,7 @@ const catalanTranslation: TranslationType = {
                     passwordDigitValidate: "La contrasenya ha de contenir almenys un dígit",
                     passwordSpecialCharValidate:
                         "La contrasenya ha de contenir almenys un caràcter especial",
+                    trustee: "Actuar com a fideïcomissari",
                 },
                 delete: {
                     body: "Estàs segur que vols esborrar aquest usuari?",

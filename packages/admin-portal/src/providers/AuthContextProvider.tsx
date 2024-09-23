@@ -306,7 +306,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             }
             try {
                 const profile = await keycloak.loadUserProfile()
-
                 if (profile.id) {
                     setUserId(profile.id)
                 }
@@ -327,6 +326,9 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 if (newTenantId) {
                     setTenantId(newTenantId)
                 }
+
+                const tokenParsed = keycloak.tokenParsed;
+                console.log("tokenParsed", tokenParsed);
             } catch {
                 console.log("error trying to load the users profile")
             }

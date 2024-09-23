@@ -63,6 +63,7 @@ pub struct JwtClaims {
     pub preferred_username: Option<String>,
     pub given_name: Option<String>,
     pub family_name: Option<String>,
+    pub trustee: Option<String>,
 }
 
 #[instrument(err, skip_all)]

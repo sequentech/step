@@ -51,8 +51,8 @@ pub async fn get_private_key(
 
     // The trustee name is simply the username of the user
     let trustee_name = claims
-        .preferred_username
-        .ok_or(anyhow!("username not found"))?;
+        .trustee
+        .ok_or(anyhow!("trustee name not found"))?;
 
     // get the keys ceremonies for this election event
     let keys_ceremony = get_keys_ceremonies(
@@ -212,8 +212,8 @@ pub async fn check_private_key(
 
     // The trustee name is simply the username of the user
     let trustee_name = claims
-        .preferred_username
-        .ok_or(anyhow!("username not found"))?;
+        .trustee
+        .ok_or(anyhow!("trustee name not found"))?;
 
     // get the keys ceremonies for this election event
     let keys_ceremony = get_keys_ceremony_by_id(
