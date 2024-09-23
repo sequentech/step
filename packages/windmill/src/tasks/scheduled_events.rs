@@ -36,14 +36,18 @@ pub fn get_datetime(event: &PostgresScheduledEvent) -> Option<DateTime<Local>> {
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(time_limit = 10, max_retries = 0, expires = 30)]
 pub async fn scheduled_events() -> Result<()> {
+    info!("scheduled_events start");
     let celery_app = get_celery_app().await;
+    info!("celery_app done");
     let now = ISO8601::now();
     let one_minute_later = now + Duration::seconds(60);
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
+    let mut hasura_db_client = get_hasura_pool().await;
+    info!("get_hasura_pool done");
+    let mut hasura_db_client: DbClient = hasura_db_client
         .get()
         .await
         .map_err(|e| anyhow!("Error getting hasura client {}", e))?;
+    info!("hasura_db_client.get done");
     let hasura_transaction = hasura_db_client.transaction().await?;
 
     let scheduled_events = find_all_active_events(&hasura_transaction).await?;

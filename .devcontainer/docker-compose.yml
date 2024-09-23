@@ -31,10 +31,20 @@ services:
     image: kenchan0130/simplesamlphp
     container_name: simplesamlphp
     ports:
-      - "8083:8080"    
+      - "8083:8080"
     volumes:
-      - ./simplesaml/authsources.php:/var/www/simplesamlphp/config/authsources.php
-      - ./simplesaml/saml20-sp-remote.php:/var/www/simplesamlphp/metadata/saml20-sp-remote.php
+      - type: bind
+        source: ${LOCAL_WORKSPACE_FOLDER}/.devcontainer/simplesaml/authsources.php
+        target: /var/www/simplesamlphp/config/authsources.php
+        read_only: true
+        bind:
+          propagation: rslave
+      - type: bind
+        source: ${LOCAL_WORKSPACE_FOLDER}/.devcontainer/simplesaml/saml20-sp-remote.php
+        target: /var/www/simplesamlphp/metadata/saml20-sp-remote.php
+        read_only: true
+        bind: 
+          propagation: rslave
 
   # Needed to set up proper permissions for non root user in postgres
   postgres-volume-init:
@@ -261,6 +271,7 @@ services:
       KC_DB_URL_HOST: ${KC_DB_URL_HOST}
       KC_DB_URL_PORT: ${KC_DB_URL_PORT}
       KC_DB_URL_DATABASE: ${KC_DB_URL_DATABASE}
+      KC_LOG_LEVEL: debug
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
       KEYCLOAK_URL: ${KEYCLOAK_URL}
