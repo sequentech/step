@@ -13,6 +13,7 @@ use crate::util::aws::get_max_upload_size;
 use anyhow::{anyhow, Context};
 use deadpool_postgres::Transaction;
 use sequent_core::services::keycloak::KeycloakAdminClient;
+use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::keycloak::{User, UserProfileAttribute};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -154,11 +155,18 @@ fn get_user_record(
 }
 
 pub async fn export_users_file(
-    realm: String,
-    hasura_transaction: Transaction<'_>,
+    hasura_transaction: &Transaction<'_>,
     body: ExportBody,
-    document_id: String,
 ) -> Result<TempPath> {
+    let realm = match &body {
+        ExportBody::Users {
+            tenant_id,
+            election_event_id,
+            ..
+        } => get_event_realm(tenant_id, election_event_id.as_deref().unwrap_or("")),
+        ExportBody::TenantUsers { tenant_id } => get_tenant_realm(tenant_id),
+    };
+
     let mut keycloak_db_client = get_keycloak_pool()
         .await
         .get()
@@ -288,7 +296,7 @@ pub async fn export_users_file(
         .into_inner()
         .with_context(|| "Error getting inner writer")?
         .into_temp_path();
-    
+
     let size = temp_path.metadata()?.len();
     if size > get_max_upload_size()? as u64 {
         return Err(anyhow!("File too large: {} > {}", size, get_max_upload_size()?).into());

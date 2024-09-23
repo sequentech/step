@@ -13,14 +13,11 @@ use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction as _};
 use sequent_core::services::keycloak;
 use sequent_core::services::keycloak::KeycloakAdminClient;
-use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
-use sequent_core::types::keycloak::{User, UserProfileAttribute};
 use sequent_core::util;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::fs::File;
 use std::io::{BufWriter, Write};
 use tempfile::{NamedTempFile, TempPath};
-use std::fs::File;
 use tracing::{debug, info, instrument};
 
 pub const USER_FIELDS: [&str; 8] = [
@@ -38,15 +35,6 @@ pub const USER_FIELDS: [&str; 8] = [
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 0)]
 pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
-    let realm = match &body {
-        ExportBody::Users {
-            tenant_id,
-            election_event_id,
-            ..
-        } => get_event_realm(tenant_id, election_event_id.as_deref().unwrap_or("")),
-        ExportBody::TenantUsers { tenant_id } => get_tenant_realm(tenant_id),
-    };
-
     let mut hasura_db_client = get_hasura_pool()
         .await
         .get()
@@ -59,8 +47,7 @@ pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
         .with_context(|| "Error starting Hasura transaction")?;
 
     // Export the users to a temporary file
-    let temp_path =
-        export_users_file(realm, hasura_transaction, body.clone(), document_id.clone()).await?;
+    let temp_path = export_users_file(&hasura_transaction, body.clone()).await?;
     let size = temp_path.metadata()?.len();
 
     // Upload to S3
@@ -96,8 +83,8 @@ pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
     .with_context(|| "Error uploading file to S3")?;
 
     temp_path
-    .close()
-    .with_context(|| "Error closing temporary file path")?;
+        .close()
+        .with_context(|| "Error closing temporary file path")?;
 
     let auth_headers = keycloak::get_client_credentials()
         .await

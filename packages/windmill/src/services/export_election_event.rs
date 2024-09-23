@@ -22,6 +22,8 @@ use tempfile::NamedTempFile;
 use uuid::Uuid;
 use zip::write::FileOptions;
 
+use super::export_users::export_users_file;
+use super::export_users::ExportBody;
 use super::{
     documents::upload_and_return_document_postgres, temp_path::write_into_named_temp_file,
 };
@@ -91,24 +93,36 @@ pub async fn process_export_zip(
     // Create a new ZIP file
     let zip_file = File::create(&zip_path)?;
     let mut zip_writer = zip::ZipWriter::new(zip_file);
+    let options: FileOptions<()> =
+        FileOptions::default().compression_method(zip::CompressionMethod::Stored);
 
     // Add election event data file to the ZIP archive
     let export_data = read_export_data(&hasura_transaction, tenant_id, election_event_id).await?;
-    let temp_file = write_export_document(export_data).await?;
-    let options: FileOptions<()> =
-        FileOptions::default().compression_method(zip::CompressionMethod::Stored);
-    let json_filename = format!("export-election-event-{}.json", election_event_id);
-    zip_writer.start_file(&json_filename, options)?;
+    let temp_election_event_file = write_export_document(export_data).await?;
+    let election_event_filename = format!("export-election-event-{}.json", election_event_id);
+    zip_writer.start_file(&election_event_filename, options)?;
 
-    let mut file = File::open(temp_file.path())?;
-    std::io::copy(&mut file, &mut zip_writer)?;
+    let mut election_event_file = File::open(temp_election_event_file.path())?;
+    std::io::copy(&mut election_event_file, &mut zip_writer)?;
 
-    // TODO: Add voters data file to the ZIP archive
+    // Add voters data file to the ZIP archive
+    let temp_voters_file_path = export_users_file(
+        &hasura_transaction,
+        ExportBody::Users {
+            tenant_id: tenant_id.to_string(),
+            election_event_id: Some(election_event_id.to_string()),
+            election_id: None,
+        },
+    )
+    .await?;
+    let voters_filename = format!("export-voters-{}.csv", election_event_id);
+    zip_writer.start_file(&voters_filename, options)?;
+
+    let mut voters_file = File::open(temp_voters_file_path)?;
+    std::io::copy(&mut voters_file, &mut zip_writer)?;
 
     // Finalize the ZIP file
     zip_writer.finish()?;
-
-    // Get the size of the ZIP file
     let zip_size = std::fs::metadata(&zip_path)?.len();
 
     // Upload the ZIP file to Hasura

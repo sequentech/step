@@ -22985,7 +22985,7 @@
             "description": "log an event in immudb",
             "args": [
               {
-                "name": "electionEventId",
+                "name": "body",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -23001,7 +23001,7 @@
                 "deprecationReason": null
               },
               {
-                "name": "messageType",
+                "name": "election_event_id",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -23011,6 +23011,34 @@
                     "name": "String",
                     "ofType": null
                   }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "message_type",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "user_id",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
                 },
                 "defaultValue": null,
                 "isDeprecated": false,

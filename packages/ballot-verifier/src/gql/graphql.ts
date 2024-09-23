@@ -3437,8 +3437,10 @@ export type Query_RootList_User_RolesArgs = {
 }
 
 export type Query_RootLogEventArgs = {
-    electionEventId: Scalars["String"]["input"]
-    messageType: Scalars["String"]["input"]
+    body: Scalars["String"]["input"]
+    election_event_id: Scalars["String"]["input"]
+    message_type: Scalars["String"]["input"]
+    user_id?: InputMaybe<Scalars["String"]["input"]>
 }
 
 export type Query_RootSequent_Backend_AreaArgs = {
