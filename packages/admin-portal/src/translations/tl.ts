@@ -448,6 +448,9 @@ const tagalogTranslation: TranslationType = {
             voters: {
                 title: "Mga Botante",
                 subtitle: "Tingnan at i-edit ang data ng botante",
+                logs: {
+                    label: "Mga Log ng Gumagamit",
+                },
                 create: {
                     title: "Botante",
                     subtitle: "Lumikha ng Botante",

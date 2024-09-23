@@ -49,7 +49,13 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
   private static final String EXPIRED_DATE = "isBeforeDateValue";
   private static final String NOW = "now";
   public static final String ERROR_FAILED_TO_LOAD_INETUM_FORM = "failedToLoadInetumForm";
-  public static final String ERROR_TO_CREATE_INETUM_FORM = "failedToCreateTransaction";
+  public static final String ERROR_TO_CREATE_INETUM_TRANSCATION = "failedToCreateTransaction";
+  public static final String ERROR_TO_GET_INETUM_STATUS_RESPONSE = "failedToGetInetumSatusResponse";
+  public static final String ERROR_TO_GET_INETUM_RESPONSE = "failedToGetInetumResponse";
+  public static final String ERROR_TO_GET_INETUM_RESULTS_RESPONSE =
+      "failedToGetInetumResultsResponse";
+  public static final String ERROR_INVALIDE_CODE = "invalideCode";
+  public static final String ERROR_ATTRIBUTE_VALIDATION = "attributeValidationError";
 
   @Override
   public void authenticate(AuthenticationFlowContext context) {
@@ -60,6 +66,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
     Map<String, String> configMap = config.getConfig();
+    String sessionId = context.getAuthenticationSession().getParentSession().getId();
     UserModel user = context.getUser();
     Utils.buildEventDetails(
         context.getEvent(),
@@ -106,6 +113,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       Response challenge =
           getBaseForm(context)
               .setAttribute(Utils.FTL_ERROR, Utils.FTL_ERROR_INTERNAL)
+              .setAttribute(Utils.CODE_ID, sessionId)
               .createForm(Utils.INETUM_ERROR);
       context.challenge(challenge);
     }
@@ -139,7 +147,13 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       } catch (IOException e) {
         attempt++;
         log.warnv("doPost: Request failed (attempt {0}): {1}", attempt, e.getMessage());
-
+        context
+            .getEvent()
+            .error(
+                ERROR_TO_CREATE_INETUM_TRANSCATION
+                    + String.format(
+                        " After %s attempts, max attemtps is %s with error message: %.100s",
+                        attempt, maxRetries, e.getMessage()));
         if (attempt >= maxRetries) {
           throw e; // Propagate the exception if max retries are reached
         }
@@ -148,6 +162,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
         sleep(baseRetryDelay, attempt);
       }
     }
+    context.getEvent().error(ERROR_TO_CREATE_INETUM_TRANSCATION + "Max retries reached");
     throw new IOException("doPost: Failed to execute request after " + maxRetries + " attempts.");
   }
 
@@ -176,7 +191,13 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       } catch (IOException e) {
         attempt++;
         log.warnv("doGet: Request failed (attempt {0}): {1}", attempt, e.getMessage());
-
+        context
+            .getEvent()
+            .error(
+                ERROR_TO_GET_INETUM_RESPONSE
+                    + String.format(
+                        " After %s attempts, max attemtps is %s with error message: %.100s",
+                        attempt, maxRetries, e.getMessage()));
         if (attempt >= maxRetries) {
           throw e; // Propagate the exception if max retries are reached
         }
@@ -185,6 +206,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
         sleep(baseRetryDelay, attempt);
       }
     }
+    context.getEvent().error(ERROR_TO_GET_INETUM_RESPONSE + "Max retries reached");
     throw new IOException("doGet: Failed to execute request after " + maxRetries + " attempts.");
   }
 
@@ -282,7 +304,15 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
   @Override
   public void action(AuthenticationFlowContext context) {
     log.info("action(): start inetum-authenticator");
+    UserModel user = context.getUser();
+    Utils.buildEventDetails(
+        context.getEvent(),
+        context.getAuthenticationSession(),
+        user,
+        context.getSession(),
+        this.getClass().getSimpleName());
     SimpleHttp.Response result = verifyResults(context);
+    String sessionId = context.getAuthenticationSession().getParentSession().getId();
     if (result == null) {
       // invalid
       AuthenticationExecutionModel execution = context.getExecution();
@@ -298,6 +328,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
         Response challenge =
             getBaseForm(context)
                 .setAttribute(Utils.FTL_ERROR, Utils.FTL_ERROR_AUTH_INVALID)
+                .setAttribute(Utils.CODE_ID, sessionId)
                 .createForm(Utils.INETUM_ERROR);
         context.challenge(challenge);
       } else if (execution.isConditional() || execution.isAlternative()) {
@@ -319,6 +350,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
         Response challenge =
             getBaseForm(context)
                 .setAttribute(Utils.FTL_ERROR, error)
+                .setAttribute(Utils.CODE_ID, sessionId)
                 .createForm(Utils.INETUM_ERROR);
         context.challenge(challenge);
       } else if (execution.isConditional() || execution.isAlternative()) {
@@ -376,7 +408,15 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
               "verifyResults (attempt {0}): Error calling transaction/status, response.asString() = {1}",
               attempt, response.asString());
           attempt++;
+          context
+              .getEvent()
+              .error(
+                  ERROR_TO_GET_INETUM_STATUS_RESPONSE
+                      + String.format(
+                          " error status: %s After %s attempts, max attemtps is %s, with response: %.100s",
+                          responseStatus, attempt, maxRetries, response.asString()));
           if (attempt >= maxRetries) {
+            context.getEvent().error(ERROR_TO_GET_INETUM_STATUS_RESPONSE + "Max retries reached");
             throw new IOException(
                 "Too many attempts on transaction/status, bad status=" + responseStatus);
           } else {
@@ -395,8 +435,18 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
           log.errorv(
               "verifyResults (attempt {0}): Error calling transaction/status, response.asString() = {1}",
               attempt, response.asString());
+          context
+              .getEvent()
+              .error(
+                  ERROR_TO_GET_INETUM_STATUS_RESPONSE
+                      + ": "
+                      + ERROR_INVALIDE_CODE
+                      + String.format(
+                          "error code: %s After %s attempts, max attemtps is %s, with error response: %.100s",
+                          code, attempt, maxRetries, response.asString()));
           attempt++;
           if (attempt >= maxRetries) {
+            context.getEvent().error(ERROR_TO_GET_INETUM_STATUS_RESPONSE + "Max retries reached");
             throw new IOException("Too many attempts on transaction/status, bad code = " + code);
           } else {
             log.errorv("verifyResults (attempt {0}): Will retry again", attempt);
@@ -419,8 +469,16 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
           log.errorv(
               "verifyResults (attempt {0}): Error calling transaction/status, response.asString() = {1}",
               attempt, response.asString());
+          context
+              .getEvent()
+              .error(
+                  ERROR_TO_GET_INETUM_STATUS_RESPONSE
+                      + String.format(
+                          "Incorrect idStatus: %s with response %s After %s attempts, max attemtps is %s",
+                          idStatus, response.toString(), attempt, maxRetries));
           attempt++;
           if (attempt >= maxRetries) {
+            context.getEvent().error(ERROR_TO_GET_INETUM_STATUS_RESPONSE + "Max retries reached");
             throw new IOException(
                 "Too many attempts on transaction/status, bad idStatus = " + idStatus);
           } else {
@@ -446,12 +504,26 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
         log.error(
             "verifyResults: Error calling transaction/results, response.asString() = "
                 + response.asString());
+        context
+            .getEvent()
+            .error(
+                ERROR_TO_GET_INETUM_RESULTS_RESPONSE
+                    + String.format(
+                        " with error status: %s, response: %.100s",
+                        response.getStatus(), response.asString()));
         return null;
       }
 
       int code = response.asJson().get("code").asInt();
       if (code != 0) {
         log.error("verifyResults: Error calling transaction/results, code = " + code);
+        context
+            .getEvent()
+            .error(
+                ERROR_TO_GET_INETUM_RESULTS_RESPONSE
+                    + ": "
+                    + ERROR_INVALIDE_CODE
+                    + String.format(" with error code: %s", code));
         return null;
       }
       String responseStr = response.asString();
@@ -500,7 +572,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
           String inetumField = attributeToCheck.get(INETUM_ATTRIBUTE_PATH).asText();
           log.infov("validateAttributes: inetumField {0}", inetumField);
 
-          // Get inetum value from response
+          // Get OCR value from response
           String inetumValue = getValueFromInetumResponse(response, inetumField);
 
           if (inetumValue == null) {
@@ -598,6 +670,14 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
     if (!valueDate.isEqual(inetumDate)) {
       log.error("equalDate: FALSE");
+      context
+          .getEvent()
+          .error(
+              ERROR_ATTRIBUTE_VALIDATION
+                  + ": "
+                  + String.format(
+                      "invalid date - value date is %s and inetum date is %s",
+                      valueDate, inetumDate));
       return typeError;
     }
 
@@ -626,6 +706,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
     if (!valueDate.isBefore(inetumDate)) {
       log.error("equalDate: FALSE");
+      context.getEvent().error(ERROR_ATTRIBUTE_VALIDATION + ": " + "invalide date");
       return typeError;
     }
 
@@ -661,9 +742,14 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     collator.setStrength(0);
 
     if (collator.compare(attributeValue.trim(), inetumValue.trim()) != 0) {
+      String errorMessage =
+          String.format(
+              "attribute %s with value %s  does not match OCR value %s",
+              inetumField, attributeValue, inetumValue);
       log.errorv(
           "equalValue: FALSE; attribute: {0}, inetumField: {1}, attributeValue: {2}, inetumValue: {3}",
           attributeValue, inetumField, attributeValue, inetumValue);
+      context.getEvent().error(ERROR_ATTRIBUTE_VALIDATION + ": " + errorMessage);
       return typeError;
     }
 
@@ -687,6 +773,14 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     log.infov("integerMinValue: intInetumValue {0}", minValue);
 
     if (intInetumValue < minValue) {
+      context
+          .getEvent()
+          .error(
+              ERROR_ATTRIBUTE_VALIDATION
+                  + ": "
+                  + String.format(
+                      "Calculated score %s is less than minimum required of %s",
+                      inetumValue, minValue));
       return typeError;
     }
 
@@ -717,9 +811,14 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     collator.setStrength(0);
 
     if (collator.compare(attributeValue.trim(), inetumValue.trim()) != 0) {
+      String errorMessage =
+          String.format(
+              "attribute %s with value %.100s does not match OCR value %s",
+              attributeId, attributeValue, inetumValue);
       log.errorv(
           "checkAuthnoteEquals: FALSE; attribute: {0}, inetumField: {1}, attributeValue: {2}, inetumValue: {3}",
           attributeId, inetumField, attributeValue, inetumValue);
+      context.getEvent().error(ERROR_ATTRIBUTE_VALIDATION + ": " + errorMessage);
       return typeError;
     }
 
