@@ -91,7 +91,37 @@ const catalanTranslation: TranslationType = {
                 LOAD_ELECTION_EVENT:
                     "No es pot carregar l'esdeveniment electoral. Si us plau, torna-ho a intentar més tard.",
                 CAST_VOTE:
-                    "Hi ha hagut un error amb GraphQL durant l'emissió del vot. Si us plau, torni-ho a intentar més tard o contacti amb el suport per obtenir ajuda.",
+                    "Hi ha hagut un error desconegut en emetre el vot. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
+                CAST_VOTE_AreaNotFound:
+                    "Hi ha hagut un error en emetre el vot: Àrea no trobada. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
+                CAST_VOTE_InternalServerError:
+                    "Hi ha hagut un error intern en emetre el vot. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
+                CAST_VOTE_QueueError:
+                    "Hi ha hagut un problema en processar el seu vot. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
+                CAST_VOTE_Unauthorized:
+                    "No està autoritzat per emetre un vot. Si us plau, contacti amb el suport per obtenir ajuda.",
+                CAST_VOTE_ElectionEventNotFound:
+                    "No s'ha pogut trobar l'esdeveniment electoral. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
+                CAST_VOTE_ElectoralLogNotFound:
+                    "No s'ha pogut trobar el seu registre de vot. Si us plau, contacti amb el suport per obtenir ajuda.",
+                CAST_VOTE_CheckPreviousVotesFailed:
+                    "Hi ha hagut un error en comprovar el seu estat de votació. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
+                CAST_VOTE_GetClientCredentialsFailed:
+                    "No s'han pogut verificar les seves credencials. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
+                CAST_VOTE_GetAreaIdFailed:
+                    "Hi ha hagut un error en verificar la seva àrea de votació. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
+                CAST_VOTE_GetTransactionFailed:
+                    "Hi ha hagut un error en processar el seu vot. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
+                CAST_VOTE_DeserializeBallotFailed:
+                    "Hi ha hagut un error en llegir la seva papereta. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
+                CAST_VOTE_DeserializeContestsFailed:
+                    "Hi ha hagut un error en llegir les seves seleccions. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
+                CAST_VOTE_PokValidationFailed:
+                    "No s'ha pogut validar el seu vot. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
+                CAST_VOTE_UuidParseFailed:
+                    "Hi ha hagut un error en processar la seva sol·licitud. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
+                CAST_VOTE_UnknownError:
+                    "Hi ha hagut un error desconegut en emetre el vot. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
                 NO_BALLOT_SELECTION:
                     "No es troba l'estat de selecció per aquesta elecció. Si us plau, assegura't d'haver seleccionat les teves opcions correctament o contacta amb el servei d'assistència.",
                 NO_BALLOT_STYLE:
