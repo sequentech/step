@@ -314,6 +314,7 @@ export const TallyCeremony: React.FC = () => {
         if (page === WizardSteps.Start) {
             setOpenModal(true)
         } else if (page === WizardSteps.Ceremony) {
+            setIsButtonDisabled(true)
             setOpenCeremonyModal(true)
         } else if (page === WizardSteps.Tally) {
             setPage(WizardSteps.Results)
@@ -845,6 +846,8 @@ export const TallyCeremony: React.FC = () => {
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmCeremonyAction()
+                    } else {
+                        setIsButtonDisabled(false)
                     }
                     setOpenCeremonyModal(false)
                 }}
