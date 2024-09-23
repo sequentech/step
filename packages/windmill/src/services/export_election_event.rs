@@ -8,6 +8,7 @@ use crate::postgres::contest::export_contests;
 use crate::postgres::election::export_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::database::get_hasura_pool;
+use crate::services::export_election_event_logs;
 use crate::services::import_election_event::ImportElectionEventSchema;
 use crate::tasks::export_election_event::ExportOptions;
 use anyhow::{anyhow, Result};
@@ -22,11 +23,9 @@ use tempfile::NamedTempFile;
 use uuid::Uuid;
 use zip::write::FileOptions;
 
+use super::documents::upload_and_return_document_postgres;
 use super::export_users::export_users_file;
 use super::export_users::ExportBody;
-use super::{
-    documents::upload_and_return_document_postgres, temp_path::write_into_named_temp_file,
-};
 
 pub async fn read_export_data(
     transaction: &Transaction<'_>,
@@ -123,6 +122,22 @@ pub async fn process_export_zip(
 
         let mut voters_file = File::open(temp_voters_file_path)?;
         std::io::copy(&mut voters_file, &mut zip_writer)?;
+    }
+
+    // Add Activity Logs data file to the ZIP archive
+    let is_include_activity_logs = export_config.activity_logs;
+    if is_include_activity_logs {
+        let activity_logs_filename = format!("export-activity_logs-{}.csv", election_event_id);
+        let temp_activity_logs_file = export_election_event_logs::read_export_data(
+            tenant_id,
+            election_event_id,
+            &activity_logs_filename,
+        )
+        .await?;
+        zip_writer.start_file(&activity_logs_filename, options)?;
+
+        let mut activity_logs_file = File::open(temp_activity_logs_file.path())?;
+        std::io::copy(&mut activity_logs_file, &mut zip_writer)?;
     }
 
     // Finalize the ZIP file

@@ -57,7 +57,7 @@ pub async fn export_election_event(
     match process_export_zip(&tenant_id, &election_event_id, &document_id, export_config).await {
         Ok(_) => (),
         Err(err) => {
-            update_fail(&task_execution, "Failed to export election event data").await?;
+            update_fail(&task_execution, &err.to_string()).await?;
             return Err(Error::String(format!(
                 "Failed to export election event data: {}",
                 err
