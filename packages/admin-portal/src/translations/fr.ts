@@ -45,6 +45,16 @@ const frenchTranslation: TranslationType = {
                 IMPORT_ELECTION_EVENT: "Importer l'événement électoral",
                 IMPORT_USERS: "Importer des utilisateurs",
                 IMPORT_CANDIDATES: "Importer des candidats",
+                EXPORT_VOTERS: "Exporter les électeurs",
+                CREATE_TRANSMISSION_PACKAGE: "Créer un paquet de transmission",
+            },
+            widget: {
+                taskTitle: "Tâche: {{title}}",
+                viewTask: "Voir Tâche",
+            },
+            exportTasksExecution: {
+                success: "L'exportation s'est terminée avec succès",
+                error: "Erreur lors de l'exportation de l'exécution des tâches",
             },
         },
         areas: {

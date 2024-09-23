@@ -185,3 +185,46 @@ pub async fn get_task_by_id(task_id: &str) -> Result<TasksExecution> {
 
     Ok(task_execution)
 }
+
+#[instrument(skip(), err)]
+pub async fn get_tasks_by_election_event_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Vec<TasksExecution>> {
+    let tenant_uuid =
+        Uuid::parse_str(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {}", err))?;
+    let election_event_uuid = Uuid::parse_str(election_event_id)
+        .map_err(|err| anyhow!("Error parsing task UUID: {}", err))?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            SELECT
+                *
+            FROM 
+                sequent_backend.tasks_execution
+            WHERE
+                tenant_id = $1
+                AND election_event_id = $2
+        "#,
+        )
+        .await?;
+
+    let rows = hasura_transaction
+        .query(&statement, &[&tenant_uuid, &election_event_uuid])
+        .await
+        .map_err(|err| anyhow!("Error fetching tasks: {}", err))?;
+
+    // Convert the resulting row into `TasksExecution` struct
+    let tasks_execution: Vec<TasksExecution> = rows
+        .into_iter()
+        .map(|row| {
+            row.try_into()
+                .map(|wrapper: TasksExecutionWrapper| wrapper.0)
+        })
+        .collect::<Result<Vec<_>, _>>()
+        .context("Error converting database rows to TasksExecution")?;
+
+    Ok(tasks_execution)
+}
