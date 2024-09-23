@@ -36,6 +36,7 @@ import MailIcon from "@mui/icons-material/Mail"
 import CreditScoreIcon from "@mui/icons-material/CreditScore"
 import PasswordIcon from "@mui/icons-material/Password"
 import DeleteIcon from "@mui/icons-material/Delete"
+import VisibilityIcon from "@mui/icons-material/Visibility"
 import {EditUser} from "./EditUser"
 import {AudienceSelection, SendCommunication} from "./SendCommunication"
 import {CreateUser} from "./CreateUser"
@@ -66,6 +67,7 @@ import {EXPORT_USERS} from "@/queries/ExportUsers"
 import {EXPORT_TENANT_USERS} from "@/queries/ExportTenantUsers"
 import {DownloadDocument} from "./DownloadDocument"
 import {IMPORT_USERS} from "@/queries/ImportUsers"
+import {ElectoralLogFilters, ElectoralLogList} from "@/components/ElectoralLogList"
 import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
 import {getAttributeLabel, userBasicInfo} from "@/services/UserService"
 import CustomDateField from "./CustomDateField"
@@ -75,7 +77,6 @@ import {styled} from "@mui/material/styles"
 import {DELETE_USERS} from "@/queries/DeleteUsers"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
-import {ElectoralLogFilters, ElectoralLogList} from "@/components/ElectoralLogList"
 import SelectArea from "@/components/area/SelectArea"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
@@ -503,6 +504,12 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             action: editPasswordAction,
             showAction: () => canEditUsers,
             label: t(`usersAndRolesScreen.editPassword.label`),
+        },
+        {
+            icon: <VisibilityIcon />,
+            action: showUsersLogsModal,
+            showAction: () => !!electionEventId,
+            label: t(`usersAndRolesScreen.voters.logs.label`),
         },
     ]
 
@@ -945,7 +952,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             <Dialog
                 fullWidth={true}
                 variant="info"
-                title=""
+                maxWidth={"xl"}
+                title={t("usersAndRolesScreen.voters.logs.label")}
                 ok={t("common.label.close")}
                 open={openUsersLogsModal}
                 handleClose={(results: boolean) => {
