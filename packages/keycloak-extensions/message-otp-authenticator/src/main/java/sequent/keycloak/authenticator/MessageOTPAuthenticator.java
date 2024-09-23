@@ -113,7 +113,8 @@ public class MessageOTPAuthenticator
                 .setError(
                     context
                         .form()
-                        .getMessage("messageOtp.auth.codeExpired" + "<br><br>code_id: " + sessionId))
+                        .getMessage(
+                            "messageOtp.auth.codeExpired" + "<br><br>code_id: " + sessionId))
                 .createErrorPage(Response.Status.BAD_REQUEST));
       } else {
         // Set email as verified in the auth note only if we actually verified
