@@ -95,6 +95,16 @@ const StyledButton = styled(Button)`
     }
 `
 
+const StyledIcon = styled(Icon)`
+    min-width: 14px;
+    padding: 5px;
+`
+
+const StyledCircularProgress = styled(CircularProgress)`
+    width: 14px !important;
+    height: 14px !important;
+`
+
 interface AuditButtonProps {
     onClick: () => void
 }
@@ -171,9 +181,9 @@ const LoadingOrCastButton: React.FC<LoadingOrCastButtonProps> = ({
         >
             <Box>{t("reviewScreen.castBallotButton")}</Box>
             {isCastingBallot ? (
-                <CircularProgress style={{width: "200%", height: "200%"}} />
+                <StyledCircularProgress color="inherit" />
             ) : (
-                <Icon icon={faAngleRight} size="sm" />
+                <StyledIcon icon={faAngleRight} size="sm" />
             )}
         </StyledButton>
     )

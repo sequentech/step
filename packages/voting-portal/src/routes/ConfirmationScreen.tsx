@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Box, Typography} from "@mui/material"
+import {Box, CircularProgress, Typography} from "@mui/material"
 import React, {useState, useEffect, useContext, useRef, useCallback} from "react"
 import {useTranslation} from "react-i18next"
 import {PageLimit, Icon, IconButton, theme, QRCode, Dialog} from "@sequentech/ui-essentials"
@@ -103,11 +103,14 @@ const QRContainer = styled(Box)`
     margin: 15px auto;
 `
 
-const ActionLink = styled(Link)`
-    text-decoration: none;
-    &:hover {
-        text-decoration: none;
-    }
+const StyledCircularProgress = styled(CircularProgress)`
+    width: 14px !important;
+    height: 14px !important;
+`
+
+const StyledIcon = styled(Icon)`
+    min-width: 14px;
+    padding: 5px;
 `
 
 interface ActionButtonsProps {
@@ -277,7 +280,9 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
                     variant="secondary"
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
                 >
-                    <Icon icon={faPrint} size="sm" />
+                    {polling
+                        ? <StyledCircularProgress color="inherit" />
+                        : <StyledIcon icon={faPrint} size="sm" />}
                     <Box>{t("confirmationScreen.printButton")}</Box>
                 </StyledButton>
                 <StyledButton
