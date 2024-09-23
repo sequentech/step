@@ -122,10 +122,10 @@ const frenchTranslation: TranslationType = {
         header: {
             profile: "Profil",
             session: {
-                title: "Your session is going to expire.",
-                timeLeft: "You have {{time}} left to cast your vote.",
-                timeLeftMinutesAndSeconds: "{{timeLeftInMinutes}} minutes and {{time}} seconds",
-                timeLeftSeconds: "{{timeLeft}} seconds",
+                title: "Votre session est sur le point d'expirer.",
+                timeLeft: "Il vous reste {{time}} pour voter.",
+                timeLeftMinutesAndSeconds: "{{timeLeftInMinutes}} minutes et {{time}} secondes",
+                timeLeftSeconds: "{{timeLeft}} secondes",
             },
         },
     },
