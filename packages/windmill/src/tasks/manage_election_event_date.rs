@@ -81,13 +81,21 @@ pub async fn manage_election_event_date(
             )));
         }
     };
-    update_event_voting_status(
+
+    match update_event_voting_status(
         &hasura_transaction,
         &tenant_id,
         &election_event_id,
         &status.voting_status,
     )
-    .await?;
+    .await
+    {
+        Ok(_) => (),
+        Err(error) => {
+            lock.release().await?;
+            return Err(Error::Anyhow(error));
+        }
+    };
 
     stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id).await?;
 

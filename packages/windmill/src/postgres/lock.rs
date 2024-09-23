@@ -8,6 +8,7 @@ use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
 use tokio_postgres::row::Row;
 use tracing::instrument;
+use tracing::{event, Level};
 
 impl TryFrom<Row> for PgLock {
     type Error = anyhow::Error;
@@ -60,6 +61,8 @@ pub async fn upsert_lock(
         )
         .await
         .map_err(|err| anyhow!("Error running query: {}", err))?;
+
+    event!(Level::WARN, "rows.len(): {}", rows.len());
 
     if 1 == rows.len() {
         let mut locks = rows
