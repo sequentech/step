@@ -78,6 +78,7 @@ import {DELETE_USERS} from "@/queries/DeleteUsers"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import SelectArea from "@/components/area/SelectArea"
+import {WidgetProps} from "@/components/Widget"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -593,7 +594,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     }
 
     const confirmExportAction = async () => {
-        let currWidget
+        let currWidget: WidgetProps | undefined
         try {
             setExportDocumentId(undefined)
             setExporting(true)

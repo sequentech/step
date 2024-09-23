@@ -1,10 +1,7 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
-
-import {CREATE_TRANSMISSION_PACKAGE} from "@/queries/CreateTransmissionPackage"
-import {Placeholder} from "react-admin"
-
 // SPDX-License-Identifier: AGPL-3.0-only
+
 const englishTranslation = {
     translations: {
         loadingDataProvider: "Loading data provider...",
@@ -48,8 +45,7 @@ const englishTranslation = {
                 IMPORT_USERS: "Import Users",
                 IMPORT_CANDIDATES: "Import Candidates",
                 EXPORT_VOTERS: "Export Voters",
-                CREATE_TRANSMISSION_PACKAGE:
-                    "Create Transmission Package",
+                CREATE_TRANSMISSION_PACKAGE: "Create Transmission Package",
             },
             widget: {
                 taskTitle: "Task: {{title}}",

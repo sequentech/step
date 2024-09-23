@@ -121,7 +121,6 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
         )
 
         const aliasRenderer = useAliasRenderer()
-        console.log({electionId})
 
         return (
             <>

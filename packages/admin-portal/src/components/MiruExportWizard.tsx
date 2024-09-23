@@ -56,6 +56,7 @@ import {CREATE_TRANSMISSION_PACKAGE} from "@/queries/CreateTransmissionPackage"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
+import {WidgetProps} from "@/components/Widget"
 
 interface IMiruExportWizardProps {}
 
@@ -472,7 +473,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
                 return
             }
 
-            let currWidget
+            let currWidget: WidgetProps | undefined
             try {
                 if (!isTrustee) {
                     currWidget = addWidget(ETasksExecution.CREATE_TRANSMISSION_PACKAGE)
