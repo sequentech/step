@@ -1,10 +1,12 @@
 use clap::Parser;
 use tonic::transport::Server;
 use tracing::info;
+use std::path::PathBuf;
 
 use board_messages::grpc::pgsql::{PgsqlConnectionParams, XPgsqlB3Client};
 use board_messages::grpc::server::PgsqlB3Server;
 use board_messages::grpc::B3Server;
+use board_messages::grpc::MAX_MESSAGE_SIZE;
 
 const PG_DATABASE: &'static str = "protocoldb";
 const PG_HOST: &'static str = "localhost";
@@ -12,8 +14,6 @@ const PG_USER: &'static str = "postgres";
 const PG_PASSW: &'static str = "postgrespw";
 const PG_PORT: u32 = 49154;
 const BIND: &'static str = "127.0.0.1:50051";
-
-const MAX_MESSAGE_SIZE: usize = 10 * 1024 * 1024 * 1024;
 
 #[derive(Parser)]
 struct Cli {
@@ -34,6 +34,9 @@ struct Cli {
 
     #[arg(long, default_value_t = BIND.to_string())]
     bind: String,
+
+    #[arg(long)]
+    blob_root: Option<PathBuf>,
 
     #[arg(long, default_value_t = MAX_MESSAGE_SIZE)]
     max_message_size_bytes: usize,
@@ -69,7 +72,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     drop(client);
 
     let addr = bind.parse()?;
-    let b3_impl = PgsqlB3Server::new(c_db).await?;
+    let b3_impl = PgsqlB3Server::new(c_db, args.blob_root).await?;
     let service = B3Server::new(b3_impl)
         .max_encoding_message_size(MAX_MESSAGE_SIZE)
         .max_decoding_message_size(MAX_MESSAGE_SIZE);

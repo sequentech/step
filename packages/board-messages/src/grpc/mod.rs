@@ -21,7 +21,7 @@ pub mod client;
 pub mod pgsql;
 pub mod server;
 
-pub(crate) const MAX_MESSAGE_SIZE: usize = 2 * 1024 * 1024 * 1024;
+pub const MAX_MESSAGE_SIZE: usize = 2 * 1024 * 1024 * 1024;
 
 pub(crate) fn validate_board_name(board: &str) -> anyhow::Result<()> {
     if board.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {

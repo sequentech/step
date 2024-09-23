@@ -84,7 +84,7 @@ impl<C: Ctx> Trustee<C> {
             "Trustee {} created, no_cache = {}, action_parallelism = {}",
             name, no_cache, action_parallelism
         );
-        let local_board = LocalBoard::new(store, no_cache);
+        let local_board = LocalBoard::new(store, None, no_cache);
 
         Trustee {
             name,

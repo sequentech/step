@@ -7,7 +7,10 @@ use board_messages::grpc::GrpcB3Message;
 use log::{debug, error, warn};
 use rusqlite::{params, Connection};
 use std::collections::HashMap;
+use std::fs::{self, File};
 use std::path::PathBuf;
+use std::time::Instant;
+use std::io::{Read, Write};
 
 use strand::context::Ctx;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
@@ -56,15 +59,17 @@ pub(crate) struct LocalBoard<C: Ctx> {
     // checked on retrieval (it's not in the key)
     pub(crate) artifacts: HashMap<ArtifactEntryIdentifier, (Hash, i64)>,
     pub(crate) store: Option<PathBuf>,
+    pub(crate) blob_store: Option<PathBuf>,
     pub(crate) no_cache: bool,
     pub(crate) artifacts_memory: HashMap<ArtifactEntryIdentifier, (Hash, Vec<u8>)>,
 }
 
 impl<C: Ctx> LocalBoard<C> {
-    pub(crate) fn new(store: Option<PathBuf>, no_cache: bool) -> LocalBoard<C> {
+    pub(crate) fn new(store: Option<PathBuf>, blob_store: Option<PathBuf>, no_cache: bool) -> LocalBoard<C> {
         let nc = if store.is_none() { false } else { no_cache };
 
         tracing::info!("LocalBoard no_cache: {}", nc);
+        tracing::info!("blob_store is {:?}", blob_store);
 
         LocalBoard {
             configuration: None,
@@ -72,6 +77,7 @@ impl<C: Ctx> LocalBoard<C> {
             statements: HashMap::new(),
             artifacts: HashMap::new(),
             store,
+            blob_store,
             no_cache: nc,
             artifacts_memory: HashMap::new(),
         }
@@ -467,6 +473,15 @@ impl<C: Ctx> LocalBoard<C> {
         messages: &Vec<GrpcB3Message>,
         ignore_existing: bool,
     ) -> Result<()> {
+
+        let now = Instant::now();
+        
+        if let Some(blob_store) = &self.blob_store {
+            if !blob_store.exists() {
+                fs::create_dir_all(&blob_store)?;
+            }
+        }
+        
         let connection = self.get_store()?;
 
         // FIXME verify message signatures before inserting in local store
@@ -482,12 +497,31 @@ impl<C: Ctx> LocalBoard<C> {
 
         connection.execute("BEGIN TRANSACTION", [])?;
         for m in messages {
-            let hash = strand::hash::hash(&m.message)?;
-            statement.execute(params![m.id, m.message, hash])?;
+            let hash = strand::hash::hash_b64(&m.message)?;
+            if let Some(blob_store) = &self.blob_store {
+                if !blob_store.exists() {
+                    fs::create_dir_all(&blob_store)?;
+                }
+                let name = format!("{}", hash);
+                let path = blob_store.join(name.replace("/", ":"));
+                if !path.exists() {
+                    let mut file = File::create(&path)?;
+                    file.write_all(&m.message)?;
+                    tracing::info!("local2: wrote {} bytes to {:?}", m.message.len(), path);
+                }
+                statement.execute(params![m.id, vec![], hash])?;
+            }
+            else {
+                statement.execute(params![m.id, m.message, hash])?;
+            }
         }
         connection.execute("END TRANSACTION", [])?;
 
         drop(statement);
+
+        if messages.len() > 0 { 
+            tracing::info!("update_store: inserted {} messages in {}ms", messages.len(), now.elapsed().as_millis());
+        }
 
         Ok(())
     }
@@ -503,12 +537,13 @@ impl<C: Ctx> LocalBoard<C> {
         let connection = self.get_store()?;
 
         let mut stmt =
-            connection.prepare("SELECT id,message FROM MESSAGES where id > ?1 order by id asc")?;
+            connection.prepare("SELECT id,message,blob_hash FROM MESSAGES where id > ?1 order by id asc")?;
 
-        let rows = stmt.query_map([last_message_id], |row| {
+        let rows = stmt.query_map([last_message_id], |row| {            
             Ok(SqliteStoreMessageRow {
                 id: row.get(0)?,
                 message: row.get(1)?,
+                hash: row.get(2)?,
             })
         })?;
 
@@ -516,7 +551,23 @@ impl<C: Ctx> LocalBoard<C> {
             .map(|mr| {
                 let row = mr?;
                 let id = row.id;
-                let message = Message::strand_deserialize(&row.message)?;
+                // let message = Message::strand_deserialize(&row.message)?;
+                let message = if let Some(blob_store) = &self.blob_store {
+                    let name = format!("{}", row.hash);
+                    let path = blob_store.join(name.replace("/", ":"));
+                    assert!(path.exists());
+                    let mut file = File::open(&path)?;
+                    let mut buffer = vec![];
+                
+                    let bytes = file.read_to_end(&mut buffer)?;
+                    tracing::info!("local2: read {} bytes from {:?}", bytes, path);
+                    Message::strand_deserialize(&buffer)?
+                }
+                else {
+                    Message::strand_deserialize(&row.message)?
+                };
+                
+                
                 Ok((message, id))
             })
             .collect();
@@ -540,11 +591,28 @@ impl<C: Ctx> LocalBoard<C> {
 
     fn get_artifact_from_store(&self, store_id: i64) -> Result<Vec<u8>> {
         let connection = self.get_store()?;
-        let mut stmt = connection.prepare("SELECT id,message FROM MESSAGES where id = ?1")?;
+        let mut stmt = connection.prepare("SELECT id,message,blob_hash FROM MESSAGES where id = ?1")?;
 
         let mut rows = stmt.query([store_id])?;
         let bytes: Vec<u8> = if let Some(row) = rows.next()? {
-            row.get(1)?
+            let bytes = if let Some(blob_store) = &self.blob_store {
+                let hash: String = row.get(2)?;
+                let name = format!("{}", hash);
+                let path = blob_store.join(name.replace("/", ":"));
+                assert!(path.exists());
+                let mut file = File::open(&path)?;
+                let mut buffer = vec![];
+            
+                let bytes = file.read_to_end(&mut buffer)?;
+                tracing::info!("local2: read {} bytes from {:?}", bytes, path);
+                buffer
+            }
+            else {
+                row.get(1)?
+            };            
+
+            bytes
+            
         } else {
             // return Err(ProtocolError::BoardError(format!("Could not find artifact with id {}", store_id)));
             return Err(anyhow::anyhow!(
@@ -573,7 +641,7 @@ impl<C: Ctx> LocalBoard<C> {
         // The autogenerated id column is used to establish an order that cannot be manipulated by the external board. Once a retrieved message is
         // stored and assigned a local id, it is not possible for later messages to have an earlier id.
         // The external_id column is used to retrieve _new_ messages as defined by the external board (to optimize bandwidth).
-        connection.execute("CREATE TABLE if not exists MESSAGES(id INTEGER PRIMARY KEY AUTOINCREMENT, external_id INT8 NOT NULL UNIQUE, message BLOB NOT NULL, blob_hash BLOB NOT NULL UNIQUE)", [])?;
+        connection.execute("CREATE TABLE if not exists MESSAGES(id INTEGER PRIMARY KEY AUTOINCREMENT, external_id INT8 NOT NULL UNIQUE, message BLOB NOT NULL, blob_hash TEXT NOT NULL UNIQUE)", [])?;
 
         Ok(connection)
     }
@@ -702,4 +770,5 @@ pub struct ArtifactEntryIdentifier {
 struct SqliteStoreMessageRow {
     id: i64,
     message: Vec<u8>,
+    hash: String,
 }

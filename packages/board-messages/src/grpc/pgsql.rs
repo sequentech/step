@@ -416,7 +416,8 @@ async fn create_index_ine(client: &mut Client) -> Result<()> {
             &[],
         )
         .await?;
-    transaction
+    
+    /*transaction
         .execute(
             &format!(
                 r#"
@@ -427,7 +428,7 @@ async fn create_index_ine(client: &mut Client) -> Result<()> {
             &[],
         )
         .await?;
-    transaction.commit().await?;
+    transaction.commit().await?;*/
 
     Ok(())
 }

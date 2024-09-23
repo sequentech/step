@@ -1,3 +1,5 @@
+use std::fs::{self, File};
+use std::io::{Read, Write};
 use std::str::FromStr;
 use std::time::Instant;
 
@@ -8,10 +10,11 @@ use tokio_postgres::{config::Config, NoTls};
 use tonic::{Request, Response, Status};
 use tracing::{error, info, warn};
 
+use crate::braid::statement::StatementType;
 use crate::grpc::{
     GetBoardsReply, GetBoardsRequest, GetMessagesMultiReply, GetMessagesMultiRequest,
     GetMessagesReply, GetMessagesRequest, GrpcB3Message, KeyedMessages, PutMessagesMultiReply,
-    PutMessagesMultiRequest,
+    PutMessagesMultiRequest, MAX_MESSAGE_SIZE,
 };
 use crate::grpc::{PutMessagesReply, PutMessagesRequest};
 
@@ -24,11 +27,14 @@ use strand::serialization::{StrandDeserialize, StrandSerialize};
 
 const BB8_POOL_SIZE: u32 = 20;
 
+use std::path::{Path, PathBuf};
+
 pub struct PgsqlB3Server {
     pool: Pool<PostgresConnectionManager<NoTls>>,
+    blob_root: Option<PathBuf>,
 }
 impl PgsqlB3Server {
-    pub async fn new(connection: PgsqlDbConnectionParams) -> Result<PgsqlB3Server> {
+    pub async fn new(connection: PgsqlDbConnectionParams, blob_root: Option<PathBuf>) -> Result<PgsqlB3Server> {
         let config = Config::from_str(&connection.connection_string())?;
         let manager = PostgresConnectionManager::new(config, NoTls);
         let pool = Pool::builder()
@@ -36,10 +42,10 @@ impl PgsqlB3Server {
             .build(manager)
             .await?;
 
-        Ok(PgsqlB3Server { pool })
+        Ok(PgsqlB3Server { pool, blob_root })
     }
 
-    async fn get_messages_(&self, board: &str, last_id: i64) -> Result<Vec<GrpcB3Message>, Status> {
+    async fn get_messages_(&self, board: &str, last_id: i64) -> Result<(Vec<GrpcB3Message>, bool), Status> {
         validate_board_name(board)
             .map_err(|e| Status::invalid_argument(format!("Invalid board: {e}")))?;
 
@@ -61,18 +67,82 @@ impl PgsqlB3Server {
             )));
         };
 
-        let mut messages: Vec<GrpcB3Message> = messages
+        let mut truncated = false;
+        let mut ret = if let Some(blob_root) = &self.blob_root {
+            // retrieve the message bytes from the blob store
+            let now = Instant::now();
+            let mut ret: Vec<GrpcB3Message> = vec![];
+            let mut total_bytes = 0;
+
+            let blob_path = Path::new(&blob_root).join(board);
+            if !blob_path.exists() {
+                fs::create_dir_all(&blob_path)?;
+            }
+
+            for m in messages.into_iter() {
+                
+                let name = format!("{}-{}-{}-{}", m.statement_kind, m.sender_pk, m.batch, m.mix_number);
+                let path = blob_path.join(name.replace("/", ":"));
+                let bytes = if m.message.len() > 0 {
+                    if !path.exists() {
+                        let mut file = File::create(&path)?;
+                        file.write_all(&m.message)?;
+                        info!("Wrote {} bytes to {:?}", m.message.len(), path);    
+                    }
+                    
+                    m.message
+                }
+                else {
+                    assert!(path.exists());
+                    let mut file = File::open(&path)?;
+                    let mut buffer = vec![];
+                
+                    let bytes = file.read_to_end(&mut buffer)?;
+                    info!("read {} bytes from {:?}", bytes, path);
+                    if bytes > MAX_MESSAGE_SIZE {
+                        error!("get_messages_: artifact size exceeds limit {} > {}", bytes, MAX_MESSAGE_SIZE);
+                        return Err(Status::internal(format!(
+                            "get_messages_: artifact size exceeds limit {} > {}", bytes, MAX_MESSAGE_SIZE
+                        )));
+                    }
+                    if total_bytes + bytes > MAX_MESSAGE_SIZE {
+                        warn!(
+                            "get_messages_: truncating response to respect limit {} > {}",
+                            total_bytes,
+                            MAX_MESSAGE_SIZE
+                        );
+                        truncated = true;
+                        break;
+                    }
+                    total_bytes += bytes;
+                    buffer
+                };
+
+                let next = GrpcB3Message {
+                    id: m.id,
+                    message: bytes,
+                    version: m.version,
+                };
+                ret.push(next);
+            }
+            info!("Total reads: {}ms", now.elapsed().as_millis());
+            ret
+        }
+        else {
+            // otherwise the message bytes are in the database
+            messages
             .into_iter()
             .map(|m| GrpcB3Message {
                 id: m.id,
                 message: m.message,
                 version: m.version,
             })
-            .collect();
+            .collect()
+        };
 
-        messages.sort_unstable_by_key(|m| m.id);
+        ret.sort_unstable_by_key(|m| m.id);
 
-        Ok(messages)
+        Ok((ret, truncated))
     }
 
     async fn put_messages_(
@@ -90,11 +160,33 @@ impl PgsqlB3Server {
         };
         let mut c = ZPgsqlB3Client::new(c);
 
-        let messages = messages
+        let mut messages = messages
             .iter()
             .map(|m| B3MessageRow::try_from(m))
             .collect::<Result<Vec<B3MessageRow>>>()
             .map_err(|e| Status::internal(format!("Failed to parse grpc messages: {e}")))?;
+
+        // optionally retrieve the message bytes from the blob store
+        if let Some(blob_root) = &self.blob_root {
+            let now = Instant::now();
+            
+            let blob_path = Path::new(blob_root).join(board);
+            if !blob_path.exists() {
+                fs::create_dir_all(&blob_path)?;
+            }
+
+            for m in messages.iter_mut() {
+                let name = format!("{}-{}-{}-{}", m.statement_kind, m.sender_pk, m.batch, m.mix_number);
+                let path = blob_path.join(name.replace("/", ":"));
+                let mut file = File::create(&path)?;
+                file.write_all(&m.message)?;
+                info!("Wrote {} bytes to {:?}", m.message.len(), path);
+                if m.statement_kind != StatementType::PublicKey.to_string() {
+                    m.message = vec![];
+                }
+            }
+            info!("Total writes: {}ms", now.elapsed().as_millis());
+        }
 
         let reply = c.insert_messages(board, &messages).await;
         let Ok(_) = reply else {
@@ -116,7 +208,7 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
     ) -> Result<Response<GetMessagesReply>, Status> {
         let r = request.get_ref();
 
-        let messages = self.get_messages_(&r.board, r.last_id).await?;
+        let (messages, _) = self.get_messages_(&r.board, r.last_id).await?;
 
         info!(
             "get_messages: returning {} messages with id > {} for board '{}'",
@@ -188,38 +280,59 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
         let mut truncated = false;
 
         for request in &r.requests {
-            let ms = self.get_messages_(&request.board, request.last_id).await?;
-            if ms.len() > 0 {
-                let mut send: Vec<GrpcB3Message> = vec![];
-                for m in ms.into_iter() {
-                    let next_bytes: usize = m.message.len();
-                    if next_bytes > super::MAX_MESSAGE_SIZE {
-                        error!("get_messages_multi: encountered single message exceeding limit {} > {}", next_bytes, super::MAX_MESSAGE_SIZE);
-                        return Err(Status::internal(format!("get_messages_multi: encountered single message exceeding limit {} > {}", next_bytes, super::MAX_MESSAGE_SIZE)));
+            let (ms, t): (Vec<GrpcB3Message>, bool) = self.get_messages_(&request.board, request.last_id).await?;
+            if self.blob_root.is_some() {
+                if ms.len() > 0 {
+                    let mut send: Vec<GrpcB3Message> = vec![];
+                    for m in ms.into_iter() {
+                        total_bytes += m.message.len();
+                        send.push(m);
                     }
-                    total_bytes += next_bytes;
-                    if total_bytes > super::MAX_MESSAGE_SIZE {
-                        warn!(
-                            "get_messages_multi: truncating response to respect limit {} > {}",
-                            total_bytes,
-                            super::MAX_MESSAGE_SIZE
-                        );
-                        total_bytes -= next_bytes;
-                        truncated = true;
+                    let k = KeyedMessages {
+                        board: request.board.clone(),
+                        messages: send,
+                    };
+                    keyed.push(k);
+    
+                    if t {
+                        truncated = t;
                         break;
                     }
-                    send.push(m);
                 }
-                // let next_bytes: usize = ms.iter().map(|m| m.message.len()).sum();
-                // total_bytes += next_bytes as u32;
-                let k = KeyedMessages {
-                    board: request.board.clone(),
-                    messages: send,
-                };
-                keyed.push(k);
-
-                if truncated {
-                    break;
+            }
+            else {
+                if ms.len() > 0 {
+                    let mut send: Vec<GrpcB3Message> = vec![];
+                    for m in ms.into_iter() {
+                        let next_bytes: usize = m.message.len();
+                        if next_bytes > super::MAX_MESSAGE_SIZE {
+                            error!("get_messages_multi: encountered single message exceeding limit {} > {}", next_bytes, super::MAX_MESSAGE_SIZE);
+                            return Err(Status::internal(format!("get_messages_multi: encountered single message exceeding limit {} > {}", next_bytes, super::MAX_MESSAGE_SIZE)));
+                        }
+                        total_bytes += next_bytes;
+                        if total_bytes > super::MAX_MESSAGE_SIZE {
+                            warn!(
+                                "get_messages_multi: truncating response to respect limit {} > {}",
+                                total_bytes,
+                                super::MAX_MESSAGE_SIZE
+                            );
+                            total_bytes -= next_bytes;
+                            truncated = true;
+                            break;
+                        }
+                        send.push(m);
+                    }
+                    // let next_bytes: usize = ms.iter().map(|m| m.message.len()).sum();
+                    // total_bytes += next_bytes as u32;
+                    let k = KeyedMessages {
+                        board: request.board.clone(),
+                        messages: send,
+                    };
+                    keyed.push(k);
+    
+                    if truncated {
+                        break;
+                    }
                 }
             }
         }
@@ -228,8 +341,8 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
             info!(
                 "get_messages_multi: returning {} keyed messages in {}ms, size = {:.3} MB",
                 keyed.len(),
+                now.elapsed().as_millis(),
                 f64::from(total_bytes as u32) / (1024.0 * 1024.0),
-                now.elapsed().as_millis()
             );
         }
 
@@ -352,7 +465,7 @@ pub(crate) mod tests {
 
         let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
         let c = c.with_database(PG_DATABASE);
-        let b3_impl = PgsqlB3Server::new(c).await.unwrap();
+        let b3_impl = PgsqlB3Server::new(c, None).await.unwrap();
 
         let cfg = get_test_configuration::<RistrettoCtx>(3, 2);
         let messages = vec![cfg];
@@ -388,7 +501,7 @@ pub(crate) mod tests {
 
         let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
         let c = c.with_database(PG_DATABASE);
-        let b3_impl = PgsqlB3Server::new(c).await.unwrap();
+        let b3_impl = PgsqlB3Server::new(c, None).await.unwrap();
 
         let request = B3Client::get_boards_request();
         let boards = b3_impl.get_boards(request).await.unwrap();
