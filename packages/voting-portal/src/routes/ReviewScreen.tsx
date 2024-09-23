@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState} from "react"
+import React, {useEffect, useState, useContext} from "react"
 import {
     Link as RouterLink,
     useNavigate,
@@ -29,6 +29,7 @@ import {
     IElectionEventStatus,
     IAuditableBallot,
     EVotingPortalAuditButtonCfg,
+    IGraphQLActionError,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -60,6 +61,7 @@ import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import Stepper from "../components/Stepper"
 import {selectBallotSelectionByElectionId} from "../store/ballotSelections/ballotSelectionsSlice"
 import {sortContestList, hashBallot} from "@sequentech/ui-core"
+import {SettingsContext} from "../providers/SettingsContextProvider"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -92,6 +94,16 @@ const StyledButton = styled(Button)`
         text-overflow: ellipsis;
         padding: 5px;
     }
+`
+
+const StyledIcon = styled(Icon)`
+    min-width: 14px;
+    padding: 5px;
+`
+
+const StyledCircularProgress = styled(CircularProgress)`
+    width: 14px !important;
+    height: 14px !important;
 `
 
 interface AuditButtonProps {
@@ -148,6 +160,36 @@ interface ActionButtonProps {
     setErrorMsg: (msg: CastBallotsErrorType) => void
 }
 
+interface LoadingOrCastButtonProps {
+    onClick: () => void
+    className?: string
+    isCastingBallot: boolean
+}
+
+const LoadingOrCastButton: React.FC<LoadingOrCastButtonProps> = ({
+    onClick,
+    isCastingBallot,
+    className,
+}) => {
+    const {t} = useTranslation()
+
+    return (
+        <StyledButton
+            className={className}
+            sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
+            disabled={isCastingBallot}
+            onClick={onClick}
+        >
+            <Box>{t("reviewScreen.castBallotButton")}</Box>
+            {isCastingBallot ? (
+                <StyledCircularProgress color="inherit" />
+            ) : (
+                <StyledIcon icon={faAngleRight} size="sm" />
+            )}
+        </StyledButton>
+    )
+}
+
 const ActionButtons: React.FC<ActionButtonProps> = ({
     ballotStyle,
     auditableBallot,
@@ -168,6 +210,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const {toHashableBallot} = provideBallotService()
     const submit = useSubmit()
     const isDemo = !!ballotStyle?.ballot_eml?.public_key?.is_demo
+    const {globalSettings} = useContext(SettingsContext)
 
     const {refetch: refetchElectionEvent} = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
         variables: {
@@ -252,6 +295,10 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 },
             })
             if (result.errors) {
+                // As the exception occurs above this error is not set, leading
+                // to unknown error.
+                console.log(result.errors.map((e) => e.message))
+                setIsCastingBallot(false)
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`))
             }
 
@@ -263,36 +310,20 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             return submit(null, {method: "post"})
         } catch (error) {
             setIsCastingBallot(false)
-            // dispatch(clearBallot())
-            const ballotError = error as IBallotError
-            if (ballotError.error_type) {
-                setErrorMsg(
-                    t(`reviewScreen.error.${WasmCastBallotsErrorType[ballotError.error_type]}`)
-                )
+            let castError = error as IGraphQLActionError
+            if (castError?.graphQLErrors?.[0]?.extensions?.code) {
+                let errorCode = castError?.graphQLErrors?.[0]?.extensions?.code
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}_${errorCode}`))
             } else {
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.UNKNOWN_ERROR}`))
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`))
             }
             console.log(`error casting vote: ${ballotStyle.election_id}`)
-            console.log(ballotError?.error_msg || error)
             return submit({error: errorType}, {method: "post"})
         }
     }
 
-    console.log("auditButtonCfg", auditButtonCfg)
-
     return (
         <Box sx={{marginBottom: "10px", marginTop: "10px"}}>
-            {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW ? (
-                <StyledButton
-                    className="audit-button"
-                    sx={{display: {xs: "flex", sm: "none"}, marginBottom: "2px", width: "100%"}}
-                    variant="warning"
-                    onClick={() => setAuditBallotHelp(true)}
-                >
-                    <Icon icon={faFire} size="sm" />
-                    <Box>{t("reviewScreen.auditButton")}</Box>
-                </StyledButton>
-            ) : null}
             {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW ? (
                 <AuditBallotHelpDialog
                     auditBallotHelp={auditBallotHelp}
@@ -312,17 +343,13 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW ? (
                     <AuditButton onClick={() => setAuditBallotHelp(true)} />
                 ) : null}
-                <StyledButton
+                <LoadingOrCastButton
                     className="cast-ballot-button"
-                    sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
-                    disabled={isCastingBallot}
+                    isCastingBallot={isCastingBallot}
                     onClick={() =>
                         castVoteConfirmModal ? setConfirmCastVoteModal(true) : castBallotAction()
                     }
-                >
-                    <Box>{t("reviewScreen.castBallotButton")}</Box>
-                    <Icon icon={faAngleRight} size="sm" />
-                </StyledButton>
+                />
             </ActionsContainer>
             <Dialog
                 handleClose={handleCloseCastVoteDialog}

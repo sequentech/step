@@ -239,6 +239,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                     tenant_id: tenantId || undefined,
                     election_event_id: record?.id || undefined,
                 }}
+                storeKey={false}
                 filters={Filters}
             >
                 <DatagridConfigurable omit={OMIT_FIELDS}>

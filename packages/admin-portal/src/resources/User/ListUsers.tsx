@@ -781,6 +781,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     election_event_id: electionEventId,
                     election_id: electionId,
                 }}
+                storeKey={false}
                 aside={aside}
                 filters={Filters}
             >
