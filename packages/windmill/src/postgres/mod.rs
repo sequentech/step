@@ -28,3 +28,4 @@ pub mod tally_session_execution;
 pub mod tally_sheet;
 pub mod tasks_execution;
 pub mod trustee;
+pub mod tenant;

@@ -9,9 +9,8 @@ use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::str::FromStr;
-use strum_macros::EnumString;
 use tokio_postgres::row::Row;
-use tracing::{info, instrument};
+use tracing::instrument;
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
@@ -342,4 +341,43 @@ pub async fn insert_scheduled_event(
     } else {
         Err(anyhow!("Unexpected rows affected {}", rows.len()))
     }
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn find_scheduled_event_by_election_event_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Vec<PostgresScheduledEvent>> {
+    let tenant_uuid: uuid::Uuid =
+        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        .with_context(|| "Error parsing election_event_id as UUID")?;
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            SELECT
+                *
+            FROM "sequent_backend".scheduled_event
+            WHERE
+                tenant_id = $1
+                AND election_event_id = $2
+                AND stopped_at IS NULL
+            "#,
+        )
+        .await
+        .map_err(|err| anyhow!("Error running the find_scheduled_event_by_task_id query: {err}"))?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(&statement, &[&tenant_uuid, &election_event_uuid])
+        .await
+        .map_err(|err| anyhow!("Error running the find_scheduled_event_by_task_id query: {err}"))?;
+
+    let scheduled_events = rows
+        .into_iter()
+        .map(|row| -> Result<PostgresScheduledEvent> { row.try_into() })
+        .collect::<Result<Vec<PostgresScheduledEvent>>>()
+        .with_context(|| "Error converting rows into PostgresScheduledEvent")?;
+
+    Ok(scheduled_events)
 }

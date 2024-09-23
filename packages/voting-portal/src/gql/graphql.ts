@@ -244,6 +244,19 @@ export type GetBallotPublicationChangesOutput = {
   previous?: Maybe<BallotPublicationStyles>;
 };
 
+export type GetEventListOutput = {
+  __typename?: 'GetEventListOutput';
+  election: Scalars['String']['output'];
+  election_event_id: Scalars['String']['output'];
+  event_type: Scalars['String']['output'];
+  name: Scalars['String']['output'];
+  receivers?: Maybe<Array<Maybe<Scalars['String']['output']>>>;
+  schedule?: Maybe<Scalars['jsonb']['output']>;
+  task_id: Scalars['String']['output'];
+  template?: Maybe<Scalars['jsonb']['output']>;
+  tenant_id: Scalars['String']['output'];
+};
+
 export type GetManualVerificationInput = {
   election_event_id: Scalars['String']['input'];
   tenant_id: Scalars['String']['input'];
@@ -854,6 +867,7 @@ export type Mutation_Root = {
   export_users?: Maybe<ExportUsersOutput>;
   generate_ballot_publication?: Maybe<PublishBallotOutput>;
   get_ballot_publication_changes?: Maybe<GetBallotPublicationChangesOutput>;
+  get_event_list?: Maybe<Array<Maybe<GetEventListOutput>>>;
   get_manual_verification_pdf?: Maybe<GetManualVerificationOutput>;
   /** get private key */
   get_private_key?: Maybe<GetPrivateKeyOutput>;
@@ -1784,6 +1798,13 @@ export type Mutation_RootGet_Ballot_Publication_ChangesArgs = {
   ballot_publication_id: Scalars['uuid']['input'];
   election_event_id: Scalars['uuid']['input'];
   limit?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+/** mutation root */
+export type Mutation_RootGet_Event_ListArgs = {
+  election_event_id: Scalars['String']['input'];
+  tenant_id: Scalars['String']['input'];
 };
 
 
