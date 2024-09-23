@@ -53,6 +53,7 @@ const RETRIEVE_ALL_MESSAGES_PERIOD: i64 = 60 * 60;
 
 pub struct Trustee<C: Ctx> {
     pub(crate) name: String,
+    pub(crate) board_name: String,
     pub(crate) signing_key: StrandSignatureSk,
     pub(crate) encryption_key: symm::SymmetricKey,
     pub(crate) local_board: LocalBoard<C>,
@@ -73,6 +74,7 @@ impl<C: Ctx> board_messages::braid::message::Signer for Trustee<C> {
 impl<C: Ctx> Trustee<C> {
     pub fn new(
         name: String,
+        board_name: String,
         signing_key: StrandSignatureSk,
         encryption_key: symm::SymmetricKey,
         store: Option<PathBuf>,
@@ -84,10 +86,12 @@ impl<C: Ctx> Trustee<C> {
             "Trustee {} created, no_cache = {}, action_parallelism = {}",
             name, no_cache, action_parallelism
         );
+        // let blob_root = std::env::current_dir().unwrap().join("blobs");
         let local_board = LocalBoard::new(store, None, no_cache);
 
         Trustee {
             name,
+            board_name,
             signing_key,
             encryption_key,
             local_board,

@@ -490,31 +490,44 @@ impl<C: Ctx> LocalBoard<C> {
         // FIXME verify message signatures before inserting in local store
         let mut statement = if ignore_existing {
             connection.prepare(
-                "INSERT OR IGNORE INTO MESSAGES(external_id, message, blob_hash) VALUES(?1, ?2, ?3)",
+                "INSERT OR IGNORE INTO MESSAGES(external_id, message, sender_pk, statement_kind, batch, mix_number) VALUES(?1, ?2, ?3, ?4, ?5, ?6)",
             )?
         } else {
             connection.prepare(
-                "INSERT INTO MESSAGES(external_id, message, blob_hash) VALUES(?1, ?2, ?3)",
+                "INSERT INTO MESSAGES(external_id, message, sender_pk, statement_kind, batch, mix_number) VALUES(?1, ?2, ?3, ?4, ?5, ?6)",
             )?
         };
 
         connection.execute("BEGIN TRANSACTION", [])?;
         for m in messages {
-            let hash = strand::hash::hash_b64(&m.message)?;
+            if m.version != board_messages::get_schema_version() {
+                return Err(anyhow::anyhow!(
+                    "Mismatched schema version: {} != {}",
+                    m.version,
+                    board_messages::get_schema_version()
+                ));
+            }
+            let message = Message::strand_deserialize(&m.message)?;
+            let sender_pk = message.sender.pk.to_der_b64_string()?;
+            let kind = message.statement.get_kind().to_string();
+            let batch: i32 = message.statement.get_batch_number().try_into()?;
+            let mix_number: i32 = message.statement.get_mix_number().try_into()?;
+
+            // let hash = strand::hash::hash_b64(&m.message)?;
             if let Some(blob_store) = &self.blob_store {
                 if !blob_store.exists() {
                     fs::create_dir_all(&blob_store)?;
                 }
-                let name = format!("{}", hash);
+                let name = format!("{}-{}-{}-{}", kind, sender_pk, batch, mix_number);
                 let path = blob_store.join(name.replace("/", ":"));
                 if !path.exists() {
                     let mut file = File::create(&path)?;
                     file.write_all(&m.message)?;
                     tracing::info!("local2: wrote {} bytes to {:?}", m.message.len(), path);
                 }
-                statement.execute(params![m.id, vec![], hash])?;
+                statement.execute(params![m.id, vec![], sender_pk, kind, batch, mix_number])?;
             } else {
-                statement.execute(params![m.id, m.message, hash])?;
+                statement.execute(params![m.id, m.message, sender_pk, kind, batch, mix_number])?;
             }
         }
         connection.execute("END TRANSACTION", [])?;
@@ -543,13 +556,16 @@ impl<C: Ctx> LocalBoard<C> {
         let connection = self.get_store()?;
 
         let mut stmt = connection
-            .prepare("SELECT id,message,blob_hash FROM MESSAGES where id > ?1 order by id asc")?;
+            .prepare("SELECT id,message,sender_pk,statement_kind,batch,mix_number FROM MESSAGES where id > ?1 order by id asc")?;
 
         let rows = stmt.query_map([last_message_id], |row| {
             Ok(SqliteStoreMessageRow {
                 id: row.get(0)?,
                 message: row.get(1)?,
-                hash: row.get(2)?,
+                sender_pk: row.get(2)?,
+                kind: row.get(3)?,
+                batch: row.get(4)?,
+                mix_number: row.get(5)?,
             })
         })?;
 
@@ -559,7 +575,10 @@ impl<C: Ctx> LocalBoard<C> {
                 let id = row.id;
                 // let message = Message::strand_deserialize(&row.message)?;
                 let message = if let Some(blob_store) = &self.blob_store {
-                    let name = format!("{}", row.hash);
+                    let name = format!(
+                        "{}-{}-{}-{}",
+                        row.kind, row.sender_pk, row.batch, row.mix_number
+                    );
                     let path = blob_store.join(name.replace("/", ":"));
                     assert!(path.exists());
                     let mut file = File::open(&path)?;
@@ -596,13 +615,16 @@ impl<C: Ctx> LocalBoard<C> {
     fn get_artifact_from_store(&self, store_id: i64) -> Result<Vec<u8>> {
         let connection = self.get_store()?;
         let mut stmt =
-            connection.prepare("SELECT id,message,blob_hash FROM MESSAGES where id = ?1")?;
+            connection.prepare("SELECT id,message,sender_pk,statement_kind,batch,mix_number FROM MESSAGES where id = ?1")?;
 
         let mut rows = stmt.query([store_id])?;
         let bytes: Vec<u8> = if let Some(row) = rows.next()? {
             let bytes = if let Some(blob_store) = &self.blob_store {
-                let hash: String = row.get(2)?;
-                let name = format!("{}", hash);
+                let sender_pk: String = row.get(2)?;
+                let kind: String = row.get(3)?;
+                let batch: i32 = row.get(4)?;
+                let mix_number: i32 = row.get(5)?;
+                let name = format!("{}-{}-{}-{}", kind, sender_pk, batch, mix_number);
                 let path = blob_store.join(name.replace("/", ":"));
                 assert!(path.exists());
                 let mut file = File::open(&path)?;
@@ -644,7 +666,8 @@ impl<C: Ctx> LocalBoard<C> {
         // The autogenerated id column is used to establish an order that cannot be manipulated by the external board. Once a retrieved message is
         // stored and assigned a local id, it is not possible for later messages to have an earlier id.
         // The external_id column is used to retrieve _new_ messages as defined by the external board (to optimize bandwidth).
-        connection.execute("CREATE TABLE if not exists MESSAGES(id INTEGER PRIMARY KEY AUTOINCREMENT, external_id INT8 NOT NULL UNIQUE, message BLOB NOT NULL, blob_hash TEXT NOT NULL UNIQUE)", [])?;
+        // connection.execute("CREATE TABLE if not exists MESSAGES(id INTEGER PRIMARY KEY AUTOINCREMENT, external_id INT8 NOT NULL UNIQUE, message BLOB NOT NULL, blob_hash TEXT NOT NULL UNIQUE)", [])?;
+        connection.execute("CREATE TABLE if not exists MESSAGES(id INTEGER PRIMARY KEY AUTOINCREMENT, external_id INT8 NOT NULL UNIQUE, message BLOB NOT NULL, sender_pk TEXT NOT NULL, statement_kind TEXT NOT NULL, batch INT4 NOT NULL, mix_number INT4 NOT NULL, UNIQUE(sender_pk, statement_kind, batch, mix_number))", [])?;
 
         Ok(connection)
     }
@@ -773,5 +796,8 @@ pub struct ArtifactEntryIdentifier {
 struct SqliteStoreMessageRow {
     id: i64,
     message: Vec<u8>,
-    hash: String,
+    sender_pk: String,
+    kind: String,
+    batch: i32,
+    mix_number: i32,
 }

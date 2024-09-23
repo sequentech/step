@@ -104,6 +104,8 @@ The sequence of steps to run a demo election are
 
        cargo run --bin demo_tool -- init-protocol
 
+    2.5) Launch the braid bulletin board server
+
     3) Launch each of the trustees (each in their own directory)
 
        cd demo/1
@@ -173,6 +175,7 @@ async fn main() -> Result<()> {
             info!("Using connection string '{}'", c.connection_string());
             // pgsql::drop_database(&c, PG_DATABASE).await?;
 
+            // swallow database already exists errors
             let _ = pgsql::create_database(&c, PG_DATABASE).await;
 
             let c = c.with_database(PG_DATABASE);

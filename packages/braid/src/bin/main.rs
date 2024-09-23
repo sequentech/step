@@ -135,6 +135,7 @@ async fn main() -> Result<()> {
 
             let trustee: Trustee<RistrettoCtx> = Trustee::new(
                 std::env::var("TRUSTEE_NAME").unwrap_or_else(|_| "Self".to_string()),
+                board_name.to_string(),
                 sk.clone(),
                 ek.clone(),
                 Some(store_root.join(board_name)),

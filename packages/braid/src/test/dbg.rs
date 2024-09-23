@@ -251,7 +251,14 @@ fn mk_context<C: Ctx>(ctx: C, n_trustees: u8, threshold: &[usize]) -> ReplContex
             let kp = StrandSignatureSk::gen().unwrap();
             // let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
             let encryption_key = strand::symm::gen_key();
-            Trustee::new(i.to_string(), kp, encryption_key, None, true)
+            Trustee::new(
+                i.to_string(),
+                "foo".to_string(),
+                kp,
+                encryption_key,
+                None,
+                true,
+            )
         })
         .collect();
 

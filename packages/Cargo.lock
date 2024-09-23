@@ -410,7 +410,6 @@ dependencies = [
  "cfg-if",
  "clap 4.5.16",
  "cursive",
- "futures",
  "hex",
  "log",
  "prost",

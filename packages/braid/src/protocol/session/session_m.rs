@@ -173,8 +173,9 @@ impl SessionSet {
                 // threshold 3: 32 messages
                 let trustees = 3;
                 let threshold = 2;
+                let batch = 10;
                 let dkg_messages = 1 + 5 * trustees;
-                let tally_messages = trustees + (threshold * (threshold + 1)) + 1;
+                let tally_messages = batches * (trustees + (threshold * (threshold + 1)) + 1);
 
                 if (loop_count > 5)
                     && (requests[0].1 == dkg_messages
@@ -317,6 +318,7 @@ impl SessionFactory {
 
         let trustee: Trustee<RistrettoCtx> = Trustee::new(
             self.trustee_name.clone(),
+            board_name.to_string(),
             self.signing_key.clone(),
             self.symm_key,
             Some(self.store_root.join(&board_name)),

@@ -418,17 +418,17 @@ async fn create_index_ine(client: &mut Client) -> Result<()> {
         .await?;
 
     /*transaction
-        .execute(
-            &format!(
-                r#"
-        CREATE UNIQUE INDEX IF NOT EXISTS BOARD_NAME_IDX ON {}(board_name);
-        "#,
-                INDEX_TABLE
-            ),
-            &[],
-        )
-        .await?;
-    transaction.commit().await?;*/
+    .execute(
+        &format!(
+            r#"
+    CREATE UNIQUE INDEX IF NOT EXISTS BOARD_NAME_IDX ON {}(board_name);
+    "#,
+            INDEX_TABLE
+        ),
+        &[],
+    )
+    .await?;*/
+    transaction.commit().await?;
 
     Ok(())
 }
@@ -752,7 +752,6 @@ async fn insert_messages(
     messages: &Vec<B3MessageRow>,
 ) -> Result<()> {
     for chunk in messages.chunks(PG_DEFAULT_ENTRIES_TX_LIMIT) {
-        // let chunk_vec: Vec<B3MessageRow> = chunk.to_vec();
         insert(client, board_name, chunk).await?;
     }
     Ok(())
@@ -957,7 +956,7 @@ async fn get_one(client: &Client, board_name: &str, id: i64) -> Result<Option<B3
     }
 }
 
-use futures::pin_mut;
+/* use futures::pin_mut;
 use tokio_postgres::binary_copy::BinaryCopyInWriter;
 use tokio_postgres::types::{ToSql, Type};
 
@@ -1059,7 +1058,7 @@ async fn _write(writer: BinaryCopyInWriter, messages: &[B3MessageRow]) -> Result
     writer.finish().await?;
 
     Ok(batches)
-}
+}*/
 
 // Run ignored tests with
 // cargo test <test_name> -- --include-ignored

@@ -20,7 +20,7 @@ anyhow = "1.0"
 rayon = "1.5"
 
 # only needed to use the postgresql COPY command
-futures = "0.3"
+# futures = "0.3"
 
 # logging
 log = "0.4.17"

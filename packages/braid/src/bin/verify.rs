@@ -47,6 +47,7 @@ async fn main() -> Result<()> {
     info!("Connecting to board '{}'..", args.board);
     let trustee: Trustee<RistrettoCtx> = Trustee::new(
         "Verifier".to_string(),
+        args.board.to_string(),
         dummy_sk,
         dummy_encryption_key,
         None,
