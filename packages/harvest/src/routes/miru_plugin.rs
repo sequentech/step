@@ -72,7 +72,7 @@ pub async fn create_transmission_package(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::USER_CREATE],
+        vec![Permissions::MIRU_CREATE],
     )?;
     let celery_app = get_celery_app().await;
     let celery_task = match celery_app
