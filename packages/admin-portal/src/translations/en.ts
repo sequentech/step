@@ -457,6 +457,9 @@ const englishTranslation = {
             voters: {
                 title: "Voters",
                 subtitle: "View and edit voter data",
+                logs: {
+                    label: "User's Logs",
+                },
                 create: {
                     title: "Voter",
                     subtitle: "Create Voter",
