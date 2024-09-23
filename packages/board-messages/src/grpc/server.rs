@@ -74,9 +74,10 @@ impl PgsqlB3Server {
             )));
         };
 
+        // Need to indicate to the caller that we ran into a limit
         let mut truncated = false;
         let mut ret = if let Some(blob_root) = &self.blob_root {
-            // retrieve the message bytes from the blob store
+            // Retrieve the message bytes from the blob store
             let now = Instant::now();
             let mut ret: Vec<GrpcB3Message> = vec![];
             let mut total_bytes = 0;
@@ -86,13 +87,28 @@ impl PgsqlB3Server {
                 fs::create_dir_all(&blob_path)?;
             }
 
+            // We do a first pass to write any messages bytes that may have been written
+            // directly into the database (as opposed to the blob store)
+            for m in messages.iter().filter(|m| m.message.len() > 0) {
+                let name = format!(
+                    "{}-{}-{}-{}",
+                    m.statement_kind, m.sender_pk, m.batch, m.mix_number
+                );
+                let path = blob_path.join(name.replace("/", ":"));
+                if !path.exists() {
+                    let mut file = File::create(&path)?;
+                    file.write_all(&m.message)?;
+                    info!("Wrote {} bytes to {:?}", m.message.len(), path);
+                }
+            }
+
             for m in messages.into_iter() {
                 let name = format!(
                     "{}-{}-{}-{}",
                     m.statement_kind, m.sender_pk, m.batch, m.mix_number
                 );
                 let path = blob_path.join(name.replace("/", ":"));
-                let bytes = if m.message.len() > 0 {
+                /*let bytes = if m.message.len() > 0 {
                     if !path.exists() {
                         let mut file = File::create(&path)?;
                         file.write_all(&m.message)?;
@@ -100,38 +116,37 @@ impl PgsqlB3Server {
                     }
 
                     m.message
-                } else {
-                    assert!(path.exists());
-                    let mut file = File::open(&path)?;
-                    let mut buffer = vec![];
+                } else {*/
+                assert!(path.exists());
+                let mut file = File::open(&path)?;
+                let mut buffer = vec![];
 
-                    let bytes = file.read_to_end(&mut buffer)?;
-                    info!("read {} bytes from {:?}", bytes, path);
-                    if bytes > MAX_MESSAGE_SIZE {
-                        error!(
-                            "get_messages_: artifact size exceeds limit {} > {}",
-                            bytes, MAX_MESSAGE_SIZE
-                        );
-                        return Err(Status::internal(format!(
-                            "get_messages_: artifact size exceeds limit {} > {}",
-                            bytes, MAX_MESSAGE_SIZE
-                        )));
-                    }
-                    if total_bytes + bytes > MAX_MESSAGE_SIZE {
-                        warn!(
-                            "get_messages_: truncating response to respect limit {} > {}",
-                            total_bytes, MAX_MESSAGE_SIZE
-                        );
-                        truncated = true;
-                        break;
-                    }
-                    total_bytes += bytes;
-                    buffer
-                };
+                let bytes = file.read_to_end(&mut buffer)?;
+                info!("read {} bytes from {:?}", bytes, path);
+                if bytes > MAX_MESSAGE_SIZE {
+                    error!(
+                        "get_messages_: artifact size exceeds limit {} > {}",
+                        bytes, MAX_MESSAGE_SIZE
+                    );
+                    return Err(Status::internal(format!(
+                        "get_messages_: artifact size exceeds limit {} > {}",
+                        bytes, MAX_MESSAGE_SIZE
+                    )));
+                }
+                if total_bytes + bytes > MAX_MESSAGE_SIZE {
+                    warn!(
+                        "get_messages_: truncating response to respect limit {} > {}",
+                        total_bytes, MAX_MESSAGE_SIZE
+                    );
+                    truncated = true;
+                    break;
+                }
+                total_bytes += bytes;
+                // };
 
                 let next = GrpcB3Message {
                     id: m.id,
-                    message: bytes,
+                    message: buffer,
                     version: m.version,
                 };
                 ret.push(next);

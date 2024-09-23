@@ -523,7 +523,7 @@ impl<C: Ctx> LocalBoard<C> {
                 if !path.exists() {
                     let mut file = File::create(&path)?;
                     file.write_all(&m.message)?;
-                    tracing::info!("local2: wrote {} bytes to {:?}", m.message.len(), path);
+                    tracing::info!("update_store: wrote {} bytes to {:?}", m.message.len(), path);
                 }
                 statement.execute(params![m.id, vec![], sender_pk, kind, batch, mix_number])?;
             } else {
@@ -585,7 +585,7 @@ impl<C: Ctx> LocalBoard<C> {
                     let mut buffer = vec![];
 
                     let bytes = file.read_to_end(&mut buffer)?;
-                    tracing::info!("local2: read {} bytes from {:?}", bytes, path);
+                    tracing::info!("store_read: read {} bytes from {:?}", bytes, path);
                     Message::strand_deserialize(&buffer)?
                 } else {
                     Message::strand_deserialize(&row.message)?
@@ -631,7 +631,7 @@ impl<C: Ctx> LocalBoard<C> {
                 let mut buffer = vec![];
 
                 let bytes = file.read_to_end(&mut buffer)?;
-                tracing::info!("local2: read {} bytes from {:?}", bytes, path);
+                tracing::info!("get_artifact_from_store: read {} bytes from {:?}", bytes, path);
                 buffer
             } else {
                 row.get(1)?
