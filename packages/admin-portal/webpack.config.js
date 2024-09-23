@@ -124,6 +124,7 @@ module.exports = function (env, argv) {
             port: 3002, // Run on port 3002
             open: true, // Automatically open the browser
             historyApiFallback: true,
+            allowedHosts: ['admin-portal.local.vote'],
         },
     }
 }
