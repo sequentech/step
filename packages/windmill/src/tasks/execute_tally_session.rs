@@ -13,6 +13,7 @@ use crate::hasura::tally_session_execution::{
 };
 use crate::postgres::area::get_event_areas;
 use crate::postgres::communication_template::get_communication_template_by_id;
+use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::tally_sheet::get_published_tally_sheets_by_event;
 use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
 use crate::services::ceremonies::insert_ballots::{
@@ -65,6 +66,7 @@ use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::ceremonies::TallyTrusteeStatus;
 use sequent_core::types::communications::SendCommunicationBody;
 use sequent_core::types::hasura::core::Area;
+use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::hasura::core::TallySessionConfiguration;
 use sequent_core::types::hasura::core::TallySheet;
 use std::collections::HashMap;
@@ -546,21 +548,13 @@ async fn map_plaintext_data(
         Option<Vec<i64>>,
         Vec<ElectionCastVotes>,
         Vec<TallySheet>,
+        ElectionEvent,
     )>,
 > {
     // fetch election_event
-    let election_events = hasura::election_event::get_election_event(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-    )
-    .await?
-    .data
-    .expect("expected data")
-    .sequent_backend_election_event;
-
-    // check election event is found
-    if election_events.is_empty() {
+    let Ok(election_event) =
+        get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id).await
+    else {
         event!(
             Level::INFO,
             "Election Event not found {}",
@@ -568,9 +562,7 @@ async fn map_plaintext_data(
         );
 
         return Ok(None);
-    }
-
-    let election_event = &election_events[0];
+    };
 
     // get name of bulletin board
     let bulletin_board_opt =
@@ -835,6 +827,7 @@ async fn map_plaintext_data(
         Some(session_ids),
         cast_votes_count,
         tally_sheets,
+        election_event,
     )))
 }
 
@@ -922,6 +915,7 @@ pub async fn execute_tally_session_wrapped(
         session_ids,
         cast_votes_count,
         tally_sheets,
+        election_event,
     )) = plaintexts_data_opt
     else {
         event!(Level::INFO, "map_plaintext_data is None, skipping");
@@ -952,6 +946,8 @@ pub async fn execute_tally_session_wrapped(
         None
     };
 
+    let default_language = election_event.get_default_language();
+
     let results_event_id = populate_results_tables(
         hasura_transaction,
         &base_tempdir.path().to_path_buf(),
@@ -961,6 +957,7 @@ pub async fn execute_tally_session_wrapped(
         session_ids.clone(),
         tally_session_execution.clone(),
         &areas,
+        &default_language,
     )
     .await?;
     // map_plaintext_data also calls this but at this point the credentials

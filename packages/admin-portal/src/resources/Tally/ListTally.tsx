@@ -326,6 +326,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                     tenant_id: tenantId || undefined,
                     election_event_id: electionEventRecord?.id || undefined,
                 }}
+                storeKey={false}
                 filters={Filters}
             >
                 <ElectionHeader title={"electionEventScreen.tally.title"} subtitle="" />

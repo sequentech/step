@@ -28,6 +28,7 @@ public class MessageOTPAuthenticator
   private static final String EMAIL_VERIFIED = "Email verified";
   public static final String INVALID_CODE = "invalid otp Code";
   public static final String EXPITED_CODE = "Code expired";
+  public static final String INTERNAL_ERROR = "InternalError";
 
   @Override
   public MessageOTPCredentialProvider getCredentialProvider(KeycloakSession session) {
@@ -49,7 +50,7 @@ public class MessageOTPAuthenticator
   @Override
   public void action(AuthenticationFlowContext context) {
     log.info("action() called");
-
+    String sessionId = context.getAuthenticationSession().getParentSession().getId();
     String resend = context.getHttpRequest().getDecodedFormParameters().getFirst("resend");
     UserModel user = context.getUser();
     Utils.buildEventDetails(context, this.getClass().getSimpleName());
@@ -67,9 +68,13 @@ public class MessageOTPAuthenticator
     String ttl = authSession.getAuthNote(Utils.CODE_TTL);
 
     if (code == null || ttl == null) {
+      context.getEvent().error(INTERNAL_ERROR + " Missing ttl or code configurations");
       context.failureChallenge(
           AuthenticationFlowError.INTERNAL_ERROR,
-          context.form().createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+          context
+              .form()
+              .setError("code_id:" + sessionId)
+              .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
       return;
     }
 
@@ -81,7 +86,10 @@ public class MessageOTPAuthenticator
             AuthenticationFlowError.ACCESS_DENIED,
             context
                 .form()
-                .setError("messageOtp.auth.codeWithOtl")
+                .setError(
+                    context.form().getMessage("messageOtp.auth.codeWithOtl")
+                        + "<br><br>code_id: "
+                        + sessionId)
                 .createErrorPage(Response.Status.BAD_REQUEST));
         return;
       } else if (execution.isConditional() || execution.isAlternative()) {
@@ -102,7 +110,11 @@ public class MessageOTPAuthenticator
             AuthenticationFlowError.EXPIRED_CODE,
             context
                 .form()
-                .setError("messageOtp.auth.codeExpired")
+                .setError(
+                    context
+                        .form()
+                        .getMessage(
+                            "messageOtp.auth.codeExpired" + "<br><br>code_id: " + sessionId))
                 .createErrorPage(Response.Status.BAD_REQUEST));
       } else {
         // Set email as verified in the auth note only if we actually verified
@@ -135,7 +147,10 @@ public class MessageOTPAuthenticator
             AuthenticationFlowError.INVALID_CREDENTIALS,
             context
                 .form()
-                .setError("messageOtp.auth.codeInvalid")
+                .setError(
+                    context.form().getMessage("messageOtp.auth.codeInvalid")
+                        + "<br><br>code_id: "
+                        + sessionId)
                 .setAttribute("realm", context.getRealm())
                 .setAttribute("courier", messageCourier)
                 .setAttribute("isOtl", isOtl)
