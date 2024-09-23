@@ -313,7 +313,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             let castError = error as IGraphQLActionError
             if (castError?.graphQLErrors?.[0]?.extensions?.code) {
                 let errorCode = castError?.graphQLErrors?.[0]?.extensions?.code
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}:${errorCode}`))
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}_${errorCode}`))
             } else {
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`))
             }

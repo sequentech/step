@@ -89,35 +89,35 @@ const englishTranslation = {
                 "LOAD_ELECTION_EVENT": "Cannot load election event. Please try again later.",
                 "CAST_VOTE":
                     "There was an unknown error while casting the vote. Please try again later or contact support for assistance.",
-                "CAST_VOTE:AreaNotFound":
+                "CAST_VOTE_AreaNotFound":
                     "There was an error while casting the vote: Area not found. Please try again later or contact support for assistance.",
-                "CAST_VOTE:InternalServerError":
+                "CAST_VOTE_InternalServerError":
                     "An internal error occurred while casting the vote. Please try again later or contact support for assistance.",
-                "CAST_VOTE:QueueError":
+                "CAST_VOTE_QueueError":
                     "There was a problem processing your vote. Please try again later or contact support for assistance.",
-                "CAST_VOTE:Unauthorized":
+                "CAST_VOTE_Unauthorized":
                     "You are not authorized to cast a vote. Please contact support for assistance.",
-                "CAST_VOTE:ElectionEventNotFound":
+                "CAST_VOTE_ElectionEventNotFound":
                     "The election event could not be found. Please try again later or contact support for assistance.",
-                "CAST_VOTE:ElectoralLogNotFound":
+                "CAST_VOTE_ElectoralLogNotFound":
                     "Your voting record could not be found. Please contact support for assistance.",
-                "CAST_VOTE:CheckPreviousVotesFailed":
+                "CAST_VOTE_CheckPreviousVotesFailed":
                     "An error occurred while checking your voting status. Please try again later or contact support for assistance.",
-                "CAST_VOTE:GetClientCredentialsFailed":
+                "CAST_VOTE_GetClientCredentialsFailed":
                     "Failed to verify your credentials. Please try again later or contact support for assistance.",
-                "CAST_VOTE:GetAreaIdFailed":
+                "CAST_VOTE_GetAreaIdFailed":
                     "An error occurred verifying your voting area. Please try again later or contact support for assistance.",
-                "CAST_VOTE:GetTransactionFailed":
+                "CAST_VOTE_GetTransactionFailed":
                     "An error occurred processing your vote. Please try again later or contact support for assistance.",
-                "CAST_VOTE:DeserializeBallotFailed":
+                "CAST_VOTE_DeserializeBallotFailed":
                     "An error occurred reading your ballot. Please try again later or contact support for assistance.",
-                "CAST_VOTE:DeserializeContestsFailed":
+                "CAST_VOTE_DeserializeContestsFailed":
                     "An error occurred reading your selections. Please try again later or contact support for assistance.",
-                "CAST_VOTE:PokValidationFailed":
+                "CAST_VOTE_PokValidationFailed":
                     "Failed to validate your vote. Please try again later or contact support for assistance.",
-                "CAST_VOTE:UuidParseFailed":
+                "CAST_VOTE_UuidParseFailed":
                     "An error occurred processing your request. Please try again later or contact support for assistance.",
-                "CAST_VOTE:UnknownError":
+                "CAST_VOTE_UnknownError":
                     "An unknown error occurred while casting the vote. Please try again later or contact support for assistance.",
                 "NO_BALLOT_SELECTION":
                     "The selection state for this election is not present. Please ensure you have selected your choices correctly or contact support.",

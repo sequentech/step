@@ -92,35 +92,35 @@ const spanishTranslation: TranslationType = {
                     "No se puede cargar el evento electoral. Por favor, inténtalo de nuevo más tarde.",
                 "CAST_VOTE":
                     "Ha ocurrido un error desconocido al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
-                "CAST_VOTE:AreaNotFound":
+                "CAST_VOTE_AreaNotFound":
                     "Ha ocurrido un error al emitir el voto: Área no encontrada. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
-                "CAST_VOTE:InternalServerError":
+                "CAST_VOTE_InternalServerError":
                     "Ha ocurrido un error interno al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
-                "CAST_VOTE:QueueError":
+                "CAST_VOTE_QueueError":
                     "Ha ocurrido un problema al procesar su voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
-                "CAST_VOTE:Unauthorized":
+                "CAST_VOTE_Unauthorized":
                     "No está autorizado para emitir un voto. Por favor, contacte con soporte para obtener ayuda.",
-                "CAST_VOTE:ElectionEventNotFound":
+                "CAST_VOTE_ElectionEventNotFound":
                     "No se pudo encontrar el evento electoral. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
-                "CAST_VOTE:ElectoralLogNotFound":
+                "CAST_VOTE_ElectoralLogNotFound":
                     "No se pudo encontrar su registro de votación. Por favor, contacte con soporte para obtener ayuda.",
-                "CAST_VOTE:CheckPreviousVotesFailed":
+                "CAST_VOTE_CheckPreviousVotesFailed":
                     "Ha ocurrido un error al verificar su estado de votación. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
-                "CAST_VOTE:GetClientCredentialsFailed":
+                "CAST_VOTE_GetClientCredentialsFailed":
                     "No se pudieron verificar sus credenciales. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
-                "CAST_VOTE:GetAreaIdFailed":
+                "CAST_VOTE_GetAreaIdFailed":
                     "Ha ocurrido un error al verificar su área de votación. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
-                "CAST_VOTE:GetTransactionFailed":
+                "CAST_VOTE_GetTransactionFailed":
                     "Ha ocurrido un error al procesar su voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
-                "CAST_VOTE:DeserializeBallotFailed":
+                "CAST_VOTE_DeserializeBallotFailed":
                     "Ha ocurrido un error al leer su papeleta. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
-                "CAST_VOTE:DeserializeContestsFailed":
+                "CAST_VOTE_DeserializeContestsFailed":
                     "Ha ocurrido un error al leer sus selecciones. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
-                "CAST_VOTE:PokValidationFailed":
+                "CAST_VOTE_PokValidationFailed":
                     "No se pudo validar su voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
-                "CAST_VOTE:UuidParseFailed":
+                "CAST_VOTE_UuidParseFailed":
                     "Ha ocurrido un error al procesar su solicitud. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
-                "CAST_VOTE:UnknownError":
+                "CAST_VOTE_UnknownError":
                     "Ha ocurrido un error desconocido al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
                 "NO_BALLOT_SELECTION":
                     "El estado de selección para esta elección no está presente. Asegúrate de haber seleccionado correctamente tus opciones o contacta con el soporte.",
