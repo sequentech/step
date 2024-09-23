@@ -160,6 +160,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                 actions={showActions && <ListActions withImport={false} doExport={handleExport} />}
                 filters={filters}
                 filter={filterObject}
+                storeKey={false}
                 sort={{
                     field: "id",
                     order: "DESC",

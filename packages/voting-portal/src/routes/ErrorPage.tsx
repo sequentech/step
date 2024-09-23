@@ -85,7 +85,7 @@ export function ErrorPage() {
             <Header
                 appVersion={{main: globalSettings.APP_VERSION}}
                 errorVariant={HeaderErrorVariant.HIDE_PROFILE}
-                logoutFn={authContext.logout}
+                logoutFn={authContext.isAuthenticated ? authContext.logout : undefined}
             />
             <Box
                 id="error-page"
