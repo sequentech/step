@@ -121,6 +121,12 @@ export type CreateVoteReceiptOutput = {
     status?: Maybe<Scalars["String"]["output"]>
 }
 
+export type DataEventList = {
+    __typename?: "DataEventList"
+    items: Array<Maybe<EventListRow>>
+    total: TotalAggregate
+}
+
 export type DataListElectoralLog = {
     __typename?: "DataListElectoralLog"
     items: Array<Maybe<ElectoralLogRow>>
@@ -211,6 +217,36 @@ export type ElectoralLogRow = {
     user_id: Scalars["String"]["output"]
 }
 
+export type EventListFilter = {
+    election?: InputMaybe<Scalars["String"]["input"]>
+    event_type?: InputMaybe<Scalars["String"]["input"]>
+    name?: InputMaybe<Scalars["String"]["input"]>
+    schedule?: InputMaybe<Scalars["jsonb"]["input"]>
+    tenant_id?: InputMaybe<Scalars["String"]["input"]>
+}
+
+export type EventListOrderBy = {
+    election?: InputMaybe<OrderDirection>
+    event_type?: InputMaybe<OrderDirection>
+    name?: InputMaybe<OrderDirection>
+    receivers?: InputMaybe<OrderDirection>
+    schedule?: InputMaybe<OrderDirection>
+    template?: InputMaybe<OrderDirection>
+}
+
+export type EventListRow = {
+    __typename?: "EventListRow"
+    election: Scalars["String"]["output"]
+    election_event_id: Scalars["String"]["output"]
+    event_type: Scalars["String"]["output"]
+    id: Scalars["String"]["output"]
+    name: Scalars["String"]["output"]
+    receivers?: Maybe<Array<Maybe<Scalars["String"]["output"]>>>
+    schedule?: Maybe<Scalars["jsonb"]["output"]>
+    template?: Maybe<Scalars["jsonb"]["output"]>
+    tenant_id: Scalars["String"]["output"]
+}
+
 export type ExportLogsOutput = {
     __typename?: "ExportLogsOutput"
     document_id: Scalars["String"]["output"]
@@ -244,19 +280,6 @@ export type GetBallotPublicationChangesOutput = {
     __typename?: "GetBallotPublicationChangesOutput"
     current: BallotPublicationStyles
     previous?: Maybe<BallotPublicationStyles>
-}
-
-export type GetEventListOutput = {
-    __typename?: "GetEventListOutput"
-    election: Scalars["String"]["output"]
-    election_event_id: Scalars["String"]["output"]
-    event_type: Scalars["String"]["output"]
-    name: Scalars["String"]["output"]
-    receivers?: Maybe<Array<Maybe<Scalars["String"]["output"]>>>
-    schedule?: Maybe<Scalars["jsonb"]["output"]>
-    task_id: Scalars["String"]["output"]
-    template?: Maybe<Scalars["jsonb"]["output"]>
-    tenant_id: Scalars["String"]["output"]
 }
 
 export type GetManualVerificationInput = {
@@ -869,7 +892,6 @@ export type Mutation_Root = {
     export_users?: Maybe<ExportUsersOutput>
     generate_ballot_publication?: Maybe<PublishBallotOutput>
     get_ballot_publication_changes?: Maybe<GetBallotPublicationChangesOutput>
-    get_event_list?: Maybe<Array<Maybe<GetEventListOutput>>>
     get_manual_verification_pdf?: Maybe<GetManualVerificationOutput>
     /** get private key */
     get_private_key?: Maybe<GetPrivateKeyOutput>
@@ -1773,12 +1795,6 @@ export type Mutation_RootGet_Ballot_Publication_ChangesArgs = {
     ballot_publication_id: Scalars["uuid"]["input"]
     election_event_id: Scalars["uuid"]["input"]
     limit?: InputMaybe<Scalars["Int"]["input"]>
-}
-
-/** mutation root */
-export type Mutation_RootGet_Event_ListArgs = {
-    election_event_id: Scalars["String"]["input"]
-    tenant_id: Scalars["String"]["input"]
 }
 
 /** mutation root */
@@ -3204,6 +3220,7 @@ export type Query_Root = {
     getElectionEventStats?: Maybe<ElectionEventStatsOutput>
     /** get election event stats */
     getElectionStats?: Maybe<ElectionStatsOutput>
+    get_event_list?: Maybe<DataEventList>
     /** list permissions */
     get_permissions: GetPermissionsOutput
     get_roles: GetRolesOutput
@@ -3415,6 +3432,15 @@ export type Query_RootGetElectionEventStatsArgs = {
 
 export type Query_RootGetElectionStatsArgs = {
     object: ElectionStatsInput
+}
+
+export type Query_RootGet_Event_ListArgs = {
+    election_event_id: Scalars["String"]["input"]
+    filter?: InputMaybe<EventListFilter>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<EventListOrderBy>
+    tenant_id: Scalars["String"]["input"]
 }
 
 export type Query_RootGet_PermissionsArgs = {

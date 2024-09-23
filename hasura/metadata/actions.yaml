@@ -372,7 +372,7 @@ actions:
   - role: admin-user
 - name: get_event_list
   definition:
-    kind: synchronous
+    kind: ""
     handler: http://{{HARVEST_DOMAIN}}/get_event_list
     forward_client_headers: true
     request_transform:
@@ -382,6 +382,9 @@ actions:
           {{$body.input}}
       template_engine: Kriti
       version: 2
+  permissions:
+  - role: admin-user
+  - role: election-event-read
 - name: get_manual_verification_pdf
   definition:
     kind: synchronous
@@ -904,6 +907,8 @@ custom_types:
   - name: KeycloakRole2
   - name: RestorePrivateKeyInput
   - name: UserProfileAttributesInput
+  - name: EventListFilter
+  - name: EventListOrderBy
   objects:
   - name: GetManualVerificationOutput
   - name: CreateKeysCeremonyOutput
@@ -971,4 +976,6 @@ custom_types:
   - name: SetCustomUrlOutput
   - name: SetCustomUrlsOutput
   - name: GetEventListOutput
+  - name: EventListRow
+  - name: DataEventList
   scalars: []

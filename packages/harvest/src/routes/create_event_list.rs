@@ -17,7 +17,7 @@ use tracing::{instrument, event};
 pub async fn get_event_list(
     body: Json<GetEventListInput>,
     claims: JwtClaims,
-) -> Result<Json<Vec<GetEventListOutput>>, (Status, String)> {
+) -> Result<Json<EventListOutput>, (Status, String)> {
     let input = body.into_inner();
     authorize(
         &claims,
@@ -44,10 +44,5 @@ pub async fn get_event_list(
     let schedule_events = get_all_scheduled_events_from_db(&hasura_transaction,input).await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    let output: Vec<GetEventListOutput> = schedule_events
-        .into_iter()
-        .filter_map(|event| GetEventListOutput::try_from(event).ok()) // Convert and filter out errors
-        .collect();
-
-    Ok(Json(output))
+    Ok(Json(schedule_events))
 }

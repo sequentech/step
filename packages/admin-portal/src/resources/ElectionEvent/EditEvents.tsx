@@ -6,32 +6,61 @@ import {ListActions} from "@/components/ListActions"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {Button, Typography} from "@mui/material"
-import React, {ReactElement, useContext} from "react"
+import React, {ReactElement, useContext, useEffect} from "react"
 import {
+    AuthContext,
     BooleanField,
     DatagridConfigurable,
     FunctionField,
     List,
     TextField,
     TextInput,
+    useRecordContext,
     WrapperField,
 } from "react-admin"
 import {JsonField} from "react-admin-json-view"
 import {useTranslation} from "react-i18next"
+import {useMutation} from "@apollo/client"
+// import {GetEventListMutation} from "@/gql/graphql"
+import {useTenantStore} from "@/providers/TenantContextProvider"
+import {IPermissions} from "@/types/keycloak"
+import {CustomApolloContextProvider} from "@/providers/ApolloContextProvider"
 
 const EditEvents = () => {
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
+    const record = useRecordContext()
+    // const [eventList] = useMutation<GetEventListMutation>(GET_EVENT_LIST, {
+    //     context: {
+    //         headers: {
+    //             "x-hasura-role": IPermissions.ELECTION_EVENT_READ,
+    //         },
+    //     },
+    // })
+    console.log(record, "record")
+
+    const [tenantId] = useTenantStore()
 
     const OMIT_FIELDS: Array<string> = ["id", "email_verified"]
 
     const Filters: Array<ReactElement> = [
-        <TextInput key="Election" source="event_processor" />,
-        <TextInput key="Schedule" source="cron_config" />,
-        <TextInput key="last_name" source="last_name" />,
-        <TextInput key="username" source="username" />,
+        <TextInput key="Election" source="election" />,
+        <TextInput key="EventType" source="event_type" />,
+        <TextInput key="Name" source="name" />,
+        <TextInput key="Schedule" source="schedule" />,
     ]
 
+    // useEffect(() => {
+    //     const fetchData = async () => {
+    //         if (tenantId && record.id) {
+    //             const {data} = await eventList({
+    //                 variables: {tenantId, electionEventId: record.id},
+    //             })
+    //             console.log(data)
+    //         }
+    //     }
+    //     fetchData()
+    // }, [tenantId, eventList, record.id])
     const actions: Action[] = [
         // {
         //     icon: <MailIcon />,
@@ -55,10 +84,12 @@ const EditEvents = () => {
         //     showAction: () => canEditUsers,
         // },
     ]
-
+    const filterObject: {[key: string]: any} = {
+        election_event_id: record?.id || undefined,
+    }
     return (
         <List
-            resource="sequent_backend_scheduled_event"
+            resource="event_list"
             queryOptions={{
                 refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
             }}
@@ -88,13 +119,10 @@ const EditEvents = () => {
                     ]}
                 />
             }
-            filter={
-                {
-                    // tenant_id: tenantId,
-                    // election_event_id: electionEventId,
-                    // election_id: electionId,
-                }
-            }
+            filter={{
+                tenant_id: tenantId,
+                election_event_id: record.id,
+            }}
             // aside={aside}
             filters={Filters}
         >
@@ -102,18 +130,12 @@ const EditEvents = () => {
                 omit={OMIT_FIELDS}
                 // bulkActionButtons={<BulkActions />}
             >
-                <TextField source="event_processor" label={"Election"} />
+                <TextField source="election" label={"Election"} />
+                <TextField source="name" label={"Task Name"} />
+                <TextField source="schedule" label={"Schedule"} />
+                <TextField source="event_type" label={"Event Type"} />
                 {/* <JsonField source="cron_config" className="email" label={"Schedule"} /> */}
-                <FunctionField
-                    source="cron_config"
-                    label={"Schedule"}
-                    render={(record: any) => (
-                        <Typography>
-                            {new Date(record?.cron_config.scheduled_date).toLocaleString()}
-                        </Typography>
-                    )}
-                />
-                <FunctionField
+                {/* <FunctionField
                     source="cron_config"
                     label={"Event Type"}
                     render={(record: any) => (
@@ -123,9 +145,9 @@ const EditEvents = () => {
                                 : ""}
                         </Typography>
                     )}
-                />
-                <BooleanField source="last_name" label={"Receivers"} />
-                <TextField source="last_name" label={"Template"} />
+                /> */}
+                <BooleanField source="receivers" label={"Receivers"} />
+                <TextField source="template" label={"Template"} />
                 {/* {electionEventId && (
                     <FunctionField
                         label={t("usersAndRolesScreen.users.fields.area")}

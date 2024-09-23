@@ -195,7 +195,7 @@ export const ElectionEventTabs: React.FC = () => {
                     </TabbedShowLayout.Tab>
                 ) : null}
                 {showEvents ? (
-                    <TabbedShowLayout.Tab label={"Events"} className="election-event-logs-tab">
+                    <TabbedShowLayout.Tab label={"Events"}>
                         <EditEvents />
                     </TabbedShowLayout.Tab>
                 ) : null}

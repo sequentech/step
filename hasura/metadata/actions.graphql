@@ -188,11 +188,15 @@ type Mutation {
   ): GetBallotPublicationChangesOutput
 }
 
-type Mutation {
+type Query {
   get_event_list (
     tenant_id: String!
     election_event_id: String!
-  ): [GetEventListOutput]
+    limit: Int
+    offset: Int
+    order_by: EventListOrderBy
+    filter: EventListFilter
+  ): DataEventList
 }
 
 type Mutation {
@@ -331,8 +335,10 @@ type Query {
 
 type Query {
   logEvent (
-    electionEventId: String!
-    messageType: String!
+    election_event_id: String!
+    message_type: String!
+    user_id: String
+    body: String!
   ): LogEventOutput
 }
 
@@ -658,6 +664,23 @@ input RestorePrivateKeyInput {
 input UserProfileAttributesInput {
   tenant_id : String!
   election_event_id : String
+}
+
+input EventListFilter {
+  election : String
+  event_type : String
+  name : String
+  tenant_id : String
+  schedule : jsonb
+}
+
+input EventListOrderBy {
+  election : OrderDirection
+  event_type : OrderDirection
+  receivers : OrderDirection
+  template : OrderDirection
+  name : OrderDirection
+  schedule : OrderDirection
 }
 
 type GetManualVerificationOutput {
@@ -1063,5 +1086,22 @@ type GetEventListOutput {
   receivers : [String]
   template : jsonb
   name : String!
+}
+
+type EventListRow {
+  election : String!
+  schedule : jsonb
+  id : String!
+  tenant_id : String!
+  election_event_id : String!
+  event_type : String!
+  receivers : [String]
+  template : jsonb
+  name : String!
+}
+
+type DataEventList {
+  items : [EventListRow]!
+  total : TotalAggregate!
 }
 

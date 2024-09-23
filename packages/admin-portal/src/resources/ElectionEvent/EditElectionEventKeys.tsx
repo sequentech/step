@@ -270,6 +270,7 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
                         tenant_id: tenantId || undefined,
                         election_event_id: electionEvent?.id || undefined,
                     }}
+                    storeKey={false}
                     empty={<Empty />}
                     actions={<ListActions withFilter={false} withImport={false} />}
                 >

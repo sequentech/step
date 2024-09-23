@@ -10,6 +10,7 @@ import {getPermissions} from "./GetPermissions"
 import {getRoles} from "./GetRoles"
 import {isString} from "lodash"
 import {COLUMNS_MAP} from "@/types/query"
+import {getEventList, getEventListVariables} from "./EventList"
 
 export interface ParamsSort {
     field: string
@@ -71,6 +72,35 @@ export const customBuildQuery =
                     return output
                 },
             }
+        } else if (
+            resourceName === "sequent_backend_tasks_execution" &&
+            raFetchType === "GET_LIST"
+        ) {
+            let ret = buildQuery(introspectionResults)(raFetchType, resourceName, params)
+            if (ret?.variables?.order_by) {
+                const validOrderBy = [
+                    "annotations",
+                    "created_at",
+                    "election_event_id",
+                    "end_at",
+                    "executed_by_user",
+                    "execution_status",
+                    "id",
+                    "labels",
+                    "logs",
+                    "name",
+                    "start_at",
+                    "tenant",
+                    "tenant_id",
+                    "type",
+                ]
+                ret.variables.order_by = Object.fromEntries(
+                    Object.entries(ret?.variables?.order_by || {}).filter(([key]) =>
+                        validOrderBy.includes(key)
+                    )
+                )
+            }
+            return ret
         } else if (
             resourceName === "sequent_backend_ballot_publication" &&
             raFetchType === "GET_LIST"
@@ -159,6 +189,29 @@ export const customBuildQuery =
                     let output = {
                         data: response.items,
                         total: response.total.aggregate.count,
+                    }
+                    return output
+                },
+            }
+        } else if (resourceName === "event_list" && raFetchType === "GET_LIST") {
+            const resource: any = {
+                type: {
+                    fields: [],
+                    name: resourceName,
+                },
+            }
+            return {
+                query: getEventList(params),
+                variables: getEventListVariables(
+                    buildVariables(introspectionResults)(resource, raFetchType, params, null)
+                ),
+
+                parseResponse: (res: any) => {
+                    console.log("res", res)
+                    const response = res.data.get_event_list
+                    let output = {
+                        data: response.items,
+                        total: response.total?.aggregate?.count,
                     }
                     return output
                 },

@@ -447,6 +447,9 @@ const spanishTranslation: TranslationType = {
             voters: {
                 title: "Votantes",
                 subtitle: "Ver y editar datos del votante",
+                logs: {
+                    label: "Registros del usuario",
+                },
                 emptyHeader: "Ningún votante aún.",
                 askCreate: "¿Quieres crear uno?",
                 create: {
