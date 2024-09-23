@@ -48,7 +48,12 @@ const englishTranslation = {
                 IMPORT_USERS: "Import Users",
                 IMPORT_CANDIDATES: "Import Candidates",
                 EXPORT_VOTERS: "Export Voters",
-                CREATE_TRANSMISSION_PACKAGE: "Create Transmission Package",
+                CREATE_TRANSMISSION_PACKAGE:
+                    "Create Transmission Package lorem ipsum lorem ipsum lorem ipsum ",
+            },
+            widget: {
+                taskTitle: "Task: {{title}}",
+                viewTask: "View Task",
             },
             exportTasksExecution: {
                 success: "Export finished successfully",

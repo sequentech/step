@@ -33,6 +33,10 @@ const catalanTranslation: TranslationType = {
                 EXPORT_VOTERS: "Exportar votants",
                 CREATE_TRANSMISSION_PACKAGE: "Crear paquet de transmissió",
             },
+            widget: {
+                taskTitle: "Tasca: {{title}}",
+                viewTask: "Veure Tasca",
+            },
             exportTasksExecution: {
                 success: "L'exportació s'ha completat amb èxit",
                 error: "Error en exportar l'Execució de Tasques",

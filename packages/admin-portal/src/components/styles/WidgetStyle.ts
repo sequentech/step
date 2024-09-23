@@ -23,11 +23,14 @@ export const CustomAccordionSummary = styled(AccordionSummary)<{isLoading: boole
     })
 )
 
-export const WidgetContainer = styled(Paper)({
+export const WidgetContainer = styled(Paper)(({theme}) => ({
     display: "flex",
     flexDirection: "column",
     width: 450,
-})
+    borderTopLeftRadius: "7px",
+    borderTopRightRadius: "7px",
+    boxShadow: "0px 5px 5px -3px rgba(0,0,0,0.1)",
+}))
 
 export const StackContainer = styled(Box)({
     display: "flex",
@@ -39,6 +42,7 @@ export const StackContainer = styled(Box)({
     gap: "10px",
     maxHeight: "80vh",
     overflowY: "auto",
+    padding: "5px",
 })
 
 export const HeaderBox = styled(Box)({
@@ -57,8 +61,12 @@ export const InfoBox = styled(Box)({
 export const TypeTypography = styled(Typography)(({theme}) => ({
     fontSize: "14px",
     margin: "0px",
+    maxWidth: "180px",
+    overflow: "hidden",
     color: theme.palette.common.white,
     fontWeight: "500",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
 }))
 
 export const StatusIconsBox = styled(Box)({
@@ -92,26 +100,29 @@ export const LogsBox = styled(Box)({
     flexDirection: "column",
     maxHeight: "101px",
     overflowY: "auto",
+    padding: "auto 0",
 })
 
 export const LogTypography = styled(Typography)({
     margin: 0,
-    padding: "3px 14px",
+    padding: "3px 0",
     fontSize: "14px",
     fontWeight: "500",
 })
 
 export const ViewTaskTypography = styled(TypeTypography)(({theme}) => ({
     "margin": 0,
-    "padding": "3px",
+    "padding": "3px 6px",
     "color": theme.palette.brandColor,
+    "borderRadius": "6px",
+    "border": `1px solid ${theme.palette.brandColor}`,
     "cursor": "pointer",
     "width": "max-content",
     "alignSelf": "flex-end",
     "fontWeight": 400,
     ":hover": {
-        backgroundColor: theme.palette.customGrey.light,
-        borderRadius: "10%",
+        backgroundColor: theme.palette.brandColor,
+        color: theme.palette.white,
     },
 }))
 
@@ -128,7 +139,7 @@ interface TransparentTableCellProps {
 
 export const TransparentTableCell = styled(TableCell)<TransparentTableCellProps>(
     ({isFailed, theme}) => ({
-        padding: "8px 16px",
+        padding: "8px 0",
         fontSize: "14px",
         color: isFailed ? "darkred" : "inherit",
     })

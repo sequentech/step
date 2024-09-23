@@ -48,6 +48,10 @@ const tagalogTranslation: TranslationType = {
                 EXPORT_VOTERS: "I-export ang mga botante",
                 CREATE_TRANSMISSION_PACKAGE: "Lumikha ng Transmission Package",
             },
+            widget: {
+                taskTitle: "Gawain: {{title}}",
+                viewTask: "Tingnan Ang Gawain",
+            },
             exportTasksExecution: {
                 success: "Matagumpay na natapos ang pag-export",
                 error: "Error sa pag-export ng Tasks Execution",

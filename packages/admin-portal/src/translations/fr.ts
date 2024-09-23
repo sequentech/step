@@ -48,6 +48,10 @@ const frenchTranslation: TranslationType = {
                 EXPORT_VOTERS: "Exporter les électeurs",
                 CREATE_TRANSMISSION_PACKAGE: "Créer un paquet de transmission",
             },
+            widget: {
+                taskTitle: "Tâche: {{title}}",
+                viewTask: "Voir Tâche",
+            },
             exportTasksExecution: {
                 success: "L'exportation s'est terminée avec succès",
                 error: "Erreur lors de l'exportation de l'exécution des tâches",
