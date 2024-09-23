@@ -56,13 +56,12 @@ pub type InsertCastVoteOutput = CastVote;
 
 #[instrument(skip(input), err)]
 pub async fn try_insert_cast_vote(
+    hasura_transaction: &Transaction<'_>,
     input: InsertCastVoteInput,
     tenant_id: &str,
     voter_id: &str,
     area_id: &str,
 ) -> Result<InsertCastVoteOutput> {
-    let mut hasura_db_client: DbClient = get_hasura_pool().await.get().await?;
-    let hasura_transaction = hasura_db_client.transaction().await?;
     // TODO performance of serializable
     /*hasura_transaction
     .simple_query("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;")
