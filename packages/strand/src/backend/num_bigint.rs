@@ -59,7 +59,10 @@ pub struct BigUintX<P: BigintCtxParams>(
 pub struct BigUintP(pub(crate) BigUint);
 
 #[derive(PartialEq, Eq, Debug, Clone, Hash)]
-pub struct BigUintCoFactor<P: BigintCtxParams>(pub(crate) BigUint, PhantomData<BigintCtx<P>>);
+pub struct BigUintCoFactor<P: BigintCtxParams>(
+    pub(crate) BigUint,
+    PhantomData<BigintCtx<P>>,
+);
 
 impl DeserializeNumber for BigUintP {
     fn from_str_radix(
@@ -404,7 +407,9 @@ impl<P: BigintCtxParams + Eq> Exponent<BigintCtx<P>> for BigUintX<P> {
 
 impl Plaintext for BigUintP {}
 
-pub trait BigintCtxParams: Clone + Eq + Send + Sync + Debug + BorshSerialize + BorshDeserialize {
+pub trait BigintCtxParams:
+    Clone + Eq + Send + Sync + Debug + BorshSerialize + BorshDeserialize
+{
     fn generator(&self) -> &BigUintE<Self>;
     fn modulus(&self) -> &BigUintE<Self>;
     fn exp_modulus(&self) -> &BigUintX<Self>;
@@ -446,7 +451,9 @@ impl BigintCtxParams for P2048 {
             BigUint::from_str_radix(G_VERIFICATUM_STR_2048, 10).unwrap(),
         );
         let co_factor = BigUintCoFactor(
-            BigUint::from_str_radix(SAFEPRIME_COFACTOR, 16).unwrap(), PhantomData);
+            BigUint::from_str_radix(SAFEPRIME_COFACTOR, 16).unwrap(),
+            PhantomData,
+        );
 
         assert!(g.0.legendre(&p.0) == 1);
 
@@ -501,7 +508,6 @@ impl<P: BigintCtxParams> BorshDeserialize for BigUintE<P> {
             .map_err(|e| Error::new(ErrorKind::Other, e))
     }
 
-    
     /*fn deserialize(bytes: &mut &[u8]) -> std::io::Result<Self> {
         let bytes = <Vec<u8>>::deserialize(bytes)?;
         let ctx: BigintCtx<P> = Default::default();

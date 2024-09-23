@@ -8,9 +8,9 @@ use log::{debug, error, warn};
 use rusqlite::{params, Connection};
 use std::collections::HashMap;
 use std::fs::{self, File};
+use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::time::Instant;
-use std::io::{Read, Write};
 
 use strand::context::Ctx;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
@@ -65,7 +65,11 @@ pub(crate) struct LocalBoard<C: Ctx> {
 }
 
 impl<C: Ctx> LocalBoard<C> {
-    pub(crate) fn new(store: Option<PathBuf>, blob_store: Option<PathBuf>, no_cache: bool) -> LocalBoard<C> {
+    pub(crate) fn new(
+        store: Option<PathBuf>,
+        blob_store: Option<PathBuf>,
+        no_cache: bool,
+    ) -> LocalBoard<C> {
         let nc = if store.is_none() { false } else { no_cache };
 
         tracing::info!("LocalBoard no_cache: {}", nc);
@@ -473,15 +477,14 @@ impl<C: Ctx> LocalBoard<C> {
         messages: &Vec<GrpcB3Message>,
         ignore_existing: bool,
     ) -> Result<()> {
-
         let now = Instant::now();
-        
+
         if let Some(blob_store) = &self.blob_store {
             if !blob_store.exists() {
                 fs::create_dir_all(&blob_store)?;
             }
         }
-        
+
         let connection = self.get_store()?;
 
         // FIXME verify message signatures before inserting in local store
@@ -510,8 +513,7 @@ impl<C: Ctx> LocalBoard<C> {
                     tracing::info!("local2: wrote {} bytes to {:?}", m.message.len(), path);
                 }
                 statement.execute(params![m.id, vec![], hash])?;
-            }
-            else {
+            } else {
                 statement.execute(params![m.id, m.message, hash])?;
             }
         }
@@ -519,8 +521,12 @@ impl<C: Ctx> LocalBoard<C> {
 
         drop(statement);
 
-        if messages.len() > 0 { 
-            tracing::info!("update_store: inserted {} messages in {}ms", messages.len(), now.elapsed().as_millis());
+        if messages.len() > 0 {
+            tracing::info!(
+                "update_store: inserted {} messages in {}ms",
+                messages.len(),
+                now.elapsed().as_millis()
+            );
         }
 
         Ok(())
@@ -536,10 +542,10 @@ impl<C: Ctx> LocalBoard<C> {
 
         let connection = self.get_store()?;
 
-        let mut stmt =
-            connection.prepare("SELECT id,message,blob_hash FROM MESSAGES where id > ?1 order by id asc")?;
+        let mut stmt = connection
+            .prepare("SELECT id,message,blob_hash FROM MESSAGES where id > ?1 order by id asc")?;
 
-        let rows = stmt.query_map([last_message_id], |row| {            
+        let rows = stmt.query_map([last_message_id], |row| {
             Ok(SqliteStoreMessageRow {
                 id: row.get(0)?,
                 message: row.get(1)?,
@@ -558,16 +564,14 @@ impl<C: Ctx> LocalBoard<C> {
                     assert!(path.exists());
                     let mut file = File::open(&path)?;
                     let mut buffer = vec![];
-                
+
                     let bytes = file.read_to_end(&mut buffer)?;
                     tracing::info!("local2: read {} bytes from {:?}", bytes, path);
                     Message::strand_deserialize(&buffer)?
-                }
-                else {
+                } else {
                     Message::strand_deserialize(&row.message)?
                 };
-                
-                
+
                 Ok((message, id))
             })
             .collect();
@@ -591,7 +595,8 @@ impl<C: Ctx> LocalBoard<C> {
 
     fn get_artifact_from_store(&self, store_id: i64) -> Result<Vec<u8>> {
         let connection = self.get_store()?;
-        let mut stmt = connection.prepare("SELECT id,message,blob_hash FROM MESSAGES where id = ?1")?;
+        let mut stmt =
+            connection.prepare("SELECT id,message,blob_hash FROM MESSAGES where id = ?1")?;
 
         let mut rows = stmt.query([store_id])?;
         let bytes: Vec<u8> = if let Some(row) = rows.next()? {
@@ -602,17 +607,15 @@ impl<C: Ctx> LocalBoard<C> {
                 assert!(path.exists());
                 let mut file = File::open(&path)?;
                 let mut buffer = vec![];
-            
+
                 let bytes = file.read_to_end(&mut buffer)?;
                 tracing::info!("local2: read {} bytes from {:?}", bytes, path);
                 buffer
-            }
-            else {
+            } else {
                 row.get(1)?
-            };            
+            };
 
             bytes
-            
         } else {
             // return Err(ProtocolError::BoardError(format!("Could not find artifact with id {}", store_id)));
             return Err(anyhow::anyhow!(

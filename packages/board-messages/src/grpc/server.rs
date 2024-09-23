@@ -34,7 +34,10 @@ pub struct PgsqlB3Server {
     blob_root: Option<PathBuf>,
 }
 impl PgsqlB3Server {
-    pub async fn new(connection: PgsqlDbConnectionParams, blob_root: Option<PathBuf>) -> Result<PgsqlB3Server> {
+    pub async fn new(
+        connection: PgsqlDbConnectionParams,
+        blob_root: Option<PathBuf>,
+    ) -> Result<PgsqlB3Server> {
         let config = Config::from_str(&connection.connection_string())?;
         let manager = PostgresConnectionManager::new(config, NoTls);
         let pool = Pool::builder()
@@ -45,7 +48,11 @@ impl PgsqlB3Server {
         Ok(PgsqlB3Server { pool, blob_root })
     }
 
-    async fn get_messages_(&self, board: &str, last_id: i64) -> Result<(Vec<GrpcB3Message>, bool), Status> {
+    async fn get_messages_(
+        &self,
+        board: &str,
+        last_id: i64,
+    ) -> Result<(Vec<GrpcB3Message>, bool), Status> {
         validate_board_name(board)
             .map_err(|e| Status::invalid_argument(format!("Invalid board: {e}")))?;
 
@@ -80,36 +87,40 @@ impl PgsqlB3Server {
             }
 
             for m in messages.into_iter() {
-                
-                let name = format!("{}-{}-{}-{}", m.statement_kind, m.sender_pk, m.batch, m.mix_number);
+                let name = format!(
+                    "{}-{}-{}-{}",
+                    m.statement_kind, m.sender_pk, m.batch, m.mix_number
+                );
                 let path = blob_path.join(name.replace("/", ":"));
                 let bytes = if m.message.len() > 0 {
                     if !path.exists() {
                         let mut file = File::create(&path)?;
                         file.write_all(&m.message)?;
-                        info!("Wrote {} bytes to {:?}", m.message.len(), path);    
+                        info!("Wrote {} bytes to {:?}", m.message.len(), path);
                     }
-                    
+
                     m.message
-                }
-                else {
+                } else {
                     assert!(path.exists());
                     let mut file = File::open(&path)?;
                     let mut buffer = vec![];
-                
+
                     let bytes = file.read_to_end(&mut buffer)?;
                     info!("read {} bytes from {:?}", bytes, path);
                     if bytes > MAX_MESSAGE_SIZE {
-                        error!("get_messages_: artifact size exceeds limit {} > {}", bytes, MAX_MESSAGE_SIZE);
+                        error!(
+                            "get_messages_: artifact size exceeds limit {} > {}",
+                            bytes, MAX_MESSAGE_SIZE
+                        );
                         return Err(Status::internal(format!(
-                            "get_messages_: artifact size exceeds limit {} > {}", bytes, MAX_MESSAGE_SIZE
+                            "get_messages_: artifact size exceeds limit {} > {}",
+                            bytes, MAX_MESSAGE_SIZE
                         )));
                     }
                     if total_bytes + bytes > MAX_MESSAGE_SIZE {
                         warn!(
                             "get_messages_: truncating response to respect limit {} > {}",
-                            total_bytes,
-                            MAX_MESSAGE_SIZE
+                            total_bytes, MAX_MESSAGE_SIZE
                         );
                         truncated = true;
                         break;
@@ -127,17 +138,16 @@ impl PgsqlB3Server {
             }
             info!("Total reads: {}ms", now.elapsed().as_millis());
             ret
-        }
-        else {
+        } else {
             // otherwise the message bytes are in the database
             messages
-            .into_iter()
-            .map(|m| GrpcB3Message {
-                id: m.id,
-                message: m.message,
-                version: m.version,
-            })
-            .collect()
+                .into_iter()
+                .map(|m| GrpcB3Message {
+                    id: m.id,
+                    message: m.message,
+                    version: m.version,
+                })
+                .collect()
         };
 
         ret.sort_unstable_by_key(|m| m.id);
@@ -169,14 +179,17 @@ impl PgsqlB3Server {
         // optionally retrieve the message bytes from the blob store
         if let Some(blob_root) = &self.blob_root {
             let now = Instant::now();
-            
+
             let blob_path = Path::new(blob_root).join(board);
             if !blob_path.exists() {
                 fs::create_dir_all(&blob_path)?;
             }
 
             for m in messages.iter_mut() {
-                let name = format!("{}-{}-{}-{}", m.statement_kind, m.sender_pk, m.batch, m.mix_number);
+                let name = format!(
+                    "{}-{}-{}-{}",
+                    m.statement_kind, m.sender_pk, m.batch, m.mix_number
+                );
                 let path = blob_path.join(name.replace("/", ":"));
                 let mut file = File::create(&path)?;
                 file.write_all(&m.message)?;
@@ -274,13 +287,14 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
         let r: &GetMessagesMultiRequest = request.get_ref();
 
         let now = Instant::now();
-        
+
         let mut keyed: Vec<KeyedMessages> = vec![];
         let mut total_bytes: usize = 0;
         let mut truncated = false;
 
         for request in &r.requests {
-            let (ms, t): (Vec<GrpcB3Message>, bool) = self.get_messages_(&request.board, request.last_id).await?;
+            let (ms, t): (Vec<GrpcB3Message>, bool) =
+                self.get_messages_(&request.board, request.last_id).await?;
             if self.blob_root.is_some() {
                 if ms.len() > 0 {
                     let mut send: Vec<GrpcB3Message> = vec![];
@@ -293,14 +307,13 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
                         messages: send,
                     };
                     keyed.push(k);
-    
+
                     if t {
                         truncated = t;
                         break;
                     }
                 }
-            }
-            else {
+            } else {
                 if ms.len() > 0 {
                     let mut send: Vec<GrpcB3Message> = vec![];
                     for m in ms.into_iter() {
@@ -322,14 +335,13 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
                         }
                         send.push(m);
                     }
-                    // let next_bytes: usize = ms.iter().map(|m| m.message.len()).sum();
-                    // total_bytes += next_bytes as u32;
+
                     let k = KeyedMessages {
                         board: request.board.clone(),
                         messages: send,
                     };
                     keyed.push(k);
-    
+
                     if truncated {
                         break;
                     }

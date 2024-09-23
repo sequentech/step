@@ -2,12 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use base64::{engine::general_purpose, Engine as _};
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{
     de, de::SeqAccess, de::Visitor, Deserialize, Deserializer, Serialize,
     Serializer,
 };
-use base64::{engine::general_purpose, Engine as _};
 use sha2::Sha512;
 use sha3::Shake256;
 

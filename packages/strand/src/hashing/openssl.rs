@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use openssl::hash::{hash_xof as hxof, Hasher as HasherOpenSSL, MessageDigest};
 use base64::{engine::general_purpose, Engine as _};
+use openssl::hash::{hash_xof as hxof, Hasher as HasherOpenSSL, MessageDigest};
 
 use crate::util::StrandError;
 

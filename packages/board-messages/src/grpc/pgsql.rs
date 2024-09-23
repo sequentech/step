@@ -416,7 +416,7 @@ async fn create_index_ine(client: &mut Client) -> Result<()> {
             &[],
         )
         .await?;
-    
+
     /*transaction
         .execute(
             &format!(
@@ -484,7 +484,7 @@ async fn get_messages(
     last_id: i64,
 ) -> Result<Vec<B3MessageRow>> {
     let now = Instant::now();
-    
+
     let mut offset: usize = 0;
     let mut start = get(
         client,
@@ -512,7 +512,10 @@ async fn get_messages(
         start.extend(next);
     }
 
-    tracing::info!("pgsql::get_messages: query time: {}ms", now.elapsed().as_millis());
+    tracing::info!(
+        "pgsql::get_messages: query time: {}ms",
+        now.elapsed().as_millis()
+    );
 
     Ok(start)
 }

@@ -1,7 +1,7 @@
 use clap::Parser;
+use std::path::PathBuf;
 use tonic::transport::Server;
 use tracing::info;
-use std::path::PathBuf;
 
 use board_messages::grpc::pgsql::{PgsqlConnectionParams, XPgsqlB3Client};
 use board_messages::grpc::server::PgsqlB3Server;
