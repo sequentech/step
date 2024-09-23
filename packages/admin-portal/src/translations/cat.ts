@@ -30,6 +30,16 @@ const catalanTranslation: TranslationType = {
                 IMPORT_ELECTION_EVENT: "Importar esdeveniment electoral",
                 IMPORT_USERS: "Importar usuaris",
                 IMPORT_CANDIDATES: "Importar candidats",
+                EXPORT_VOTERS: "Exportar votants",
+                CREATE_TRANSMISSION_PACKAGE: "Crear paquet de transmissió",
+            },
+            widget: {
+                taskTitle: "Tasca: {{title}}",
+                viewTask: "Veure Tasca",
+            },
+            exportTasksExecution: {
+                success: "L'exportació s'ha completat amb èxit",
+                error: "Error en exportar l'Execució de Tasques",
             },
         },
         logsScreen: {
