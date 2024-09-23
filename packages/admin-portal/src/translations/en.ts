@@ -49,7 +49,7 @@ const englishTranslation = {
                 IMPORT_CANDIDATES: "Import Candidates",
                 EXPORT_VOTERS: "Export Voters",
                 CREATE_TRANSMISSION_PACKAGE:
-                    "Create Transmission Package lorem ipsum lorem ipsum lorem ipsum ",
+                    "Create Transmission Package",
             },
             widget: {
                 taskTitle: "Task: {{title}}",
