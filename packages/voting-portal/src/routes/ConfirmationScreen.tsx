@@ -280,9 +280,11 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
                     variant="secondary"
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
                 >
-                    {polling
-                        ? <StyledCircularProgress color="inherit" />
-                        : <StyledIcon icon={faPrint} size="sm" />}
+                    {polling ? (
+                        <StyledCircularProgress color="inherit" />
+                    ) : (
+                        <StyledIcon icon={faPrint} size="sm" />
+                    )}
                     <Box>{t("confirmationScreen.printButton")}</Box>
                 </StyledButton>
                 <StyledButton

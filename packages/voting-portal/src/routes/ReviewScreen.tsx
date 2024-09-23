@@ -29,6 +29,7 @@ import {
     IElectionEventStatus,
     IAuditableBallot,
     EVotingPortalAuditButtonCfg,
+    IGraphQLActionError,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -298,16 +299,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 // to unknown error.
                 console.log(result.errors.map((e) => e.message))
                 setIsCastingBallot(false)
-                if (result?.extensions?.code) {
-                    console.log(result?.extensions?.code)
-                    setErrorMsg(
-                        t(
-                            `reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}.${result?.extensions?.code}`
-                        )
-                    )
-                } else {
-                    setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`))
-                }
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`))
             }
 
             let newCastVote = result.data?.insert_cast_vote
@@ -318,16 +310,14 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             return submit(null, {method: "post"})
         } catch (error) {
             setIsCastingBallot(false)
-            const ballotError = error as IBallotError
-            if (ballotError.error_type) {
-                setErrorMsg(
-                    t(`reviewScreen.error.${WasmCastBallotsErrorType[ballotError.error_type]}`)
-                )
+            let castError = error as IGraphQLActionError
+            if (castError?.graphQLErrors?.[0]?.extensions?.code) {
+                let errorCode = castError?.graphQLErrors?.[0]?.extensions?.code
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}:${errorCode}`))
             } else {
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.UNKNOWN_ERROR}`))
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`))
             }
             console.log(`error casting vote: ${ballotStyle.election_id}`)
-            console.log(ballotError?.error_msg || error)
             return submit({error: errorType}, {method: "post"})
         }
     }

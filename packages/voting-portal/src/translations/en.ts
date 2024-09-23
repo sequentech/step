@@ -82,31 +82,61 @@ const englishTranslation = {
                 cancel: "Cancel",
             },
             error: {
-                NETWORK_ERROR:
+                "NETWORK_ERROR":
                     "There was a network problem. Please try again later or contact support for assistance.",
-                UNABLE_TO_FETCH_DATA:
+                "UNABLE_TO_FETCH_DATA":
                     "There was a problem fetching the data. Please try again later or contact support for assistance.",
-                LOAD_ELECTION_EVENT: "Cannot load election event. Please try again later.",
-                CAST_VOTE:
-                    "There was an error with graphQL while casting the vote. Please try again later or contact support for assistance.",
-                NO_BALLOT_SELECTION:
+                "LOAD_ELECTION_EVENT": "Cannot load election event. Please try again later.",
+                "CAST_VOTE":
+                    "There was an unknown error while casting the vote. Please try again later or contact support for assistance.",
+                "CAST_VOTE:AreaNotFound":
+                    "There was an error while casting the vote: Area not found. Please try again later or contact support for assistance.",
+                "CAST_VOTE:InternalServerError":
+                    "An internal error occurred while casting the vote. Please try again later or contact support for assistance.",
+                "CAST_VOTE:QueueError":
+                    "There was a problem processing your vote. Please try again later or contact support for assistance.",
+                "CAST_VOTE:Unauthorized":
+                    "You are not authorized to cast a vote. Please contact support for assistance.",
+                "CAST_VOTE:ElectionEventNotFound":
+                    "The election event could not be found. Please try again later or contact support for assistance.",
+                "CAST_VOTE:ElectoralLogNotFound":
+                    "Your voting record could not be found. Please contact support for assistance.",
+                "CAST_VOTE:CheckPreviousVotesFailed":
+                    "An error occurred while checking your voting status. Please try again later or contact support for assistance.",
+                "CAST_VOTE:GetClientCredentialsFailed":
+                    "Failed to verify your credentials. Please try again later or contact support for assistance.",
+                "CAST_VOTE:GetAreaIdFailed":
+                    "An error occurred verifying your voting area. Please try again later or contact support for assistance.",
+                "CAST_VOTE:GetTransactionFailed":
+                    "An error occurred processing your vote. Please try again later or contact support for assistance.",
+                "CAST_VOTE:DeserializeBallotFailed":
+                    "An error occurred reading your ballot. Please try again later or contact support for assistance.",
+                "CAST_VOTE:DeserializeContestsFailed":
+                    "An error occurred reading your selections. Please try again later or contact support for assistance.",
+                "CAST_VOTE:PokValidationFailed":
+                    "Failed to validate your vote. Please try again later or contact support for assistance.",
+                "CAST_VOTE:UuidParseFailed":
+                    "An error occurred processing your request. Please try again later or contact support for assistance.",
+                "CAST_VOTE:UnknownError":
+                    "An unknown error occurred while casting the vote. Please try again later or contact support for assistance.",
+                "NO_BALLOT_SELECTION":
                     "The selection state for this election is not present. Please ensure you have selected your choices correctly or contact support.",
-                NO_BALLOT_STYLE: "The ballot style is not available. Please contact support.",
-                NO_AUDITABLE_BALLOT: "No auditable ballot is available. Please contact support.",
-                INCONSISTENT_HASH:
+                "NO_BALLOT_STYLE": "The ballot style is not available. Please contact support.",
+                "NO_AUDITABLE_BALLOT": "No auditable ballot is available. Please contact support.",
+                "INCONSISTENT_HASH":
                     "There was an error related to the ballot hashing process. BallotId: {{ballotId}} is not consistent with auditable Ballot Hash: {{auditableBallotHash}}. Please report this issue to support.",
-                ELECTION_EVENT_NOT_OPEN: "The election event is closed. Please contact support.",
-                PARSE_ERROR:
+                "ELECTION_EVENT_NOT_OPEN": "The election event is closed. Please contact support.",
+                "PARSE_ERROR":
                     "There was an error parsing the ballot. Please try again later or contact support for assistance.",
-                DESERIALIZE_AUDITABLE_ERROR:
+                "DESERIALIZE_AUDITABLE_ERROR":
                     "There was an error deserializing the auditable ballot. Please try again later or contact support for assistance.",
-                DESERIALIZE_HASHABLE_ERROR:
+                "DESERIALIZE_HASHABLE_ERROR":
                     "There was an error deserializing the hashable ballot. Please try again later or contact support for assistance.",
-                CONVERT_ERROR:
+                "CONVERT_ERROR":
                     "There was an error converting the ballot. Please try again later or contact support for assistance.",
-                SERIALIZE_ERROR:
+                "SERIALIZE_ERROR":
                     "There was an error serializing the ballot. Please try again later or contact support for assistance.",
-                UNKNOWN_ERROR:
+                "UNKNOWN_ERROR":
                     "There was an error. Please try again later or contact support for assistance.",
             },
         },

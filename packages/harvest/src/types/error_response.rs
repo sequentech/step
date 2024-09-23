@@ -19,28 +19,27 @@ pub enum ErrorCode {
     AreaNotFound,
     ElectionEventNotFound,
     ElectoralLogNotFound,
-    CheckStatusFailed,
     CheckPreviousVotesFailed,
-    InsertFailed,
-    CommitFailed,
-    GetDbClientFailed,
     GetClientCredentialsFailed,
     GetAreaIdFailed,
     GetTransactionFailed,
     DeserializeBallotFailed,
     DeserializeContestsFailed,
-    SerializeVoterIdFailed,
-    SerializeBallotFailed,
     PokValidationFailed,
-    BallotSignFailed,
     UuidParseFailed,
     UnknownError,
     // Add any other needed error codes
 }
 
 #[derive(Serialize)]
+pub struct ErrorExtensions {
+    pub code: String,
+}
+
+#[derive(Serialize)]
 pub struct ErrorResponse {
-    pub errors: Vec<ErrorItem>,
+    pub message: String,
+    pub extensions: ErrorExtensions,
 }
 
 impl ErrorResponse {
@@ -49,24 +48,11 @@ impl ErrorResponse {
         return Custom(
             status,
             Json(ErrorResponse {
-                errors: vec![ErrorItem {
-                    message: message.into(),
-                    extensions: ErrorExtensions {
-                        code: code.as_ref().into(),
-                    },
-                }],
+                message: message.into(),
+                extensions: ErrorExtensions {
+                    code: code.as_ref().into(),
+                },
             }),
         );
     }
-}
-
-#[derive(Serialize)]
-pub struct ErrorItem {
-    pub message: String,
-    pub extensions: ErrorExtensions,
-}
-
-#[derive(Serialize)]
-pub struct ErrorExtensions {
-    pub code: String,
 }
