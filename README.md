@@ -692,8 +692,10 @@ sudo chmod +x /usr/bin/chromedriver
 To execute the tests you need:
 
 1. Run the DevContainer.
-2. Run local instance of client application to test at `http://127.0.0.1:3002`
-3. Execute the test:
+2. Run the VS Code command `logs.restart.keycloak-e2e`.
+3. Run local instance of client application to test at `http://127.0.0.1:3002`.
+   You should use the e2e version of the admin portal, by running the VS Code command `start-e2e.admin-portal`.
+4. Execute the test:
 
 ```bash
 cd /workspaces/step/packages/admin-portal
@@ -708,6 +710,14 @@ npx nightwatch test/e2e/*.ts --serial
 Please note that screenshots will be created in
 `/workspaces/step/packages/admin-portal/screens` folder. You can delete this
 folder if you want to stop accumulating them and start fresh to populate it.
+
+Please note as well that the admin portal/keycloak won't work in your local
+machine in this configuration. To revert it to the original configuration
+after the tests, you have to:
+
+1. Run the VS Code command `logs.restart.keycloak`.
+2. Run the VS Code command `start.admin-portal`.
+
 
 ### Nightwatch E2E Tests: voting-portal
 
