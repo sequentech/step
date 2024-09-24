@@ -7,6 +7,7 @@ export const electionLink = "sequent_backend_election"
 export const contestLink = "sequent_backend_contest"
 export const candidateLink = "sequent_backend_candidate"
 export const testUrl = process.env.E2E_TEST_URL || "http://localhost:3002"
+export const tenantSlug = "tester"
 export const admin_portal_username = process.env.E2E_ADMIN_PORTAL_TEST_USERNAME || "admin"
 export const admin_portal_password = process.env.E2E_ADMIN_PORTAL_TEST_PASSWORD || "admin"
 export const voterDetails = {

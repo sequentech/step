@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {admin_portal_password, admin_portal_username, NightWatchLogin, pause, testUrl} from ".."
+import {admin_portal_password, admin_portal_username, NightWatchLogin, pause, testUrl, tenantSlug} from ".."
 
 exports.command = function (
     username = admin_portal_username,
@@ -11,8 +11,9 @@ exports.command = function (
     this.username = "input[name=username]"
     this.password = "input[name=password]"
     this.submitButton = "*[type=submit]"
+    const loginUrl = testUrl // `${testUrl}/admin/login/${tenantSlug}`
 
-    console.log(`login: url=${testUrl} username=${username}, password=${password}`)
+    console.log(`login: url=${loginUrl} username=${username}, password=${password}`)
 
     this.window
         .maximize()
@@ -22,7 +23,7 @@ exports.command = function (
             console.log('Request method:' + requestParams.request.method)
             console.log('Request headers:' + requestParams.request.headers)
         })*/
-        .navigateTo(testUrl)
+        .navigateTo(loginUrl)
         .getCurrentUrl((currentUrl) => {
             console.log(`login: currentUrl=${currentUrl.value}`)
         })

@@ -208,6 +208,34 @@
             "problemMatcher": []
         },
         {
+          "label": "logs.restart.keycloak-e2e",
+          "command": "bash",
+          "args": [
+            "-c",
+            "docker compose stop keycloak; docker compose build keycloak && KC_HOSTNAME=keycloak docker compose up -d --no-deps keycloak && docker compose logs -f --tail 100 keycloak"
+          ],
+          "options": {
+            "env": {
+              "COMPOSE_PROJECT_NAME": "step_devcontainer",
+              "COMPOSE_PROFILES": "base"
+            },
+            "cwd": "${workspaceFolder}/.devcontainer"
+          },
+          "presentation": {
+            "echo": true,
+            "reveal": "always",
+            "focus": false,
+            "panel": "dedicated",
+            "showReuseMessage": true,
+            "clear": false
+          },
+          "isBackground": true,
+          "runOptions": {
+            "runOn": "default"
+          },
+          "problemMatcher": []
+        },
+        {
           "label": "logs.restart.simplesaml",
           "command": "bash",
           "args": [
