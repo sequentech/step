@@ -424,8 +424,8 @@ export const EditElectionEventDataForm: React.FC = () => {
             temp.presentation.custom_urls = {}
         }
 
-        if (!temp.presentation.custom_tpl_usr_verfication) {
-            temp.presentation.custom_tpl_usr_verfication = ""
+        if (!temp.presentation.active_template_ids.manual_verification) {
+            temp.presentation.active_template_ids.manual_verification = ""
         }
 
         return temp
@@ -973,7 +973,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                                         {t("electionEventScreen.field.userVerification")}
                                     </Typography>
                                     <SelectInput
-                                        source={`presentation.custom_tpl_usr_verfication`}
+                                        source={`presentation.active_template_ids.manual_verification`}
                                         choices={manuallyVerifyVoterTemplates()}
                                         label={t("communicationTemplate.form.name")}
                                         translateChoice={false}

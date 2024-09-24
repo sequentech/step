@@ -6,19 +6,21 @@
 
 use std::env;
 
-use super::s3::{self, get_minio_url};
-use crate::postgres::election_event;
+use super::s3::get_minio_url;
+use crate::postgres::{communication_template, election_event};
+
 use crate::services::database::get_hasura_pool;
 use crate::services::{
     documents::upload_and_return_document, temp_path::write_into_named_temp_file,
 };
 use anyhow::{anyhow, Context, Result};
-use deadpool_postgres::{Client as DbClient, Transaction};
+use deadpool_postgres::Client as DbClient;
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::keycloak;
 use sequent_core::services::{pdf, reports};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
-use tracing::{info, instrument, Level};
+use tracing::{info, instrument};
 
 const QR_CODE_TEMPLATE: &'static str = "<div id=\"qrcode\"></div>";
 const LOGO_TEMPLATE: &'static str = "<div class=\"logo\"></div>";
@@ -160,18 +162,36 @@ pub async fn get_custom_user_template(
             .with_context(|| "Error to get the election event by id")?;
 
     let presentation = match election_event.presentation {
-        Some(p) => p,
-        None => {
-            return Err(anyhow!("Error: Election event has no presentation"));
-        }
+        Some(val) => val,
+        None => return Err(anyhow!("Election event has no presentation")),
     };
 
-    match presentation
-        .get("custom_tpl_usr_verfication")
+    let active_template_ids = match presentation.get("active_template_ids") {
+        Some(val) => val,
+        _ => return Ok(None),
+    };
+    info!("active_template_ids: {active_template_ids}");
+
+    let usr_verfication_tpl_id = match active_template_ids
+        .get("manual_verification")
         .and_then(Value::as_str)
     {
-        Some(temp) if !temp.is_empty() => Ok(Some(temp.to_string())),
-        _ => Ok(None),
+        Some(id) if !id.is_empty() => id.to_string(),
+        _ => return Ok(None),
+    };
+    info!("usr_verfication_tpl_id: {usr_verfication_tpl_id}");
+    // Get the template by ID and return its value:
+    let template_data_opt = communication_template::get_communication_template_by_id(
+        &transaction,
+        tenant_id,
+        &usr_verfication_tpl_id,
+    )
+    .await
+    .with_context(|| "Error to get template by id")?;
+
+    match template_data_opt {
+        Some(template_data) => Ok(Some(template_data.template.to_string())),
+        None => Ok(None),
     }
 }
 
@@ -212,7 +232,8 @@ pub async fn get_manual_verification_pdf(
     };
     info!("user template: {user_template:?}");
 
-    let rendered_user_template = reports::render_template_text(&user_template, user_template_data)?;
+    let rendered_user_template = reports::render_template_text(&user_template, user_template_data)
+        .with_context(|| "Error rendering user template")?;
     info!("rendered user template: {rendered_user_template:?}");
 
     let system_template_data = SystemTemplateData {
