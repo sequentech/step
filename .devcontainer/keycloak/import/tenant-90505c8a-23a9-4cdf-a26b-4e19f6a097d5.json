@@ -1042,6 +1042,7 @@
     "attributes" : {
       "sequent.read-only.otp-method" : [ "email-or-sms" ],
       "sequent.read-only.mobile-number" : [ "+34666000222" ],
+      "trustee" : [ "trustee1" ],
       "tenant-id" : [ "90505c8a-23a9-4cdf-a26b-4e19f6a097d5" ]
     },
     "createdTimestamp" : 1701889059568,
@@ -1068,6 +1069,7 @@
     "emailVerified" : true,
     "attributes" : {
       "sequent.read-only.mobile-number" : [ "+34666000222" ],
+      "trustee" : [ "trustee2" ],
       "tenant-id" : [ "90505c8a-23a9-4cdf-a26b-4e19f6a097d5" ]
     },
     "createdTimestamp" : 1701929500428,
