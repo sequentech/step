@@ -92,6 +92,8 @@ const tagalogTranslation: TranslationType = {
                     "Hindi ma-load ang kaganapan ng eleksyon. Pakisubukan ulit mamaya.",
                 CAST_VOTE:
                     "Nagkaroon ng hindi inaasahang error habang bumoboto. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
+                CAST_VOTE_CheckStatusFailed:
+                    "Hindi pinapayagan ng halalan ang pagboto. Ang halalan ay maaaring sarado, naka-archive, o maaari kang bumoto sa labas ng itinakdang panahon.",
                 CAST_VOTE_AreaNotFound:
                     "Nagkaroon ng error habang bumoboto: Hindi natagpuan ang lugar. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
                 CAST_VOTE_InternalServerError:

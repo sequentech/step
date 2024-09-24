@@ -92,6 +92,8 @@ const spanishTranslation: TranslationType = {
                     "No se puede cargar el evento electoral. Por favor, inténtalo de nuevo más tarde.",
                 CAST_VOTE:
                     "Ha ocurrido un error desconocido al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                CAST_VOTE_CheckStatusFailed:
+                    "La elección no permite emitir el voto. La elección puede estar cerrada, archivada o tal vez estés intentando votar fuera del período de gracia.",
                 CAST_VOTE_AreaNotFound:
                     "Ha ocurrido un error al emitir el voto: Área no encontrada. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
                 CAST_VOTE_InternalServerError:

@@ -359,6 +359,7 @@ const frenchTranslation: TranslationType = {
                 numAllowedVotes: "Nombre de votes permis",
                 reorder: "Réorganiser les concours",
                 castVoteConfirm: "Modal de Confirmation de Vote",
+                gracePeriodPolicy: "Politique de période de grâce",
             },
             field: {
                 name: "Nom",
@@ -386,6 +387,12 @@ const frenchTranslation: TranslationType = {
                 voters: "Électeurs",
                 publish: "Publier",
                 logs: "Journaux",
+            },
+            gracePeriodPolicy: {
+                "label": "Politique de période de grâce",
+                "no-grace-period": "Pas de période de grâce",
+                "grace-period-without-alert": "Période de grâce sans alerte",
+                "gracePeriodSecs": "Période de grâce en secondes",
             },
         },
         tenantScreen: {

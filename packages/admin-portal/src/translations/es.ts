@@ -357,6 +357,7 @@ const spanishTranslation: TranslationType = {
                 numAllowedVotes: "Número de votos permitidos",
                 reorder: "Reordenar concursos",
                 castVoteConfirm: "Modal de Confirmación de Voto",
+                gracePeriodPolicy: "Política de período de gracia",
             },
             field: {
                 name: "Nombre",
@@ -384,6 +385,12 @@ const spanishTranslation: TranslationType = {
                 voters: "Votantes",
                 publish: "Publicar",
                 logs: "Logs",
+            },
+            gracePeriodPolicy: {
+                "label": "Política de período de gracia",
+                "no-grace-period": "Sin período de gracia",
+                "grace-period-without-alert": "Período de gracia sin alerta",
+                "gracePeriodSecs": "Tiempo de gracia en segundos",
             },
         },
         tenantScreen: {

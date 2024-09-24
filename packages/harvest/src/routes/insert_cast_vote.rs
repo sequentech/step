@@ -49,6 +49,7 @@ pub async fn insert_cast_vote(
         &claims.hasura_claims.tenant_id,
         &claims.hasura_claims.user_id,
         &area_id,
+        &claims.auth_time,
     )
     .await
     .map_err(|cast_vote_err| {
@@ -80,6 +81,11 @@ pub async fn insert_cast_vote(
                 )
             }
             CastVoteError::CheckStatusFailed(_) => ErrorResponse::new(
+                Status::Unauthorized,
+                ErrorCode::CheckStatusFailed.to_string().as_str(),
+                ErrorCode::CheckStatusFailed,
+            ),
+            CastVoteError::CheckStatusInternalFailed(_) => ErrorResponse::new(
                 Status::InternalServerError,
                 ErrorCode::InternalServerError.to_string().as_str(),
                 ErrorCode::InternalServerError,
