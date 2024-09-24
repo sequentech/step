@@ -463,7 +463,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     }
 
     const formFields = useMemo(() => {
-        console.log("userAttributes", userAttributes)
         return userAttributes?.map((attr) => renderFormField(attr))
     }, [userAttributes])
 
@@ -518,7 +517,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         </FormControl>
                     )}
                     {isUndefined(electionEventId) ? (
-                        <>
                             <ListUserRoles
                                 userRoles={userRoles}
                                 rolesList={rolesList}
@@ -528,7 +526,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 setUserRoles={createMode ? handleSelectedRolesOnCreate : undefined}
                                 selectedRolesOnCreate={selectedRolesOnCreate}
                             />
-                        </>
                     ) : null}
                 </>
             </SimpleForm>
