@@ -153,9 +153,11 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
 
         if (
             selectedCommunicationType?.value &&
-            ![ICommunicationType.BALLOT_RECEIPT, ICommunicationType.TALLY_REPORT, ICommunicationType.MANUALLY_VERIFY_VOTER].includes(
-                selectedCommunicationType.value
-            )
+            ![
+                ICommunicationType.BALLOT_RECEIPT,
+                ICommunicationType.TALLY_REPORT,
+                ICommunicationType.MANUALLY_VERIFY_VOTER,
+            ].includes(selectedCommunicationType.value)
         ) {
             res = res.filter((cm) => cm.id !== ICommunicationMethod.DOCUMENT)
         }

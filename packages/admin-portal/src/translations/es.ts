@@ -271,7 +271,7 @@ const spanishTranslation: TranslationType = {
                 allowed: "Canales de Voto Permitidos",
                 materials: "Materiales de Soporte",
                 ballotDesign: "Diseño de la Papeleta",
-                userVerification: "Plantillas",
+                templates: "Plantillas",
                 reorder: "Reordenar elecciones",
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importar Candidatos",
@@ -1358,6 +1358,7 @@ const spanishTranslation: TranslationType = {
             noPermissions: "No tienes permisos para acceder a las Plantillas de Comunicación.",
             title: "Plantillas de Comunicación",
             subtitle: "Listado de plantillas de comunicación",
+            default: "Usar plantilla predeterminada",
             empty: {
                 title: "No hay plantillas de comunicación",
                 subtitle: "¿Quieres crear una nueva?",

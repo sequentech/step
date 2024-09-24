@@ -37,10 +37,7 @@ import styled from "@emotion/styled"
 import DownloadIcon from "@mui/icons-material/Download"
 import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
-import {
-    ICommunicationType,
-    ISendCommunicationBody,
-} from "@/types/communications"
+import {ICommunicationType, ISendCommunicationBody} from "@/types/communications"
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "@/components/CustomTabPanel"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
@@ -289,30 +286,22 @@ export const EditElectionEventDataForm: React.FC = () => {
         }
     )
 
-    const [selectedTplVerifyVoter, setSelectedTplVerifyVoter] = useState<string>(
-        ""
-    )
-
-    function selectTplVerifyVoter(event: any) {
-        const choice = event.target
-        setSelectedTplVerifyVoter(choice)
-        console.log(choice)
-    }
-
     const manuallyVerifyVoterTemplates = (): Array<EnumChoice<string>> => {
         if (!verifyVoterTemplates) {
             return []
         }
-        console.log(verifyVoterTemplates)
-        const template_names = (verifyVoterTemplates as Sequent_Backend_Communication_Template[]).map((entry) => {
-            console.log("id: ", entry.template?.alias)
+        const template_names = (
+            verifyVoterTemplates as Sequent_Backend_Communication_Template[]
+        ).map((entry) => {
+            console.log("id: ", entry.id)
             console.log("name: ", entry.template?.name)
             return {
-                id: entry.template?.id,
+                id: entry.id,
                 name: entry.template?.name,
             }
-        });
-        return template_names;
+        })
+        console.log("template_names: ", template_names)
+        return template_names
     }
 
     const [votingSettings] = useState<TVotingSetting>({
@@ -433,6 +422,10 @@ export const EditElectionEventDataForm: React.FC = () => {
         }
         if (!temp.presentation.custom_urls) {
             temp.presentation.custom_urls = {}
+        }
+
+        if (!temp.presentation.custom_tpl_usr_verfication) {
+            temp.presentation.custom_tpl_usr_verfication = ""
         }
 
         return temp
@@ -953,12 +946,8 @@ export const EditElectionEventDataForm: React.FC = () => {
 
                             <Accordion
                                 sx={{width: "100%"}}
-                                expanded={
-                                    expanded === "election-event-data-user-templates"
-                                }
-                                onChange={() =>
-                                    setExpanded("election-event-data-user-templates")
-                                }
+                                expanded={expanded === "election-event-data-user-templates"}
+                                onChange={() => setExpanded("election-event-data-user-templates")}
                             >
                                 <AccordionSummary
                                     expandIcon={
@@ -967,7 +956,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                                 >
                                     <ElectionHeaderStyles.Wrapper>
                                         <ElectionHeaderStyles.Title>
-                                            {t("electionEventScreen.edit.userVerification")}
+                                            {t("electionEventScreen.edit.templates")}
                                         </ElectionHeaderStyles.Title>
                                     </ElectionHeaderStyles.Wrapper>
                                 </AccordionSummary>
@@ -981,21 +970,14 @@ export const EditElectionEventDataForm: React.FC = () => {
                                             display: {xs: "none", sm: "block"},
                                         }}
                                     >
-                                        {t(
-                                            "electionEventScreen.field.userVerification"
-                                        )}
+                                        {t("electionEventScreen.field.userVerification")}
                                     </Typography>
                                     <SelectInput
                                         source={`presentation.custom_tpl_usr_verfication`}
                                         choices={manuallyVerifyVoterTemplates()}
-                                        onChange={(e) => selectTplVerifyVoter(e)}
-                                        // optionText="name"
-                                        // optionValue="id"
-                                        label={t(
-                                            "communicationTemplate.form.name"
-                                        )}
+                                        label={t("communicationTemplate.form.name")}
                                         translateChoice={false}
-                                        emptyText="No category selected" // TODO: Add translations
+                                        emptyText={t("communicationTemplate.default")}
                                     />
                                 </AccordionDetails>
                             </Accordion>

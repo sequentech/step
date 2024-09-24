@@ -271,7 +271,7 @@ const frenchTranslation: TranslationType = {
                 allowed: "Canaux de Vote Permis",
                 materials: "Matériaux de Support",
                 ballotDesign: "Design du Bulletin",
-                userVerification: "Modèles",
+                templates: "Modèles",
                 reorder: "Réorganiser les élections",
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importer des Candidats",
@@ -1365,6 +1365,7 @@ const frenchTranslation: TranslationType = {
             noPermissions: "Vous n'avez pas la permission d'accéder aux Modèles de Communication.",
             title: "Modèles de Communication",
             subtitle: "Liste des modèles de communication",
+            default: "Utiliser le modèle par défaut",
             empty: {
                 title: "Aucun modèle de communication",
                 subtitle: "Voulez-vous créer un nouveau ?",

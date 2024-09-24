@@ -272,7 +272,7 @@ const tagalogTranslation: TranslationType = {
                 allowed: "Pinapayagang Mga Channel ng Pagboto",
                 materials: "Mga Karagdagang Materyales",
                 ballotDesign: "Disenyo ng Balota",
-                userVerification: "Mga plantilya",
+                templates: "Mga plantilya",
                 reorder: "I-reorder ang mga halalan",
                 advancedConfigurations: "Mga Advanced na Pag-configure",
                 importCandidates: "Mag-import ng mga Kandidato",
@@ -1359,6 +1359,7 @@ const tagalogTranslation: TranslationType = {
             noPermissions: "Wala kang permiso na ma-access ang mga communication template.",
             title: "Mga Communication Template",
             subtitle: "Listahan ng mga communication template",
+            default: "Gamiton an default na plantilya",
             empty: {
                 title: "Walang Communication Template Pa",
                 subtitle: "Gusto mo bang lumikha ng isa?",

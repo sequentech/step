@@ -272,7 +272,7 @@ const englishTranslation = {
                 allowed: "Voting Channels Allowed",
                 materials: "Support Materials",
                 ballotDesign: "Ballot Design",
-                userVerification: "Templates",
+                templates: "Templates",
                 reorder: "Reorder elections",
                 advancedConfigurations: "Advanced Configurations",
                 importCandidates: "Import Candidates",
@@ -1352,6 +1352,7 @@ const englishTranslation = {
             noPermissions: "You don't have permission to access communication templates.",
             title: "Communication Templates",
             subtitle: "List of communication templates",
+            default: "Use default template",
             empty: {
                 title: "No Communication Template Yet",
                 subtitle: "Do you want to create one?",

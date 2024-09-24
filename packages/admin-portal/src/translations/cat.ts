@@ -271,7 +271,7 @@ const catalanTranslation: TranslationType = {
                 allowed: "Canals de Vot Permesos",
                 materials: "Materials de Suport",
                 ballotDesign: "Disseny de la Papereta",
-                userVerification: "Plantillas",
+                templates: "Plantillas",
                 reorder: "Reordenar eleccions",
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importar Candidats",
@@ -1359,6 +1359,7 @@ const catalanTranslation: TranslationType = {
             noPermissions: "No tens permisos per accedir a les Plantilles de Comunicació.",
             title: "Plantilles de Comunicació",
             subtitle: "Llistat de plantilles de comunicació",
+            default: "Utilitzeu la plantilla predeterminada",
             empty: {
                 title: "No hi ha plantilles de comunicació",
                 subtitle: "Vols crear-ne una de nova?",
