@@ -16,6 +16,12 @@ exports.command = function (
 
     this.window
         .maximize()
+        /*.captureNetworkRequests((requestParams) => {
+            console.log('Request Number: ', this.requestCount++)
+            console.log('Request URL:' + requestParams.request.url)
+            console.log('Request method:' + requestParams.request.method)
+            console.log('Request headers:' + requestParams.request.headers)
+        })*/
         .navigateTo(testUrl)
         .getCurrentUrl((currentUrl) => {
             console.log(`login: currentUrl=${currentUrl.value}`)
