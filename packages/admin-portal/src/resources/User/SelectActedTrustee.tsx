@@ -1,48 +1,63 @@
-import { GET_TRUSTEES_NAMES } from '@/queries/GetTrusteesNames';
-import { useQuery } from '@apollo/client';
-import { SxProps } from '@mui/material';
-import React from 'react';
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 
-import {AutocompleteInput, Identifier, ReferenceInput, SelectInput} from "react-admin";
+import {GET_TRUSTEES_NAMES} from "@/queries/GetTrusteesNames"
+import {useQuery} from "@apollo/client"
+import {InputLabel, MenuItem, Select, SxProps} from "@mui/material"
+import React, {useCallback} from "react"
+import {Trustee} from "./EditUserForm"
 interface SelectActedTrusteeProps {
     tenantId: string | null
-    onSelectTrustee: (trustee: {id: string, name: string}) => void
-    defaultValue?: string | string[];
-    source: string;
-    customStyle?: SxProps;
+    onSelectTrustee: (trustee: string) => void
+    defaultValue?: string | string[]
+    source: string
+    label?: string
 }
-const SelectActedTrustee: React.FC<SelectActedTrusteeProps> = ({tenantId
-    , onSelectTrustee, defaultValue, source, customStyle
+const SelectActedTrustee: React.FC<SelectActedTrusteeProps> = ({
+    tenantId,
+    onSelectTrustee,
+    defaultValue,
+    label,
 }) => {
     const {data: trustees} = useQuery(GET_TRUSTEES_NAMES, {
         variables: {
             tenantId: tenantId,
         },
     })
-    const handleSelectTrustee = (event: any) => {
-        const selectedTrusteeName = trustees?.sequent_backend_trustee.find((trustee: any) => trustee.id === event.target.value);
-        onSelectTrustee(selectedTrusteeName);
-    }
 
-    const getDefaultValue = () => {
-        const value = defaultValue instanceof Array ? defaultValue[0] : defaultValue;
-        if (value) { 
-            const trustee = trustees?.sequent_backend_trustee.find((trustee: {id: string, name: string}) => trustee.name == defaultValue);
-            return trustee?.id;
+    const getDefaultValue = useCallback(() => {
+        const value = defaultValue instanceof Array ? defaultValue[0] : defaultValue
+        if (value) {
+            const trustee = trustees?.sequent_backend_trustee.find(
+                (trustee: {id: string; name: string}) => trustee.name == defaultValue
+            )
+            return trustee?.name
         }
-    }
+    }, [trustees])
 
     return (
-        <SelectInput
-        source={source} 
-        onChange={handleSelectTrustee}
-        optionValue='id'
-        optionText={(trustee) => trustee.name}
-        defaultValue={getDefaultValue()}
-        choices={trustees && trustees.sequent_backend_trustee ? trustees.sequent_backend_trustee as any[] : []}
-        label={"Acted Trustee"}
-        sx={{minHeight: 50}}
-        />
+        <>
+            {label && <InputLabel id="select-label">{label}</InputLabel>}
+            <Select
+                name={"Acted trustee"}
+                labelId="trustee"
+                label={label}
+                defaultValue={getDefaultValue()}
+                onChange={(event) => onSelectTrustee(event.target.value)}
+            >
+                <MenuItem key={"empty-value"} value={" "}>
+                    {" "}
+                </MenuItem>
+                {trustees?.sequent_backend_trustee?.map((trustee: Trustee) => {
+                    return (
+                        <MenuItem key={trustee.id} value={trustee.name}>
+                            {trustee.name}
+                        </MenuItem>
+                    )
+                })}
+            </Select>
+        </>
     )
 }
 

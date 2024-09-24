@@ -430,7 +430,7 @@ const englishTranslation = {
                     passwordDigitValidate: "Password must contain at least one digit",
                     passwordSpecialCharValidate:
                         "Password must contain at least one special character",
-                    trustee: "Act as Trustee"
+                    trustee: "Act as Trustee",
                 },
                 delete: {
                     body: "Are you sure you want to delete this user?",

@@ -40,7 +40,7 @@ import {formatUserAtributes, getAttributeLabel, userBasicInfo} from "@/services/
 import PhoneInput from "@/components/PhoneInput"
 import SelectArea from "@/components/area/SelectArea"
 import SelectActedTrustee from "./SelectActedTrustee"
-import { GET_TRUSTEES_NAMES } from "@/queries/GetTrusteesNames"
+import {GET_TRUSTEES_NAMES} from "@/queries/GetTrusteesNames"
 
 interface ListUserRolesProps {
     userId?: string
@@ -52,7 +52,7 @@ interface ListUserRolesProps {
     selectedRolesOnCreate?: string[]
 }
 
-interface Trustee {
+export interface Trustee {
     id: string
     name: string
 }
@@ -226,7 +226,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         attributes: {
                             ...formatUserAtributes(user?.attributes),
                             ...(selectedArea && {"area-id": [selectedArea]}),
-                            ...(selectedActedTrustee && {"trustee": selectedActedTrustee}),
+                            ...(selectedActedTrustee && {trustee: [selectedActedTrustee]}),
                         },
                     },
                     userRolesIds: selectedRolesOnCreate,
@@ -265,7 +265,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             attributes: {
                                 ...formatUserAtributes(user?.attributes),
                                 ...(selectedArea && {"area-id": [selectedArea]}),
-                                ...(selectedActedTrustee && {"trustee": selectedActedTrustee}),
+                                ...(selectedActedTrustee && {trustee: [selectedActedTrustee]}),
                             },
                         },
                     },
@@ -428,8 +428,17 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 )
             } else if (attr.name.toLowerCase().includes("trustee")) {
                 return (
-                   <SelectActedTrustee source={createMode ? "attributes.trustee" : "trustee"} defaultValue={value} tenantId={tenantId} onSelectTrustee={(trustee: Trustee) => {
-                    setSelectedActedTrustee(trustee.name)}} />
+                    <FormControl fullWidth>
+                        <SelectActedTrustee
+                            label={t("usersAndRolesScreen.users.fields.trustee")}
+                            source={createMode ? "attributes.trustee" : "trustee"}
+                            defaultValue={value}
+                            tenantId={tenantId}
+                            onSelectTrustee={(trustee: string) => {
+                                setSelectedActedTrustee(trustee)
+                            }}
+                        />
+                    </FormControl>
                 )
             }
             return (
@@ -510,17 +519,16 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     )}
                     {isUndefined(electionEventId) ? (
                         <>
-                        <ListUserRoles
-                            userRoles={userRoles}
-                            rolesList={rolesList}
-                            userId={id}
-                            refetch={() => refetch()}
-                            createMode={createMode}
-                            setUserRoles={createMode ? handleSelectedRolesOnCreate : undefined}
-                            selectedRolesOnCreate={selectedRolesOnCreate}
-                        />
+                            <ListUserRoles
+                                userRoles={userRoles}
+                                rolesList={rolesList}
+                                userId={id}
+                                refetch={() => refetch()}
+                                createMode={createMode}
+                                setUserRoles={createMode ? handleSelectedRolesOnCreate : undefined}
+                                selectedRolesOnCreate={selectedRolesOnCreate}
+                            />
                         </>
-                      
                     ) : null}
                 </>
             </SimpleForm>

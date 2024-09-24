@@ -266,7 +266,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
             return (
                 (ceremony.status === IExecutionStatus.NOT_STARTED ||
                     ceremony.status === IExecutionStatus.IN_PROCESS) &&
-                !!status.trustees.find((trustee) => trustee.name === authContext.username)
+                !!status.trustees.find((trustee) => trustee.name === authContext.trustee)
             )
         }
         return false
