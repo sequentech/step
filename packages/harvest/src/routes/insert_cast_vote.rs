@@ -81,6 +81,11 @@ pub async fn insert_cast_vote(
                 )
             }
             CastVoteError::CheckStatusFailed(_) => ErrorResponse::new(
+                Status::Unauthorized,
+                ErrorCode::CheckStatusFailed.to_string().as_str(),
+                ErrorCode::CheckStatusFailed,
+            ),
+            CastVoteError::CheckStatusInternalFailed(_) => ErrorResponse::new(
                 Status::InternalServerError,
                 ErrorCode::InternalServerError.to_string().as_str(),
                 ErrorCode::InternalServerError,

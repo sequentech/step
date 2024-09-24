@@ -71,6 +71,8 @@ pub enum CastVoteError {
     ElectoralLogNotFound(String),
     #[serde(rename = "check_status_failed")]
     CheckStatusFailed(String),
+    #[serde(rename = "check_status_internal_failed")]
+    CheckStatusInternalFailed(String),
     #[serde(rename = "check_previous_votes_failed")]
     CheckPreviousVotesFailed(String),
     #[serde(rename = "insert_failed")]
@@ -306,9 +308,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
         &ballot_signature,
     );
 
-    check_status
-        .await
-        .map_err(|e| CastVoteError::CheckStatusFailed(e.to_string()))?;
+    check_status.await?;
     check_previous_votes
         .await
         .map_err(|e| CastVoteError::CheckPreviousVotesFailed(e.to_string()))?;
@@ -374,19 +374,25 @@ async fn check_status(
     auth_headers: AuthHeaders,
     election_event: &GetElectionEventSequentBackendElectionEvent,
     auth_time: &Option<i64>,
-) -> anyhow::Result<()> {
+) -> Result<(), CastVoteError> {
     if election_event.is_archived {
-        return Err(anyhow!("Election event is archived"));
+        return Err(CastVoteError::CheckStatusFailed(
+            "Election event is archived".to_string(),
+        ));
     }
 
     let auth_time_local: DateTime<Local> = if let Some(auth_time_int) = *auth_time {
         if let Ok(auth_time_parsed) = ISO8601::timestamp_ms_utc_to_date_opt(auth_time_int) {
             auth_time_parsed
         } else {
-            return Err(anyhow!("Invalid auth_time timestamp"));
+            return Err(CastVoteError::CheckStatusFailed(
+                "Invalid auth_time timestamp".to_string(),
+            ));
         }
     } else {
-        return Err(anyhow!("auth_time is not a valid integer"));
+        return Err(CastVoteError::CheckStatusFailed(
+            "auth_time is not a valid integer".to_string(),
+        ));
     };
 
     let hasura_response = hasura::election::get_election(
@@ -396,9 +402,9 @@ async fn check_status(
         election_id.to_string(),
     )
     .await
-    .context("Cannot retrieve election data")?;
+    .context("Cannot retrieve election data")
+    .map_err(|e| CastVoteError::CheckStatusInternalFailed(e.to_string()))?;
 
-    // TODO expect
     let election = &hasura_response
         .data
         .expect("expected data".into())
@@ -439,7 +445,8 @@ async fn check_status(
         .clone()
         .map(|value| deserialize_value(value).context("Failed to deserialize election status"))
         .transpose()
-        .map(|value| value.unwrap_or(Default::default()))?;
+        .map(|value| value.unwrap_or(Default::default()))
+        .map_err(|e| CastVoteError::CheckStatusInternalFailed(e.to_string()))?;
 
     // calculate if we need to apply the grace period
     let grace_period_secs = election_presentation.grace_period_secs.unwrap_or(0);
@@ -458,35 +465,42 @@ async fn check_status(
             // a voter cannot cast a vote after the grace period or if the voter
             // authenticated after the closing date
             if now > close_date_plus_grace_period || auth_time_local > close_date {
-                return Err(anyhow!("Cannot vote outside grace period"));
+                return Err(CastVoteError::CheckStatusFailed(
+                    "Cannot vote outside grace period".to_string(),
+                ));
             }
 
             // if we have a closing date and a grace period, we only apply
             // checking if election is open if now is before closing period
-            if now < close_date && election_status.voting_status != VotingStatus::OPEN {
-                return Err(anyhow!(
+            if now <= close_date && election_status.voting_status != VotingStatus::OPEN {
+                return Err(CastVoteError::CheckStatusFailed(
                     "Election voting status is not open or voting outside the grace period"
+                        .to_string(),
                 ));
             }
         } else {
             // if no grace period and there's a closing date, to cast a vote you
             // need to do it before the closing date
             if now > close_date {
-                return Err(anyhow!("Election close date passed and no grace period"));
+                return Err(CastVoteError::CheckStatusFailed(
+                    "Election close date passed and no grace period".to_string(),
+                ));
             }
 
             // if no grace period, election needs to be open to cast a vote
             // period
             if election_status.voting_status != VotingStatus::OPEN {
-                return Err(anyhow!(
-                    "Election voting status is not open before close date"
+                return Err(CastVoteError::CheckStatusFailed(
+                    "Election voting status is not open before close date".to_string(),
                 ));
             }
         }
 
     // if there's no closing date, election needs to be open to cast a vote
     } else if election_status.voting_status != VotingStatus::OPEN {
-        return Err(anyhow!("Election voting status is not open"));
+        return Err(CastVoteError::CheckStatusFailed(
+            "Election voting status is not open".to_string(),
+        ));
     }
 
     Ok(())

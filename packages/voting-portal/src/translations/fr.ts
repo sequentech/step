@@ -91,6 +91,8 @@ const frenchTranslation: TranslationType = {
                     "Impossible de charger l'événement électoral. Veuillez réessayer plus tard.",
                 CAST_VOTE:
                     "Une erreur inconnue est survenue lors du vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                CAST_VOTE_CheckStatusFailed:
+                    "L'élection ne permet pas de voter. L'élection peut être clôturée, archivée ou vous essayez peut-être de voter en dehors de la période de grâce.",
                 CAST_VOTE_AreaNotFound:
                     "Une erreur est survenue lors du vote : Zone introuvable. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
                 CAST_VOTE_InternalServerError:
