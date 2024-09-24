@@ -13,8 +13,11 @@
   ],
   "scripts": {
     "start:voting-portal": "yarn --cwd ./voting-portal start",
+    "start-e2e:voting-portal": "yarn --cwd ./voting-portal start-e2e",
     "start:admin-portal": "yarn --cwd ./admin-portal start",
+    "start-e2e:admin-portal": "yarn --cwd ./admin-portal start-e2e",
     "start:ballot-verifier": "yarn --cwd ./ballot-verifier start",
+    "start-e2e:ballot-verifier": "yarn --cwd ./ballot-verifier start-e2e",
     "storybook:ui-essentials": "yarn --cwd ./ui-essentials storybook",
     "build:ballot-verifier": "yarn --cwd ./ballot-verifier build",
     "build:voting-portal": "yarn --cwd ./voting-portal build",

@@ -30,6 +30,7 @@
   },
   "scripts": {
     "start": "NODE_OPTIONS=--openssl-legacy-provider PORT=3001 craco start",
+    "start-e2e": "NODE_OPTIONS=--openssl-legacy-provider PORT=3001 DANGEROUSLY_DISABLE_HOST_CHECK=true REACT_APP_GLOBAL_SETTINGS_PATH=/global-settings-e2e.json craco start",
     "build": "NODE_OPTIONS='--openssl-legacy-provider --max-old-space-size=4096' webpack",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
