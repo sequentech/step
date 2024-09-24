@@ -34,6 +34,7 @@ pub mod pg_lock;
 pub mod private_keys;
 pub mod probe;
 pub mod protocol_manager;
+pub mod providers;
 pub mod public_keys;
 pub mod s3;
 pub mod serialize_tasks_logs;
