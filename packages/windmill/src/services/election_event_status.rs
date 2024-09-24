@@ -6,7 +6,7 @@ use crate::postgres::election_event::{
     get_election_event_by_id, update_election_event_status,
     update_elections_status_by_election_event,
 };
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::*;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
@@ -14,7 +14,6 @@ use sequent_core::types::hasura::core::ElectionEvent;
 use serde_json::value::Value;
 use tracing::{event, info, instrument, Level};
 
-use super::database::get_hasura_pool;
 use super::voting_status::update_board_on_status_change;
 
 pub fn get_election_event_status(status_json_opt: Option<Value>) -> Option<ElectionEventStatus> {
@@ -39,14 +38,19 @@ pub async fn update_event_voting_status(
     election_event_id: &str,
     new_status: &VotingStatus,
 ) -> Result<ElectionEvent> {
-    let election_event =
-        get_election_event_by_id(hasura_transaction, tenant_id, election_event_id).await?;
+    let election_event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
+        .await
+        .with_context(|| "Error obtaining election event")?;
 
     let mut status =
         get_election_event_status(election_event.status.clone()).unwrap_or(Default::default());
     let mut election_status = ElectionStatus::default();
 
     let current_voting_status = status.voting_status.clone();
+
+    if election_event.is_archived {
+        info!("Election event is archived, skipping");
+    }
 
     if current_voting_status == new_status.clone() {
         info!("Current voting status is the same as the new voting status, skipping");
@@ -70,9 +74,7 @@ pub async fn update_event_voting_status(
 
     if !expected_next_status.contains(&new_status) {
         return Err(anyhow!(
-            "Unexpected next status {:?}, expected {:?}",
-            new_status,
-            expected_next_status
+            "Unexpected next status {new_status:?}, expected {expected_next_status:?}, current {current_voting_status:?}",
         ));
     }
 
@@ -82,9 +84,11 @@ pub async fn update_event_voting_status(
         &hasura_transaction,
         &&tenant_id,
         election_event_id,
-        serde_json::to_value(&status)?,
+        serde_json::to_value(&status).with_context(|| "Error parsing status")?,
     )
-    .await?;
+    .await
+    .with_context(|| "Error updating election event status")?;
+
     let mut elections_ids: Vec<String> = Vec::new();
     if *new_status == VotingStatus::OPEN || *new_status == VotingStatus::CLOSED {
         election_status.voting_status = new_status.clone();
@@ -92,9 +96,10 @@ pub async fn update_event_voting_status(
             &hasura_transaction,
             &tenant_id,
             &election_event_id,
-            serde_json::to_value(&election_status)?,
+            serde_json::to_value(&election_status).with_context(|| "Error parsing status")?,
         )
-        .await?;
+        .await
+        .with_context(|| "Error updating election event status by election event")?;
     }
 
     update_board_on_status_change(
@@ -104,7 +109,9 @@ pub async fn update_event_voting_status(
         None,
         Some(elections_ids),
     )
-    .await?;
+    .await
+    .with_context(|| "Error updating electoral board on status change")?;
+
     Ok(election_event)
 }
 
@@ -117,13 +124,24 @@ pub async fn update_election_voting_status_impl(
     bulletin_board_reference: Option<Value>,
     hasura_transaction: &Transaction<'_>,
 ) -> Result<()> {
+    let election_event =
+        get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id)
+            .await
+            .with_context(|| "Error obtaining election event")?;
+
+    if election_event.is_archived {
+        info!("Election event is archived, skipping");
+        return Ok(());
+    }
+
     let Some(election) = get_election_by_id(
         hasura_transaction,
         &tenant_id,
         &election_event_id,
         &election_id,
     )
-    .await?
+    .await
+    .with_context(|| "Error getting election by id")?
     else {
         event!(Level::WARN, "Election not found");
         return Ok(());
@@ -157,15 +175,13 @@ pub async fn update_election_voting_status_impl(
 
     if !expected_next_status.contains(&new_status) {
         return Err(anyhow!(
-            "Unexpected next status {:?}, expected {:?}",
-            new_status,
-            expected_next_status
+            "Unexpected next status {new_status:?}, expected {expected_next_status:?}, current {current_voting_status:?}",
         ));
     }
 
     status.voting_status = new_status.clone();
 
-    let status_js = serde_json::to_value(&status)?;
+    let status_js = serde_json::to_value(&status).with_context(|| "Error parsing status")?;
 
     update_election_voting_status(
         &hasura_transaction,
@@ -174,7 +190,8 @@ pub async fn update_election_voting_status_impl(
         &election_id,
         status_js,
     )
-    .await?;
+    .await
+    .with_context(|| "Error updating election voting status")?;
 
     update_board_on_status_change(
         election_event_id.to_string(),
@@ -183,7 +200,8 @@ pub async fn update_election_voting_status_impl(
         Some(election_id.to_string()),
         None,
     )
-    .await?;
+    .await
+    .with_context(|| "Error updating electoral board on status change")?;
 
     Ok(())
 }

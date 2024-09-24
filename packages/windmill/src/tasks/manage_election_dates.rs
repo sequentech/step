@@ -38,7 +38,9 @@ async fn manage_election_date_wrapper(
         Some(election_event_id.clone()),
         &scheduled_event_id,
     )
-    .await?;
+    .await
+    .with_context(|| "Error obtaining scheduled event by id")?;
+
     let Some(scheduled_manage_date) = scheduled_manage_date_opt else {
         return Err(anyhow!(
             "Can't find scheduled event with id: {}",
@@ -52,7 +54,8 @@ async fn manage_election_date_wrapper(
         &election_event_id,
         &election_id,
     )
-    .await?
+    .await
+    .with_context(|| "Error obtaining election by id")?
     else {
         return Err(anyhow!("Election not found"));
     };
@@ -75,7 +78,8 @@ async fn manage_election_date_wrapper(
         _ => {
             info!("Invalid scheduled event type: {:?}", event_processor);
             stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id)
-                .await?;
+                .await
+                .with_context(|| "Error stopping scheduled event")?;
             return Ok(());
         }
     };
@@ -90,7 +94,9 @@ async fn manage_election_date_wrapper(
     .await;
     info!("result: {:?}", result);
 
-    stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id).await?;
+    stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id)
+        .await
+        .with_context(|| "Error stopping scheduled event")?;
 
     result?;
 
@@ -114,7 +120,8 @@ pub async fn manage_election_date(
         Uuid::new_v4().to_string(),
         ISO8601::now() + Duration::seconds(120),
     )
-    .await?;
+    .await
+    .with_context(|| "Error acquiring pglock")?;
 
     let res = provide_hasura_transaction(|hasura_transaction| {
         let tenant_id = tenant_id.clone();
@@ -137,7 +144,9 @@ pub async fn manage_election_date(
 
     info!("result: {:?}", res);
 
-    lock.release().await?;
+    lock.release()
+        .await
+        .with_context(|| "Error releasing pglock")?;
 
     Ok(res?)
 }
