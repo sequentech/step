@@ -914,7 +914,7 @@ const tagalogTranslation: TranslationType = {
             errorUploadingSignature: "Nagkaroon ng error sa pag-upload ng pirma",
             downloadTransmissionPackage: "I-download ang pakete",
             transmissionPackage: {
-                title: "Pakete ng Transmisyon para sa Lugar '{{name}}'",
+                title: "Pakete ng Transmisyon para sa Lugar '{{name}}' at Halalan na '{{eventName}}'",
                 description:
                     "Hinahayaan kang i-export ang isang Pakete ng Transmisyon sa mga Server ng Destinasyon o i-download ito.",
                 actions: {

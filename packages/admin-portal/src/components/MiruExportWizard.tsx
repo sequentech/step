@@ -27,6 +27,7 @@ import {
     GetUploadUrlMutation,
     SendTransmissionPackageMutation,
     Sequent_Backend_Area,
+    Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Results_Event,
     Sequent_Backend_Tally_Session,
@@ -54,6 +55,7 @@ import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {CREATE_TRANSMISSION_PACKAGE} from "@/queries/CreateTransmissionPackage"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
+import {translateElection} from "@sequentech/ui-core"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {WidgetProps} from "@/components/Widget"
@@ -387,6 +389,14 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
         [selectedTallySessionData?.area_id, tallyData?.sequent_backend_area]
     )
 
+    const election = useMemo(
+        () =>
+            tallyData?.sequent_backend_election?.find(
+                (election) => selectedTallySessionData?.election_id === election.id
+            ) ?? null,
+        [selectedTallySessionData?.election_id, tallyData?.sequent_backend_election]
+    )
+
     let minimumSignatures = () => {
         return selectedTallySessionData?.threshold ?? 1
     }
@@ -508,6 +518,18 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
         [tallySessionData, tally]
     )
 
+    const eventName =
+        (election &&
+            (translateElection(election, "alias", i18n.language) ||
+                translateElection(election, "name", i18n.language))) ||
+        election?.alias ||
+        election?.name ||
+        "-"
+
+    const canDownloadMiru = authContext.hasRole(IPermissions.MIRU_DOWNLOAD)
+    const canSendMiru = authContext.hasRole(IPermissions.MIRU_SEND)
+    const canCreateMiru = authContext.hasRole(IPermissions.MIRU_CREATE)
+
     return (
         <>
             <TallyStyles.MiruHeader>
@@ -515,6 +537,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
                     <ElectionHeaderStyles.Title ref={elementRef}>
                         {t("tally.transmissionPackage.title", {
                             name: area?.name,
+                            eventName,
                         })}
                     </ElectionHeaderStyles.Title>
                     <ElectionHeaderStyles.SubTitle>
@@ -523,58 +546,67 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
                 </ElectionHeaderStyles.ThinWrapper>
 
                 <TallyStyles.MiruToolbar>
-                    <Tooltip
-                        title={
-                            disableSendButton
-                                ? "Have not reached minimum number of SBEI Member signatures or Transmission Package has already been sent to all servers"
-                                : ""
-                        }
-                    >
-                        <span>
-                            <TallyStyles.MiruToolbarButton
-                                aria-label="export election data"
-                                aria-controls="export-menu"
-                                aria-haspopup="true"
-                                onClick={() => setConfirmSendMiruModal(true)}
-                                disabled={disableSendButton}
-                            >
-                                <>
-                                    {transmissionLoading ? (
-                                        <CircularProgress size={16} />
-                                    ) : (
-                                        <CellTowerIcon />
-                                    )}
-                                    <span title={t("tally.transmissionPackage.actions.send.title")}>
-                                        {t("tally.transmissionPackage.actions.send.title")}
-                                    </span>
-                                </>
-                            </TallyStyles.MiruToolbarButton>
-                        </span>
-                    </Tooltip>
-                    {resultsEvent?.[0] && documents ? (
+                    {canSendMiru ? (
+                        <Tooltip
+                            title={
+                                disableSendButton
+                                    ? "Have not reached minimum number of SBEI Member signatures or Transmission Package has already been sent to all servers"
+                                    : ""
+                            }
+                        >
+                            <span>
+                                <TallyStyles.MiruToolbarButton
+                                    aria-label="send transmission package"
+                                    aria-haspopup="true"
+                                    onClick={() => setConfirmSendMiruModal(true)}
+                                    disabled={disableSendButton}
+                                >
+                                    <>
+                                        {transmissionLoading ? (
+                                            <CircularProgress size={16} />
+                                        ) : (
+                                            <CellTowerIcon />
+                                        )}
+                                        <span
+                                            title={t(
+                                                "tally.transmissionPackage.actions.send.title"
+                                            )}
+                                        >
+                                            {t("tally.transmissionPackage.actions.send.title")}
+                                        </span>
+                                    </>
+                                </TallyStyles.MiruToolbarButton>
+                            </span>
+                        </Tooltip>
+                    ) : null}
+                    {canDownloadMiru ? (
                         <MiruPackageDownload
                             areaName={area?.name}
                             documents={selectedTallySessionData?.documents ?? []}
-                            electionEventId={resultsEvent?.[0].election_event_id}
+                            electionEventId={electionEventId ?? ""}
+                            eventName={eventName}
                         />
                     ) : null}
-                    <TallyStyles.MiruToolbarButton
-                        aria-label="export election data"
-                        aria-controls="export-menu"
-                        aria-haspopup="true"
-                        onClick={() => setConfirmRegenerateMiruModal(true)}
-                    >
-                        <>
-                            {regenTransmissionLoading ? (
-                                <CircularProgress size={16} />
-                            ) : (
-                                <RestartAltIcon />
-                            )}
-                            <span title={t("tally.transmissionPackage.actions.regenerate.title")}>
-                                {t("tally.transmissionPackage.actions.regenerate.title")}
-                            </span>
-                        </>
-                    </TallyStyles.MiruToolbarButton>
+                    {canCreateMiru ? (
+                        <TallyStyles.MiruToolbarButton
+                            aria-label="regenerate transmission package"
+                            aria-haspopup="true"
+                            onClick={() => setConfirmRegenerateMiruModal(true)}
+                        >
+                            <>
+                                {regenTransmissionLoading ? (
+                                    <CircularProgress size={16} />
+                                ) : (
+                                    <RestartAltIcon />
+                                )}
+                                <span
+                                    title={t("tally.transmissionPackage.actions.regenerate.title")}
+                                >
+                                    {t("tally.transmissionPackage.actions.regenerate.title")}
+                                </span>
+                            </>
+                        </TallyStyles.MiruToolbarButton>
+                    ) : null}
                 </TallyStyles.MiruToolbar>
             </TallyStyles.MiruHeader>
             {isTrustee && (
