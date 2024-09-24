@@ -45,6 +45,16 @@ const tagalogTranslation: TranslationType = {
                 IMPORT_ELECTION_EVENT: "I-import ang Kaganapan sa Halalan",
                 IMPORT_USERS: "I-import ang mga Gumagamit",
                 IMPORT_CANDIDATES: "I-import ang mga Kandidato",
+                EXPORT_VOTERS: "I-export ang mga botante",
+                CREATE_TRANSMISSION_PACKAGE: "Lumikha ng Transmission Package",
+            },
+            widget: {
+                taskTitle: "Gawain: {{title}}",
+                viewTask: "Tingnan Ang Gawain",
+            },
+            exportTasksExecution: {
+                success: "Matagumpay na natapos ang pag-export",
+                error: "Error sa pag-export ng Tasks Execution",
             },
         },
         areas: {
@@ -455,6 +465,9 @@ const tagalogTranslation: TranslationType = {
             voters: {
                 title: "Mga Botante",
                 subtitle: "Tingnan at i-edit ang data ng botante",
+                logs: {
+                    label: "Mga Log ng Gumagamit",
+                },
                 create: {
                     title: "Botante",
                     subtitle: "Lumikha ng Botante",
