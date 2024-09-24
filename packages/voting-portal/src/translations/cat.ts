@@ -92,6 +92,8 @@ const catalanTranslation: TranslationType = {
                     "No es pot carregar l'esdeveniment electoral. Si us plau, torna-ho a intentar més tard.",
                 CAST_VOTE:
                     "Hi ha hagut un error desconegut en emetre el vot. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
+                CAST_VOTE_CheckStatusFailed:
+                    "L'elecció no permet emetre el vot. L'elecció pot estar tancada, arxivada o potser estàs intentant votar fora del període de gràcia.",
                 CAST_VOTE_AreaNotFound:
                     "Hi ha hagut un error en emetre el vot: Àrea no trobada. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
                 CAST_VOTE_InternalServerError:

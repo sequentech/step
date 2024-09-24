@@ -2,9 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{anyhow, Result};
-use chrono::{DateTime, Local, NaiveDateTime, TimeZone, Utc};
-use std::str::FromStr;
+use anyhow::{anyhow, Context, Result};
+use chrono::{DateTime, Local, LocalResult, TimeZone, Utc};
 use time::OffsetDateTime;
 
 // format: 2023-08-10T22:05:22.214163+00:00
@@ -38,6 +37,19 @@ impl ISO8601 {
 
         // Convert Utc DateTime to Local DateTime
         date_time_utc.with_timezone(&Local)
+    }
+
+    pub fn timestamp_ms_utc_to_date_opt(millis: i64) -> Result<DateTime<Local>> {
+        // Convert Unix timestamp in milliseconds to DateTime<Utc>
+        let date_time_utc = match Utc.timestamp_millis_opt(millis) {
+            LocalResult::Single(data) => data,
+            _ => {
+                return Err(anyhow!("error parsing timestamp"));
+            }
+        };
+
+        // Convert Utc DateTime to Local DateTime
+        Ok(date_time_utc.with_timezone(&Local))
     }
 }
 
