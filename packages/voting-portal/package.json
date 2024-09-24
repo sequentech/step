@@ -33,7 +33,7 @@
   },
   "scripts": {
     "start": "NODE_OPTIONS=--openssl-legacy-provider craco start",
-    "start-e2e": "NODE_OPTIONS=--openssl-legacy-provider DANGEROUSLY_DISABLE_HOST_CHECK=true REACT_APP_GLOBAL_SETTINGS_PATH=/global-settings-e2e.json craco start",
+    "start-e2e": "NODE_OPTIONS=--openssl-legacy-provider REACT_APP_GLOBAL_SETTINGS_PATH=/global-settings-e2e.json craco start",
     "build": "NODE_OPTIONS='--openssl-legacy-provider --max-old-space-size=4096' webpack",
     "test": "NODE_OPTIONS=--openssl-legacy-provider react-scripts test",
     "eject": "NODE_OPTIONS=--openssl-legacy-provider react-scripts eject",
