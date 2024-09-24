@@ -126,15 +126,6 @@ pub(super) fn compute_pk<C: Ctx>(
 
     let m = Message::public_key_msg(cfg, &public_key, shares_hs, channels_hs, true, trustee)?;
     Ok(vec![m])
-
-    /* if let Ok(pk) = pk {
-        let public_key: DkgPublicKey<C> = DkgPublicKey::new(pk.0, pk.1);
-
-        let m = Message::public_key_msg(cfg, &public_key, shares_hs, channels_hs, true, trustee)?;
-        Ok(vec![m])
-    } else {
-        Err(anyhow!("Could not compute pk {:?}", pk))
-    }*/
 }
 
 pub(super) fn sign_pk<C: Ctx>(

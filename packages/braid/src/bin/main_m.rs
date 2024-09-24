@@ -6,10 +6,8 @@ use anyhow::Result;
 
 use braid::protocol::board::grpc_m::GrpcB3Index;
 use clap::Parser;
-use log::warn;
 use std::collections::HashSet;
 use std::fs;
-use std::hash::Hasher;
 use std::io::Write;
 use std::path::PathBuf;
 
@@ -17,11 +15,8 @@ use tokio::time::{sleep, Duration};
 use tracing::instrument;
 use tracing::{error, info};
 
-use rustc_hash::FxHasher;
-
-use tokio::sync::mpsc::{Receiver, Sender};
-
-use braid::protocol::session::session_m::{SessionFactory, SessionSet, SessionSetMessage};
+use braid::protocol::session::session_m::SessionFactory;
+use braid::protocol::session::session_master::SessionMaster;
 use braid::protocol::trustee2::TrusteeConfig;
 
 cfg_if::cfg_if! {
@@ -33,6 +28,14 @@ cfg_if::cfg_if! {
     }
 }
 
+/// Cli arguments.
+///
+/// b3_url: The url of the braid bulletin board grpc server.
+/// trustee_config: The trustee configuration file including signature
+/// and symmetric encryption keys.
+/// tokio_workers: sets the tokio worker_threads parameter.
+/// session_workers: the number of SessionSets that will run the protocol.
+/// SessionSets run concurrently as tokio threads and multiplex requests.
 #[derive(Parser)]
 struct Cli {
     #[arg(short, long)]
@@ -48,6 +51,7 @@ struct Cli {
     session_workers: usize,
 }
 
+/// Tokio entry point.
 fn main() -> Result<()> {
     let args = Cli::parse();
 
@@ -64,13 +68,16 @@ fn main() -> Result<()> {
 
 /// Entry point for a braid mixnet trustee.
 ///
-/// This version supports concurrency, multiplexing and chunking.
+/// This entry point supports concurrency, multiplexing and chunking.
 ///
 /// Concurrency
+///
 /// There are 3 levels of concurrency:
 /// 1) Session workers (SessionSet) run as tokio threads, as per args.tokio_workers and args.session_workers.
 /// 2) Inferred Actions run in a rayon collection (limited by the trustees action_parallelism parameter).
 /// 3) Strand's extensive use of rayon collections.
+///
+/// The active boards are distributed to SessionSets using modulo hashing.
 ///
 /// Multiplexing
 ///
@@ -79,7 +86,7 @@ fn main() -> Result<()> {
 /// Chunking
 ///
 /// Multiplexed requests will be chunked. Truncated responses from the bulletin board will be followed
-/// up.
+/// up. Chunking is controlled by the value board_messages::grpc::MAX_MESSAGE_SIZE.
 ///
 /// Example run command
 ///
@@ -172,92 +179,10 @@ async fn run(args: &Cli) -> Result<()> {
     }
 }
 
-struct SessionSetHandle {
-    boards: Vec<String>,
-    sender: Sender<SessionSetMessage>,
-}
-impl SessionSetHandle {
-    fn new(sender: Sender<SessionSetMessage>) -> Self {
-        SessionSetHandle {
-            boards: vec![],
-            sender,
-        }
-    }
-}
-
-struct SessionMaster {
-    session_sets: Vec<SessionSetHandle>,
-    b3_url: String,
-    session_factory: SessionFactory,
-}
-impl SessionMaster {
-    fn new(b3_url: &str, session_factory: SessionFactory, size: usize) -> Result<Self> {
-        let mut session_sets = vec![];
-        let mut runners = vec![];
-        for i in 0..size {
-            let (s, r): (Sender<SessionSetMessage>, Receiver<SessionSetMessage>) =
-                tokio::sync::mpsc::channel(1);
-            let session_set = SessionSet::new(&i.to_string(), &session_factory, &b3_url, r)?;
-            runners.push(session_set);
-
-            let handle = SessionSetHandle::new(s);
-            session_sets.push(handle);
-        }
-
-        info!("* Starting {} session sets..", runners.len());
-        runners.into_iter().for_each(|r| {
-            r.run();
-        });
-
-        Ok(SessionMaster {
-            b3_url: b3_url.to_string(),
-            session_factory,
-            session_sets,
-        })
-    }
-
-    fn hash(&self, board: &str) -> usize {
-        let mut hasher = FxHasher::default();
-        hasher.write(board.as_bytes());
-        let ret = hasher.finish() % self.session_sets.len() as u64;
-
-        ret as usize
-    }
-
-    async fn refresh_sets(&mut self, boards: Vec<String>) -> Result<()> {
-        // info!("Refreshing {} sets with {} boards", self.session_sets.len(), boards.len());
-
-        for board in boards {
-            let index = self.hash(&board);
-            // Assign boards to session sets
-            self.session_sets[index].boards.push(board);
-        }
-
-        for (i, h) in self.session_sets.iter_mut().enumerate() {
-            let boards = std::mem::replace(&mut h.boards, vec![]);
-
-            if h.sender.is_closed() {
-                warn!("Sender was closed, rebuilding set..");
-                let (s, r): (Sender<SessionSetMessage>, Receiver<SessionSetMessage>) =
-                    tokio::sync::mpsc::channel(1);
-                let session_set = SessionSet::new(
-                    &format!("rebuilt {}", i),
-                    &self.session_factory,
-                    &self.b3_url,
-                    r,
-                )?;
-                h.sender = s;
-
-                session_set.run();
-            }
-            // The only error we care about is checked above with sender.is_closed
-            let _ = h.sender.try_send(SessionSetMessage::REFRESH(boards));
-        }
-
-        Ok(())
-    }
-}
-
+/// Returns boards that have been requested to be ignored
+/// as specified by an environment variable.
+///
+/// Comma separated list of boards.
 fn get_ignored_boards() -> HashSet<String> {
     let boards_str: String = std::env::var("IGNORE_BOARDS").unwrap_or_else(|_| "".into());
     HashSet::from_iter(boards_str.split(',').map(|s| s.to_string()))

@@ -23,7 +23,7 @@ pub mod server;
 
 pub const MAX_MESSAGE_SIZE: usize = 2 * 1024 * 1024 * 1024;
 
-pub(crate) fn validate_board_name(board: &str) -> anyhow::Result<()> {
+pub fn validate_board_name(board: &str) -> anyhow::Result<()> {
     if board.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
         Ok(())
     } else {

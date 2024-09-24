@@ -4,37 +4,29 @@
 
 use anyhow::{anyhow, Result};
 use board_messages::grpc::GrpcB3Message;
-use std::collections::HashSet;
 use std::path::PathBuf;
 use strand::signature::StrandSignatureSk;
 use strand::symm::SymmetricKey;
-use tokio::sync::mpsc::Receiver;
 
-use std::collections::HashMap;
 use strand::backend::ristretto::RistrettoCtx;
-use tokio::sync::mpsc;
-use tokio::sync::mpsc::error::TryRecvError;
-use tokio::task::JoinHandle;
-use tokio::time::{sleep, Duration};
-use tracing::{error, info, warn};
+use tracing::info;
 
-use crate::protocol::board::grpc_m::{BoardFactoryMulti, BoardMulti, GrpcB3BoardParams};
 use crate::protocol::trustee2::Trustee;
 use crate::protocol::trustee2::TrusteeConfig;
 use crate::util::ProtocolError;
 use board_messages::braid::message::Message;
 use strand::context::Ctx;
 
-// How often the session map (with trustee's LocalBoard) is cleared
-// This will cause al messages in the LocalBoard to be reloaded from the
-// message store
-const SESSION_RESET_PERIOD: i64 = 20 * 60;
-
+/// A protocol session, M version.
+///
+/// The M version is used with SessionSets, supporting
+/// concurrency, multiplexing and chunking.
 pub struct SessionM<C: Ctx + 'static> {
     pub board_name: String,
     trustee: Trustee<C>,
 }
 impl<C: Ctx> SessionM<C> {
+    /// Constructs a new SessionM to handle the requested board.
     pub fn new(board_name: &str, trustee: Trustee<C>) -> Result<SessionM<C>> {
         let ret = SessionM {
             board_name: board_name.to_string(),
@@ -44,6 +36,12 @@ impl<C: Ctx> SessionM<C> {
         Ok(ret)
     }
 
+    /// Executes one step of the protocol main loop.
+    ///
+    /// Not all calls of step will supply new messages, but the
+    /// call is still required because there may be messages in the message_store
+    /// whose required Actions have not yet executed, leading to a
+    /// possible protocol hang.
     pub fn step(&mut self, messages: &Vec<GrpcB3Message>) -> Result<Vec<Message>, ProtocolError> {
         // NOTE: we must call step even if there are no new remote messages
         // because there may be actions pending in the trustees memory board
@@ -52,232 +50,21 @@ impl<C: Ctx> SessionM<C> {
         Ok(step_result.messages)
     }
 
+    /// Returns the largest id stored in the local message store
+    ///
+    /// The session will requests messages for id > last_external_id from
+    /// the bulletin board.
     pub fn get_last_external_id(&mut self) -> Result<i64, ProtocolError> {
         self.trustee.get_last_external_id()
     }
 
+    /// Updates the trustees message store only, not its local board.
+    ///
+    /// Used when the remote bulletin board returns a truncated response
+    /// indicating that a further request must be made before inferring any
+    /// new Actions.
     pub(crate) fn update_store(&self, messages: &Vec<GrpcB3Message>) -> Result<(), ProtocolError> {
         self.trustee.update_store(messages)
-    }
-}
-
-pub enum SessionSetMessage {
-    REFRESH(Vec<String>),
-}
-
-pub struct SessionSet {
-    name: String,
-    session_factory: SessionFactory,
-    b3_url: String,
-    inbox: Receiver<SessionSetMessage>,
-}
-impl SessionSet {
-    pub fn new(
-        name: &str,
-        session_factory: &SessionFactory,
-        b3_url: &str,
-        inbox: mpsc::Receiver<SessionSetMessage>,
-    ) -> Result<Self> {
-        Ok(SessionSet {
-            name: name.to_string(),
-            session_factory: session_factory.clone(),
-            b3_url: b3_url.to_string(),
-            inbox,
-        })
-    }
-
-    pub fn run(mut self) -> JoinHandle<()> {
-        let handler = tokio::spawn(async move {
-            let mut session_map: HashMap<String, SessionM<RistrettoCtx>> = HashMap::new();
-            let mut loop_count: i64 = 0;
-
-            loop {
-                loop_count = (loop_count + 1) % i64::MAX;
-                sleep(Duration::from_millis(1000)).await;
-                let signal = self.inbox.try_recv();
-
-                print!(".");
-
-                match signal {
-                    Ok(SessionSetMessage::REFRESH(boards)) => {
-                        // info!("Set {}: ({}) received refresh for {} boards", self.name, session_map.len(), boards.len());
-                        for b in boards.iter() {
-                            if !session_map.contains_key(b) {
-                                info!("Set {}: adding session '{}'..", self.name, b);
-                                let session = self.session_factory.create_session(b);
-                                if let Ok(session) = session {
-                                    session_map.insert(b.to_string(), session);
-                                } else {
-                                    error!(
-                                        "Unable to create session '{}': {} (set {})",
-                                        b,
-                                        session.err().unwrap(),
-                                        self.name
-                                    );
-                                }
-                            }
-                        }
-
-                        let boards_set: HashSet<String> = HashSet::from_iter(boards.into_iter());
-
-                        session_map.retain(|k, _v| {
-                            let ret = boards_set.contains(k);
-                            if !ret {
-                                info!("Set {}: Removing session '{}'", self.name, k);
-                            }
-                            ret
-                        });
-                    }
-                    // We're polling with try_recv, so ok
-                    Err(TryRecvError::Empty) => {}
-                    Err(TryRecvError::Disconnected) => {
-                        warn!("Set {}: shutting down ({})..", self.name, loop_count);
-                        break;
-                    }
-                }
-
-                if loop_count % SESSION_RESET_PERIOD == 0 {
-                    info!(
-                        "* Set {}: Session memory reset: reload all artifacts from store",
-                        self.name
-                    );
-                    let new_sessions: Result<Vec<(String, SessionM<RistrettoCtx>)>> = session_map
-                        .keys()
-                        .map(|k| Ok((k.clone(), self.session_factory.create_session(&k)?)))
-                        .collect();
-
-                    if let Ok(new_sessions) = new_sessions {
-                        session_map = new_sessions.into_iter().collect();
-                    } else {
-                        error!(
-                            "Unable to reset sessions: {:?}",
-                            new_sessions.err().unwrap()
-                        );
-                    }
-                }
-
-                let mut requests: Vec<(String, i64)> = vec![];
-                for session in session_map.values_mut() {
-                    let last_id = session.get_last_external_id();
-
-                    let Ok(last_id) = last_id else {
-                        warn!("sql error retrieving external_last_id {:?}", last_id);
-                        continue;
-                    };
-
-                    requests.push((session.board_name.to_string(), last_id));
-                }
-
-                /*
-                Use this block for load testing
-                // dkg messages = 1 + 5n
-                // tally messages = b * (n + (t * t + 1) + 1)
-                // threshold 3: 32 messages
-                let trustees = 3;
-                let threshold = 2;
-                let batches = 10;
-                let dkg_messages = 1 + 5 * trustees;
-                let tally_messages = batches * (trustees + (threshold * (threshold + 1)) + 1);
-
-                if (loop_count > 5)
-                    && (requests[0].1 == dkg_messages
-                        || requests[0].1 == (dkg_messages + tally_messages))
-                {
-                    println!("*** Remove this code!");
-                    std::process::exit(0);
-                }*/
-
-                let board = GrpcB3BoardParams::new(&self.b3_url);
-                let board = board.get_board();
-                let responses = board.get_messages_multi(&requests).await;
-
-                // If the bulletin board returns truncated = true it means there
-                // are more messages pending that were cut off to not
-                // exceed configured message size limit
-                let Ok((responses, truncated)) = responses else {
-                    error!(
-                        "Error retrieving messages for {} requests: {} (set {})",
-                        requests.len(),
-                        responses.err().unwrap(),
-                        self.name
-                    );
-                    sleep(Duration::from_millis(1000)).await;
-                    continue;
-                };
-
-                let mut post_messages = vec![];
-                let mut total_bytes: u32 = 0;
-
-                let tuples = responses.into_iter().map(|km| (km.board, km.messages));
-                let km_map: HashMap<String, Vec<GrpcB3Message>> = HashMap::from_iter(tuples);
-
-                for (k, s) in session_map.iter_mut() {
-                    let empty = vec![];
-                    let messages = km_map.get(k).unwrap_or(&empty);
-
-                    // We do not want to execute the trustee step when messages are pending; this
-                    // avoids executing superfluous work.
-                    if truncated {
-                        warn!("Received truncated messages, updating only..");
-                        if let Err(err) = s.update_store(messages) {
-                            error!(
-                                "Error updating store: {} (returned messages truncated)",
-                                err
-                            );
-                        }
-                        continue;
-                    }
-
-                    // NOTE: we must call step even if there are no new remote messages
-                    // because there may be messages pending in the message_store
-                    let messages = s.step(messages);
-
-                    let Ok(messages) = messages else {
-                        let _ = messages.inspect_err(|error| {
-                            error!(
-                                "Error executing step for board '{}': '{:?}' (set {})",
-                                k, error, self.name
-                            );
-                        });
-
-                        continue;
-                    };
-
-                    if messages.len() > 0 {
-                        let next_bytes: usize = messages
-                            .iter()
-                            .map(|m| m.artifact.as_ref().map(|v| v.len()).unwrap_or(0))
-                            .sum();
-                        total_bytes += next_bytes as u32;
-                        post_messages.push((k.clone(), messages));
-                    }
-                }
-
-                if post_messages.len() > 0 {
-                    info!(
-                        "Set {}: posting {} keyed messages with {:.3} MB",
-                        self.name,
-                        post_messages.len(),
-                        f64::from(total_bytes) / (1024.0 * 1024.0)
-                    );
-                    let now = std::time::Instant::now();
-                    let result = board.insert_messages_multi(post_messages).await;
-                    if let Err(err) = result {
-                        error!("Error posting messages: '{:?} (set {})'", err, self.name);
-                    }
-                    info!(
-                        "Set {}: messages posted in {}ms",
-                        self.name,
-                        now.elapsed().as_millis()
-                    );
-                } else {
-                    // No messages to send
-                }
-            }
-            // We should never get here
-        });
-
-        handler
     }
 }
 

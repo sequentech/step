@@ -97,7 +97,15 @@ impl<C: Ctx> Trustee<C> {
             "Trustee {} created, store = {:?}, action_parallelism = {}",
             name, store, action_parallelism
         );
-        // let blob_store = Some(PathBuf::from("./blobs").join(&board_name));
+
+        // let blob_root = PathBuf::from("./blobs");
+        // The blob_root should be passed to this function
+        // and then checked:
+        //         if !blob_root.is_dir() {
+        //     return Err(anyhow!("Invalid blob root {:?}", blob_root));
+        // }
+        //
+        // let blob_store = Some(blob_root.join(&board_name));
         let local_board = LocalBoard::new(store, None);
 
         Trustee {
@@ -116,10 +124,13 @@ impl<C: Ctx> Trustee<C> {
     // Protocol step: update->derive predicates->infer&run
     ///////////////////////////////////////////////////////////////////////////
 
-    /// Executes one step of the protocol main loop
+    /// Executes one step of the protocol main loop.
     ///
     /// Typically: update store => update board => derive predicates => infer actions
     /// run actions => return resulting messages.
+    ///
+    /// The protocol main loop is reactive: it will not advance until the necessary
+    /// messages are present in the board.
     #[instrument(name = "Trustee::step", skip(messages, self), level="trace"in)]
     pub(crate) fn step(
         &mut self,

@@ -128,9 +128,9 @@ crepe! {
 ///////////////////////////////////////////////////////////////////////////
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub(crate) struct S;
+pub(crate) struct D;
 
-impl S {
+impl D {
     pub(crate) fn run(
         &self,
         predicates: &Vec<Predicate>,

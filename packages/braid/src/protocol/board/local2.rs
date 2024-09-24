@@ -19,12 +19,9 @@ use board_messages::braid::artifact::*;
 use board_messages::braid::message::{Message, VerifiedMessage};
 use board_messages::braid::statement::{Statement, StatementType};
 
+use crate::util::{ProtocolContext, ProtocolError};
 use board_messages::braid::newtypes::*;
 use strand::hash::Hash;
-
-use crate::util::{ProtocolContext, ProtocolError};
-
-use super::ArtifactRef;
 
 ///////////////////////////////////////////////////////////////////////////
 // LocalBoard
@@ -92,54 +89,6 @@ impl<C: Ctx> LocalBoard<C> {
             blob_store,
             artifacts_memory: HashMap::new(),
         }
-    }
-    /// The maximum number of messages this protocol will generate.
-    ///
-    /// A protocol is finished when all dkg messages are present and all tally
-    /// messages are present given the existing batches.
-    ///
-    /// The number of messages for each phase are
-    ///    DKG phase: 1 + 5n
-    ///                        ballot  mix     mix signature     decrypt factors    plaintext + sig
-    ///    Tally phase:    b * (1 +     t +    (t * (t - 1)) +    t +                 n)
-    ///
-    /// where
-    /// n: trustees
-    /// t: threshold
-    /// b: batches
-    ///
-    pub(crate) fn max_messages(&self) -> usize {
-        let Some(cfg) = &self.configuration else {
-            return 0;
-        };
-
-        let mut sei = StatementEntryIdentifier {
-            kind: StatementType::Ballots,
-            signer_position: PROTOCOL_MANAGER_INDEX,
-            batch: 0,
-            mix_number: 0,
-        };
-
-        loop {
-            if self.statements.get(&sei).is_none() {
-                break;
-            }
-            sei.batch = sei.batch + 1;
-        }
-
-        let n = cfg.trustees.len();
-        let t = cfg.threshold;
-
-        let dkg = 1 + (5 * n);
-        if sei.batch == 0 {
-            return dkg;
-        }
-
-        let per_batch_tally = 1 + (2 * t) + (t * (t - 1)) + n;
-
-        dkg + (sei.batch * per_batch_tally)
-
-        // self.statements.len() == max
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -534,8 +483,8 @@ impl<C: Ctx> LocalBoard<C> {
     /// an error is raised. The artifact bytes will be retrieved from the
     /// store (or blob store) or from memory.
     ///
-    /// All artifacts have their mix number set to 0. Only
-    /// mix signature _statements_ have a mix number != 0.
+    /// All artifacts have their mix number set to 0. Only mix signature
+    /// statements are keyed (in the hashmap) with a mix number != 0.
     fn get_artifact(
         &self,
         kind: StatementType,
@@ -896,6 +845,55 @@ impl<C: Ctx> LocalBoard<C> {
         Ok(connection)
     }
 
+    /// The maximum number of messages this protocol will generate.
+    ///
+    /// A protocol is finished when all dkg messages are present and all tally
+    /// messages are present given the existing batches.
+    ///
+    /// The number of messages for each phase are
+    ///    DKG phase: 1 + 5n
+    ///                        ballot  mix     mix signature     decrypt factors    plaintext + sig
+    ///    Tally phase:    b * (1 +     t +    (t * (t - 1)) +    t +                 n)
+    ///
+    /// where
+    /// n: trustees
+    /// t: threshold
+    /// b: batches
+    ///
+    pub(crate) fn max_messages(&self) -> usize {
+        let Some(cfg) = &self.configuration else {
+            return 0;
+        };
+
+        let mut sei = StatementEntryIdentifier {
+            kind: StatementType::Ballots,
+            signer_position: PROTOCOL_MANAGER_INDEX,
+            batch: 0,
+            mix_number: 0,
+        };
+
+        loop {
+            if self.statements.get(&sei).is_none() {
+                break;
+            }
+            sei.batch = sei.batch + 1;
+        }
+
+        let n = cfg.trustees.len();
+        let t = cfg.threshold;
+
+        let dkg = 1 + (5 * n);
+        if sei.batch == 0 {
+            return dkg;
+        }
+
+        let per_batch_tally = 1 + (2 * t) + (t * (t - 1)) + n;
+
+        dkg + (sei.batch * per_batch_tally)
+
+        // self.statements.len() == max
+    }
+
     ///////////////////////////////////////////////////////////////////////////
     // Testing functions (used by tests and dbg)
     //
@@ -930,6 +928,37 @@ impl<C: Ctx> LocalBoard<C> {
     }
 }
 
+/// Convenience to return artifact owned objects or references.
+///
+/// Owned objects are used when reading from the message store.
+/// References are used when there is no message store and artifacts
+/// are held in memory. This only occurs during testing.
+pub enum ArtifactRef<'a, T> {
+    Ref(&'a T),
+    Owned(T),
+}
+impl<'a, T> ArtifactRef<'a, T> {
+    pub fn get_ref(&'a self) -> &'a T {
+        match self {
+            ArtifactRef::Ref(ref v) => *v,
+            ArtifactRef::Owned(v) => v,
+        }
+    }
+    pub fn transform<U, F: FnOnce(&'a T) -> &'a U, G: FnOnce(T) -> U>(
+        self,
+        f: F,
+        g: G,
+    ) -> ArtifactRef<'a, U> {
+        let ret = match self {
+            ArtifactRef::Ref(ref v) => ArtifactRef::Ref(f(*v)),
+            ArtifactRef::Owned(v) => ArtifactRef::Owned(g(v)),
+        };
+
+        ret
+    }
+}
+
+/// Convenience to return entries to the trustee for inference.
 pub(crate) struct BoardEntry {
     pub(crate) key: StatementEntryIdentifier,
     pub(crate) value: (Hash, Statement),
@@ -939,6 +968,7 @@ pub(crate) struct BoardEntry {
 // LocalBoard keys
 ///////////////////////////////////////////////////////////////////////////
 
+/// Key used to store statements in the statement map
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub struct StatementEntryIdentifier {
     pub kind: StatementType,
@@ -954,11 +984,13 @@ pub struct StatementEntryIdentifier {
     pub mix_number: usize,
 }
 
+/// Key used to store artifacts in the artifact map
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub struct ArtifactEntryIdentifier {
     pub statement_entry: StatementEntryIdentifier,
 }
 
+/// A row of the message store
 struct SqliteStoreMessageRow {
     id: i64,
     message: Vec<u8>,

@@ -23,17 +23,24 @@ use crate::util::dbg_hash;
 
 ///////////////////////////////////////////////////////////////////////////
 // Action
-//
-// Actions produce Messages that will be posted to the bulletin board.
-//
-// 1) Dispatch action to target function (pattern match on enum)
-// 2) Retrieve necessary artifacts from trustee (localboard)
-// 3) Compute necessary data
-// 44) Create message through Message static functions
-//      4.1) Message::<function> Computes hashes and artifact data
-//      4.2) Trustee::<message> Signs the statement and returns Message
 ///////////////////////////////////////////////////////////////////////////
 
+/// A protocol action that produces Messages that advances
+/// the protocol state.
+///
+/// Actions are the core operations that make up the protocol
+/// as a multi party (trustee) computation. An Action is variant
+/// which defines what Action to compute, and contains pointers
+/// to all the input artifacts that it needs for its computation.
+/// These artifacts are retrieved from the trustee's LocalBoard.
+///
+/// The pointers are always hashes of the target artifact, and
+/// will have been signed by the producer of said artifact.
+/// The binding of trustees, their signatures, the artifact
+/// hashes and their computations is implemented through datalog
+/// relations. Actions are datalog predicates that are inferred
+/// as required for the protocol to execute, based on existing
+/// messages on the bulletin board.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Display, Debug)]
 pub enum Action {
     SignConfiguration(ConfigurationHash),
@@ -122,6 +129,19 @@ impl Action {
     ///////////////////////////////////////////////////////////////////////////
     // Action dispatch to target functions
     ///////////////////////////////////////////////////////////////////////////
+
+    /// Runs this Action.
+    ///
+    /// Actions produce Messages that will be posted to the bulletin board.
+    /// The significant steps are
+    ///
+    /// 1) Dispatch action to target function (pattern match on self)
+    /// 2) The target function will: retrieve necessary input artifacts
+    /// from trustee (LocalBoard)
+    /// 3) Compute necessary data
+    /// 4) Create messages through Message static functions
+    ///      4.1) Message::<function> Computes hashes and artifact data
+    ///      4.2) Trustee::<message> Signs the statement and returns Message
     pub(crate) fn run<C: Ctx>(&self, trustee: &Trustee<C>) -> Result<Vec<Message>, ProtocolError> {
         info!("Running action {}..", &self);
         match self {
@@ -238,7 +258,9 @@ impl Action {
         }
     }
 
-    // Only three actions are relevant for a verifier
+    /// Runs this Action in verifying mode.
+    ///
+    /// Only three actions are relevant for a verifier.
     pub(crate) fn run_for_verifier<C: Ctx>(
         &self,
         trustee: &Trustee<C>,
@@ -299,7 +321,11 @@ impl Action {
 // Target function modules
 ///////////////////////////////////////////////////////////////////////////
 
+/// Configuration approval and signing.
 mod cfg;
+/// Distributed verifiable decryption.
 mod decrypt;
+/// Distributed key generation.
 mod dkg;
+/// Verifiable shuffling.
 mod shuffle;

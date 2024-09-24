@@ -62,20 +62,19 @@ pub(crate) fn trustees_count(input: TrusteeSet) -> usize {
     input.iter().filter(|t| *t != &NULL_TRUSTEE).count()
 }
 
-///////////////////////////////////////////////////////////////////////////
+/// Returns the Phases that make up the protocol's main steps.
 // A Vec<Phase> loosely corresponds to a state machine.
-//
-// The input data, Predicate, is defined in predicate.rs
-// The output data, Action, is defined in action.rs. Some outputs
-// are also Predicates that feed to subsequent Phases.
-///////////////////////////////////////////////////////////////////////////
-
+///
+/// The input data, Predicate, is defined in predicate.rs
+/// The output data, Action, is defined in action.rs. Some outputs
+/// are also Predicates that feed to subsequent Phases (marked
+/// as struct OutP in datalog the modules)
 pub(crate) fn get_phases() -> Vec<Phase> {
     vec![
-        Phase::Cfg(cfg::S),
-        Phase::Dkg(dkg::S),
-        Phase::Shuffle(shuffle::S),
-        Phase::Decrypt(decrypt::S),
+        Phase::Cfg(cfg::D),
+        Phase::Dkg(dkg::D),
+        Phase::Shuffle(shuffle::D),
+        Phase::Decrypt(decrypt::D),
     ]
 }
 
@@ -121,10 +120,10 @@ pub(crate) fn run(predicates: &Vec<Predicate>) -> Result<HashSet<Action>, Protoc
 
 #[derive(Debug)]
 pub(crate) enum Phase {
-    Cfg(cfg::S),
-    Dkg(dkg::S),
-    Shuffle(shuffle::S),
-    Decrypt(decrypt::S),
+    Cfg(cfg::D),
+    Dkg(dkg::D),
+    Shuffle(shuffle::D),
+    Decrypt(decrypt::D),
 }
 
 impl Phase {

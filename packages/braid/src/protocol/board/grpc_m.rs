@@ -2,16 +2,40 @@ use anyhow::Result;
 
 use board_messages::grpc::{GrpcB3Message, KeyedMessages};
 
-use crate::protocol::board::Board;
 use board_messages::braid::message::Message;
 use board_messages::grpc::client::B3Client;
 
 use super::BoardFactory;
 
+/// A large upper bound on grpc message size.
+///
+/// In practice, message size is constrained by the
+/// smaller value board_messages::grpc::MAX_MESSAGE_SIZE
+/// that determines chunking behaviour.
 const MAX_MESSAGE_SIZE: usize = 10 * 1024 * 1024 * 1024;
+
+/// A large upper bound on grpc timeout.
 const GRPC_TIMEOUT: u64 = 5 * 60;
 
-impl BoardMulti for GrpcB3 {
+/// A grpc client of a braid bulletin board (B3).
+///
+/// Used to retrieve and post protocol messages from
+/// the bulletin board. This client implements both
+/// the standard client functions (super::Board) as
+/// well as their multiplexing versions (super::BoardMulti)
+pub struct GrpcB3 {
+    client: B3Client,
+}
+impl GrpcB3 {
+    /// Constructs a GrpcB3 that will query the target url.
+    pub fn new(url: &str) -> GrpcB3 {
+        let client = B3Client::new(url, MAX_MESSAGE_SIZE, GRPC_TIMEOUT);
+
+        GrpcB3 { client }
+    }
+}
+
+impl super::BoardMulti for GrpcB3 {
     type Factory = GrpcB3BoardParams;
 
     async fn get_messages_multi(
@@ -31,7 +55,7 @@ impl BoardMulti for GrpcB3 {
     }
 }
 
-impl Board for GrpcB3 {
+impl super::Board for GrpcB3 {
     type Factory = GrpcB3BoardParams;
     async fn get_messages(&mut self, board: &str, last_id: i64) -> Result<Vec<GrpcB3Message>> {
         let messages = self.client.get_messages(board, last_id).await?;
@@ -49,35 +73,52 @@ impl Board for GrpcB3 {
     }
 }
 
+/// A grpc client of a braid bulletin board (B3) index.
+///
+/// The bulletin board index lists all active and
+/// archived boards for which the protocol must be
+/// or has been run.
 pub struct GrpcB3Index {
     client: B3Client,
 }
 impl GrpcB3Index {
+    /// Constructs a GrpcB3Index that will query the target url.
     pub fn new(url: &str) -> GrpcB3Index {
         let client = B3Client::new(url, MAX_MESSAGE_SIZE, GRPC_TIMEOUT);
 
         GrpcB3Index { client }
     }
 
+    /// Returns the list of active boards from the index.
     pub async fn get_boards(&self) -> Result<Vec<String>> {
         let boards = self.client.get_boards().await?;
         let boards = boards.into_inner();
 
-        Ok(boards.boards)
+        let ret: Vec<String> = boards
+            .boards
+            .into_iter()
+            .filter(|b| Self::is_board_name_valid(b))
+            .collect();
+
+        Ok(ret)
+    }
+
+    /// Whether the board name is valid, as defined in
+    /// board_messages.
+    fn is_board_name_valid(name: &str) -> bool {
+        if board_messages::grpc::validate_board_name(name).is_ok() {
+            true
+        } else {
+            tracing::warn!("Received an invalid board name: {}", name);
+            false
+        }
     }
 }
 
-pub struct GrpcB3 {
-    client: B3Client,
-}
-impl GrpcB3 {
-    pub fn new(url: &str) -> GrpcB3 {
-        let client = B3Client::new(url, MAX_MESSAGE_SIZE, GRPC_TIMEOUT);
-
-        GrpcB3 { client }
-    }
-}
-
+/// The parameters necessary to construct a GrpcB3 client.
+///
+/// This object serves as a GrpcB3 client factory,
+/// implementing BoardFactory and BoardFactoryMulti.
 pub struct GrpcB3BoardParams {
     pub url: String,
 }
@@ -94,28 +135,10 @@ impl BoardFactory<GrpcB3> for GrpcB3BoardParams {
         GrpcB3::new(&self.url)
     }
 }
-impl BoardFactoryMulti<GrpcB3> for GrpcB3BoardParams {
+impl super::BoardFactoryMulti<GrpcB3> for GrpcB3BoardParams {
     fn get_board(&self) -> GrpcB3 {
         GrpcB3::new(&self.url)
     }
-}
-
-pub trait BoardMulti: Sized {
-    type Factory: BoardFactoryMulti<Self>;
-
-    fn get_messages_multi(
-        &self,
-        requests: &Vec<(String, i64)>,
-    ) -> impl std::future::Future<Output = Result<(Vec<KeyedMessages>, bool)>> + Send;
-
-    fn insert_messages_multi(
-        &self,
-        requests: Vec<(String, Vec<Message>)>,
-    ) -> impl std::future::Future<Output = Result<()>> + Send;
-}
-
-pub trait BoardFactoryMulti<B: BoardMulti>: Sized {
-    fn get_board(&self) -> B;
 }
 
 #[cfg(test)]
