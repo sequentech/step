@@ -30,6 +30,16 @@ const catalanTranslation: TranslationType = {
                 IMPORT_ELECTION_EVENT: "Importar esdeveniment electoral",
                 IMPORT_USERS: "Importar usuaris",
                 IMPORT_CANDIDATES: "Importar candidats",
+                EXPORT_VOTERS: "Exportar votants",
+                CREATE_TRANSMISSION_PACKAGE: "Crear paquet de transmissió",
+            },
+            widget: {
+                taskTitle: "Tasca: {{title}}",
+                viewTask: "Veure Tasca",
+            },
+            exportTasksExecution: {
+                success: "L'exportació s'ha completat amb èxit",
+                error: "Error en exportar l'Execució de Tasques",
             },
         },
         logsScreen: {
@@ -348,6 +358,7 @@ const catalanTranslation: TranslationType = {
                 numAllowedVotes: "Número de vots permesos",
                 reorder: "Reordenar concursos",
                 castVoteConfirm: "Modal de Confirmació de Vot",
+                gracePeriodPolicy: "Política de període de gràcia",
             },
             field: {
                 name: "Nom",
@@ -375,6 +386,12 @@ const catalanTranslation: TranslationType = {
                 voters: "Votants",
                 publish: "Publicar",
                 logs: "Registres",
+            },
+            gracePeriodPolicy: {
+                "label": "Política de període de gràcia",
+                "no-grace-period": "Sense període de gràcia",
+                "grace-period-without-alert": "Període de gràcia sense avís",
+                "gracePeriodSecs": "Període de gràcia (segons)",
             },
         },
         tenantScreen: {

@@ -14,7 +14,6 @@ import React, {useCallback, useContext, useEffect, useMemo, useRef, useState} fr
 import {WizardStyles} from "./styles/WizardStyles"
 import {TallyStyles} from "./styles/TallyStyles"
 import {MiruServers} from "./MiruServers"
-import {ExportButton} from "./MiruExport"
 import {MiruSignatures} from "./MiruSignatures"
 import {theme, DropFile, Dialog} from "@sequentech/ui-essentials"
 import {Logs} from "./Logs"
@@ -50,7 +49,6 @@ import {IPermissions} from "@/types/keycloak"
 import {useMutation} from "@apollo/client"
 import {SEND_TRANSMISSION_PACKAGE} from "@/queries/SendTransmissionPackage"
 import {UPLOAD_SIGNATURE} from "@/queries/UploadSignature"
-import {ITallyExecutionStatus} from "@/types/ceremonies"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {ElectionHeaderStyles} from "./styles/ElectionHeaderStyles"
 import {useAtomValue} from "jotai"
@@ -58,6 +56,9 @@ import {tallyQueryData} from "@/atoms/tally-candidates"
 import {CREATE_TRANSMISSION_PACKAGE} from "@/queries/CreateTransmissionPackage"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {translateElection} from "@sequentech/ui-core"
+import {ETasksExecution} from "@/types/tasksExecution"
+import {useWidgetStore} from "@/providers/WidgetsContextProvider"
+import {WidgetProps} from "@/components/Widget"
 
 interface IMiruExportWizardProps {}
 
@@ -85,6 +86,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
     const [passwordState, setPasswordState] = useState<string>("")
     const [signatureId, setSignatureId] = useState<string>("")
     const authContext = useContext(AuthContext)
+    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const isTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_CEREMONY)
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL, {
         context: {
@@ -481,9 +483,14 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
                 return
             }
 
+            let currWidget: WidgetProps | undefined
             try {
+                if (!isTrustee) {
+                    currWidget = addWidget(ETasksExecution.CREATE_TRANSMISSION_PACKAGE)
+                }
                 const {data: nextStatus, errors} = await CreateTransmissionPackage({
                     variables: {
+                        electionEventId: record?.id,
                         electionId: election_id,
                         tallySessionId: tallyId,
                         areaId: area_id,
@@ -492,20 +499,20 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
                 })
 
                 if (errors) {
-                    setRegenTransmissionLoading(false)
-                    notify(t("miruExport.create.error"), {type: "error"})
-                    return
-                }
-
-                if (nextStatus) {
-                    setRegenTransmissionLoading(false)
-                    notify(t("miruExport.create.success"), {type: "success"})
+                    currWidget && updateWidgetFail(currWidget.identifier)
+                    !currWidget && notify(t("miruExport.create.error"), {type: "error"})
+                } else if (nextStatus) {
+                    const task_id = nextStatus?.create_transmission_package?.task_execution?.id
+                    currWidget && setWidgetTaskId(currWidget.identifier, task_id)
+                    !currWidget && notify(t("miruExport.create.success"), {type: "success"})
                     handleMiruExportSuccess?.({area_id, election_id})
                 }
-            } catch (error) {
-                console.log(`Caught error: ${error}`)
                 setRegenTransmissionLoading(false)
-                notify(t("miruExport.create.error"), {type: "error"})
+            } catch (error) {
+                setRegenTransmissionLoading(false)
+                currWidget && updateWidgetFail(currWidget.identifier)
+                console.log(`Caught error: ${error}`)
+                !currWidget && notify(t("miruExport.create.error"), {type: "error"})
             }
         },
         [tallySessionData, tally]

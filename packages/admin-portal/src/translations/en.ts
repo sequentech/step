@@ -1,9 +1,7 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
-
-import {Placeholder} from "react-admin"
-
 // SPDX-License-Identifier: AGPL-3.0-only
+
 const englishTranslation = {
     translations: {
         loadingDataProvider: "Loading data provider...",
@@ -46,6 +44,16 @@ const englishTranslation = {
                 IMPORT_ELECTION_EVENT: "Import Election Event",
                 IMPORT_USERS: "Import Users",
                 IMPORT_CANDIDATES: "Import Candidates",
+                EXPORT_VOTERS: "Export Voters",
+                CREATE_TRANSMISSION_PACKAGE: "Create Transmission Package",
+            },
+            widget: {
+                taskTitle: "Task: {{title}}",
+                viewTask: "View Task",
+            },
+            exportTasksExecution: {
+                success: "Export finished successfully",
+                error: "Error exporting Tasks Execution",
             },
         },
         areas: {
@@ -346,6 +354,7 @@ const englishTranslation = {
                 numAllowedVotes: "Number of allowed votes",
                 reorder: "Reorder contests",
                 castVoteConfirm: "Cast Vote Confirmation Modal",
+                gracePeriodPolicy: "Grace Period",
             },
             field: {
                 name: "Name",
@@ -373,6 +382,12 @@ const englishTranslation = {
                 voters: "Voters",
                 publish: "Publish",
                 logs: "Logs",
+            },
+            gracePeriodPolicy: {
+                "label": "Grace Period Policy",
+                "no-grace-period": "No grace period",
+                "grace-period-without-alert": "Grace period without alert",
+                "gracePeriodSecs": "Grace period in seconds",
             },
         },
         tenantScreen: {

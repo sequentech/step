@@ -45,6 +45,16 @@ const tagalogTranslation: TranslationType = {
                 IMPORT_ELECTION_EVENT: "I-import ang Kaganapan sa Halalan",
                 IMPORT_USERS: "I-import ang mga Gumagamit",
                 IMPORT_CANDIDATES: "I-import ang mga Kandidato",
+                EXPORT_VOTERS: "I-export ang mga botante",
+                CREATE_TRANSMISSION_PACKAGE: "Lumikha ng Transmission Package",
+            },
+            widget: {
+                taskTitle: "Gawain: {{title}}",
+                viewTask: "Tingnan Ang Gawain",
+            },
+            exportTasksExecution: {
+                success: "Matagumpay na natapos ang pag-export",
+                error: "Error sa pag-export ng Tasks Execution",
             },
         },
         areas: {
@@ -347,6 +357,7 @@ const tagalogTranslation: TranslationType = {
                 numAllowedVotes: "Bilang ng pinapayagang boto",
                 reorder: "I-reorder ang mga paligsahan",
                 castVoteConfirm: "Modal ng Pagkumpirma ng Pagboto",
+                gracePeriodPolicy: "Patakaran sa Palugit",
             },
             field: {
                 name: "Pangalan",
@@ -374,6 +385,12 @@ const tagalogTranslation: TranslationType = {
                 voters: "Mga Botante",
                 publish: "I-publish",
                 logs: "Mga Log",
+            },
+            gracePeriodPolicy: {
+                "label": "Patakaran sa Palugit",
+                "no-grace-period": "Walang palugit",
+                "grace-period-without-alert": "Palugit na walang babala",
+                "gracePeriodSecs": "Palugit sa segundo",
             },
         },
         tenantScreen: {
