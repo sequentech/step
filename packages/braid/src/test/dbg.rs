@@ -251,14 +251,7 @@ fn mk_context<C: Ctx>(ctx: C, n_trustees: u8, threshold: &[usize]) -> ReplContex
             let kp = StrandSignatureSk::gen().unwrap();
             // let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
             let encryption_key = strand::symm::gen_key();
-            Trustee::new(
-                i.to_string(),
-                "foo".to_string(),
-                kp,
-                encryption_key,
-                None,
-                true,
-            )
+            Trustee::new(i.to_string(), "foo".to_string(), kp, encryption_key, None)
         })
         .collect();
 
@@ -376,7 +369,7 @@ fn ballots<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Opt
         .get_one::<String>("count")
         .and_then(|s| s.parse::<usize>().ok())
         .unwrap_or(10);
-    let dkgpk = context.trustees[0].get_dkg_public_key_nohash().unwrap();
+    let dkgpk = context.trustees[0]._get_dkg_public_key_nohash().unwrap();
 
     let pk_bytes = dkgpk.strand_serialize().unwrap();
     let pk_h = strand::hash::hash_to_array(&pk_bytes).unwrap();
@@ -432,7 +425,7 @@ fn plaintexts<C: Ctx>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result
 fn decrypted<C: Ctx>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
     // FIXME hardcoded batch 1, use command line argument
     let decryptor = context.selected_trustees[0] - 1;
-    if let Some(plaintexts) = context.trustees[decryptor].get_plaintexts_nohash(1, decryptor) {
+    if let Some(plaintexts) = context.trustees[decryptor]._get_plaintexts_nohash(1, decryptor) {
         let decrypted: Vec<C::E> = plaintexts
             .0
              .0

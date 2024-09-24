@@ -25,7 +25,9 @@ use crate::util::ProtocolError;
 use board_messages::braid::message::Message;
 use strand::context::Ctx;
 
-// How often the session map (with trustee's memory board) is cleared
+// How often the session map (with trustee's LocalBoard) is cleared
+// This will cause al messages in the LocalBoard to be reloaded from the
+// message store
 const SESSION_RESET_PERIOD: i64 = 20 * 60;
 
 pub struct SessionM<C: Ctx + 'static> {
@@ -213,8 +215,8 @@ impl SessionSet {
                     let empty = vec![];
                     let messages = km_map.get(k).unwrap_or(&empty);
 
-                    // We do not want to execute the trustee step when messages is pending, this
-                    // avoids executing superfluous work
+                    // We do not want to execute the trustee step when messages are pending; this
+                    // avoids executing superfluous work.
                     if truncated {
                         warn!("Received truncated messages, updating only..");
                         if let Err(err) = s.update_store(messages) {
@@ -285,15 +287,9 @@ pub struct SessionFactory {
     signing_key: StrandSignatureSk,
     symm_key: SymmetricKey,
     store_root: PathBuf,
-    no_cache: bool,
 }
 impl SessionFactory {
-    pub fn new(
-        trustee_name: &str,
-        cfg: TrusteeConfig,
-        store_root: PathBuf,
-        no_cache: bool,
-    ) -> Result<Self> {
+    pub fn new(trustee_name: &str, cfg: TrusteeConfig, store_root: PathBuf) -> Result<Self> {
         let signing_key: StrandSignatureSk =
             StrandSignatureSk::from_der_b64_string(&cfg.signing_key_sk)?;
 
@@ -309,7 +305,6 @@ impl SessionFactory {
             symm_key,
             signing_key,
             store_root,
-            no_cache,
         })
     }
 
@@ -322,7 +317,6 @@ impl SessionFactory {
             self.signing_key.clone(),
             self.symm_key,
             Some(self.store_root.join(&board_name)),
-            self.no_cache,
         );
 
         SessionM::new(board_name, trustee)

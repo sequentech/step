@@ -58,10 +58,10 @@ impl<C: Ctx> VectorSession<C> {
         batch: BatchNumber,
         signer_position: TrusteePosition,
     ) -> Option<Plaintexts<C>> {
-        self.trustee.get_plaintexts_nohash(batch, signer_position)
+        self.trustee._get_plaintexts_nohash(batch, signer_position)
     }
     pub(crate) fn get_dkg_public_key_nohash(&self) -> Option<DkgPublicKey<C>> {
-        self.trustee.get_dkg_public_key_nohash()
+        self.trustee._get_dkg_public_key_nohash()
     }
 }
 

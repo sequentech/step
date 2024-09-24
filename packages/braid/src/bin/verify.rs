@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// cargo run --bin verify -- --server-url http://[::1]:50051 --board testboard
+// cargo run --bin verify -- --b3-url http://[::1]:50051 --board testboard
 use anyhow::Result;
 use clap::Parser;
 use tracing::info;
@@ -51,7 +51,6 @@ async fn main() -> Result<()> {
         dummy_sk,
         dummy_encryption_key,
         None,
-        true,
     );
     let board = GrpcB3::new(&args.server_url);
     let mut session = Verifier::new(trustee, board, &args.board);

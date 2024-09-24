@@ -30,12 +30,13 @@ use super::ArtifactRef;
 // LocalBoard
 ///////////////////////////////////////////////////////////////////////////
 
-// A LocalBoard is a trustee's in-memory copy of a bulletin board. It is specific to a protocol
-// execution (session_id), referenced in the configuration
-//
-// Messages are composed of statements and optionally artifacts
-//
-// #[derive(Clone)] // FIXME used by dbg
+/// A LocalBoard is a trustee's view of a bulletin board, where by bulletin board
+/// we refer to one particular board, not the entire bulletin board system.
+/// As such a LocalBoard is specific to a protocol execution (session_id), referenced
+/// in the configuration
+///
+/// Messages are composed of statements and optionally artifacts
+///
 pub(crate) struct LocalBoard<C: Ctx> {
     pub(crate) configuration: Option<Configuration<C>>,
     cfg_hash: Option<Hash>,
@@ -57,23 +58,30 @@ pub(crate) struct LocalBoard<C: Ctx> {
     // This access to artifacts is done through specific type safe methods
     // that construct the keys to the underlying key value store, the hash is
     // checked on retrieval (it's not in the key)
-    pub(crate) artifacts: HashMap<ArtifactEntryIdentifier, (Hash, i64)>,
+    //
+    // In addition to the bulletin board information being held locally
+    // in memory, all messages are also persisted in a sqlite store,
+    // such that messages can never be modified or removed, only added,
+    // even if the trustee fails and is restarted. The reason the store
+    // is an option is to allow running the trustee for testing purposes
+    // or to run the verifier where the store is not necessary.
     pub(crate) store: Option<PathBuf>,
-    pub(crate) blob_store: Option<PathBuf>,
-    pub(crate) no_cache: bool,
+    // Depending on whether a store is available, artifact bytes can
+    // either be held in the store or in memory. If they are held in
+    // the store the i64 value points to the corresponding row.
+    pub(crate) artifacts: HashMap<ArtifactEntryIdentifier, (Hash, i64)>,
     pub(crate) artifacts_memory: HashMap<ArtifactEntryIdentifier, (Hash, Vec<u8>)>,
+    // For efficiency reasons, it is also possible to store the artifact
+    // bytes themselves in the filesystem. In that case the sqlite field
+    // for the artifact's bytes will be zero bytes.
+    pub(crate) blob_store: Option<PathBuf>,
 }
 
 impl<C: Ctx> LocalBoard<C> {
-    pub(crate) fn new(
-        store: Option<PathBuf>,
-        blob_store: Option<PathBuf>,
-        no_cache: bool,
-    ) -> LocalBoard<C> {
-        let nc = if store.is_none() { false } else { no_cache };
-
-        tracing::info!("LocalBoard no_cache: {}", nc);
-        tracing::info!("blob_store is {:?}", blob_store);
+    /// Construct an empty LocalBoard
+    pub(crate) fn new(store: Option<PathBuf>, blob_store: Option<PathBuf>) -> LocalBoard<C> {
+        tracing::info!("LocalBoard store is: {:?}", store);
+        tracing::info!("LocalBoard: blob_store is {:?}", blob_store);
 
         LocalBoard {
             configuration: None,
@@ -82,19 +90,24 @@ impl<C: Ctx> LocalBoard<C> {
             artifacts: HashMap::new(),
             store,
             blob_store,
-            no_cache: nc,
             artifacts_memory: HashMap::new(),
         }
     }
-    /*
-        n trustees
-        t threshold
-        b batches
-
-        DKG phase: 1 + 5n
-                            ballot  mix     mix signature     decrypt factors    plaintext + sig
-        Tally phase:    b * (1 +     t +    (t * (t - 1)) +    t +                 n)
-    */
+    /// Whether a protocol has finished.
+    ///
+    /// A protocol is finished when all dkg messages are present and all tally
+    /// messages are present given the existing batches.
+    ///
+    /// The number of messages for each phase are
+    ///    DKG phase: 1 + 5n
+    ///                        ballot  mix     mix signature     decrypt factors    plaintext + sig
+    ///    Tally phase:    b * (1 +     t +    (t * (t - 1)) +    t +                 n)
+    ///
+    /// where
+    /// n: trustees
+    /// t: threshold
+    /// b: batches
+    ///
     pub(crate) fn is_finished(&self) -> bool {
         let Some(cfg) = &self.configuration else {
             return false;
@@ -133,6 +146,11 @@ impl<C: Ctx> LocalBoard<C> {
     // Add messages to LocalBoard
     ///////////////////////////////////////////////////////////////////////////
 
+    /// Adds a message to the board.
+    ///
+    /// If the message comes from a store, the store_id must point to the row in the
+    /// sqlite store where the message originates. If there is no store this value is
+    /// ignored.
     pub(crate) fn add(
         &mut self,
         message: VerifiedMessage,
@@ -152,6 +170,11 @@ impl<C: Ctx> LocalBoard<C> {
     // in the board struct fields.
     ///////////////////////////////////////////////////////////////////////////
 
+    /// Bootstraps the board with a configuration message
+    ///
+    /// If the board has already been initialized the incoming
+    /// message will be ignored if it's identical to the existing
+    /// configuration. Otherwise an error will be raised.
     fn add_bootstrap(&mut self, message: VerifiedMessage) -> Result<(), ProtocolError> {
         let cfg_hash = message.statement.get_cfg_h();
 
@@ -202,6 +225,17 @@ impl<C: Ctx> LocalBoard<C> {
     // Other statements, including _signed_ configuration
     ///////////////////////////////////////////////////////////////////////////
 
+    /// Adds a non-bootstrap (not the configuration) message to the board.
+    ///
+    /// All messages that are not the configuration are added this way,
+    /// including configuration signatures. Messages can be stand alone
+    /// statements, or statements plus a binary artifact.
+    ///
+    /// If a statement that already existed in the board is received it
+    /// will be ignored if it is identical. Otherwise an error will be raised.
+    /// If an artifact that already existed in the board is received the
+    /// artifact and the statement will be ignored.
+    /// will be ignored if it is identical. Otherwise an error will be raised.
     fn add_message(
         &mut self,
         message: VerifiedMessage,
@@ -265,7 +299,7 @@ impl<C: Ctx> LocalBoard<C> {
                         ),
                     );
 
-                    if self.store.is_some() && self.no_cache {
+                    if self.store.is_some() {
                         self.artifacts
                             .insert(artifact_identifier, (artifact_hash, store_id));
                     } else {
@@ -296,15 +330,26 @@ impl<C: Ctx> LocalBoard<C> {
     // Raw accessors for Trustee
     ///////////////////////////////////////////////////////////////////////////
 
+    /// Returns the configuration hash.
+    ///
+    /// Used by the trustee for sanity checks.
     pub(crate) fn get_cfg_hash(&self) -> Option<Hash> {
         self.cfg_hash
     }
 
+    /// Returns the configuration.
+    ///
+    /// Used by the trustee for sanity checks as well
+    /// as for deriving the configuration predicate for
+    /// datalog.
     pub(crate) fn get_configuration_raw(&self) -> Option<Configuration<C>> {
         self.configuration.clone()
     }
 
-    pub(crate) fn get_entries(&self) -> Vec<BoardEntry> {
+    /// Returns all the statement entries.
+    ///
+    /// Used by the trustee to deriva all the datalog predicates.
+    pub(crate) fn get_statement_entries(&self) -> Vec<BoardEntry> {
         let ret: Vec<BoardEntry> = self
             .statements
             .iter()
@@ -321,6 +366,10 @@ impl<C: Ctx> LocalBoard<C> {
     // Artifact accessors for Actions (forwarded from Trustee)
     ///////////////////////////////////////////////////////////////////////////
 
+    /// Gets the Configuration, with a hash check
+    ///
+    /// If the configuration does not exist, or the supplied hash does not match
+    /// returns None. The trustee version of this function raises an error instead.
     pub(crate) fn get_configuration(
         &self,
         configuration_h: &ConfigurationHash,
@@ -338,6 +387,12 @@ impl<C: Ctx> LocalBoard<C> {
         None
     }
 
+    /// Gets a Channel, with a hash check.
+    ///
+    /// If the artifact does not exist, or the supplied hash does not match
+    /// an error is raised. The artifact bytes will be retrieved from the
+    /// store (or blob store or from memory and will be deserialized into
+    /// the expected struct.
     pub(crate) fn get_channel(
         &self,
         channel_h: &ChannelHash,
@@ -348,6 +403,12 @@ impl<C: Ctx> LocalBoard<C> {
         Ok(Channel::<C>::strand_deserialize(&bytes)?)
     }
 
+    /// Gets a Share, with a hash check.
+    ///
+    /// If the artifact does not exist, or the supplied hash does not match
+    /// an error is raised. The artifact bytes will be retrieved from the
+    /// store (or blob store or from memory and will be deserialized into
+    /// the expected struct.
     pub(crate) fn get_shares(
         &self,
         shares_h: &SharesHash,
@@ -358,6 +419,12 @@ impl<C: Ctx> LocalBoard<C> {
         Ok(Shares::strand_deserialize(&bytes)?)
     }
 
+    /// Gets the DkgPublicKey, with a hash check.
+    ///
+    /// If the artifact does not exist, or the supplied hash does not match
+    /// an error is raised. The artifact bytes will be retrieved from the
+    /// store (or blob store or from memory and will be deserialized into
+    /// the expected struct.
     pub(crate) fn get_dkg_public_key(
         &self,
         pk_h: &PublicKeyHash,
@@ -368,6 +435,12 @@ impl<C: Ctx> LocalBoard<C> {
         Ok(DkgPublicKey::<C>::strand_deserialize(&bytes)?)
     }
 
+    /// Gets Ballots, with a hash check.
+    ///
+    /// If the artifact does not exist, or the supplied hash does not match
+    /// an error is raised. The artifact bytes will be retrieved from the
+    /// store (or blob store or from memory and will be deserialized into
+    /// the expected struct.
     pub(crate) fn get_ballots(
         &self,
         b_h: &CiphertextsHash,
@@ -379,6 +452,12 @@ impl<C: Ctx> LocalBoard<C> {
         Ok(Ballots::<C>::strand_deserialize(&bytes)?)
     }
 
+    /// Gets a Mix, with a hash check.
+    ///
+    /// If the artifact does not exist, or the supplied hash does not match
+    /// an error is raised. The artifact bytes will be retrieved from the
+    /// store (or blob store or from memory and will be deserialized into
+    /// the expected struct.
     pub(crate) fn get_mix(
         &self,
         m_h: &CiphertextsHash,
@@ -390,6 +469,12 @@ impl<C: Ctx> LocalBoard<C> {
         Ok(Mix::<C>::strand_deserialize(&bytes)?)
     }
 
+    /// Gets DecryptionFactors, with a hash check.
+    ///
+    /// If the artifact does not exist, or the supplied hash does not match
+    /// an error is raised. The artifact bytes will be retrieved from the
+    /// store (or blob store or from memory and will be deserialized into
+    /// the expected struct.
     pub(crate) fn get_decryption_factors(
         &self,
         d_h: &DecryptionFactorsHash,
@@ -406,6 +491,12 @@ impl<C: Ctx> LocalBoard<C> {
         Ok(DecryptionFactors::<C>::strand_deserialize(&bytes)?)
     }
 
+    /// Gets Plaintexts, with a hash check.
+    ///
+    /// If the artifact does not exist, or the supplied hash does not match
+    /// an error is raised. The artifact bytes will be retrieved from the
+    /// store (or blob store or from memory and will be deserialized into
+    /// the expected struct.
     pub(crate) fn get_plaintexts(
         &self,
         p_h: &PlaintextsHash,
@@ -418,9 +509,88 @@ impl<C: Ctx> LocalBoard<C> {
     }
 
     ///////////////////////////////////////////////////////////////////////////
+    // Artifact retrieval commonality
+    //////////////////////////////////////////////////////////////////////////
+
+    /// Returns a dkg artifact bytes from the store, with hash check.
+    ///
+    /// If the artifact does not exist, or the supplied hash does not match
+    /// an error is raised. The artifact bytes will be retrieved from the
+    /// store (or blob store) or from memory.
+    ///
+    /// Dkg artifacts have their batch and mixnumber set to 0.
+    fn get_dkg_artifact(
+        &self,
+        kind: StatementType,
+        hash: Hash,
+        signer_position: TrusteePosition,
+    ) -> Result<ArtifactRef<Vec<u8>>, ProtocolError> {
+        self.get_artifact(kind, hash, signer_position, 0)
+    }
+
+    /// Returns an artifact bytes from the store, with hash check.
+    ///
+    /// If the artifact does not exist, or the supplied hash does not match
+    /// an error is raised. The artifact bytes will be retrieved from the
+    /// store (or blob store) or from memory.
+    ///
+    /// All artifacts have their mix number set to 0. Only
+    /// mix signature _statements_ have a mix number != 0.
+    fn get_artifact(
+        &self,
+        kind: StatementType,
+        hash: Hash,
+        signer_position: TrusteePosition,
+        batch: BatchNumber,
+    ) -> Result<ArtifactRef<Vec<u8>>, ProtocolError> {
+        // Mix number is always zero for all artifacts, only a signed mix _statement_ has a mixnumber
+        let aei = self.get_artifact_entry_identifier_ext(kind.clone(), signer_position, batch, 0);
+
+        let bytes = if self.store.is_some() {
+            let entry = self
+                .artifacts
+                .get(&aei)
+                .ok_or(ProtocolError::MissingArtifact(kind.clone()))?;
+
+            if hash != entry.0 {
+                return Err(ProtocolError::MismatchedArtifactHash(kind));
+            } else {
+                let bytes = self.get_artifact_from_store(entry.1);
+
+                let Ok(bytes) = bytes else {
+                    error!("Error retrieving artifact: {}", bytes.err().unwrap());
+                    return Err(ProtocolError::MissingArtifact(kind));
+                };
+
+                ArtifactRef::Owned(bytes)
+            }
+        } else {
+            let entry = self
+                .artifacts_memory
+                .get(&aei)
+                .ok_or(ProtocolError::MissingArtifact(kind.clone()))?;
+
+            if hash != entry.0 {
+                return Err(ProtocolError::MismatchedArtifactHash(kind));
+            } else {
+                ArtifactRef::Ref(&entry.1)
+            }
+        };
+
+        Ok(bytes)
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
     // LocalBoard key construction
     ///////////////////////////////////////////////////////////////////////////
 
+    /// Constructs statement entry keys.
+    ///
+    /// Statement entry keys data structures contain the
+    /// identifying information that makes them unique,
+    /// there can not be more than one per board.
+    /// This together with a persistent store makes
+    /// the board append only.
     pub(crate) fn get_statement_entry_identifier(
         &self,
         statement: &Statement,
@@ -435,6 +605,11 @@ impl<C: Ctx> LocalBoard<C> {
             mix_number: mix_number,
         }
     }
+    /// Constructs artifact entry keys from a statement entry key.
+    ///
+    /// Artifact entry keys are entirely
+    /// identified by their originating statements.
+    /// Like statements, they are also unique.
     pub(crate) fn get_artifact_entry_identifier(
         &self,
         statement_entry: &StatementEntryIdentifier,
@@ -447,6 +622,11 @@ impl<C: Ctx> LocalBoard<C> {
         )
     }
 
+    /// Constructs artifact entry keys.
+    ///
+    /// Artifact entry keys are entirely
+    /// identified by their originating statements.
+    /// Like statements, they are also unique.
     pub(crate) fn get_artifact_entry_identifier_ext(
         &self,
         statement_type: StatementType,
@@ -469,9 +649,14 @@ impl<C: Ctx> LocalBoard<C> {
     // Message store
     ///////////////////////////////////////////////////////////////////////////
 
-    // Updates the message store with the passed in messages. This method can
-    // be called independently of step, to only update the store (when a truncated
-    // message is received from the bulletin board)
+    /// Updates the message store with the supplied remote messages
+    ///
+    /// This method can be called independently of step, to only update the store
+    /// (when a truncated message is received from the bulletin board)
+    ///
+    /// Messages are deserialized to recover metadata, and then stored.
+    /// If a blob store exists, bytes will be stored in the filesystem, and
+    /// the message store will only contain the metadata.
     pub(crate) fn update_store(
         &self,
         messages: &Vec<GrpcB3Message>,
@@ -549,6 +734,15 @@ impl<C: Ctx> LocalBoard<C> {
         Ok(())
     }
 
+    /// Updates the message store and returns messages not yet in the board.
+    ///
+    /// First, the message store is updated with remote messages. Then the
+    /// store is queried for messages that the board has not yet seen, as
+    /// specified by last_message_id. This parameter refers to the last
+    /// message id that the board _has_ seen.
+    ///
+    /// If a blob store exists, the message bytes will be retrieved from it
+    /// and combined with the metadata in the message store.
     pub(crate) fn store_and_return_messages(
         &mut self,
         messages: &Vec<GrpcB3Message>,
@@ -602,7 +796,12 @@ impl<C: Ctx> LocalBoard<C> {
         messages
     }
 
-    // Returns the largest id stored in the local message store
+    /// Returns the largest id stored in the message store.
+    ///
+    /// If the store is empty -1 will be returned as a lower bound
+    /// on all possible message ids. Note that the last external id
+    /// seen by the store is _not_ the same as the last message id
+    /// seen by the board.
     pub(crate) fn get_last_external_id(&mut self) -> Result<i64> {
         let connection = self.get_store()?;
 
@@ -616,6 +815,11 @@ impl<C: Ctx> LocalBoard<C> {
         Ok(external_last_id)
     }
 
+    /// Returns a specific's artifact bytes from the store.
+    ///
+    /// The store_id identifies the requested artifact. If a
+    /// blob store exists, the bytes will be retrieved from it.
+    /// Otherwise the bytes will be directly in the message store.
     fn get_artifact_from_store(&self, store_id: i64) -> Result<Vec<u8>> {
         let connection = self.get_store()?;
         let mut stmt =
@@ -666,15 +870,27 @@ impl<C: Ctx> LocalBoard<C> {
         Ok(bytes)
     }
 
+    /// Returns a connection to the message store.
+    ///
+    /// If the messages table does not exist it is created.
+    ///
+    /// The autogenerated id column is used to establish an order that cannot be
+    /// manipulated by the external board. Once a retrieved message is
+    /// stored and assigned a local id, it is not possible for later messages
+    /// to have an earlier id. The external bulletin board can therefore
+    /// not alter history by prepending messages.
+    /// See https://www.sqlite.org/autoinc.html
+    /// Note also that messages store update functions are never called
+    /// concurrently per board.
+    ///
+    /// The external_id column is used to retrieve _new_ messages as
+    /// defined by the external board.
     fn get_store(&self) -> Result<Connection> {
         let store = self.store.as_ref().ok_or(anyhow::anyhow!(
             "Should be impossible: called get_store when store was None"
         ))?;
         let connection = Connection::open(&store)?;
-        // The autogenerated id column is used to establish an order that cannot be manipulated by the external board. Once a retrieved message is
-        // stored and assigned a local id, it is not possible for later messages to have an earlier id.
-        // The external_id column is used to retrieve _new_ messages as defined by the external board (to optimize bandwidth).
-        // connection.execute("CREATE TABLE if not exists MESSAGES(id INTEGER PRIMARY KEY AUTOINCREMENT, external_id INT8 NOT NULL UNIQUE, message BLOB NOT NULL, blob_hash TEXT NOT NULL UNIQUE)", [])?;
+
         connection.execute("CREATE TABLE if not exists MESSAGES(id INTEGER PRIMARY KEY AUTOINCREMENT, external_id INT8 NOT NULL UNIQUE, message BLOB NOT NULL, sender_pk TEXT NOT NULL, statement_kind TEXT NOT NULL, batch INT4 NOT NULL, mix_number INT4 NOT NULL, UNIQUE(sender_pk, statement_kind, batch, mix_number))", [])?;
 
         Ok(connection)
@@ -711,64 +927,6 @@ impl<C: Ctx> LocalBoard<C> {
         let entry = self.artifacts_memory.get(&aei)?;
 
         Plaintexts::<C>::strand_deserialize(&entry.1).ok()
-    }
-
-    ///////////////////////////////////////////////////////////////////////////
-    // Artifact retrieval commonality
-    //////////////////////////////////////////////////////////////////////////
-
-    fn get_dkg_artifact(
-        &self,
-        kind: StatementType,
-        hash: Hash,
-        signer_position: TrusteePosition,
-    ) -> Result<ArtifactRef<Vec<u8>>, ProtocolError> {
-        self.get_artifact(kind, hash, signer_position, 0)
-    }
-
-    // Gets an artifact from the store or the bytes cache
-    fn get_artifact(
-        &self,
-        kind: StatementType,
-        hash: Hash,
-        signer_position: TrusteePosition,
-        batch: BatchNumber,
-    ) -> Result<ArtifactRef<Vec<u8>>, ProtocolError> {
-        // Mix number is always zero for all artifacts, only a signed mix _statement_ has a mixnumber
-        let aei = self.get_artifact_entry_identifier_ext(kind.clone(), signer_position, batch, 0);
-
-        let bytes = if self.store.is_some() && self.no_cache {
-            let entry = self
-                .artifacts
-                .get(&aei)
-                .ok_or(ProtocolError::MissingArtifact(kind.clone()))?;
-
-            if hash != entry.0 {
-                return Err(ProtocolError::MismatchedArtifactHash(kind));
-            } else {
-                let bytes = self.get_artifact_from_store(entry.1);
-
-                let Ok(bytes) = bytes else {
-                    error!("Error retrieving artifact: {}", bytes.err().unwrap());
-                    return Err(ProtocolError::MissingArtifact(kind));
-                };
-
-                ArtifactRef::Owned(bytes)
-            }
-        } else {
-            let entry = self
-                .artifacts_memory
-                .get(&aei)
-                .ok_or(ProtocolError::MissingArtifact(kind.clone()))?;
-
-            if hash != entry.0 {
-                return Err(ProtocolError::MismatchedArtifactHash(kind));
-            } else {
-                ArtifactRef::Ref(&entry.1)
-            }
-        };
-
-        Ok(bytes)
     }
 }
 

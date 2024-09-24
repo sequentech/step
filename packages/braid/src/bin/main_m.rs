@@ -36,13 +36,10 @@ cfg_if::cfg_if! {
 #[derive(Parser)]
 struct Cli {
     #[arg(short, long)]
-    server_url: String,
+    b3_url: String,
 
     #[arg(short, long)]
     trustee_config: PathBuf,
-
-    #[arg(short, long, default_value_t = false)]
-    no_cache: bool,
 
     #[arg(short, long, default_value_t = 2)]
     tokio_workers: usize,
@@ -65,14 +62,29 @@ fn main() -> Result<()> {
     runtime.block_on(async { run(&args).await })
 }
 
-/*
-Entry point for a braid mixnet trustee.
-
-Example run command
-
-cargo run --release --bin main_m -- --server-url --server-url http://127.0.0.1:50051 --trustee-config trustee.toml
-
-*/
+/// Entry point for a braid mixnet trustee.
+///
+/// This version supports concurrency, multiplexing and chunking.
+///
+/// Concurrency
+/// There are 3 levels of concurrency:
+/// 1) Session workers (SessionSet) run as tokio threads, as per args.tokio_workers and args.session_workers.
+/// 2) Inferred Actions run in a rayon collection (limited by the trustees action_parallelism parameter).
+/// 3) Strand's extensive use of rayon collections.
+///
+/// Multiplexing
+///
+/// Each SessionSet will multiplex bulletin board requests and responses across its member Sessions.
+///
+/// Chunking
+///
+/// Multiplexed requests will be chunked. Truncated responses from the bulletin board will be followed
+/// up.
+///
+/// Example run command
+///
+/// cargo run --release --bin main_m -- --b3-url http://127.0.0.1:50051 --trustee-config trustee.toml
+///
 #[instrument(skip_all)]
 async fn run(args: &Cli) -> Result<()> {
     braid::util::init_log(true);
@@ -115,18 +127,18 @@ async fn run(args: &Cli) -> Result<()> {
             .unwrap(),
     );
 
-    let factory = SessionFactory::new(&trustee_name, tc, store_root, args.no_cache)?;
-    let mut master = SessionMaster::new(&args.server_url, factory, args.session_workers)?;
+    let factory = SessionFactory::new(&trustee_name, tc, store_root)?;
+    let mut master = SessionMaster::new(&args.b3_url, factory, args.session_workers)?;
 
     loop {
-        let b3index = GrpcB3Index::new(&args.server_url);
+        let b3index = GrpcB3Index::new(&args.b3_url);
         let boards_result = b3index.get_boards().await;
 
         let Ok(mut boards) = boards_result else {
             error!(
                 "Error listing board names: '{}' ({})",
                 boards_result.err().unwrap(),
-                args.server_url
+                args.b3_url
             );
             sleep(Duration::from_millis(1000)).await;
             continue;

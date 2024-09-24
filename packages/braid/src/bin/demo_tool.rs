@@ -109,13 +109,13 @@ The sequence of steps to run a demo election are
     3) Launch each of the trustees (each in their own directory)
 
        cd demo/1
-       cargo run --manifest-path ../../Cargo.toml --target-dir ../../rust-local-target --release --bin main  -- --server-url http://[::1]:50051 --trustee-config trustee1.toml
+       cargo run --manifest-path ../../Cargo.toml --target-dir ../../rust-local-target --release --bin main  -- --b3-url http://[::1]:50051 --trustee-config trustee1.toml
 
        cd demo/2
-       cargo run --manifest-path ../../Cargo.toml --target-dir ../../rust-local-target --release --bin main  -- --server-url http://[::1]:50051 --trustee-config trustee2.toml
+       cargo run --manifest-path ../../Cargo.toml --target-dir ../../rust-local-target --release --bin main  -- --b3-url http://[::1]:50051 --trustee-config trustee2.toml
 
        cd demo/3
-       cargo run --manifest-path ../../Cargo.toml --target-dir ../../rust-local-target --release --bin main  -- --server-url http://[::1]:50051 --trustee-config trustee3.toml
+       cargo run --manifest-path ../../Cargo.toml --target-dir ../../rust-local-target --release --bin main  -- --b3-url http://[::1]:50051 --trustee-config trustee3.toml
 
     4) Wait until the distributed key generation process has finished. You can check that this process is complete
        by listing the messages in the protocol board and looking for "PublicKey".
@@ -303,7 +303,7 @@ fn gen_configs<C: Ctx>(n_trustees: usize, threshold: &[usize]) -> Result<()> {
         let path = path.join("run.sh");
         if !Path::exists(&path) {
             let mut file = File::create(path)?;
-            let run = "cargo run --manifest-path ../../Cargo.toml --release --bin main -- --server-url http://127.0.0.1:50051 --trustee-config trustee.toml";
+            let run = "cargo run --manifest-path ../../Cargo.toml --release --bin main -- --b3-url http://127.0.0.1:50051 --trustee-config trustee.toml";
             file.write_all(run.as_bytes())?;
         }
     }

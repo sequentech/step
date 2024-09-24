@@ -120,19 +120,6 @@ impl B3Client {
 
         Ok(responses)
 
-        /* let mut rs = vec![];
-        for r in requests {
-            let next = Self::put_messages_request(&r.0, &r.1);
-            rs.push(next?);
-        }
-
-        let put_request = PutMessagesMultiRequest { requests: rs };
-        let put_request = Request::new(put_request);
-
-        let mut client = self.get_grpc_client().await?;
-        let response = client.put_messages_multi(put_request).await?;
-
-        Ok(response)*/
     }
 
     async fn put_message_batch(

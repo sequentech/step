@@ -34,60 +34,71 @@ use strand::symm::{self, EncryptionData};
 
 const RETRIEVE_ALL_MESSAGES_PERIOD: i64 = 60 * 60;
 
-///////////////////////////////////////////////////////////////////////////
-// Trustee
-//
-// Represents the instantiation of a trustee within a specific protocol
-// session. Runs the main loop for the trustee's participation in the session.
-//
-// 1) Receive messages from RemoteBoard
-// 2) Update LocalBoard with Statements and Artifacts
-// 3) Derive Predicates from Statements on LocalBoard
-// 4) Invoke Datalog with input predicates
-//      4.1) Pass output predicates from 4) to subsequent datalog Phases
-// 5) Run Actions resulting from 4)
-// 6) Return resulting Messages for subsequent posting on RemoteBoard
-//
-// Does not post the messages itself.
-///////////////////////////////////////////////////////////////////////////
-
+/// A session-specific protocol trustee
+///
+/// Represents the instantiation of a trustee within a specific protocol
+/// session. Runs the main loop for the trustee's participation in the session.
+/// Contains a LocalBoard, a view of the bulletin board.
+///
+/// 1) Receive remote messages from the bulletin board
+/// 2) Update LocalBoard with Statements and Artifacts
+/// 3) Derive Predicates from Statements on LocalBoard
+/// 4) Invoke Datalog with input predicates
+///      4.1) Pass output predicates from 4) to subsequent datalog Phases
+/// 5) Run Actions resulting from 4)
+/// 6) Return resulting Messages for subsequent posting on RemoteBoard
+///
+/// Does not post the messages itself.
+///
+/// The signing_key_sk is used to sign signatures
+/// which are verified by the signing_key_pk
+/// on the receiving end.
+///
+/// The encryption_key is used to symmetrically
+/// encrypt elgamal private keys used for
+/// trustees to send Shares messages privately.
+/// This information is published on the bulletin board
+/// in Channel objects.
+///
+/// The action_parallelism value determines the maximum number
+/// of actions that can be executed in parallel. Higher
+/// values may increase core utilization, but also
+/// peak memory usage.
 pub struct Trustee<C: Ctx> {
     pub(crate) name: String,
+    #[allow(dead_code)]
     pub(crate) board_name: String,
     pub(crate) signing_key: StrandSignatureSk,
     pub(crate) encryption_key: symm::SymmetricKey,
     pub(crate) local_board: LocalBoard<C>,
+    // FIXME consider moving this into LocalBoard. This field would be
+    // updated in LocalBoard when calling add, instead of being returned to
+    // the calling Trustee
     pub(crate) last_message_id: i64,
     pub(crate) step_counter: i64,
     pub(crate) action_parallelism: usize,
 }
 
-impl<C: Ctx> board_messages::braid::message::Signer for Trustee<C> {
-    fn get_signing_key(&self) -> &StrandSignatureSk {
-        &self.signing_key
-    }
-    fn get_name(&self) -> String {
-        self.name.clone()
-    }
-}
-
 impl<C: Ctx> Trustee<C> {
+    /// Constructs a trustee instance.
+    ///
+    /// A trustee instance exists in the context of a session, and therefore
+    /// specific board.
     pub fn new(
         name: String,
         board_name: String,
         signing_key: StrandSignatureSk,
         encryption_key: symm::SymmetricKey,
         store: Option<PathBuf>,
-        no_cache: bool,
     ) -> Trustee<C> {
         let action_parallelism = 10;
 
         info!(
-            "Trustee {} created, no_cache = {}, action_parallelism = {}",
-            name, no_cache, action_parallelism
+            "Trustee {} created, store = {:?}, action_parallelism = {}",
+            name, store, action_parallelism
         );
-        // let blob_root = std::env::current_dir().unwrap().join("blobs");
-        let local_board = LocalBoard::new(store, None, no_cache);
+        // let blob_root = Some(PathBuf::from("./blobs").join(&board_name));
+        let local_board = LocalBoard::new(store, None);
 
         Trustee {
             name,
@@ -105,6 +116,10 @@ impl<C: Ctx> Trustee<C> {
     // Protocol step: update->derive predicates->infer&run
     ///////////////////////////////////////////////////////////////////////////
 
+    /// Executes one step of the protocol main loop
+    ///
+    /// Typically: update store => update board => derive predicates => infer actions
+    /// run actions => return resulting messages.
     #[instrument(name = "Trustee::step", skip(messages, self), level="trace"in)]
     pub(crate) fn step(
         &mut self,
@@ -156,27 +171,14 @@ impl<C: Ctx> Trustee<C> {
     // Update
     ///////////////////////////////////////////////////////////////////////////
 
-    #[instrument(name = "Trustee::update_local_board", skip_all, level = "trace")]
-    // Takes a vector of (message, message_id) pairs as input, returns a pair of (updated messages count, last message id added)
-    pub(crate) fn update_local_board(
-        &mut self,
-        messages: Vec<(Message, i64)>,
-    ) -> Result<(i64, i64), ProtocolError> {
-        let configuration = self.local_board.get_configuration_raw();
-        if let Some(configuration) = configuration {
-            self.update(messages, configuration)
-        } else {
-            self.update_bootstrap(messages)
-        }
-    }
-
-    // Updates the message store, but not the local board
-    pub(crate) fn update_store(&self, messages: &Vec<GrpcB3Message>) -> Result<(), ProtocolError> {
-        self.local_board
-            .update_store(messages, false)
-            .map_err(|e| ProtocolError::BoardError(format!("{}", e)))
-    }
-
+    /// Updates the message store and returns messages not yet in the board.
+    ///
+    /// Called as part of the normal step update sequence
+    /// 1) Retrieve remote messages
+    /// 2) Store them in the message store
+    /// 3) Update the LocalBoard statements and artifacts
+    ///
+    /// The messages not yet in the board are selected with id > self.last_message_id
     pub(crate) fn store_and_return_messages(
         &mut self,
         messages: &Vec<GrpcB3Message>,
@@ -188,13 +190,34 @@ impl<C: Ctx> Trustee<C> {
             .map_err(|e| ProtocolError::BoardError(format!("{}", e)))
     }
 
-    // Returns the largest id stored in the local message store
+    /// Updates the message store only, not the local board.
+    ///
+    /// Used when the remote bulletin board returns a truncated response
+    /// indicating that a further request must be made before inferring any
+    /// new Actions.
+    pub(crate) fn update_store(&self, messages: &Vec<GrpcB3Message>) -> Result<(), ProtocolError> {
+        self.local_board
+            .update_store(messages, false)
+            .map_err(|e| ProtocolError::BoardError(format!("{}", e)))
+    }
+
+    /// Returns the largest id stored in the local message store
+    ///
+    /// The session will requests messages for id > last_external_id from
+    /// the bulletin board.
+    ///
+    /// Every RETRIEVE_ALL_MESSAGES_PERIOD a full refresh will be triggered,
+    /// where all messages will be requested from the bulletin board.
+    /// This is not a reset, local messages will persist and cannot
+    /// be overriden. Rather it is a defensive mechanism against unknown errors
+    /// that may cause an incomplete local view of the bulletin board
+    /// and cause the protocol to get stuck.
     pub fn get_last_external_id(&mut self) -> Result<i64, ProtocolError> {
         self.step_counter = (self.step_counter + 1) % i64::MAX;
         // in the event that there are holes, a full update will eventually load missing
         // messages from the remote board
-        let reset = self.step_counter % RETRIEVE_ALL_MESSAGES_PERIOD == 0;
-        let external_last_id = if reset {
+        let refresh = self.step_counter % RETRIEVE_ALL_MESSAGES_PERIOD == 0;
+        let external_last_id = if refresh {
             info!(
                 "* Full update from remote board (step = {})",
                 self.step_counter
@@ -209,6 +232,24 @@ impl<C: Ctx> Trustee<C> {
         };
 
         Ok(external_last_id)
+    }
+
+    /// Updates the LocalBoard, inserting new messages into the the statements and
+    /// artifact maps.
+    ///
+    /// Takes a vector of (message, message_id) pairs as input, returns a pair
+    /// of (updated messages count, last message id added)
+    #[instrument(name = "Trustee::update_local_board", skip_all, level = "trace")]
+    fn update_local_board(
+        &mut self,
+        messages: Vec<(Message, i64)>,
+    ) -> Result<(i64, i64), ProtocolError> {
+        let configuration = self.local_board.get_configuration_raw();
+        if let Some(configuration) = configuration {
+            self.update(messages, configuration)
+        } else {
+            self.update_bootstrap(messages)
+        }
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -348,6 +389,12 @@ impl<C: Ctx> Trustee<C> {
     ///////////////////////////////////////////////////////////////////////////
     // derive
     ///////////////////////////////////////////////////////////////////////////
+
+    /// Derives predicates from the statements in the LocalBoard.
+    ///
+    /// Verifying mode: used to derive a configuration predicate specific
+    /// to running the verifier. This predicate will identify this trustee
+    /// as a strict observer, only deriving verification Actions.
     #[instrument(name = "Trustee::derive_predicates", skip(self), level = "trace")]
     fn derive_predicates(&self, verifying_mode: bool) -> Result<Vec<Predicate>, ProtocolError> {
         let mut predicates = vec![];
@@ -365,7 +412,7 @@ impl<C: Ctx> Trustee<C> {
         trace!("Adding bootstrap predicate {:?}", configuration_p);
         predicates.push(configuration_p?);
 
-        let entries = self.local_board.get_entries();
+        let entries = self.local_board.get_statement_entries();
 
         let stmts: Vec<String> = entries.iter().map(|s| s.key.kind.to_string()).collect();
         trace!(
@@ -392,6 +439,11 @@ impl<C: Ctx> Trustee<C> {
     // infer&run
     ///////////////////////////////////////////////////////////////////////////
 
+    /// Runs the datalog engine and inferred Actions.
+    ///
+    /// Verifying mode: used to execute Actions in verifying mode.
+    /// In this mode only those actions that are relevant to verification
+    /// are run.
     fn infer_and_run_actions(
         &self,
         predicates: &Vec<Predicate>,
@@ -418,7 +470,7 @@ impl<C: Ctx> Trustee<C> {
             trace!("-- Idle --");
         }
 
-        // If there are more than batch_parallelism actions they will be skipped
+        // If there are more than self.action_parallelism actions they will be skipped
         // until the next step.
         let actions: Vec<Action> = actions.into_iter().take(self.action_parallelism).collect();
 
@@ -453,6 +505,9 @@ impl<C: Ctx> Trustee<C> {
     // Trustee verifying mode
     ///////////////////////////////////////////////////////////////////////////
 
+    /// Runs the trustee in verifying mode.
+    ///
+    /// This function is used as part of the braid verifier.
     pub(crate) fn verify(&mut self, messages: Vec<(Message, i64)>) -> Result<Vec<Message>> {
         self.update_local_board(messages)?;
 
@@ -466,6 +521,12 @@ impl<C: Ctx> Trustee<C> {
     // Artifact accessors for Actions
     ///////////////////////////////////////////////////////////////////////////
 
+    /// Gets the Configuration, with a hash check
+    ///
+    /// If the configuration does not exist, or the supplied hash does not match
+    /// an error is raised.
+    ///
+    /// Used by Actions.
     pub(crate) fn get_configuration(
         &self,
         hash: &ConfigurationHash,
@@ -475,6 +536,12 @@ impl<C: Ctx> Trustee<C> {
             .ok_or(ProtocolError::MissingArtifact(StatementType::Configuration))
     }
 
+    /// Gets a Channel, with a hash check.
+    ///
+    /// If the artifact does not exist, or the supplied hash does not match
+    /// an error is raised.
+    ///
+    /// Used by Actions.
     pub(crate) fn get_channel(
         &self,
         hash: &ChannelHash,
@@ -483,6 +550,12 @@ impl<C: Ctx> Trustee<C> {
         self.local_board.get_channel(hash, signer_position)
     }
 
+    /// Gets a Share, with a hash check.
+    ///
+    /// If the artifact does not exist, or the supplied hash does not match
+    /// an error is raised.
+    ///
+    /// Used by Actions.
     pub(crate) fn get_shares(
         &self,
         hash: &SharesHash,
@@ -491,6 +564,12 @@ impl<C: Ctx> Trustee<C> {
         self.local_board.get_shares(hash, signer_position)
     }
 
+    /// Gets the DkgPublicKey, with a hash check.
+    ///
+    /// If the artifact does not exist, or the supplied hash does not match
+    /// an error is raised.
+    ///
+    /// Used by Actions.
     pub(crate) fn get_dkg_public_key(
         &self,
         hash: &PublicKeyHash,
@@ -499,6 +578,12 @@ impl<C: Ctx> Trustee<C> {
         self.local_board.get_dkg_public_key(hash, signer_position)
     }
 
+    /// Gets Ballots, with a hash check.
+    ///
+    /// If the artifact does not exist, or the supplied hash does not match
+    /// an error is raised.
+    ///
+    /// Used by Actions.
     pub(crate) fn get_ballots(
         &self,
         hash: &CiphertextsHash,
@@ -508,6 +593,12 @@ impl<C: Ctx> Trustee<C> {
         self.local_board.get_ballots(hash, batch, signer_position)
     }
 
+    /// Gets a Mix, with a hash check.
+    ///
+    /// If the artifact does not exist, or the supplied hash does not match
+    /// an error is raised.
+    ///
+    /// Used by Actions.
     pub(crate) fn get_mix(
         &self,
         hash: &CiphertextsHash,
@@ -517,6 +608,12 @@ impl<C: Ctx> Trustee<C> {
         self.local_board.get_mix(hash, batch, signer_position)
     }
 
+    /// Gets DecryptionFactors, with a hash check.
+    ///
+    /// If the artifact does not exist, or the supplied hash does not match
+    /// an error is raised.
+    ///
+    /// Used by Actions.
     pub(crate) fn get_decryption_factors(
         &self,
         hash: &DecryptionFactorsHash,
@@ -527,6 +624,12 @@ impl<C: Ctx> Trustee<C> {
             .get_decryption_factors(hash, batch, signer_position)
     }
 
+    /// Gets Plaintexts, with a hash check.
+    ///
+    /// If the artifact does not exist, or the supplied hash does not match
+    /// an error is raised.
+    ///
+    /// Used by Actions.
     pub(crate) fn get_plaintexts(
         &self,
         hash: &PlaintextsHash,
@@ -537,33 +640,26 @@ impl<C: Ctx> Trustee<C> {
             .get_plaintexts(hash, batch, signer_position)
     }
 
-    // FIXME "outside" function
-    pub fn get_dkg_public_key_nohash(&self) -> Option<DkgPublicKey<C>> {
-        self.local_board.get_dkg_public_key_nohash(0)
-    }
-
-    // FIXME "outside" function
-    pub fn get_plaintexts_nohash(
-        &self,
-        batch: BatchNumber,
-        signer_position: TrusteePosition,
-    ) -> Option<Plaintexts<C>> {
-        self.local_board
-            .get_plaintexts_nohash(batch, signer_position)
-    }
-
     ///////////////////////////////////////////////////////////////////////////
 
+    /// Whether the protocol run is complete.
+    ///
+    /// A run is completed when all expected messages have
+    /// been posted (modulo batch count)
     #[allow(dead_code)]
     pub(crate) fn is_finished(&self) -> bool {
         self.local_board.is_finished()
     }
 
     pub(crate) fn is_config_approved(&self, _config: &Configuration<C>) -> bool {
-        // FIXME validate (called by cfg action)
+        // FIXME validate (called by sign cfg Action)
         true
     }
 
+    /// Returns this trustee's signature public key.
+    ///
+    /// Trustee signing public keys are also used to
+    /// identify trustees in protocol Configurations.
     pub fn get_pk(&self) -> Result<StrandSignaturePk, StrandError> {
         Ok(StrandSignaturePk::from_sk(&self.signing_key)?)
     }
@@ -606,6 +702,31 @@ impl<C: Ctx> Trustee<C> {
             }
         }
     }
+
+    /// Backdoor function used by tests and dbg
+    pub fn _get_dkg_public_key_nohash(&self) -> Option<DkgPublicKey<C>> {
+        self.local_board.get_dkg_public_key_nohash(0)
+    }
+
+    /// Backdoor used by tests and dbg
+    pub fn _get_plaintexts_nohash(
+        &self,
+        batch: BatchNumber,
+        signer_position: TrusteePosition,
+    ) -> Option<Plaintexts<C>> {
+        self.local_board
+            .get_plaintexts_nohash(batch, signer_position)
+    }
+}
+
+/// Trustees can sign Messages
+impl<C: Ctx> board_messages::braid::message::Signer for Trustee<C> {
+    fn get_signing_key(&self) -> &StrandSignatureSk {
+        &self.signing_key
+    }
+    fn get_name(&self) -> String {
+        self.name.clone()
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -621,6 +742,11 @@ impl<C: Ctx> std::fmt::Debug for Trustee<C> {
 use base64::{engine::general_purpose, Engine as _};
 use serde::{Deserialize, Serialize};
 
+/// The configuration for a Trustee.
+///
+/// Trustee configuration files are passed to the braid
+/// binary on startup. Trustee configuration files
+/// contain cryptographic secrets.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct TrusteeConfig {
     // base64 encoding of a der encoded pkcs#8 v1
