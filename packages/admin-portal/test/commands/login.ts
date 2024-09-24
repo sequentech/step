@@ -2,7 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {admin_portal_password, admin_portal_username, NightWatchLogin, pause, testUrl, tenantSlug} from ".."
+import {
+    admin_portal_password,
+    admin_portal_username,
+    NightWatchLogin,
+    pause,
+    testUrl,
+    tenantSlug,
+} from ".."
 
 exports.command = function (
     username = admin_portal_username,

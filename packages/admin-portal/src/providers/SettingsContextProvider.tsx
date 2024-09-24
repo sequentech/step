@@ -103,7 +103,8 @@ const SettingsContextProvider = (props: SettingsContextProviderProps) => {
 
     const loadSettings = async () => {
         try {
-            let globalSettingsPath = process.env.REACT_APP_GLOBAL_SETTINGS_PATH ?? "/global-settings.json"
+            let globalSettingsPath =
+                process.env.REACT_APP_GLOBAL_SETTINGS_PATH ?? "/global-settings.json"
             console.log(process.env)
             let value = await fetch(globalSettingsPath)
             let json = await value.json()
