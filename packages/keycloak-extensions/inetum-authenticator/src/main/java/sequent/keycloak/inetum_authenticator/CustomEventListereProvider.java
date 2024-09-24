@@ -51,12 +51,6 @@ public class CustomEventListereProvider implements EventListenerProvider {
 
   public void authenticate() {
     HttpClient client = HttpClient.newHttpClient();
-    log.info("keycloakUrl: " + keycloakUrl);
-    log.info("tenantId: " + tenantId);
-    log.info("clientId: " + clientId);
-    log.info("clientSecret: " + clientSecret);
-    log.info("harvestUrl: " + harvestUrl);
-
     String url =
         this.keycloakUrl
             + "/realms/"
@@ -67,7 +61,7 @@ public class CustomEventListereProvider implements EventListenerProvider {
     data.put("scope", "openid");
     data.put("client_secret", this.clientSecret);
     data.put("grant_type", "client_credentials");
-    log.info("full url: " + url);
+
     String form =
         data.entrySet().stream()
             .map(entry -> entry.getKey() + "=" + entry.getValue())
@@ -86,7 +80,6 @@ public class CustomEventListereProvider implements EventListenerProvider {
     String responseBody = responseFuture.join().body();
     Object accessToken;
     try {
-      log.info("resposnse string" + responseBody);
       accessToken = JsonSerialization.readValue(responseBody, Map.class).get("access_token");
       log.info("authenticate " + accessToken.toString());
       this.access_token = accessToken.toString();
