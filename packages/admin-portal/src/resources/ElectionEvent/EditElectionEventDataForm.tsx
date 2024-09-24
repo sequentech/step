@@ -21,6 +21,7 @@ import {
     required,
     FormDataConsumer,
     useGetList,
+    useInput,
 } from "react-admin"
 import {
     Accordion,
@@ -36,7 +37,10 @@ import styled from "@emotion/styled"
 import DownloadIcon from "@mui/icons-material/Download"
 import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
-
+import {
+    ICommunicationType,
+    ISendCommunicationBody,
+} from "@/types/communications"
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "@/components/CustomTabPanel"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
@@ -63,6 +67,7 @@ import {
     ManageElectionDatesMutation,
     Sequent_Backend_Election_Event,
     SetCustomUrlsMutation,
+    Sequent_Backend_Communication_Template,
 } from "@/gql/graphql"
 import {ElectionStyles} from "@/components/styles/ElectionStyles"
 import {FormStyles} from "@/components/styles/FormStyles"
@@ -273,6 +278,42 @@ export const EditElectionEventDataForm: React.FC = () => {
             election_event_id: record.id,
         },
     })
+
+    const {data: verifyVoterTemplates} = useGetList<Sequent_Backend_Communication_Template>(
+        "sequent_backend_communication_template",
+        {
+            filter: {
+                tenant_id: tenantId,
+                communication_type: ICommunicationType.MANUALLY_VERIFY_VOTER,
+            },
+        }
+    )
+
+    const [selectedTplVerifyVoter, setSelectedTplVerifyVoter] = useState<string>(
+        ""
+    )
+
+    function selectTplVerifyVoter(event: any) {
+        const choice = event.target
+        setSelectedTplVerifyVoter(choice)
+        console.log(choice)
+    }
+
+    const manuallyVerifyVoterTemplates = (): Array<EnumChoice<string>> => {
+        if (!verifyVoterTemplates) {
+            return []
+        }
+        console.log(verifyVoterTemplates)
+        const template_names = (verifyVoterTemplates as Sequent_Backend_Communication_Template[]).map((entry) => {
+            console.log("id: ", entry.template?.alias)
+            console.log("name: ", entry.template?.name)
+            return {
+                id: entry.template?.id,
+                name: entry.template?.name,
+            }
+        });
+        return template_names;
+    }
 
     const [votingSettings] = useState<TVotingSetting>({
         online: tenant?.voting_channels?.online || true,
@@ -913,15 +954,15 @@ export const EditElectionEventDataForm: React.FC = () => {
                             <Accordion
                                 sx={{width: "100%"}}
                                 expanded={
-                                    expanded === "election-event-data-user-verfication-template"
+                                    expanded === "election-event-data-user-templates"
                                 }
                                 onChange={() =>
-                                    setExpanded("election-event-data-user-verfication-template")
+                                    setExpanded("election-event-data-user-templates")
                                 }
                             >
                                 <AccordionSummary
                                     expandIcon={
-                                        <ExpandMoreIcon id="election-event-data-user-verfication-template" />
+                                        <ExpandMoreIcon id="election-event-data-user-templates" />
                                     }
                                 >
                                     <ElectionHeaderStyles.Wrapper>
@@ -931,14 +972,30 @@ export const EditElectionEventDataForm: React.FC = () => {
                                     </ElectionHeaderStyles.Wrapper>
                                 </AccordionSummary>
                                 <AccordionDetails>
-                                    <TextInput
-                                        resettable={true}
-                                        multiline={true}
-                                        source={"presentation.custom_tpl_usr_verfication"}
-                                        label={
-                                            '<div> <img src="https..." /> </div> <div> <p> <a href="{{manual_verification_url}}">Login Link</a> </p> {{{qrcode}}} </div>'
-                                        }
-                                        helperText={t("electionEventScreen.field.userVerification")}
+                                    <Typography
+                                        variant="body1"
+                                        component="span"
+                                        sx={{
+                                            fontWeight: "bold",
+                                            margin: 0,
+                                            display: {xs: "none", sm: "block"},
+                                        }}
+                                    >
+                                        {t(
+                                            "electionEventScreen.field.userVerification"
+                                        )}
+                                    </Typography>
+                                    <SelectInput
+                                        source={`presentation.custom_tpl_usr_verfication`}
+                                        choices={manuallyVerifyVoterTemplates()}
+                                        onChange={(e) => selectTplVerifyVoter(e)}
+                                        // optionText="name"
+                                        // optionValue="id"
+                                        label={t(
+                                            "communicationTemplate.form.name"
+                                        )}
+                                        translateChoice={false}
+                                        emptyText="No category selected" // TODO: Add translations
                                     />
                                 </AccordionDetails>
                             </Accordion>

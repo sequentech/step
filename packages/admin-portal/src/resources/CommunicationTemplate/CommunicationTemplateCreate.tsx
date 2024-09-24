@@ -153,13 +153,16 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
 
         if (
             selectedCommunicationType?.value &&
-            ![ICommunicationType.BALLOT_RECEIPT, ICommunicationType.TALLY_REPORT].includes(
+            ![ICommunicationType.BALLOT_RECEIPT, ICommunicationType.TALLY_REPORT, ICommunicationType.MANUALLY_VERIFY_VOTER].includes(
                 selectedCommunicationType.value
             )
         ) {
             res = res.filter((cm) => cm.id !== ICommunicationMethod.DOCUMENT)
         }
         if (ICommunicationType.TALLY_REPORT === selectedCommunicationType?.value) {
+            res = res.filter((cm) => cm.id === ICommunicationMethod.DOCUMENT)
+        }
+        if (ICommunicationType.MANUALLY_VERIFY_VOTER === selectedCommunicationType?.value) {
             res = res.filter((cm) => cm.id === ICommunicationMethod.DOCUMENT)
         }
 

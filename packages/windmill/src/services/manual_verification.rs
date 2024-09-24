@@ -156,7 +156,8 @@ pub async fn get_custom_user_template(
 
     let election_event =
         election_event::get_election_event_by_id(&transaction, tenant_id, election_event_id)
-            .await?;
+            .await
+            .with_context(|| "Error to get the election event by id")?;
 
     let presentation = match election_event.presentation {
         Some(p) => p,

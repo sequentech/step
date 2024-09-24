@@ -271,7 +271,7 @@ const catalanTranslation: TranslationType = {
                 allowed: "Canals de Vot Permesos",
                 materials: "Materials de Suport",
                 ballotDesign: "Disseny de la Papereta",
-                userVerification: "Plantilla personalitzada de verificació dels votants",
+                userVerification: "Plantillas",
                 reorder: "Reordenar eleccions",
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importar Candidats",
@@ -1393,6 +1393,7 @@ const catalanTranslation: TranslationType = {
                 electoral_results: "Resultats Electorals",
                 otp: "OTP",
                 tally_report: "Informe de recompte",
+                manually_verify_voter: "Verificar manualment el votant",
             },
             method: {
                 email: "Email",

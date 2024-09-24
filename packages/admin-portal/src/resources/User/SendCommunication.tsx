@@ -522,7 +522,9 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                             value={communication.communication_type}
                             onChange={handleSelectTypeChange}
                         >
-                            {Object.values(ICommunicationType).map((key) => (
+                            {Object.values(ICommunicationType)
+                                .filter((type) => type !== ICommunicationType.MANUALLY_VERIFY_VOTER)
+                                .map((key) => (
                                 <MenuItem key={key} value={key}>
                                     {t(`sendCommunication.communicationType.${key}`)}
                                 </MenuItem>

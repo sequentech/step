@@ -271,7 +271,7 @@ const frenchTranslation: TranslationType = {
                 allowed: "Canaux de Vote Permis",
                 materials: "Matériaux de Support",
                 ballotDesign: "Design du Bulletin",
-                userVerification: "Modèle personnalisé de vérification des électeurs",
+                userVerification: "Modèles",
                 reorder: "Réorganiser les élections",
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importer des Candidats",
@@ -1399,6 +1399,7 @@ const frenchTranslation: TranslationType = {
                 electoral_results: "Résultats Électoraux",
                 otp: "OTP",
                 tally_report: "Rapport de comptage",
+                manually_verify_voter: "Vérifier manuellement l'électeur",
             },
             method: {
                 email: "Email",

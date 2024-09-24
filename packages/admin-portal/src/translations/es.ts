@@ -271,7 +271,7 @@ const spanishTranslation: TranslationType = {
                 allowed: "Canales de Voto Permitidos",
                 materials: "Materiales de Soporte",
                 ballotDesign: "Diseño de la Papeleta",
-                userVerification: "Plantilla personalizada de verificación de votantes",
+                userVerification: "Plantillas",
                 reorder: "Reordenar elecciones",
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importar Candidatos",
@@ -1392,6 +1392,7 @@ const spanishTranslation: TranslationType = {
                 electoral_results: "Resultados Electorales",
                 otp: "OTP",
                 tally_report: "Informe de Recuento",
+                manually_verify_voter: "Verificar votante manualmente",
             },
             method: {
                 email: "Email",

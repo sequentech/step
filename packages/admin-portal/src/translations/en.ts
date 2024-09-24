@@ -272,7 +272,7 @@ const englishTranslation = {
                 allowed: "Voting Channels Allowed",
                 materials: "Support Materials",
                 ballotDesign: "Ballot Design",
-                userVerification: "Voter Verification Custom Template",
+                userVerification: "Templates",
                 reorder: "Reorder elections",
                 advancedConfigurations: "Advanced Configurations",
                 importCandidates: "Import Candidates",
@@ -1386,6 +1386,7 @@ const englishTranslation = {
                 electoral_results: "Electoral Results",
                 otp: "OTP",
                 tally_report: "Tally Report",
+                manually_verify_voter: "Manually verify voter",
             },
             method: {
                 email: "Email",
