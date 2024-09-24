@@ -379,10 +379,9 @@ async fn check_status(
         return Err(anyhow!("Election event is archived"));
     }
 
-    let auth_time_utc: DateTime<Utc> = if let Some(auth_time_int) = *auth_time {
-        if let Some(naive) = NaiveDateTime::from_timestamp_opt(auth_time_int, 0) {
-            let datetime = DateTime::<Utc>::from_utc(naive, Utc);
-            datetime
+    let auth_time_local: DateTime<Local> = if let Some(auth_time_int) = *auth_time {
+        if let Ok(auth_time_parsed) = ISO8601::timestamp_ms_utc_to_date_opt(auth_time_int) {
+            auth_time_parsed
         } else {
             return Err(anyhow!("Invalid auth_time timestamp"));
         }
@@ -412,16 +411,10 @@ async fn check_status(
         .flatten()
         .unwrap_or(Default::default());
 
-    let grace_period_secs = election_presentation.grace_period_secs.unwrap_or(0);
-    let grace_period_policy = election_presentation
-        .grace_period_policy
-        .unwrap_or(EGracePeriodPolicy::NO_GRACE_PERIOD);
-    let mut is_grace_period_valid: bool = false;
-
-    let close_date_opt: Option<DateTime<Utc>> = if let Some(dates) = &election.dates {
+    let close_date_opt: Option<DateTime<Local>> = if let Some(dates) = &election.dates {
         if let Some(end_date_str) = dates.get("end_date") {
             if let Some(end_date_str) = end_date_str.as_str() {
-                match end_date_str.parse::<DateTime<Utc>>() {
+                match ISO8601::to_date(end_date_str) {
                     Ok(close_date) => {
                         println!("Parsed end_date: {}", close_date);
                         Some(close_date)
@@ -441,18 +434,6 @@ async fn check_status(
         None
     };
 
-    if let Some(close_date) = close_date_opt {
-        let grace_period_duration = Duration::seconds(grace_period_secs as i64);
-        let close_time_with_grace = close_date + grace_period_duration;
-        is_grace_period_valid = grace_period_policy != EGracePeriodPolicy::NO_GRACE_PERIOD
-            && Local::now() < close_time_with_grace
-            && auth_time_utc < close_date;
-
-        if Local::now() > close_date && !is_grace_period_valid {
-            return Err(anyhow!("Election is closed"));
-        }
-    }
-
     let election_status: ElectionStatus = election
         .status
         .clone()
@@ -460,7 +441,51 @@ async fn check_status(
         .transpose()
         .map(|value| value.unwrap_or(Default::default()))?;
 
-    if election_status.voting_status != VotingStatus::OPEN && !is_grace_period_valid {
+    // calculate if we need to apply the grace period
+    let grace_period_secs = election_presentation.grace_period_secs.unwrap_or(0);
+    let grace_period_policy = election_presentation
+        .grace_period_policy
+        .unwrap_or(EGracePeriodPolicy::NO_GRACE_PERIOD);
+
+    // We can only calculate grace period if there's a close date
+    if let Some(close_date) = close_date_opt {
+        let apply_grace_period: bool = grace_period_policy != EGracePeriodPolicy::NO_GRACE_PERIOD;
+        let grace_period_duration = Duration::seconds(grace_period_secs as i64);
+        let close_date_plus_grace_period = close_date + grace_period_duration;
+        let now = ISO8601::now();
+
+        if apply_grace_period {
+            // a voter cannot cast a vote after the grace period or if the voter
+            // authenticated after the closing date
+            if now > close_date_plus_grace_period || auth_time_local > close_date {
+                return Err(anyhow!("Cannot vote outside grace period"));
+            }
+
+            // if we have a closing date and a grace period, we only apply
+            // checking if election is open if now is before closing period
+            if now < close_date && election_status.voting_status != VotingStatus::OPEN {
+                return Err(anyhow!(
+                    "Election voting status is not open or voting outside the grace period"
+                ));
+            }
+        } else {
+            // if no grace period and there's a closing date, to cast a vote you
+            // need to do it before the closing date
+            if now > close_date {
+                return Err(anyhow!("Election close date passed and no grace period"));
+            }
+
+            // if no grace period, election needs to be open to cast a vote
+            // period
+            if election_status.voting_status != VotingStatus::OPEN {
+                return Err(anyhow!(
+                    "Election voting status is not open before close date"
+                ));
+            }
+        }
+
+    // if there's no closing date, election needs to be open to cast a vote
+    } else if election_status.voting_status != VotingStatus::OPEN {
         return Err(anyhow!("Election voting status is not open"));
     }
 
