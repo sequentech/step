@@ -907,7 +907,7 @@ const englishTranslation = {
             errorUploadingSignature: "There was an error uploading signature",
             downloadTransmissionPackage: "Download Transmission Package",
             transmissionPackage: {
-                title: "Transmission Package for Area '{{name}}'",
+                title: "Transmission Package for Area '{{name}}' and Election '{{eventName}}'",
                 description:
                     "Allows you to export a Transmission Package to Destination Servers or download it.",
                 actions: {
