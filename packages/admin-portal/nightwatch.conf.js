@@ -44,25 +44,34 @@ module.exports = {
     test_settings: {
         default: {
             disable_error_log: false,
-            launch_url: "http://localhost:3002",
-
+            launch_url: "about:blank",
             screenshots: {
-                enabled: false,
+                enabled: true,
                 path: "screens",
                 on_failure: true,
             },
+            globals: {
+                waitForConditionTimeout: 5000, // 5 seconds
+            },
 
             desiredCapabilities: {
-                "browserName": "firefox",
-                "acceptInsecureCerts": true,
-                "moz:firefoxOptions": {
-                    args: ["--headless"],
+                browserName: "chrome",
+                chromeOptions: {
+                    args: ["--no-sandbox", "--headless"],
+                    prefs: {
+                        download: {
+                            prompt_for_download: false,
+                            default_directory: require("path").resolve(
+                                __dirname + "/test/e2e/downloads"
+                            ),
+                        },
+                    },
                 },
             },
 
             webdriver: {
                 start_process: true,
-                server_path: "",
+                server_path: "/usr/bin/chromedriver",
             },
         },
 

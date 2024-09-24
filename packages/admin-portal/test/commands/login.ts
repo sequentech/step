@@ -2,7 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {admin_portal_password, admin_portal_username, NightWatchLogin, pause, testUrl} from ".."
+import {
+    admin_portal_password,
+    admin_portal_username,
+    NightWatchLogin,
+    pause,
+    testUrl,
+    tenantSlug,
+} from ".."
 
 exports.command = function (
     username = admin_portal_username,
@@ -11,13 +18,28 @@ exports.command = function (
     this.username = "input[name=username]"
     this.password = "input[name=password]"
     this.submitButton = "*[type=submit]"
+    const loginUrl = testUrl // `${testUrl}/admin/login/${tenantSlug}`
+
+    console.log(`login: url=${loginUrl} username=${username}, password=${password}`)
 
     this.window
         .maximize()
-        .navigateTo(testUrl)
+        /*.captureNetworkRequests((requestParams) => {
+            console.log('Request Number: ', this.requestCount++)
+            console.log('Request URL:' + requestParams.request.url)
+            console.log('Request method:' + requestParams.request.method)
+            console.log('Request headers:' + requestParams.request.headers)
+        })*/
+        .navigateTo(loginUrl)
+        .getCurrentUrl((currentUrl) => {
+            console.log(`login: currentUrl=${currentUrl.value}`)
+        })
         .waitForElementVisible(this.username)
         .waitForElementVisible(this.password)
         .assert.visible("input[name=username]")
+        .getCurrentUrl((currentUrl) => {
+            console.log(`login: currentUrl=${currentUrl.value}`)
+        })
         .sendKeys(this.username, username)
         .assert.visible("input[name=password]")
         .sendKeys(this.password, password)
@@ -25,6 +47,9 @@ exports.command = function (
         .assert.visible(this.submitButton)
         .click(this.submitButton)
         .pause(pause.medium)
+        .useXpath()
+        .waitForElementVisible("//li[contains(text(),'Active')]")
+        .useCss()
 
     return this
 }

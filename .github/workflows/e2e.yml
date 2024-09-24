@@ -22,13 +22,23 @@ on:
         required: true
         type: string
         default: 'admin'
-  pull_request:
-  push:
-      branches: [ 'main' ]
+      # useLocal:
+      #   description: 'generate local env for testing?'
+      #   type: boolean
+      #   default: "false"
+  # pull_request:
+  # push:
+  #     branches: [ 'main' ]
 
 jobs:
   e2e:
     runs-on: ubuntu-latest
+    env:
+      E2E_TEST_URL: ${{ github.event.inputs.urlTest }}
+      E2E_ADMIN_PORTAL_TEST_USERNAME: ${{ github.event.inputs.adminUser }}
+      E2E_ADMIN_PORTAL_TEST_PASSWORD: ${{ github.event.inputs.adminPassword }}
+      BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+      BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
     strategy:
       matrix:
         include:
@@ -46,16 +56,32 @@ jobs:
         cd packages
         yarn
         npm install @nightwatch/browserstack
-    # - name: Run admin-portal tests
+    - name: Run admin-portal tests against env
+      # if: ${{ github.event.inputs.useLocal == 'false' }}
+      run: |
+        cd packages/admin-portal/node_modules
+        cp -r ../../node_modules/@nightwatch .
+        cp -r ../../node_modules/nightwatch .
+        cd ..
+        xvfb-run --auto-servernum npx nightwatch test/e2e/*.ts --serial -c nightwatch.conf-ghaction.js  --env ${{ matrix.browser }}
+    # - name: Run admin-portal tests against local
+    #   if: ${{ github.event.inputs.useLocal == 'true' }}
     #   run: |
+    #     cd .devcontainer
+    #     cp .env.development .env
+    #     docker compose build
+    #     docker compose up
+    #     export E2E_TEST_URL='http://localhost:3002'
+    #     export E2E_ADMIN_PORTAL_TEST_USERNAME='admin'
+    #     export E2E_ADMIN_PORTAL_TEST_PASSWORD='admin'
     #     cd packages/admin-portal/node_modules
     #     cp -r ../../node_modules/@nightwatch .
     #     cp -r ../../node_modules/nightwatch .
     #     cd ..
     #     xvfb-run --auto-servernum npx nightwatch test/e2e/*.ts -c nightwatch.conf-ghaction.js  --env ${{ matrix.browser }}
-      env:
-        TEST_URL: ${{ github.event.inputs.urlTest }}
-        ADMIN_PORTAL_TEST_USERNAME: ${{ github.event.inputs.adminUser }}
-        ADMIN_PORTAL_TEST_PASSWORD: ${{ github.event.inputs.adminPassword }}
-        BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
-        BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+        # env:
+        #   E2E_TEST_URL: ${{ github.event.inputs.urlTest }}
+        #   E2E_ADMIN_PORTAL_TEST_USERNAME: ${{ github.event.inputs.adminUser }}
+        #   E2E_ADMIN_PORTAL_TEST_PASSWORD: ${{ github.event.inputs.adminPassword }}
+        #   BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+        #   BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}

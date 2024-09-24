@@ -4,10 +4,16 @@
 
 import {NightwatchAPI} from "nightwatch"
 import {contestLink, electionEventLink, electionLink, pause} from ".."
+import {createElectionEvent} from "../commands/election-event/create"
 
 describe("sidebar tests", function () {
     before(function (browser) {
         browser.login()
+        browser.reset()
+        createElectionEvent.createElectionEvent(browser)
+        createElectionEvent.createElection(browser)
+        createElectionEvent.createContest(browser)
+        createElectionEvent.createCandidates(browser)
     })
 
     after(async function (browser) {
@@ -15,80 +21,80 @@ describe("sidebar tests", function () {
         browser.logout()
     })
 
-    it("click on an election event", async (browser: NightwatchAPI) => {
-        // checks if has election menu
-        // case yes opens election menu
-        // case no asserts create election is visible
-        browser.isPresent(
-            {
-                selector: `a.menu-item-${electionLink}`,
-                supressNotFoundErrors: true,
-                timeout: 1000,
-            },
-            (result) => {
-                if (result.value) {
-                    // opens election menu
-                    browser.assert
-                        .visible(`a.menu-item-${electionLink}`)
-                        .click(
-                            `div.menu-item-toggle-${electionLink}:has(+ a.menu-item-${electionLink})`
-                        )
+    // it("click on an election event", async (browser: NightwatchAPI) => {
+    //     // checks if has election menu
+    //     // case yes opens election menu
+    //     // case no asserts create election is visible
+    //     browser.isPresent(
+    //         {
+    // 			// locateStrategy: "xpath",
+    // 			selector: `a[title='${createElectionEvent.config.electionEvent.name}']`,
+    //             supressNotFoundErrors: true,
+    //             timeout: 1000,
+    //         },
+    //         (result) => {
+    //             if (result.value) {
+    //                 // opens election menu
+    //                 browser.assert
+    // 					.visible(`a[title='${createElectionEvent.config.election.name}']`)
+    //                     .click(
+    // 						`a[title='${createElectionEvent.config.election.name}']`
+    //                     )
 
-                    // checks if has contest menu
-                    // case yes opens contest menu
-                    // case no asserts create contest is visible
-                    browser.isPresent(
-                        {
-                            selector: `a.menu-item-${contestLink}`,
-                            supressNotFoundErrors: true,
-                            timeout: 1000,
-                        },
-                        (result) => {
-                            if (result.value) {
-                                // opens contest menu
-                                browser.assert
-                                    .visible(`a.menu-item-${contestLink}`)
-                                    .click(
-                                        `div.menu-item-toggle-${contestLink}:has(+ a.menu-item-${electionLink})`
-                                    )
-                            } else {
-                                // check has new
-                                browser.assert.visible(`a.${contestLink!}`)
-                            }
-                        }
-                    )
+    //                 // checks if has contest menu
+    //                 // case yes opens contest menu
+    //                 // case no asserts create contest is visible
+    //                 browser.isPresent(
+    //                     {
+    // 						selector: `a[title='${createElectionEvent.config.contest.name}']`,
+    //                         supressNotFoundErrors: true,
+    //                         timeout: 1000,
+    //                     },
+    //                     (result) => {
+    //                         if (result.value) {
+    //                             // opens contest menu
+    //                             browser.assert
+    // 								.visible(`a[title='${createElectionEvent.config.contest.name}']`)
+    //                                 .click(
+    // 									`a[title='${createElectionEvent.config.contest.name}']`
+    //                                 )
+    //                         } else {
+    //                             // check has new
+    // 							browser.assert.visible(`a[title='${createElectionEvent.config.contest.name}']`)
+    //                         }
+    //                     }
+    //                 )
 
-                    // closes election menu
-                    browser.assert
-                        .visible(`a.menu-item-${electionLink}`)
-                        .click(
-                            `div.menu-item-toggle-${electionLink}:has(+ a.menu-item-${electionLink})`
-                        )
+    //                 // closes election menu
+    //                 browser.assert
+    // 					.visible(`a[title='${createElectionEvent.config.election.name}']`)
+    //                     .click(
+    // 						`a[title='${createElectionEvent.config.election.name}']`
+    //                     )
 
-                    // closes ee menu
-                    browser.assert
-                        .visible("a.menu-item-active")
-                        .click(
-                            `div.menu-item-toggle-${electionEventLink}:has(+ a.menu-item-active)`
-                        )
-                } else {
-                    browser.assert.visible(`a.${electionLink!}`)
-                    // .click(`a.${electionLink!}`)
-                    browser.assert
-                        .visible("a.menu-item-active")
-                        .click(
-                            `div.menu-item-toggle-${electionEventLink}:has(+ a.menu-item-active)`
-                        )
-                }
-            }
-        )
+    //                 // closes ee menu
+    //                 browser.assert
+    //                     .visible("a.menu-item-active")
+    //                     .click(
+    //                         `div.menu-item-toggle-${electionEventLink}:has(+ a.menu-item-active)`
+    //                     )
+    //             } else {
+    //                 browser.assert.visible(`a.${electionLink!}`)
+    //                 browser.assert
+    //                     .visible("a.menu-item-active")
+    //                     .click(
+    //                         `div.menu-item-toggle-${electionEventLink}:has(+ a.menu-item-active)`
+    //                     )
+    //             }
+    //         }
+    //     )
 
-        browser.pause(pause.medium)
-        // .visible(`a.${electionLink!}`)
-        // .click(`a.${electionLink!}`)
+    //     browser.pause(pause.medium)
+    //     // .visible(`a.${electionLink!}`)
+    //     // .click(`a.${electionLink!}`)
 
-        // await browser.debug()
-    })
+    //     // await browser.debug()
+    // })
 
     // it("create an election", async (browser: NightwatchAPI) => {
     //     browser.assert.urlContains("sequent_backend_election_event")

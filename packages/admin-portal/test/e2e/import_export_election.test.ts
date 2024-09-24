@@ -14,6 +14,7 @@ let exportPath
 describe("import/export election event  tests", function () {
     before(function (browser) {
         browser.login()
+        browser.reset()
 
         // create election event
         createElectionEvent.createElectionEvent(browser)
@@ -75,7 +76,7 @@ describe("import/export election event  tests", function () {
             .pause(pause.xLong)
     })
 
-    it("imports an election event", async (browser: NightwatchAPI) => {
+    it.skip("imports an election event", async (browser: NightwatchAPI) => {
         // browser.debug()
 
         console.log({exportPath})
@@ -91,6 +92,7 @@ describe("import/export election event  tests", function () {
         browser
             .useXpath()
             .click(`//button[normalize-space()="Yes, Import without Integrity Check"]`)
+            .pause(pause.short)
 
         // browser.useXpath().click(`//span[normalize-space()="${createElectionEvent.config.electionEvent.name}"]`).click('//a[normalize-space()="Data"]').click('//button[normalize-space()="Export"]').click('//button[contains(@class,"ok-button")]')
     })

@@ -11,6 +11,7 @@ describe("keys tests", function () {
     before(function (browser) {
         // login
         browser.login()
+        browser.reset()
 
         // create election event
         createElectionEvent.createElectionEvent(browser)

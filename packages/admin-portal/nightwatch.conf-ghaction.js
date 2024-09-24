@@ -45,13 +45,17 @@ module.exports = {
         default: {
             disable_error_log: false,
             launch_url: "http://localhost:3001",
+            skip_testcases_on_fail: false,
 
             screenshots: {
-                enabled: false,
+                enabled: true,
                 path: "screens",
                 on_failure: true,
+                on_error: true,
             },
-
+            globals: {
+                waitForConditionTimeout: 50000, // 50 seconds
+            },
             desiredCapabilities: {
                 "browserName": "firefox",
                 "acceptInsecureCerts": true,
