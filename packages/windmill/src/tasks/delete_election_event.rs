@@ -4,6 +4,7 @@
 use crate::{
     services::delete_election_event::{
         delete_election_event_db, delete_election_event_immudb, delete_keycloak_realm,
+        delete_s3_related_artifacts,
     },
     types::error::Result,
 };
@@ -19,7 +20,8 @@ pub async fn delete_election_event_t(
     realm: String,
 ) -> Result<()> {
     delete_election_event_immudb(&tenant_id, &election_event_id).await?;
-    delete_election_event_db(tenant_id.clone(), election_event_id.clone()).await?;
+    delete_election_event_db(&tenant_id, &election_event_id).await?;
+    delete_s3_related_artifacts(&tenant_id, &election_event_id).await?;
     delete_keycloak_realm(&realm).await?;
     Ok(())
 }

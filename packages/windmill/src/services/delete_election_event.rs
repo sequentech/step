@@ -4,6 +4,7 @@
 use super::database::get_hasura_pool;
 use crate::postgres::election_event::delete_election_event;
 use crate::services::protocol_manager::get_immudb_client;
+use crate::services::s3;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use immu_board::util::get_event_board;
@@ -18,12 +19,11 @@ pub async fn delete_keycloak_realm(realm: &str) -> Result<()> {
         .realm_delete(&realm)
         .await
         .map_err(|err| anyhow!("Keycloak error: {:?}", err));
-    //TODO: delete linked S3 artifacts
     Ok(())
 }
 
 #[instrument(err)]
-pub async fn delete_election_event_db(tenant_id: String, election_event_id: String) -> Result<()> {
+pub async fn delete_election_event_db(tenant_id: &str, election_event_id: &str) -> Result<()> {
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -54,5 +54,20 @@ pub async fn delete_election_event_immudb(tenant_id: &str, election_event_id: &s
         .delete_database(&board_name)
         .await
         .with_context(|| "error delete immudb database")?;
+    Ok(())
+}
+
+#[instrument(err)]
+pub async fn delete_s3_related_artifacts(tenant_id: &str, election_event_id: &str) -> Result<()> {
+    let documents_prefix = format!("tenant-{}/event-{}/", tenant_id, election_event_id);
+    let bucket = s3::get_public_bucket()?;
+    s3::delete_files_from_s3(bucket, documents_prefix.clone(), true)
+        .await
+        .with_context(|| "Error delete public files from s3")?;
+
+    let bucket = s3::get_private_bucket()?;
+    s3::delete_files_from_s3(bucket, documents_prefix, false)
+        .await
+        .with_context(|| "Error delete private files from s3")?;
     Ok(())
 }
