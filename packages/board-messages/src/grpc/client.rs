@@ -119,7 +119,6 @@ impl B3Client {
         }
 
         Ok(responses)
-
     }
 
     async fn put_message_batch(

@@ -93,7 +93,7 @@ impl<C: Ctx> LocalBoard<C> {
             artifacts_memory: HashMap::new(),
         }
     }
-    /// Whether a protocol has finished.
+    /// The maximum number of messages this protocol will generate.
     ///
     /// A protocol is finished when all dkg messages are present and all tally
     /// messages are present given the existing batches.
@@ -108,9 +108,9 @@ impl<C: Ctx> LocalBoard<C> {
     /// t: threshold
     /// b: batches
     ///
-    pub(crate) fn is_finished(&self) -> bool {
+    pub(crate) fn max_messages(&self) -> usize {
         let Some(cfg) = &self.configuration else {
-            return false;
+            return 0;
         };
 
         let mut sei = StatementEntryIdentifier {
@@ -121,25 +121,25 @@ impl<C: Ctx> LocalBoard<C> {
         };
 
         loop {
-            sei.batch = sei.batch + 1;
             if self.statements.get(&sei).is_none() {
                 break;
             }
+            sei.batch = sei.batch + 1;
         }
 
-        if sei.batch == 0 {
-            return false;
-        }
-
-        let t = cfg.threshold;
         let n = cfg.trustees.len();
+        let t = cfg.threshold;
 
         let dkg = 1 + (5 * n);
+        if sei.batch == 0 {
+            return dkg;
+        }
+
         let per_batch_tally = 1 + (2 * t) + (t * (t - 1)) + n;
 
-        let max = dkg + (sei.batch * per_batch_tally);
+        dkg + (sei.batch * per_batch_tally)
 
-        self.statements.len() == max
+        // self.statements.len() == max
     }
 
     ///////////////////////////////////////////////////////////////////////////

@@ -512,7 +512,7 @@ async fn get_messages(
         start.extend(next);
     }
 
-    tracing::info!(
+    tracing::trace!(
         "pgsql::get_messages: query time: {}ms",
         now.elapsed().as_millis()
     );

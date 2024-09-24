@@ -142,7 +142,8 @@ impl<C: Ctx> Trustee<C> {
 
         let (added_messages, last_id) = self.update_local_board(messages)?;
         if added_messages > 0 {
-            info!("Setting last id {}", last_id);
+            let max_messages = self.local_board.max_messages();
+            info!("Setting last id {} (/{})", last_id, max_messages);
             self.last_message_id = last_id;
         }
 
@@ -648,7 +649,7 @@ impl<C: Ctx> Trustee<C> {
     /// been posted (modulo batch count)
     #[allow(dead_code)]
     pub(crate) fn is_finished(&self) -> bool {
-        self.local_board.is_finished()
+        self.local_board.max_messages() == self.local_board.statements.len()
     }
 
     pub(crate) fn is_config_approved(&self, _config: &Configuration<C>) -> bool {

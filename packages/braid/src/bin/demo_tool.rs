@@ -151,15 +151,7 @@ async fn main() -> Result<()> {
     match &args.command {
         Command::GenConfigs => {
             // let threshold = [1, 2];
-            let max: [usize; 12] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-            let all = &max[0..args.num_trustees];
-            let mut rng = &mut rand::thread_rng();
-            let threshold: Vec<usize> = all
-                .choose_multiple(&mut rng, args.threshold)
-                .cloned()
-                .collect();
-
-            gen_configs::<RistrettoCtx>(args.num_trustees, &threshold)?;
+            gen_configs::<RistrettoCtx>(args.num_trustees, args.threshold)?;
         }
         Command::InitProtocol => {
             let path = Path::new(DEMO_DIR).join(CONFIG);
@@ -207,7 +199,16 @@ async fn main() -> Result<()> {
                 } else {
                     format!("{}_{}", &args.board_name, i + 1)
                 };
-                post_ballots(&mut board, &name, args.ciphertexts, args.batches, &ctx).await?;
+                post_ballots(
+                    &mut board,
+                    &name,
+                    args.ciphertexts,
+                    args.batches,
+                    args.num_trustees,
+                    args.threshold,
+                    &ctx,
+                )
+                .await?;
             }
         }
         Command::ListMessages => {
@@ -258,7 +259,7 @@ Generates all the configuration information necessary to create a demo election
     |
     └ trustee3.toml
 */
-fn gen_configs<C: Ctx>(n_trustees: usize, threshold: &[usize]) -> Result<()> {
+fn gen_configs<C: Ctx>(n_trustees: usize, threshold: usize) -> Result<()> {
     let pmkey: StrandSignatureSk = StrandSignatureSk::gen()?;
     let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: pmkey,
@@ -278,7 +279,7 @@ fn gen_configs<C: Ctx>(n_trustees: usize, threshold: &[usize]) -> Result<()> {
         0,
         StrandSignaturePk::from_sk(&pm.signing_key)?,
         trustee_pks,
-        threshold.len(),
+        threshold,
         PhantomData,
     );
     println!("Generated config: {:?}", cfg);
@@ -347,6 +348,8 @@ async fn post_ballots<C: Ctx>(
     board_name: &str,
     ciphertexts: usize,
     batches: u32,
+    n_trustees: usize,
+    threshold: usize,
     ctx: &C,
 ) -> Result<()> {
     let pm = get_pm(PhantomData::<C>)?;
@@ -401,7 +404,12 @@ async fn post_ballots<C: Ctx>(
 
         info!("Generated {} ballots", ballots.len());
 
-        let threshold = [1, 2];
+        let max: [usize; 12] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+        let all = &max[0..n_trustees];
+        let mut rng = &mut rand::thread_rng();
+        let threshold: Vec<usize> = all.choose_multiple(&mut rng, threshold).cloned().collect();
+
+        // let threshold = [1, 2];
         let mut selected_trustees = [board_messages::braid::newtypes::NULL_TRUSTEE;
             board_messages::braid::newtypes::MAX_TRUSTEES];
         selected_trustees[0..threshold.len()].copy_from_slice(&threshold);
