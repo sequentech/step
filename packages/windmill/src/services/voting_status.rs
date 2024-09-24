@@ -38,19 +38,19 @@ pub async fn update_election_status(
     election_id: &str,
     voting_status: &VotingStatus,
 ) -> Result<()> {
+    let election_event =
+        get_election_event_by_id(&hasura_transaction, &tenant_id, election_event_id)
+            .await
+            .with_context(|| "error getting election event")?;
     election_event_status::update_election_voting_status_impl(
         tenant_id.clone(),
         election_event_id.to_string(),
         election_id.to_string(),
         voting_status.clone(),
+        election_event.bulletin_board_reference.clone(),
         &hasura_transaction,
     )
     .await?;
-
-    let election_event =
-        get_election_event_by_id(&hasura_transaction, &tenant_id, election_event_id)
-            .await
-            .with_context(|| "error getting election event")?;
     let mut election_event_status: ElectionEventStatus =
         get_election_event_status(election_event.status).unwrap_or(Default::default());
     info!("voting_status: {:?}", voting_status);
@@ -75,14 +75,6 @@ pub async fn update_election_status(
         )
         .await?;
     }
-    update_board_on_status_change(
-        election_event.id.to_string(),
-        election_event.bulletin_board_reference.clone(),
-        voting_status.clone(),
-        Some(election_id.to_string()),
-        None,
-    )
-    .await?;
 
     Ok(())
 }

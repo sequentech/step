@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {Typography} from "@mui/material"
 import React, {useState} from "react"
 import ElectionHeader from "@/components/ElectionHeader"
 import {useTranslation} from "react-i18next"

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
+use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -32,13 +33,21 @@ pub struct CreateElectionEventOutput {
 pub async fn insert_election_event_f(
     body: Json<InsertElectionEventInput>,
     claims: JwtClaims,
-) -> Result<Json<CreateElectionEventOutput>, (Status, String)> {
+) -> Result<Json<CreateElectionEventOutput>, JsonError> {
     authorize(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::ELECTION_EVENT_CREATE],
-    )?;
+    )
+    .map_err(|e| {
+        ErrorResponse::new(
+            Status::Unauthorized,
+            &format!("{:?}", e),
+            ErrorCode::Unauthorized,
+        )
+    })?;
+
     let celery_app = get_celery_app().await;
     // always set an id;
     let object = body.into_inner().clone();
@@ -49,7 +58,13 @@ pub async fn insert_election_event_f(
             id.clone(),
         ))
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| {
+            ErrorResponse::new(
+                Status::InternalServerError,
+                e.to_string().as_ref(),
+                ErrorCode::QueueError,
+            )
+        })?;
     event!(
         Level::INFO,
         "Sent INSERT_ELECTION_EVENT task {}",

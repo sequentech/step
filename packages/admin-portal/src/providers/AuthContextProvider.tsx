@@ -120,6 +120,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const {loaded, globalSettings} = useContext(SettingsContext)
     const [keycloak, setKeycloak] = useState<Keycloak | null>()
     const [isKeycloakInitialized, setIsKeycloakInitialized] = useState<boolean>(false)
+    const [isGetTenantChecked, setIsGetTenantChecked] = useState<boolean>(false)
 
     // Create the local state in which we will keep track if a user is authenticated
     const [isAuthenticated, setAuthenticated] = useState<boolean>(false)
@@ -197,6 +198,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             } catch (error) {
                 console.error(error)
             }
+            setIsGetTenantChecked(true)
         }
 
         if (location.pathname.includes("/admin/login")) {
@@ -205,6 +207,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 getTenant(slug || "")
             }
         } else {
+            setIsGetTenantChecked(true)
             createKeycloak()
         }
     }, [])
@@ -213,6 +216,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         if (keycloak) {
             return
         }
+        console.log("create Keycloak")
         /**
          * KeycloakConfig configures the connection to the Keycloak server.
          */
@@ -231,11 +235,11 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     }
 
     const initializeKeycloak = async () => {
-        console.log("initialize Keycloak")
         if (!keycloak) {
             console.log("CAN'T initialize Keycloak")
             return
         }
+        console.log("initialize Keycloak")
         try {
             /**
              * KeycloakInitOptions configures the Keycloak client.
@@ -274,11 +278,11 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     }
 
     useEffect(() => {
-        if (keycloak || !loaded) {
+        if (keycloak || !loaded || !isGetTenantChecked) {
             return
         }
         createKeycloak()
-    }, [loaded, keycloak])
+    }, [loaded, keycloak, isGetTenantChecked])
 
     useEffect(() => {
         if (!keycloak || isKeycloakInitialized) {

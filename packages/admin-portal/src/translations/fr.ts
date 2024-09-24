@@ -45,6 +45,16 @@ const frenchTranslation: TranslationType = {
                 IMPORT_ELECTION_EVENT: "Importer l'événement électoral",
                 IMPORT_USERS: "Importer des utilisateurs",
                 IMPORT_CANDIDATES: "Importer des candidats",
+                EXPORT_VOTERS: "Exporter les électeurs",
+                CREATE_TRANSMISSION_PACKAGE: "Créer un paquet de transmission",
+            },
+            widget: {
+                taskTitle: "Tâche: {{title}}",
+                viewTask: "Voir Tâche",
+            },
+            exportTasksExecution: {
+                success: "L'exportation s'est terminée avec succès",
+                error: "Erreur lors de l'exportation de l'exécution des tâches",
             },
         },
         areas: {
@@ -349,6 +359,7 @@ const frenchTranslation: TranslationType = {
                 numAllowedVotes: "Nombre de votes permis",
                 reorder: "Réorganiser les concours",
                 castVoteConfirm: "Modal de Confirmation de Vote",
+                gracePeriodPolicy: "Politique de période de grâce",
             },
             field: {
                 name: "Nom",
@@ -376,6 +387,12 @@ const frenchTranslation: TranslationType = {
                 voters: "Électeurs",
                 publish: "Publier",
                 logs: "Journaux",
+            },
+            gracePeriodPolicy: {
+                "label": "Politique de période de grâce",
+                "no-grace-period": "Pas de période de grâce",
+                "grace-period-without-alert": "Période de grâce sans alerte",
+                "gracePeriodSecs": "Période de grâce en secondes",
             },
         },
         tenantScreen: {
@@ -450,6 +467,9 @@ const frenchTranslation: TranslationType = {
             voters: {
                 title: "Électeurs",
                 subtitle: "Voir et éditer les données de l'électeur",
+                logs: {
+                    label: "Journaux de l'utilisateur",
+                },
                 emptyHeader: "Aucun électeur pour l'instant.",
                 askCreate: "Voulez-vous en créer un ?",
                 create: {
@@ -900,7 +920,7 @@ const frenchTranslation: TranslationType = {
                 "Une erreur s'est produite lors du téléchargement de la signature",
             downloadTransmissionPackage: "Télécharger le paquet",
             transmissionPackage: {
-                title: "Paquet de Transmission pour la Zone '{{name}}'",
+                title: "Paquet de Transmission pour la Zone '{{name}}' y Elección '{{eventName}}'",
                 description:
                     "Vous permet d'exporter un Paquet de Transmission vers des Serveurs de Destination ou de le télécharger.",
                 actions: {
