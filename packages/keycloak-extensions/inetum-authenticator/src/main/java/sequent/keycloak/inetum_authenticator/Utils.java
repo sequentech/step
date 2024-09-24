@@ -61,6 +61,7 @@ public class Utils {
 
   public final String API_TRANSACTION_NEW = "/transaction/new";
 
+  public final String CODE_ID = "code_id";
   public final String FTL_ERROR = "error";
   public final String FTL_REALM = "realm";
   public final String FTL_USER_ID = "user_id";
