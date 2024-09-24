@@ -175,7 +175,7 @@ impl SessionSet {
                 // threshold 3: 32 messages
                 let trustees = 3;
                 let threshold = 2;
-                let batch = 10;
+                let batches = 10;
                 let dkg_messages = 1 + 5 * trustees;
                 let tally_messages = batches * (trustees + (threshold * (threshold + 1)) + 1);
 

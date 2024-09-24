@@ -97,7 +97,7 @@ impl<C: Ctx> Trustee<C> {
             "Trustee {} created, store = {:?}, action_parallelism = {}",
             name, store, action_parallelism
         );
-        // let blob_root = Some(PathBuf::from("./blobs").join(&board_name));
+        // let blob_store = Some(PathBuf::from("./blobs").join(&board_name));
         let local_board = LocalBoard::new(store, None);
 
         Trustee {
