@@ -517,15 +517,15 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         </FormControl>
                     )}
                     {isUndefined(electionEventId) ? (
-                            <ListUserRoles
-                                userRoles={userRoles}
-                                rolesList={rolesList}
-                                userId={id}
-                                refetch={() => refetch()}
-                                createMode={createMode}
-                                setUserRoles={createMode ? handleSelectedRolesOnCreate : undefined}
-                                selectedRolesOnCreate={selectedRolesOnCreate}
-                            />
+                        <ListUserRoles
+                            userRoles={userRoles}
+                            rolesList={rolesList}
+                            userId={id}
+                            refetch={() => refetch()}
+                            createMode={createMode}
+                            setUserRoles={createMode ? handleSelectedRolesOnCreate : undefined}
+                            selectedRolesOnCreate={selectedRolesOnCreate}
+                        />
                     ) : null}
                 </>
             </SimpleForm>
