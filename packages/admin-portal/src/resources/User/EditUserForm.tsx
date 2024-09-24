@@ -170,6 +170,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const [user, setUser] = useState<IUser | undefined>(createMode ? {enabled: true} : userOriginal)
     const [selectedArea, setSelectedArea] = useState<string>("")
     const [selectedRolesOnCreate, setSelectedRolesOnCreate] = useState<string[]>([])
+    const [phoneInputs, setPhoneInputs] = useState<{[key: string]: string[]}>({})
     const [tenantId] = useTenantStore()
     const refresh = useRefresh()
     const notify = useNotify()
@@ -218,6 +219,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         attributes: {
                             ...formatUserAtributes(user?.attributes),
                             ...(selectedArea && {"area-id": [selectedArea]}),
+                            ...(phoneInputs && phoneInputs),
                         },
                     },
                     userRolesIds: selectedRolesOnCreate,
@@ -256,6 +258,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             attributes: {
                                 ...formatUserAtributes(user?.attributes),
                                 ...(selectedArea && {"area-id": [selectedArea]}),
+                                ...(phoneInputs && phoneInputs),
                             },
                         },
                     },
@@ -337,110 +340,132 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         })
     }
 
-    const renderFormField = (attr: UserProfileAttribute) => {
-        if (attr.name) {
-            const isCustomAttribute = !userBasicInfo.includes(attr.name)
-            const value = isCustomAttribute
-                ? user?.attributes?.[attr.name]
-                : user && user[attr.name as keyof IUser]
-            const displayName = attr.display_name ?? ""
-            if (attr.annotations?.inputType === "select") {
-                return (
-                    <FormControl fullWidth>
-                        <InputLabel id="select-label">{getAttributeLabel(displayName)}</InputLabel>
-                        <Select
-                            name={displayName}
-                            defaultValue={value}
-                            labelId="select-label"
-                            label={getAttributeLabel(displayName)}
-                            value={value}
-                            onChange={handleSelectChange(attr.name)}
-                        >
-                            {attr.validations.options.options?.map((area: string) => (
-                                <MenuItem key={area} value={area}>
-                                    {area}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-                )
-            } else if (
-                attr.annotations?.inputType === "multiselect-checkboxes" &&
-                attr.annotations?.inputOptionLabels
-            ) {
-                const choices = Object.entries(attr.annotations?.inputOptionLabels).map(
-                    ([key, value]) => {
-                        return {id: key, name: getAttributeLabel(value as string)}
+    const handlePhoneNumberChange = (attrName: string) => async (number: string) => {
+        const phoneInput = phoneInputs[attrName]
+        if (!phoneInput || (phoneInput && phoneInput[0] !== number)) {
+            {
+                setPhoneInputs((prev) => {
+                    return {
+                        ...prev,
+                        [attrName]: [number],
                     }
-                )
-                return (
-                    <FormControl component="fieldset">
-                        <FormLabel component="legend" style={{margin: 0}}>
-                            {getAttributeLabel(displayName)}
-                        </FormLabel>
-                        <FormGroup row>
-                            {choices.map((choice) => {
-                                return (
-                                    <FormControlLabel
-                                        key={choice.id}
-                                        control={
-                                            <Checkbox
-                                                checked={value && value.includes(choice.id)}
-                                                onChange={() =>
-                                                    handleCheckboxChange(attr.name ?? "")(choice.id)
-                                                }
-                                            />
-                                        }
-                                        label={choice.name}
-                                    />
-                                )
-                            })}
-                        </FormGroup>
-                    </FormControl>
-                )
-            } else if (attr.annotations?.inputType === "html5-date") {
-                return (
-                    <FormStyles.DateInput
-                        source={`attributes.${attr.name}`}
-                        onChange={handleAttrChange(attr.name)}
-                        label={getAttributeLabel(displayName)}
-                    />
-                )
-            } else if (attr.name.toLowerCase().includes("area")) {
-                return
-            } else if (attr.name.toLowerCase().includes("mobile-number")) {
-                return (
-                    <PhoneInput
-                        handlePhoneNumberChange={handleAttrStringValueChange(attr.name ?? "")}
-                        label={getAttributeLabel(displayName)}
-                        fullWidth
-                    />
-                )
+                })
             }
-            return (
-                <>
-                    {isCustomAttribute ? (
-                        <FormStyles.TextField
-                            label={getAttributeLabel(displayName)}
-                            value={value}
-                            onChange={handleAttrChange(attr.name)}
-                        />
-                    ) : (
-                        <FormStyles.TextInput
-                            key={attr.display_name}
-                            label={getAttributeLabel(displayName)}
-                            onChange={handleChange}
-                            source={attr.name}
-                        />
-                    )}
-                </>
-            )
         }
     }
 
+    const renderFormField = useCallback(
+        (attr: UserProfileAttribute) => {
+            if (attr.name) {
+                const isCustomAttribute = !userBasicInfo.includes(attr.name)
+                const value = isCustomAttribute
+                    ? user?.attributes?.[attr.name]
+                    : user && user[attr.name as keyof IUser]
+                const displayName = attr.display_name ?? ""
+                if (attr.annotations?.inputType === "select") {
+                    return (
+                        <FormControl fullWidth>
+                            <InputLabel id="select-label">
+                                {getAttributeLabel(displayName)}
+                            </InputLabel>
+                            <Select
+                                name={displayName}
+                                defaultValue={value}
+                                labelId="select-label"
+                                label={getAttributeLabel(displayName)}
+                                value={value}
+                                onChange={handleSelectChange(attr.name)}
+                            >
+                                {attr.validations.options.options?.map((area: string) => (
+                                    <MenuItem key={area} value={area}>
+                                        {area}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    )
+                } else if (
+                    attr.annotations?.inputType === "multiselect-checkboxes" &&
+                    attr.annotations?.inputOptionLabels
+                ) {
+                    const choices = Object.entries(attr.annotations?.inputOptionLabels).map(
+                        ([key, value]) => {
+                            return {id: key, name: getAttributeLabel(value as string)}
+                        }
+                    )
+                    return (
+                        <FormControl component="fieldset">
+                            <FormLabel component="legend" style={{margin: 0}}>
+                                {getAttributeLabel(displayName)}
+                            </FormLabel>
+                            <FormGroup row>
+                                {choices.map((choice) => {
+                                    return (
+                                        <FormControlLabel
+                                            key={choice.id}
+                                            control={
+                                                <Checkbox
+                                                    checked={value && value.includes(choice.id)}
+                                                    onChange={() =>
+                                                        handleCheckboxChange(attr.name ?? "")(
+                                                            choice.id
+                                                        )
+                                                    }
+                                                />
+                                            }
+                                            label={choice.name}
+                                        />
+                                    )
+                                })}
+                            </FormGroup>
+                        </FormControl>
+                    )
+                } else if (attr.annotations?.inputType === "html5-date") {
+                    return (
+                        <FormStyles.DateInput
+                            source={`attributes.${attr.name}`}
+                            onChange={handleAttrChange(attr.name)}
+                            label={getAttributeLabel(displayName)}
+                        />
+                    )
+                } else if (attr.name.toLowerCase().includes("area")) {
+                    return
+                } else if (attr.name.toLowerCase().includes("mobile-number")) {
+                    return (
+                        <PhoneInput
+                            handlePhoneNumberChange={handlePhoneNumberChange(attr.name ?? "")}
+                            label={getAttributeLabel(displayName)}
+                            fullWidth
+                            initialValue={value}
+                        />
+                    )
+                }
+                return (
+                    <>
+                        {isCustomAttribute ? (
+                            <FormStyles.TextField
+                                label={getAttributeLabel(displayName)}
+                                value={value}
+                                onChange={handleAttrChange(attr.name)}
+                            />
+                        ) : (
+                            <FormStyles.TextInput
+                                key={attr.display_name}
+                                label={getAttributeLabel(displayName)}
+                                onChange={handleChange}
+                                source={attr.name}
+                            />
+                        )}
+                    </>
+                )
+            }
+        },
+        [user]
+    )
+
     const formFields = useMemo(() => {
         return userAttributes?.map((attr) => renderFormField(attr))
-    }, [userAttributes])
+    }, [userAttributes.map, user])
 
     if (!user && !createMode) {
         return null
