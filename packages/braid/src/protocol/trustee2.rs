@@ -715,12 +715,12 @@ impl<C: Ctx> Trustee<C> {
         }
     }
 
-    /// Backdoor function used by tests and dbg
+    /// Convenience function used by tests and dbg
     pub fn _get_dkg_public_key_nohash(&self) -> Option<DkgPublicKey<C>> {
         self.local_board.get_dkg_public_key_nohash(0)
     }
 
-    /// Backdoor used by tests and dbg
+    /// Convenience function used by tests and dbg
     pub fn _get_plaintexts_nohash(
         &self,
         batch: BatchNumber,
@@ -769,6 +769,7 @@ pub struct TrusteeConfig {
     pub encryption_key: String,
 }
 impl TrusteeConfig {
+    /// Construct a TrusteeConfig from keys in serialized base64 form.
     pub fn new(signing_key_sk: &str, signing_key_pk: &str, symm_key: &str) -> Self {
         TrusteeConfig {
             signing_key_sk: signing_key_sk.to_string(),
@@ -777,6 +778,7 @@ impl TrusteeConfig {
         }
     }
 
+    /// Construct a TrusteeConfig from keys in object form.
     pub fn new_from_objects(
         signing_key: StrandSignatureSk,
         encryption_key: symm::SymmetricKey,
@@ -789,8 +791,6 @@ impl TrusteeConfig {
 
         // Compatible with both aes and chacha20poly backends
         let ek_bytes = encryption_key.as_slice();
-
-        // let pk_string: String = general_purpose::STANDARD_NO_PAD.encode(pk_bytes);
         let ek_string: String = general_purpose::STANDARD_NO_PAD.encode(ek_bytes);
 
         TrusteeConfig {
@@ -801,6 +801,10 @@ impl TrusteeConfig {
     }
 }
 
+/// The result of running one step of the protocol loop.
+///
+/// Except for testing and debugging, only a step
+/// only returns the generated messages.
 pub struct StepResult {
     pub(crate) messages: Vec<Message>,
     pub(crate) actions: HashSet<Action>,

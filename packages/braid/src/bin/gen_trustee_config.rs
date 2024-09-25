@@ -26,20 +26,19 @@ struct Cli {
     command: Command,
 }
 
-/*
-This utility generates a trustee or protocol manager configuration printed to stdout
-
-Trustee configuration contains
-
-    * signing_key_sk: base64 encoding of a der encoded pkcs#8 v1 encoding
-    * signing_key_pk: base64 encoding of corresponding StrandSignaturePk serialization
-    * encryption_key: base64 encoding of a sign::SymmetricKey
-
-Protocol manager configuration contains
-
-    * signing_key_sk: base64 encoding of a der encoded pkcs#8 v1 encoding
-
-*/
+/// This utility generates a trustee or protocol manager configuration printed to stdout.
+///
+/// Trustee configuration contains
+///
+/// * signing_key_sk: base64 encoding of a der encoded pkcs#8 v1 encoding
+/// * signing_key_pk: base64 encoding of corresponding StrandSignaturePk serialization
+/// * encryption_key: base64 encoding of a sign::SymmetricKey
+///
+/// Protocol manager configuration contains
+///
+///  * signing_key_sk: base64 encoding of a der encoded pkcs#8 v1 encoding.
+///
+/// The randomness is provided by strand, see the strand::rand module.
 fn main() {
     let args = Cli::parse();
 

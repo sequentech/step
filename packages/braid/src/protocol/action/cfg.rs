@@ -6,8 +6,8 @@ use super::*;
 
 /// Signs the Configuration.
 ///
-/// The place hold logic in is_config_approved will be in
-/// addition to general validation already performed in
+/// The placeholder logic in is_config_approved will be checks
+/// in addition to general validation already performed in
 /// Configuration::is_valid, which is called when
 /// the trustee's LocalBoard is bootstrapped.
 pub(super) fn sign_config<C: Ctx>(

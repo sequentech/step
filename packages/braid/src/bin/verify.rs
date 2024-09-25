@@ -27,6 +27,8 @@ struct Cli {
     board: String,
 
     /// Checks inclusion of the given ballot
+    ///
+    /// NOT YET IMPLEMENTED
     #[arg(long)]
     ballot_hash: Option<String>,
 }

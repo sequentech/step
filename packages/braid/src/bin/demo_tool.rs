@@ -31,50 +31,108 @@ use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strand::symm;
 
 const PG_HOST: &'static str = "localhost";
-const PG_DATABASE: &'static str = "protocoldb";
+const PG_PORT: u32 = 5432;
 const PG_USER: &'static str = "postgres";
 const PG_PASSW: &'static str = "postgrespw";
-const PG_PORT: u32 = 5432;
+/// The postgresql database which will host the bulletin board.
+/// Note that an entire bulletin board exists on a single database; each
+/// individual board is implemented with a table.
+const PG_DATABASE: &'static str = "protocoldb";
+/// The default board if none specified.
 const TEST_BOARD: &'static str = "test";
+/// The root directory from which the demo directories will be created.
 const DEMO_DIR: &str = "./demo";
 const PROTOCOL_MANAGER: &str = "pm.toml";
+/// File with the serialized bytes of a Configuration object.
 const CONFIG: &str = "config.bin";
+
+/// Runs a demo protocol.
 #[derive(Parser)]
 struct Cli {
+    /// The postgresql database host.
     #[arg(long, default_value_t = PG_HOST.to_string())]
     host: String,
 
+    /// The postgresql database port.
     #[arg(long, default_value_t = PG_PORT)]
     port: u32,
 
+    /// The username with which to authenticate to postgres.
     #[arg(short, long, default_value_t = PG_USER.to_string())]
     username: String,
 
+    /// The password with which to authenticate to postgres.
     #[arg(long, default_value_t = PG_PASSW.to_string())]
     password: String,
 
+    /// The board on which the requested operations will take place.
+    ///
+    /// Used when initializing the protocol, posting ballots and
+    /// listing messages.
     #[arg(long, default_value_t = TEST_BOARD.to_string())]
     board_name: String,
 
+    /// The number of boards to operate on, using the board_name as a prefix.
+    ///
+    /// Used when initializing the protocol and posting ballots.
+    /// For example, if using board_name = test, and setting this parameter
+    /// to 3 will use test, test_1, and test_3.
     #[arg(long, default_value_t = 1)]
     board_count: u32,
 
+    /// The number of ciphertexts to generate when posting ballots.
     #[arg(long, default_value_t = 100)]
     ciphertexts: usize,
 
+    /// The number of batches to generate when posting ballots.
     #[arg(long, default_value_t = 1)]
     batches: u32,
 
+    /// The number of of trustees to use
+    ///
+    /// Used when generating configuration files and posting ballots.
+    /// When posting ballots, you must supply the same value
+    /// as the one used during configuration generation.
     #[arg(long, default_value_t = 3)]
     num_trustees: usize,
 
+    /// The number of threshold trustees to use.
+    ///
+    /// Used when generating configuration data and posting ballots.
+    /// When posting ballots, you must supply the same values
+    /// as the one used during configuration generation.
     #[arg(long, default_value_t = 2)]
     threshold: usize,
 
+    /// The operation to execute.
     #[arg(value_enum)]
     command: Command,
 }
 
+/// The requested operation for this tool.
+///
+/// GenConfigs: generate the trustee and protocol configuration files, creating
+/// the required directory structure. Also generates a default launch script for
+/// each trustee.
+///
+/// InitProtocol: Initializes the protocol by posting the protocol Configuration
+/// to the requested board or set of boards. These boards are also added to the
+/// index and set as active. This is done directly through the database and not the
+/// grpc server. If the required database tables do not exist
+/// they are created. Any existing data is dropped.
+///
+/// PostBallots: Posts randomly generated ciphertexts to the requested board or boards.
+/// This is done directly through the database and not the grpc server.
+///
+/// ListMessages: Lists the messages from the requested board. This is done directly through
+/// the database and not the grpc server.
+///
+/// ListBoards: Lists the active boards in the index. This is done directly through
+/// the database and not the grpc server.
+///
+/// DropDb: Drops the entire database.
+///
+/// All database operations execute on the database specified by the PG_DATABASE constant.
 #[derive(clap::ValueEnum, Clone)]
 enum Command {
     GenConfigs,
@@ -82,65 +140,58 @@ enum Command {
     PostBallots,
     ListMessages,
     ListBoards,
-    DeleteBoards,
+    DropDb,
 }
 
-/*
-The demo tool can be used to run a demo election with a fixed set of parameters
-
-Backend         Ristretto
-Trustees        3
-Threshold       2
-
-currently these cannot be changed, but it would be easy to add cli options for them.
-
-The sequence of steps to run a demo election are
-
-    1) Generate the election configuration data (at ./demo)
-
-       cargo run --bin demo_tool -- gen-configs
-
-    2) Initialize the protocol with said configuration data (from ./demo)
-
-       cargo run --bin demo_tool -- init-protocol
-
-    2.5) Launch the braid bulletin board server
-
-    3) Launch each of the trustees (each in their own directory)
-
-       cd demo/1
-       cargo run --manifest-path ../../Cargo.toml --target-dir ../../rust-local-target --release --bin main  -- --b3-url http://[::1]:50051 --trustee-config trustee1.toml
-
-       cd demo/2
-       cargo run --manifest-path ../../Cargo.toml --target-dir ../../rust-local-target --release --bin main  -- --b3-url http://[::1]:50051 --trustee-config trustee2.toml
-
-       cd demo/3
-       cargo run --manifest-path ../../Cargo.toml --target-dir ../../rust-local-target --release --bin main  -- --b3-url http://[::1]:50051 --trustee-config trustee3.toml
-
-    4) Wait until the distributed key generation process has finished. You can check that this process is complete
-       by listing the messages in the protocol board and looking for "PublicKey".
-
-       cargo run --bin demo_tool -- list-messages
-
-       example output with statement=PublicKey
-
-       INFO message: Message{ sender="Self" statement=PublicKey(1715226660, ConfigurationHash(5961c86066), PublicKeyHash(7fa5d0654f), SharesHashes(1045b3c1ae 825b49a0da 8dd943adb4 - - - - - - - - -)
-
-    5) Post sample ballots
-
-        cargo run --bin demo_tool -- post-ballots
-
-    6) Wait until the protocol execution finishes.  You can check that this process is complete
-       by listing the messages in the protocol board and looking for "Plaintexts".
-
-       cargo run --bin demo_tool -- list-messages
-
-       example output with statement=Plaintexts
-
-       INFO message: Message{ sender="Self" statement=Plaintexts(1715226699, ConfigurationHash(5961c86066), 2, PlaintextsHash(85b40fc230), DecryptionFactorsHashes(4e99c9bc7b 39bd723ffb - - - - - - - - - -), CiphertextsHash(c11d685b13), PublicKeyHash(7fa5d0654f)) artifact=true}
-
-       Note that the trustee processes will not terminate, they will continue in an idle state.
-*/
+///
+/// The demo tool can be used to run a demo election, with backend fixed to Ristretto.
+///
+/// The sequence of steps to run a demo election are
+///
+///    1) Generate the election configuration data (at Self::DEMO_DIR)
+///
+///       cargo run --bin demo_tool -- gen-configs
+///
+///    2) Initialize the protocol with said configuration data (from Self::DEMO_DIR)
+///
+///       cargo run --bin demo_tool -- init-protocol
+///
+///    2.5) Launch the braid bulletin board server
+///
+///    3) Launch each of the trustees (each in their own directory)
+///
+///       cd demo/1
+///       cargo run --manifest-path ../../Cargo.toml --target-dir ../../rust-local-target --release --bin main  -- --b3-url http://[::1]:50051 --trustee-config trustee1.toml
+///
+///       cd demo/2
+///       cargo run --manifest-path ../../Cargo.toml --target-dir ../../rust-local-target --release --bin main  -- --b3-url http://[::1]:50051 --trustee-config trustee2.toml
+///
+///       cd demo/3
+///       cargo run --manifest-path ../../Cargo.toml --target-dir ../../rust-local-target --release --bin main  -- --b3-url http://[::1]:50051 --trustee-config trustee3.toml
+///
+///    4) Wait until the distributed key generation process has finished. You can check that this process is complete
+///       by listing the messages in the protocol board and looking for "PublicKey".
+///
+///       cargo run --bin demo_tool -- list-messages
+///
+///       example output with statement=PublicKey
+///
+///       INFO message: Message{ sender="Self" statement=PublicKey(1715226660, ConfigurationHash(5961c86066), PublicKeyHash(7fa5d0654f), SharesHashes(1045b3c1ae 825b49a0da 8dd943adb4 - - - - - - - - -)
+///
+///    5) Post random ballots
+///
+///        cargo run --bin demo_tool -- post-ballots
+///
+///    6) Wait until the protocol execution finishes.  You can check that this process is complete
+///       by listing the messages in the protocol board and looking for "Plaintexts".
+///
+///       cargo run --bin demo_tool -- list-messages
+///
+///       example output with statement=Plaintexts
+///
+///       INFO message: Message{ sender="Self" statement=Plaintexts(1715226699, ConfigurationHash(5961c86066), 2, PlaintextsHash(85b40fc230), DecryptionFactorsHashes(4e99c9bc7b 39bd723ffb - - - - - - - - - -), CiphertextsHash(c11d685b13), PublicKeyHash(7fa5d0654f)) artifact=true}
+///
+///       Note that the trustee processes will not terminate, they will continue to execute in an idle state.
 #[tokio::main]
 #[instrument]
 async fn main() -> Result<()> {
@@ -150,7 +201,6 @@ async fn main() -> Result<()> {
 
     match &args.command {
         Command::GenConfigs => {
-            // let threshold = [1, 2];
             gen_configs::<RistrettoCtx>(args.num_trustees, args.threshold)?;
         }
         Command::InitProtocol => {
@@ -221,7 +271,7 @@ async fn main() -> Result<()> {
                 get_client(&args.host, args.port, &args.username, &args.password).await?;
             list_boards(&mut client).await?;
         }
-        Command::DeleteBoards => {
+        Command::DropDb => {
             delete_boards(&args.host, args.port, &args.username, &args.password).await?;
         }
     }
@@ -229,36 +279,37 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-/*
-Generates all the configuration information necessary to create a demo election
-
-    * Generate .toml config for each trustee, containing:
-        * signing_key_sk: base64 encoding of a der encoded pkcs#8 v1
-        * signing_key_pk: base64 encoding of a der encoded spki
-        * encryption_key: base64 encoding of a sign::SymmetricKey
-    * Generate .toml config for the protocol manager:
-        signing_key: base64 encoding of a der encoded pkcs#8 v1
-    * Generate a .bin config for a session, a serialized Configuration artifact
-        This configuration artifact includes the protocol manager and trustee information
-        of the previous items.
-
-    These files are created in a demo directory with the following layout
-
-    demo
-    |
-    └ config.bin
-    └ pm.toml
-    |
-    └ 1
-    | |
-    | └ trustee1.toml
-    └ 2
-    | |
-    | └ trustee2.toml
-    └ 3
-    |
-    └ trustee3.toml
-*/
+///
+/// Generates all the configuration information necessary to create a demo election
+///
+///    * Generate .toml config for each trustee, containing:
+///        * signing_key_sk: base64 encoding of a der encoded pkcs#8 v1
+///        * signing_key_pk: base64 encoding of a der encoded spki
+///        * encryption_key: base64 encoding of a sign::SymmetricKey
+///    * Generate .toml config for the protocol manager:
+///        signing_key: base64 encoding of a der encoded pkcs#8 v1
+///    * Generate a .bin config for a session, a serialized Configuration artifact
+///        This configuration artifact includes the protocol manager and trustee information
+///        of the previous items.
+///    * Generates default a run script for each trustee.
+///
+///    These files are created in a demo directory with the following layout,
+///    for example with num_trustees = 3:
+///
+///    demo
+///    |
+///    └ config.bin
+///    └ pm.toml
+///    |
+///    └ 1
+///    | |
+///    | └ trustee.toml
+///    └ 2
+///    | |
+///    | └ trustee.toml
+///    └ 3
+///    |
+///   └ trustee.toml
 fn gen_configs<C: Ctx>(n_trustees: usize, threshold: usize) -> Result<()> {
     let pmkey: StrandSignatureSk = StrandSignatureSk::gen()?;
     let pm: ProtocolManager<C> = ProtocolManager {
@@ -312,14 +363,9 @@ fn gen_configs<C: Ctx>(n_trustees: usize, threshold: usize) -> Result<()> {
     Ok(())
 }
 
-/*
-Initializes the bulletin board with the necessary information to start a protocol run. This information will
-be taken from the demo directory created in the step above. As part of this process the required bulletin board
-tables will be created (and removed if they already existed). These are
-    * demoboardindex    The index board used to query which protocols to run
-    * demoboard         The specific artifact board for a protocol run
-*/
-
+/// Initializes the bulletin board with the necessary information to start a protocol run.
+///
+/// This information will be taken from the demo directory created in the gen-config step.
 #[instrument(skip(client))]
 async fn init<C: Ctx>(
     client: &mut XPgsqlB3Client,
@@ -334,14 +380,13 @@ async fn init<C: Ctx>(
     client.insert_configuration::<C>(board_name, message).await
 }
 
-/*
-Posts randomly generated ballots on the bulletin board for the purposes of tallying. If a ballot artifact already exists the
-operation will be aborted.
-
-This operation can only be carried out once the distributed key generation phase has been completed such that the election
-public key is present on the board and can be downloaded to allow the encryption of random ballots. The ballot plaintexts
-are randomly generated.
-*/
+/// Posts randomly generated ballots on the bulletin board for the purposes of tallying.
+///
+/// This operation can only be carried out once the distributed key generation phase has
+/// been completed such that the election public key is present on the board and can be
+/// downloaded to allow the encryption of random ballots. If there are already ballots
+/// present on the board, an error will be returned. A protocol run can always be reset
+/// with the init-protocol command.
 #[instrument(skip(client))]
 async fn post_ballots<C: Ctx>(
     client: &mut XPgsqlB3Client,
@@ -486,6 +531,7 @@ fn get_pm<C: Ctx>(ctxp: PhantomData<C>) -> Result<ProtocolManager<C>> {
     Ok(pm)
 }
 
+/// Drops the entire database.
 #[instrument()]
 async fn delete_boards(host: &str, port: u32, username: &str, password: &str) -> Result<()> {
     let c = get_connection(host, port, username, password);

@@ -2,18 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// This demo utility generates all the configuration information
-// necessary to create a demo election, as files in the working directory:
-//
-// * Generate .toml config for each trustee, containing:
-//      * signing_key_sk: base64 encoding of a der encoded pkcs#8 v1
-//      * signing_key_pk: base64 encoding of a der encoded spki
-//      * encryption_key: base64 encoding of a sign::SymmetricKey
-// * Generate .toml config for the protocol manager:
-//      signing_key: base64 encoding of a der encoded pkcs#8 v1
-// * Generate a .bin config for a session, a serialized Configuration artifact
-//
-
 use std::fs::File;
 use std::io::prelude::*;
 use std::marker::PhantomData;
@@ -31,6 +19,18 @@ use braid::protocol::trustee2::TrusteeConfig;
 const CONFIG: &str = "config.bin";
 const PROTOCOL_MANAGER: &str = "pm.toml";
 
+/// This demo utility generates all the configuration information
+/// necessary to create a demo election, as files in the working directory:
+///
+/// * Generate .toml config for each trustee, containing:
+///      * signing_key_sk: base64 encoding of a der encoded pkcs#8 v1
+///      * signing_key_pk: base64 encoding of a der encoded spki
+///      * encryption_key: base64 encoding of a sign::SymmetricKey
+/// * Generate .toml config for the protocol manager:
+///      signing_key: base64 encoding of a der encoded pkcs#8 v1
+/// * Generate a .bin config for a session, a serialized Configuration artifact
+///
+/// FIXME: made obsolete by demo_tool.
 fn main() {
     let threshold = [1, 2];
     gen_election_config::<RistrettoCtx>(3, &threshold);

@@ -28,25 +28,26 @@ cfg_if::cfg_if! {
     }
 }
 
-/// Cli arguments.
+/// Runs a mixnet trustee.
 ///
-/// b3_url: The url of the braid bulletin board grpc server.
-/// trustee_config: The trustee configuration file including signature
-/// and symmetric encryption keys.
-/// tokio_workers: sets the tokio worker_threads parameter.
-/// session_workers: the number of SessionSets that will run the protocol.
-/// SessionSets run concurrently as tokio threads and multiplex requests.
+/// This entry point supports concurrency, multiplexing and chunking.
 #[derive(Parser)]
 struct Cli {
+    /// The url of the braid bulletin board grpc server.
     #[arg(short, long)]
     b3_url: String,
 
+    /// The trustee configuration file including signature and symmetric encryption keys.
     #[arg(short, long)]
     trustee_config: PathBuf,
 
+    /// Sets the tokio worker_threads parameter.
     #[arg(short, long, default_value_t = 2)]
     tokio_workers: usize,
 
+    /// The number of SessionSets that will run the protocol.
+    ///
+    /// SessionSets run concurrently as tokio threads and multiplex requests.
     #[arg(short, long, default_value_t = 1)]
     session_workers: usize,
 }

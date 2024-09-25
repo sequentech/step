@@ -539,7 +539,9 @@ impl<C: Ctx> LocalBoard<C> {
     /// identifying information that makes them unique,
     /// there can not be more than one per board.
     /// This together with a persistent store makes
-    /// the board append only.
+    /// the board append only: a LocalBoard will not
+    /// accept a subsequent duplicate message. The order
+    /// is established locally by the trustee.
     pub(crate) fn get_statement_entry_identifier(
         &self,
         statement: &Statement,
@@ -702,6 +704,9 @@ impl<C: Ctx> LocalBoard<C> {
 
         let connection = self.get_store()?;
 
+        // The order by id asc clause is significant, as it ensures that the trustee
+        // cannot be made to accept a different order than what it has established
+        // locally. See self::get_store.
         let mut stmt = connection
             .prepare("SELECT id,message,sender_pk,statement_kind,batch,mix_number FROM MESSAGES where id > ?1 order by id asc")?;
 
