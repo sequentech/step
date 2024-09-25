@@ -50,6 +50,7 @@ import {
     IElectionPresentation,
     ITenantSettings,
     EVotingPortalCountdownPolicy,
+    IActiveTemplateIds,
 } from "@sequentech/ui-core"
 import {Dialog} from "@sequentech/ui-essentials"
 import {ListActions} from "@/components/ListActions"
@@ -424,8 +425,10 @@ export const EditElectionEventDataForm: React.FC = () => {
             temp.presentation.custom_urls = {}
         }
 
-        if (!temp.presentation.active_template_ids.manual_verification) {
-            temp.presentation.active_template_ids.manual_verification = ""
+        if (!(temp.presentation as IElectionEventPresentation | undefined)?.active_template_ids) {
+            (temp.presentation.active_template_ids as IActiveTemplateIds) = {
+                manual_verification: "",
+            }
         }
 
         return temp
