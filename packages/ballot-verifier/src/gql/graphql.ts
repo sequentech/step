@@ -222,6 +222,12 @@ export type ExportLogsOutput = {
     task_id: Scalars["String"]["output"]
 }
 
+export type ExportTasksExecutionOutput = {
+    __typename?: "ExportTasksExecutionOutput"
+    document_id: Scalars["String"]["output"]
+    error_msg?: Maybe<Scalars["String"]["output"]>
+}
+
 export type ExportTasksOutput = {
     __typename?: "ExportTasksOutput"
     document_id: Scalars["String"]["output"]
@@ -231,13 +237,15 @@ export type ExportTasksOutput = {
 export type ExportTenantUsersOutput = {
     __typename?: "ExportTenantUsersOutput"
     document_id: Scalars["String"]["output"]
-    task_id: Scalars["String"]["output"]
+    error_msg?: Maybe<Scalars["String"]["output"]>
+    task_execution?: Maybe<Tasks_Execution_Type>
 }
 
 export type ExportUsersOutput = {
     __typename?: "ExportUsersOutput"
     document_id: Scalars["String"]["output"]
-    task_id: Scalars["String"]["output"]
+    error_msg?: Maybe<Scalars["String"]["output"]>
+    task_execution?: Maybe<Tasks_Execution_Type>
 }
 
 export type FetchDocumentOutput = {
@@ -650,6 +658,12 @@ export type Bytea_Comparison_Exp = {
     _nin?: InputMaybe<Array<Scalars["bytea"]["input"]>>
 }
 
+export type CreateTransmissionPackageOutput = {
+    __typename?: "createTransmissionPackageOutput"
+    error_msg?: Maybe<Scalars["String"]["output"]>
+    task_execution?: Maybe<Tasks_Execution_Type>
+}
+
 /** ordering argument of a cursor */
 export enum Cursor_Ordering {
     /** ascending ordering of the cursor */
@@ -718,7 +732,7 @@ export type Mutation_Root = {
     create_permission?: Maybe<KeycloakPermission>
     create_role: KeycloakRole
     create_tally_ceremony?: Maybe<CreateTallyOutput>
-    create_transmission_package?: Maybe<OptionalId>
+    create_transmission_package?: Maybe<CreateTransmissionPackageOutput>
     create_user: KeycloakUser
     /** create_vote_receipt */
     create_vote_receipt?: Maybe<CreateVoteReceiptOutput>
@@ -858,6 +872,7 @@ export type Mutation_Root = {
     export_election_event?: Maybe<DocumentTaskOutput>
     export_election_event_logs?: Maybe<ExportLogsOutput>
     export_election_event_tasks?: Maybe<ExportTasksOutput>
+    export_tasks_execution?: Maybe<ExportTasksExecutionOutput>
     export_tenant_users?: Maybe<ExportTenantUsersOutput>
     export_users?: Maybe<ExportUsersOutput>
     generate_ballot_publication?: Maybe<PublishBallotOutput>
@@ -1303,6 +1318,7 @@ export type Mutation_RootCreate_Tally_CeremonyArgs = {
 /** mutation root */
 export type Mutation_RootCreate_Transmission_PackageArgs = {
     area_id: Scalars["uuid"]["input"]
+    election_event_id: Scalars["uuid"]["input"]
     election_id: Scalars["uuid"]["input"]
     force: Scalars["Boolean"]["input"]
     tally_session_id: Scalars["uuid"]["input"]
@@ -1745,6 +1761,12 @@ export type Mutation_RootExport_Election_Event_LogsArgs = {
 /** mutation root */
 export type Mutation_RootExport_Election_Event_TasksArgs = {
     election_event_id?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** mutation root */
+export type Mutation_RootExport_Tasks_ExecutionArgs = {
+    election_event_id: Scalars["String"]["input"]
+    tenant_id: Scalars["String"]["input"]
 }
 
 /** mutation root */

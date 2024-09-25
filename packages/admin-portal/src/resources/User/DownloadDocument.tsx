@@ -51,7 +51,18 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
             let name = fileName || document?.name || "file"
             downloadUrl(data.fetchDocument.url, name).then(() => onDownload())
         }
-    }, [data, error, loading, document])
+    }, [
+        data,
+        data?.fetchDocument?.url,
+        error,
+        loading,
+        document,
+        fileName,
+        downloaded,
+        setDownloaded,
+        downloadUrl,
+        onDownload,
+    ])
 
     return withProgress ? <CircularProgress /> : <></>
 }

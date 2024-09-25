@@ -96,7 +96,7 @@ async fn rocket() -> _ {
                 routes::miru_plugin::create_transmission_package,
                 routes::miru_plugin::send_transmission_package,
                 routes::miru_plugin::upload_signature,
-                // routes::get_task_by_id::get_task_by_id_route,
+                routes::export_tasks_execution::export_tasks_execution_route,
             ],
         )
 }

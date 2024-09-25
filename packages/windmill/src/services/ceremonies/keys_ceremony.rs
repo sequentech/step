@@ -50,9 +50,7 @@ pub async fn get_private_key(
     let celery_app = get_celery_app().await;
 
     // The trustee name is simply the username of the user
-    let trustee_name = claims
-        .preferred_username
-        .ok_or(anyhow!("username not found"))?;
+    let trustee_name = claims.trustee.ok_or(anyhow!("trustee name not found"))?;
 
     // get the keys ceremonies for this election event
     let keys_ceremony = get_keys_ceremonies(
@@ -211,9 +209,7 @@ pub async fn check_private_key(
     let auth_headers = keycloak::get_client_credentials().await?;
 
     // The trustee name is simply the username of the user
-    let trustee_name = claims
-        .preferred_username
-        .ok_or(anyhow!("username not found"))?;
+    let trustee_name = claims.trustee.ok_or(anyhow!("trustee name not found"))?;
 
     // get the keys ceremonies for this election event
     let keys_ceremony = get_keys_ceremony_by_id(

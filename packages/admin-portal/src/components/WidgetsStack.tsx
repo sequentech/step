@@ -14,7 +14,7 @@ export const WidgetsStack: React.FC<WidgetsStackProps> = ({widgetsMap}) => {
     const widgets: WidgetProps[] = Array.from(widgetsMap.values())
 
     return (
-        <StackContainer>
+        <StackContainer className="widget-stack">
             {widgets.map((widget) => (
                 <Widget
                     key={widget.identifier}
