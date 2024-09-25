@@ -76,21 +76,29 @@ enum TemplateType {
 
 #[instrument(err)]
 async fn get_public_asset_manual_verification_template(tpl_type: TemplateType) -> Result<String> {
-    let public_asset_path = env::var("PUBLIC_ASSETS_PATH")?;
+    let public_asset_path =
+        env::var("PUBLIC_ASSETS_PATH").with_context(|| "PUBLIC_ASSETS_PATH env var missing")?;
 
     let file_manual_verification_template = match tpl_type {
-        TemplateType::System => env::var("PUBLIC_ASSETS_MANUAL_VERIFICATION_SYSTEM_TEMPLATE")?,
-        TemplateType::User => env::var("PUBLIC_ASSETS_MANUAL_VERIFICATION_USER_TEMPLATE")?,
+        TemplateType::System => env::var("PUBLIC_ASSETS_MANUAL_VERIFICATION_SYSTEM_TEMPLATE")
+            .with_context(|| "PUBLIC_ASSETS_MANUAL_VERIFICATION_SYSTEM_TEMPLATE env var missing")?,
+        TemplateType::User => env::var("PUBLIC_ASSETS_MANUAL_VERIFICATION_USER_TEMPLATE")
+            .with_context(|| "PUBLIC_ASSETS_MANUAL_VERIFICATION_USER_TEMPLATE env var missing")?,
     };
 
-    let minio_endpoint_base = get_minio_url()?;
+    let minio_endpoint_base = get_minio_url().with_context(|| "Error getting minio endpoint")?;
+
     let manual_verification_template = format!(
         "{}/{}/{}",
         minio_endpoint_base, public_asset_path, file_manual_verification_template
     );
 
     let client = reqwest::Client::new();
-    let response = client.get(&manual_verification_template).send().await?;
+    let response = client
+        .get(&manual_verification_template)
+        .send()
+        .await
+        .with_context(|| "Error getting/send request for manual verification template")?;
 
     if response.status() == reqwest::StatusCode::NOT_FOUND {
         return Err(anyhow!("File not found: {}", manual_verification_template));
@@ -102,7 +110,10 @@ async fn get_public_asset_manual_verification_template(tpl_type: TemplateType) -
         ));
     }
 
-    let template_hbs: String = response.text().await?;
+    let template_hbs: String = response
+        .text()
+        .await
+        .with_context(|| "Error reading the manual verification template response")?;
 
     Ok(template_hbs)
 }
@@ -224,9 +235,11 @@ pub async fn get_manual_verification_pdf(
     let file_logo = env::var("PUBLIC_ASSETS_LOGO_IMG")?;
     let file_qrcode_lib = env::var("PUBLIC_ASSETS_QRCODE_LIB")?;
     let manual_verification_url =
-        get_manual_verification_url(tenant_id, election_event_id, voter_id).await?;
+        get_manual_verification_url(tenant_id, election_event_id, voter_id)
+            .await
+            .with_context(|| "Error getting manual verification url")?;
 
-    let minio_endpoint_base = get_minio_url()?;
+    let minio_endpoint_base = get_minio_url().with_context(|| "Error getting minio endpoint")?;
 
     let user_template_data = UserTemplateData {
         manual_verification_url: manual_verification_url.to_string(),
@@ -236,7 +249,9 @@ pub async fn get_manual_verification_pdf(
     .to_map()?;
 
     let custom_user_template: Option<String> =
-        get_custom_user_template(tenant_id, election_event_id).await?;
+        get_custom_user_template(tenant_id, election_event_id)
+            .await
+            .with_context(|| "Error getting custom user template")?;
 
     let user_template = match custom_user_template {
         Some(template) => {
@@ -245,7 +260,9 @@ pub async fn get_manual_verification_pdf(
         }
         None => {
             info!("Setting default user template for manual verification!");
-            get_public_asset_manual_verification_template(TemplateType::User).await?
+            get_public_asset_manual_verification_template(TemplateType::User)
+                .await
+                .map_err(|e| anyhow!("Error getting default user template: {e}"))?
         }
     };
     info!("user template: {user_template:?}");
@@ -266,13 +283,16 @@ pub async fn get_manual_verification_pdf(
             minio_endpoint_base, public_asset_path, file_qrcode_lib
         ),
     }
-    .to_map()?;
+    .to_map()
+    .with_context(|| "Error converting to map")?;
 
-    let system_template =
-        get_public_asset_manual_verification_template(TemplateType::System).await?;
+    let system_template = get_public_asset_manual_verification_template(TemplateType::System)
+        .await
+        .with_context(|| "Error getting default system template")?;
     info!("system template: {system_template:?}");
     let rendered_system_template =
-        reports::render_template_text(&system_template, system_template_data)?;
+        reports::render_template_text(&system_template, system_template_data)
+            .with_context(|| "Error rendering template")?;
     info!("rendered system template: {rendered_system_template:?}");
 
     // Gen pdf
@@ -282,7 +302,9 @@ pub async fn get_manual_verification_pdf(
         write_into_named_temp_file(&bytes_pdf, "manual-verification-", ".pdf")
             .with_context(|| "Error writing to file")?;
 
-    let auth_headers = keycloak::get_client_credentials().await?;
+    let auth_headers = keycloak::get_client_credentials()
+        .await
+        .with_context(|| "Error getting client credentials")?;
     let _document = upload_and_return_document(
         temp_path_string,
         file_size,
@@ -294,7 +316,8 @@ pub async fn get_manual_verification_pdf(
         Some(document_id.to_string()),
         true,
     )
-    .await?;
+    .await
+    .with_context(|| "Error uploading document")?;
 
     Ok(())
 }
