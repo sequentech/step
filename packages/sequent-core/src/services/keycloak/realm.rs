@@ -67,6 +67,7 @@ impl KeycloakAdminClient {
         json_realm_config: &str,
         tenant_id: &str,
         replace_ids: bool,
+        display_name: Option<String>,
     ) -> Result<()> {
         let real_get_result = self.client.realm_get(board_name).await;
         let replaced_ids_config = if replace_ids {
@@ -79,6 +80,10 @@ impl KeycloakAdminClient {
 
         // set realm name
         realm.realm = Some(board_name.into());
+
+        if let Some(name) = display_name {
+            realm.display_name = Some(name);
+        }
 
         // set tenant id attribute on all users
         realm.users = Some(

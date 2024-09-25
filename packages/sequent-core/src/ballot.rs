@@ -604,6 +604,29 @@ pub struct ElectionEventPresentation {
     pub active_template_ids: Option<ActiveTemplateIds>,
 }
 
+#[allow(non_camel_case_types)]
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+)]
+pub enum EGracePeriodPolicy {
+    #[strum(serialize = "no-grace-period")]
+    #[serde(rename = "no-grace-period")]
+    NO_GRACE_PERIOD,
+    #[strum(serialize = "grace-period-without-alert")]
+    #[serde(rename = "grace-period-without-alert")]
+    GRACE_PERIOD_WITHOUT_ALERT,
+}
+
 #[derive(
     BorshSerialize,
     BorshDeserialize,
@@ -799,6 +822,9 @@ pub struct ElectionPresentation {
     pub audit_button_cfg: Option<AuditButtonCfg>,
     pub sort_order: Option<i64>,
     pub cast_vote_confirm: Option<bool>,
+    pub is_grace_priod: Option<bool>,
+    pub grace_period_policy: Option<EGracePeriodPolicy>,
+    pub grace_period_secs: Option<u64>,
 }
 
 #[derive(

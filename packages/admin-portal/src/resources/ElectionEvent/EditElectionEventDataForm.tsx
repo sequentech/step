@@ -74,9 +74,9 @@ import {EXPORT_ELECTION_EVENT} from "@/queries/ExportElectionEvent"
 import {FetchResult, useMutation} from "@apollo/client"
 import {IMPORT_CANDIDTATES} from "@/queries/ImportCandidates"
 import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
-import {useWatch} from "react-hook-form"
 import {convertToNumber} from "@/lib/helpers"
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
+import {ManagedNumberInput} from "@/components/managed-inputs/ManagedNumberInput"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
@@ -101,39 +101,6 @@ const ElectionRows = styled.div`
     margin-bottom: 0.1rem;
     padding: 1rem;
 `
-
-interface ManagedNumberInputProps {
-    source: string
-    label: string
-    defaultValue: number
-    sourceToWatch: string
-}
-
-const ManagedNumberInput = ({
-    source,
-    label,
-    defaultValue,
-    sourceToWatch,
-}: ManagedNumberInputProps) => {
-    const secondsToShowCountdownSource = `presentation.voting_portal_countdown_policy.countdown_anticipation_secs`
-    const secondsToShowAlretSource = `presentation.voting_portal_countdown_policy.countdown_alert_anticipation_secs`
-    const selectedPolicy = useWatch({name: sourceToWatch})
-    const isDisabled =
-        (source === secondsToShowCountdownSource &&
-            selectedPolicy === EVotingPortalCountdownPolicy.NO_COUNTDOWN) ||
-        (source === secondsToShowAlretSource &&
-            selectedPolicy !== EVotingPortalCountdownPolicy.COUNTDOWN_WITH_ALERT)
-
-    return (
-        <NumberInput
-            source={source}
-            disabled={isDisabled}
-            label={label}
-            defaultValue={defaultValue}
-            style={{flex: 1}}
-        />
-    )
-}
 
 interface ExportWrapperProps {
     electionEventId: string
@@ -1237,6 +1204,10 @@ export const EditElectionEventDataForm: React.FC = () => {
                                             )}
                                             defaultValue={defaultSecondsForCountdown}
                                             sourceToWatch="presentation.voting_portal_countdown_policy.policy"
+                                            isDisabled={(selectedPolicy) =>
+                                                selectedPolicy ===
+                                                EVotingPortalCountdownPolicy.NO_COUNTDOWN
+                                            }
                                         />
 
                                         <ManagedNumberInput
@@ -1248,6 +1219,10 @@ export const EditElectionEventDataForm: React.FC = () => {
                                             )}
                                             defaultValue={defaultSecondsForAlret}
                                             sourceToWatch="presentation.voting_portal_countdown_policy.policy"
+                                            isDisabled={(selectedPolicy) =>
+                                                selectedPolicy !==
+                                                EVotingPortalCountdownPolicy.COUNTDOWN_WITH_ALERT
+                                            }
                                         />
                                     </Box>
                                 </AccordionDetails>

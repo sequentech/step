@@ -266,7 +266,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
             return (
                 (ceremony.status === IExecutionStatus.NOT_STARTED ||
                     ceremony.status === IExecutionStatus.IN_PROCESS) &&
-                !!status.trustees.find((trustee) => trustee.name === authContext.username)
+                !!status.trustees.find((trustee) => trustee.name === authContext.trustee)
             )
         }
         return false
@@ -326,6 +326,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                     tenant_id: tenantId || undefined,
                     election_event_id: electionEventRecord?.id || undefined,
                 }}
+                storeKey={false}
                 filters={Filters}
             >
                 <ElectionHeader title={"electionEventScreen.tally.title"} subtitle="" />

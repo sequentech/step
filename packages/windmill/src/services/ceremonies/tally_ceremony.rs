@@ -479,9 +479,9 @@ pub async fn set_private_key(
 
     // The trustee name is simply the username of the user
     let trustee_name = claims
-        .preferred_username
+        .trustee
         .clone()
-        .ok_or(anyhow!("username not found"))?;
+        .ok_or(anyhow!("trustee name not found"))?;
 
     let Some((tally_session_execution, tally_session)) = find_last_tally_session_execution(
         auth_headers.clone(),

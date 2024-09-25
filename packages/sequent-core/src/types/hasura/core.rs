@@ -7,7 +7,11 @@ use chrono::{DateTime, Local};
 use serde::{Deserialize, Serialize};
 use serde_json::value::Value;
 
-use crate::types::tally_sheets::AreaContestResults;
+use crate::{
+    ballot::{ElectionEventPresentation, ElectionPresentation},
+    serialization::deserialize_with_path::deserialize_value,
+    types::tally_sheets::AreaContestResults,
+};
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct BallotPublication {

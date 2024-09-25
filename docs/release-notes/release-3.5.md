@@ -4,7 +4,7 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-# Release Notes - Manual Permission Migration
+# Release 3.5
 
 ## Manual Migration of Permissions in Old Deployments
 
