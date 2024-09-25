@@ -22,5 +22,6 @@ assigning the right trustee to the admin users that have the trustee role.
    - Navigate to the `Users and Roles` section under your realm.
    - Click on `...` at the right of user `trustee1`.
    - On the menu that appears, click on `Edit`.
-   - In the dialog that appears, set the `trustee` field to `trustee1`.
+   - In the dialog that appears, set the `Act as a Trustee` field to `trustee1`.
    - Click on `Save`.
+   - Repeat the process for `trustee2`.
