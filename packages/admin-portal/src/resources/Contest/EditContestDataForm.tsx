@@ -592,7 +592,7 @@ export const ContestDataForm: React.FC = () => {
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "contest-data-general"}
-                            onChange={() => setExpanded("contest-data-general")}
+                            onChange={() => setExpanded(prev=>prev ==="contest-data-general" ? "" : "contest-data-general")}
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="contest-data-general" />}
@@ -614,7 +614,7 @@ export const ContestDataForm: React.FC = () => {
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "contest-data-system"}
-                            onChange={() => setExpanded("contest-data-system")}
+                            onChange={() => setExpanded(prev=>prev ==="contest-data-system" ? "" : "contest-data-system")}
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="contest-data-system" />}
@@ -642,7 +642,7 @@ export const ContestDataForm: React.FC = () => {
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "contest-data-design"}
-                            onChange={() => setExpanded("contest-data-design")}
+                            onChange={() => setExpanded(prev=>prev ==="contest-data-design" ? "" : "contest-data-design")}
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="contest-data-design" />}
@@ -764,7 +764,7 @@ export const ContestDataForm: React.FC = () => {
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "contest-data-image"}
-                            onChange={() => setExpanded("contest-data-image")}
+                            onChange={() => setExpanded(prev=>prev ==="contest-data-image" ? "" : "contest-data-image")}
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="contest-data-image" />}
@@ -800,7 +800,7 @@ export const ContestDataForm: React.FC = () => {
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "election-data-advanced"}
-                            onChange={() => setExpanded("election-data-advanced")}
+                            onChange={() => setExpanded(prev=>prev ==="election-data-advanced" ? "" : "election-data-advanced")}
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="election-data-advanced" />}
