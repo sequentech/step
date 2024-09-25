@@ -81,7 +81,8 @@ export default function MenuAction({
 
     const {refetch} = useTreeMenuData(isArchivedTab)
 
-    const {canCreateElectionEvent, canEditElectionEvent, canDeleteElectionEvent} = useActionPermissions()
+    const {canCreateElectionEvent, canEditElectionEvent, canDeleteElectionEvent} =
+        useActionPermissions()
 
     const [openArchiveModal, setOpenArchiveModal] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
