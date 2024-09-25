@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::renamer::rename_folders;
+use crate::services::ceremonies::renamer::*;
 use crate::{
     postgres::{
         results_area_contest::update_results_area_contest_documents,
@@ -17,6 +19,7 @@ use crate::{
 };
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
+use sequent_core::services::translations::Name;
 use sequent_core::{services::connection::AuthHeaders, types::results::ResultDocuments};
 use sequent_core::{services::keycloak, types::hasura::core::Area};
 use std::{
@@ -29,8 +32,6 @@ use velvet::pipes::generate_reports::{
     ElectionReportDataComputed, ReportDataComputed, OUTPUT_HTML, OUTPUT_JSON, OUTPUT_PDF,
 };
 use velvet::pipes::vote_receipts::OUTPUT_FILE_PDF as OUTPUT_RECEIPT_PDF;
-
-use super::renamer::rename_folders;
 
 pub const MIME_PDF: &str = "application/pdf";
 pub const MIME_JSON: &str = "application/json";
@@ -446,6 +447,7 @@ impl GenerateResultDocuments for ReportDataComputed {
 pub fn generate_ids_map(
     results: &Vec<ElectionReportDataComputed>,
     areas: &Vec<Area>,
+    default_language: &str,
 ) -> Result<HashMap<String, String>> {
     let mut rename_map: HashMap<String, String> = HashMap::new();
     let election_reports = results
@@ -454,21 +456,28 @@ pub fn generate_ids_map(
         .flat_map(|inner_vec| inner_vec)
         .collect::<Vec<ReportDataComputed>>();
 
+    const UUID_LEN: usize = 36;
+    const MAX_LEN: usize = FOLDER_MAX_CHARS - UUID_LEN - 2 /* 2: (include the __ characters) */;
+
     for election_report in election_reports {
+        let election_name = election_report.election_name;
         rename_map.insert(
             election_report.contest.election_id.clone(),
             format!(
-                "{:.30}__{}",
-                election_report.election_name, election_report.contest.election_id
+                "{}__{}",
+                take_first_n_chars(&election_name, MAX_LEN),
+                election_report.contest.election_id
             ),
         );
 
-        let Some(contest_name) = election_report.contest.name.clone() else {
-            continue;
-        };
+        let contest_name = election_report.contest.get_name(default_language);
         rename_map.insert(
             election_report.contest.id.clone(),
-            format!("{:.30}__{}", contest_name, election_report.contest.id),
+            format!(
+                "{}__{}",
+                take_first_n_chars(&contest_name, MAX_LEN),
+                election_report.contest.id
+            ),
         );
     }
 
@@ -491,10 +500,11 @@ pub async fn save_result_documents(
     results_event_id: &str,
     base_tally_path: &PathBuf,
     areas: &Vec<Area>,
+    default_language: &str,
 ) -> Result<()> {
     let mut auth_headers = keycloak::get_client_credentials().await?;
     let mut idx: usize = 0;
-    let rename_map = generate_ids_map(&results, areas)?;
+    let rename_map = generate_ids_map(&results, areas, default_language)?;
     let event_document_paths = results.get_document_paths(None, base_tally_path);
     results
         .save_documents(

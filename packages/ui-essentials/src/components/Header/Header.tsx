@@ -16,6 +16,8 @@ import {useTranslation} from "react-i18next"
 import {ProfileMenu} from "../ProfileMenu/ProfileMenu"
 import {EVotingPortalCountdownPolicy} from "@sequentech/ui-core"
 
+const smBreakpoint = theme.breakpoints.values.sm
+
 const HeaderWrapper = styled(PageBanner)`
     background-color: ${theme.palette.lightBackground};
     padding: 16px 0;
@@ -36,6 +38,15 @@ const StyledImage = styled(Image)`
     width: unset !important;
     @media (max-width: ${theme.breakpoints.values.md}px) {
         height: 37px !important;
+    }
+    @media (max-width: ${smBreakpoint}px) {
+        height: 30px !important;
+    }
+    @media (max-width: ${smBreakpoint / 2}px) {
+        height: 20px !important;
+    }
+    @media (max-width: ${smBreakpoint / 3}px) {
+        height: 10px !important;
     }
 `
 

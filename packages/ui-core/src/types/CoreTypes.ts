@@ -166,3 +166,18 @@ export interface ITaskExecuted {
     logs: object | null
     type: string
 }
+
+export interface IExtensionError {
+    code?: string | null
+}
+
+export interface IGraphQLError {
+    extensions?: IExtensionError | null
+    message?: string | null
+}
+
+export interface IGraphQLActionError {
+    message?: string | null
+    name?: string | null
+    graphQLErrors?: Array<IGraphQLError>
+}

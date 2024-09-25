@@ -5,9 +5,12 @@ import React, {useContext} from "react"
 
 import Keycloak, {KeycloakConfig, KeycloakInitOptions} from "keycloak-js"
 import {createContext, useEffect, useState} from "react"
-import {isArray, isNull, isString, sleep} from "@sequentech/ui-core"
+import {isNull, isString, sleep} from "@sequentech/ui-core"
 import {IPermissions} from "@/types/keycloak"
 import {SettingsContext} from "./SettingsContextProvider"
+import {useLocation, useNavigate} from "react-router"
+import {ExecutionResult} from "graphql"
+import {GetAllTenantsQuery} from "@/gql/graphql"
 
 /**
  * AuthContextValues defines the structure for the default values of the {@link AuthContext}.
@@ -37,6 +40,10 @@ export interface AuthContextValues {
      * The tenant id of the authenticated user
      */
     tenantId: string
+    /**
+     * The trustee an admin user can act as
+     */
+    trustee: String
     /**
      * Function to initiate the logout
      */
@@ -80,6 +87,7 @@ const defaultAuthContextValues: AuthContextValues = {
     email: "",
     firstName: "",
     tenantId: "",
+    trustee: "",
     logout: () => {},
     hasRole: () => false,
     getAccessToken: () => undefined,
@@ -112,6 +120,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const {loaded, globalSettings} = useContext(SettingsContext)
     const [keycloak, setKeycloak] = useState<Keycloak | null>()
     const [isKeycloakInitialized, setIsKeycloakInitialized] = useState<boolean>(false)
+    const [isGetTenantChecked, setIsGetTenantChecked] = useState<boolean>(false)
 
     // Create the local state in which we will keep track if a user is authenticated
     const [isAuthenticated, setAuthenticated] = useState<boolean>(false)
@@ -121,18 +130,101 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const [email, setEmail] = useState<string>("")
     const [firstName, setFirstName] = useState<string>("")
     const [tenantId, setTenantId] = useState<string>("")
+    const [trustee, setTrustee] = useState<string>("")
+
     const sleepSecs = 50
     const bufferSecs = 10
+    const navigate = useNavigate()
+    const location = useLocation()
+
+    const fetchGraphQL = async (
+        operationsDoc: string,
+        operationName: string,
+        variables: Record<string, any>
+    ): Promise<ExecutionResult<GetAllTenantsQuery>> => {
+        let result = await fetch(globalSettings.HASURA_URL, {
+            method: "POST",
+            body: JSON.stringify({
+                query: operationsDoc,
+                variables,
+            }),
+        })
+        return result.json()
+    }
+
+    const operation = `
+        query GetAllTenants {
+        sequent_backend_tenant {
+            id
+            slug
+        }
+    }
+`
+    const fetchGetTenant = async (): Promise<ExecutionResult<GetAllTenantsQuery>> => {
+        return fetchGraphQL(operation, "GetTenant", {})
+    }
+
+    useEffect(() => {
+        const getTenant = async (slug: string) => {
+            try {
+                const {data, errors} = await fetchGetTenant()
+
+                if (errors) {
+                    console.error(errors)
+                    return
+                }
+                const tenants = data?.sequent_backend_tenant
+                const tenantIdFromParam = slug
+
+                if (tenants && tenantIdFromParam) {
+                    const matchedTenant = tenants.find(
+                        (tenant: {id: string; slug: string}) => tenant.slug === tenantIdFromParam
+                    )
+
+                    if (matchedTenant) {
+                        const currentTenantId = localStorage.getItem("selected-tenant-id")
+
+                        if (currentTenantId !== matchedTenant.id) {
+                            localStorage.setItem("selected-tenant-id", matchedTenant.id)
+                            createKeycloak()
+                            navigate(`/`)
+                        } else {
+                            navigate(`/`)
+                        }
+                    }
+                } else {
+                    console.error("Tenant not found")
+                }
+            } catch (error) {
+                console.error(error)
+            }
+            setIsGetTenantChecked(true)
+        }
+
+        if (location.pathname.includes("/admin/login")) {
+            const slug = location.pathname.split("/").pop()
+            if (slug) {
+                getTenant(slug || "")
+            }
+        } else {
+            setIsGetTenantChecked(true)
+            createKeycloak()
+        }
+    }, [])
 
     const createKeycloak = () => {
         if (keycloak) {
             return
         }
+        console.log("create Keycloak")
         /**
          * KeycloakConfig configures the connection to the Keycloak server.
          */
+        let localStoredTenant = localStorage.getItem("selected-tenant-id")
+        let newTenant = localStoredTenant ? localStoredTenant : globalSettings.DEFAULT_TENANT_ID
+
         const keycloakConfig: KeycloakConfig = {
-            realm: `tenant-${globalSettings.DEFAULT_TENANT_ID}`,
+            realm: `tenant-${newTenant}`,
             clientId: globalSettings.ONLINE_VOTING_CLIENT_ID,
             url: globalSettings.KEYCLOAK_URL,
         }
@@ -143,11 +235,11 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     }
 
     const initializeKeycloak = async () => {
-        console.log("initialize Keycloak")
         if (!keycloak) {
             console.log("CAN'T initialize Keycloak")
             return
         }
+        console.log("initialize Keycloak")
         try {
             /**
              * KeycloakInitOptions configures the Keycloak client.
@@ -186,11 +278,11 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     }
 
     useEffect(() => {
-        if (keycloak || !loaded) {
+        if (keycloak || !loaded || !isGetTenantChecked) {
             return
         }
         createKeycloak()
-    }, [loaded, keycloak])
+    }, [loaded, keycloak, isGetTenantChecked])
 
     useEffect(() => {
         if (!keycloak || isKeycloakInitialized) {
@@ -225,7 +317,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             }
             try {
                 const profile = await keycloak.loadUserProfile()
-
                 if (profile.id) {
                     setUserId(profile.id)
                 }
@@ -245,6 +336,10 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
                 if (newTenantId) {
                     setTenantId(newTenantId)
+                }
+
+                if (keycloak.tokenParsed?.trustee) {
+                    setTrustee(keycloak.tokenParsed?.trustee)
                 }
             } catch {
                 console.log("error trying to load the users profile")
@@ -313,6 +408,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 email,
                 firstName,
                 tenantId,
+                trustee,
                 logout,
                 hasRole,
                 getAccessToken,

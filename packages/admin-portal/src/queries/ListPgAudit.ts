@@ -6,13 +6,13 @@ import {PgAuditTable} from "@/gql/graphql"
 
 export const getPgauditVariables = (input: any) => {
     return {
+        ...input,
         filter: input?.where?._and?.reduce((acc: any, condition: any) => {
             Object.keys(condition).forEach((key) => {
                 acc[key] = condition[key]?._eq
             })
             return acc
         }, {}),
-        ...input,
     }
 }
 

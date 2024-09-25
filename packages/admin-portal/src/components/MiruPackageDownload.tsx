@@ -3,23 +3,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {Box, Menu, MenuItem} from "@mui/material"
-import React, {useState} from "react"
+import React, {useMemo, useState} from "react"
 import {useTranslation} from "react-i18next"
-import {Sequent_Backend_Document} from "@/gql/graphql"
 import {Dialog} from "@sequentech/ui-essentials"
-import {downloadUrl} from "@sequentech/ui-core"
+import {sanitizeFilename, FOLDER_MAX_CHARS} from "@sequentech/ui-core"
 import {EExportFormat} from "@/types/results"
 import {IMiruDocument} from "@/types/miru"
 import {TallyStyles} from "@/components/styles/TallyStyles"
 import DownloadIcon from "@mui/icons-material/Download"
-import {useGetOne} from "react-admin"
-import {useTenantStore} from "@/providers/TenantContextProvider"
 import {DownloadDocument} from "@/resources/User/DownloadDocument"
 
 interface MiruPackageDownloadProps {
     documents: IMiruDocument[] | null
     areaName: string | null | undefined
     electionEventId: string
+    eventName: string
 }
 
 interface IDocumentData {
@@ -28,13 +26,30 @@ interface IDocumentData {
     name: string
 }
 
-export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) => {
-    const {areaName, documents, electionEventId} = props
+export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
+    areaName,
+    documents,
+    electionEventId,
+    eventName,
+}) => {
     const {t} = useTranslation()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
     const [openModal, setOpenModal] = useState(false)
     const [documentToDownload, setDocumentToDownload] = useState<string | null>(null)
+    const [fileNameWithExt, setFileNameWithExt] = useState<string>("all_servers.tar.gz")
     const [performDownload, setPerformDownload] = useState<boolean>(false)
+
+    const fileName = useMemo(() => {
+        const sanitizedAreaName = sanitizeFilename(
+            `area__${areaName ?? ""}`,
+            Math.floor(FOLDER_MAX_CHARS / 2)
+        )
+        const sanitizedEventName = sanitizeFilename(
+            `__event__${eventName}`,
+            Math.floor(FOLDER_MAX_CHARS / 2)
+        )
+        return sanitizeFilename(`${sanitizedAreaName}-${sanitizedEventName}`)
+    }, [areaName, eventName])
 
     const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
         event.preventDefault()
@@ -44,12 +59,6 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) =
 
     const handleClose = () => {
         setAnchorEl(null)
-    }
-
-    const handleDownload = (documentId: string) => {
-        console.log({documentId})
-
-        setDocumentToDownload(documentId)
     }
 
     const emlDocumentId = documents?.[0]?.document_ids.eml
@@ -72,7 +81,7 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) =
                             setDocumentToDownload(null)
                             setPerformDownload(false)
                         }}
-                        fileName={null}
+                        fileName={fileNameWithExt}
                         documentId={documentToDownload}
                         electionEventId={electionEventId}
                         withProgress={true}
@@ -103,6 +112,7 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) =
                             e.preventDefault()
                             e.stopPropagation()
                             handleClose()
+                            setFileNameWithExt(fileName + ".eml")
                             setDocumentToDownload(emlDocumentId)
                             setOpenModal(true)
                         }}
@@ -127,6 +137,7 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) =
                             e.preventDefault()
                             e.stopPropagation()
                             handleClose()
+                            setFileNameWithExt(fileName + ".tar.gz")
                             setDocumentToDownload(doc.document_ids.all_servers)
                             setOpenModal(true)
                         }}

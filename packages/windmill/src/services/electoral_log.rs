@@ -312,7 +312,9 @@ impl GetElectoralLogBody {
                 .iter()
                 .map(|(field, direction)| format!("{field} {direction}"))
                 .collect();
-            clauses.push(format!("ORDER BY {}", order_by_clauses.join(", ")));
+            if order_by_clauses.len() > 0 {
+                clauses.push(format!("ORDER BY {}", order_by_clauses.join(", ")));
+            }
         }
 
         // Handle limit
