@@ -20,7 +20,7 @@ use sequent_core::services::keycloak;
 use sequent_core::services::{pdf, reports};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
-use tracing::{info, instrument};
+use tracing::{info, instrument, warn};
 
 const QR_CODE_TEMPLATE: &'static str = "<div id=\"qrcode\"></div>";
 const LOGO_TEMPLATE: &'static str = "<div class=\"logo\"></div>";
@@ -168,7 +168,10 @@ pub async fn get_custom_user_template(
 
     let active_template_ids = match presentation.get("active_template_ids") {
         Some(val) => val,
-        _ => return Ok(None),
+        None => {
+            warn!("No active_template_ids in presentation");
+            return Ok(None);
+        }
     };
     info!("active_template_ids: {active_template_ids}");
 
@@ -177,9 +180,13 @@ pub async fn get_custom_user_template(
         .and_then(Value::as_str)
     {
         Some(id) if !id.is_empty() => id.to_string(),
-        _ => return Ok(None),
+        _ => {
+            info!("manual_verification id not found or empty");
+            return Ok(None);
+        }
     };
     info!("usr_verfication_tpl_id: {usr_verfication_tpl_id}");
+
     // Get the template by ID and return its value:
     let template_data_opt = communication_template::get_communication_template_by_id(
         &transaction,
@@ -189,9 +196,20 @@ pub async fn get_custom_user_template(
     .await
     .with_context(|| "Error to get template by id")?;
 
-    match template_data_opt {
-        Some(template_data) => Ok(Some(template_data.template.to_string())),
-        None => Ok(None),
+    let tpl_document: Option<&str> = match &template_data_opt {
+        Some(template_data) => template_data
+            .template
+            .get("document")
+            .and_then(Value::as_str),
+        None => {
+            warn!("No manual verification template was found by id, perhaps it was deleted");
+            return Ok(None);
+        }
+    };
+
+    match tpl_document {
+        Some(document) if !document.is_empty() => Ok(Some(document.to_string())),
+        _ => Ok(None),
     }
 }
 
