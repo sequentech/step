@@ -81,7 +81,7 @@ export default function MenuAction({
 
     const {refetch} = useTreeMenuData(isArchivedTab)
 
-    const {canCreateElectionEvent, canEditElectionEvent} = useActionPermissions()
+    const {canCreateElectionEvent, canEditElectionEvent, canDeleteElectionEvent} = useActionPermissions()
 
     const [openArchiveModal, setOpenArchiveModal] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
@@ -298,9 +298,9 @@ export default function MenuAction({
                         </MenuItem>
                     )}
 
-                    {!isArchivedTab && canEditElectionEvent && <Divider key="divider2" />}
+                    {!isArchivedTab && canDeleteElectionEvent && <Divider key="divider2" />}
 
-                    {!isArchivedTab && canEditElectionEvent && (
+                    {!isArchivedTab && canDeleteElectionEvent && (
                         <MenuItem
                             dir={i18n.dir(i18n.language)}
                             key={Action.Remove}
