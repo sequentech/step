@@ -324,24 +324,3 @@ update_permissions:
     - voting_channels
     filter: {}
   role: service-account
-delete_permissions:
-- comment: ""
-  permission:
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: admin-user
-- comment: ""
-  permission:
-    filter: {}
-  role: election-event-delete
-- comment: ""
-  permission:
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: election-event-write
-- comment: ""
-  permission:
-    filter: {}
-  role: service-account

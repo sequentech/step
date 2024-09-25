@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::database::get_hasura_pool;
+use super::{database::get_hasura_pool, jwks::remove_realm_jwks};
 use crate::postgres::election_event::delete_election_event;
 use crate::services::protocol_manager::get_immudb_client;
 use crate::services::s3;
@@ -14,6 +14,7 @@ use tracing::{event, instrument, Level};
 #[instrument(err)]
 pub async fn delete_keycloak_realm(realm: &str) -> Result<()> {
     let client = KeycloakAdminClient::new().await?;
+    remove_realm_jwks(&realm).await?;
     let _ = client
         .client
         .realm_delete(&realm)
@@ -58,13 +59,11 @@ pub async fn delete_election_event_immudb(tenant_id: &str, election_event_id: &s
 }
 
 #[instrument(err)]
-pub async fn delete_s3_related_artifacts(tenant_id: &str, election_event_id: &str) -> Result<()> {
+pub async fn delete_election_event_related_documents(
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<()> {
     let documents_prefix = format!("tenant-{}/event-{}/", tenant_id, election_event_id);
-    let bucket = s3::get_public_bucket()?;
-    s3::delete_files_from_s3(bucket, documents_prefix.clone(), true)
-        .await
-        .with_context(|| "Error delete public files from s3")?;
-
     let bucket = s3::get_private_bucket()?;
     s3::delete_files_from_s3(bucket, documents_prefix, false)
         .await

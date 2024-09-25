@@ -149,7 +149,6 @@ actions:
       version: 2
   permissions:
   - role: election-event-delete
-  - role: election-event-write
   - role: admin-user
 - name: delete_permission
   definition:

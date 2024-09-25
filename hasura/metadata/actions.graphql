@@ -1055,3 +1055,4 @@ type SetCustomUrlsOutput {
 type DeleteElectionEvent {
   id : String
 }
+
