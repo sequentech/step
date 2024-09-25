@@ -487,7 +487,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
     const formFields = useMemo(() => {
         return userAttributes?.map((attr) => renderFormField(attr))
-    }, [userAttributes.map, user])
+    }, [userAttributes, user])
 
     if (!user && !createMode) {
         return null
