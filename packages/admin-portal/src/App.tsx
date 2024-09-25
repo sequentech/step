@@ -4,7 +4,7 @@
 import {Admin, CustomRoutes, DataProvider, Resource} from "react-admin"
 import React, {useContext, useEffect, useState} from "react"
 import {ElectionEventBaseTabs} from "./resources/ElectionEvent/ElectionEventBaseTabs"
-
+ 
 import {CreateArea} from "./resources/Area/CreateArea"
 import {CreateAreaContest} from "./resources/AreaContest/CreateAreaContest"
 import {CreateBallotStyle} from "./resources/BallotStyle/CreateBallotStyle"
