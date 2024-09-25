@@ -15,6 +15,7 @@ import {Checkbox, FormControlLabel, FormGroup} from "@mui/material"
 import {styled} from "@mui/styles"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
+import {WidgetProps} from "@/components/Widget"
 
 const StyledCheckbox = styled(Checkbox)({
     size: "small",
@@ -26,6 +27,7 @@ interface ExportWrapperProps {
     setOpenExport: (val: boolean) => void
     exportDocumentId: string | undefined
     setExportDocumentId: (val: string | undefined) => void
+    setLoadingExport: (val: boolean) => void
 }
 
 export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
@@ -34,6 +36,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
     setOpenExport,
     exportDocumentId,
     setExportDocumentId,
+    setLoadingExport,
 }) => {
     const {t} = useTranslation()
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
@@ -55,31 +58,38 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
     const confirmExportAction = async () => {
         console.log("CONFIRM EXPORT")
         setOpenExport(false)
-        const currWidget = addWidget(ETasksExecution.EXPORT_ELECTION_EVENT)
-        const {data: exportElectionEventData, errors} = await exportElectionEvent({
-            variables: {
-                electionEventId,
-                exportConfigurations: {
-                    encrypt_with_password: encryptWithPassword,
-                    include_voters: includeVoters,
-                    activity_logs: activityLogs,
-                    bulletin_board: bulletinBoard,
-                    publications: publications,
-                    s3_files: s3Files,
+        const currWidget: WidgetProps = addWidget(ETasksExecution.EXPORT_ELECTION_EVENT)
+        setLoadingExport(true)
+        try {
+            const {data: exportElectionEventData, errors} = await exportElectionEvent({
+                variables: {
+                    electionEventId,
+                    exportConfigurations: {
+                        encrypt_with_password: encryptWithPassword,
+                        include_voters: includeVoters,
+                        activity_logs: activityLogs,
+                        bulletin_board: bulletinBoard,
+                        publications: publications,
+                        s3_files: s3Files,
+                    },
                 },
-            },
-        })
+            })
 
-        const documentId = exportElectionEventData?.export_election_event?.document_id
-        if (errors || !documentId) {
+            const documentId = exportElectionEventData?.export_election_event?.document_id
+            if (errors || !documentId) {
+                updateWidgetFail(currWidget.identifier)
+                console.log(`Error exporting users: ${errors}`)
+                setLoadingExport(false)
+                return
+            }
+
+            const task_id = exportElectionEventData?.export_election_event?.task_execution.id
+            setWidgetTaskId(currWidget.identifier, task_id)
+            setExportDocumentId(documentId)
+        } catch (e) {
             updateWidgetFail(currWidget.identifier)
-            console.log(`Error exporting users: ${errors}`)
-            return
+            setLoadingExport(false)
         }
-
-        const task_id = exportElectionEventData?.export_election_event?.task_execution.id
-        setWidgetTaskId(currWidget.identifier, task_id)
-        setExportDocumentId(documentId)
     }
 
     return (
@@ -156,8 +166,6 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                         label={t("electionEventScreen.export.s3Files")}
                     />
                 </FormGroup>
-
-                {/* Show progress and download document */}
             </Dialog>
             {exportDocumentId && (
                 <>
@@ -165,12 +173,15 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                     <DownloadDocument
                         documentId={exportDocumentId}
                         electionEventId={electionEventId ?? ""}
-                        fileName={`election-event-${electionEventId}-export.zip`}
+                        fileName={`election-event-${electionEventId}-export.${
+                            encryptWithPassword ? ".ezip" : ".zip"
+                        }`}
                         onDownload={() => {
                             console.log("onDownload called")
                             setExportDocumentId(undefined)
                             setOpenExport(false)
                         }}
+                        setLoading={setLoadingExport}
                     />
                 </>
             )}

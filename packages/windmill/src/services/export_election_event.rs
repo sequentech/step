@@ -10,6 +10,11 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::database::get_hasura_pool;
 use crate::services::export_election_event_logs;
 use crate::services::import_election_event::ImportElectionEventSchema;
+use crate::services::{
+    password::generate_random_string_with_charset,
+    s3::{download_s3_file_to_string, get_public_asset_file_path},
+    temp_path::{generate_temp_file, write_into_named_temp_file},
+};
 use crate::tasks::export_election_event::ExportOptions;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -23,6 +28,8 @@ use tempfile::NamedTempFile;
 use uuid::Uuid;
 use zip::write::FileOptions;
 
+use super::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
+use super::consolidation::ecies_encrypt::ecies_encrypt_string;
 use super::documents::upload_and_return_document_postgres;
 use super::export_users::export_users_file;
 use super::export_users::ExportBody;
@@ -55,6 +62,21 @@ pub async fn read_export_data(
         areas: areas,
         area_contests: area_contests,
     })
+}
+
+async fn generate_encrypted_zip(
+    temp_path_string: String,
+    exz_temp_file_string: String,
+    public_key_pem: &str,
+) -> Result<(String)> {
+    let charset: String = "0123456789abcdef".into();
+    let random_pass = generate_random_string_with_charset(64, &charset);
+
+    encrypt_file_aes_256_cbc(&temp_path_string, &exz_temp_file_string, &random_pass)?;
+
+    // let encrypted_random_pass_base64 = ecies_encrypt_string(public_key_pem, &random_pass)?;
+    let encrypted_random_pass_base64 = "TODO: need to generate password".to_string();
+    Ok(encrypted_random_pass_base64)
 }
 
 pub async fn write_export_document(data: ImportElectionEventSchema) -> Result<NamedTempFile> {
@@ -94,7 +116,7 @@ pub async fn process_export_zip(
     let zip_file = File::create(&zip_path)?;
     let mut zip_writer = zip::ZipWriter::new(zip_file);
     let options: FileOptions<()> =
-        FileOptions::default().compression_method(zip::CompressionMethod::Stored);
+        FileOptions::default().compression_method(zip::CompressionMethod::DEFLATE);
 
     // Add election event data file to the ZIP archive
     let export_data = read_export_data(&hasura_transaction, tenant_id, election_event_id).await?;
@@ -105,7 +127,7 @@ pub async fn process_export_zip(
     let mut election_event_file = File::open(temp_election_event_file.path())?;
     std::io::copy(&mut election_event_file, &mut zip_writer)?;
 
-    // Add voters data file to the ZIP archive
+    // Add voters data file to the ZIP archive if required
     let is_include_voters = export_config.include_voters;
     if is_include_voters {
         let temp_voters_file_path = export_users_file(
@@ -142,24 +164,47 @@ pub async fn process_export_zip(
 
     // Finalize the ZIP file
     zip_writer.finish()?;
-    let zip_size = std::fs::metadata(&zip_path)?.len();
 
-    // Upload the ZIP file to Hasura
+    // Encrypt ZIP file if required
+    let is_include_encryption = export_config.encrypt_with_password;
+    let encrypted_zip_path = zip_path.with_extension("ezip");
+    if is_include_encryption {
+        generate_encrypted_zip(
+            zip_path.to_string_lossy().to_string(),
+            encrypted_zip_path.to_string_lossy().to_string(),
+            "public key",
+        )
+        .await?; // TODO: generate real key
+    }
+
+    // Use encrypted_zip_path if encryption is enabled, otherwise use zip_path
+    let upload_path = if is_include_encryption && encrypted_zip_path.exists() {
+        &encrypted_zip_path
+    } else {
+        &zip_path
+    };
+
+    let zip_size = std::fs::metadata(&upload_path)?.len();
+
+    // Upload the ZIP file (encrypted or original) to Hasura
     let document = upload_and_return_document_postgres(
         &hasura_transaction,
-        zip_path.to_str().unwrap(),
+        upload_path.to_str().unwrap(),
         zip_size,
         "application/zip",
         &tenant_id.to_string(),
         &election_event_id,
         &zip_filename,
         Some(document_id.to_string()),
-        false, // is_public: bool,
+        false,
     )
     .await?;
 
-    // Clean up the temporary ZIP file (optional)
+    // Clean up the ZIP files (optional)
     std::fs::remove_file(&zip_path)?;
+    if is_include_encryption {
+        std::fs::remove_file(&encrypted_zip_path)?;
+    }
 
     let _commit = hasura_transaction
         .commit()
