@@ -18,7 +18,7 @@ use strand::signature::StrandSignatureSk;
 /// Verifies election data on a bulletin board
 #[derive(Parser)]
 struct Cli {
-    /// URL of the bulletin board server
+    /// URL of the grpc bulletin board server
     #[arg(long)]
     server_url: String,
 
@@ -33,6 +33,10 @@ struct Cli {
     ballot_hash: Option<String>,
 }
 
+/// Entry point for the braid verifier.
+///
+/// Executes verification against the specified
+/// board on a grpc bulletin board.
 #[tokio::main]
 #[instrument]
 async fn main() -> Result<()> {

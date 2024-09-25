@@ -19,6 +19,7 @@ pub(self) use board_messages::braid::artifact::{
 pub(self) use board_messages::braid::message::Message;
 pub(self) use board_messages::braid::newtypes::*;
 
+// Used by submodules
 use crate::util::dbg_hash;
 
 ///////////////////////////////////////////////////////////////////////////
@@ -324,8 +325,16 @@ impl Action {
 /// Configuration approval and signing.
 mod cfg;
 /// Distributed verifiable decryption.
+///
+/// As defined in Cortier et al.; based on Pedersen. Decryption
+/// is verifiable through Chaum-Pedersen proofs of discrete
+/// log equality.
 mod decrypt;
 /// Distributed key generation.
+///
+/// As defined in Cortier et al.; based on Pedersen.
 mod dkg;
 /// Verifiable shuffling.
+///
+/// As defined in Haenni et al.; Haines, based on Wikstrom et al.
 mod shuffle;

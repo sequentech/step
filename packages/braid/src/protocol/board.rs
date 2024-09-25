@@ -2,11 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// pub mod grpc;
 pub mod grpc_m;
 // pub mod local;
 pub mod local2;
-// pub mod pgsql;
 
 use anyhow::Result;
 use board_messages::grpc::KeyedMessages;

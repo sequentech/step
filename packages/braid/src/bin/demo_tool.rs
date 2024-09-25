@@ -424,7 +424,6 @@ async fn post_ballots<C: Ctx>(
         )
         .await?;
 
-    // let mut rng = ctx.get_rng();
     if let Some(pk) = pk.get(0) {
         let message = Message::strand_deserialize(&pk.message)?;
         let bytes = message.artifact.unwrap();
@@ -434,19 +433,7 @@ async fn post_ballots<C: Ctx>(
         let pk_element = dkgpk.pk;
         let _pk = strand::elgamal::PublicKey::from_element(&pk_element, ctx);
 
-        /* let ps: Vec<C::P> = (0..ciphertexts)
-            .map(|_| ctx.rnd_plaintext(&mut rng))
-            .collect();
-        let ballots: Vec<Ciphertext<C>> = ps
-            .par_iter()
-            .map(|p| {
-                let encoded = ctx.encode(p).unwrap();
-                pk.encrypt(&encoded)
-            })
-            .collect();
-        */
         let ballots = strand::util::random_ciphertexts(ciphertexts, &C::default());
-
         info!("Generated {} ballots", ballots.len());
 
         let max: [usize; 12] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
@@ -454,7 +441,6 @@ async fn post_ballots<C: Ctx>(
         let mut rng = &mut rand::thread_rng();
         let threshold: Vec<usize> = all.choose_multiple(&mut rng, threshold).cloned().collect();
 
-        // let threshold = [1, 2];
         let mut selected_trustees = [board_messages::braid::newtypes::NULL_TRUSTEE;
             board_messages::braid::newtypes::MAX_TRUSTEES];
         selected_trustees[0..threshold.len()].copy_from_slice(&threshold);

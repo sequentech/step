@@ -113,11 +113,11 @@ pub(crate) fn get_phases() -> Vec<Phase> {
 /// by Phase objects. These are:
 ///
 /// Cfg: approving and signing the protocol configuration
-/// Dkg: the distributed key generation as defined in Cortier et al.,
+/// Dkg: the distributed key generation as defined in Cortier et al.;
 /// based on Pedersen
-/// Shuffle: Verifiable shuffling as defined in Haenni et al, Haines as
-/// based on by Wikstrom et al.
-/// Decrypt: Verifiable distributed decryption, as defined in Cortier et al.,
+/// Shuffle: Verifiable shuffling as defined in Haenni et al, Haines;
+/// based on Wikstrom et al.
+/// Decrypt: Verifiable distributed decryption, as defined in Cortier et al.;
 /// based on Pedersen. Decryption is verifiable through Chaum-Pedersen proofs
 /// of discrete log equality.
 pub(crate) fn run(predicates: &Vec<Predicate>) -> Result<HashSet<Action>, ProtocolError> {

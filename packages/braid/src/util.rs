@@ -14,6 +14,7 @@ use board_messages::braid::statement::StatementType;
 use strand::hash::Hash;
 use strand::util::StrandError;
 
+/// An error that occurs during protocol execution.
 #[derive(Error, Debug)]
 pub enum ProtocolError {
     #[error("{0}")]
@@ -45,10 +46,14 @@ pub enum ProtocolError {
     #[error("{0}")]
     InternalError(String),
 }
+/// Allows attaching a context string to a ProtocolError result.
+///
+/// Analogous to anyhow::Context
 pub trait ProtocolContext<T> {
     fn add_context(self, context: &str) -> Result<T, ProtocolError>;
 }
 impl<T> ProtocolContext<T> for Result<T, ProtocolError> {
+    /// Attaches a contextual string to a ProtocolError.
     fn add_context(self, context: &str) -> Result<T, ProtocolError> {
         if let Err(e) = self {
             Err(ProtocolError::WrappedError(
@@ -60,6 +65,7 @@ impl<T> ProtocolContext<T> for Result<T, ProtocolError> {
         }
     }
 }
+/// Allows attaching a context string to a StrandError result.
 impl<T> ProtocolContext<T> for Result<T, StrandError> {
     fn add_context(self, context: &str) -> Result<T, ProtocolError> {
         if let Err(e) = self {
@@ -73,24 +79,26 @@ impl<T> ProtocolContext<T> for Result<T, StrandError> {
     }
 }
 
-pub(crate) fn dbg_hash(h: &[u8; 64]) -> String {
+/// Returns a truncated hex encoding of the given hash bytes.
+///
+/// Used when displaying hashes in debug messages.
+pub(crate) fn dbg_hash(h: &Hash) -> String {
     hex::encode(h)[0..10].to_string()
 }
 
-/*pub(crate) fn dbg_hashes<const N: usize>(hs: &[[u8; 64]; N]) -> String {
-    hs.map(|h| hex::encode(h)[0..10].to_string()).join(" ")
-}*/
-
+/// Returns a fixed-size array Hash from the given vector.
 pub fn hash_from_vec(bytes: &[u8]) -> Result<Hash, StrandError> {
     strand::util::to_hash_array(bytes)
 }
 
+/// Returns base64 no pad decode.
 pub fn decode_base64(s: &String) -> Result<Vec<u8>> {
     general_purpose::STANDARD_NO_PAD
         .decode(&s)
         .map_err(|error| anyhow!(error))
 }
 
+/// Checks for and creates a directory if needed.
 pub fn ensure_directory(folder: PathBuf) -> Result<()> {
     let path = folder.as_path();
     if path.exists() {
@@ -110,6 +118,13 @@ use tracing_subscriber::{filter, reload};
 use tracing_subscriber::{layer::SubscriberExt, registry::Registry};
 use tracing_tree::HierarchicalLayer;
 
+/// Initialize the tracing log, returning a handle that
+/// allows changing log levels at run time.
+///
+/// The log can display messages within a tree representation of the
+/// call stack. To do this you must mark function definitions
+/// you wish to track with the #[instrument] annotation.
+/// See https://docs.rs/tracing-attributes/latest/tracing_attributes/attr.instrument.html
 pub fn init_log(set_global: bool) -> Handle<LevelFilter, Registry> {
     let layer = HierarchicalLayer::default()
         .with_writer(std::io::stdout)

@@ -6,36 +6,11 @@ use board_messages::{
     braid::{message::Message, statement::StatementType},
     grpc::GrpcB3Message,
 };
-
-///////////////////////////////////////////////////////////////////////////
-// VectorBoard
-//
-// A vector backed dummy implementation for in memory testing.
-///////////////////////////////////////////////////////////////////////////
-
-/*
-Persistence implementation:
-
-* Add a message counter, starts at zero when constructing
-
-* Step procedure
-
-1) Retrieve messages starting at counter
-2) Verify messages
-3) Save messages in kv
-4) Trustee update
-5) Increment counter
-
-* When constructing:
-1) Read all persistent messages and store them in memory
-2) Return persistent messages + updated messages in next Trustee update
-3) Clear persistent messages from memory
-
-*/
-
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 
-// #[derive(Clone)]
+/// VectorBoard
+///
+/// A vector backed dummy implementation for in memory testing.
 pub struct VectorBoard {
     session_id: u128,
     pub(crate) messages: Vec<GrpcB3Message>,
