@@ -48,14 +48,20 @@ export const LogTable: React.FC<LogTableProps> = ({logs, status}) => {
     const isFailed = status === ETaskExecutionStatus.FAILED
 
     return (
-        <TransparentTable>
+        <TransparentTable className="logs-table">
             <TableBody>
                 {logs.map((log, index) => (
                     <TableRow key={index}>
-                        <TransparentTableCell>
+                        <TransparentTableCell
+                            className="date-col"
+                            sx={{paddingLeft: "0", width: "40%"}}
+                        >
                             {new Date(log.created_date).toLocaleString()}
                         </TransparentTableCell>
-                        <TransparentTableCell isFailed={isFailed && index === logs.length - 1}>
+                        <TransparentTableCell
+                            className="log-text"
+                            isFailed={isFailed && index === logs.length - 1}
+                        >
                             {log.log_text}
                         </TransparentTableCell>
                     </TableRow>
@@ -91,7 +97,7 @@ export const Widget: React.FC<WidgetProps> = ({
     const [expanded, setExpanded] = useState(false)
     const [openTaskModal, setOpenTaskModal] = useState(false)
     const [taskDataType, setTaskDataType] = useState<ETasksExecution | undefined>(type)
-    const [taskDataStatus, setTaskDataStatus] = useState<ETaskExecutionStatus | undefined>(status)
+    const [taskDataStatus, setTaskDataStatus] = useState<ETaskExecutionStatus>(status)
     const [taskDataLogs, setTaskDataLogs] = useState<Array<ITaskLog>>(logs || [])
 
     const initialLog: ITaskLog[] = [
@@ -114,13 +120,13 @@ export const Widget: React.FC<WidgetProps> = ({
     }, [taskData])
 
     useEffect(() => {
-        if (status === ETaskExecutionStatus.FAILED) {
+        if (taskDataStatus === ETaskExecutionStatus.FAILED) {
             setExpanded(true)
             onFailure && onFailure()
-        } else if (status === ETaskExecutionStatus.SUCCESS) {
+        } else if (taskDataStatus === ETaskExecutionStatus.SUCCESS) {
             onSuccess && onSuccess()
         }
-    }, [status, onFailure, onSuccess])
+    }, [taskDataStatus, onFailure, onSuccess])
 
     const onSetViewTask = (event: React.MouseEvent<HTMLElement>) => {
         event.stopPropagation()
@@ -129,24 +135,35 @@ export const Widget: React.FC<WidgetProps> = ({
 
     return (
         <>
-            <WidgetContainer>
-                <Accordion expanded={expanded} onChange={() => setExpanded(!expanded)}>
+            <WidgetContainer className="widget-container">
+                <Accordion
+                    className="widget-accordion"
+                    expanded={expanded}
+                    onChange={() => setExpanded(!expanded)}
+                >
                     <CustomAccordionSummary
+                        className="accordion-summary"
+                        isLoading={taskDataStatus === ETaskExecutionStatus.IN_PROGRESS}
                         expandIcon={<ExpandMoreIcon />}
                         sx={{backgroundColor: "#0F054C"}}
                     >
-                        <HeaderBox>
-                            <InfoBox>
-                                <TypeTypography>
-                                    <b>Task: </b>
-                                    {t(`tasksScreen.tasksExecution.${taskDataType || type}`)}
+                        <HeaderBox className="header-box">
+                            <InfoBox className="info-box">
+                                <TypeTypography className="header">
+                                    {t(`tasksScreen.widget.taskTitle`, {
+                                        title: t(
+                                            `tasksScreen.tasksExecution.${taskDataType || type}`
+                                        ),
+                                    })}
                                 </TypeTypography>
-                                <StatusIconsBox>
-                                    <StatusChip status={taskDataStatus || status} />
+                                <StatusIconsBox className="status-icons">
+                                    <StatusChip status={taskDataStatus} />
                                     <IconsBox>
-                                        <StyledIconButton size="small" onClick={onSetViewTask}>
-                                            <Visibility />
-                                        </StyledIconButton>
+                                        {taskId ? (
+                                            <StyledIconButton size="small" onClick={onSetViewTask}>
+                                                <Visibility />
+                                            </StyledIconButton>
+                                        ) : null}
                                         <StyledIconButton
                                             size="small"
                                             onClick={() => onClose(identifier)}
@@ -164,17 +181,22 @@ export const Widget: React.FC<WidgetProps> = ({
                         </HeaderBox>
                     </CustomAccordionSummary>
                     <AccordionDetails
+                        className="accordion-details"
                         sx={{display: "flex", flexDirection: "column", padding: "8px 16px"}}
                     >
-                        <LogsBox>
-                            <LogTypography>{t("widget.logs")}</LogTypography>
+                        <LogsBox className="logs-box">
+                            <LogTypography className="logs-title">{t("widget.logs")}</LogTypography>
                             <Divider />
                             <LogTable
                                 logs={taskDataLogs.length > 0 ? taskDataLogs : initialLog}
                                 status={taskDataStatus || status}
                             />
                         </LogsBox>
-                        <ViewTaskTypography onClick={onSetViewTask}>View Task</ViewTaskTypography>
+                        {taskId ? (
+                            <ViewTaskTypography className="view-icon" onClick={onSetViewTask}>
+                                {t("tasksScreen.widget.viewTask")}
+                            </ViewTaskTypography>
+                        ) : null}
                     </AccordionDetails>
                 </Accordion>
             </WidgetContainer>

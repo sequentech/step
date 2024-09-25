@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::tasks_execution::update_complete;
+use crate::services::providers::transactions_provider::provide_hasura_transaction;
+use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::{
     services::import_election_event::{self as import_election_event_service},
     types::error::Result,
@@ -29,17 +30,34 @@ pub async fn import_election_event(
     tenant_id: String,
     task_execution: TasksExecution,
 ) -> Result<()> {
-    import_election_event_service::process(
-        object,
-        election_event_id,
-        tenant_id,
-        task_execution.clone(),
-    )
-    .await?;
-
-    update_complete(&task_execution)
-        .await
-        .context("Failed to update task execution status to COMPLETED")?;
+    let result = provide_hasura_transaction(|hasura_transaction| {
+        let object = object.clone();
+        let task_execution = task_execution.clone();
+        let tenant_id = tenant_id.clone();
+        let election_event_id = election_event_id.clone();
+        Box::pin(async move {
+            // Your async code here
+            import_election_event_service::process(
+                hasura_transaction,
+                object,
+                election_event_id,
+                tenant_id,
+                task_execution,
+            )
+            .await
+        })
+    })
+    .await;
+    match result {
+        Ok(_) => {
+            update_complete(&task_execution)
+                .await
+                .context("Failed to update task execution status to COMPLETED")?;
+        }
+        Err(error) => {
+            update_fail(&task_execution, &format!("{}", error)).await?;
+        }
+    }
 
     Ok(())
 }

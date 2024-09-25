@@ -39,6 +39,8 @@ import {CREATE_USER} from "@/queries/CreateUser"
 import {formatUserAtributes, getAttributeLabel, userBasicInfo} from "@/services/UserService"
 import PhoneInput from "@/components/PhoneInput"
 import SelectArea from "@/components/area/SelectArea"
+import SelectActedTrustee from "./SelectActedTrustee"
+import {GET_TRUSTEES_NAMES} from "@/queries/GetTrusteesNames"
 
 interface ListUserRolesProps {
     userId?: string
@@ -48,6 +50,11 @@ interface ListUserRolesProps {
     createMode?: boolean
     setUserRoles?: (id: string) => void
     selectedRolesOnCreate?: string[]
+}
+
+export interface Trustee {
+    id: string
+    name: string
 }
 
 export const ListUserRoles: React.FC<ListUserRolesProps> = ({
@@ -169,6 +176,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     let userOriginal: IUser | undefined = data?.find((element) => element.id === id)
     const [user, setUser] = useState<IUser | undefined>(createMode ? {enabled: true} : userOriginal)
     const [selectedArea, setSelectedArea] = useState<string>("")
+    const [selectedActedTrustee, setSelectedActedTrustee] = useState<string>("")
     const [selectedRolesOnCreate, setSelectedRolesOnCreate] = useState<string[]>([])
     const [tenantId] = useTenantStore()
     const refresh = useRefresh()
@@ -218,6 +226,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         attributes: {
                             ...formatUserAtributes(user?.attributes),
                             ...(selectedArea && {"area-id": [selectedArea]}),
+                            ...(selectedActedTrustee && {trustee: [selectedActedTrustee]}),
                         },
                     },
                     userRolesIds: selectedRolesOnCreate,
@@ -256,6 +265,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             attributes: {
                                 ...formatUserAtributes(user?.attributes),
                                 ...(selectedArea && {"area-id": [selectedArea]}),
+                                ...(selectedActedTrustee && {trustee: [selectedActedTrustee]}),
                             },
                         },
                     },
@@ -356,7 +366,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             value={value}
                             onChange={handleSelectChange(attr.name)}
                         >
-                            {attr.validations.options.options?.map((area: string) => (
+                            {attr.validations.options?.options?.map((area: string) => (
                                 <MenuItem key={area} value={area}>
                                     {area}
                                 </MenuItem>
@@ -415,6 +425,20 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         label={getAttributeLabel(displayName)}
                         fullWidth
                     />
+                )
+            } else if (attr.name.toLowerCase().includes("trustee")) {
+                return (
+                    <FormControl fullWidth>
+                        <SelectActedTrustee
+                            label={t("usersAndRolesScreen.users.fields.trustee")}
+                            source={createMode ? "attributes.trustee" : "trustee"}
+                            defaultValue={value}
+                            tenantId={tenantId}
+                            onSelectTrustee={(trustee: string) => {
+                                setSelectedActedTrustee(trustee)
+                            }}
+                        />
+                    </FormControl>
                 )
             }
             return (

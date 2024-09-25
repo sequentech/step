@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::documents::upload_and_return_document_postgres;
 use super::electoral_log::{list_electoral_log, GetElectoralLogBody};
+use super::providers::transactions_provider::provide_hasura_transaction;
 use super::temp_path::{generate_temp_file, get_file_size};
 use crate::services::database::{get_hasura_pool, PgConfig};
 use anyhow::Context;
@@ -88,34 +89,26 @@ pub async fn process_export(
     election_event_id: &str,
     document_id: &str,
 ) -> Result<()> {
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|err| anyhow!("Error getting hasura db pool: {err}"))?;
+    provide_hasura_transaction(|hasura_transaction| {
+        let document_id = document_id.to_string();
+        let tenant_id = tenant_id.to_string();
+        let election_event_id = election_event_id.to_string();
+        Box::pin(async move {
+            // Your async code here
+            let name = format!("export-election-event-logs-{}", election_event_id);
+            let temp_file = read_export_data(&tenant_id, &election_event_id, &name).await?;
 
-    let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .map_err(|err| anyhow!("Error starting hasura transaction: {err}"))?;
-
-    let name = format!("export-election-event-logs-{}", election_event_id);
-    let temp_file = read_export_data(tenant_id, election_event_id, &name).await?;
-
-    write_export_document(
-        &hasura_transaction,
-        temp_file,
-        &name,
-        document_id,
-        tenant_id,
-        election_event_id,
-    )
-    .await?;
-
-    let _commit = hasura_transaction
-        .commit()
-        .await
-        .map_err(|e| anyhow!("Commit failed: {}", e));
-
-    Ok(())
+            write_export_document(
+                hasura_transaction,
+                temp_file,
+                &name,
+                &document_id,
+                &tenant_id,
+                &election_event_id,
+            )
+            .await?;
+            Ok(())
+        })
+    })
+    .await
 }

@@ -1,7 +1,9 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-const tagalogTranslation = {
+import {TranslationType} from "./en"
+
+const tagalogTranslation: TranslationType = {
     translations: {
         common: {
             goBack: "Bumalik",
@@ -89,7 +91,39 @@ const tagalogTranslation = {
                 LOAD_ELECTION_EVENT:
                     "Hindi ma-load ang kaganapan ng eleksyon. Pakisubukan ulit mamaya.",
                 CAST_VOTE:
-                    "Nagkaroon ng error sa graphQL habang isina-submit ang boto. Pakisubukan ulit mamaya o makipag-ugnayan sa helpdesk para sa tulong.",
+                    "Nagkaroon ng hindi inaasahang error habang bumoboto. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
+                CAST_VOTE_CheckStatusFailed:
+                    "Hindi pinapayagan ng halalan ang pagboto. Ang halalan ay maaaring sarado, naka-archive, o maaari kang bumoto sa labas ng itinakdang panahon.",
+                CAST_VOTE_AreaNotFound:
+                    "Nagkaroon ng error habang bumoboto: Hindi natagpuan ang lugar. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
+                CAST_VOTE_InternalServerError:
+                    "Nagkaroon ng internal na error habang bumoboto. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
+                CAST_VOTE_QueueError:
+                    "Nagkaroon ng problema sa pagproseso ng iyong boto. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
+                CAST_VOTE_Unauthorized:
+                    "Hindi ka awtorisadong bumoto. Pakikontak ang suporta para sa tulong.",
+                CAST_VOTE_ElectionEventNotFound:
+                    "Hindi matagpuan ang kaganapang elektoral. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
+                CAST_VOTE_ElectoralLogNotFound:
+                    "Hindi matagpuan ang iyong tala ng pagboto. Pakikontak ang suporta para sa tulong.",
+                CAST_VOTE_CheckPreviousVotesFailed:
+                    "Nagkaroon ng error habang sinusuri ang iyong status sa pagboto. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
+                CAST_VOTE_GetClientCredentialsFailed:
+                    "Nabigo sa pag-verify ng iyong mga kredensyal. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
+                CAST_VOTE_GetAreaIdFailed:
+                    "Nagkaroon ng error sa pag-verify ng iyong lugar ng pagboto. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
+                CAST_VOTE_GetTransactionFailed:
+                    "Nagkaroon ng error sa pagproseso ng iyong boto. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
+                CAST_VOTE_DeserializeBallotFailed:
+                    "Nagkaroon ng error sa pagbasa ng iyong balota. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
+                CAST_VOTE_DeserializeContestsFailed:
+                    "Nagkaroon ng error sa pagbasa ng iyong mga napili. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
+                CAST_VOTE_PokValidationFailed:
+                    "Nabigo sa pag-validate ng iyong boto. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
+                CAST_VOTE_UuidParseFailed:
+                    "Nagkaroon ng error sa pagproseso ng iyong kahilingan. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
+                CAST_VOTE_UnknownError:
+                    "Nagkaroon ng hindi kilalang error habang bumoboto. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
                 NO_BALLOT_SELECTION:
                     "Walang estado ng pagpili para sa eleksyon na ito. Pakitiyak na tama ang iyong pagpili o makipag-ugnayan sa helpdesk.",
                 NO_BALLOT_STYLE: "Walang estilo ng balota. Pakikontak ang helpdesk.",
@@ -242,6 +276,8 @@ const tagalogTranslation = {
                     "Ang bilang ng mga napili {{numSelected}} para sa listahan {{type}} ay higit sa maximum na {{max}}",
                 underVote:
                     "Undervote: Ang bilang ng mga napili {{numSelected}} ay mas mababa sa maximum na {{max}}",
+                overVoteDisabled:
+                    "Naabot na ang maximum: Napili mo na ang maximum na {{numSelected}} na mga opsyon. Upang baguhin ang iyong pagpili, mangyaring alisin muna ang isa pang opsyon.",
                 blankVote: "Blank Vote: Walang pinili",
             },
             explicit: {
@@ -285,7 +321,5 @@ const tagalogTranslation = {
         },
     },
 }
-
-export type TranslationType = typeof tagalogTranslation
 
 export default tagalogTranslation
