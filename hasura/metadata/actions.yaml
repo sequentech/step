@@ -133,6 +133,23 @@ actions:
   permissions:
   - role: user
   comment: create_vote_receipt
+- name: delete_election_event
+  definition:
+    kind: synchronous
+    handler: http://{{HARVEST_DOMAIN}}/delete-election-event
+    forward_client_headers: true
+    headers:
+    - name: X-Hasura-Admin-Secret
+      value_from_env: ACTIONS_ADMIN_SECRET
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: election-event-delete
+  - role: admin-user
 - name: delete_permission
   definition:
     kind: synchronous
@@ -971,6 +988,7 @@ custom_types:
   - name: LogEventOutput
   - name: SetCustomUrlOutput
   - name: SetCustomUrlsOutput
+  - name: DeleteElectionEvent
   - name: ExportTasksExecutionOutput
   - name: createTransmissionPackageOutput
   scalars: []
