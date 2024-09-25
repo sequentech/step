@@ -393,7 +393,7 @@ export const EditElectionEventDataForm: React.FC = () => {
         }
 
         if (!(temp.presentation as IElectionEventPresentation | undefined)?.active_template_ids) {
-            (temp.presentation.active_template_ids as IActiveTemplateIds) = {
+            ;(temp.presentation.active_template_ids as IActiveTemplateIds) = {
                 manual_verification: "",
             }
         }
