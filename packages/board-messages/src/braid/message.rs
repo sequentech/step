@@ -382,7 +382,7 @@ impl Message {
     }
 
     /// Clone this message.
-    /// 
+    ///
     /// Clone is fallible when signature is implemented with OpenSSL
     pub fn try_clone(&self) -> Result<Message> {
         let ret = Message {

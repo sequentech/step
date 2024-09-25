@@ -22,8 +22,8 @@ pub mod pgsql;
 pub mod server;
 
 /// The maximum grpc message used for chunking.
-/// 
-/// Values greater than 2MB have caused external (tonic) grpc 
+///
+/// Values greater than 2MB have caused external (tonic) grpc
 /// errors during testing.
 pub const MAX_MESSAGE_SIZE: usize = 2 * 1024 * 1024 * 1024;
 

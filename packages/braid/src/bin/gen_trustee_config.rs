@@ -20,8 +20,10 @@ enum Command {
     ProtocolManager,
 }
 
+/// This utility generates a trustee or protocol manager configuration printed to stdout.
 #[derive(Parser)]
 struct Cli {
+    /// Whether to generate a trustee or protocol configuration file.
     #[arg(value_enum, default_value_t = Command::Trustee)]
     command: Command,
 }
@@ -49,7 +51,7 @@ fn main() {
 }
 
 /// Generates a trustee configuration with cryptographic secrets.
-/// 
+///
 /// Prints configuration to standard out.
 fn gen_trustee_config<C: Ctx>() {
     let sk = StrandSignatureSk::gen().unwrap();
@@ -73,11 +75,11 @@ fn gen_trustee_config<C: Ctx>() {
 }
 
 /// Generates a protocol manager configuration with cryptographic secrets.
-/// 
+///
 /// The protocol manager is the entity responsible for posting the protocol
 /// configuration and ballots. Those messages must be signed by the entity
 /// designated as protocol manager in the configuration.
-/// 
+///
 /// Prints configuration to standard out.
 fn gen_protocol_manager_config<C: Ctx>() {
     let pmkey: StrandSignatureSk = StrandSignatureSk::gen().unwrap();
