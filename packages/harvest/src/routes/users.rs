@@ -25,12 +25,12 @@ use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::services::export_users::{
-    ExportBody, ExportTenantUsersBody, ExportUsersBody, ExportUsersOutput,
+    ExportBody, ExportTenantUsersBody, ExportUsersBody,
 };
 use windmill::services::tasks_execution::*;
 use windmill::services::users::ListUsersFilter;
 use windmill::services::users::{list_users, list_users_with_vote_info};
-use windmill::tasks::export_users;
+use windmill::tasks::export_users::{self, ExportUsersOutput};
 use windmill::tasks::import_users::{self, ImportUsersOutput};
 use windmill::types::tasks::ETasksExecution;
 
@@ -547,12 +547,41 @@ pub async fn export_users_f(
     input: Json<ExportUsersBody>,
 ) -> Result<Json<ExportUsersOutput>, (Status, String)> {
     let body = input.into_inner();
+    let tenant_id = claims.hasura_claims.tenant_id.clone();
+    let executer_name = claims
+        .name
+        .clone()
+        .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
 
-    let required_perm = if body.election_event_id.is_some() {
+    let required_perm = if body.election_event_id.clone().is_some() {
         Permissions::VOTER_READ
     } else {
         Permissions::USER_READ
     };
+
+    // Create task execution record only if election_event_id is present
+    let task_execution =
+        if let Some(ref election_event_id) = body.election_event_id {
+            Some(
+                post(
+                    &tenant_id,
+                    &election_event_id,
+                    ETasksExecution::EXPORT_VOTERS,
+                    &executer_name,
+                )
+                .await
+                .map_err(|error| {
+                    (
+                        Status::InternalServerError,
+                        format!(
+                            "Failed to insert task execution record: {error:?}"
+                        ),
+                    )
+                })?,
+            )
+        } else {
+            None
+        };
 
     authorize(
         &claims,
@@ -562,32 +591,39 @@ pub async fn export_users_f(
     )?;
 
     let document_id = Uuid::new_v4().to_string();
-
     let celery_app = get_celery_app().await;
 
-    let task = celery_app
+    let celery_task = match celery_app
         .send_task(export_users::export_users::new(
             ExportBody::Users {
                 tenant_id: body.tenant_id,
-                election_event_id: body.election_event_id,
+                election_event_id: body.election_event_id.clone(),
                 election_id: body.election_id,
             },
             document_id.clone(),
+            task_execution.clone(),
         ))
         .await
-        .map_err(|error| {
-            (
-                Status::InternalServerError,
-                format!("Error sending export_users task: {error:?}"),
-            )
-        })?;
+    {
+        Ok(celery_task) => celery_task,
+        Err(err) => {
+            return Ok(Json(ExportUsersOutput {
+                document_id,
+                error_msg: Some(format!(
+                    "Error sending Export Users task: ${err}"
+                )),
+                task_execution: task_execution.clone(),
+            }));
+        }
+    };
 
     let output = ExportUsersOutput {
         document_id,
-        task_id: task.task_id.clone(),
+        error_msg: None,
+        task_execution: task_execution.clone(),
     };
 
-    info!("Sent EXPORT_USERS task {}", task.task_id);
+    info!("Sent EXPORT_USERS task");
 
     Ok(Json(output))
 }
@@ -597,10 +633,9 @@ pub async fn export_users_f(
 pub async fn export_tenant_users_f(
     claims: jwt::JwtClaims,
     input: Json<ExportTenantUsersBody>,
-) -> Result<Json<ExportUsersOutput>, (Status, String)> {
+) -> Result<Json<export_users::ExportUsersOutput>, (Status, String)> {
     let body = input.into_inner();
     let required_perm = Permissions::USER_READ;
-    info!("input-users {:?}", body);
 
     authorize(
         &claims,
@@ -610,25 +645,34 @@ pub async fn export_tenant_users_f(
     )?;
     let document_id = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
-    let task = celery_app
+    let celery_task = match celery_app
         .send_task(export_users::export_users::new(
             ExportBody::TenantUsers {
                 tenant_id: body.tenant_id,
             },
             document_id.clone(),
+            None,
         ))
         .await
-        .map_err(|error| {
-            (
-                Status::InternalServerError,
-                format!("Error sending export_tenant_users task: {error:?}"),
-            )
-        })?;
-    let output = ExportUsersOutput {
-        document_id: document_id,
-        task_id: task.task_id.clone(),
+    {
+        Ok(celery_task) => celery_task,
+        Err(err) => {
+            return Ok(Json(ExportUsersOutput {
+                document_id,
+                error_msg: Some(format!(
+                    "Error sending Export Users task: ${err}"
+                )),
+                task_execution: None,
+            }));
+        }
     };
-    info!("Sent EXPORT_TENANT_USERS task {}", task.task_id);
+
+    let output = export_users::ExportUsersOutput {
+        document_id: document_id,
+        error_msg: None,
+        task_execution: None,
+    };
+    info!("Sent EXPORT_TENANT_USERS task {}", celery_task.task_id);
 
     Ok(Json(output))
 }

@@ -6,15 +6,15 @@ use crate::hasura;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::services::export_users::{export_users_file, ExportBody};
 use crate::services::s3;
+use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction as _};
 use sequent_core::services::keycloak;
+use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::util;
-use std::fs::File;
-use std::io::{BufWriter, Write};
-use tempfile::{NamedTempFile, TempPath};
+use serde::{Deserialize, Serialize};
 use tracing::{debug, info, instrument};
 
 pub const USER_FIELDS: [&str; 8] = [
@@ -28,23 +28,56 @@ pub const USER_FIELDS: [&str; 8] = [
     "area-id",
 ];
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ExportUsersOutput {
+    pub document_id: String,
+    pub error_msg: Option<String>,
+    pub task_execution: Option<TasksExecution>,
+}
+
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 0)]
-pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
-    let mut hasura_db_client = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .with_context(|| "Error acquiring Hasura DB pool")?;
+pub async fn export_users(
+    body: ExportBody,
+    document_id: String,
+    task_execution: Option<TasksExecution>,
+) -> Result<()> {
+    let mut hasura_db_client: DbClient = match get_hasura_pool().await.get().await {
+        Ok(client) => client,
+        Err(err) => {
+            if let Some(task_execution) = &task_execution {
+                update_fail(task_execution, "Failed to get Hasura DB pool").await;
+            }
+            return Err(Error::String(format!(
+                "Error getting Hasura DB pool: {}",
+                err
+            )));
+        }
+    };
 
-    let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .with_context(|| "Error starting Hasura transaction")?;
+    let hasura_transaction = match hasura_db_client.transaction().await {
+        Ok(transaction) => transaction,
+        Err(err) => {
+            if let Some(task_execution) = &task_execution {
+                update_fail(&task_execution, "Failed to start Hasura transaction").await?;
+            }
+            return Err(Error::String(format!(
+                "Error starting Hasura transaction: {err}"
+            )));
+        }
+    };
 
     // Export the users to a temporary file
-    let temp_path = export_users_file(&hasura_transaction, body.clone()).await?;
+    let temp_path = match export_users_file(&hasura_transaction, body.clone()).await {
+        Ok(result) => result,
+        Err(err) => {
+            if let Some(task_execution) = &task_execution {
+                update_fail(&task_execution, &err.to_string()).await?;
+            }
+            return Err(Error::String(format!("Error listing users: {err:?}")));
+        }
+    };
     let size = temp_path.metadata()?.len();
 
     // Upload to S3
@@ -60,15 +93,22 @@ pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
         ExportBody::TenantUsers { tenant_id } => (tenant_id.to_string(), "".to_string()),
     };
 
-    let key = s3::get_document_key(
-        &tenant_id,
-        Some(&election_event_id),
-        &document_id,
-        "users-export",
-    );
+    let timestamp = match util::date::timestamp() {
+        Ok(timestamp) => timestamp,
+        Err(err) => {
+            if let Some(task_execution) = &task_execution {
+                update_fail(&task_execution, "Failed to obtain timestamp").await?;
+            }
+            return Err(Error::String(format!("Error obtaining timestamp: {err}")));
+        }
+    };
+
+    let name = format!("users-export-{timestamp}.csv");
+    let key = s3::get_document_key(&tenant_id, Some(&election_event_id), &document_id, &name);
+
     let media_type = "text/csv".to_string();
 
-    s3::upload_file_to_s3(
+    match s3::upload_file_to_s3(
         key,
         false,
         s3::get_private_bucket()?,
@@ -77,21 +117,42 @@ pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
         None,
     )
     .await
-    .with_context(|| "Error uploading file to S3")?;
+    {
+        Ok(_) => (),
+        Err(err) => {
+            if let Some(task_execution) = &task_execution {
+                update_fail(&task_execution, "Error uploading to S3").await?;
+            }
+            return Err(Error::String(format!("Error uploading to S3: {err:?}")));
+        }
+    }
 
     temp_path
         .close()
         .with_context(|| "Error closing temporary file path")?;
 
-    let auth_headers = keycloak::get_client_credentials()
-        .await
-        .with_context(|| "Error acquiring Keycloak client credentials")?;
+    let auth_headers = match keycloak::get_client_credentials().await {
+        Ok(auth_headers) => auth_headers,
+        Err(err) => {
+            if let Some(task_execution) = &task_execution {
+                update_fail(&task_execution, "Error acquiring client credentials").await?;
+            }
+            return Err(Error::String(format!(
+                "Error acquiring client credentials: {err:?}"
+            )));
+        }
+    };
 
     let _document = &hasura::document::insert_document(
         auth_headers,
         tenant_id.clone(),
-        Some(election_event_id),
-        "users-export".to_string(),
+        match &body {
+            ExportBody::Users {
+                election_event_id, ..
+            } => election_event_id.clone(),
+            ExportBody::TenantUsers { .. } => None,
+        },
+        name.clone(),
         media_type,
         size as i64,
         false,
@@ -103,6 +164,12 @@ pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
     .insert_sequent_backend_document
     .ok_or(anyhow!("Missing document in insertion response"))?
     .returning[0];
+
+    if let Some(task_execution) = &task_execution {
+        update_complete(&task_execution)
+            .await
+            .context("Failed to update task execution status to COMPLETED")?;
+    }
 
     Ok(())
 }

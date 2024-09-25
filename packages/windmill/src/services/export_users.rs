@@ -17,6 +17,7 @@ use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::keycloak::{User, UserProfileAttribute};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
 use tempfile::{NamedTempFile, TempPath};
 
 pub const USER_FIELDS: [&str; 8] = [
@@ -36,15 +37,10 @@ pub struct ExportUsersBody {
     pub election_event_id: Option<String>,
     pub election_id: Option<String>,
 }
+
 #[derive(Deserialize, Debug, Clone, Serialize)]
 pub struct ExportTenantUsersBody {
     pub tenant_id: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ExportUsersOutput {
-    pub document_id: String,
-    pub task_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -211,17 +207,17 @@ pub async fn export_users_file(
     let attributes = client.get_user_profile_attributes(&realm).await?;
     let headers = get_headers(&elections, &attributes);
 
+    // Pagination loop to export users in batches
+    let batch_size = PgConfig::from_env()?.default_sql_batch_size;
+    let mut offset: i32 = 0;
+    let mut total_count: Option<i32> = None;
+
     let mut writer = csv::WriterBuilder::new().delimiter(b',').from_writer(
         generate_temp_file("export-users-", ".csv")
             .with_context(|| "Error creating temporary file")?,
     );
 
     writer.write_record(&headers)?;
-
-    // Pagination loop to export users in batches
-    let batch_size = PgConfig::from_env()?.default_sql_batch_size;
-    let mut offset: i32 = 0;
-    let mut total_count: Option<i32> = None;
 
     loop {
         let filter = ListUsersFilter {
@@ -280,7 +276,9 @@ pub async fn export_users_file(
         // Write each user record to the CSV file
         for user in users.clone() {
             let record = get_user_record(&elections, &areas_by_id, &user, &attributes);
-            writer.write_record(&record)?;
+            writer
+                .write_record(&record)
+                .with_context(|| "Error writing record")?;
         }
 
         if users.is_empty() || offset >= total_count.unwrap_or_default() {

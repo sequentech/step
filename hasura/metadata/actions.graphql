@@ -44,11 +44,12 @@ type Mutation {
 
 type Mutation {
   create_transmission_package (
+    election_event_id: uuid!
     election_id: uuid!
     area_id: uuid!
     tally_session_id: uuid!
     force: Boolean!
-  ): OptionalId
+  ): createTransmissionPackageOutput
 }
 
 type Mutation {
@@ -139,6 +140,13 @@ type Mutation {
   export_election_event_tasks (
     election_event_id: String
   ): ExportTasksOutput
+}
+
+type Mutation {
+  export_tasks_execution (
+    tenant_id: String!
+    election_event_id: String!
+  ): ExportTasksExecutionOutput
 }
 
 type Mutation {
@@ -867,7 +875,8 @@ type OptionalId {
 }
 
 type ExportUsersOutput {
-  task_id : String!
+  error_msg : String
+  task_execution : tasks_execution_type
   document_id : String!
 }
 
@@ -957,8 +966,9 @@ type ExportAllUsersOutput {
 }
 
 type ExportTenantUsersOutput {
-  task_id : String!
+  error_msg : String
   document_id : String!
+  task_execution : tasks_execution_type
 }
 
 type UserProfileAttributes {
@@ -1056,5 +1066,15 @@ type SetCustomUrlOutput {
 type SetCustomUrlsOutput {
   success : Boolean!
   message : String
+}
+
+type ExportTasksExecutionOutput {
+  error_msg : String
+  document_id : String!
+}
+
+type createTransmissionPackageOutput {
+  error_msg : String
+  task_execution : tasks_execution_type
 }
 

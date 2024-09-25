@@ -45,6 +45,16 @@ const spanishTranslation: TranslationType = {
                 IMPORT_ELECTION_EVENT: "Importar evento electoral",
                 IMPORT_USERS: "Importar usuarios",
                 IMPORT_CANDIDATES: "Importar candidatos",
+                EXPORT_VOTERS: "Exportar votantes",
+                CREATE_TRANSMISSION_PACKAGE: "Crear paquete de transmisión",
+            },
+            widget: {
+                taskTitle: "Tarea: {{title}}",
+                viewTask: "Ver Tarea",
+            },
+            exportTasksExecution: {
+                success: "La exportación se completó con éxito",
+                error: "Error al exportar la Ejecución de Tareas",
             },
         },
         areas: {
@@ -359,6 +369,7 @@ const spanishTranslation: TranslationType = {
                 numAllowedVotes: "Número de votos permitidos",
                 reorder: "Reordenar concursos",
                 castVoteConfirm: "Modal de Confirmación de Voto",
+                gracePeriodPolicy: "Política de período de gracia",
             },
             field: {
                 name: "Nombre",
@@ -386,6 +397,12 @@ const spanishTranslation: TranslationType = {
                 voters: "Votantes",
                 publish: "Publicar",
                 logs: "Logs",
+            },
+            gracePeriodPolicy: {
+                "label": "Política de período de gracia",
+                "no-grace-period": "Sin período de gracia",
+                "grace-period-without-alert": "Período de gracia sin alerta",
+                "gracePeriodSecs": "Tiempo de gracia en segundos",
             },
         },
         tenantScreen: {
@@ -444,6 +461,7 @@ const spanishTranslation: TranslationType = {
                     passwordDigitValidate: "La contraseña debe contener al menos un dígito",
                     passwordSpecialCharValidate:
                         "La contraseña debe contener al menos un carácter especial",
+                    trustee: "Actuar como fideicomisario",
                 },
                 delete: {
                     body: "¿Estás seguro que quieres borrar este usuario?",
@@ -907,7 +925,7 @@ const spanishTranslation: TranslationType = {
             errorUploadingSignature: "Hubo un error al subir la firma",
             downloadTransmissionPackage: "Descargar paquete",
             transmissionPackage: {
-                title: "Paquete de Transmisión para el Área '{{name}}'",
+                title: "Paquete de Transmisión para el Área '{{name}}' y Elección '{{eventName}}'",
                 description:
                     "Te permite exportar un Paquete de Transmisión a los Servidores de Destino o descargarlo.",
                 actions: {

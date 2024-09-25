@@ -91,6 +91,8 @@ const englishTranslation = {
                     "There was an unknown error while casting the vote. Please try again later or contact support for assistance.",
                 CAST_VOTE_AreaNotFound:
                     "There was an error while casting the vote: Area not found. Please try again later or contact support for assistance.",
+                CAST_VOTE_CheckStatusFailed:
+                    "Election does not allow casting the vote. Election might be closed, archived or you might be trying to vote outside grace period.",
                 CAST_VOTE_InternalServerError:
                     "An internal error occurred while casting the vote. Please try again later or contact support for assistance.",
                 CAST_VOTE_QueueError:

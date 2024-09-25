@@ -10,6 +10,8 @@ pub enum ETasksExecution {
     IMPORT_CANDIDATES,
     IMPORT_USERS,
     IMPORT_ELECTION_EVENT,
+    EXPORT_VOTERS,
+    CREATE_TRANSMISSION_PACKAGE,
 }
 
 impl ETasksExecution {
@@ -19,6 +21,8 @@ impl ETasksExecution {
             ETasksExecution::IMPORT_CANDIDATES => "Import Candidates",
             ETasksExecution::IMPORT_USERS => "Import Voters",
             ETasksExecution::IMPORT_ELECTION_EVENT => "Import Election Event",
+            ETasksExecution::EXPORT_VOTERS => "Export Voters",
+            ETasksExecution::CREATE_TRANSMISSION_PACKAGE => "Create Transmission Package",
         }
     }
 }

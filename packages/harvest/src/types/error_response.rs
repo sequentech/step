@@ -16,6 +16,7 @@ pub enum ErrorCode {
     InternalServerError,
     QueueError,
     Unauthorized,
+    CheckStatusFailed,
     AreaNotFound,
     ElectionEventNotFound,
     ElectoralLogNotFound,
