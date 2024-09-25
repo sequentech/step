@@ -381,7 +381,9 @@ impl Message {
         }
     }
 
-    // Clone is fallible when signature is implemented from OpenSSL
+    /// Clone this message.
+    /// 
+    /// Clone is fallible when signature is implemented with OpenSSL
     pub fn try_clone(&self) -> Result<Message> {
         let ret = Message {
             sender: self.sender.clone(),

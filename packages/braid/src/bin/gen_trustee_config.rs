@@ -48,6 +48,9 @@ fn main() {
     }
 }
 
+/// Generates a trustee configuration with cryptographic secrets.
+/// 
+/// Prints configuration to standard out.
 fn gen_trustee_config<C: Ctx>() {
     let sk = StrandSignatureSk::gen().unwrap();
     let pk = StrandSignaturePk::from_sk(&sk).unwrap();
@@ -69,6 +72,13 @@ fn gen_trustee_config<C: Ctx>() {
     println!("{toml}");
 }
 
+/// Generates a protocol manager configuration with cryptographic secrets.
+/// 
+/// The protocol manager is the entity responsible for posting the protocol
+/// configuration and ballots. Those messages must be signed by the entity
+/// designated as protocol manager in the configuration.
+/// 
+/// Prints configuration to standard out.
 fn gen_protocol_manager_config<C: Ctx>() {
     let pmkey: StrandSignatureSk = StrandSignatureSk::gen().unwrap();
     let pm: ProtocolManager<C> = ProtocolManager {

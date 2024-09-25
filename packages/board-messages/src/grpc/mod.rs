@@ -21,8 +21,13 @@ pub mod client;
 pub mod pgsql;
 pub mod server;
 
+/// The maximum grpc message used for chunking.
+/// 
+/// Values greater than 2MB have caused external (tonic) grpc 
+/// errors during testing.
 pub const MAX_MESSAGE_SIZE: usize = 2 * 1024 * 1024 * 1024;
 
+/// Returns Ok if the board name is valid, otherwise returns and error.
 pub fn validate_board_name(board: &str) -> anyhow::Result<()> {
     if board.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
         Ok(())
