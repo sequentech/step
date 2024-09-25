@@ -12,7 +12,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::convert::From;
 use tokio_postgres::row::Row;
-use tracing::instrument;
+use tracing::{info, instrument};
 
 impl User {
     pub fn get_mobile_phone(&self) -> Option<String> {
@@ -205,6 +205,7 @@ impl KeycloakAdminClient {
         password: Option<String>,
         temporary: Option<bool>,
     ) -> Result<User> {
+        info!("Editing user in keycloak ?: {:?}", attributes);
         let mut current_user: UserRepresentation = self
             .client
             .realm_users_with_user_id_get(realm, user_id, None)
@@ -304,6 +305,7 @@ impl KeycloakAdminClient {
     ) -> Result<User> {
         let mut new_user_keycloak: UserRepresentation = user.clone().into();
         new_user_keycloak.attributes = attributes.clone();
+        info!("Creating user in keycloak ?: {:?}", new_user_keycloak);
         new_user_keycloak.groups = groups.clone();
         self.client
             .realm_users_post(realm, new_user_keycloak.clone())

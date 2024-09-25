@@ -451,6 +451,7 @@ const frenchTranslation: TranslationType = {
                     passwordDigitValidate: "Le mot de passe doit contenir au moins un chiffre",
                     passwordSpecialCharValidate:
                         "Le mot de passe doit contenir au moins un caractère spécial",
+                    trustee: "Agir en tant que fiduciaire",
                 },
                 delete: {
                     body: "Êtes-vous sûr de vouloir supprimer cet utilisateur ?",
