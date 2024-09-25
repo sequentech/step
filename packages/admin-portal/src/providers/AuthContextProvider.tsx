@@ -41,6 +41,10 @@ export interface AuthContextValues {
      */
     tenantId: string
     /**
+     * The trustee an admin user can act as
+     */
+    trustee: String
+    /**
      * Function to initiate the logout
      */
     logout: () => void
@@ -83,6 +87,7 @@ const defaultAuthContextValues: AuthContextValues = {
     email: "",
     firstName: "",
     tenantId: "",
+    trustee: "",
     logout: () => {},
     hasRole: () => false,
     getAccessToken: () => undefined,
@@ -125,6 +130,8 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const [email, setEmail] = useState<string>("")
     const [firstName, setFirstName] = useState<string>("")
     const [tenantId, setTenantId] = useState<string>("")
+    const [trustee, setTrustee] = useState<string>("")
+
     const sleepSecs = 50
     const bufferSecs = 10
     const navigate = useNavigate()
@@ -310,7 +317,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             }
             try {
                 const profile = await keycloak.loadUserProfile()
-
                 if (profile.id) {
                     setUserId(profile.id)
                 }
@@ -330,6 +336,10 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
                 if (newTenantId) {
                     setTenantId(newTenantId)
+                }
+
+                if (keycloak.tokenParsed?.trustee) {
+                    setTrustee(keycloak.tokenParsed?.trustee)
                 }
             } catch {
                 console.log("error trying to load the users profile")
@@ -398,6 +408,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 email,
                 firstName,
                 tenantId,
+                trustee,
                 logout,
                 hasRole,
                 getAccessToken,

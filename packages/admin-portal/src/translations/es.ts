@@ -449,6 +449,7 @@ const spanishTranslation: TranslationType = {
                     passwordDigitValidate: "La contraseña debe contener al menos un dígito",
                     passwordSpecialCharValidate:
                         "La contraseña debe contener al menos un carácter especial",
+                    trustee: "Actuar como fideicomisario",
                 },
                 delete: {
                     body: "¿Estás seguro que quieres borrar este usuario?",
