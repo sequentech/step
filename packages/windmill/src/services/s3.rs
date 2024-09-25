@@ -249,3 +249,48 @@ pub async fn download_s3_file_to_string(file_url: &str) -> Result<String> {
     let bytes = unwrapped_response.bytes().await?;
     Ok(String::from_utf8(bytes.to_vec())?)
 }
+
+#[instrument(err, ret)]
+pub async fn delete_files_from_s3(
+    s3_bucket: String,
+    prefix: String,
+    is_public: bool,
+) -> Result<()> {
+    let config = get_s3_aws_config(!is_public)
+        .await
+        .with_context(|| "Error getting s3 aws config")?;
+    let client = get_s3_client(config.clone())
+        .await
+        .with_context(|| "Error getting s3 client")?;
+
+    let mut token: Option<String> = None;
+    loop {
+        let result = client
+            .list_objects_v2()
+            .bucket(s3_bucket.clone())
+            .prefix(prefix.clone())
+            .max_keys(20)
+            .set_continuation_token(token.clone())
+            .send()
+            .await?;
+
+        for object in result.contents().iter() {
+            let key = object.key().unwrap();
+
+            client
+                .delete_object()
+                .bucket(s3_bucket.clone())
+                .key(key)
+                .send()
+                .await?;
+        }
+
+        if let Some(next_token) = result.next_continuation_token() {
+            token = Some(next_token.to_string());
+        } else {
+            break;
+        }
+    }
+
+    Ok(())
+}

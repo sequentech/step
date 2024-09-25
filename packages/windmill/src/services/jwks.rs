@@ -128,3 +128,46 @@ pub async fn upsert_realm_jwks(realm: &str) -> Result<()> {
 
     Ok(())
 }
+
+#[instrument(err)]
+pub async fn remove_realm_jwks(realm: &str) -> Result<()> {
+    let realm_jwks = download_realm_jwks_from_keycloak(realm).await?;
+    let existing_jwks = get_jwks().await?;
+
+    let realm_kids: Vec<String> = realm_jwks.iter().map(|realm| realm.kid.clone()).collect();
+
+    let new_jwks: Vec<JWKKey> = existing_jwks
+        .clone()
+        .into_iter()
+        .filter(|key| !realm_kids.contains(&key.kid))
+        .collect();
+
+    let jwks_output = JwksOutput { keys: new_jwks };
+
+    let file = generate_temp_file("jwks-", ".json").with_context(|| "Error creating temp file")?;
+    let file2 = file
+        .reopen()
+        .with_context(|| "Couldn't reopen file for writing")?;
+    let buf_writer = BufWriter::new(file2);
+    serde_json::to_writer_pretty(buf_writer, &jwks_output)
+        .with_context(|| "Failed writing into temp file")?;
+
+    let temp_path = file.into_temp_path();
+
+    s3::upload_file_to_s3(
+        /* key */ get_jwks_secret_path(),
+        /* is_public */ false,
+        /* s3_bucket */ s3::get_public_bucket()?,
+        /* media_type */ "application/json".to_string(),
+        /* file_path */ temp_path.to_string_lossy().to_string(),
+        /* cache_control_policy */ Some(get_cache_policy()?),
+    )
+    .await
+    .with_context(|| "Error uploading file to s3")?;
+
+    temp_path
+        .close()
+        .with_context(|| "Error closing temp file path")?;
+
+    Ok(())
+}
