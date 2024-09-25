@@ -18,7 +18,6 @@ use structopt::StructOpt;
 use tracing::{event, Level};
 use windmill::services::celery_app::*;
 use windmill::services::probe::{setup_probe, AppName};
-use windmill::util::settings::SETTINGS;
 extern crate chrono;
 
 #[derive(Debug, StructOpt)]
@@ -71,8 +70,6 @@ async fn main() -> Result<()> {
     init_log(true);
 
     setup_probe(AppName::WINDMILL).await;
-
-    event!(Level::DEBUG, "Settings: {:#?}", *SETTINGS);
 
     let opt = CeleryOpt::from_args();
 
