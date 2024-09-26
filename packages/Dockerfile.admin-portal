@@ -23,9 +23,6 @@ RUN yarn --pure-lockfile --non-interactive
 RUN yarn build:ui-core
 RUN yarn build:ui-essentials
 
-# clean the node_modules to minimize image size a bit
-RUN yarn global add clean-modules && clean-modules -y
-
 EXPOSE 3002
 EXPOSE 3000
 EXPOSE 3001
