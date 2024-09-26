@@ -299,9 +299,9 @@ export default function MenuAction({
                         </MenuItem>
                     )}
 
-                    {!isArchivedTab && canDeleteElectionEvent && <Divider key="divider2" />}
+                    {canDeleteElectionEvent && <Divider key="divider2" />}
 
-                    {!isArchivedTab && canDeleteElectionEvent && (
+                    {canDeleteElectionEvent && (
                         <MenuItem
                             dir={i18n.dir(i18n.language)}
                             key={Action.Remove}
