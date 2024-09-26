@@ -60,7 +60,7 @@ const RETRIEVE_ALL_MESSAGES_PERIOD: i64 = 60 * 60;
 /// This information is published on the bulletin board
 /// in Channel objects.
 ///
-/// The action_parallelism value determines the maximum number
+/// The max_concurrent_actions value determines the maximum number
 /// of actions that can be executed in parallel. Higher
 /// values may increase core utilization, but also
 /// peak memory usage.
@@ -76,7 +76,7 @@ pub struct Trustee<C: Ctx> {
     // the calling Trustee
     pub(crate) last_message_id: i64,
     pub(crate) step_counter: i64,
-    pub(crate) action_parallelism: usize,
+    pub(crate) max_concurrent_actions: Option<usize>,
 }
 
 impl<C: Ctx> Trustee<C> {
@@ -90,12 +90,13 @@ impl<C: Ctx> Trustee<C> {
         signing_key: StrandSignatureSk,
         encryption_key: symm::SymmetricKey,
         store: Option<PathBuf>,
+        max_concurrent_actions: Option<usize>,
     ) -> Trustee<C> {
-        let action_parallelism = 10;
+        // let max_concurrent_actions = 10;
 
         info!(
-            "Trustee {} created, store = {:?}, action_parallelism = {}",
-            name, store, action_parallelism
+            "Trustee {} created, store = {:?}, max_concurrent_actions = {:?}",
+            name, store, max_concurrent_actions
         );
 
         // let blob_root = PathBuf::from("./blobs");
@@ -116,7 +117,7 @@ impl<C: Ctx> Trustee<C> {
             local_board,
             last_message_id: -1,
             step_counter: 0,
-            action_parallelism,
+            max_concurrent_actions,
         }
     }
 
@@ -482,9 +483,13 @@ impl<C: Ctx> Trustee<C> {
             trace!("-- Idle --");
         }
 
-        // If there are more than self.action_parallelism actions they will be skipped
+        // If there are more than self.max_concurrent_actions actions they will be skipped
         // until the next step.
-        let actions: Vec<Action> = actions.into_iter().take(self.action_parallelism).collect();
+        let actions: Vec<Action> = if let Some(max) = self.max_concurrent_actions {
+            actions.into_iter().take(max).collect()
+        } else {
+            Vec::from_iter(actions.into_iter())
+        };
 
         // Cross-Action parallelism (which in effect is cross-batch parallelism)
         let results: Result<Vec<Vec<Message>>, ProtocolError> = actions

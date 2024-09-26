@@ -19,8 +19,8 @@ strum = { version = "0.24.1", features = ["derive"] }
 anyhow = "1.0"
 rayon = "1.5"
 
-# only needed to use the postgresql COPY command
-# futures = "0.3"
+# only needed to use the postgresql COPY command (sqlcopy feature)
+futures = { version = "0.3", optional = true }
 
 # logging
 log = "0.4.17"
@@ -31,7 +31,6 @@ tracing-subscriber = "0.3.16"
 tracing-tree = "0.2.1"
 
 cfg-if = "1.0"
-# config = {version = "0.13.1" }
 
 hex = "0.4.2"
 base64 = "0.21.0"
@@ -52,6 +51,7 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 # monitor = ["dep:cursive"]
+sqlcopy = ["dep:futures"]
 
 [build-dependencies]
 tonic-build = "0.12.1"

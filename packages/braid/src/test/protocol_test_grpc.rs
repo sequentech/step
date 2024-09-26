@@ -242,7 +242,14 @@ pub async fn create_protocol_test<C: Ctx>(
             let encryption_key = strand::symm::gen_key();
             let pk = StrandSignaturePk::from_sk(&sk).unwrap();
             (
-                Trustee::new(i.to_string(), "foo".to_string(), sk, encryption_key, None),
+                Trustee::new(
+                    i.to_string(),
+                    "foo".to_string(),
+                    sk,
+                    encryption_key,
+                    None,
+                    None,
+                ),
                 pk,
             )
         })

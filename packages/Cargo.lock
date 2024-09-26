@@ -1309,6 +1309,7 @@ dependencies = [
  "borsh",
  "cfg-if",
  "clap 4.5.16",
+ "futures",
  "hex",
  "log",
  "prost 0.13.3",

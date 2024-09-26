@@ -74,9 +74,15 @@ pub struct SessionFactory {
     signing_key: StrandSignatureSk,
     symm_key: SymmetricKey,
     store_root: PathBuf,
+    max_concurrent_actions: Option<usize>,
 }
 impl SessionFactory {
-    pub fn new(trustee_name: &str, cfg: TrusteeConfig, store_root: PathBuf) -> Result<Self> {
+    pub fn new(
+        trustee_name: &str,
+        cfg: TrusteeConfig,
+        store_root: PathBuf,
+        max_concurrent_actions: Option<usize>,
+    ) -> Result<Self> {
         let signing_key: StrandSignatureSk =
             StrandSignatureSk::from_der_b64_string(&cfg.signing_key_sk)?;
 
@@ -92,6 +98,7 @@ impl SessionFactory {
             symm_key,
             signing_key,
             store_root,
+            max_concurrent_actions,
         })
     }
 
@@ -104,6 +111,7 @@ impl SessionFactory {
             self.signing_key.clone(),
             self.symm_key,
             Some(self.store_root.join(&board_name)),
+            self.max_concurrent_actions,
         );
 
         SessionM::new(board_name, trustee)

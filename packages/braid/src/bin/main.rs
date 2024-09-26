@@ -136,6 +136,7 @@ async fn main() -> Result<()> {
                 sk.clone(),
                 ek.clone(),
                 Some(store_root.join(board_name)),
+                None,
             );
             let board = GrpcB3BoardParams::new(&args.b3_url);
 

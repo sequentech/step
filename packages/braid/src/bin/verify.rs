@@ -57,6 +57,7 @@ async fn main() -> Result<()> {
         dummy_sk,
         dummy_encryption_key,
         None,
+        None,
     );
     let board = GrpcB3::new(&args.server_url);
     let mut session = Verifier::new(trustee, board, &args.board);

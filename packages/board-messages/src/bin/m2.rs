@@ -1,6 +1,7 @@
-use std::time::{Duration, SystemTime};
-
 //  cargo run --bin m2 --features=monitor 2> error
+cfg_if::cfg_if! { if #[cfg(feature = "monitor")] {
+
+use std::time::{Duration, SystemTime};
 use anyhow::Result;
 
 use board_messages::grpc::pgsql::{
@@ -445,3 +446,10 @@ fn get_cell_counts(len: usize) -> (usize, usize) {
 
     (width, height)
 }
+
+}
+else {
+    fn main() {
+        println!("Requires the 'monitor' feature");
+    }
+}}

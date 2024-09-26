@@ -42,14 +42,25 @@ struct Cli {
     trustee_config: PathBuf,
 
     /// Sets the tokio worker_threads parameter.
+    ///
+    /// Recommended to set to session_workers + 1.
     #[arg(short, long, default_value_t = 2)]
     tokio_workers: usize,
 
     /// The number of SessionSets that will run the protocol.
     ///
-    /// SessionSets run concurrently as tokio threads and multiplex requests.
+    /// SessionSets run concurrently as tokio threads and multiplex grpc b3
+    /// requests. Setting this value greater than the number of cores
+    /// has no effect.
     #[arg(short, long, default_value_t = 1)]
     session_workers: usize,
+
+    /// Determines the maximum number of actions that can be executed concurrently.
+    ///
+    /// Higher values may increase core utilization, but also
+    /// peak memory usage.
+    #[arg(short, long)]
+    max_concurrent_actions: Option<usize>,
 }
 
 /// Tokio entry point.
@@ -59,7 +70,6 @@ fn main() -> Result<()> {
     // let runtime = tokio::runtime::Builder::new_current_thread()
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(args.tokio_workers)
-        .max_blocking_threads(10)
         .enable_all()
         .build()
         .unwrap();
@@ -135,7 +145,7 @@ async fn run(args: &Cli) -> Result<()> {
             .unwrap(),
     );
 
-    let factory = SessionFactory::new(&trustee_name, tc, store_root)?;
+    let factory = SessionFactory::new(&trustee_name, tc, store_root, args.max_concurrent_actions)?;
     let mut master = SessionMaster::new(&args.b3_url, factory, args.session_workers)?;
 
     loop {
