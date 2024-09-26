@@ -536,6 +536,7 @@ const catalanTranslation: TranslationType = {
                 "election-event-create": "Crear Esdeveniment Electoral",
                 "election-event-read": "Llegir Esdeveniment Electoral",
                 "election-event-write": "Editar Esdeveniment Electoral",
+                "election-event-delete": "Esborrar Esdeveniment Electoral",
                 "voter-create": "Crear Votant",
                 "voter-read": "Llegir Votant",
                 "voter-write": "Editar Votant",

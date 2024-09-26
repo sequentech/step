@@ -531,6 +531,7 @@ const englishTranslation = {
                 "election-event-create": "Create Election Event",
                 "election-event-read": "Read Election Event",
                 "election-event-write": "Edit Election Event",
+                "election-event-delete": "Delete Election Event",
                 "voter-create": "Create Voter",
                 "voter-read": "Read Voter",
                 "voter-write": "Edit Voter",

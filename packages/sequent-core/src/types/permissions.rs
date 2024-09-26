@@ -23,6 +23,8 @@ pub enum Permissions {
     ELECTION_EVENT_READ,
     #[strum(serialize = "election-event-write")]
     ELECTION_EVENT_WRITE,
+    #[strum(serialize = "election-event-delete")]
+    ELECTION_EVENT_DELETE,
     #[strum(serialize = "voter-create")]
     VOTER_CREATE,
     #[strum(serialize = "voter-read")]
