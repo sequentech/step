@@ -91,6 +91,16 @@ export type CreateElectionEventOutput = {
   id: Scalars['String']['output'];
 };
 
+export type CreateEventOutput = {
+  __typename?: 'CreateEventOutput';
+  created_by?: Maybe<Scalars['String']['output']>;
+  cron_config?: Maybe<Scalars['jsonb']['output']>;
+  election_event_id?: Maybe<Scalars['uuid']['output']>;
+  event_payload: Scalars['jsonb']['output'];
+  event_processor: Scalars['String']['output'];
+  tenant_id: Scalars['String']['output'];
+};
+
 export type CreateKeysCeremonyInput = {
   election_event_id: Scalars['String']['input'];
   threshold: Scalars['Int']['input'];
@@ -218,18 +228,15 @@ export type ElectoralLogRow = {
 export type EventListFilter = {
   election?: InputMaybe<Scalars['String']['input']>;
   event_type?: InputMaybe<Scalars['String']['input']>;
-  name?: InputMaybe<Scalars['String']['input']>;
   schedule?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type EventListOrderBy = {
+  actions?: InputMaybe<OrderDirection>;
   election?: InputMaybe<OrderDirection>;
   event_type?: InputMaybe<OrderDirection>;
-  name?: InputMaybe<OrderDirection>;
-  receivers?: InputMaybe<OrderDirection>;
   schedule?: InputMaybe<OrderDirection>;
-  template?: InputMaybe<OrderDirection>;
 };
 
 export type EventListRow = {
@@ -238,10 +245,8 @@ export type EventListRow = {
   election_event_id: Scalars['String']['output'];
   event_type: Scalars['String']['output'];
   id: Scalars['String']['output'];
-  name: Scalars['String']['output'];
-  receivers?: Maybe<Array<Maybe<Scalars['String']['output']>>>;
   schedule?: Maybe<Scalars['jsonb']['output']>;
-  template?: Maybe<Scalars['jsonb']['output']>;
+  task_id: Scalars['String']['output'];
   tenant_id: Scalars['String']['output'];
 };
 
@@ -742,6 +747,7 @@ export type Mutation_Root = {
   check_private_key?: Maybe<CheckPrivateKeyOutput>;
   /** create scheduled event */
   createScheduledEvent?: Maybe<ScheduledEventOutput3>;
+  create_event?: Maybe<CreateEventOutput>;
   /** create keys ceremony */
   create_keys_ceremony?: Maybe<CreateKeysCeremonyOutput>;
   create_permission?: Maybe<KeycloakPermission>;
@@ -1246,6 +1252,18 @@ export type Mutation_RootCreateScheduledEventArgs = {
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   event_payload: Scalars['jsonb']['input'];
   event_processor: Scalars['String']['input'];
+  tenant_id: Scalars['String']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootCreate_EventArgs = {
+  created_by?: InputMaybe<Scalars['String']['input']>;
+  cron_config?: InputMaybe<Scalars['jsonb']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  event_payload: Scalars['jsonb']['input'];
+  event_processor: Scalars['String']['input'];
+  id?: InputMaybe<Scalars['String']['input']>;
   tenant_id: Scalars['String']['input'];
 };
 
@@ -3699,8 +3717,10 @@ export type Query_RootList_User_RolesArgs = {
 
 
 export type Query_RootLogEventArgs = {
-  electionEventId: Scalars['String']['input'];
-  messageType: Scalars['String']['input'];
+  body: Scalars['String']['input'];
+  election_event_id: Scalars['String']['input'];
+  message_type: Scalars['String']['input'];
+  user_id?: InputMaybe<Scalars['String']['input']>;
 };
 
 

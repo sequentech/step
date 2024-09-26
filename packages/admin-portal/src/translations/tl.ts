@@ -579,6 +579,17 @@ const tagalogTranslation: TranslationType = {
         generalSettingsScreen: {
             body: "I-enable ang mga wika sa sistema. Tanging ang mga wikang pinagana dito ang magagamait para sa mga kaganapan ng halalan.",
         },
+        eventsScreen: {
+            messages: {
+                createSuccess: "Matagumpay na nalikha ang kaganapan",
+                createError: "May error sa paglikha ng kaganapan",
+            },
+            empty: {
+                header: "Wala pang mga kaganapan.",
+                body: "Gusto mo bang lumikha ng isa?",
+                button: "Lumikha ng Kaganapan",
+            },
+        },
         common: {
             export: "Maaaring magtagal ang pag-export. Sigurado ka bang nais mong i-export ang mga rekord?",
             resources: {

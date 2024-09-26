@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 
+import {error} from "console"
 import {Placeholder} from "react-admin"
 
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -575,6 +576,17 @@ const englishTranslation = {
         },
         generalSettingsScreen: {
             body: "Enable languages in the system. Only languages enabled here will be available for election events.",
+        },
+        eventsScreen: {
+            messages: {
+                createSuccess: "Event created successfully",
+                createError: "Error creating event",
+            },
+            empty: {
+                header: "No events yet.",
+                body: "Do you want to create one?",
+                button: "Create Event",
+            },
         },
         common: {
             export: "Export can be a long operation. Are you sure you want to export records?",

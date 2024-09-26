@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::str::FromStr;
 use tokio_postgres::row::Row;
-use tracing::instrument;
+use tracing::{instrument,info};
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
@@ -373,6 +373,8 @@ pub async fn find_scheduled_event_by_election_event_id(
         .await
         .map_err(|err| anyhow!("Error running the find_scheduled_event_by_task_id query: {err}"))?;
 
+    info!("rows: {:?}", rows);
+
     let scheduled_events = rows
         .into_iter()
         .map(|row| -> Result<PostgresScheduledEvent> { row.try_into() })
@@ -380,4 +382,91 @@ pub async fn find_scheduled_event_by_election_event_id(
         .with_context(|| "Error converting rows into PostgresScheduledEvent")?;
 
     Ok(scheduled_events)
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn insert_new_scheduled_event(
+    hasura_transaction: &Transaction<'_>,
+    new_event: PostgresScheduledEvent,
+) -> Result<PostgresScheduledEvent> {
+    let tenant_uuid: Option<uuid::Uuid> = match new_event.tenant_id {
+        Some(ref tenant_id) => Some(Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?),
+        None => None,
+    };
+    let election_event_uuid: Option<uuid::Uuid> = match new_event.election_event_id {
+        Some(ref election_event_id) => Some(Uuid::parse_str(election_event_id).with_context(|| "Error parsing election_event_id as UUID")?),
+        None => None,
+    };
+    let cron_config_js: Option<Value> = new_event.cron_config.map(|config| serde_json::to_value(config).unwrap());
+    let event_processor_s: Option<String> = new_event.event_processor.map(|processor| processor.to_string());
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                INSERT INTO
+                    "sequent_backend".scheduled_event
+                (
+                    id,
+                    tenant_id,
+                    election_event_id,
+                    created_at,
+                    stopped_at,
+                    labels,
+                    annotations,
+                    event_processor,
+                    cron_config,
+                    event_payload,
+                    task_id
+                )
+                VALUES (
+                    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+                )
+                RETURNING
+                    id,
+                    tenant_id,
+                    election_event_id,
+                    created_at,
+                    stopped_at,
+                    labels,
+                    annotations,
+                    event_processor,
+                    cron_config,
+                    event_payload,
+                    task_id;
+            "#,
+        )
+        .await
+        .map_err(|err| anyhow!("Error preparing insert_new_scheduled_event statement: {}", err))?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(&new_event.id).with_context(|| "Error parsing id as UUID")?,
+                &tenant_uuid,
+                &election_event_uuid,
+                &new_event.created_at,
+                &new_event.stopped_at,
+                &new_event.labels,
+                &new_event.annotations,
+                &event_processor_s,
+                &cron_config_js,
+                &new_event.event_payload,
+                &new_event.task_id,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error inserting new scheduled event: {}", err))?;
+
+    let rows: Vec<PostgresScheduledEvent> = rows
+        .into_iter()
+        .map(|row| -> Result<PostgresScheduledEvent> { row.try_into() })
+        .collect::<Result<Vec<PostgresScheduledEvent>>>()
+        .map_err(|err| anyhow!("Error deserializing new scheduled event: {}", err))?;
+
+    if rows.len() == 1 {
+        Ok(rows[0].clone())
+    } else {
+        Err(anyhow!("Unexpected number of rows affected: {}", rows.len()))
+    }
 }

@@ -40,6 +40,10 @@ pub async fn get_tenant_settings(
 
     let mut schedules: Vec<Schedule> = Vec::new();
 
+    if rows.is_empty() {
+        return Ok(schedules);
+    }
+
     for row in rows {
         let json_value: Value = row.get("settings");
 

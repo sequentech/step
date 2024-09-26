@@ -211,7 +211,7 @@ export const customBuildQuery =
                     const response = res.data.get_event_list
                     let output = {
                         data: response.items,
-                        total: response.total?.aggregate?.count,
+                        total: response.total,
                     }
                     return output
                 },

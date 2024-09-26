@@ -24,6 +24,7 @@ import EditElectionEventTextData from "./EditElectionEventTextData"
 import {v4 as uuidv4} from "uuid"
 import {EditElectionEventTasks} from "./EditElectionEventTasks"
 import EditEvents from "./EditEvents"
+import {EditElectionEvents} from "../Events/EditElectionEvents"
 
 export const ElectionEventTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -196,7 +197,7 @@ export const ElectionEventTabs: React.FC = () => {
                 ) : null}
                 {showEvents ? (
                     <TabbedShowLayout.Tab label={"Events"}>
-                        <EditEvents />
+                        <EditElectionEvents electionEventId={record?.id} />
                     </TabbedShowLayout.Tab>
                 ) : null}
             </TabbedShowLayout>

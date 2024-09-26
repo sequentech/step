@@ -578,6 +578,17 @@ const spanishTranslation: TranslationType = {
         generalSettingsScreen: {
             body: "Active los idiomas en el sistema. Solo los idiomas activados aquí estarán disponibles para eventos electorales.",
         },
+        eventsScreen: {
+            messages: {
+                createSuccess: "Evento creado con éxito",
+                createError: "Error al crear el evento",
+            },
+            empty: {
+                header: "Aún no hay eventos.",
+                body: "¿Quieres crear uno?",
+                button: "Crear evento",
+            },
+        },
         common: {
             export: "La exportación puede ser un proceso largo. ¿Estás seguro que quieres exportar?",
             resources: {

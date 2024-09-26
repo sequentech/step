@@ -16,6 +16,18 @@ type Mutation {
 }
 
 type Mutation {
+  create_event (
+    id: String
+    tenant_id: String!
+    election_event_id: uuid
+    event_processor: String!
+    cron_config: jsonb
+    event_payload: jsonb!
+    created_by: String
+  ): CreateEventOutput
+}
+
+type Mutation {
   create_keys_ceremony (
     object: CreateKeysCeremonyInput!
   ): CreateKeysCeremonyOutput
@@ -669,7 +681,6 @@ input UserProfileAttributesInput {
 input EventListFilter {
   election : String
   event_type : String
-  name : String
   tenant_id : String
   schedule : jsonb
 }
@@ -677,10 +688,8 @@ input EventListFilter {
 input EventListOrderBy {
   election : OrderDirection
   event_type : OrderDirection
-  receivers : OrderDirection
-  template : OrderDirection
-  name : OrderDirection
   schedule : OrderDirection
+  actions : OrderDirection
 }
 
 type GetManualVerificationOutput {
@@ -1089,19 +1098,35 @@ type GetEventListOutput {
 }
 
 type EventListRow {
+  id : String!
   election : String!
   schedule : jsonb
-  id : String!
+  task_id : String!
   tenant_id : String!
   election_event_id : String!
   event_type : String!
-  receivers : [String]
-  template : jsonb
-  name : String!
 }
 
 type DataEventList {
   items : [EventListRow]!
   total : TotalAggregate!
+}
+
+type EventOutput {
+  tenant_id : String!
+  election_event_id : uuid
+  event_processor : String!
+  cron_config : String
+  event_payload : jsonb!
+  created_by : String
+}
+
+type CreateEventOutput {
+  tenant_id : String!
+  election_event_id : uuid
+  event_processor : String!
+  cron_config : jsonb
+  event_payload : jsonb!
+  created_by : String
 }
 

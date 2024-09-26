@@ -579,6 +579,17 @@ const catalanTranslation: TranslationType = {
         generalSettingsScreen: {
             body: "Activeu els idiomes al sistema. Només els idiomes activats aquí estaran disponibles per a esdeveniments electorals.",
         },
+        eventsScreen: {
+            messages: {
+                createSuccess: "Esdeveniment creat correctament",
+                createError: "Error en crear l'esdeveniment",
+            },
+            empty: {
+                header: "Encara no hi ha esdeveniments.",
+                body: "Vols crear-ne un?",
+                button: "Crear esdeveniment",
+            },
+        },
         common: {
             export: "L'exportació pot ser un procés llarg. Estàs segur que vols exportar?",
             resources: {

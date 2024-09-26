@@ -567,6 +567,101 @@
         "possibleTypes": null
       },
       {
+        "kind": "OBJECT",
+        "name": "CreateEventOutput",
+        "description": null,
+        "fields": [
+          {
+            "name": "created_by",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "cron_config",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "jsonb",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "election_event_id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "uuid",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "event_payload",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "jsonb",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "event_processor",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "tenant_id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
         "kind": "INPUT_OBJECT",
         "name": "CreateKeysCeremonyInput",
         "description": null,
@@ -1615,16 +1710,6 @@
             "defaultValue": null
           },
           {
-            "name": "name",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
             "name": "schedule",
             "description": null,
             "type": {
@@ -1656,6 +1741,16 @@
         "fields": null,
         "inputFields": [
           {
+            "name": "actions",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "OrderDirection",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "election",
             "description": null,
             "type": {
@@ -1676,37 +1771,7 @@
             "defaultValue": null
           },
           {
-            "name": "name",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "OrderDirection",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "receivers",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "OrderDirection",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
             "name": "schedule",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "OrderDirection",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "template",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -1790,38 +1855,6 @@
             "deprecationReason": null
           },
           {
-            "name": "name",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "receivers",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "LIST",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "schedule",
             "description": null,
             "args": [],
@@ -1834,13 +1867,17 @@
             "deprecationReason": null
           },
           {
-            "name": "template",
+            "name": "task_id",
             "description": null,
             "args": [],
             "type": {
-              "kind": "SCALAR",
-              "name": "jsonb",
-              "ofType": null
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -6502,6 +6539,101 @@
             "type": {
               "kind": "OBJECT",
               "name": "ScheduledEventOutput3",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "create_event",
+            "description": null,
+            "args": [
+              {
+                "name": "created_by",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "cron_config",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "jsonb",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "election_event_id",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "uuid",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "event_payload",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "jsonb",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "event_processor",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "id",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "tenant_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "OBJECT",
+              "name": "CreateEventOutput",
               "ofType": null
             },
             "isDeprecated": false,
@@ -20974,7 +21106,7 @@
             "description": "log an event in immudb",
             "args": [
               {
-                "name": "electionEventId",
+                "name": "body",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -20988,7 +21120,7 @@
                 "defaultValue": null
               },
               {
-                "name": "messageType",
+                "name": "election_event_id",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -20998,6 +21130,30 @@
                     "name": "String",
                     "ofType": null
                   }
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "message_type",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "user_id",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
                 },
                 "defaultValue": null
               }

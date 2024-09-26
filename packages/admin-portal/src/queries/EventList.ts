@@ -40,13 +40,11 @@ export const getEventList = (fields: any) => {
                 items {
                     election
                     schedule
-                    id
+                    task_id
                     tenant_id
                     election_event_id
                     event_type
-                    receivers
-                    template
-                    name
+                    id
                 }
                 total {
                     aggregate {
