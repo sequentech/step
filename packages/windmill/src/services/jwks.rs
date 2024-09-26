@@ -73,14 +73,17 @@ pub async fn download_realm_jwks_from_keycloak(realm: &str) -> Result<Vec<JWKKey
     );
 
     let client = reqwest::Client::new();
-    let res = client.get(hasura_endpoint).send().await?;
-    let response_body: JwksOutput = res.json().await?;
+    let res = client.get(hasura_endpoint).send().await
+        .map_err(|err| anyhow!("Error downloading JWKS: {err:?}"))?;
+    let response_body: JwksOutput = res.json().await
+        .map_err(|err| anyhow!("Error parsing JWKS: {err:?}"))?;
     Ok(response_body.keys)
 }
 
 #[instrument(err)]
 pub async fn upsert_realm_jwks(realm: &str) -> Result<()> {
-    let realm_jwks = download_realm_jwks_from_keycloak(realm).await?;
+    let realm_jwks = download_realm_jwks_from_keycloak(realm).await
+        .map_err(|err| anyhow!("Error downloading realm JWKS: {err:?}"))?;
     let mut existing_jwks = get_jwks().await?;
     let existing_kids: Vec<String> = existing_jwks
         .iter()

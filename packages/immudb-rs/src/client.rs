@@ -2,10 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::Result;
+use anyhow::{Context, Result, anyhow};
 use std::fmt::Debug;
 use tonic::{metadata::MetadataValue, transport::Channel, Request, Response};
-use tracing::{debug, instrument};
+use tracing::{debug, info, instrument};
 
 use crate::schema::immu_service_client::ImmuServiceClient;
 use crate::schema::{
@@ -232,14 +232,33 @@ impl Client {
     pub async fn delete_database(&mut self, database_name: &str) -> Result<()> {
         let unload_db_request = self.get_request(UnloadDatabaseRequest {
             database: database_name.to_string(),
-        })?;
-        let unload_db_response = self.client.unload_database(unload_db_request).await?;
-        debug!("grpc-unload-database-response={:?}", unload_db_response);
+        })
+        .map_err(|err| anyhow!("Error generating the unload db request: {err:?}"))?;
+
+        match self.client.unload_database(unload_db_request).await {
+            Ok(unload_db_response) => {
+                info!("grpc-unload-database-response={unload_db_response:?}");
+            },
+            Err(err) => {
+                if err.message() == "database does not exist" {
+                    info!("database is already removed");
+                } else {
+                    return Err(anyhow!("Error unloading the database, status = {err:?}"));
+                }
+            },
+        };
+
         let delete_db_request = self.get_request(DeleteDatabaseRequest {
             database: database_name.to_string(),
-        })?;
-        let delete_db_response = self.client.delete_database(delete_db_request).await?;
-        debug!("grpc-delete-database-response={:?}", delete_db_response);
+        })
+        .map_err(|err| anyhow!("Error generating the delete db request: {err:?}"))?;
+        let delete_db_response = self
+            .client
+            .delete_database(delete_db_request)
+            .await
+            .map_err(|err| anyhow!("Error unloading the database, status = {err:?}"));
+
+        info!("grpc-delete-database-response={delete_db_response:?}");
         Ok(())
     }
 
@@ -250,7 +269,7 @@ impl Client {
             password: self.password.clone().into(),
         });
         let open_session_response = self.client.open_session(open_session_request).await?;
-        debug!("grpc-open-session-response={:?}", open_session_response);
+        debug!("grpc-open-session-response={open_session_response:?}");
         self.session_id = Some(open_session_response.get_ref().session_id.clone());
         Ok(())
     }
@@ -258,7 +277,7 @@ impl Client {
     pub async fn close_session(&mut self) -> Result<()> {
         let close_session_request = self.get_request(())?;
         let close_session_response = self.client.close_session(close_session_request).await?;
-        debug!("grpc-open-session-response={:?}", close_session_response);
+        debug!("grpc-open-session-response={close_session_response:?}");
         self.session_id = None;
         Ok(())
     }
