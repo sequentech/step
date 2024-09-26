@@ -374,7 +374,13 @@ export const CandidateDataForm: React.FC<{
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "candidate-data-general"}
-                            onChange={() => setExpanded(prev=>prev==="candidate-data-general" ? "" : "candidate-data-general")}
+                            onChange={() =>
+                                setExpanded((prev) =>
+                                    prev === "candidate-data-general"
+                                        ? ""
+                                        : "candidate-data-general"
+                                )
+                            }
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="candidate-data-general" />}
@@ -396,7 +402,11 @@ export const CandidateDataForm: React.FC<{
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "candidate-data-type"}
-                            onChange={() => setExpanded(prev=>prev==="candidate-data-type" ? "" : "candidate-data-type")}
+                            onChange={() =>
+                                setExpanded((prev) =>
+                                    prev === "candidate-data-type" ? "" : "candidate-data-type"
+                                )
+                            }
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="candidate-data-type" />}
@@ -433,7 +443,11 @@ export const CandidateDataForm: React.FC<{
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "election-data-image"}
-                            onChange={() => setExpanded(prev=>prev==="election-data-image" ? "" : "election-data-image")}
+                            onChange={() =>
+                                setExpanded((prev) =>
+                                    prev === "election-data-image" ? "" : "election-data-image"
+                                )
+                            }
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="election-data-image" />}
