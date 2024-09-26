@@ -4,7 +4,7 @@ use std::time::{Duration, SystemTime};
 use anyhow::Result;
 
 use board_messages::grpc::pgsql::{
-    B3IndexRow, PgsqlConnectionParams, PgsqlDbConnectionParams, XPgsqlB3Client,
+    B3IndexRow, PgsqlB3Client, PgsqlConnectionParams, PgsqlDbConnectionParams,
 };
 use clap::Parser;
 use cursive::event::Event;
@@ -413,7 +413,7 @@ fn get_progress(row: &B3IndexRow) -> (f64, f64) {
 }
 
 async fn query(params: &PgsqlDbConnectionParams) -> Result<Vec<B3IndexRow>> {
-    let client = XPgsqlB3Client::new(&params).await?;
+    let client = PgsqlB3Client::new(&params).await?;
     client.get_boards().await
 }
 

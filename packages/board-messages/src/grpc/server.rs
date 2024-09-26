@@ -22,7 +22,7 @@ use super::validate_board_name;
 use crate::braid::message::Message;
 use crate::grpc::pgsql::B3MessageRow;
 use crate::grpc::pgsql::PgsqlDbConnectionParams;
-use crate::grpc::pgsql::ZPgsqlB3Client;
+use crate::grpc::pgsql::PooledPgsqlB3Client;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 
 const BB8_POOL_SIZE: u32 = 20;
@@ -61,7 +61,7 @@ impl PgsqlB3Server {
             error!("Pgsql connection failed: {:?}", c.err());
             return Err(Status::internal(format!("Pgsql connection failed")));
         };
-        let c = ZPgsqlB3Client::new(c);
+        let c = PooledPgsqlB3Client::new(c);
 
         let messages = c.get_messages(board, last_id).await;
         let Ok(messages) = messages else {
@@ -108,15 +108,7 @@ impl PgsqlB3Server {
                     m.statement_kind, m.sender_pk, m.batch, m.mix_number
                 );
                 let path = blob_path.join(name.replace("/", ":"));
-                /*let bytes = if m.message.len() > 0 {
-                    if !path.exists() {
-                        let mut file = File::create(&path)?;
-                        file.write_all(&m.message)?;
-                        info!("Wrote {} bytes to {:?}", m.message.len(), path);
-                    }
 
-                    m.message
-                } else {*/
                 assert!(path.exists());
                 let mut file = File::open(&path)?;
                 let mut buffer = vec![];
@@ -142,7 +134,6 @@ impl PgsqlB3Server {
                     break;
                 }
                 total_bytes += bytes;
-                // };
 
                 let next = GrpcB3Message {
                     id: m.id,
@@ -183,7 +174,7 @@ impl PgsqlB3Server {
             error!("Pgsql connection failed: {:?}", c.err());
             return Err(Status::internal(format!("Pgsql connection failed")));
         };
-        let mut c = ZPgsqlB3Client::new(c);
+        let mut c = PooledPgsqlB3Client::new(c);
 
         let mut messages = messages
             .iter()
@@ -209,6 +200,17 @@ impl PgsqlB3Server {
                 let mut file = File::create(&path)?;
                 file.write_all(&m.message)?;
                 info!("Wrote {} bytes to {:?}", m.message.len(), path);
+
+                // FIXME this is a hack
+                // Allows testing and democode to retrieve this artifact
+                // directly from the database.
+                // If the blob store is to be used effectively, we need
+                // an equivalent of PgsqlB3Client that takes the blob
+                // store into account, so that it can retrieve
+                // metadata from the database and messages (m.message abovev)
+                // bytes from the blob store (Could be a submodule direct
+                // with a direct function client that then calls
+                // PgsqlB3Client for metadata and a BlobStore struct)
                 if m.statement_kind != StatementType::PublicKey.to_string() {
                     m.message = vec![];
                 }
@@ -275,7 +277,7 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
             error!("Pgsql connection failed: {:?}", c.err());
             return Err(Status::internal(format!("Pgsql connection failed")));
         };
-        let c = ZPgsqlB3Client::new(c);
+        let c = PooledPgsqlB3Client::new(c);
 
         let boards = c.get_boards().await;
         let Ok(boards) = boards else {
@@ -445,8 +447,8 @@ pub(crate) mod tests {
     use std::marker::PhantomData;
 
     use super::*;
+    use crate::grpc::pgsql::PgsqlB3Client;
     use crate::grpc::pgsql::PgsqlConnectionParams;
-    use crate::grpc::pgsql::XPgsqlB3Client;
     use crate::{
         braid::{
             artifact::Configuration, newtypes::PROTOCOL_MANAGER_INDEX,
@@ -470,12 +472,12 @@ pub(crate) mod tests {
     const PG_PORT: u32 = 49153;
     const TEST_BOARD: &'static str = "testboard";
 
-    async fn set_up() -> XPgsqlB3Client {
+    async fn set_up() -> PgsqlB3Client {
         let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
         drop_database(&c, PG_DATABASE).await.unwrap();
         create_database(&c, PG_DATABASE).await.unwrap();
 
-        let mut client = XPgsqlB3Client::new(&c.with_database(PG_DATABASE))
+        let mut client = PgsqlB3Client::new(&c.with_database(PG_DATABASE))
             .await
             .unwrap();
         client.create_index_ine().await.unwrap();

@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use board_messages::braid::artifact::Shares;
 use board_messages::braid::artifact::{Ballots, Channel, Configuration, DkgPublicKey};
 use board_messages::braid::message::Message;
 use board_messages::braid::newtypes::BatchNumber;
@@ -9,6 +10,7 @@ use board_messages::braid::newtypes::PublicKeyHash;
 use board_messages::braid::newtypes::{TrusteeSet, MAX_TRUSTEES, NULL_TRUSTEE};
 use board_messages::braid::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
 use board_messages::braid::statement::StatementType;
+use board_messages::grpc::pgsql::{PgsqlB3Client, PgsqlConnectionParams};
 
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
@@ -68,16 +70,18 @@ pub fn deserialize_protocol_manager<C: Ctx>(contents: String) -> ProtocolManager
     ProtocolManager::new(pmkey)
 }
 
-#[instrument(err)]
+#[instrument(err, skip_all)]
 async fn init<C: Ctx>(
-    board: &mut BoardClient,
+    b3_client: &mut PgsqlB3Client,
     configuration: Configuration<C>,
     pm: ProtocolManager<C>,
     board_name: &str,
 ) -> Result<()> {
-    let message: BoardMessage = Message::bootstrap_msg(&configuration, &pm)?.try_into()?;
+    let message = Message::bootstrap_msg(&configuration, &pm)?;
     info!("Adding configuration to the board..");
-    board.insert_messages(board_name, &vec![message]).await
+    b3_client
+        .insert_configuration::<C>(board_name, message)
+        .await
 }
 
 #[instrument(skip(pm), err)]
@@ -95,9 +99,10 @@ pub async fn add_config_to_board<C: Ctx>(
         PhantomData,
     );
 
-    let mut board_client = get_board_client().await?;
+    // let mut board_client = get_board_client().await?;
+    let mut client = get_b3_pgsql_client().await?;
 
-    init(&mut board_client, configuration, pm, board_name).await
+    init(&mut client, configuration, pm, board_name).await
 }
 
 #[instrument(err)]
@@ -171,6 +176,11 @@ pub async fn get_board_public_key_messages(board_name: &str) -> Result<Vec<Messa
         .collect();
 
     Ok(filtered_messages)
+}
+
+struct TrusteeShareData<C: Ctx> {
+    channel: Channel<C>,
+    shares: Vec<Shares<C>>,
 }
 
 #[instrument(err)]
@@ -282,12 +292,19 @@ pub async fn get_board_messages<C: Ctx>(
 }
 
 #[instrument(
-    skip(messages, configuration, public_key_hash, selected_trustees, ballots),
+    skip(
+        messages,
+        configuration,
+        public_key_hash,
+        selected_trustees,
+        ballots,
+        b3_client
+    ),
     err
 )]
 pub async fn add_ballots_to_board<C: Ctx>(
     pm: &ProtocolManager<C>,
-    board: &mut BoardClient,
+    b3_client: &mut PgsqlB3Client,
     board_name: &str,
     messages: &Vec<Message>,
     configuration: &Configuration<C>,
@@ -320,10 +337,7 @@ pub async fn add_ballots_to_board<C: Ctx>(
         pm,
     )?;
     info!("Adding configuration to the board..");
-    let board_message: BoardMessage = message.try_into()?;
-    board
-        .insert_messages(board_name, &vec![board_message])
-        .await
+    b3_client.insert_ballots::<C>(board_name, message).await
 }
 
 #[instrument(err)]
@@ -335,6 +349,29 @@ pub async fn get_board_client() -> Result<BoardClient> {
     let mut board_client = BoardClient::new(&server_url, &username, &password).await?;
 
     Ok(board_client)
+}
+
+const PG_DATABASE: &'static str = "protocoldb";
+const PG_HOST: &'static str = "localhost";
+const PG_USER: &'static str = "postgres";
+const PG_PASSW: &'static str = "postgrespw";
+const PG_PORT: u32 = 49154;
+
+#[instrument(err)]
+pub async fn get_b3_pgsql_client() -> Result<PgsqlB3Client> {
+    let username = env::var("B3_PG_USER").context("B3_PG_USER must be set")?;
+    let password = env::var("B3_PG_PASSWORD").context("B3_PG_PASSWORD must be set")?;
+    let host = env::var("B3_PG_HOST").context("B3_PG_HOST must be set")?;
+    let port = env::var("B3_PG_PORT").context("B3_PG_PORT must be set")?;
+    let database = env::var("B3_PG_DATABASE").context("B3_PG_DATABASE must be set")?;
+
+    let port: u32 = port.parse::<u32>()?;
+
+    let c = PgsqlConnectionParams::new(&host, port, &username, &password);
+    let c_db = c.with_database(&database);
+    let client = PgsqlB3Client::new(&c_db).await?;
+
+    Ok(client)
 }
 
 #[instrument(err)]

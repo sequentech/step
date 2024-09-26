@@ -16,9 +16,9 @@ use crate::{
 };
 use anyhow::{anyhow, Context, Result};
 use board_messages::braid::message::Signer;
-use board_messages::electoral_log::newtypes::*;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
+use electoral_log::messages::newtypes::*;
 use rocket::futures::TryFutureExt;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::ElectionPresentation;

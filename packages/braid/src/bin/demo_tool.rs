@@ -19,8 +19,8 @@ use board_messages::braid::newtypes::PublicKeyHash;
 use board_messages::braid::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
 use board_messages::braid::statement::StatementType;
 use board_messages::grpc::pgsql;
+use board_messages::grpc::pgsql::PgsqlB3Client;
 use board_messages::grpc::pgsql::PgsqlConnectionParams;
-use board_messages::grpc::pgsql::XPgsqlB3Client;
 use braid::protocol::trustee2::TrusteeConfig;
 use rand::prelude::SliceRandom;
 use strand::backend::ristretto::RistrettoCtx;
@@ -221,7 +221,7 @@ async fn main() -> Result<()> {
             let _ = pgsql::create_database(&c, PG_DATABASE).await;
 
             let c = c.with_database(PG_DATABASE);
-            let mut client = XPgsqlB3Client::new(&c).await?;
+            let mut client = PgsqlB3Client::new(&c).await?;
             client.clear_database().await?;
             client.create_index_ine().await?;
 
@@ -368,7 +368,7 @@ fn gen_configs<C: Ctx>(n_trustees: usize, threshold: usize) -> Result<()> {
 /// This information will be taken from the demo directory created in the gen-config step.
 #[instrument(skip(client))]
 async fn init<C: Ctx>(
-    client: &mut XPgsqlB3Client,
+    client: &mut PgsqlB3Client,
     board_name: &str,
     configuration: Configuration<C>,
 ) -> Result<()> {
@@ -389,7 +389,7 @@ async fn init<C: Ctx>(
 /// with the init-protocol command.
 #[instrument(skip(client))]
 async fn post_ballots<C: Ctx>(
-    client: &mut XPgsqlB3Client,
+    client: &mut PgsqlB3Client,
     board_name: &str,
     ciphertexts: usize,
     batches: u32,
@@ -472,7 +472,7 @@ async fn post_ballots<C: Ctx>(
 }
 
 #[instrument(skip(board))]
-async fn list_messages(board: &mut XPgsqlB3Client, board_name: &str) -> Result<()> {
+async fn list_messages(board: &mut PgsqlB3Client, board_name: &str) -> Result<()> {
     let messages: Result<Vec<Message>> = board
         .get_messages(board_name, 0)
         .await?
@@ -489,7 +489,7 @@ async fn list_messages(board: &mut XPgsqlB3Client, board_name: &str) -> Result<(
 }
 
 #[instrument(skip(board))]
-async fn list_boards(board: &mut XPgsqlB3Client) -> Result<()> {
+async fn list_boards(board: &mut PgsqlB3Client) -> Result<()> {
     let boards: Result<Vec<B3IndexRow>> = board.get_boards().await;
 
     for board in boards? {
@@ -534,9 +534,9 @@ async fn get_client(
     port: u32,
     username: &str,
     password: &str,
-) -> Result<XPgsqlB3Client> {
+) -> Result<PgsqlB3Client> {
     let c = get_connection(host, port, username, password);
     let c = c.with_database(PG_DATABASE);
     info!("Using connection string '{}'", c.connection_string());
-    XPgsqlB3Client::new(&c).await
+    PgsqlB3Client::new(&c).await
 }

@@ -246,15 +246,15 @@ pub async fn drop_database(c: &PgsqlConnectionParams, dbname: &str) -> Result<()
 }
 
 // Version using database connection pool. Rename
-pub struct ZPgsqlB3Client<'a> {
+pub struct PooledPgsqlB3Client<'a> {
     client: PooledConnection<'a, PostgresConnectionManager<NoTls>>,
 }
 
-impl<'a> ZPgsqlB3Client<'a> {
+impl<'a> PooledPgsqlB3Client<'a> {
     pub fn new(
         client: PooledConnection<'a, PostgresConnectionManager<NoTls>>,
-    ) -> ZPgsqlB3Client<'a> {
-        ZPgsqlB3Client { client }
+    ) -> PooledPgsqlB3Client<'a> {
+        PooledPgsqlB3Client { client }
     }
 
     pub async fn create_index_ine(&mut self) -> Result<()> {
@@ -300,12 +300,12 @@ impl<'a> ZPgsqlB3Client<'a> {
 }
 
 // Non-pool version. Rename
-pub struct XPgsqlB3Client {
+pub struct PgsqlB3Client {
     client: Client,
 }
 
-impl XPgsqlB3Client {
-    pub async fn new(params: &PgsqlDbConnectionParams) -> Result<XPgsqlB3Client> {
+impl PgsqlB3Client {
+    pub async fn new(params: &PgsqlDbConnectionParams) -> Result<PgsqlB3Client> {
         let (client, connection) =
             tokio_postgres::connect(&params.connection_string(), NoTls).await?;
 
@@ -317,8 +317,7 @@ impl XPgsqlB3Client {
             }
         });
 
-        // let ret = PgsqlB3Client { client };
-        let ret = XPgsqlB3Client { client };
+        let ret = PgsqlB3Client { client };
 
         Ok(ret)
     }
@@ -386,6 +385,14 @@ impl XPgsqlB3Client {
         configuration: Message,
     ) -> Result<()> {
         insert_configuration::<C>(self.client.borrow_mut(), board_name, configuration).await
+    }
+
+    pub async fn insert_ballots<C: Ctx>(
+        &mut self,
+        board_name: &str,
+        ballots: Message,
+    ) -> Result<()> {
+        insert_ballots::<C>(self.client.borrow_mut(), board_name, ballots).await
     }
 }
 
@@ -745,6 +752,41 @@ async fn insert_configuration<C: Ctx>(
     update_index(client, board_name, &cfg).await
 }
 
+/// Inserts the ballots into the requested board table.
+async fn insert_ballots<C: Ctx>(
+    client: &mut Client,
+    board_name: &str,
+    ballots: Message,
+) -> Result<()> {
+    if ballots.statement.get_kind() != StatementType::Ballots {
+        return Err(anyhow!("Expected message to be Ballots"));
+    }
+
+    if ballots.artifact.is_none() {
+        return Err(anyhow!("Expected ballots message to have artifact"));
+    }
+
+    let created = crate::timestamp();
+
+    let batch: i32 = ballots.statement.get_batch_number().try_into()?;
+    // ballots mix_number is always zero
+    let mix_number: i32 = 0;
+
+    let rows = vec![B3MessageRow {
+        id: 0,
+        created,
+        statement_timestamp: ballots.statement.get_timestamp(),
+        statement_kind: ballots.statement.get_kind().to_string(),
+        message: ballots.strand_serialize()?,
+        batch,
+        mix_number,
+        sender_pk: ballots.sender.pk.to_der_b64_string()?,
+        version: crate::get_schema_version(),
+    }];
+
+    insert(client, board_name, &rows).await
+}
+
 /// Inserts messages into the requested board table.
 async fn insert_messages(
     client: &mut Client,
@@ -1074,14 +1116,14 @@ pub(crate) mod tests {
     const PG_PORT: u32 = 49153;
     const TEST_BOARD: &'static str = "testboard";
 
-    async fn set_up() -> XPgsqlB3Client {
+    async fn set_up() -> PgsqlB3Client {
         let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
         drop_database(&c, PG_DATABASE).await.unwrap();
         create_database(&c, PG_DATABASE).await.unwrap();
 
         let c = c.with_database(PG_DATABASE);
 
-        let mut client = XPgsqlB3Client::new(&c).await.unwrap();
+        let mut client = PgsqlB3Client::new(&c).await.unwrap();
         client.create_index_ine().await.unwrap();
 
         client

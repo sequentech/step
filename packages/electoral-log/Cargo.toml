@@ -1,0 +1,18 @@
+[package]
+name = "electoral-log"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+immudb-rs = { path="../immudb-rs" }
+immu-board = { path="../immu-board" }
+borsh = { version = "=1.5.1", features = ["derive"] }
+anyhow = "1.0.75"
+strand = { path="../strand" }
+serde = { version = "1.0.190", features = ["derive"] }
+strum = "0.25"
+strum_macros = "0.25"
+tokio = { version = "1.38.1", features = ["test-util"] }
+
+[dev-dependencies]
+serial_test = "2.0.0"

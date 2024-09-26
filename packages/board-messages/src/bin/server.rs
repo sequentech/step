@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use tonic::transport::Server;
 use tracing::info;
 
-use board_messages::grpc::pgsql::{PgsqlConnectionParams, XPgsqlB3Client};
+use board_messages::grpc::pgsql::{PgsqlB3Client, PgsqlConnectionParams};
 use board_messages::grpc::server::PgsqlB3Server;
 use board_messages::grpc::B3Server;
 use board_messages::grpc::MAX_MESSAGE_SIZE;
@@ -65,7 +65,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let c = PgsqlConnectionParams::new(host, port, username, &args.password);
     let c_db = c.with_database(&database);
-    let client = XPgsqlB3Client::new(&c_db).await?;
+    let client = PgsqlB3Client::new(&c_db).await?;
     info!("pgsql connection ok");
     let boards = client.get_boards().await?;
     info!("there are {} boards in the index", boards.len());

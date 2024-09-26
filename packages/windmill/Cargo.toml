@@ -12,9 +12,10 @@ authors = [
 license = "AGPL-3.0-only"
 
 [features]
-default = ["fips_full"]
-fips_core = ["dep:postgres-openssl", "dep:openssl"]
-fips_full = ["dep:postgres-openssl", "dep:openssl"]
+default = []
+# default = ["fips_full"]
+# fips_core = ["dep:postgres-openssl", "dep:openssl"]
+# fips_full = ["dep:postgres-openssl", "dep:openssl"]
 
 
 [dependencies]
@@ -69,6 +70,7 @@ wrap-map-err = { path = "../wrap-map-err" }
 immu-board = { path="../immu-board" }
 immudb-rs = { path="../immudb-rs" }
 board-messages = { path="../board-messages" }
+electoral-log = { path="../electoral-log" }
 strand = { path="../strand" }
 sequent-core = { path="../sequent-core", features = ["reports", "keycloak", "log", "probe", "areas"] }
 velvet = { path="../velvet" }
@@ -83,7 +85,7 @@ postgres-openssl = { version = "0.5.0", optional = true }
 # OpenSSL needs to be configured to operate in FIPS mode
 # https://github.com/sfackler/rust-openssl/issues/1924
 # https://www.openssl.org/docs/man3.0/man7/fips_module.html
-openssl = { version = "0.10.57", optional = true }
+# openssl = { version = "0.10.57", optional = true }
 aws-sdk-secretsmanager = "1.11.0"
 
 # To import users in CSV from a file into postgres

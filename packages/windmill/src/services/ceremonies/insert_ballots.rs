@@ -155,6 +155,7 @@ pub async fn insert_ballots_messages(
             ballots_list.len()
         );
 
+        let mut board = get_b3_pgsql_client().await?;
         let batch = tally_session_contest.session_id.clone() as BatchNumber;
         add_ballots_to_board(
             &protocol_manager,

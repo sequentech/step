@@ -8,9 +8,9 @@ use crate::services::protocol_manager::{create_named_param, get_board_client, ge
 use crate::types::resources::{Aggregate, DataList, OrderDirection, TotalAggregate};
 use anyhow::{anyhow, Context, Result};
 use board_messages::braid::message::Signer as _;
-use board_messages::electoral_log::message::Message;
-use board_messages::electoral_log::message::SigningData;
-use board_messages::electoral_log::newtypes::*;
+use electoral_log::messages::message::Message;
+use electoral_log::messages::message::SigningData;
+use electoral_log::messages::newtypes::*;
 use immu_board::assign_value;
 use immu_board::util::get_event_board;
 use immu_board::BoardMessage;
