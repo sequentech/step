@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::tasks_execution::update_fail;
 use ::keycloak::types::RealmRepresentation;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -27,12 +26,10 @@ use std::env;
 use std::fs;
 use std::fs::File;
 use std::io::Read;
-use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
+use zip::read::ZipArchive;
 
-use super::database::get_hasura_pool;
-use super::date::ISO8601;
 use super::documents;
 use super::election_event_dates::generate_manage_date_task_name;
 use crate::hasura::election_event::get_election_event;
@@ -217,6 +214,8 @@ pub fn replace_ids(
     Ok(data.clone())
 }
 
+// T
+
 #[instrument(err, skip_all)]
 pub async fn get_document(
     hasura_transaction: &Transaction<'_>,
@@ -236,29 +235,66 @@ pub async fn get_document(
         &object.document_id
     ))?;
 
+    //TODO: Decrypt the document if it is encrypted
+
+    // Find the document type
     let temp_file_path = documents::get_document_as_temp_file(&object.tenant_id, &document)
         .await
         .map_err(|err| anyhow!("Error trying to get document as temporary file {err}"))?;
 
-    let mut file = File::open(temp_file_path)?;
+    let document_type = document.clone().media_type.unwrap_or("application/json".to_string());
 
-    let mut data_str = String::new();
-    file.read_to_string(&mut data_str)?;
+    println!("Document type: {document_type}");
 
-    let original_data: ImportElectionEventSchema = deserialize_str(&data_str)?;
+    if document_type == "application/zip" {
+        // Handle the ZIP file case
+        let file = File::open(&temp_file_path)?;
+        let mut zip = ZipArchive::new(file)?;
 
-    let data = replace_ids(&data_str, &original_data, id, tenant_id)?;
+        // Iterate through the files in the ZIP
+        for i in 0..zip.len() {
+            let mut zip_file = zip.by_index(i)?;
+            let zip_file_name = zip_file.name().to_string();
 
-    Ok(data)
+            // Check for the JSON file inside the ZIP
+            if zip_file_name.ends_with(".json") {
+                let mut json_file_content = String::new();
+                zip_file.read_to_string(&mut json_file_content)?;
+                let original_data: ImportElectionEventSchema = deserialize_str(&json_file_content)?;
+
+                let data = replace_ids(
+                    &json_file_content,
+                    &original_data,
+                    id.clone(),
+                    tenant_id.clone(),
+                )?;
+
+                return Ok(data);
+            }
+
+            // TODO: Handle other file types inside the ZIP as needed
+        }
+        Err(anyhow!("No JSON file found in ZIP"))
+    } else {
+        // Regular JSON document processing
+        let mut file = File::open(temp_file_path)?;
+        let mut data_str = String::new();
+        file.read_to_string(&mut data_str)?;
+
+        let original_data: ImportElectionEventSchema = deserialize_str(&data_str)?;
+
+        let data = replace_ids(&data_str, &original_data, id, tenant_id)?;
+
+        Ok(data)
+    }
 }
 
 #[instrument(err, skip_all)]
-pub async fn process(
+pub async fn process_election_event_file(
     hasura_transaction: &Transaction<'_>,
     object: ImportElectionEventBody,
     election_event_id: String,
     tenant_id: String,
-    task_execution: TasksExecution,
 ) -> Result<()> {
     // Get the document
     let mut data = get_document(
@@ -353,6 +389,16 @@ pub async fn process(
     .with_context(|| "Error inserting area contests")?;
 
     Ok(())
+}
+
+#[instrument(err, skip_all)]
+pub async fn process_document(
+    hasura_transaction: &Transaction<'_>,
+    object: ImportElectionEventBody,
+    election_event_id: String,
+    tenant_id: String,
+) -> Result<()> {
+    process_election_event_file(hasura_transaction, object, election_event_id, tenant_id).await
 }
 
 #[instrument(err, skip_all)]

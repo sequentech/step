@@ -14,7 +14,7 @@ import {useNotify} from "react-admin"
 
 interface ImportScreenProps {
     doImport: (documentId: string, sha256: string) => Promise<void>
-    uploadCallback?: (documentId: string) => Promise<void>
+    uploadCallback?: (documentId: string, isEncrypted?: boolean) => Promise<void>
     doCancel: () => void
     errors: string | null
     disableImport?: boolean
@@ -45,12 +45,24 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
         const [isUploading, setIsUploading] = React.useState<boolean>(false)
         const [documentId, setDocumentId] = React.useState<string | null>(null)
         const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
+        const [isEncrypted, setIsEncrypted] = useState<boolean>(false)
+        const [passwordDialogOpen, setPasswordDialogOpen] = useState<boolean>(false)
+        const [password, setPassword] = useState<string>("")
+        const [urlDocument, SetUrlsDocument] = useState<string>("")
+        const [theFile, setTheFile] = useState<File | undefined>()
+
+        useEffect(() => {
+            setShaField("")
+            setDocumentId(null)
+        }, [refresh])
 
         const handleFiles = async (files: FileList | null) => {
             // https://fullstackdojo.medium.com/s3-upload-with-presigned-url-react-and-nodejs-b77f348d54cc
             setIsUploading(true)
             const theFile = files?.[0]
-
+            setTheFile(theFile)
+            const isEncrypted = theFile?.name.endsWith(".ezip") || false
+            setIsEncrypted(isEncrypted)
             if (theFile) {
                 // Get the Upload URL
                 let {data} = await getUploadUrl({
@@ -65,23 +77,21 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                 try {
                     if (!data?.get_upload_url?.url) {
                         notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
-
                         return
                     }
 
-                    // Actually upload the CSV file
-                    await fetch(data.get_upload_url.url, {
-                        method: "PUT",
-                        headers: {
-                            "Content-Type": theFile.type,
-                        },
-                        body: theFile,
-                    })
+                    if (isEncrypted) {
+                        setPasswordDialogOpen(true)
+                        setDocumentId(data.get_upload_url.document_id)
+                        SetUrlsDocument(data.get_upload_url.document_id)
+                        return
+                    }
 
-                    setIsUploading(false)
+                    await uploadFile(data.get_upload_url.url, theFile)
                     setDocumentId(data.get_upload_url.document_id)
                     if (uploadCallback) {
-                        await uploadCallback?.(data.get_upload_url.document_id)
+                        console.log(data.get_upload_url.document_id)
+                        await uploadCallback?.(data.get_upload_url.document_id, isEncrypted)
                     }
                     notify(t("electionEventScreen.import.fileUploadSuccess"), {type: "success"})
                 } catch (_error) {
@@ -94,10 +104,27 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             }
         }
 
-        useEffect(() => {
-            setShaField("")
-            setDocumentId(null)
-        }, [refresh])
+        const uploadFile = async (url: string, file: File) => {
+            await fetch(url, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": file.type,
+                },
+                body: file,
+            })
+            setIsUploading(false)
+        }
+
+        const handlePasswordSubmit = async () => {
+            if (!theFile) return
+            console.log("handlePasswordSubmit")
+            setPasswordDialogOpen(false)
+            await uploadFile(urlDocument, theFile)
+            if (uploadCallback) {
+                await uploadCallback?.(documentId as string, isEncrypted)
+            }
+            notify(t("electionEventScreen.import.fileUploadSuccess"), {type: "success"})
+        }
 
         const onImportButtonClick = async () => {
             if (!shaField) {
@@ -168,6 +195,21 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                     }}
                 >
                     {t("electionEventScreen.import.shaDialog.description")}
+                </Dialog>
+
+                <Dialog
+                    open={passwordDialogOpen}
+                    handleClose={handlePasswordSubmit}
+                    title={t("electionEventScreen.import.passwordDialog.title")}
+                    ok={"Ok"}
+                >
+                    <TextField
+                        fullWidth
+                        label={t("electionEventScreen.import.passwordDialog.passwordLabel")}
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                    />
                 </Dialog>
             </Box>
         )

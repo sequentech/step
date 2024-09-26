@@ -11065,6 +11065,18 @@
                 "deprecationReason": null
               },
               {
+                "name": "is_encrypted",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
                 "name": "tenant_id",
                 "description": null,
                 "type": {

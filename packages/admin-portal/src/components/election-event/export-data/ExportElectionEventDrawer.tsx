@@ -11,11 +11,12 @@ import {IPermissions} from "@/types/keycloak"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {DownloadDocument} from "../../../resources/User/DownloadDocument"
 import {Dialog} from "@sequentech/ui-essentials"
-import {Checkbox, FormControlLabel, FormGroup} from "@mui/material"
+import {Checkbox, FormControlLabel, FormGroup, IconButton, TextField, Tooltip} from "@mui/material"
 import {styled} from "@mui/styles"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {WidgetProps} from "@/components/Widget"
+import ContentCopyIcon from "@mui/icons-material/ContentCopy"
 
 const StyledCheckbox = styled(Checkbox)({
     size: "small",
@@ -46,6 +47,8 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
     const [bulletinBoard, setBulletinBoard] = useState(false)
     const [publications, setPublications] = useState(false)
     const [s3Files, setS3Files] = useState(false)
+    const [password, setPassword] = useState<string | null>(null)
+    const [openPasswordDialog, setOpenPasswordDialog] = useState<boolean>(!!password)
 
     const [exportElectionEvent] = useMutation<ExportElectionEventMutation>(EXPORT_ELECTION_EVENT, {
         context: {
@@ -76,6 +79,8 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
             })
 
             const documentId = exportElectionEventData?.export_election_event?.document_id
+            const exportPassword = "01234534564" //TODO: exportElectionEventData?.export_election_event?.password
+
             if (errors || !documentId) {
                 updateWidgetFail(currWidget.identifier)
                 console.log(`Error exporting users: ${errors}`)
@@ -86,10 +91,16 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
             const task_id = exportElectionEventData?.export_election_event?.task_execution.id
             setWidgetTaskId(currWidget.identifier, task_id)
             setExportDocumentId(documentId)
+            setPassword(exportPassword)
         } catch (e) {
             updateWidgetFail(currWidget.identifier)
             setLoadingExport(false)
         }
+    }
+
+    const onDownloadSuccess = () => {
+        setLoadingExport(false)
+        setOpenPasswordDialog(true)
     }
 
     return (
@@ -174,17 +185,65 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                         documentId={exportDocumentId}
                         electionEventId={electionEventId ?? ""}
                         fileName={`election-event-${electionEventId}-export.${
-                            encryptWithPassword ? ".ezip" : ".zip"
+                            encryptWithPassword ? "ezip" : "zip"
                         }`}
                         onDownload={() => {
                             console.log("onDownload called")
                             setExportDocumentId(undefined)
                             setOpenExport(false)
                         }}
-                        setLoading={setLoadingExport}
+                        onSucess={onDownloadSuccess}
                     />
                 </>
             )}
+            {openPasswordDialog && password && (
+                <PasswordDialog password={password} onClose={() => setOpenPasswordDialog(false)} />
+            )}
         </>
+    )
+}
+
+const PasswordDialog: React.FC<{password: string; onClose: () => void}> = ({password, onClose}) => {
+    const {t} = useTranslation()
+
+    const handleCopyPassword = () => {
+        if (document.hasFocus()) {
+            navigator.clipboard.writeText(password)
+            alert(t("common.label.copied"))
+        } else {
+            window.focus()
+            requestAnimationFrame(() => {
+                navigator.clipboard.writeText(password)
+                alert(t("common.label.copied"))
+            })
+        }
+    }
+
+    return (
+        <Dialog
+            variant="info"
+            open={true}
+            handleClose={onClose}
+            aria-labelledby="password-dialog-title"
+            title={t("electionEventScreen.export.passwordTitle")}
+            ok={"Ok"}
+        >
+            {t("electionEventScreen.export.passwordDescription")}
+            <TextField
+                fullWidth
+                margin="normal"
+                value={password}
+                InputProps={{
+                    readOnly: true,
+                    endAdornment: (
+                        <Tooltip title={t("common.label.copy")}>
+                            <IconButton onClick={handleCopyPassword}>
+                                <ContentCopyIcon />
+                            </IconButton>
+                        </Tooltip>
+                    ),
+                }}
+            />
+        </Dialog>
     )
 }

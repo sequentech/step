@@ -209,12 +209,13 @@ export const CreateElectionList: React.FC = () => {
         setErrors(null)
     }
 
-    const uploadCallback = async (documentId: string) => {
+    const uploadCallback = async (documentId: string, isEncrypted: boolean = false) => {
         setErrors(null)
         let {data: importData, errors} = await importElectionEvent({
             variables: {
                 tenantId,
                 documentId,
+                isEncrypted,
                 checkOnly: true,
             },
         })

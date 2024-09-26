@@ -19,7 +19,7 @@ export interface DownloadDocumentProps {
     documentId: string
     electionEventId: string
     withProgress?: boolean
-    setLoading?: (val: boolean) => void
+    onSucess?: () => void
 }
 
 export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
@@ -28,7 +28,7 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
     documentId,
     electionEventId,
     withProgress,
-    setLoading,
+    onSucess,
 }) => {
     const [downloaded, setDownloaded] = React.useState(false)
     const {globalSettings} = useContext(SettingsContext)
@@ -47,9 +47,11 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
         pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
     })
 
+    console.log({name: document?.name})
+
     useEffect(() => {
         if (!error && data?.fetchDocument?.url && !downloaded && (fileName || document)) {
-            setLoading && setLoading(false)
+            onSucess && onSucess()
             setDownloaded(true)
             let name = fileName || document?.name || "file"
             downloadUrl(data.fetchDocument.url, name).then(() => onDownload())

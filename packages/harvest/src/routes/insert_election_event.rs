@@ -95,6 +95,8 @@ pub async fn import_election_event_f(
         .clone()
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
 
+    info!("Import Election Event: {:?}", input);
+
     authorize(&claims, true, Some(input.tenant_id.clone()), vec![])?;
 
     let mut hasura_db_client: DbClient =
@@ -132,7 +134,20 @@ pub async fn import_election_event_f(
     }
 
     let document = document_result.unwrap();
-    let id = document.election_event.id.clone();
+    let id = document.election_event.id.clone(); // This is the new election_event id
+
+    info!("--------document: {:?}", document);
+
+    let check_only = input.check_only.unwrap_or(false);
+
+    if check_only {
+        return Ok(Json(ImportElectionEventOutput {
+            id: Some(id),
+            message: Some(format!("Import document checked")),
+            error: None,
+            task_execution: None,
+        }));
+    }
 
     // Insert the task execution record
     let task_execution = post(
@@ -148,17 +163,6 @@ pub async fn import_election_event_f(
             format!("Failed to insert task execution record: {error:?}"),
         )
     })?;
-
-    let check_only = input.check_only.unwrap_or(false);
-
-    if check_only {
-        return Ok(Json(ImportElectionEventOutput {
-            id: Some(id),
-            message: Some(format!("Import document checked")),
-            error: None,
-            task_execution: Some(task_execution.clone()),
-        }));
-    }
 
     let celery_app = get_celery_app().await;
     let celery_task = match celery_app

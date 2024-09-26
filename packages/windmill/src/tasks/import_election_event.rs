@@ -18,6 +18,7 @@ use tracing::{event, instrument, Level};
 pub struct ImportElectionEventBody {
     pub tenant_id: String,
     pub document_id: String,
+    pub is_encrypted: Option<bool>,
     pub check_only: Option<bool>,
 }
 
@@ -35,14 +36,13 @@ pub async fn import_election_event(
         let task_execution = task_execution.clone();
         let tenant_id = tenant_id.clone();
         let election_event_id = election_event_id.clone();
+
         Box::pin(async move {
-            // Your async code here
-            import_election_event_service::process(
+            import_election_event_service::process_document(
                 hasura_transaction,
                 object,
                 election_event_id,
                 tenant_id,
-                task_execution,
             )
             .await
         })

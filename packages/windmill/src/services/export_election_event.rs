@@ -168,6 +168,7 @@ pub async fn process_export_zip(
     // Encrypt ZIP file if required
     let is_include_encryption = export_config.encrypt_with_password;
     let encrypted_zip_path = zip_path.with_extension("ezip");
+    // let public_key = prepend_miru_annotation(data);
     if is_include_encryption {
         generate_encrypted_zip(
             zip_path.to_string_lossy().to_string(),

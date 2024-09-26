@@ -34,10 +34,9 @@ import {
 } from "@mui/material"
 import styled from "@emotion/styled"
 import DownloadIcon from "@mui/icons-material/Download"
-import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
-import {useWatch} from "react-hook-form"
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "@/components/CustomTabPanel"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
@@ -95,13 +94,6 @@ const ElectionRows = styled.div`
     margin-bottom: 0.1rem;
     padding: 1rem;
 `
-
-interface ManagedNumberInputProps {
-    source: string
-    label: string
-    defaultValue: number
-    sourceToWatch: string
-}
 
 export const EditElectionEventDataForm: React.FC = () => {
     const {t} = useTranslation()
