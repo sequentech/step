@@ -19,7 +19,7 @@ pub async fn delete_keycloak_realm(realm: &str) -> Result<()> {
         .client
         .realm_delete(&realm)
         .await
-        .map_err(|err| anyhow!("Keycloak error: {:?}", err));
+        .map_err(|err| anyhow!("Keycloak error: {err:?}"));
     Ok(())
 }
 
@@ -41,7 +41,7 @@ pub async fn delete_election_event_db(tenant_id: &str, election_event_id: &str) 
     hasura_transaction
         .commit()
         .await
-        .with_context(|| "error comitting transaction")?;
+        .map_err(|err| anyhow!("error comitting transaction: {err:?}"))?;
     Ok(())
 }
 
@@ -54,7 +54,7 @@ pub async fn delete_election_event_immudb(tenant_id: &str, election_event_id: &s
     client
         .delete_database(&board_name)
         .await
-        .with_context(|| "error delete immudb database")?;
+        .map_err(|err| anyhow!("error delete immudb database: {err:?}"))?;
     Ok(())
 }
 
@@ -67,6 +67,6 @@ pub async fn delete_election_event_related_documents(
     let bucket = s3::get_private_bucket()?;
     s3::delete_files_from_s3(bucket, documents_prefix, false)
         .await
-        .with_context(|| "Error delete private files from s3")?;
+        .map_err(|err| anyhow!("Error delete private files from s3: {err:?}"))?;
     Ok(())
 }
