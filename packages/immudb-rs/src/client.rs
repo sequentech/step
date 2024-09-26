@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{anyhow, Context, Result};
 use std::fmt::Debug;
 use tonic::{metadata::MetadataValue, transport::Channel, Request, Response};
 use tracing::{debug, info, instrument};
@@ -230,28 +230,30 @@ impl Client {
 
     #[instrument]
     pub async fn delete_database(&mut self, database_name: &str) -> Result<()> {
-        let unload_db_request = self.get_request(UnloadDatabaseRequest {
-            database: database_name.to_string(),
-        })
-        .map_err(|err| anyhow!("Error generating the unload db request: {err:?}"))?;
+        let unload_db_request = self
+            .get_request(UnloadDatabaseRequest {
+                database: database_name.to_string(),
+            })
+            .map_err(|err| anyhow!("Error generating the unload db request: {err:?}"))?;
 
         match self.client.unload_database(unload_db_request).await {
             Ok(unload_db_response) => {
                 info!("grpc-unload-database-response={unload_db_response:?}");
-            },
+            }
             Err(err) => {
                 if err.message() == "database does not exist" {
                     info!("database is already removed");
                 } else {
                     return Err(anyhow!("Error unloading the database, status = {err:?}"));
                 }
-            },
+            }
         };
 
-        let delete_db_request = self.get_request(DeleteDatabaseRequest {
-            database: database_name.to_string(),
-        })
-        .map_err(|err| anyhow!("Error generating the delete db request: {err:?}"))?;
+        let delete_db_request = self
+            .get_request(DeleteDatabaseRequest {
+                database: database_name.to_string(),
+            })
+            .map_err(|err| anyhow!("Error generating the delete db request: {err:?}"))?;
         let delete_db_response = self
             .client
             .delete_database(delete_db_request)
