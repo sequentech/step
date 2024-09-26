@@ -243,6 +243,7 @@ impl Client {
             Err(err) => {
                 if err.message() == "database does not exist" {
                     info!("database is already removed");
+                    return Ok(());
                 } else {
                     return Err(anyhow!("Error unloading the database, status = {err:?}"));
                 }
