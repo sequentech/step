@@ -40,9 +40,3 @@ cat << EOF > '.vscode/settings.local.json'
     "java.jdt.ls.java.home": "$java_home"
 }
 EOF
-
-cat << EOF
-########################################################
-file '.vscode/settings.local.json' generated.
-########################################################
-EOF

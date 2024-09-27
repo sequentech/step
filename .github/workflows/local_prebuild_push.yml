@@ -1,0 +1,115 @@
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: Local images Prebuild and Push
+
+on:
+  pull_request:
+  push:
+    branches: [ 'main' ]
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+    - name: Check Out Repo
+      uses: actions/checkout@v4
+
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to GitHub Container Registry
+      uses: docker/login-action@v2
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Build and push admin-portal
+      uses: docker/build-push-action@v6
+      with:
+        platforms: linux/amd64
+        context: packages/.
+        file: packages/Dockerfile.admin-portal
+        tags: ghcr.io/${{ github.repository }}/admin-portal
+        push: true
+
+    - name: Build and push Keycloak
+      uses: docker/build-push-action@v6
+      with:
+        platforms: linux/amd64,linux/arm64
+        context: packages/.
+        file: packages/Dockerfile.keycloak
+        tags: ghcr.io/${{ github.repository }}/keycloak
+        push: true
+
+    - name: Build and push Postgres
+      uses: docker/build-push-action@v6
+      with:
+        platforms: linux/amd64,linux/arm64
+        context: .devcontainer/postgresql/.
+        file: .devcontainer/postgresql/Dockerfile
+        tags: ghcr.io/${{ github.repository }}/postgres
+        push: true
+
+    - name: Build and push Minio
+      uses: docker/build-push-action@v6
+      with:
+        platforms: linux/amd64,linux/arm64
+        context: .devcontainer/minio/.
+        file: .devcontainer/minio/Dockerfile
+        tags: ghcr.io/${{ github.repository }}/minio
+        push: true
+
+    - name: Build and push Vault
+      uses: docker/build-push-action@v6
+      with:
+        platforms: linux/amd64,linux/arm64
+        context: .devcontainer/vault/.
+        file: .devcontainer/vault/Dockerfile
+        tags: ghcr.io/${{ github.repository }}/vault
+        push: true
+
+    - name: Build and push cargo packages
+      uses: docker/build-push-action@v6
+      with:
+        platforms: linux/amd64,linux/arm64
+        context: packages/.
+        file: packages/Dockerfile.cargo-packages
+        tags: ghcr.io/${{ github.repository }}/cargo-packages
+        push: true
+
+    - name: Build and push immudb
+      uses: docker/build-push-action@v6
+      with:
+        platforms: linux/amd64,linux/arm64
+        context: packages/.
+        file: packages/Dockerfile.immudb
+        tags: ghcr.io/${{ github.repository }}/immudb
+        push: true
+
+    - name: Build and push immudb-log-audit
+      uses: docker/build-push-action@v6
+      with:
+        platforms: linux/amd64,linux/arm64
+        context: vendor/immudb-log-audit/.
+        file: vendor/immudb-log-audit/Dockerfile.immudb
+        tags: ghcr.io/${{ github.repository }}/immudb-log-audit
+        push: true
+
+    - name: Build and push trustee
+      uses: docker/build-push-action@v6
+      with:
+        platforms: linux/amd64,linux/arm64
+        context: packages/.
+        file: packages/braid/Dockerfile
+        tags: ghcr.io/${{ github.repository }}/trustee
+        push: true
