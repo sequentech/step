@@ -184,7 +184,7 @@ pub async fn get_trustee_encrypted_private_key<C: Ctx>(
     board_name: &str,
     trustee_pub_key: &StrandSignaturePk,
 ) -> Result<TrusteeShareData<C>> {
-    let mut board = get_b3_pgsql_client().await?;
+    let board = get_b3_pgsql_client().await?;
 
     // let messages = board.get_messages(board_name, -1).await?;
     let messages = board
@@ -435,8 +435,6 @@ pub async fn get_board_messages<C: Ctx>(
     board_name: &str,
     b3_client: &PgsqlB3Client,
 ) -> Result<Vec<Message>> {
-    let pm = get_protocol_manager::<C>(board_name).await?;
-
     let board_messages = b3_client.get_messages(board_name, -1).await?;
     let messages: Vec<Message> = convert_board_messages(&board_messages)?;
     Ok(messages)

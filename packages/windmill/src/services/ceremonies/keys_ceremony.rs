@@ -47,7 +47,6 @@ pub async fn get_private_key(
     keys_ceremony_id: String,
 ) -> Result<String> {
     let auth_headers = keycloak::get_client_credentials().await?;
-    let celery_app = get_celery_app().await;
 
     // The trustee name is simply the username of the user
     let trustee_name = claims.trustee.ok_or(anyhow!("trustee name not found"))?;
