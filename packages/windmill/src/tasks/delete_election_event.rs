@@ -10,7 +10,7 @@ use crate::{
 };
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
-use tracing::instrument;
+use tracing::{info, instrument};
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
@@ -22,16 +22,18 @@ pub async fn delete_election_event_t(
 ) -> Result<()> {
     delete_election_event_db(&tenant_id, &election_event_id)
         .await
-        .map_err(|err| anyhow!("Error delete election event from hasura db: {err}"))?;
+        .map_err(|err| anyhow!("Error deleting election event from hasura db: {err}"))?;
 
-    delete_election_event_immudb(&tenant_id, &election_event_id)
+    let immudb_result = delete_election_event_immudb(&tenant_id, &election_event_id)
         .await
-        .map_err(|err| anyhow!("Error delete election event immudb database: {err}"))?;
-    delete_election_event_related_documents(&tenant_id, &election_event_id)
+        .map_err(|err| anyhow!("Error deleting election event immudb database: {err}"));
+    info!("immudb result: {:?}", immudb_result);
+    let documents_result = delete_election_event_related_documents(&tenant_id, &election_event_id)
         .await
-        .map_err(|err| anyhow!("Error delete election event related documents: {err}"))?;
+        .map_err(|err| anyhow!("Error deleting election event related documents: {err}"));
+    info!("documents result: {:?}", documents_result);
     delete_keycloak_realm(&realm)
         .await
-        .map_err(|err| anyhow!("Error delete election event keycloak realm: {err}"))?;
+        .map_err(|err| anyhow!("Error deleting election event keycloak realm: {err}"))?;
     Ok(())
 }
