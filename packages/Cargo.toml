@@ -12,8 +12,8 @@ members = [
     "harvest",
     "strand",
     #"immudb-rs",
-    #"sequent-core",
-    #"velvet",
+    "sequent-core",
+    "velvet",
     "windmill",
     "wrap-map-err",
     "step-cli"
