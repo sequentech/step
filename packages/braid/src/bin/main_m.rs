@@ -85,7 +85,7 @@ fn main() -> Result<()> {
 ///
 /// There are 3 levels of concurrency:
 /// 1) Session workers (SessionSet) run as tokio threads, as per args.tokio_workers and args.session_workers.
-/// 2) Inferred Actions run in a rayon collection (limited by the trustees action_parallelism parameter).
+/// 2) Inferred Actions run in a rayon collection (limited by args.max_concurrent_actions).
 /// 3) Strand's extensive use of rayon collections.
 ///
 /// The active boards are distributed to SessionSets using modulo hashing.
@@ -174,7 +174,6 @@ async fn run(args: &Cli) -> Result<()> {
                 let alloc = allocated.read();
                 let res = resident.read();
                 let mb = 1024 * 1024;
-
 
                 if let(Ok(_), Ok(alloc), Ok(res)) = (e_, alloc, res) {
                     if res > max_allocated {

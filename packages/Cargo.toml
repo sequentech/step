@@ -7,7 +7,7 @@ resolver = "2"
 
 members = [
     "braid", "electoral-log",
-    # "harvest",
+    "harvest",
     "strand",
     #"immu-board",
     #"immudb-rs",

@@ -37,7 +37,7 @@ aws-sdk-s3 = "1.11.0"
 tracing = "0.1"
 
 
-board-messages = { path="../board-messages" }
+# board-messages = { path="../board-messages" }
 immu-board = { path="../immu-board" }
 immudb-rs = { path="../immudb-rs" }
 strand = { path="../strand" }
