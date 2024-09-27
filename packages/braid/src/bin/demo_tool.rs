@@ -402,9 +402,8 @@ async fn post_ballots<C: Ctx>(
 ) -> Result<()> {
     let pm = get_pm(PhantomData::<C>)?;
     let sender_pk = StrandSignaturePk::from_sk(&pm.signing_key)?;
-    let sender_pk = sender_pk.to_der_b64_string()?;
     let ballots = client
-        .get_with_kind(&board_name, &StatementType::Ballots.to_string(), &sender_pk)
+        .get_with_kind(&board_name, StatementType::Ballots, &sender_pk)
         .await?;
     if ballots.len() > 0 {
         return Err(anyhow!("Ballots already present"));
@@ -418,13 +417,8 @@ async fn post_ballots<C: Ctx>(
         .map_err(|e| anyhow!("Could not read configuration {}", e))?;
 
     let sender_pk = configuration.trustees.get(0).unwrap();
-    let sender_pk = sender_pk.to_der_b64_string()?;
     let pk = client
-        .get_with_kind(
-            &board_name,
-            &StatementType::PublicKey.to_string(),
-            &sender_pk,
-        )
+        .get_with_kind(&board_name, StatementType::PublicKey, &sender_pk)
         .await?;
 
     if let Some(pk) = pk.get(0) {

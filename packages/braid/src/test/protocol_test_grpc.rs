@@ -93,11 +93,7 @@ async fn run_protocol_test_grpc<C: Ctx + 'static>(
     let ctx = test.ctx.clone();
     let mut sessions = vec![];
 
-    let pk_strings: Vec<String> = test
-        .trustees
-        .iter()
-        .map(|t| t.get_pk().unwrap().to_der_b64_string().unwrap())
-        .collect();
+    let pks: Vec<StrandSignaturePk> = test.trustees.iter().map(|t| t.get_pk().unwrap()).collect();
 
     for t in test.trustees.into_iter() {
         let board_params = GrpcB3BoardParams::new(B3_URL);
@@ -126,11 +122,7 @@ async fn run_protocol_test_grpc<C: Ctx + 'static>(
         }
 
         dkg_pk_message = b
-            .get_with_kind(
-                TEST_BOARD,
-                &StatementType::PublicKey.to_string(),
-                &pk_strings[0],
-            )
+            .get_with_kind(TEST_BOARD, StatementType::PublicKey, &pks[0])
             .await
             .unwrap();
 
@@ -191,8 +183,8 @@ async fn run_protocol_test_grpc<C: Ctx + 'static>(
         plaintexts_out = b
             .get_with_kind(
                 TEST_BOARD,
-                &StatementType::Plaintexts.to_string(),
-                &pk_strings[selected_trustees[0] - 1],
+                StatementType::Plaintexts,
+                &pks[selected_trustees[0] - 1],
             )
             .await
             .unwrap();

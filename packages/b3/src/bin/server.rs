@@ -1,3 +1,5 @@
+cfg_if::cfg_if! { if #[cfg(feature = "server")] {
+
 use clap::Parser;
 use std::path::PathBuf;
 use tonic::transport::Server;
@@ -113,3 +115,10 @@ pub fn init_log(set_global: bool) -> Handle<LevelFilter, Registry> {
     tracing_log::LogTracer::init().unwrap();
     reload_handle
 }
+// cfg-if
+}
+else {
+    fn main() {
+        println!("Requires the 'server' feature");
+    }
+}}

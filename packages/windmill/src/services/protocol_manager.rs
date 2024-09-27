@@ -4,7 +4,7 @@
 
 use b3::client::pgsql::{PgsqlB3Client, PgsqlConnectionParams};
 use b3::messages::artifact::Shares;
-use b3::messages::artifact::{Ballots, Channel, Configuration, DkgPublicKey};
+use b3::messages::artifact::{Ballots, Channel, Configuration, DkgPublicKey, TrusteeShareData};
 use b3::messages::message::Message;
 use b3::messages::newtypes::BatchNumber;
 use b3::messages::newtypes::PublicKeyHash;
@@ -179,37 +179,59 @@ pub async fn get_board_public_key_messages(board_name: &str) -> Result<Vec<Messa
     Ok(filtered_messages)
 }
 
-struct TrusteeShareData<C: Ctx> {
-    channel: Channel<C>,
-    shares: Vec<Shares<C>>,
-}
-
 #[instrument(err)]
 pub async fn get_trustee_encrypted_private_key<C: Ctx>(
     board_name: &str,
     trustee_pub_key: &StrandSignaturePk,
-) -> Result<EncryptionData> {
+) -> Result<TrusteeShareData<C>> {
     let mut board = get_b3_pgsql_client().await?;
 
-    let messages = board.get_messages(board_name, -1).await?;
-    let pks_message = messages
+    // let messages = board.get_messages(board_name, -1).await?;
+    let messages = board
+        .get_with_kind(board_name, StatementType::Channel, trustee_pub_key)
+        .await?;
+
+    let channel_message = messages
         .into_iter()
         .map(|message| Message::strand_deserialize(&message.message))
         .filter_map(|message| message.ok())
-        .find(|message| {
-            message.statement.get_kind() == StatementType::Channel
-                && message.sender.pk == *trustee_pub_key
-        })
-        .with_context(|| format!("Private Key not found on board {}", board_name))?;
+        .next()
+        .with_context(|| format!("Channel not found on board {}", board_name))?;
 
-    let bytes = pks_message.artifact.with_context(|| {
+    let messages = board
+        .get_with_kind_only(board_name, StatementType::Shares)
+        .await?;
+
+    let shares: Result<Vec<Message>> = messages
+        .into_iter()
+        .map(|message| Ok(Message::strand_deserialize(&message.message)?))
+        .collect();
+
+    let shares: Result<Vec<Shares<C>>> = shares?
+        .into_iter()
+        .map(|s| {
+            let bytes = s.artifact.ok_or(anyhow!("Shares missing artifact bytes"))?;
+            let shares = Shares::<C>::strand_deserialize(&bytes)?;
+            Ok(shares)
+        })
+        .collect();
+
+    let channel_bytes = channel_message.artifact.with_context(|| {
         format!(
             "Artifact missing on Private Key message on board {}",
             board_name
         )
     })?;
-    let channel = Channel::<C>::strand_deserialize(&bytes).unwrap();
-    Ok(channel.encrypted_channel_sk)
+    let channel = Channel::<C>::strand_deserialize(&channel_bytes).unwrap();
+
+    let ret = TrusteeShareData {
+        channel,
+        shares: shares?,
+    };
+
+    Ok(ret)
+
+    // Ok(channel.encrypted_channel_sk)
 }
 
 pub fn get_configuration<C: Ctx>(messages: &Vec<Message>) -> Result<Configuration<C>> {

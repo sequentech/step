@@ -6,6 +6,7 @@ use std::ops::Deref;
 use std::ops::DerefMut;
 use std::time::Instant;
 use std::time::SystemTime;
+use strand::signature::StrandSignaturePk;
 use tokio_postgres::Client;
 use tokio_postgres::{NoTls, Row};
 use tracing::error;
@@ -272,10 +273,16 @@ impl<'a> PooledPgsqlB3Client<'a> {
     pub async fn get_with_kind(
         &self,
         board: &str,
-        kind: &str,
-        sender_pk: &str,
+        kind: &StatementType,
+        sender_pk: &StrandSignaturePk,
     ) -> Result<Vec<B3MessageRow>> {
-        get_with_kind(self.client.deref(), board, kind, sender_pk).await
+        get_with_kind(
+            self.client.deref(),
+            board,
+            &kind.to_string(),
+            &sender_pk.to_der_b64_string()?,
+        )
+        .await
     }
 
     pub async fn get_boards(&self) -> Result<Vec<B3IndexRow>> {
@@ -337,14 +344,24 @@ impl PgsqlB3Client {
     pub async fn get_with_kind(
         &self,
         board: &str,
-        kind: &str,
-        sender_pk: &str,
+        kind: StatementType,
+        sender_pk: &StrandSignaturePk,
     ) -> Result<Vec<B3MessageRow>> {
-        get_with_kind(&self.client, board, kind, sender_pk).await
+        get_with_kind(
+            &self.client,
+            board,
+            &kind.to_string(),
+            &sender_pk.to_der_b64_string()?,
+        )
+        .await
     }
 
-    pub async fn get_with_kind_only(&self, board: &str, kind: &str) -> Result<Vec<B3MessageRow>> {
-        get_with_kind_only(&self.client, board, kind).await
+    pub async fn get_with_kind_only(
+        &self,
+        board: &str,
+        kind: StatementType,
+    ) -> Result<Vec<B3MessageRow>> {
+        get_with_kind_only(&self.client, board, &kind.to_string()).await
     }
 
     pub async fn get_boards(&self) -> Result<Vec<B3IndexRow>> {

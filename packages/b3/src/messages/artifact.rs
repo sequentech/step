@@ -96,6 +96,20 @@ impl<C: Ctx> Channel<C> {
         }
     }
 }
+
+/// Share data downloaded by trustees into removable media.
+///
+/// The encrypted private key in the Channel serves to
+/// decrypt the shares sent to the trustee.
+///
+/// Strictly speaking this is not an artifact posted to
+/// bulletin board, but we define it here anyway.
+#[derive(BorshSerialize, BorshDeserialize)]
+pub struct TrusteeShareData<C: Ctx> {
+    pub channel: Channel<C>,
+    pub shares: Vec<Shares<C>>,
+}
+
 /*
 // For some reason, deriving these does not work
 impl<C: Ctx> BorshSerialize for Channel<C> {

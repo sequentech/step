@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 pub mod messages;
-// pub mod electoral_log;
+
+#[cfg(feature = "client")]
 pub mod client;
 pub mod grpc;
 

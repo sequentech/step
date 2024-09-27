@@ -52,6 +52,8 @@ crate-type = ["cdylib", "rlib"]
 [features]
 # monitor = ["dep:cursive"]
 sqlcopy = ["dep:futures"]
+client = []
+server = ["client"]
 
 [build-dependencies]
 tonic-build = "0.12.1"

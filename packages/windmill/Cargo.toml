@@ -68,7 +68,7 @@ aws-smithy-types = "1.1.1"
 
 wrap-map-err = { path = "../wrap-map-err" }
 immudb-rs = { path="../immudb-rs" }
-b3 = { path="../b3" }
+b3 = { path="../b3", features = ["client"] }
 electoral-log = { path="../electoral-log" }
 strand = { path="../strand" }
 sequent-core = { path="../sequent-core", features = ["reports", "keycloak", "log", "probe", "areas"] }
