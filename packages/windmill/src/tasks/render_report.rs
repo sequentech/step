@@ -1,0 +1,53 @@
+// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+use crate::postgres::render_report::render_report_task;
+use crate::types::error::{Error, Result};
+use anyhow::anyhow;
+use celery::error::TaskError;
+use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
+use tracing::instrument;
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+pub enum FormatType {
+    TEXT,
+    PDF,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct RenderTemplateBody {
+    pub template: String,
+    pub name: String,
+    pub variables: Map<String, Value>,
+    pub format: FormatType,
+}
+
+#[instrument(err)]
+#[wrap_map_err::wrap_map_err(TaskError)]
+#[celery::task(time_limit = 60000)]
+pub async fn render_report(
+    input: RenderTemplateBody,
+    tenant_id: String,
+    election_event_id: String,
+) -> Result<()> {
+    // Spawn the task using an async block
+    let handle = tokio::task::spawn_blocking({
+        move || {
+            tokio::runtime::Handle::current().block_on(async move {
+                render_report_task(input, tenant_id, election_event_id)
+                    .await
+                    .map_err(|err| anyhow!("{}", err))
+            })
+        }
+    });
+
+    // Await the result and handle JoinError explicitly
+    match handle.await {
+        Ok(inner_result) => inner_result.map_err(|err| Error::from(err.context("Task failed"))),
+        Err(join_error) => Err(Error::from(anyhow!("Task panicked: {}", join_error))),
+    }?;
+
+    Ok(())
+}

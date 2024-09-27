@@ -1,0 +1,14 @@
+import { Canvas, Meta } from '@storybook/blocks'
+import * as CustomDropFileStories from './CustomDropFile.stories'
+
+<Meta of={CustomDropFileStories} title="components/CustomDropFile"/>
+
+# CustomDropFile
+
+A CustomDropFile is the box at the top of every screen. It includes the logo, the
+software version, language toggle and an optional button to log out.
+
+## Desktop
+
+<Canvas of={CustomDropFileStories.BasicDropFile} />
+

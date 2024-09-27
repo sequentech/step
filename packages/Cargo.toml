@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+[workspace]
+
+members = [
+    "braid",
+    "harvest",
+    "strand",
+    "immu-board",
+    "immudb-rs",
+    "sequent-core",
+    "board-messages",
+    "velvet",
+    "windmill",
+    "wrap-map-err",
+    "step-cli"
+]

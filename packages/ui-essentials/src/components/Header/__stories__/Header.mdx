@@ -1,0 +1,28 @@
+import { Canvas, Meta } from '@storybook/blocks'
+import * as HeaderStories from './Header.stories'
+
+<Meta of={HeaderStories} title="components/Header"/>
+
+# Header
+
+A Header is the box at the top of every screen. It includes the logo, the
+software version, language toggle and an optional button to log out.
+
+## Desktop
+
+<Canvas of={HeaderStories.Primary} />
+
+### With user profile
+<Canvas of={HeaderStories.WithUserProfile} />
+
+#### With long display name
+<Canvas of={HeaderStories.WithUserProfileLong} />
+
+## Mobile
+
+<Canvas of={HeaderStories.PrimaryMobile} />
+
+## Hidden User Profile (Show Logout Button)
+
+<Canvas of={HeaderStories.HiddenUserProfile} />
+

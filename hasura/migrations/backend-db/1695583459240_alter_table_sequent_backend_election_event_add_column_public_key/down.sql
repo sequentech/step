@@ -1,0 +1,4 @@
+-- Could not auto-generate a down migration.
+-- Please write an appropriate down migration for the SQL below:
+-- alter table "sequent_backend"."election_event" add column "public_key" text
+--  null;

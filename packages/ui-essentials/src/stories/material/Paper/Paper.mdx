@@ -1,0 +1,14 @@
+import { Canvas, Meta } from '@storybook/blocks'
+import * as PaperStories from './Paper.stories'
+
+<Meta of={PaperStories} title="material/Button"/>
+
+# Paper
+
+A Paper is the box at the top of every screen. It includes the logo, the
+software version, language toggle and an optional button to log out.
+
+## Desktop
+
+<Canvas of={PaperStories.Fixed} />
+

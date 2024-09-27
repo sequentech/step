@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: REUSE licensing check
+
+on:
+    pull_request:
+    push:
+      branches: [ 'main', 'release/[0-9]+.[0-9]+' ]
+
+jobs:
+  reuse:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: REUSE licensing check
+      uses: fsfe/reuse-action@v3

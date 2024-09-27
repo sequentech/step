@@ -1,0 +1,460 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package sequent.keycloak.inetum_authenticator;
+
+import static java.util.Arrays.asList;
+import static sequent.keycloak.authenticator.Utils.sendConfirmation;
+
+import com.google.auto.service.AutoService;
+import jakarta.ws.rs.core.Response;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import lombok.extern.jbosslog.JBossLog;
+import org.keycloak.Config;
+import org.keycloak.authentication.AuthenticationFlowContext;
+import org.keycloak.authentication.AuthenticationFlowError;
+import org.keycloak.authentication.Authenticator;
+import org.keycloak.authentication.AuthenticatorFactory;
+import org.keycloak.authentication.forms.RegistrationPage;
+import org.keycloak.authentication.requiredactions.TermsAndConditions;
+import org.keycloak.common.util.Time;
+import org.keycloak.events.Details;
+import org.keycloak.events.EventType;
+import org.keycloak.models.AuthenticationExecutionModel;
+import org.keycloak.models.AuthenticatorConfigModel;
+import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.KeycloakSessionFactory;
+import org.keycloak.models.RequiredActionProviderModel;
+import org.keycloak.models.UserCredentialModel;
+import org.keycloak.models.UserModel;
+import org.keycloak.protocol.AuthorizationEndpointBase;
+import org.keycloak.protocol.oidc.OIDCLoginProtocol;
+import org.keycloak.provider.ProviderConfigProperty;
+import org.keycloak.services.resources.LoginActionsService;
+import sequent.keycloak.authenticator.MessageOTPAuthenticator;
+import sequent.keycloak.authenticator.Utils.MessageCourier;
+import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
+import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
+
+/** Lookups an user using a field */
+@JBossLog
+@AutoService(AuthenticatorFactory.class)
+public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory {
+  public static final String MOBILE_NUMBER_FIELD = "sequent.read-only.mobile-number";
+  private static final String EMAIL_VERIFIED = "Email verified";
+
+  public static final String PROVIDER_ID = "lookup-and-update-user";
+  public static final String SEARCH_ATTRIBUTES = "search-attributes";
+  public static final String UNSET_ATTRIBUTES = "unset-attributes";
+  public static final String UPDATE_ATTRIBUTES = "update-attributes";
+  public static final String AUTO_LOGIN = "auto-login";
+  private static final String MESSAGE_COURIER_ATTRIBUTE = "messageCourierAttribute";
+  private static final String TEL_USER_ATTRIBUTE = "telUserAttribute";
+  public static final String AUTO_2FA = "auto-2fa";
+
+  @Override
+  public void authenticate(AuthenticationFlowContext context) {
+    log.info("authenticate(): start");
+    // Retrieve the configuration
+    AuthenticatorConfigModel config = context.getAuthenticatorConfig();
+    Map<String, String> configMap = config.getConfig();
+
+    // Extract the attributes to search and update from the configuration
+    String searchAttributes = configMap.get(SEARCH_ATTRIBUTES);
+    String unsetAttributes = configMap.get(UNSET_ATTRIBUTES);
+    String updateAttributes = configMap.get(UPDATE_ATTRIBUTES);
+    boolean autoLogin = Boolean.parseBoolean(configMap.get(AUTO_LOGIN));
+    boolean auto2FA = Boolean.parseBoolean(configMap.get(AUTO_2FA));
+
+    // Parse attributes lists
+    List<String> searchAttributesList = parseAttributesList(searchAttributes);
+    List<String> unsetAttributesList = parseAttributesList(unsetAttributes);
+    List<String> updateAttributesList = parseAttributesList(updateAttributes);
+
+    // Lookup user by attributes in authNotes
+    UserModel user = lookupUserByAuthNotes(context, searchAttributesList);
+    Utils.buildEventDetails(
+        context.getEvent(),
+        context.getAuthenticationSession(),
+        user,
+        context.getSession(),
+        this.getClass().getSimpleName());
+
+    // check user was found
+    if (user == null) {
+      log.error("authenticate(): user not found");
+      context.getEvent().error(Utils.ERROR_USER_NOT_FOUND);
+      context.attempted();
+      return;
+    }
+    // check user has no credentials yet
+    else if (user.credentialManager().getStoredCredentialsStream().count() > 0) {
+      log.error("authenticate(): user found but already has credentials");
+      context.getEvent().error(Utils.ERROR_USER_HAS_CREDENTIALS);
+      context.attempted();
+      return;
+    }
+    String email = user.getEmail();
+    String username = user.getUsername();
+
+    context
+        .getEvent()
+        .detail(Details.USERNAME, username)
+        .detail(Details.REGISTER_METHOD, "form")
+        .detail(Details.EMAIL, email);
+
+    // check that the user doesn't have set any of the unset attributes
+    Optional<String> unsetAttributesChecked =
+        checkUnsetAttributes(user, context, unsetAttributesList);
+
+    if (unsetAttributesChecked.isPresent()) {
+      log.error("authenticate(): some user unset attributes are set");
+      context
+          .getEvent()
+          .error(Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET + ": " + unsetAttributesChecked.get());
+      context.attempted();
+      return;
+    }
+
+    // User was found and is verified to be an updateable user: we then
+    // update user attributes and set it as the current auth context user
+    // for other authentication models in the authentication flow
+    log.info("authenticate(): updating user attributes..");
+    updateUserAttributes(user, context, updateAttributesList);
+
+    // Set email to verified if it was validated
+    if (context.getAuthenticationSession().getAuthNote(EMAIL_VERIFIED) != null
+        && context
+            .getAuthenticationSession()
+            .getAuthNote(EMAIL_VERIFIED)
+            .equalsIgnoreCase("true")) {
+      user.setEmailVerified(true);
+    }
+
+    log.info("authenticate(): done");
+
+    // Success event, similar to RegistrationUserCreation.java in keycloak
+
+    if (context.getRealm().isRegistrationEmailAsUsername()) {
+      username = email;
+    }
+
+    user.setEnabled(true);
+
+    if ("on".equals(context.getAuthenticationSession().getAuthNote("termsAccepted"))) {
+      // if accepted terms and conditions checkbox, remove action and add
+      // the attribute if enabled
+      RequiredActionProviderModel tacModel =
+          context
+              .getRealm()
+              .getRequiredActionProviderByAlias(
+                  UserModel.RequiredAction.TERMS_AND_CONDITIONS.name());
+      if (tacModel != null && tacModel.isEnabled()) {
+        user.setSingleAttribute(
+            TermsAndConditions.USER_ATTRIBUTE, Integer.toString(Time.currentTime()));
+        context
+            .getAuthenticationSession()
+            .removeRequiredAction(UserModel.RequiredAction.TERMS_AND_CONDITIONS);
+        user.removeRequiredAction(UserModel.RequiredAction.TERMS_AND_CONDITIONS);
+      }
+    }
+    log.info("authenticate(): setUser");
+    context.setUser(user);
+
+    String password =
+        context.getAuthenticationSession().getAuthNote(RegistrationPage.FIELD_PASSWORD);
+    try {
+      user.credentialManager().updateCredential(UserCredentialModel.password(password, false));
+    } catch (Exception me) {
+      user.addRequiredAction(UserModel.RequiredAction.UPDATE_PASSWORD);
+    }
+
+    context.getAuthenticationSession().setClientNote(OIDCLoginProtocol.LOGIN_HINT_PARAM, username);
+
+    context.getEvent().user(user);
+    context.getEvent().success();
+    context.newEvent().event(EventType.LOGIN);
+    context
+        .getEvent()
+        .client(context.getAuthenticationSession().getClient().getClientId())
+        .detail(Details.REDIRECT_URI, context.getAuthenticationSession().getRedirectUri())
+        .detail(Details.AUTH_METHOD, context.getAuthenticationSession().getProtocol());
+    String authType = context.getAuthenticationSession().getAuthNote(Details.AUTH_TYPE);
+    if (authType != null) {
+      context.getEvent().detail(Details.AUTH_TYPE, authType);
+    }
+
+    if (auto2FA) {
+      // Generate a MessageOTP credential for the user and remove the required
+      // action
+      MessageOTPCredentialProvider credentialProvider = getCredentialProvider(context.getSession());
+      credentialProvider.createCredential(
+          context.getRealm(),
+          context.getUser(),
+          MessageOTPCredentialModel.create(/* isSetup= */ true));
+    }
+
+    if (autoLogin) {
+      context.getEvent().detail("auto_login", "true");
+      context.getEvent().success();
+      context.success();
+    } else {
+      context.clearUser();
+
+      MessageCourier messageCourier =
+          MessageCourier.fromString(config.getConfig().get(MESSAGE_COURIER_ATTRIBUTE));
+      log.infov("authenticate(): messageCourier {0}", messageCourier);
+
+      if (!MessageCourier.NONE.equals(messageCourier)) {
+        try {
+          String telUserAttribute = config.getConfig().get(TEL_USER_ATTRIBUTE);
+          String mobile = user.getFirstAttribute(telUserAttribute);
+
+          sendConfirmation(context.getSession(), context.getRealm(), user, messageCourier, mobile);
+        } catch (Exception error) {
+          log.errorv("there was an error {0}", error);
+          context.failureChallenge(
+              AuthenticationFlowError.INTERNAL_ERROR,
+              context
+                  .form()
+                  .setError("messageNotSent", error.getMessage())
+                  .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+        }
+      }
+
+      // Force redirect to login even if initial flow was registration
+      context
+          .getAuthenticationSession()
+          .setClientNote(
+              AuthorizationEndpointBase.APP_INITIATED_FLOW, LoginActionsService.AUTHENTICATE_PATH);
+
+      Response form = context.form().createForm("registration-finish.ftl");
+      context.challenge(form);
+    }
+  }
+
+  private UserModel lookupUserByAuthNotes(
+      AuthenticationFlowContext context, List<String> attributes) {
+    log.info("lookupUserByAuthNotes(): start");
+
+    return Utils.lookupUserByAuthNotes(context);
+  }
+
+  private Optional<String> checkUnsetAttributes(
+      UserModel user, AuthenticationFlowContext context, List<String> attributes) {
+    Map<String, List<String>> userAttributes = user.getAttributes();
+    for (String attributeName : attributes) {
+      if (attributeName.equals("email")) {
+        // Only assume email is valid if it's verified
+        if (user.isEmailVerified() && user.getEmail() != null && !user.getEmail().isBlank()) {
+          log.info("checkUnsetAttributes(): user has email=" + user.getEmail());
+          return Optional.of("User has email attribute set but it should be unset");
+        }
+      } else {
+        if (userAttributes.containsKey(attributeName)
+            && userAttributes.get(attributeName) != null
+            && userAttributes.get(attributeName).size() > 0
+            && userAttributes.get(attributeName).get(0) != null
+            && !userAttributes.get(attributeName).get(0).isBlank()) {
+          String formattedErrorMessage =
+              "User has attribute "
+                  + attributeName
+                  + " with value="
+                  + userAttributes.get(attributeName)
+                  + " but it should be unset";
+          log.error(formattedErrorMessage);
+          return Optional.of(formattedErrorMessage);
+        }
+      }
+    }
+    return Optional.empty();
+  }
+
+  private void updateUserAttributes(
+      UserModel user, AuthenticationFlowContext context, List<String> attributes) {
+    for (String attribute : attributes) {
+      List<String> values = Utils.getAttributeValuesFromAuthNote(context, attribute);
+      if (values != null && !values.isEmpty() && !values.get(0).isBlank()) {
+        if (attribute.equals("username")) {
+          log.debugv("Setting attribute username to value={}", values.get(0));
+          user.setUsername(values.get(0));
+        } else if (attribute.equals("email")) {
+          log.debugv("Setting attribute email to value={}", values.get(0));
+          user.setEmail(values.get(0));
+        }
+        log.debugv("Setting attribute name={} to values={}", attribute, values);
+        user.setAttribute(attribute, values);
+      } else {
+        log.debugv("No setting attribute name={} because it's blank or null", attribute);
+      }
+    }
+  }
+
+  private List<String> parseAttributesList(String attributes) {
+    if (attributes == null || attributes.trim().isEmpty()) {
+      return Collections.emptyList();
+    }
+    return List.of(attributes.split(","));
+  }
+
+  @Override
+  public void action(AuthenticationFlowContext context) {
+    log.info("action(): start");
+
+    AuthenticatorConfigModel config = context.getAuthenticatorConfig();
+    Map<String, String> configMap = config.getConfig();
+
+    boolean autoLogin = Boolean.parseBoolean(configMap.get(AUTO_LOGIN));
+
+    if (autoLogin) {
+      context.success();
+    }
+  }
+
+  @Override
+  public boolean requiresUser() {
+    // This authenticator does not necessarily require an existing user
+    return false;
+  }
+
+  @Override
+  public boolean configuredFor(
+      KeycloakSession session, org.keycloak.models.RealmModel realm, UserModel user) {
+    // Applicable for any user
+    return true;
+  }
+
+  @Override
+  public void setRequiredActions(
+      KeycloakSession session, org.keycloak.models.RealmModel realm, UserModel user) {
+    // No additional required actions
+  }
+
+  @Override
+  public void close() {
+    // No resources to close
+  }
+
+  @Override
+  public Authenticator create(KeycloakSession session) {
+    return new LookupAndUpdateUser();
+  }
+
+  @Override
+  public String getId() {
+    return PROVIDER_ID;
+  }
+
+  @Override
+  public void init(Config.Scope config) {}
+
+  @Override
+  public void postInit(KeycloakSessionFactory factory) {}
+
+  @Override
+  public String getDisplayType() {
+    return "Lookup User from Authentication Notes";
+  }
+
+  @Override
+  public String getHelpText() {
+    return "Looks up and optionally updates a user based on attributes stored in authentication notes.";
+  }
+
+  @Override
+  public List<ProviderConfigProperty> getConfigProperties() {
+    ProviderConfigProperty messageCourier =
+        new ProviderConfigProperty(
+            MESSAGE_COURIER_ATTRIBUTE,
+            "Registration Success Courier",
+            "Send a confirmation notification of registration success.",
+            ProviderConfigProperty.LIST_TYPE,
+            MessageCourier.NONE.name());
+    messageCourier.setOptions(
+        asList(
+            MessageCourier.BOTH.name(),
+            MessageCourier.SMS.name(),
+            MessageCourier.EMAIL.name(),
+            MessageCourier.NONE.name()));
+
+    // Define configuration properties
+    return List.of(
+        new ProviderConfigProperty(
+            SEARCH_ATTRIBUTES,
+            "Search Attributes",
+            "Comma-separated list of attributes to use for searching the user in auth notes.",
+            ProviderConfigProperty.STRING_TYPE,
+            ""),
+        new ProviderConfigProperty(
+            UNSET_ATTRIBUTES,
+            "Unset Attributes",
+            "Comma-separated list of attributes that the user needs to have unset and otherwise the authenticator should fail.",
+            ProviderConfigProperty.STRING_TYPE,
+            ""),
+        new ProviderConfigProperty(
+            UPDATE_ATTRIBUTES,
+            "Update Attributes",
+            "Comma-separated list of attributes to update for the user from auth notes.",
+            ProviderConfigProperty.STRING_TYPE,
+            ""),
+        new ProviderConfigProperty(
+            AUTO_LOGIN,
+            "Login after registration",
+            "If enabled the user will automatically login after registration.",
+            ProviderConfigProperty.BOOLEAN_TYPE,
+            false),
+        new ProviderConfigProperty(
+            TEL_USER_ATTRIBUTE,
+            "Telephone User Attribute",
+            "Name of the user attribute used to retrieve the mobile telephone number of the user. Please make sure this is a read-only attribute for security reasons.",
+            ProviderConfigProperty.STRING_TYPE,
+            MessageOTPAuthenticator.MOBILE_NUMBER_FIELD),
+        new ProviderConfigProperty(
+            AUTO_2FA,
+            "Automatic 2FA Email/SMS",
+            "If enabled will configure the users 2FA to use the Email or SMS provided during registration.",
+            ProviderConfigProperty.BOOLEAN_TYPE,
+            false),
+        messageCourier);
+  }
+
+  @Override
+  public boolean isConfigurable() {
+    return true;
+  }
+
+  @Override
+  public String getReferenceCategory() {
+    return "user-lookup";
+  }
+
+  @Override
+  public boolean isUserSetupAllowed() {
+    return false;
+  }
+
+  private static AuthenticationExecutionModel.Requirement[] REQUIREMENT_CHOICES = {
+    AuthenticationExecutionModel.Requirement.REQUIRED,
+    AuthenticationExecutionModel.Requirement.DISABLED
+  };
+
+  @Override
+  public AuthenticationExecutionModel.Requirement[] getRequirementChoices() {
+    return REQUIREMENT_CHOICES;
+  }
+
+  public MessageOTPCredentialProvider getCredentialProvider(KeycloakSession session) {
+    log.info("getCredentialProvider()");
+    return new MessageOTPCredentialProvider(session);
+    // TODO: doesn't work - why?
+    // return (MessageOTPCredentialProvider) session
+    // 	.getProvider(
+    // 		CredentialProvider.class,
+    // 		MessageOTPCredentialProviderFactory.PROVIDER_ID
+    // 	);
+  }
+}

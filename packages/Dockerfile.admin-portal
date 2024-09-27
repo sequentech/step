@@ -1,0 +1,29 @@
+
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+FROM node:20-alpine
+
+# Install Yarn
+RUN apk add --no-cache yarn
+
+WORKDIR /app/
+
+#copy only necessary files, exclude source code from the runtime image
+COPY ./admin-portal /app/admin-portal
+COPY ./voting-portal /app/voting-portal
+COPY ./ballot-verifier /app/ballot-verifier
+COPY ./ui-core /app/ui-core
+COPY ./ui-essentials /app/ui-essentials
+COPY ./package.json /app/package.json
+COPY ./yarn.lock ./yarn.lock
+
+# Install dependencies
+RUN yarn --pure-lockfile --non-interactive
+RUN yarn build:ui-core
+RUN yarn build:ui-essentials
+
+EXPOSE 3002
+EXPOSE 3000
+EXPOSE 3001

@@ -1,0 +1,39 @@
+<!--
+SPDX-FileCopyrightText: 2022 David Ruescas <david@sequentech.io>
+SPDX-FileCopyrightText: 2022 Eduardo Robles <edu@sequentech.io>
+
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>strand wasm test</title>
+  </head>
+  <body style="background-color:black;">
+    
+    <script type="module">
+      var parameters = {}
+      window.location.search.slice(1).split("&").forEach( function(key_value) { var kv = key_value.split("="); parameters[kv[0]] = kv[1]; });
+      if(parameters['threaded'] === 'true') {
+        var w = 'worker_t.js';
+      }
+      else {
+        var w = 'worker.js';
+      }
+      var worker = new Worker(w + window.location.search, { type: 'module' });
+      worker.onmessage = function(e) {
+        var log = document.getElementById("log");
+        var lognew = document.getElementById("lognew");
+        
+        if(lognew.textContent != '') {
+          log.textContent += lognew.textContent + '\r\n';
+        }
+        lognew.textContent = e.data;
+        window.scrollTo(0, document.body.scrollHeight);
+      };
+    </script>
+    <span id="log" style="color:white;white-space: pre;font-size: 20px;"></span>
+    <span id="lognew" style="color:cyan;white-space: pre;font-size: 20px;"></span>
+  </body>
+</html>

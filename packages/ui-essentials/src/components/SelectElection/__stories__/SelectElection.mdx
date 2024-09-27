@@ -1,0 +1,34 @@
+import { Canvas, Meta } from '@storybook/blocks'
+import * as SelectElectionStories from './SelectElection.stories'
+
+<Meta of={SelectElectionStories} title="components/SelectElection"/>
+
+# SelectElection
+
+A SelectElection is an election listed in a list of election.
+
+## Open Voted
+
+<Canvas of={SelectElectionStories.OpenVoted} />
+
+## Closed Not Voted
+
+<Canvas of={SelectElectionStories.ClosedNotVoted} />
+
+## On Hover
+
+<Canvas of={SelectElectionStories.OnHover} />
+
+## On Active
+
+<Canvas of={SelectElectionStories.OnActive} />
+
+## On Focus
+
+<Canvas of={SelectElectionStories.OnFocus} />
+
+
+## With Ballot locator
+
+<Canvas of={SelectElectionStories.DisplayBallotLocator} />
+

@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+version: 2
+updates:
+  # Enable version updates for rust's cargo
+  - package-ecosystem: "cargo"
+    # Look for `Cargo.toml` and `lock` files in the `root` directory
+    directory: "/"
+    # Check the registry for updates every day (weekdays)
+    schedule:
+      interval: "daily"

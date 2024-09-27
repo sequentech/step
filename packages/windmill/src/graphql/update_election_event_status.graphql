@@ -1,0 +1,17 @@
+mutation UpdateElectionEventStatus(
+        $electionEventId: uuid!
+        $tenantId: uuid!
+        $status: jsonb!
+    ) {
+        update_sequent_backend_election_event(
+            where: {
+                id: {_eq: $electionEventId}
+                tenant_id: {_eq: $tenantId}
+            }
+            _set: {status: $status}
+        ) {
+            returning {
+                id
+            }
+        }
+    }

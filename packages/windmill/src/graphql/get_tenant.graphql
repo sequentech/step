@@ -1,0 +1,10 @@
+query GetTenant($tenantId: uuid!) {
+  sequent_backend_tenant(
+      where: {
+          id: {_eq: $tenantId}
+      }
+  ) {
+    slug
+    id
+  }
+}

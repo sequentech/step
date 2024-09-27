@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: Build Docker images
+
+on:
+  pull_request:
+
+jobs:
+  build-and-push:
+    uses: ./.github/workflows/reusable_build_push.yml
+    secrets: inherit
+    with:
+      push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}

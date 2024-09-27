@@ -1,0 +1,49 @@
+[
+  {
+    "id":"fae0b09e-1b78-4118-b99c-7955f8ef2a52",
+    "choices": [
+      {
+        "id": 0,
+        "selected": -1
+      },
+      {
+        "id": 1,
+        "selected": -1
+      },
+      {
+        "id": 2,
+        "selected": -1
+      },
+      {
+        "id": 3,
+        "selected": 0
+      },
+      {
+        "id": 4,
+        "selected": 0
+      }
+    ]
+  },
+  {
+    "id":"367a3e9e-8e50-4195-8eb4-6d0830791639",
+    "choices": [
+      {
+        "id": 0,
+        "selected": -1
+      },
+      {
+        "id": 1,
+        "selected": -1
+      },
+      {
+        "id": 2,
+        "selected": -1
+      },
+      {
+        "id": 3,
+        "selected": 0,
+        "write_in_text": "Pelayo Gómez"
+      }
+    ]
+  }
+]

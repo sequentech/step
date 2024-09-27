@@ -1,0 +1,43 @@
+# SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: LOCs Lines Of Code Report
+
+on:
+    pull_request:
+    push:
+      branches: [ 'main', 'release/[0-9]+.[0-9]+' ]
+
+jobs:
+  locs:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install SCC
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y wget
+        wget -O scc.tar.gz https://github.com/boyter/scc/releases/download/v3.3.4/scc_Linux_x86_64.tar.gz
+        tar zxf scc.tar.gz
+        sudo mv scc /usr/local/bin/scc
+        scc --version
+
+    - name: Execute reporting tool
+      run: |
+        mkdir locs_report
+        ./scripts/loc.sh locs_report/locs_report.md
+        ls -lah locs_report/locs_report.md
+
+    - name: Add the report to the summary
+      run: |
+        cat locs_report/locs_report.md >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: locs_report
+        path: locs_report/
