@@ -6,7 +6,7 @@
 
 use super::*;
 use anyhow::Result;
-use board_messages::braid::artifact::Channel;
+use b3::messages::artifact::Channel;
 use strand::elgamal::PublicKey;
 use strand::zkp::Zkp;
 

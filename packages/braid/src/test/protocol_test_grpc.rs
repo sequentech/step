@@ -16,17 +16,17 @@ use strand::elgamal::Ciphertext;
 use strand::serialization::StrandDeserialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
-use board_messages::braid::artifact::{Ballots, Configuration, DkgPublicKey, Plaintexts};
-use board_messages::braid::message::Message;
-use board_messages::braid::newtypes::PublicKeyHash;
-use board_messages::braid::newtypes::MAX_TRUSTEES;
-use board_messages::braid::newtypes::NULL_TRUSTEE;
-use board_messages::braid::protocol_manager::ProtocolManager;
-use board_messages::braid::statement::StatementType;
+use b3::messages::artifact::{Ballots, Configuration, DkgPublicKey, Plaintexts};
+use b3::messages::message::Message;
+use b3::messages::newtypes::PublicKeyHash;
+use b3::messages::newtypes::MAX_TRUSTEES;
+use b3::messages::newtypes::NULL_TRUSTEE;
+use b3::messages::protocol_manager::ProtocolManager;
+use b3::messages::statement::StatementType;
 
-use board_messages::grpc::pgsql::B3MessageRow;
-use board_messages::grpc::pgsql::PgsqlConnectionParams;
-use board_messages::grpc::pgsql::{self, PgsqlB3Client};
+use b3::client::pgsql::B3MessageRow;
+use b3::client::pgsql::PgsqlConnectionParams;
+use b3::client::pgsql::{self, PgsqlB3Client};
 
 use crate::protocol::board::grpc_m::GrpcB3;
 use crate::protocol::board::grpc_m::GrpcB3BoardParams;

@@ -20,5 +20,8 @@ pub mod reports;
 pub mod error_checker;
 pub mod generate_urls;
 
+#[cfg(feature = "reports")]
+pub mod translations;
+
 #[cfg(feature = "keycloak")]
 pub mod replace_uuids;

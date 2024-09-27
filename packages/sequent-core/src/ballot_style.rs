@@ -6,11 +6,12 @@ use crate::ballot::{
     self, CandidatePresentation, ContestPresentation, ElectionDates,
     ElectionEventPresentation, ElectionPresentation, I18nContent,
 };
+use crate::serialization::deserialize_with_path::deserialize_value;
 use crate::types::hasura::core as hasura_types;
 use anyhow::{anyhow, Context, Result};
 use std::env;
 
-fn parse_i18n_field(
+pub fn parse_i18n_field(
     i18n_opt: &Option<I18nContent<I18nContent<Option<String>>>>,
     field: &str,
 ) -> Option<I18nContent> {
@@ -162,6 +163,11 @@ fn create_contest(
                 alias_i18n: alias_i18n,
                 candidate_type: candidate.r#type.clone(),
                 presentation: Some(candidate_presentation),
+                annotations: candidate
+                    .annotations
+                    .clone()
+                    .map(|value| deserialize_value(value))
+                    .transpose()?,
             })
         })
         .collect::<Result<Vec<ballot::Candidate>>>()?;
@@ -186,5 +192,10 @@ fn create_contest(
         candidates,
         presentation: Some(contest_presentation),
         created_at: contest.created_at.map(|date| date.to_rfc3339()),
+        annotations: contest
+            .annotations
+            .clone()
+            .map(|value| deserialize_value(value))
+            .transpose()?,
     })
 }

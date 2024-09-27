@@ -9,7 +9,7 @@ use crate::protocol::action::Action;
 pub(self) use crate::protocol::predicate::*;
 
 pub(self) use crate::util::ProtocolError;
-pub(self) use board_messages::braid::newtypes::*;
+pub(self) use b3::messages::newtypes::*;
 pub(self) use strand::hash::Hash;
 
 /// Marks a value in a THashes array as empty.

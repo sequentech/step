@@ -7,7 +7,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use tracing::{info, warn};
 
-use board_messages::braid::message::Message;
+use b3::messages::message::Message;
 use board_messages::grpc::client::B3Client;
 
 use strand::serialization::StrandDeserialize;

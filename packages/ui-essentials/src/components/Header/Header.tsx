@@ -2,13 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState} from "react"
-
 import Image from "mui-image"
 import LanguageMenu from "../LanguageMenu/LanguageMenu"
 import PageBanner from "../PageBanner/PageBanner"
 import PageLimit from "../PageLimit/PageLimit"
 import {theme} from "../../services/theme"
-import LogoImg from "../../../public/Sequent_logo.svg"
 import styled from "@emotion/styled"
 import {Box, Button, Tooltip, TooltipProps, tooltipClasses} from "@mui/material"
 import Version from "../Version/Version"
@@ -17,6 +15,8 @@ import Dialog from "../Dialog/Dialog"
 import {useTranslation} from "react-i18next"
 import {ProfileMenu} from "../ProfileMenu/ProfileMenu"
 import {EVotingPortalCountdownPolicy} from "@sequentech/ui-core"
+
+const smBreakpoint = theme.breakpoints.values.sm
 
 const HeaderWrapper = styled(PageBanner)`
     background-color: ${theme.palette.lightBackground};
@@ -38,6 +38,15 @@ const StyledImage = styled(Image)`
     width: unset !important;
     @media (max-width: ${theme.breakpoints.values.md}px) {
         height: 37px !important;
+    }
+    @media (max-width: ${smBreakpoint}px) {
+        height: 30px !important;
+    }
+    @media (max-width: ${smBreakpoint / 2}px) {
+        height: 20px !important;
+    }
+    @media (max-width: ${smBreakpoint / 3}px) {
+        height: 10px !important;
     }
 `
 
@@ -63,40 +72,28 @@ export const StyledButtonTooltip = styled(({className, ...props}: TooltipProps) 
 
 export const StyledButtonContainerWrapper = styled.div`
     position: relative;
+    display: inline-block;
     padding: 0;
     margin: 0;
-    width: 125px;
-    height: 44px;
-`
-
-export const StyledButtonContainer = styled.div`
-    position: absolute;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: row;
-    justify-content: center;
-    align-items: center;
-    height: 100%;
-    width: 100%;
 `
 
 export const StyledButton = styled(Button)`
+    z-index: 1;
+    position: relative;
     color: ${({theme}) => theme.palette.brandColor} !important;
     background: transparent !important;
+    border-radius: 5px;
     border: none;
     display: flex;
-    width: 100%;
-    // border-bottom: ${({theme}) => `2px solid ${theme.palette.brandColor}`} !important;
     outline: "none";
-    box-sizing: "border-box";
+    overflow: hidden;
 
     &:hover,
     &:focus,
     &:active {
         color: ${({theme}) => theme.palette.white} !important;
         background: ${({theme}) => theme.palette.brandColor} !important;
-        boxshadow: none !important;
+        box-shadow: none !important;
     }
 `
 
@@ -105,6 +102,7 @@ type ApplicationVersion = {
 }
 
 export type UserProfile = {
+    firstName?: string
     username: string
     email?: string
     openLink?: Function
@@ -165,7 +163,7 @@ export default function Header({
                 <PageLimit maxWidth="lg" sx={{height: {xs: "37px", md: "47px"}}}>
                     <PageBanner direction="row" sx={{height: "100%"}}>
                         <StyledLink href={logoLink} target="_blank">
-                            <StyledImage src={logoUrl ?? LogoImg} duration={100} alt="Logo Image" />
+                            <StyledImage src={logoUrl || ""} duration={100} alt="Logo Image" />
                         </StyledLink>
                         <Box
                             display="flex"
@@ -175,21 +173,19 @@ export default function Header({
                             <Version version={appVersion ?? {main: "0.0.0"}} />
                             <LanguageMenu languagesList={languagesList} />
                             {errorVariant === HeaderErrorVariant.HIDE_PROFILE && !!logoutFn ? (
-                                <StyledButtonContainerWrapper>
-                                    <StyledButtonContainer className="logout-button-container">
-                                        <StyledButton
-                                            className="logout-button"
-                                            aria-label="log out button"
-                                            onClick={() => {
-                                                setOpenModal(true)
-                                            }}
-                                        >
-                                            <LogoutIcon />
-                                            <Box sx={{display: {xs: "none", sm: "block"}}}>
-                                                {t("logout.buttonText")}
-                                            </Box>
-                                        </StyledButton>
-                                    </StyledButtonContainer>
+                                <StyledButtonContainerWrapper className="logout-button-container-wrapper">
+                                    <StyledButton
+                                        className="logout-button"
+                                        aria-label="log out button"
+                                        onClick={() => {
+                                            setOpenModal(true)
+                                        }}
+                                    >
+                                        <LogoutIcon />
+                                        <Box sx={{display: {xs: "none", sm: "block"}}}>
+                                            {t("logout.buttonText")}
+                                        </Box>
+                                    </StyledButton>
                                 </StyledButtonContainerWrapper>
                             ) : (
                                 userProfile && (

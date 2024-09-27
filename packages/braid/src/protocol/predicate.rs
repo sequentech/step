@@ -10,9 +10,9 @@ use strum::Display;
 use strand::context::Ctx;
 use strand::signature::StrandSignaturePk;
 
-use board_messages::braid::artifact::Configuration;
-use board_messages::braid::newtypes::*;
-use board_messages::braid::statement::Statement;
+use b3::messages::artifact::Configuration;
+use b3::messages::newtypes::*;
+use b3::messages::statement::Statement;
 
 use crate::util::ProtocolError;
 

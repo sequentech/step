@@ -10,9 +10,11 @@ use tracing::{event, instrument, Level};
 
 use crate::tasks::create_keys::create_keys;
 use crate::tasks::create_vote_receipt::create_vote_receipt;
+use crate::tasks::delete_election_event::delete_election_event_t;
 use crate::tasks::execute_tally_session::execute_tally_session;
 use crate::tasks::export_election_event::export_election_event;
 use crate::tasks::export_election_event_logs::export_election_event_logs;
+use crate::tasks::export_tasks_execution::export_tasks_execution;
 use crate::tasks::export_users::export_users;
 use crate::tasks::import_election_event::import_election_event;
 use crate::tasks::import_users::import_users;
@@ -21,6 +23,8 @@ use crate::tasks::insert_tenant::insert_tenant;
 use crate::tasks::manage_election_dates::manage_election_date;
 use crate::tasks::manage_election_event_date::manage_election_event_date;
 use crate::tasks::manual_verification_pdf::get_manual_verification_pdf;
+use crate::tasks::miru_plugin_tasks::create_transmission_package_task;
+use crate::tasks::miru_plugin_tasks::send_transmission_package_task;
 use crate::tasks::process_board::process_board;
 use crate::tasks::render_report::render_report;
 use crate::tasks::review_boards::review_boards;
@@ -120,6 +124,10 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             manage_election_date,
             export_election_event,
             export_election_event_logs,
+            create_transmission_package_task,
+            send_transmission_package_task,
+            delete_election_event_t,
+            export_tasks_execution,
         ],
         // Route certain tasks to certain queues based on glob matching.
         task_routes = [
@@ -140,10 +148,14 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             "export_users" => "import_export_queue",
             "export_election_event" => "import_export_queue",
             "export_election_event_logs" => "import_export_queue",
+            "export_tasks_execution" => "import_export_queue",
             "import_election_event" => "import_export_queue",
             "scheduled_events" => "beat",
             "manage_election_date" => "beat",
-            "manage_election_event_date" => "beat"
+            "manage_election_event_date" => "beat",
+            "create_transmission_package_task" => "short_queue",
+            "send_transmission_package_task" => "short_queue",
+            "delete_election_event_t" => "short_queue",
         ],
         prefetch_count = prefetch_count,
         acks_late = acks_late,

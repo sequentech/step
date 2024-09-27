@@ -10,7 +10,7 @@ use std::fs;
 use std::path::PathBuf;
 use thiserror::Error;
 
-use board_messages::braid::statement::StatementType;
+use b3::messages::statement::StatementType;
 use strand::hash::Hash;
 use strand::util::StrandError;
 

@@ -31,6 +31,7 @@ import {translateElection} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {Box} from "@mui/material"
 import {MenuStyles, TreeMenuItemContainer} from "@/components/styles/Menu"
+import {Sequent_Backend_Document} from "@/gql/graphql"
 
 export const mapAddResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "createResource.electionEvent",
@@ -208,7 +209,7 @@ function TreeMenuItem({
 
     let imageDocumentId = (resource as ElectionType).image_document_id ?? null
 
-    const {data: imageData} = useGetOne("sequent_backend_document", {
+    const {data: imageData} = useGetOne<Sequent_Backend_Document>("sequent_backend_document", {
         id: imageDocumentId,
         meta: {tenant_id: tenantId},
     })
@@ -242,9 +243,10 @@ function TreeMenuItem({
                 {hasNext && canCreateElectionEvent ? (
                     <MenuStyles.TreeMenuIconContaier onClick={onClick}>
                         {open ? (
-                            <ExpandMoreIcon />
+                            <ExpandMoreIcon className="menu-item-expanded" />
                         ) : (
                             <ChevronRightIcon
+                                className="menu-item-collapsed"
                                 style={{
                                     transform:
                                         i18n.dir(i18n.language) === "rtl"
@@ -260,8 +262,9 @@ function TreeMenuItem({
                 {isOpenSidebar && (
                     <MenuStyles.StyledSideBarNavLink
                         title={name}
-                        id={"StyledSideBarNavLink"}
-                        className={({isActive}) => (isActive ? "active" : "")}
+                        className={({isActive}) =>
+                            isActive ? `active menu-item-${treeResourceNames[0]}` : ``
+                        }
                         to={`/${treeResourceNames[0]}/${id}`}
                         style={{textAlign: i18n.dir(i18n.language) === "rtl" ? "end" : "start"}}
                     >

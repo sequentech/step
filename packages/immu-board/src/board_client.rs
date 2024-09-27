@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use log::info;
 use tracing::{event, instrument, Level};
 
@@ -13,6 +13,7 @@ use tokio::time::{sleep, Duration};
 const IMMUDB_DEFAULT_LIMIT: usize = 900;
 const IMMUDB_DEFAULT_ENTRIES_TX_LIMIT: usize = 50;
 const IMMUDB_DEFAULT_OFFSET: usize = 0;
+const ELECTORAL_LOG_TABLE: &'static str = "electoral_log_messages";
 
 #[derive(Debug, Clone)]
 enum Table {
@@ -35,6 +36,70 @@ pub struct BoardClient {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ElectoralLogMessage {
+    pub id: i64,
+    pub created: i64,
+    pub sender_pk: String,
+    pub statement_timestamp: i64,
+    pub statement_kind: String,
+    pub message: Vec<u8>,
+    pub version: String,
+    pub user_id: Option<String>,
+}
+
+impl TryFrom<&Row> for ElectoralLogMessage {
+    type Error = anyhow::Error;
+
+    fn try_from(row: &Row) -> Result<Self, Self::Error> {
+        let mut id = 0;
+        let mut created = 0;
+        let mut sender_pk = String::from("");
+        let mut statement_timestamp = 0;
+        let mut statement_kind = String::from("");
+        let mut message = vec![];
+        let mut version = String::from("");
+        let mut user_id: Option<String> = None;
+
+        for (column, value) in row.columns.iter().zip(row.values.iter()) {
+            // FIXME for some reason columns names appear with parentheses
+            let dot = column
+                .find('.')
+                .ok_or(anyhow!("invalid column found '{}'", column.as_str()))?;
+            let bare_column = &column[dot + 1..column.len() - 1];
+
+            match bare_column {
+                "id" => assign_value!(Value::N, value, id),
+                "created" => assign_value!(Value::Ts, value, created),
+                "sender_pk" => assign_value!(Value::S, value, sender_pk),
+                "statement_timestamp" => {
+                    assign_value!(Value::Ts, value, statement_timestamp)
+                }
+                "statement_kind" => assign_value!(Value::S, value, statement_kind),
+                "message" => assign_value!(Value::Bs, value, message),
+                "version" => assign_value!(Value::S, value, version),
+                "user_Id" => match value.value.as_ref() {
+                    Some(Value::S(inner)) => user_id = Some(inner.clone()),
+                    None => user_id = None,
+                    _ => return Err(anyhow!("invalid column value for 'userId'")),
+                },
+                _ => return Err(anyhow!("invalid column found '{}'", bare_column)),
+            }
+        }
+
+        Ok(ElectoralLogMessage {
+            id,
+            created,
+            sender_pk,
+            statement_timestamp,
+            statement_kind,
+            message,
+            version,
+            user_id,
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BoardMessage {
     pub id: i64,
     pub created: i64,
@@ -45,7 +110,7 @@ pub struct BoardMessage {
     pub message: Vec<u8>,
     pub version: String,
 }
-
+/*
 #[derive(Debug, Clone)]
 pub struct Board {
     pub id: i64,
@@ -121,6 +186,7 @@ impl TryFrom<&Row> for Board {
         })
     }
 }
+*/
 
 impl BoardClient {
     #[instrument(skip(password), level = "trace")]
@@ -130,7 +196,7 @@ impl BoardClient {
 
         Ok(BoardClient { client: client })
     }
-
+    /*
     /// Get all braid messages whose id is bigger than `last_id`
     pub async fn get_messages(
         &mut self,
@@ -171,18 +237,17 @@ impl BoardClient {
         id: i64,
     ) -> Result<Option<BoardMessage>> {
         self.get_one(board_db, Table::BraidMessages, id).await
-    }
+    }*/
 
     /// Get all electoral log messages whose id is bigger than `last_id`
     pub async fn get_electoral_log_messages(
         &mut self,
         board_db: &str,
-    ) -> Result<Vec<BoardMessage>> {
+    ) -> Result<Vec<ElectoralLogMessage>> {
         let mut offset: usize = 0;
         let mut last_batch = self
-            .get(
+            .get_electoral_log_messages_from_db(
                 board_db,
-                Table::ElectoralLogMessages,
                 0,
                 Some(IMMUDB_DEFAULT_LIMIT),
                 Some(offset),
@@ -192,9 +257,8 @@ impl BoardClient {
         while IMMUDB_DEFAULT_LIMIT == last_batch.len() {
             offset += last_batch.len();
             last_batch = self
-                .get(
+                .get_electoral_log_messages_from_db(
                     board_db,
-                    Table::BraidMessages,
                     0,
                     Some(IMMUDB_DEFAULT_LIMIT),
                     Some(offset),
@@ -205,8 +269,56 @@ impl BoardClient {
         Ok(messages)
     }
 
+    async fn get_electoral_log_messages_from_db(
+        &mut self,
+        board_db: &str,
+        last_id: i64,
+        limit: Option<usize>,
+        offset: Option<usize>,
+    ) -> Result<Vec<ElectoralLogMessage>> {
+        self.client.use_database(board_db).await?;
+        let sql = format!(
+            r#"
+        SELECT
+            id,
+            created,
+            sender_pk,
+            statement_timestamp,
+            statement_kind,
+            message,
+            version,
+            user_id
+        FROM {}
+        WHERE id > @last_id
+        ORDER BY id
+        LIMIT {}
+        OFFSET {};
+        "#,
+            Table::ElectoralLogMessages.as_str(),
+            limit.unwrap_or(IMMUDB_DEFAULT_LIMIT),
+            offset.unwrap_or(IMMUDB_DEFAULT_OFFSET),
+        );
+
+        let params = vec![NamedParam {
+            name: String::from("last_id"),
+            value: Some(SqlValue {
+                value: Some(Value::N(last_id)),
+            }),
+        }];
+
+        let sql_query_response = self.client.sql_query(&sql, params).await?;
+        let messages = sql_query_response
+            .get_ref()
+            .rows
+            .iter()
+            .map(ElectoralLogMessage::try_from)
+            .collect::<Result<Vec<ElectoralLogMessage>>>()?;
+
+        Ok(messages)
+    }
+
     /// Get all messages whose id is bigger than `last_id`
-    async fn get(
+    /*async fn get(
         &mut self,
         board_db: &str,
         table: Table,
@@ -293,9 +405,9 @@ impl BoardClient {
         } else {
             Ok(None)
         }
-    }
+    }*/
 
-    pub async fn get_messages_filtered(
+    /*pub async fn get_messages_filtered(
         &mut self,
         board_db: &str,
         kind: &str,
@@ -312,8 +424,8 @@ impl BoardClient {
             max_ts,
         )
         .await
-    }
-
+    }*/
+/*
     pub async fn get_electoral_log_messages_filtered(
         &mut self,
         board_db: &str,
@@ -331,9 +443,9 @@ impl BoardClient {
             max_ts,
         )
         .await
-    }
+    }*/
 
-    async fn get_filtered(
+    /*async fn get_filtered(
         &mut self,
         board_db: &str,
         table: Table,
@@ -449,17 +561,116 @@ impl BoardClient {
             }
         }
         Ok(())
-    }
+    }*/
 
     pub async fn insert_electoral_log_messages(
         &mut self,
         board_db: &str,
-        messages: &Vec<BoardMessage>,
+        messages: &Vec<ElectoralLogMessage>,
     ) -> Result<()> {
-        self.insert(board_db, Table::ElectoralLogMessages, messages)
-            .await
-    }
+        info!("Insert {} messages..", messages.len());
+        self.client.open_session(board_db).await?;
+        // Start a new transaction
+        let transaction_id = self.client.new_tx(TxMode::ReadWrite).await;
+        if transaction_id.is_err() {
+            self.client.close_session().await?;
+        }
+        let transaction_id = transaction_id?;
 
+        let mut sql_results = vec![];
+        for message in messages {
+            let message_sql = format!(
+                r#"
+                INSERT INTO {} (
+                    created,
+                    sender_pk,
+                    statement_kind,
+                    statement_timestamp,
+                    message,
+                    version,
+                    user_id
+                ) VALUES (
+                    @created,
+                    @sender_pk,
+                    @statement_kind,
+                    @statement_timestamp,
+                    @message,
+                    @version,
+                    @user_id
+                );
+            "#,
+                Table::ElectoralLogMessages.as_str()
+            );
+            let params = vec![
+                NamedParam {
+                    name: String::from("created"),
+                    value: Some(SqlValue {
+                        value: Some(Value::Ts(message.created)),
+                    }),
+                },
+                NamedParam {
+                    name: String::from("sender_pk"),
+                    value: Some(SqlValue {
+                        value: Some(Value::S(message.sender_pk.clone())),
+                    }),
+                },
+                NamedParam {
+                    name: String::from("statement_timestamp"),
+                    value: Some(SqlValue {
+                        value: Some(Value::Ts(message.statement_timestamp)),
+                    }),
+                },
+                NamedParam {
+                    name: String::from("statement_kind"),
+                    value: Some(SqlValue {
+                        value: Some(Value::S(message.statement_kind.clone())),
+                    }),
+                },
+                NamedParam {
+                    name: String::from("message"),
+                    value: Some(SqlValue {
+                        value: Some(Value::Bs(message.message.clone())),
+                    }),
+                },
+                NamedParam {
+                    name: String::from("version"),
+                    value: Some(SqlValue {
+                        value: Some(Value::S(message.version.clone())),
+                    }),
+                },
+                NamedParam {
+                    name: String::from("user_id"),
+                    value: Some(SqlValue {
+                        value: match message.user_id.clone() {
+                            Some(user_id) => Some(Value::S(user_id)),
+                            None => None,
+                        },
+                    }),
+                },
+            ];
+            let result = self
+                .client
+                .tx_sql_exec(&message_sql, &transaction_id, params)
+                .await;
+            sql_results.push(result);
+        }
+
+        let commit = self
+            .client
+            .commit(&transaction_id)
+            .await
+            .with_context(|| "error commiting to electoral log");
+        self.client.close_session().await?;
+
+        // We defer checking on these results until after closing the session
+        for result in sql_results {
+            result?;
+        }
+        commit?;
+
+        Ok(())
+    }
+    /*
     async fn insert(
         &mut self,
         board_db: &str,
@@ -497,6 +708,7 @@ impl BoardClient {
             "#,
                 table.as_str()
             );
+            info!("message: {}", message_sql);
             let params = vec![
                 NamedParam {
                     name: String::from("created"),
@@ -609,13 +821,14 @@ impl BoardClient {
         } else {
             Err(anyhow!("board name '{}' not found", board_db))
         }
-    }
+    }*/
 
     #[instrument(skip(self), level = "trace")]
     pub async fn has_database(&mut self, database_name: &str) -> Result<bool> {
         self.client.has_database(database_name).await
     }
 
+    /*
     /// Creates the requested board immudb database and adds it to the requested index.
     #[instrument(skip(self))]
     pub async fn create_board(&mut self, index_db: &str, board_db: &str) -> Result<Board> {
@@ -648,8 +861,9 @@ impl BoardClient {
         let _ = self.client.sql_exec(&message_sql, params).await?;
 
         self.get_board(index_db, board_db).await
-    }
+    }*/
 
+    /*
     /// Deletes the requested board immudb database removes it from the requested index.
     #[instrument(skip(self))]
     pub async fn delete_board(&mut self, index_db: &str, board_db: &str) -> Result<()> {
@@ -679,8 +893,9 @@ impl BoardClient {
         let _ = self.client.sql_exec(&message_sql, params).await?;
 
         Ok(())
-    }
+    }*/
 
+    /*
     /// Creates the index immudb database if it doesn't exist.
     #[instrument(skip(self))]
     pub async fn upsert_index_db(&mut self, index_dbname: &str) -> Result<()> {
@@ -697,12 +912,12 @@ impl BoardClient {
             "#,
         )
         .await
-    }
+    }*/
 
     /// Creates the requested board immudb database if it doesnt exist.
     /// Also creates the and the electoral log and braid tables.
     #[instrument(skip(self))]
-    pub async fn upsert_board_db(&mut self, board_dbname: &str) -> Result<()> {
+    pub async fn upsert_electoral_log_db(&mut self, board_dbname: &str) -> Result<()> {
         let sql = format!(
             r#"
         CREATE TABLE IF NOT EXISTS {} (
@@ -715,18 +930,8 @@ impl BoardClient {
             version VARCHAR,
             PRIMARY KEY id
         );
-        CREATE TABLE IF NOT EXISTS {} (
-            id INTEGER AUTO_INCREMENT,
-            created TIMESTAMP,
-            sender_pk VARCHAR,
-            statement_timestamp TIMESTAMP,
-            statement_kind VARCHAR,
-            message BLOB,
-            version VARCHAR,
-            PRIMARY KEY id
-        );
         "#,
-            Table::BraidMessages.as_str(),
+            // Table::BraidMessages.as_str(),
             Table::ElectoralLogMessages.as_str()
         );
         self.upsert_database(board_dbname, &sql).await
@@ -757,112 +962,5 @@ impl BoardClient {
             self.client.sql_exec(&tables, vec![]).await?;
         }
         Ok(())
-    }
-}
-
-/*impl Drop for BoardClient {
-    fn drop(&mut self) {
-        self.client.logou
-    }
-} */
-
-// Run ignored tests with
-// cargo test <test_name> -- --include-ignored
-#[cfg(test)]
-pub(crate) mod tests {
-    use super::*;
-    use serial_test::serial;
-
-    const INDEX_DB: &'static str = "testindexdb";
-    const BOARD_DB: &'static str = "testdb";
-
-    async fn set_up() -> BoardClient {
-        let mut b = BoardClient::new("http://immudb:3322", "immudb", "immudb")
-            .await
-            .unwrap();
-
-        // In case the previous test did not clean up properly
-        b.delete_database(INDEX_DB).await.unwrap();
-        b.delete_database(BOARD_DB).await.unwrap();
-
-        b.upsert_index_db(INDEX_DB).await.unwrap();
-        b.upsert_board_db(BOARD_DB).await.unwrap();
-        b.create_board(INDEX_DB, BOARD_DB).await.unwrap();
-
-        b
-    }
-
-    async fn tear_down(mut b: BoardClient) {
-        b.delete_board(INDEX_DB, BOARD_DB).await.unwrap();
-        b.delete_database(INDEX_DB).await.unwrap();
-    }
-
-    #[tokio::test]
-    #[ignore]
-    #[serial]
-    pub async fn test_create_delete() {
-        let mut b = set_up().await;
-
-        assert!(b.has_database(INDEX_DB).await.unwrap());
-        assert!(b.has_database(BOARD_DB).await.unwrap());
-        let board = b.get_board(INDEX_DB, BOARD_DB).await.unwrap();
-        assert_eq!(board.database_name, BOARD_DB);
-        let board = b.get_board(INDEX_DB, "NOT FOUND").await;
-        assert!(board.is_err());
-        tear_down(b).await;
-    }
-
-    #[tokio::test]
-    #[ignore]
-    #[serial]
-    pub async fn test_message_create_retrieve() {
-        let mut b = set_up().await;
-        let board = b.get_board(INDEX_DB, BOARD_DB).await.unwrap();
-        assert_eq!(board.database_name, BOARD_DB);
-        let board_message = BoardMessage {
-            id: 1,
-            created: 555,
-            sender_pk: "".to_string(),
-            statement_timestamp: 0,
-            statement_kind: "".to_string(),
-            message: vec![],
-            version: "".to_string(),
-        };
-        let messages = vec![board_message];
-        b.insert_messages(BOARD_DB, &messages).await.unwrap();
-        b.insert_electoral_log_messages(BOARD_DB, &messages)
-            .await
-            .unwrap();
-        let ret = b.get_messages(BOARD_DB, 0).await.unwrap();
-        assert_eq!(messages, ret);
-        let ret = b.get_electoral_log_messages(BOARD_DB).await.unwrap();
-        assert_eq!(messages, ret);
-        let ret = b
-            .get_electoral_log_messages_filtered(BOARD_DB, "", "", None, None)
-            .await
-            .unwrap();
-        assert_eq!(messages, ret);
-        let ret = b
-            .get_electoral_log_messages_filtered(BOARD_DB, "", "", Some(1i64), None)
-            .await
-            .unwrap();
-        assert_eq!(messages, ret);
-        let ret = b
-            .get_electoral_log_messages_filtered(BOARD_DB, "", "", None, Some(556i64))
-            .await
-            .unwrap();
-        assert_eq!(messages, ret);
-        let ret = b
-            .get_electoral_log_messages_filtered(BOARD_DB, "", "", Some(1i64), Some(556i64))
-            .await
-            .unwrap();
-        assert_eq!(messages, ret);
-        let ret = b
-            .get_electoral_log_messages_filtered(BOARD_DB, "", "", Some(556i64), Some(666i64))
-            .await
-            .unwrap();
-        assert_eq!(ret.len(), 0);
-
-        tear_down(b).await;
     }
 }

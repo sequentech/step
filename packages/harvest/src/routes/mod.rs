@@ -4,6 +4,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pub mod ballot_publication;
 pub mod create_vote_receipt;
+pub mod custom_urls;
+pub mod delete_election_event;
 pub mod election_dates;
 pub mod election_event_stats;
 pub mod election_stats;
@@ -11,6 +13,7 @@ pub mod electoral_log;
 pub mod error_catchers;
 pub mod export_election_event;
 pub mod export_election_event_logs;
+pub mod export_tasks_execution;
 pub mod fetch_document;
 pub mod immudb_log_audit;
 pub mod import_areas;
@@ -20,6 +23,7 @@ pub mod insert_election_event;
 pub mod insert_tenant;
 pub mod keys_ceremony;
 pub mod manual_verification_pdf;
+pub mod miru_plugin;
 pub mod permissions;
 pub mod roles;
 pub mod scheduled_event;

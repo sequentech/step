@@ -2,17 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {Box, Button, CircularProgress, Typography} from "@mui/material"
+import {Box, Button, CircularProgress, Typography, Alert} from "@mui/material"
 import React, {useContext, useEffect, useMemo, useState} from "react"
 import {useTranslation} from "react-i18next"
-import {
-    Dialog,
-    IconButton,
-    PageLimit,
-    SelectElection,
-    theme,
-    WarnBox,
-} from "@sequentech/ui-essentials"
+import {Dialog, IconButton, PageLimit, SelectElection, theme} from "@sequentech/ui-essentials"
 import {
     isString,
     stringToHtml,
@@ -358,6 +351,7 @@ const ElectionSelectionScreen: React.FC = () => {
                         image_document_id: "",
                         contests: [],
                         description: election.description ?? undefined,
+                        alias: election.alias ?? undefined,
                     })
                 )
             }
@@ -431,11 +425,6 @@ const ElectionSelectionScreen: React.FC = () => {
 
     return (
         <PageLimit maxWidth="lg" className="election-selection-screen screen">
-            {!isElectionEventOpen(electionEvent) && (
-                <Box marginTop={"48px"}>
-                    <WarnBox variant="error">{"Election event is currently closed"}</WarnBox>
-                </Box>
-            )}
             <Box marginTop="48px">
                 <Stepper selected={0} />
             </Box>
@@ -478,9 +467,7 @@ const ElectionSelectionScreen: React.FC = () => {
                         </Dialog>
                     </StyledTitle>
                     {errorMsg || alertMsg ? (
-                        <WarnBox variant={errorMsg ? "error" : "warning"}>
-                            {errorMsg || alertMsg}
-                        </WarnBox>
+                        <Alert severity="warning">{errorMsg || alertMsg}</Alert>
                     ) : (
                         <Typography
                             variant="body1"

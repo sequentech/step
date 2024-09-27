@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Result;
-use board_messages::grpc::GrpcB3Message;
+use b3::grpc::GrpcB3Message;
 use log::{debug, error, warn};
 use rusqlite::{params, Connection};
 use std::collections::HashMap;
@@ -15,12 +15,12 @@ use std::time::Instant;
 use strand::context::Ctx;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 
-use board_messages::braid::artifact::*;
-use board_messages::braid::message::{Message, VerifiedMessage};
-use board_messages::braid::statement::{Statement, StatementType};
+use b3::messages::artifact::*;
+use b3::messages::message::{Message, VerifiedMessage};
+use b3::messages::statement::{Statement, StatementType};
 
 use crate::util::{ProtocolContext, ProtocolError};
-use board_messages::braid::newtypes::*;
+use b3::messages::newtypes::*;
 use strand::hash::Hash;
 
 ///////////////////////////////////////////////////////////////////////////
@@ -636,11 +636,11 @@ impl<C: Ctx> LocalBoard<C> {
 
         connection.execute("BEGIN TRANSACTION", [])?;
         for m in messages {
-            if m.version != board_messages::get_schema_version() {
+            if m.version != b3::get_schema_version() {
                 return Err(anyhow::anyhow!(
                     "Mismatched schema version: {} != {}",
                     m.version,
-                    board_messages::get_schema_version()
+                    b3::get_schema_version()
                 ));
             }
             let message = Message::strand_deserialize(&m.message)?;

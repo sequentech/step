@@ -6,65 +6,6 @@ import {TranslationType} from "./en"
 const frenchTranslation: TranslationType = {
     translations: {
         loadingDataProvider: "Chargement du fournisseur de données...",
-        breadcrumbSteps: {
-            electionList: "Liste des Élections",
-            ballot: "Bulletin",
-            review: "Révision",
-            confirmation: "Confirmation",
-            audit: "Auditer",
-        },
-        votingScreen: {
-            backButton: "Retour",
-            reviewButton: "Suivant",
-            ballotHelpDialog: {
-                title: "Information: Écran de vote",
-                content:
-                    "Cet écran montre le vote pour lequel vous êtes éligible. Vous pouvez sélectionner votre section en activant la case à droite Candidat/Réponse. Pour réinitialiser vos sélections, cliquez sur le bouton “<b>Effacer la sélection</b>”, pour passer à l'étape suivante, cliquez sur le bouton “<b>Suivant</b>”.",
-                ok: "OK",
-            },
-        },
-        startScreen: {
-            startButton: "Commencer à voter",
-            instructionsTitle: "Instructions",
-            instructionsDescription: "Vous suivrez ces étapes pour émettre votre vote:",
-            step1Title: "1. Sélectionnez votre option de vote",
-            step1Description:
-                "Sélectionnez vos options de vote qui sont présentées une par une. Vous configurerez ainsi les préférences de votre bulletin.",
-            step2Title: "2. Revoyez votre bulletin",
-            step2Description:
-                "Une fois vos préférences choisies, nous les chiffrerons et vous obtiendrez un localisateur. Nous vous montrerons le contenu de votre bulletin pour que vous puissiez le réviser.",
-            step3Title: "3. Envoyez votre vote",
-            step3Description:
-                "Vous pouvez envoyer votre vote à l'urne électronique pour qu'il soit dûment enregistré.",
-        },
-        reviewScreen: {
-            title: "Révisez votre bulletin",
-            description:
-                "Pour modifier vos sélections, cliquez sur le bouton “<b>Changer la sélection</b>”, pour confirmer vos sélections, cliquez sur le bouton “<b>Soumettre le Bulletin</b>” ci-dessous, et pour auditer votre bulletin cliquez sur le bouton “<b>Auditer le Bulletin</b>” ci-dessous. Veuillez noter qu'une fois que vous soumettez votre bulletin, vous avez voté et il ne vous sera pas délivré un autre bulletin pour cette élection.",
-            backButton: "Modifier le bulletin",
-            castBallotButton: "Soumettre votre bulletin",
-            auditButton: "Auditer le bulletin",
-            reviewScreenHelpDialog: {
-                title: "Information: Écran de révision",
-                content:
-                    "Cet écran vous permet de réviser vos sélections avant de soumettre votre vote.",
-                ok: "OK",
-            },
-            ballotIdHelpDialog: {
-                title: "Vote non émis",
-                content:
-                    "<p>Vous êtes sur le point de copier le Localisateur de Vote, mais <b>votre vote n'a pas encore été émis</b>. Si vous essayez de rechercher le Localisateur de Vote, vous ne le trouverez pas.</p><p>La raison pour laquelle nous affichons le Localisateur de Vote à ce moment est pour que vous puissiez auditer la correction du vote chiffré avant de l'émettre. Si c'est la raison pour laquelle vous souhaitez copier le Localisateur de Vote, procédez à la copie puis auditez votre vote.</p>",
-                ok: "J'accepte que mon vote N'a PAS été émis",
-                cancel: "Annuler",
-            },
-            auditBallotHelpDialog: {
-                title: "Voulez-vous vraiment Auditer votre bulletin?",
-                content:
-                    "<p>L'audit du bulletin l'invalidera et vous devrez recommencer le processus de vote si vous souhaitez émettre votre vote. Le processus d'audit du bulletin permet de vérifier qu'il est correctement codé. Faire ce processus nécessite des connaissances techniques importantes, donc il n'est pas recommandé si vous ne savez pas ce que vous faites.</p><p><b>Si vous souhaitez émettre votre vote, cliquez sur <u>Annuler</u> pour revenir à l'écran de révision du vote.</b></p>",
-                ok: "Oui, je veux INVALIDER mon bulletin pour l'AUDITER",
-                cancel: "Annuler",
-            },
-        },
         logsScreen: {
             noPermissions: "Vous n'avez pas la permission d'accéder aux journaux.",
             title: "Journaux",
@@ -80,66 +21,41 @@ const frenchTranslation: TranslationType = {
                 title: "Journal de la Base de Données IAM",
             },
         },
-        confirmationScreen: {
-            title: "Votre vote a été émis",
-            description:
-                "Le code de confirmation qui apparaît ci-dessous vérifie que <b>votre vote a été correctement émis</b>. Vous pouvez utiliser ce code pour vérifier que votre vote a été comptabilisé.",
-            ballotId: "Localisateur de Vote",
-            printButton: "Imprimer",
-            finishButton: "Terminer",
-            verifyCastTitle: "Vérifiez que votre vote a été émis",
-            verifyCastDescription:
-                "Vous pouvez vérifier à tout moment que votre bulletin a été correctement émis en utilisant le code QR suivant:",
-            confirmationHelpDialog: {
-                title: "Information: Écran de confirmation",
-                content:
-                    "Cet écran montre que votre vote a été correctement émis. Les informations fournies sur cette page vous permettent de vérifier que le bulletin a été stocké dans l'urne, ce processus peut être exécuté à tout moment pendant la période de votation et après que l'élection a été clôturée.",
-                ok: "OK",
+        tasksScreen: {
+            noPermissions: "Vous n'avez pas la permission d'accéder aux journaux.",
+            title: "Exécution des tâches",
+            subtitle: "Informations sur les tâches exécutées et les journaux de progression",
+            taskInformation: "Informations sur la tâche",
+            status: "statut : {{status}}",
+            ok: "D'accord",
+            column: {
+                id: "Index",
+                name: "Nom de la tâche",
+                type: "Type",
+                execution_status: "Statut",
+                start_at: "Heure de début",
+                end_at: "Heure de fin",
+                executed_by_user: "Exécutant",
+                annotations: "Annotations",
+                labels: "Étiquettes",
+                logs: "Journaux",
             },
-            ballotIdHelpDialog: {
-                title: "Information: Localisateur de Vote",
-                content:
-                    "Le Localisateur de Vote de bulletin est un code qui vous permet de trouver votre bulletin dans l'urne, ce Localisateur est unique et ne contient pas d'informations sur vos sélections.",
-                ok: "OK",
+            tasksExecution: {
+                EXPORT_ELECTION_EVENT: "Exporter l'événement électoral",
+                IMPORT_ELECTION_EVENT: "Importer l'événement électoral",
+                IMPORT_USERS: "Importer des utilisateurs",
+                IMPORT_CANDIDATES: "Importer des candidats",
+                EXPORT_VOTERS: "Exporter les électeurs",
+                CREATE_TRANSMISSION_PACKAGE: "Créer un paquet de transmission",
             },
-        },
-        auditScreen: {
-            printButton: "Imprimer",
-            restartButton: "Démarrer le vote",
-            title: "Auditez votre Bulletin",
-            description: "Pour vérifier votre bulletin, vous devrez suivre les étapes suivantes:",
-            step1Title: "1. Téléchargez ou copiez les informations suivantes",
-            step1Description:
-                "Votre <b>Localisateur de Vote</b> qui apparaît en haut de l'écran et votre bulletin chiffré ci-dessous:",
-            step1HelpDialog: {
-                title: "Copier le Vote Chiffré",
-                content:
-                    "Vous pouvez télécharger ou copier votre Vote Chiffré pour l'auditer et vérifier que le contenu chiffré contient vos sélections.",
-                ok: "OK",
+            widget: {
+                taskTitle: "Tâche: {{title}}",
+                viewTask: "Voir Tâche",
             },
-            downloadButton: "Télécharger",
-            step2Title: "2. Suivez les étapes de ce tutoriel",
-            step2Description:
-                '(<a href="https://github.com/sequentech/new-ballot-verifier/blob/main/README.md">cliquez ici</a>, cela ouvrira un nouvel onglet dans votre navigateur)',
-            step2HelpDialog: {
-                title: "Tutoriel sur l'Audit du Vote",
-                content:
-                    "Pour auditer votre vote, vous devrez suivre les étapes indiquées dans le tutoriel, qui incluent le téléchargement d'une application de bureau utilisée pour vérifier le vote chiffré indépendamment du site web.",
-                ok: "OK",
+            exportTasksExecution: {
+                success: "L'exportation s'est terminée avec succès",
+                error: "Erreur lors de l'exportation de l'exécution des tâches",
             },
-            bottomWarning:
-                "Pour des raisons de sécurité, lorsque vous auditez votre bulletin, vous devrez l'invalider. Pour continuer avec le processus de vote, cliquez sur ‘<b>Démarrer le vote/b>’.",
-        },
-        electionSelectionScreen: {
-            title: "Liste des Élections",
-            description: "Sélectionnez l'élection dans laquelle vous souhaitez voter",
-            chooserHelpDialog: {
-                title: "Information: Liste des Élections",
-                content:
-                    'Bienvenue dans le bureau de vote, cet écran affiche la liste des élections dans lesquelles vous pouvez émettre votre vote. Les élections qui apparaissent dans cette liste peuvent être ouvertes à la votation, programmées ou fermées. Vous ne pourrez accéder à la votation que si la période de votation est ouverte. Dans le cas où une élection est fermée et que son administrateur électoral a publié le résultat, vous verrez un bouton "Résultat électoral" qui vous mènera à la page publique des résultats.',
-                ok: "OK",
-            },
-            closedEventError: "L'événement électoral est actuellement fermé",
         },
         areas: {
             common: {
@@ -169,6 +85,8 @@ const frenchTranslation: TranslationType = {
                 createNew: "Créer un Type d'Élection",
                 emptyHeader: "Aucun Type d'Élection pour l'instant.",
                 emptyBody: "Voulez-vous en créer un ?",
+                logoUrl: "URL du Logo",
+                css: "CSS personnalisé",
             },
             create: {
                 title: "Créer un Type d'Élection",
@@ -181,6 +99,7 @@ const frenchTranslation: TranslationType = {
                 electionTypes: "TYPES D'ÉLECTION",
                 communications: "COMMUNICATION",
                 languages: "LANGUES",
+                lookAndFeel: "PERSONNALISATION DE L'APPARENCE",
                 schedules: "ÉVÉNEMENTS PROGRAMMÉS",
                 trustees: "AUTORITÉS",
             },
@@ -236,6 +155,7 @@ const frenchTranslation: TranslationType = {
             edit: {
                 general: "Général",
                 dates: "Dates",
+                customUrls: "Préfixer les URL personnalisées",
                 votingPeriod: "Période de vote",
                 language: "Langues",
                 allowed: "Canaux de Vote Permis",
@@ -244,6 +164,10 @@ const frenchTranslation: TranslationType = {
                 reorder: "Réorganiser les élections",
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importer des Candidats",
+            },
+            customUrls: {
+                login: "Connexion",
+                enrollment: "Inscription",
             },
             localization: {
                 emptyHeader: "Aucune langue n'a été définie pour l'événement",
@@ -272,7 +196,6 @@ const frenchTranslation: TranslationType = {
                 materialActivated: "Matériaux de Support activés",
                 materialTitle: "Titre",
                 materialSubTitle: "Sous-titre",
-                hideAudit: "Désactiver le Support d'Audit du Bulletin",
                 logoUrl: "URL du Logo",
                 redirectFinishUrl: "URL de redirection à la fin",
                 css: "CSS personnalisé",
@@ -345,6 +268,7 @@ const frenchTranslation: TranslationType = {
                 tally: "Comptage",
                 publish: "Publier",
                 logs: "Journaux",
+                tasks: "Tâches",
             },
             tally: {
                 emptyHeader: "Aucun Comptage pour l'instant.",
@@ -367,7 +291,9 @@ const frenchTranslation: TranslationType = {
                 },
                 notify: {
                     noKeysTally:
-                        "La Cérémonie de Comptage ne peut pas commencer tant que la Cérémonie de Fideicomisario n'a pas été réalisée avec succès.",
+                        "La Cérémonie de Comptage ne peut pas commencer tant que la Cérémonie de Fideicomisarios n'a pas été réalisée avec succès.",
+                    noPublication:
+                        "La Cérémonie de Dépouillement ne peut pas commencer tant que vous n'avez pas créé une publication dans l'onglet Publier.",
                     participateNow:
                         "Vous avez été invité à participer à une Cérémonie de Comptage. Veuillez <1>cliquer ci-dessous sur l'action de clé de la cérémonie</1> pour participer.",
                 },
@@ -410,6 +336,8 @@ const frenchTranslation: TranslationType = {
                 },
             },
             exportError: "Erreur lors de l'exportation de l'événement électoral",
+            taskNotification:
+                "{{action}} a commencé. Vous pouvez voir son statut dans le tableau d'Exécution des Tâches.",
         },
         electionScreen: {
             common: {
@@ -431,6 +359,7 @@ const frenchTranslation: TranslationType = {
                 numAllowedVotes: "Nombre de votes permis",
                 reorder: "Réorganiser les concours",
                 castVoteConfirm: "Modal de Confirmation de Vote",
+                gracePeriodPolicy: "Politique de période de grâce",
             },
             field: {
                 name: "Nom",
@@ -459,16 +388,22 @@ const frenchTranslation: TranslationType = {
                 publish: "Publier",
                 logs: "Journaux",
             },
+            gracePeriodPolicy: {
+                "label": "Politique de période de grâce",
+                "no-grace-period": "Pas de période de grâce",
+                "grace-period-without-alert": "Période de grâce sans alerte",
+                "gracePeriodSecs": "Période de grâce en secondes",
+            },
         },
         tenantScreen: {
             common: {
-                title: "Client",
+                title: "Locataires",
             },
             new: {
-                subtitle: "Créer Client",
+                subtitle: "Créer un nouveau locataire",
             },
-            createSuccess: "Client créé",
-            createError: "Erreur lors de la création du client",
+            createSuccess: "Locataire créé",
+            createError: "Erreur lors de la création du locataire",
         },
         usersAndRolesScreen: {
             noPermissions: "Vous n'avez pas la permission d'accéder aux utilisateurs ou rôles.",
@@ -476,6 +411,12 @@ const frenchTranslation: TranslationType = {
                 title: "Utilisateurs et Rôles",
                 subtitle: "Configuration générale",
                 mobileNumber: "Mobile",
+            },
+            editPassword: {
+                label: "Changer le mot de passe",
+                temporatyLabel: "Temporaire",
+                temporatyInfo:
+                    "Si activé, l'utilisateur devra changer le mot de passe lors de la prochaine connexion.",
             },
             users: {
                 title: "Utilisateurs",
@@ -510,6 +451,7 @@ const frenchTranslation: TranslationType = {
                     passwordDigitValidate: "Le mot de passe doit contenir au moins un chiffre",
                     passwordSpecialCharValidate:
                         "Le mot de passe doit contenir au moins un caractère spécial",
+                    trustee: "Agir en tant que fiduciaire",
                 },
                 delete: {
                     body: "Êtes-vous sûr de vouloir supprimer cet utilisateur ?",
@@ -519,11 +461,15 @@ const frenchTranslation: TranslationType = {
                     exportError: "Erreur lors de l'exportation des utilisateurs",
                     deleteError: "Erreur lors de la suppression de l'utilisateur",
                     deleteSuccess: "Utilisateur supprimé",
+                    multipleDeleteSuccess: "Utilisateurs supprimés",
                 },
             },
             voters: {
                 title: "Électeurs",
                 subtitle: "Voir et éditer les données de l'électeur",
+                logs: {
+                    label: "Journaux de l'utilisateur",
+                },
                 emptyHeader: "Aucun électeur pour l'instant.",
                 askCreate: "Voulez-vous en créer un ?",
                 create: {
@@ -531,6 +477,7 @@ const frenchTranslation: TranslationType = {
                     subtitle: "Créer électeur",
                 },
                 manualVerification: {
+                    label: "Vérifier manuellement",
                     verify: "Vérifier manuellement l'électeur",
                     body: "Vérifiez manuellement cet électeur. Vous obtiendrez un PDF avec un lien de code QR qui permettra à l'électeur de se connecter en omettant le KYC en ligne.",
                 },
@@ -548,6 +495,7 @@ const frenchTranslation: TranslationType = {
                     exportError: "Erreur lors de l'exportation des électeurs",
                     deleteError: "Erreur lors de la suppression de l'électeur",
                     deleteSuccess: "Électeur supprimé",
+                    multipleDeleteSuccess: "Électeurs supprimés",
                     manualVerificationError:
                         "Erreur lors de la vérification manuelle de l'électeur",
                     manualVerificationSuccess:
@@ -590,6 +538,7 @@ const frenchTranslation: TranslationType = {
                 "election-event-create": "Créer Événement Électoral",
                 "election-event-read": "Lire Événement Électoral",
                 "election-event-write": "Éditer Événement Électoral",
+                "election-event-delete": "Supprimer Événement Électoral",
                 "voter-create": "Créer Électeur",
                 "voter-read": "Lire Électeur",
                 "voter-write": "Éditer Électeur",
@@ -627,6 +576,7 @@ const frenchTranslation: TranslationType = {
                 "publish-read": "Lire Publication",
                 "publish-write": "Éditer Publication",
                 "logs-read": "Lire Journaux",
+                "tasks-read": "Lire l'Exécution des Tâches",
                 "keys-read": "Lire Clés",
                 "document-upload": "Télécharger Documents",
                 "document-download": "Télécharger Documents",
@@ -641,6 +591,10 @@ const frenchTranslation: TranslationType = {
                 "document-write": "Éditer Documents",
                 "support-material-read": "Lire Matériaux de Support",
                 "support-material-write": "Éditer Matériaux de Support",
+                "miru-create": "Miru Create",
+                "miru-download": "Miru Download",
+                "miru-send": "Miru Send",
+                "miru-sign": "Miru Sign",
             },
         },
         generalSettingsScreen: {
@@ -688,6 +642,7 @@ const frenchTranslation: TranslationType = {
                 en: "Anglais",
                 fr: "Français",
                 cat: "Valencien",
+                tl: "Tagalog",
             },
             channel: {
                 online: "En ligne",
@@ -813,7 +768,21 @@ const frenchTranslation: TranslationType = {
                 "custom": "Personnalisé",
                 "alphabetical": "Alphabétique",
             },
+            auditButtonConfig: {
+                "label": "Options d'affichage du bouton d'audit",
+                "show": "Afficher",
+                "not-show": "Ne pas afficher",
+                "show-in-help": "Afficher dans la boîte de dialogue d'aide",
+            },
+            underVotePolicy: {
+                "label": "Politique de Sous-Vote",
+                "allowed": "Autorisé",
+                "warn-only-in-review": "Avertir en Révision",
+                "warn": "Avertir",
+                "warn-and-alert": "Avertir et Alerter",
+            },
             invalidVotePolicy: {
+                "label": "Politique de vote invalide",
                 "allowed": "Permis",
                 "warn": "Avertissement",
                 "warn-invalid-implicit-and-explicit": "Avertir Inválidos Implicites et Explicites",
@@ -828,8 +797,20 @@ const frenchTranslation: TranslationType = {
             blankVotePolicy: {
                 "label": "Politique de vote blanc",
                 "allowed": "Autorisé",
+                "warn-only-in-review": "Avertir en Révision",
                 "warn": "Avertir",
                 "not-allowed": "Non autorisé",
+            },
+            overVotePolicy: {
+                "label": "Politique de vote excessive",
+                "allowed": "Autorisé",
+                "allowed-with-msg": "Autorisé avec un message d'avertissement",
+                "allowed-with-msg-and-alert":
+                    "Autorisé avec un message d'avertissement et d'alerte",
+                "not-allowed-with-msg-and-alert":
+                    "Non autorisé avec un message d'avertissement et d'alerte",
+                "not-allowed-with-msg-and-disable":
+                    "Non autorisé avec un message d'avertissement et désactiver d'autres sélections",
             },
             paginationPolicy: {
                 label: "Nom de la page",
@@ -925,7 +906,98 @@ const frenchTranslation: TranslationType = {
                 downloaded: "Clé Privée Cryptée générée avec succès.",
             },
         },
+        miruExport: {
+            create: {
+                success: "",
+                error: "",
+            },
+            send: {
+                success: "",
+                error: "",
+            },
+        },
         tally: {
+            errorUploadingSignature:
+                "Une erreur s'est produite lors du téléchargement de la signature",
+            downloadTransmissionPackage: "Télécharger le paquet",
+            transmissionPackage: {
+                title: "Paquet de Transmission pour la Zone '{{name}}' y Elección '{{eventName}}'",
+                description:
+                    "Vous permet d'exporter un Paquet de Transmission vers des Serveurs de Destination ou de le télécharger.",
+                actions: {
+                    sign: {
+                        title: "Régénérer",
+                        dialog: {
+                            title: "Voulez-vous signer le paquet de transmission ?",
+                            description:
+                                "Veuillez confirmer que vous souhaitez régénérer le paquet de transmission pour la zone `{{name}}`",
+                            confirm: "Signer le paquet de transmission",
+                            cancel: "Fermer",
+                            input: {
+                                placeholder: "Entrez votre mot de passe",
+                            },
+                        },
+                    },
+                    send: {
+                        title: "Envoyer",
+                        dialog: {
+                            title: "Voulez-vous envoyer le Paquet de Transmission?",
+                            description:
+                                "Veuillez confirmer que vous souhaitez envoyer le Paquet de Transmission pour la Zone '{{name}}' aux Serveurs de Destination.",
+                            confirm: "Envoyer le Paquet de Transmission",
+                            cancel: "Fermer",
+                        },
+                    },
+                    regenerate: {
+                        title: "Régénérer",
+                        dialog: {
+                            title: "Voulez-vous régénérer le paquet de transmission?",
+                            description:
+                                "Veuillez confirmer que vous souhaitez régénérer le paquet de transmission pour la zone `{{name}}`",
+                            confirm: "Régénérer le paquet de transmission",
+                            cancel: "Fermer",
+                        },
+                    },
+                    download: {
+                        title: "Télécharger",
+                        emlTitle: "Download EML",
+                        transmissionPackageTitle: "Télécharger le Paquet de Transmission",
+                        dialog: {
+                            title: "Voulez-vous télécharger le Paquet de Transmission?",
+                            description:
+                                "Veuillez confirmer que vous souhaitez télécharger le Paquet de Transmission pour la Zone '{{name}}.'",
+                            confirm: "Télécharger le Paquet de Transmission",
+                            cancel: "Fermer",
+                        },
+                    },
+                },
+                destinationServers: {
+                    title: "Serveurs de Destination",
+                    description:
+                        "Le tableau ci-dessous montre l'état d'envoi de chacun des Serveurs de Destination.",
+                    status: "Envoyé à {{signed}} sur {{total}}",
+                    table: {
+                        serverName: "Nom du Serveur",
+                        sendStatus: "État de l'Envoi",
+                    },
+                },
+                signatures: {
+                    title: "Signatures SBEI",
+                    description:
+                        "Les SBEI peuvent signer le Paquet de Transmission. Le tableau ci-dessous montre l'état de signature de chacun des membres du SBEI.",
+                    table: {
+                        trusteeName: "Nom du Fiduciaire",
+                        signed: "A Signé",
+                    },
+                    status: "{{signed}} sur {{total}} Ont Signé",
+                },
+            },
+            sendToTransmissionPackageServers:
+                "Envoyer le paquet de transmission pour la zone '{{name}}'",
+            uploadTransmissionPackage: "Télécharger",
+            uploadTransmissionPackageDesc:
+                "Téléchargez votre signature pour signer le paquet des Résultats Électoraux. Cette opération est optionnelle.",
+            exportElectionArea: "Envoyer le paquet de transmission pour la zone '{{name}}'",
             templateTitle: "Modèle de Résultats",
             templateSubTitle: "Éventuellement écraser le modèle de résultats.",
             ceremonyTitle: "Élections pour le Comptage",
@@ -1145,6 +1217,12 @@ const frenchTranslation: TranslationType = {
                 census: "Recensement",
             },
             common: {
+                tallyCeremony: {
+                    manage: "Gérer la Cérémonie de Décompte",
+                    view: "Voir la Cérémonie de Décompte",
+                    cancel: "Annuler la Cérémonie de Décompte",
+                    addKey: "Ajouter une Clé de Décompte",
+                },
                 edit: "Éditer",
                 confirm: "Confirmer",
                 back: "Arrière",
@@ -1244,6 +1322,9 @@ const frenchTranslation: TranslationType = {
                 isHidden: "Caché",
                 publicUrl: "Lien public",
             },
+        },
+        widget: {
+            logs: "Journaux",
         },
     },
 }

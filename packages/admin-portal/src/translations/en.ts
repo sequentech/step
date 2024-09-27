@@ -1,68 +1,10 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
 const englishTranslation = {
     translations: {
         loadingDataProvider: "Loading data provider...",
-        breadcrumbSteps: {
-            electionList: "Election List",
-            ballot: "Ballot",
-            review: "Review",
-            confirmation: "Confirmation",
-            audit: "Audit",
-        },
-        votingScreen: {
-            backButton: "Back",
-            reviewButton: "Next",
-            ballotHelpDialog: {
-                title: "Information: Ballot screen",
-                content:
-                    "This screen shows the contest you are eligible to vote. You can make your section by activate the checkbox on the Candidate/Answer right. To reset your selections, click “<b>Clear selection</b>” button, to move to next step, click “<b>Next</b>” button bellow.",
-                ok: "OK",
-            },
-        },
-        startScreen: {
-            startButton: "Start Voting",
-            instructionsTitle: "Instructions",
-            instructionsDescription: "You need to follow these steps to cast your ballot:",
-            step1Title: "1. Select your options",
-            step1Description:
-                "Answer to the election questions one by one as they are shown. This way you will configure your preferences in your ballot.",
-            step2Title: "2. Review your ballot",
-            step2Description:
-                "Once you have chosen your preferences, we will proceed to encrypt them and you'll be shown the ballot's tracker id. You'll also be shown a summary with the content of your ballot for review.",
-            step3Title: "3. Cast your ballot",
-            step3Description:
-                "You can cast it so that it's properly registered. Alternatively, you can audit that your ballot was correctly encrypted.",
-        },
-        reviewScreen: {
-            title: "Review your ballot",
-            description:
-                "To make changes in your selections, click “<b>Change selection</b>” button, to confirm your selections, click “<b>Submit Ballot</b>” button bellow, and to audit your ballot click the “<b>Audit the Ballot</b>” button bellow. Please note than once you submit your ballot, you have voted and you will not be issued another ballot for this election.",
-            backButton: "Edit ballot",
-            castBallotButton: "Cast your ballot",
-            auditButton: "Audit ballot",
-            reviewScreenHelpDialog: {
-                title: "Information: Review Screen",
-                content:
-                    "This screen allows you to review your selections before casting your ballot.",
-                ok: "OK",
-            },
-            ballotIdHelpDialog: {
-                title: "Vote has not been cast",
-                content:
-                    "<p>This is your Ballot Tracker ID, but <b>your vote has not been cast yet</b>. If you try to track the ballot, you will not find it.</p><p>The reason we show the Ballot Tracker ID at this stage is to allow you to audit the correctness of the encrypted ballot before casting it.</p>",
-                ok: "I accept my vote has NOT been cast",
-                cancel: "Cancel",
-            },
-            auditBallotHelpDialog: {
-                title: "Do you want to audit the ballot?",
-                content:
-                    "<p>Auditing the ballot will spoil it and you will need to start the process of voting again if you want to cast your vote. The ballot audit process allows you to verify it's correctly encoded. Doing this process requires you to have important technical knowledge, so we do not recommend it if you do not know what you are doing.</p><p><b>If you just want to cast your ballot, click <u>Cancel</u> to go back to the review ballot screen.</b></p>",
-                ok: "Yes, I want to DISCARD my ballot to audit it",
-                cancel: "Cancel",
-            },
-        },
         logsScreen: {
             noPermissions: "You don't have permission to access logs.",
             title: "Logs",
@@ -78,66 +20,41 @@ const englishTranslation = {
                 title: "IAM Database Logs",
             },
         },
-        confirmationScreen: {
-            title: "Your vote has been cast",
-            description:
-                "The confirmation code bellow verifies that <b>your ballot has been cast successfully</b>. You can use this code to verify that your ballot has been counted.",
-            ballotId: "Ballot ID",
-            printButton: "Print",
-            finishButton: "Finish",
-            verifyCastTitle: "Verify that your ballot has been cast",
-            verifyCastDescription:
-                "You can verify your ballot has been cast correctly at any moment using the following QR code:",
-            confirmationHelpDialog: {
-                title: "Information: Confirmation Screen",
-                content:
-                    "This screen shows that your vote was successfully cast. The information provided on this page allows you to verify that the ballot has been stored in ballot box , this process can be executed at any time during voting period and after the election has been closed.",
-                ok: "OK",
+        tasksScreen: {
+            noPermissions: "You don't have permission to access logs.",
+            title: "Tasks Execution",
+            subtitle: "Information about the executed tasks",
+            taskInformation: "Task Information",
+            status: "status: {{status}}",
+            ok: "Ok",
+            column: {
+                id: "Index",
+                name: "Task name",
+                type: "Type",
+                execution_status: "Status",
+                start_at: "Start time",
+                end_at: "End time",
+                executed_by_user: "Executer",
+                annotations: "Annotations",
+                labels: "Labels",
+                logs: "Logs",
             },
-            ballotIdHelpDialog: {
-                title: "Information: Ballot ID",
-                content:
-                    "The Ballot ID is a code that allows you to find your ballot in the ballot box, this ID is unique and doesn't contain information about your selections.",
-                ok: "OK",
+            tasksExecution: {
+                EXPORT_ELECTION_EVENT: "Export Election Event",
+                IMPORT_ELECTION_EVENT: "Import Election Event",
+                IMPORT_USERS: "Import Users",
+                IMPORT_CANDIDATES: "Import Candidates",
+                EXPORT_VOTERS: "Export Voters",
+                CREATE_TRANSMISSION_PACKAGE: "Create Transmission Package",
             },
-        },
-        auditScreen: {
-            printButton: "Print",
-            restartButton: "Start Voting",
-            title: "Audit your Ballot",
-            description: "To verify your ballot you will need. to follow the bellow steps:",
-            step1Title: "1. Download or copy the following information",
-            step1Description:
-                "Your <b>Ballot ID</b> that appears at the top of the screen and your encrypted ballot below:",
-            step1HelpDialog: {
-                title: "Copy the Encrypted Ballot",
-                content:
-                    "You can download or copy your encrypted ballot to audit the ballot and verify the encrypted content contains your selections.",
-                ok: "OK",
+            widget: {
+                taskTitle: "Task: {{title}}",
+                viewTask: "View Task",
             },
-            downloadButton: "Download",
-            step2Title: "2. Follow the steps on this tutorial",
-            step2Description:
-                '(<a href="https://github.com/sequentech/new-ballot-verifier/blob/main/README.md">click here</a>, a new tab will open in your browser)',
-            step2HelpDialog: {
-                title: "Audit ballot tutorial",
-                content:
-                    "To audit your ballot you will need to follow the steps shown in the tutorial, this includes the download of a desktop application used to verify the encrypted ballot independently from the website.",
-                ok: "OK",
+            exportTasksExecution: {
+                success: "Export finished successfully",
+                error: "Error exporting Tasks Execution",
             },
-            bottomWarning:
-                "For security reason, when you audit your ballot, it need to be spoiled. To continue with the voting process, you need to click ‘<b>Start Voting</b>’ bellow.",
-        },
-        electionSelectionScreen: {
-            title: "Election list",
-            description: "Select the election you want to vote",
-            chooserHelpDialog: {
-                title: "Information: Election List",
-                content:
-                    'Welcome to the Voting Booth, this screen shows the list of elections you can cast a ballot. Elections displayed in this list can be open to voting, scheduled, or closed. You will be able to access the ballot only if the voting period is open. In the case an election is closed and your election administrator has published the result you will see an "Election Result" button that will take you to the public result page.',
-                ok: "OK",
-            },
-            closedEventError: "Election event is currently closed",
         },
         areas: {
             common: {
@@ -167,6 +84,8 @@ const englishTranslation = {
                 createNew: "Create Election Type",
                 emptyHeader: "No Election Types yet.",
                 emptyBody: "Do you want to create one?",
+                logoUrl: "Logo URL",
+                css: "Custom CSS",
             },
             create: {
                 title: "Create Election Type",
@@ -179,6 +98,7 @@ const englishTranslation = {
                 electionTypes: "ELECTION TYPES",
                 communications: "COMMUNICATION",
                 languages: "LANGUAGES",
+                lookAndFeel: "Look & Feel",
                 schedules: "SCHEDULED EVENTS",
                 trustees: "TRUSTEES",
             },
@@ -234,6 +154,7 @@ const englishTranslation = {
             edit: {
                 general: "General",
                 dates: "Dates",
+                customUrls: "Custom URLs Prefix",
                 votingPeriod: "Voting Period",
                 language: "Language",
                 allowed: "Voting Channels Allowed",
@@ -242,6 +163,10 @@ const englishTranslation = {
                 reorder: "Reorder elections",
                 advancedConfigurations: "Advanced Configurations",
                 importCandidates: "Import Candidates",
+            },
+            customUrls: {
+                login: "Login",
+                enrollment: "Enrollment",
             },
             localization: {
                 emptyHeader: "No languages were set for the event",
@@ -270,7 +195,6 @@ const englishTranslation = {
                 materialActivated: "Support Materials Activated",
                 materialTitle: "Title",
                 materialSubTitle: "Subtitle",
-                hideAudit: "Disable Ballot Audit Support",
                 logoUrl: "Logo URL",
                 redirectFinishUrl: "Redirect Finish URL",
                 css: "Custom CSS",
@@ -341,6 +265,7 @@ const englishTranslation = {
                 tally: "Tally",
                 publish: "Publish",
                 logs: "Logs",
+                tasks: "Tasks",
             },
             tally: {
                 emptyHeader: "No Tally yet.",
@@ -363,7 +288,9 @@ const englishTranslation = {
                 },
                 notify: {
                     noKeysTally:
-                        "The Tally Ceremony cannot start until the Key Ceremony has been successfully completed.",
+                        "The Tally Ceremony cannot start until the Keys Ceremony has been successfully completed.",
+                    noPublication:
+                        "The Tally Ceremony cannot start until you create one publication in the Publish tab.",
                     participateNow:
                         "You have been invited to participate in a Tally ceremony. Please <1>click on the ceremony's Key Action</1> to participate.",
                 },
@@ -404,6 +331,8 @@ const englishTranslation = {
                 },
             },
             exportError: "Error exporting Election Event",
+            taskNotification:
+                "{{action}} has started. You can see its status at Tasks Execution table.",
         },
         electionScreen: {
             common: {
@@ -425,6 +354,7 @@ const englishTranslation = {
                 numAllowedVotes: "Number of allowed votes",
                 reorder: "Reorder contests",
                 castVoteConfirm: "Cast Vote Confirmation Modal",
+                gracePeriodPolicy: "Grace Period",
             },
             field: {
                 name: "Name",
@@ -453,16 +383,22 @@ const englishTranslation = {
                 publish: "Publish",
                 logs: "Logs",
             },
+            gracePeriodPolicy: {
+                "label": "Grace Period Policy",
+                "no-grace-period": "No grace period",
+                "grace-period-without-alert": "Grace period without alert",
+                "gracePeriodSecs": "Grace period in seconds",
+            },
         },
         tenantScreen: {
             common: {
-                title: "Client",
+                title: "Tenants",
             },
             new: {
-                subtitle: "Create Client",
+                subtitle: "Create new tenant",
             },
-            createSuccess: "Customer created",
-            createError: "Error creating customer",
+            createSuccess: "Tenant created",
+            createError: "Error creating tenant",
         },
         usersAndRolesScreen: {
             noPermissions: "You don't have permission to access users or roles.",
@@ -470,6 +406,11 @@ const englishTranslation = {
                 title: "Users and Roles",
                 subtitle: "General configuration",
                 mobileNumber: "Mobile",
+            },
+            editPassword: {
+                label: "Change password",
+                temporatyLabel: "Temporary",
+                temporatyInfo: "If enabled, the user must change the password on next login",
             },
             users: {
                 title: "Users",
@@ -504,6 +445,7 @@ const englishTranslation = {
                     passwordDigitValidate: "Password must contain at least one digit",
                     passwordSpecialCharValidate:
                         "Password must contain at least one special character",
+                    trustee: "Act as Trustee",
                 },
                 delete: {
                     body: "Are you sure you want to delete this user?",
@@ -513,16 +455,21 @@ const englishTranslation = {
                     exportError: "Error exporting users",
                     deleteError: "Error deleting user",
                     deleteSuccess: "User deleted",
+                    multipleDeleteSuccess: "Users deleted",
                 },
             },
             voters: {
                 title: "Voters",
                 subtitle: "View and edit voter data",
+                logs: {
+                    label: "User's Logs",
+                },
                 create: {
                     title: "Voter",
                     subtitle: "Create Voter",
                 },
                 manualVerification: {
+                    label: "Manually Verify",
                     verify: "Manually Verify this voter",
                     body: "Manually Verify this voter. You will obtain a PDF with a QR Code link that allows the voter to login skipping online KYC.",
                 },
@@ -542,6 +489,7 @@ const englishTranslation = {
                     exportError: "Error exporting voters",
                     deleteError: "Error deleting voter",
                     deleteSuccess: "Voter deleted",
+                    multipleDeleteSuccess: "Voters deleted",
                     manualVerificationError: "Error manually verifying the voter",
                     manualVerificationSuccess:
                         "Sucessfully verified manually the voter, downloading PDF..",
@@ -583,6 +531,7 @@ const englishTranslation = {
                 "election-event-create": "Create Election Event",
                 "election-event-read": "Read Election Event",
                 "election-event-write": "Edit Election Event",
+                "election-event-delete": "Delete Election Event",
                 "voter-create": "Create Voter",
                 "voter-read": "Read Voter",
                 "voter-write": "Edit Voter",
@@ -620,6 +569,7 @@ const englishTranslation = {
                 "publish-read": "Read Publish",
                 "publish-write": "Edit Publish",
                 "logs-read": "Read Logs",
+                "tasks-read": "Read Tasks Execution",
                 "keys-read": "Read Keys",
                 "document-upload": "Upload Documents",
                 "document-download": "Download Documents",
@@ -634,6 +584,10 @@ const englishTranslation = {
                 "document-write": "Edit Documents",
                 "support-material-read": "Read Support Materials",
                 "support-material-write": "Edit Support Materials",
+                "miru-create": "Miru Create",
+                "miru-download": "Miru Download",
+                "miru-send": "Miru Send",
+                "miru-sign": "Miru Sign",
             },
         },
         generalSettingsScreen: {
@@ -681,6 +635,7 @@ const englishTranslation = {
                 en: "English",
                 fr: "French",
                 cat: "Valencian",
+                tl: "Tagalog",
             },
             channel: {
                 online: "Online",
@@ -806,7 +761,21 @@ const englishTranslation = {
                 "custom": "Custom",
                 "alphabetical": "Alphabetical",
             },
+            auditButtonConfig: {
+                "label": "Audit Button Display Options",
+                "show": "Show",
+                "not-show": "Not Show",
+                "show-in-help": "Show In Help Dialog",
+            },
+            underVotePolicy: {
+                "label": "Under Vote Policy",
+                "allowed": "Allowed",
+                "warn-only-in-review": "Warn in Review",
+                "warn": "Warn",
+                "warn-and-alert": "Warn and Alert",
+            },
             invalidVotePolicy: {
+                "label": "Invalid Vote Policy",
                 "allowed": "Allowed",
                 "warn": "Warn",
                 "warn-invalid-implicit-and-explicit": "Warn Invalid Implicit And Explicit",
@@ -821,8 +790,18 @@ const englishTranslation = {
             blankVotePolicy: {
                 "label": "Blank Vote Policy",
                 "allowed": "Allowed",
+                "warn-only-in-review": "Warn in Review",
                 "warn": "Warn",
                 "not-allowed": "Not Allowed",
+            },
+            overVotePolicy: {
+                "label": "Over Vote Policy",
+                "allowed": "Allowed",
+                "allowed-with-msg": "Allowed with Warning Message",
+                "allowed-with-msg-and-alert": "Allowed with Warning message and Alert",
+                "not-allowed-with-msg-and-alert": "Not Allowed with Warning message and Alert",
+                "not-allowed-with-msg-and-disable":
+                    "Not Allowed with Warning message and Disable further selections",
             },
             paginationPolicy: {
                 label: "Page Name",
@@ -916,7 +895,96 @@ const englishTranslation = {
                 downloaded: "Encrypted Private Key generated successfully.",
             },
         },
+        miruExport: {
+            create: {
+                success: "Creating Transmission Package...",
+                error: "Error creating Transmission Package ",
+            },
+            send: {
+                success: "Sending Transmission Package...",
+                error: "Error sending Transmission Package ",
+            },
+        },
         tally: {
+            errorUploadingSignature: "There was an error uploading signature",
+            downloadTransmissionPackage: "Download Transmission Package",
+            transmissionPackage: {
+                title: "Transmission Package for Area '{{name}}' and Election '{{eventName}}'",
+                description:
+                    "Allows you to export a Transmission Package to Destination Servers or download it.",
+                actions: {
+                    send: {
+                        title: "Send",
+                        dialog: {
+                            title: "Do you want to Send the Transmission Package?",
+                            description:
+                                "Please confirm you want to Send the Transmission Package for Area `{{name}}` to the Destination Servers.",
+                            confirm: "Send Transmission Package",
+                            cancel: "Close",
+                        },
+                    },
+                    regenerate: {
+                        title: "Regenerate",
+                        dialog: {
+                            title: "Do you want to regenerate the Transmission Package?",
+                            description:
+                                "Please confirm you want to regenerate the Transmission Package for Area `{{name}}`",
+                            confirm: "Regenerate Transmission Package",
+                            cancel: "Close",
+                        },
+                    },
+                    sign: {
+                        title: "Regenerate",
+                        dialog: {
+                            title: "Do you want to sign the Transmission Package?",
+                            description:
+                                "Please confirm you want to regenerate the Transmission Package for Area `{{name}}`",
+                            confirm: "Sign Transmission Package",
+                            cancel: "Close",
+                            input: {
+                                placeholder: "Enter your password",
+                            },
+                        },
+                    },
+                    download: {
+                        title: "Download",
+                        emlTitle: "Download EML",
+                        transmissionPackageTitle: "Download Transmission Package",
+                        dialog: {
+                            title: "Do you want to Download the Transmission Package?",
+                            description:
+                                "Please confirm you want to Download the Transmission Package for Area `{{name}}.`",
+                            confirm: "Download Transmission Package",
+                            cancel: "Close",
+                        },
+                    },
+                },
+                destinationServers: {
+                    title: "Destination Servers",
+                    description:
+                        "The table below shows the sending status of each of the Destination Servers.",
+                    status: "Sent to {{signed}} out of {{total}}",
+                    table: {
+                        serverName: "Server Name",
+                        sendStatus: "Sending Status",
+                    },
+                },
+                signatures: {
+                    title: "SBEI Signatures",
+                    description:
+                        "SBEIs can sign the Transmission Package. The table below shows the signing status of each of the SBEI members.",
+                    status: "{{signed}} out of {{total}} Signed, {{minimum}} minimum",
+                    table: {
+                        trusteeName: "Trustee Name",
+                        signed: "Has Signed",
+                    },
+                },
+            },
+            sendToTransmissionPackageServers: "Send Transmission Package for Area '{{name}}'",
+            uploadTransmissionPackage: "Sign Transmission Package",
+            uploadTransmissionPackageDesc:
+                "Upload your Signature to sign the Transmission Package. This is an optional operation.",
+            exportElectionArea: "Send Transmission Package for Area '{{name}}'",
             templateTitle: "Results Template",
             templateSubTitle: "Optionally overwrite the results template.",
             ceremonyTitle: "Elections to Tally",
@@ -1135,6 +1203,12 @@ const englishTranslation = {
                 census: "Census",
             },
             common: {
+                tallyCeremony: {
+                    manage: "Manage Tally Ceremony",
+                    view: "View Tally Ceremony",
+                    cancel: "Cancel Tally Ceremony",
+                    addKey: "Add Tally Key",
+                },
                 edit: "Edit",
                 confirm: "Confirm",
                 back: "Back",
@@ -1233,6 +1307,9 @@ const englishTranslation = {
                 isHidden: "Is Hidden",
                 publicUrl: "Public URL",
             },
+        },
+        widget: {
+            logs: "Logs",
         },
     },
 }

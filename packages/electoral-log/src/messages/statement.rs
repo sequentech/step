@@ -50,6 +50,7 @@ impl StatementHead {
             StatementBody::TallyOpen(_) => StatementType::TallyOpen,
             StatementBody::TallyClose(_) => StatementType::TallyClose,
             StatementBody::SendCommunication => StatementType::SendCommunication,
+            StatementBody::KeycloakUserEvent(_, _) => StatementType::KeycloakUserEvent,
         };
         let timestamp = crate::timestamp();
 
@@ -108,6 +109,7 @@ pub enum StatementBody {
     TallyClose(ElectionIdString),
 
     SendCommunication,
+    KeycloakUserEvent(ErrorMessageString, KeycloakEventTypeString),
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug)]
@@ -127,4 +129,5 @@ pub enum StatementType {
     TallyOpen,
     TallyClose,
     SendCommunication,
+    KeycloakUserEvent,
 }

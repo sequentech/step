@@ -10,11 +10,11 @@ use serde::Serialize;
 use strum::Display;
 use tracing::info;
 
-use board_messages::braid::artifact::Configuration;
-use board_messages::braid::message::Message;
-use board_messages::braid::message::VerifiedMessage;
-use board_messages::braid::newtypes::*;
-use board_messages::braid::statement::StatementType;
+use b3::messages::artifact::Configuration;
+use b3::messages::message::Message;
+use b3::messages::message::VerifiedMessage;
+use b3::messages::newtypes::*;
+use b3::messages::statement::StatementType;
 
 use crate::protocol::board::grpc_m::GrpcB3;
 use crate::protocol::board::Board;

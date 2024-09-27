@@ -27,7 +27,7 @@ export const isTrusteeParticipating = (
     return (
         (ceremony.execution_status === EStatus.NOT_STARTED ||
             ceremony.execution_status === EStatus.IN_PROCESS) &&
-        !!status.trustees.find((trustee) => trustee.name === authContext.username)
+        !!status.trustees.find((trustee) => trustee.name === authContext.trustee)
     )
 }
 
@@ -37,7 +37,7 @@ const hasTrusteeCheckedKeys = (
 ) => {
     const status: IExecutionStatus = ceremony.status
     return status.trustees.find(
-        (trustee) => trustee.name === authContext.username && trustee.status === TStatus.KEY_CHECKED
+        (trustee) => trustee.name === authContext.trustee && trustee.status === TStatus.KEY_CHECKED
     )
 }
 

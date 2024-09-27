@@ -10,6 +10,7 @@ import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import Checkbox from "@mui/material/Checkbox"
 import {useTranslation} from "react-i18next"
 import {useTenantStore} from "@/providers/TenantContextProvider"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 interface TallyElectionsListProps {
     electionEventId: string
@@ -29,6 +30,7 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
     const {tallyId} = useElectionEventTallyStore()
     const [tenantId] = useTenantStore()
     const {t} = useTranslation()
+    const aliasRenderer = useAliasRenderer()
 
     const [electionsData, setElectionsData] = useState<Array<Sequent_Backend_Election_Extended>>([])
 
@@ -81,6 +83,9 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
             headerName: t("tally.table.elections"),
             flex: 1,
             editable: false,
+            valueGetter(params) {
+                return aliasRenderer(params.row)
+            },
         },
         {
             field: "active",

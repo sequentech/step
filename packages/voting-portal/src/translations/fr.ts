@@ -51,9 +51,9 @@ const frenchTranslation: TranslationType = {
         reviewScreen: {
             title: "Révisez votre vote",
             description:
-                "Pour apporter des modifications à vos sélections, cliquez sur le bouton “<b>Modifier votre vote</b>”, pour confirmer vos sélections, cliquez sur le bouton “<b>Envoyer votre vote</b>” ci-dessous, et pour auditer votre bulletin, cliquez sur le bouton “<b>Auditer le bulletin</b>” ci-dessous. Notez qu'une fois que vous aurez envoyé votre bulletin, vous aurez voté et il ne vous sera plus possible de recevoir un autre bulletin pour cette élection.",
+                "Pour apporter des modifications à vos sélections, cliquez sur le bouton “<b>Modifier votre vote</b>”, pour confirmer vos sélections, cliquez sur le bouton “<b>Envoyer votre vote</b>” ci-dessous, et pour auditer votre bulletin, cliquez sur le bouton “<b>Auditer le bulletin</b>” ci-dessous. ",
             descriptionNoAudit:
-                "Pour apporter des modifications à vos sélections, cliquez sur le bouton “<b>Modifier votre vote</b>”, pour confirmer vos sélections, cliquez sur le bouton “<b>Envoyer votre vote</b>” ci-dessous. Notez qu'une fois que vous aurez envoyé votre bulletin, vous aurez voté et il ne vous sera plus possible de recevoir un autre bulletin pour cette élection.",
+                "Pour apporter des modifications à vos sélections, cliquez sur le bouton “<b>Modifier votre vote</b>”, pour confirmer vos sélections, cliquez sur le bouton “<b>Envoyer votre vote</b>” ci-dessous. ",
             backButton: "Modifier votre vote",
             castBallotButton: "Envoyer votre vote",
             auditButton: "Auditer le bulletin",
@@ -90,7 +90,39 @@ const frenchTranslation: TranslationType = {
                 LOAD_ELECTION_EVENT:
                     "Impossible de charger l'événement électoral. Veuillez réessayer plus tard.",
                 CAST_VOTE:
-                    "Une erreur avec GraphQL s'est produite lors du vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                    "Une erreur inconnue est survenue lors du vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                CAST_VOTE_CheckStatusFailed:
+                    "L'élection ne permet pas de voter. L'élection peut être clôturée, archivée ou vous essayez peut-être de voter en dehors de la période de grâce.",
+                CAST_VOTE_AreaNotFound:
+                    "Une erreur est survenue lors du vote : Zone introuvable. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                CAST_VOTE_InternalServerError:
+                    "Une erreur interne est survenue lors du vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                CAST_VOTE_QueueError:
+                    "Un problème est survenu lors du traitement de votre vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                CAST_VOTE_Unauthorized:
+                    "Vous n'êtes pas autorisé à voter. Veuillez contacter le support pour obtenir de l'aide.",
+                CAST_VOTE_ElectionEventNotFound:
+                    "L'événement électoral n'a pas pu être trouvé. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                CAST_VOTE_ElectoralLogNotFound:
+                    "Votre enregistrement de vote n'a pas pu être trouvé. Veuillez contacter le support pour obtenir de l'aide.",
+                CAST_VOTE_CheckPreviousVotesFailed:
+                    "Une erreur est survenue lors de la vérification de votre statut de vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                CAST_VOTE_GetClientCredentialsFailed:
+                    "Échec de la vérification de vos informations d'identification. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                CAST_VOTE_GetAreaIdFailed:
+                    "Une erreur est survenue lors de la vérification de votre zone de vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                CAST_VOTE_GetTransactionFailed:
+                    "Une erreur est survenue lors du traitement de votre vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                CAST_VOTE_DeserializeBallotFailed:
+                    "Une erreur est survenue lors de la lecture de votre bulletin de vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                CAST_VOTE_DeserializeContestsFailed:
+                    "Une erreur est survenue lors de la lecture de vos sélections. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                CAST_VOTE_PokValidationFailed:
+                    "Échec de la validation de votre vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                CAST_VOTE_UuidParseFailed:
+                    "Une erreur est survenue lors du traitement de votre demande. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                CAST_VOTE_UnknownError:
+                    "Une erreur inconnue est survenue lors du vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
                 NO_BALLOT_SELECTION:
                     "L'état de sélection pour cette élection est introuvable. Veuillez vous assurer que vous avez sélectionné vos choix correctement ou contactez le support.",
                 NO_BALLOT_STYLE:
@@ -244,6 +276,8 @@ const frenchTranslation: TranslationType = {
                     "Le nombre d'options sélectionnées {{numSelected}} pour la liste {{type}} est supérieur au maximum {{max}}",
                 underVote:
                     "Sous-vote: Le nombre de choix sélectionnés {{numSelected}} est inférieur au maximum autorisé de {{max}}",
+                overVoteDisabled:
+                    "Maximum atteint : Vous avez sélectionné le maximum de {{numSelected}} choix. Pour changer votre sélection, veuillez d'abord désélectionner une autre option.",
                 blankVote: "Vote Blanc: 0 options sélectionnées",
             },
             explicit: {

@@ -7,8 +7,8 @@ pub mod grpc_m;
 pub mod local2;
 
 use anyhow::Result;
-use board_messages::grpc::KeyedMessages;
-use board_messages::{braid::message::Message, grpc::GrpcB3Message};
+use b3::grpc::KeyedMessages;
+use b3::{messages::message::Message, grpc::GrpcB3Message};
 
 /// Defines the interface with a bulletin board.
 ///

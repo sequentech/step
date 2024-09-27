@@ -5,6 +5,7 @@
 
 use std::env;
 
+use super::providers::transactions_provider::provide_hasura_transaction;
 use super::s3;
 use crate::postgres::{self, communication_template, election};
 use crate::services::database::get_hasura_pool;
@@ -238,38 +239,36 @@ pub async fn create_vote_receipt_task(
     time_zone: Option<TimeZone>,
     date_format: Option<DateFormat>,
 ) -> Result<()> {
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|err| anyhow!("{}", err))?;
-
-    let hasura_transaction: Transaction<'_> = hasura_db_client
-        .transaction()
-        .await
-        .map_err(|err| anyhow!("{}", err))?;
-
-    create_vote_receipt(
-        &hasura_transaction,
-        &element_id,
-        &tenant_id,
-        &election_event_id,
-        &election_id,
-        &area_id,
-        &voter_id,
-        &ballot_id,
-        &ballot_tracker_url,
-        time_zone,
-        date_format,
-    )
-    .await
-    .map_err(|err| anyhow!("{}", err))?;
-
-    hasura_transaction
-        .commit()
-        .await
-        .with_context(|| "Error committing create_vote_receipt transaction")
-        .map_err(|err| anyhow!("{}", err))?;
+    provide_hasura_transaction(|hasura_transaction| {
+        let element_id = element_id.clone();
+        let tenant_id = tenant_id.clone();
+        let election_event_id = election_event_id.clone();
+        let election_id = election_id.clone();
+        let area_id = area_id.clone();
+        let voter_id = voter_id.clone();
+        let ballot_id = ballot_id.clone();
+        let ballot_tracker_url = ballot_tracker_url.clone();
+        let time_zone = time_zone.clone();
+        let date_format = date_format.clone();
+        Box::pin(async move {
+            // Your async code here
+            create_vote_receipt(
+                hasura_transaction,
+                &element_id,
+                &tenant_id,
+                &election_event_id,
+                &election_id,
+                &area_id,
+                &voter_id,
+                &ballot_id,
+                &ballot_tracker_url,
+                time_zone,
+                date_format,
+            )
+            .await
+        })
+    })
+    .await?;
 
     Ok(())
 }
@@ -345,7 +344,7 @@ pub async fn create_vote_receipt(
             ),
             title: vote_receipt_title.to_string(),
             ballot_tracker_url: ballot_tracker_url.to_string(),
-            timestamp: generate_timestamp(time_zone, date_format),
+            timestamp: generate_timestamp(time_zone, date_format, None),
         },
     }
     .to_map()?;

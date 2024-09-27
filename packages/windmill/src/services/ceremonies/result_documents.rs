@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::renamer::rename_folders;
+use crate::services::ceremonies::renamer::*;
 use crate::{
     postgres::{
         results_area_contest::update_results_area_contest_documents,
@@ -9,12 +11,15 @@ use crate::{
         results_event::update_results_event_documents,
     },
     services::{
-        compress::compress_folder, documents::upload_and_return_document,
-        folders::copy_to_temp_dir, temp_path::get_file_size,
+        compress::compress_folder,
+        documents::{upload_and_return_document, upload_and_return_document_postgres},
+        folders::copy_to_temp_dir,
+        temp_path::get_file_size,
     },
 };
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
+use sequent_core::services::translations::Name;
 use sequent_core::{services::connection::AuthHeaders, types::results::ResultDocuments};
 use sequent_core::{services::keycloak, types::hasura::core::Area};
 use std::{
@@ -27,8 +32,6 @@ use velvet::pipes::generate_reports::{
     ElectionReportDataComputed, ReportDataComputed, OUTPUT_HTML, OUTPUT_JSON, OUTPUT_PDF,
 };
 use velvet::pipes::vote_receipts::OUTPUT_FILE_PDF as OUTPUT_RECEIPT_PDF;
-
-use super::renamer::rename_folders;
 
 pub const MIME_PDF: &str = "application/pdf";
 pub const MIME_JSON: &str = "application/json";
@@ -154,6 +157,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             pdf: None,
             html: None,
             tar_gz: Some(base_path.display().to_string()),
+            tar_gz_original: None,
             vote_receipts_pdf: None,
         }
     }
@@ -169,7 +173,37 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
     ) -> Result<ResultDocuments> {
         if let Some(tar_gz_path) = document_paths.clone().tar_gz {
             // compressed file with the tally
+            // PART 1: original zip
+            // Spawn the task
+            let tar_gz_path_clone = tar_gz_path.clone();
+            let original_handle = tokio::task::spawn_blocking(move || {
+                let path = Path::new(&tar_gz_path_clone);
+                compress_folder(&path)
+            });
 
+            // Await the result
+            let original_result = original_handle.await??;
+
+            let (_original_tarfile_temp_path, original_tarfile_path, original_tarfile_size) =
+                original_result;
+
+            let contest = &self[0].reports[0].contest;
+
+            // upload binary data into a document (s3 and hasura)
+            let original_document = upload_and_return_document_postgres(
+                hasura_transaction,
+                &original_tarfile_path,
+                original_tarfile_size,
+                "application/gzip",
+                &contest.tenant_id,
+                &contest.election_event_id,
+                "tally.tar.gz",
+                None,
+                false,
+            )
+            .await?;
+
+            // PART 2: renamed folders zip
             // Spawn the task
             let handle = tokio::task::spawn_blocking(move || {
                 let path = Path::new(&tar_gz_path);
@@ -185,17 +219,15 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
 
             let (_tarfile_temp_path, tarfile_path, tarfile_size) = result;
 
-            let contest = &self[0].reports[0].contest;
-
             // upload binary data into a document (s3 and hasura)
-            let document = upload_and_return_document(
-                tarfile_path.clone(),
+            let document = upload_and_return_document_postgres(
+                hasura_transaction,
+                &tarfile_path,
                 tarfile_size,
-                "application/gzip".to_string(),
-                auth_headers.clone(),
-                contest.tenant_id.clone(),
-                contest.election_event_id.clone(),
-                "tally.tar.gz".into(),
+                "application/gzip",
+                &contest.tenant_id,
+                &contest.election_event_id,
+                "tally.tar.gz",
                 None,
                 false,
             )
@@ -206,6 +238,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 pdf: None,
                 html: None,
                 tar_gz: Some(document.id),
+                tar_gz_original: Some(original_document.id),
                 vote_receipts_pdf: None,
             };
 
@@ -225,6 +258,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 pdf: None,
                 html: None,
                 tar_gz: None,
+                tar_gz_original: None,
                 vote_receipts_pdf: None,
             })
         }
@@ -262,6 +296,7 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
                 None
             },
             tar_gz: None,
+            tar_gz_original: None,
             vote_receipts_pdf: None,
         }
     }
@@ -357,6 +392,7 @@ impl GenerateResultDocuments for ReportDataComputed {
                 None
             },
             tar_gz: None,
+            tar_gz_original: None,
             vote_receipts_pdf: vote_receipts_pdf,
         }
     }
@@ -411,6 +447,7 @@ impl GenerateResultDocuments for ReportDataComputed {
 pub fn generate_ids_map(
     results: &Vec<ElectionReportDataComputed>,
     areas: &Vec<Area>,
+    default_language: &str,
 ) -> Result<HashMap<String, String>> {
     let mut rename_map: HashMap<String, String> = HashMap::new();
     let election_reports = results
@@ -419,21 +456,28 @@ pub fn generate_ids_map(
         .flat_map(|inner_vec| inner_vec)
         .collect::<Vec<ReportDataComputed>>();
 
+    const UUID_LEN: usize = 36;
+    const MAX_LEN: usize = FOLDER_MAX_CHARS - UUID_LEN - 2 /* 2: (include the __ characters) */;
+
     for election_report in election_reports {
+        let election_name = election_report.election_name;
         rename_map.insert(
             election_report.contest.election_id.clone(),
             format!(
                 "{}__{}",
-                election_report.election_name, election_report.contest.election_id
+                take_first_n_chars(&election_name, MAX_LEN),
+                election_report.contest.election_id
             ),
         );
 
-        let Some(contest_name) = election_report.contest.name.clone() else {
-            continue;
-        };
+        let contest_name = election_report.contest.get_name(default_language);
         rename_map.insert(
             election_report.contest.id.clone(),
-            format!("{}__{}", contest_name, election_report.contest.id),
+            format!(
+                "{}__{}",
+                take_first_n_chars(&contest_name, MAX_LEN),
+                election_report.contest.id
+            ),
         );
     }
 
@@ -441,7 +485,7 @@ pub fn generate_ids_map(
         let Some(name) = area.name.clone() else {
             continue;
         };
-        rename_map.insert(area.id.clone(), format!("{}__{}", name, area.id));
+        rename_map.insert(area.id.clone(), format!("{:.30}__{}", name, area.id));
     }
 
     Ok(rename_map)
@@ -456,10 +500,11 @@ pub async fn save_result_documents(
     results_event_id: &str,
     base_tally_path: &PathBuf,
     areas: &Vec<Area>,
+    default_language: &str,
 ) -> Result<()> {
     let mut auth_headers = keycloak::get_client_credentials().await?;
     let mut idx: usize = 0;
-    let rename_map = generate_ids_map(&results, areas)?;
+    let rename_map = generate_ids_map(&results, areas, default_language)?;
     let event_document_paths = results.get_document_paths(None, base_tally_path);
     results
         .save_documents(

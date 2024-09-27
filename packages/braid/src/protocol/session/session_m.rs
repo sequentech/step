@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{anyhow, Result};
-use board_messages::grpc::GrpcB3Message;
+use b3::grpc::GrpcB3Message;
+use b3::messages::message::Message;
 use std::path::PathBuf;
 use strand::signature::StrandSignatureSk;
 use strand::symm::SymmetricKey;
@@ -14,7 +15,7 @@ use tracing::info;
 use crate::protocol::trustee2::Trustee;
 use crate::protocol::trustee2::TrusteeConfig;
 use crate::util::ProtocolError;
-use board_messages::braid::message::Message;
+
 use strand::context::Ctx;
 
 /// A protocol session, M version.

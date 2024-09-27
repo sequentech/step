@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Box, Typography} from "@mui/material"
-import React, {useState, useEffect, useContext, useRef} from "react"
+import {Box, CircularProgress, Typography} from "@mui/material"
+import React, {useState, useEffect, useContext, useRef, useCallback} from "react"
 import {useTranslation} from "react-i18next"
 import {PageLimit, Icon, IconButton, theme, QRCode, Dialog} from "@sequentech/ui-essentials"
-import {stringToHtml, IElectionEventPresentation} from "@sequentech/ui-core"
+import {stringToHtml, IElectionEventPresentation, EVotingStatus} from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {faPrint, faCircleQuestion, faCheck} from "@fortawesome/free-solid-svg-icons"
 import Button from "@mui/material/Button"
@@ -21,10 +21,11 @@ import {useRootBackLink} from "../hooks/root-back-link"
 import {clearBallot} from "../store/ballotSelections/ballotSelectionsSlice"
 import {
     selectBallotStyleByElectionId,
+    selectBallotStyleElectionIds,
     selectFirstBallotStyle,
 } from "../store/ballotStyles/ballotStylesSlice"
 import {AuthContext} from "../providers/AuthContextProvider"
-import {useLazyQuery, useMutation} from "@apollo/client"
+import {useLazyQuery, useMutation, useQuery} from "@apollo/client"
 import {CREATE_VOTE_RECEIPT} from "../queries/CreateVoteReceipt"
 import {GET_DOCUMENT} from "../queries/GetDocument"
 import {useGetPublicDocumentUrl} from "../hooks/public-document-url"
@@ -32,6 +33,9 @@ import Stepper from "../components/Stepper"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {provideBallotService} from "../services/BallotService"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
+import {selectElectionById} from "../store/elections/electionsSlice"
+import {GetElectionsQuery} from "../gql/graphql"
+import {GET_ELECTIONS} from "../queries/GetElections"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -41,7 +45,7 @@ const StyledTitle = styled(Typography)`
 `
 
 const StyledButton = styled(Button)`
-    display flex;
+    display: flex;
     padding: 5px;
 
     span {
@@ -99,11 +103,14 @@ const QRContainer = styled(Box)`
     margin: 15px auto;
 `
 
-const ActionLink = styled(Link)`
-    text-decoration: none;
-    &:hover {
-        text-decoration: none;
-    }
+const StyledCircularProgress = styled(CircularProgress)`
+    width: 14px !important;
+    height: 14px !important;
+`
+
+const StyledIcon = styled(Icon)`
+    min-width: 14px;
+    padding: 5px;
 `
 
 interface ActionButtonsProps {
@@ -123,6 +130,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     const dispatch = useAppDispatch()
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
+    const election = useAppSelector(selectElectionById(String(electionId)))
     const [createVoteReceipt] = useMutation(CREATE_VOTE_RECEIPT)
     const [getDocument, {data: documentData}] = useLazyQuery(GET_DOCUMENT)
     const [polling, setPolling] = useState<NodeJS.Timer | null>(null)
@@ -138,14 +146,24 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     const isDemo = oneBallotStyle?.ballot_eml.public_key?.is_demo
 
     let presentation = electionEvent?.presentation as IElectionEventPresentation | undefined
+    const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
+    const {data: dataElections} = useQuery<GetElectionsQuery>(GET_ELECTIONS, {
+        variables: {
+            electionIds: ballotStyleElectionIds,
+        },
+    })
 
-    const onClickToScreen = () => {
-        navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser${location.search}`)
-    }
+    const isAnyVotingStatusOpen = dataElections?.sequent_backend_election.some(
+        (item) => item.status.voting_status === EVotingStatus.OPEN
+    )
 
-    const onClickRedirect = () => {
-        logout(presentation?.redirect_finish_url ?? undefined)
-    }
+    const onClickToScreen = useCallback(() => {
+        if (isAnyVotingStatusOpen && canVote) {
+            navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser${location.search}`)
+        } else {
+            logout(presentation?.redirect_finish_url ?? undefined)
+        }
+    }, [isAnyVotingStatusOpen, canVote])
 
     useEffect(() => {
         if (ballotStyle) {
@@ -262,28 +280,20 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
                     variant="secondary"
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
                 >
-                    <Icon icon={faPrint} size="sm" />
+                    {polling ? (
+                        <StyledCircularProgress color="inherit" />
+                    ) : (
+                        <StyledIcon icon={faPrint} size="sm" />
+                    )}
                     <Box>{t("confirmationScreen.printButton")}</Box>
                 </StyledButton>
-                {!canVote ? (
-                    <ActionLink sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
-                        <StyledButton
-                            onClick={onClickRedirect}
-                            className="finish-button"
-                            sx={{width: {xs: "100%", sm: "200px"}}}
-                        >
-                            <Box>{t("confirmationScreen.finishButton")}</Box>
-                        </StyledButton>
-                    </ActionLink>
-                ) : (
-                    <StyledButton
-                        className="finish-button"
-                        onClick={onClickToScreen}
-                        sx={{width: {xs: "100%", sm: "200px"}}}
-                    >
-                        <Box>{t("confirmationScreen.finishButton")}</Box>
-                    </StyledButton>
-                )}
+                <StyledButton
+                    className="finish-button"
+                    onClick={onClickToScreen}
+                    sx={{width: {xs: "100%", sm: "200px"}}}
+                >
+                    <Box>{t("confirmationScreen.finishButton")}</Box>
+                </StyledButton>
             </ActionsContainer>
 
             <Dialog

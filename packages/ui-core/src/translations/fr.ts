@@ -121,6 +121,12 @@ const frenchTranslation: TranslationType = {
         },
         header: {
             profile: "Profil",
+            session: {
+                title: "Votre session est sur le point d'expirer.",
+                timeLeft: "Il vous reste {{time}} pour voter.",
+                timeLeftMinutesAndSeconds: "{{timeLeftInMinutes}} minutes et {{time}} secondes",
+                timeLeftSeconds: "{{timeLeft}} secondes",
+            },
         },
     },
 }

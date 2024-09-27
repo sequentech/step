@@ -23,16 +23,16 @@ use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
 use crate::protocol::action::Action;
 use crate::protocol::board::local2::{ArtifactEntryIdentifier, StatementEntryIdentifier};
-use board_messages::braid::artifact::Ballots;
-use board_messages::braid::artifact::Configuration;
-use board_messages::braid::message::Message;
-use board_messages::braid::newtypes::PublicKeyHash;
-use board_messages::braid::newtypes::NULL_TRUSTEE;
-use board_messages::braid::protocol_manager::ProtocolManager;
+use b3::messages::artifact::Ballots;
+use b3::messages::artifact::Configuration;
+use b3::messages::message::Message;
+use b3::messages::newtypes::PublicKeyHash;
+use b3::messages::newtypes::NULL_TRUSTEE;
+use b3::messages::protocol_manager::ProtocolManager;
 
 use crate::protocol::trustee2::Trustee;
 use crate::test::vector_board::VectorBoard;
-use board_messages::braid::newtypes::MAX_TRUSTEES;
+use b3::messages::newtypes::MAX_TRUSTEES;
 
 /// Runs a simple interactive ncurses terminal to simulate or
 /// debug a protocol execution.

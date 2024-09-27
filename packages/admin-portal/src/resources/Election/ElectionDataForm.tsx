@@ -54,6 +54,8 @@ import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {ElectionStyles} from "../../components/styles/ElectionStyles"
 import {
     ContestsOrder,
+    EGracePeriodPolicy,
+    EVotingPortalAuditButtonCfg,
     IContestPresentation,
     IElectionDates,
     IElectionEventPresentation,
@@ -69,6 +71,8 @@ import styled from "@emotion/styled"
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {ManageElectionDatesMutation} from "@/gql/graphql"
 import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
+import {ManagedNumberInput} from "@/components/managed-inputs/ManagedNumberInput"
+import {ManagedSelectInput} from "@/components/managed-inputs/ManagedSelectInput"
 
 const LangsWrapper = styled(Box)`
     margin-top: 46px;
@@ -301,6 +305,14 @@ export const ElectionDataForm: React.FC = () => {
 
             // defaults
             temp.num_allowed_revotes = temp.num_allowed_revotes || 1
+            temp.presentation.grace_period_policy =
+                temp.presentation.grace_period_policy || EGracePeriodPolicy.NO_GRACE_PERIOD
+            temp.presentation.grace_period_secs = temp.presentation.grace_period_secs || 0
+
+            if (!temp.dates?.end_date) {
+                temp.presentation.grace_period_policy = EGracePeriodPolicy.NO_GRACE_PERIOD
+                temp.presentation.grace_period_secs = 0
+            }
 
             return temp
         },
@@ -453,6 +465,13 @@ export const ElectionDataForm: React.FC = () => {
         }
     }
 
+    const gracePeriodPolicyChoices = () => {
+        return (Object.values(EGracePeriodPolicy) as EGracePeriodPolicy[]).map((value) => ({
+            id: value,
+            name: t(`electionScreen.gracePeriodPolicy.${value.toLowerCase()}`),
+        }))
+    }
+
     const communicationMethodChoices = () => {
         return (Object.values(ICommunicationMethod) as ICommunicationMethod[]).map((value) => ({
             id: value,
@@ -477,6 +496,13 @@ export const ElectionDataForm: React.FC = () => {
         return Object.values(ContestsOrder).map((value) => ({
             id: value,
             name: t(`contestScreen.options.${value.toLowerCase()}`),
+        }))
+    }
+
+    const auditButtonConfigChoices = (): Array<EnumChoice<EVotingPortalAuditButtonCfg>> => {
+        return Object.values(EVotingPortalAuditButtonCfg).map((value) => ({
+            id: value,
+            name: t(`contestScreen.auditButtonConfig.${value.toLowerCase()}`),
         }))
     }
 
@@ -596,6 +622,36 @@ export const ElectionDataForm: React.FC = () => {
                                         />
                                     </Grid>
                                 </Grid>
+                                <Typography
+                                    variant="body1"
+                                    component="span"
+                                    sx={{
+                                        padding: "0.5rem 1rem",
+                                        fontWeight: "bold",
+                                        margin: 0,
+                                        display: {xs: "none", sm: "block"},
+                                    }}
+                                >
+                                    {t("electionScreen.edit.gracePeriodPolicy")}
+                                </Typography>
+                                <ManagedSelectInput
+                                    source={`presentation.grace_period_policy`}
+                                    choices={gracePeriodPolicyChoices()}
+                                    label={t(`electionScreen.gracePeriodPolicy.label`)}
+                                    defaultValue={EGracePeriodPolicy.NO_GRACE_PERIOD}
+                                    sourceToWatch={"dates.end_date"}
+                                    isDisabled={(sourceToWatchStatus) => !sourceToWatchStatus}
+                                />
+                                <ManagedNumberInput
+                                    source={"presentation.grace_period_secs"}
+                                    label={t("electionScreen.gracePeriodPolicy.gracePeriodSecs")}
+                                    defaultValue={0}
+                                    sourceToWatch="presentation.grace_period_policy"
+                                    isDisabled={(selectedPolicy: any) =>
+                                        selectedPolicy === EGracePeriodPolicy.NO_GRACE_PERIOD ||
+                                        endDateValue === undefined
+                                    }
+                                />
                             </AccordionDetails>
                         </Accordion>
 
@@ -661,6 +717,13 @@ export const ElectionDataForm: React.FC = () => {
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
+                                <SelectInput
+                                    source={`presentation.audit_button_cfg`}
+                                    choices={auditButtonConfigChoices()}
+                                    label={t(`contestScreen.auditButtonConfig.label`)}
+                                    defaultValue={EVotingPortalAuditButtonCfg.SHOW}
+                                    validate={required()}
+                                />
                                 <SelectInput
                                     source="presentation.contests_order"
                                     choices={orderAnswerChoices()}

@@ -1,0 +1,19 @@
+mutation InsertAreaContest(
+    $tenant_id: uuid!,
+    $election_event_id: uuid!,
+    $area_id: uuid,
+    $contest_id: uuid!,
+ ) {
+  insert_sequent_backend_area_contest(objects: {
+        tenant_id: $tenant_id,
+        election_event_id: $election_event_id,
+        area_id: $area_id,
+        contest_id: $contest_id,
+  }) {
+    affected_rows
+    returning {
+      id
+    }
+  }
+}
+    

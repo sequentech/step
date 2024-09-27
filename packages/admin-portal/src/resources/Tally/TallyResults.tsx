@@ -14,22 +14,26 @@ import {TallyResultsContest} from "./TallyResultsContests"
 import {Box, Tab, Tabs, Typography} from "@mui/material"
 import {ReactI18NextChild, useTranslation} from "react-i18next"
 import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
-import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IResultDocuments} from "@/types/results"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
+import {MiruExport} from "@/components/MiruExport"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 interface TallyResultsProps {
     tally: Sequent_Backend_Tally_Session | undefined
     resultsEventId: string | null
+    loading?: boolean
+    onCreateTransmissionPackage: (v: {area_id: string; election_id: string}) => void
 }
 
 const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> = memo(
     (props: TallyResultsProps): React.JSX.Element => {
-        const {tally, resultsEventId} = props
+        const {tally, resultsEventId, onCreateTransmissionPackage, loading} = props
+        const {globalSettings} = useContext(SettingsContext)
 
         const {t} = useTranslation()
-        const {globalSettings} = useContext(SettingsContext)
         const [value, setValue] = React.useState<number | null>(0)
         const [electionsData, setElectionsData] = useState<Array<Sequent_Backend_Election>>([])
         const [electionId, setElectionId] = useState<string | null>(null)
@@ -116,6 +120,8 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
             [resultsEventId, resultsElection, resultsElection?.[0]?.id]
         )
 
+        const aliasRenderer = useAliasRenderer()
+
         return (
             <>
                 <Box
@@ -135,7 +141,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                         {electionsData?.map((election, index) => (
                             <Tab
                                 key={index}
-                                label={election.name}
+                                label={aliasRenderer(election)}
                                 onClick={() => tabClicked(election.id, index)}
                             />
                         ))}
@@ -145,6 +151,13 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                             documents={documents}
                             electionEventId={data?.election_event_id}
                             itemName={resultsElection?.[0]?.name ?? "election"}
+                        />
+                    ) : null}
+                    {globalSettings?.ACTIVATE_MIRU_EXPORT ? (
+                        <MiruExport
+                            electionId={electionId}
+                            onCreateTransmissionPackage={onCreateTransmissionPackage}
+                            loading={loading}
                         />
                     ) : null}
                 </Box>

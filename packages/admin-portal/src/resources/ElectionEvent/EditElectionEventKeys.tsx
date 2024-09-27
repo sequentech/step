@@ -157,6 +157,7 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
         <Button
             onClick={() => setShowCeremony(true)}
             disabled={!keysCeremonies || keysCeremonies?.length > 0}
+            className="keys-add-button"
         >
             <ResourceListStyles.CreateIcon icon={faPlus} />
             {t("electionEventScreen.keys.createNew")}
@@ -214,12 +215,12 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
 
     const actions: Action[] = [
         {
-            icon: <FileOpenIcon />,
+            icon: <FileOpenIcon className="keys-view-admin-icon" />,
             action: viewAdminCeremony,
             showAction: (id: Identifier) => canAdminCeremony && !!getCeremony(id),
         },
         {
-            icon: <TrusteeKeyIcon />,
+            icon: <TrusteeKeyIcon className="keys-view-trustee-icon" />,
             action: viewTrusteeCeremony,
             showAction: (id: Identifier) => canTrusteeCeremony && !!getCeremony(id),
         },
@@ -269,6 +270,7 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
                         tenant_id: tenantId || undefined,
                         election_event_id: electionEvent?.id || undefined,
                     }}
+                    storeKey={false}
                     empty={<Empty />}
                     actions={<ListActions withFilter={false} withImport={false} />}
                 >

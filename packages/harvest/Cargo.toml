@@ -38,7 +38,7 @@ tracing = "0.1"
 
 
 # board-messages = { path="../board-messages" }
-immu-board = { path="../immu-board" }
+electoral-log = { path="../electoral-log" }
 immudb-rs = { path="../immudb-rs" }
 strand = { path="../strand" }
 sequent-core = { path="../sequent-core", features = ["keycloak", "probe"] }

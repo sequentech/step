@@ -4,7 +4,7 @@
 
 use base64::engine::general_purpose;
 use base64::Engine;
-use board_messages::braid::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
+use b3::messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
 use braid::protocol::trustee2::TrusteeConfig;
 use clap::Parser;
 use std::marker::PhantomData;

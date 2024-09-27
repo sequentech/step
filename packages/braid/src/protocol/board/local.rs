@@ -9,11 +9,11 @@ use std::collections::HashMap;
 use strand::context::Ctx;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 
-use board_messages::braid::artifact::*;
-use board_messages::braid::message::VerifiedMessage;
-use board_messages::braid::statement::{Statement, StatementType};
+use b3::messages::artifact::*;
+use b3::messages::message::VerifiedMessage;
+use b3::messages::statement::{Statement, StatementType};
 
-use board_messages::braid::newtypes::*;
+use b3::messages::newtypes::*;
 use strand::hash::Hash;
 
 use crate::util::{ProtocolContext, ProtocolError};

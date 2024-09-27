@@ -1,16 +1,16 @@
 use anyhow::Result;
 
-use board_messages::grpc::{GrpcB3Message, KeyedMessages};
+use b3::grpc::{GrpcB3Message, KeyedMessages};
 
-use board_messages::braid::message::Message;
-use board_messages::grpc::client::B3Client;
+use b3::messages::message::Message;
+use b3::client::grpc::B3Client;
 
 use super::BoardFactory;
 
 /// A large upper bound on grpc message size.
 ///
 /// In practice, message size is constrained by the
-/// smaller value board_messages::grpc::MAX_MESSAGE_SIZE
+/// smaller value b3::grpc::MAX_MESSAGE_SIZE
 /// that determines chunking behaviour.
 const MAX_MESSAGE_SIZE: usize = 10 * 1024 * 1024 * 1024;
 
@@ -106,7 +106,7 @@ impl GrpcB3Index {
     /// Whether the board name is valid, as defined in
     /// board_messages.
     fn is_board_name_valid(name: &str) -> bool {
-        if board_messages::grpc::validate_board_name(name).is_ok() {
+        if b3::grpc::validate_board_name(name).is_ok() {
             true
         } else {
             tracing::warn!("Received an invalid board name: {}", name);
@@ -144,8 +144,8 @@ impl super::BoardFactoryMulti<GrpcB3> for GrpcB3BoardParams {
 #[cfg(test)]
 pub(crate) mod tests {
 
-    use board_messages::grpc::B3Client;
-    use board_messages::grpc::GetMessagesRequest;
+    use b3::grpc::B3Client;
+    use b3::grpc::GetMessagesRequest;
     use serial_test::serial;
 
     #[tokio::test]

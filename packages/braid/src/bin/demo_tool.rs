@@ -2,8 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Result};
-use board_messages::grpc::pgsql::B3IndexRow;
-use board_messages::grpc::pgsql::B3MessageRow;
+use b3::client::pgsql::B3IndexRow;
+use b3::client::pgsql::B3MessageRow;
+use b3::client::pgsql;
+use b3::client::pgsql::PgsqlB3Client;
+use b3::client::pgsql::PgsqlConnectionParams;
 use clap::Parser;
 use std::fs;
 use std::fs::File;
@@ -12,15 +15,15 @@ use std::marker::PhantomData;
 use std::path::Path;
 use tracing::{info, instrument};
 
-use board_messages::braid::artifact::Configuration;
-use board_messages::braid::artifact::DkgPublicKey;
-use board_messages::braid::message::Message;
-use board_messages::braid::newtypes::PublicKeyHash;
-use board_messages::braid::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
-use board_messages::braid::statement::StatementType;
-use board_messages::grpc::pgsql;
-use board_messages::grpc::pgsql::PgsqlB3Client;
-use board_messages::grpc::pgsql::PgsqlConnectionParams;
+use b3::messages::artifact::Configuration;
+use b3::messages::artifact::DkgPublicKey;
+use b3::messages::message::Message;
+use b3::messages::newtypes::PublicKeyHash;
+use b3::messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
+use b3::messages::statement::StatementType;
+use b3::messages::newtypes::NULL_TRUSTEE;
+use b3::messages::newtypes::MAX_TRUSTEES;
+
 use braid::protocol::trustee2::TrusteeConfig;
 use rand::prelude::SliceRandom;
 use strand::backend::ristretto::RistrettoCtx;
@@ -441,15 +444,14 @@ async fn post_ballots<C: Ctx>(
         let mut rng = &mut rand::thread_rng();
         let threshold: Vec<usize> = all.choose_multiple(&mut rng, threshold).cloned().collect();
 
-        let mut selected_trustees = [board_messages::braid::newtypes::NULL_TRUSTEE;
-            board_messages::braid::newtypes::MAX_TRUSTEES];
+        let mut selected_trustees = [NULL_TRUSTEE; MAX_TRUSTEES];
         selected_trustees[0..threshold.len()].copy_from_slice(&threshold);
 
-        let ballot_batch = board_messages::braid::artifact::Ballots::new(ballots);
+        let ballot_batch = b3::messages::artifact::Ballots::new(ballots);
         let pm = get_pm(PhantomData::<RistrettoCtx>)?;
 
         for i in 0..batches {
-            let message = board_messages::braid::message::Message::ballots_msg(
+            let message = b3::messages::message::Message::ballots_msg(
                 &configuration,
                 i as usize,
                 &ballot_batch,

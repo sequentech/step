@@ -250,3 +250,142 @@ pub async fn update_election_event_status(
 
     Ok(())
 }
+
+#[instrument(err, skip_all)]
+pub async fn get_election_event_by_election_area(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_id: &str,
+    area_id: &str,
+) -> Result<ElectionEventData> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    election_event.*
+                FROM
+                    sequent_backend.area_contest AS area_contest
+                INNER JOIN
+                    sequent_backend.contest AS contest
+                ON
+                    contest.id = area_contest.contest_id
+                INNER JOIN
+                    sequent_backend.election_event AS election_event
+                ON
+                    election_event.id = area_contest.election_event_id
+                WHERE
+                    area_contest.tenant_id = $1 AND
+                    area_contest.area_id =$3 AND
+                    contest.tenant_id = $1 AND
+                    contest.election_id = $2 AND
+                    election_event.tenant_id = $1;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_id)?,
+                &Uuid::parse_str(area_id)?,
+            ],
+        )
+        .await?;
+
+    let election_events: Vec<ElectionEventData> = rows
+        .into_iter()
+        .map(|row| -> Result<ElectionEventData> {
+            row.try_into()
+                .map(|res: ElectionEventWrapper| -> ElectionEventData { res.0 })
+        })
+        .collect::<Result<Vec<ElectionEventData>>>()?;
+
+    election_events
+        .get(0)
+        .map(|election_event| election_event.clone())
+        .ok_or(anyhow!("Election event not found"))
+}
+
+#[instrument(err, skip_all)]
+pub async fn delete_election_event(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<()> {
+    let related_tables = vec![
+        "area_contest",
+        "results_area_contest_candidate",
+        "results_area_contest",
+        "election_result",
+        "results_contest_candidate",
+        "results_contest",
+        "results_election",
+        "ballot_style",
+        "ballot_publication",
+        "candidate",
+        "tally_session_contest",
+        "tally_sheet",
+        "tally_session_execution",
+        "contest",
+        "cast_vote",
+        "election",
+        "document",
+        "event_execution",
+        "tally_session",
+        "keys_ceremony",
+        "scheduled_event",
+        "support_material",
+        "results_event",
+        "area",
+        "tasks_execution",
+    ];
+
+    for table in related_tables {
+        let query = format!(
+            r#"
+            DELETE FROM sequent_backend.{}
+            WHERE tenant_id = $1 AND election_event_id = $2;
+            "#,
+            table
+        );
+
+        // Now prepare the statement with the dynamically generated query
+        let statement = hasura_transaction.prepare(&query).await?;
+        hasura_transaction
+            .execute(
+                &statement,
+                &[
+                    &Uuid::parse_str(tenant_id)?,
+                    &Uuid::parse_str(election_event_id)?,
+                ],
+            )
+            .await
+            .map_err(|err| anyhow!("Error executing the delete query: {err}"))?;
+    }
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            DELETE FROM sequent_backend.election_event
+            WHERE
+                tenant_id = $1 AND
+                id = $2;
+        "#,
+        )
+        .await?;
+
+    hasura_transaction
+        .execute(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error executing the delete query: {err}"))?;
+
+    Ok(())
+}

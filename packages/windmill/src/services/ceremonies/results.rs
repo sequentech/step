@@ -241,6 +241,7 @@ pub async fn populate_results_tables(
     session_ids: Option<Vec<i64>>,
     previous_execution: GetLastTallySessionExecutionSequentBackendTallySessionExecution,
     areas: &Vec<Area>,
+    default_language: &str,
 ) -> Result<Option<String>> {
     let mut auth_headers = keycloak::get_client_credentials().await?;
     let results_event_id_opt = generate_results_id_if_necessary(
@@ -254,7 +255,7 @@ pub async fn populate_results_tables(
     .await?;
 
     if let (Some(results_event_id), Some(state)) = (results_event_id_opt.clone(), state_opt) {
-        if let Ok(results) = state.get_results() {
+        if let Ok(results) = state.get_results(false) {
             save_results(
                 results.clone(),
                 tenant_id,
@@ -270,6 +271,7 @@ pub async fn populate_results_tables(
                 &results_event_id,
                 base_tally_path,
                 areas,
+                default_language,
             )
             .await?;
         }

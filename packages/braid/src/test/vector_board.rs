@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use board_messages::{
-    braid::{message::Message, statement::StatementType},
+use b3::{
+    messages::{message::Message, statement::StatementType},
     grpc::GrpcB3Message,
 };
 use strand::serialization::{StrandDeserialize, StrandSerialize};

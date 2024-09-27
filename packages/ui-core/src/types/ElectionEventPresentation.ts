@@ -9,6 +9,12 @@ export interface IElectionEventMaterials {
     activated?: boolean
 }
 
+export interface ICustomUrls {
+    login?: string
+    enrollment?: string
+    saml?: string
+}
+
 export enum ElectionsOrder {
     RANDOM = "random",
     CUSTOM = "custom",
@@ -22,9 +28,9 @@ export interface IElectionEventPresentation {
     logo_url?: string
     redirect_finish_url?: string
     css?: string
-    hide_audit?: boolean
     skip_election_list?: boolean
     show_user_profile?: boolean
     elections_order?: ElectionsOrder
     voting_portal_countdown_policy?: IVotingPortalCountdownPolicy
+    custom_urls?: ICustomUrls
 }

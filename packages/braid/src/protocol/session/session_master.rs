@@ -15,7 +15,7 @@ use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::task::JoinHandle;
 use tokio::time::{sleep, Duration};
 
-use board_messages::grpc::GrpcB3Message;
+use b3::grpc::GrpcB3Message;
 use strand::backend::ristretto::RistrettoCtx;
 
 use crate::protocol::board::grpc_m::GrpcB3BoardParams;

@@ -20,5 +20,20 @@ export interface IElectionPresentation {
     contests_order?: ContestsOrder
     sort_order?: number
     cast_vote_confirm?: boolean
+    audit_button_cfg?: EVotingPortalAuditButtonCfg
+    is_grace_priod?: boolean
+    grace_period_policy?: EGracePeriodPolicy
+    grace_period_secs?: number
     // more missing
+}
+
+export enum EVotingPortalAuditButtonCfg {
+    SHOW = "show",
+    NOT_SHOW = "not-show",
+    SHOW_IN_HELP = "show-in-help",
+}
+
+export enum EGracePeriodPolicy {
+    NO_GRACE_PERIOD = "no-grace-period",
+    GRACE_PERIOD_WITHOUT_ALERT = "grace-period-without-alert",
 }

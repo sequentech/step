@@ -68,6 +68,14 @@ select_permissions:
 - comment: ""
   permission:
     columns:
+    - id
+    - is_active
+    - slug
+    filter: {}
+  role: unauthorized
+- comment: ""
+  permission:
+    columns:
     - is_active
     - annotations
     - labels

@@ -37,7 +37,8 @@
     # For protocol buffers
     pkgs.protobuf
     pkgs.iputils
-    pkgs.chromium
+    pkgs.geckodriver
+    pkgs.firefox
 
     # to build the rug backend in strand/braid
     pkgs.gcc
@@ -58,6 +59,7 @@
   enterShell = ''
     set -a
     source .devcontainer/.env
+    export PATH=/workspaces/step/packages/step-cli/rust-local-target/release:$PATH
     set +a
   '';
 

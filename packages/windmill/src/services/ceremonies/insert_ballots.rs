@@ -15,9 +15,9 @@ use crate::services::protocol_manager::*;
 use crate::services::public_keys::deserialize_public_key;
 use crate::services::users::list_keycloak_enabled_users_by_area_id;
 use anyhow::{anyhow, Context, Result};
-use board_messages::braid::message::Message;
-use board_messages::braid::newtypes::BatchNumber;
-use board_messages::braid::newtypes::TrusteeSet;
+use b3::messages::message::Message;
+use b3::messages::newtypes::BatchNumber;
+use b3::messages::newtypes::TrusteeSet;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::{ElectionPresentation, HashableBallot};
@@ -64,7 +64,7 @@ pub async fn insert_ballots_messages(
 
     let realm = get_event_realm(&tenant_id, &election_event_id);
     let protocol_manager = get_protocol_manager(board_name).await?;
-    let mut board = get_board_client().await?;
+    let mut board = get_b3_pgsql_client().await?;
     let board_messages: Vec<Message> =
         get_board_messages::<RistrettoCtx>(board_name, &mut board).await?;
     let configuration = get_configuration(&board_messages)?;

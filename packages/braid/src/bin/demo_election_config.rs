@@ -12,8 +12,8 @@ use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strand::symm;
 
-use board_messages::braid::artifact::Configuration;
-use board_messages::braid::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
+use b3::messages::artifact::Configuration;
+use b3::messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
 use braid::protocol::trustee2::TrusteeConfig;
 
 const CONFIG: &str = "config.bin";

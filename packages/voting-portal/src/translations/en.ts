@@ -49,9 +49,9 @@ const englishTranslation = {
         reviewScreen: {
             title: "Review your ballot",
             description:
-                "To make changes in your selections, click “<b>Edit ballot</b>” button, to confirm your selections, click “<b>Cast your ballot</b>” button below, and to audit your ballot click the “<b>Audit Ballot</b>” button below. Please note than once you submit your ballot, you have voted and you will not be issued another ballot for this Ballot.",
+                "To make changes in your selections, click “<b>Edit ballot</b>” button, to confirm your selections, click “<b>Cast your ballot</b>” button below, and to audit your ballot click the “<b>Audit Ballot</b>” button below.",
             descriptionNoAudit:
-                "To make changes in your selections, click “<b>Edit ballot</b>” button, to confirm your selections, click “<b>Cast your ballot</b>” button below. Please note than once you submit your ballot, you have voted and you will not be issued another ballot for this Ballot.",
+                "To make changes in your selections, click “<b>Edit ballot</b>” button, to confirm your selections, click “<b>Cast your ballot</b>” button below.",
             backButton: "Edit ballot",
             castBallotButton: "Cast your ballot",
             auditButton: "Audit ballot",
@@ -88,7 +88,39 @@ const englishTranslation = {
                     "There was a problem fetching the data. Please try again later or contact support for assistance.",
                 LOAD_ELECTION_EVENT: "Cannot load election event. Please try again later.",
                 CAST_VOTE:
-                    "There was an error with graphQL while casting the vote. Please try again later or contact support for assistance.",
+                    "There was an unknown error while casting the vote. Please try again later or contact support for assistance.",
+                CAST_VOTE_AreaNotFound:
+                    "There was an error while casting the vote: Area not found. Please try again later or contact support for assistance.",
+                CAST_VOTE_CheckStatusFailed:
+                    "Election does not allow casting the vote. Election might be closed, archived or you might be trying to vote outside grace period.",
+                CAST_VOTE_InternalServerError:
+                    "An internal error occurred while casting the vote. Please try again later or contact support for assistance.",
+                CAST_VOTE_QueueError:
+                    "There was a problem processing your vote. Please try again later or contact support for assistance.",
+                CAST_VOTE_Unauthorized:
+                    "You are not authorized to cast a vote. Please contact support for assistance.",
+                CAST_VOTE_ElectionEventNotFound:
+                    "The election event could not be found. Please try again later or contact support for assistance.",
+                CAST_VOTE_ElectoralLogNotFound:
+                    "Your voting record could not be found. Please contact support for assistance.",
+                CAST_VOTE_CheckPreviousVotesFailed:
+                    "An error occurred while checking your voting status. Please try again later or contact support for assistance.",
+                CAST_VOTE_GetClientCredentialsFailed:
+                    "Failed to verify your credentials. Please try again later or contact support for assistance.",
+                CAST_VOTE_GetAreaIdFailed:
+                    "An error occurred verifying your voting area. Please try again later or contact support for assistance.",
+                CAST_VOTE_GetTransactionFailed:
+                    "An error occurred processing your vote. Please try again later or contact support for assistance.",
+                CAST_VOTE_DeserializeBallotFailed:
+                    "An error occurred reading your ballot. Please try again later or contact support for assistance.",
+                CAST_VOTE_DeserializeContestsFailed:
+                    "An error occurred reading your selections. Please try again later or contact support for assistance.",
+                CAST_VOTE_PokValidationFailed:
+                    "Failed to validate your vote. Please try again later or contact support for assistance.",
+                CAST_VOTE_UuidParseFailed:
+                    "An error occurred processing your request. Please try again later or contact support for assistance.",
+                CAST_VOTE_UnknownError:
+                    "An unknown error occurred while casting the vote. Please try again later or contact support for assistance.",
                 NO_BALLOT_SELECTION:
                     "The selection state for this election is not present. Please ensure you have selected your choices correctly or contact support.",
                 NO_BALLOT_STYLE: "The ballot style is not available. Please contact support.",
@@ -239,6 +271,8 @@ const englishTranslation = {
                     "Number of selected choices {{numSelected}} for list {{type}} is more than the maximum {{max}}",
                 underVote:
                     "Undervote: Number of selected choices {{numSelected}} is less than the maximum {{max}}",
+                overVoteDisabled:
+                    "Maximum reached: You have selected the maximum {{numSelected}} choices. To change your selection, please deselect another option first.",
                 blankVote: "Blank Vote: 0 choices selected",
             },
             explicit: {

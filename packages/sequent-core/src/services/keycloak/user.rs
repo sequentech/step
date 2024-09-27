@@ -5,12 +5,14 @@ use crate::services::keycloak::KeycloakAdminClient;
 use crate::types::keycloak::*;
 use crate::util::convert_vec::convert_map;
 use anyhow::{anyhow, Result};
-use keycloak::types::{CredentialRepresentation, UserRepresentation};
+use keycloak::types::{
+    CredentialRepresentation, UPAttribute, UPConfig, UserRepresentation,
+};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::convert::From;
 use tokio_postgres::row::Row;
-use tracing::instrument;
+use tracing::{info, instrument};
 
 impl User {
     pub fn get_mobile_phone(&self) -> Option<String> {
@@ -18,6 +20,16 @@ impl User {
             self.attributes
                 .as_ref()?
                 .get(MOBILE_PHONE_ATTR_NAME)?
+                .get(0)?
+                .to_string(),
+        )
+    }
+
+    pub fn get_attribute_val(&self, attribute_name: &String) -> Option<String> {
+        Some(
+            self.attributes
+                .as_ref()?
+                .get(attribute_name)?
                 .get(0)?
                 .to_string(),
         )
@@ -191,7 +203,9 @@ impl KeycloakAdminClient {
         last_name: Option<String>,
         username: Option<String>,
         password: Option<String>,
+        temporary: Option<bool>,
     ) -> Result<User> {
+        info!("Editing user in keycloak ?: {:?}", attributes);
         let mut current_user: UserRepresentation = self
             .client
             .realm_users_with_user_id_get(realm, user_id, None)
@@ -241,7 +255,10 @@ impl KeycloakAdminClient {
                     // the new credential
                     vec![CredentialRepresentation {
                         type_: Some("password".to_string()),
-                        temporary: Some(true),
+                        temporary: match temporary {
+                            Some(temportay) => Some(temportay),
+                            _ => Some(true),
+                        },
                         value: Some(val),
                         ..Default::default()
                     }],
@@ -280,7 +297,7 @@ impl KeycloakAdminClient {
 
     #[instrument(skip(self), err)]
     pub async fn create_user(
-        self,
+        self: &KeycloakAdminClient,
         realm: &str,
         user: &User,
         attributes: Option<HashMap<String, Vec<String>>>,
@@ -288,6 +305,7 @@ impl KeycloakAdminClient {
     ) -> Result<User> {
         let mut new_user_keycloak: UserRepresentation = user.clone().into();
         new_user_keycloak.attributes = attributes.clone();
+        info!("Creating user in keycloak ?: {:?}", new_user_keycloak);
         new_user_keycloak.groups = groups.clone();
         self.client
             .realm_users_post(realm, new_user_keycloak.clone())
@@ -319,5 +337,86 @@ impl KeycloakAdminClient {
             Some(found_user) => Ok(found_user.clone().into()),
             None => Ok(user.clone()),
         }
+    }
+
+    #[instrument(skip(self), err)]
+    pub async fn get_user_profile_attributes(
+        self: &KeycloakAdminClient,
+        realm: &str,
+    ) -> Result<Vec<UserProfileAttribute>> {
+        let response: UPConfig = self
+            .client
+            .realm_users_profile_get(&realm)
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        match response.attributes {
+            Some(attributes) => {
+                Ok(Self::get_formatted_attributes(&attributes.clone().into()))
+            }
+            None => Ok(vec![]),
+        }
+    }
+
+    pub fn get_attribute_name(name: &Option<String>) -> Option<String> {
+        match name.as_deref() {
+            Some(FIRST_NAME) => Some("first_name".to_string()),
+            Some(LAST_NAME) => Some("last_name".to_string()),
+            Some(other) => Some(other.to_string()),
+            None => None,
+        }
+    }
+
+    pub fn get_formatted_attributes(
+        attributes_res: &Vec<UPAttribute>,
+    ) -> Vec<UserProfileAttribute> {
+        let formatted_attributes: Vec<UserProfileAttribute> = attributes_res
+            .iter()
+            .filter(|attr| match (&attr.permissions, &attr.name) {
+                (Some(permissions), Some(name)) => {
+                    let has_permission =
+                        permissions.edit.as_ref().map_or(true, |edit| {
+                            edit.contains(&PERMISSION_TO_EDIT.to_string())
+                        });
+
+                    let is_not_tenant_id =
+                        !name.contains(&TENANT_ID_ATTR_NAME.to_string());
+
+                    let is_not_area_id =
+                        !name.contains(&AREA_ID_ATTR_NAME.to_string());
+
+                    has_permission && is_not_tenant_id && is_not_area_id
+                }
+                _ => false,
+            })
+            .map(|attr| UserProfileAttribute {
+                annotations: attr.annotations.clone(),
+                display_name: attr.display_name.clone(),
+                group: attr.group.clone(),
+                multivalued: attr.multivalued,
+                name: Self::get_attribute_name(&attr.name),
+                required: match attr.required.clone() {
+                    Some(required) => Some(UPAttributeRequired {
+                        roles: required.roles,
+                        scopes: required.scopes,
+                    }),
+                    None => None,
+                },
+                validations: attr.validations.clone(),
+                permissions: match attr.permissions.clone() {
+                    Some(permissions) => Some(UPAttributePermissions {
+                        edit: permissions.edit,
+                        view: permissions.view,
+                    }),
+                    None => None,
+                },
+                selector: match attr.selector.clone() {
+                    Some(selector) => Some(UPAttributeSelector {
+                        scopes: selector.scopes,
+                    }),
+                    None => None,
+                },
+            })
+            .collect();
+        formatted_attributes
     }
 }

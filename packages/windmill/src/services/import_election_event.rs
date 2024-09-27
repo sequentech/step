@@ -2,10 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::tasks_execution::update_fail;
 use ::keycloak::types::RealmRepresentation;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
-use immu_board::util::get_event_board;
+use crate::services::protocol_manager::get_event_board;
 use sequent_core::ballot::ElectionDates;
 use sequent_core::ballot::ElectionEventDates;
 use sequent_core::ballot::ElectionEventStatistics;
@@ -19,6 +20,7 @@ use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClient};
 use sequent_core::services::replace_uuids::replace_uuids;
 use sequent_core::types::hasura::core::AreaContest;
+use sequent_core::types::hasura::core::TasksExecution;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use std::env;
@@ -47,7 +49,7 @@ use crate::postgres::election_event::insert_election_event;
 use crate::postgres::scheduled_event::insert_scheduled_event;
 use crate::services::election_event_board::BoardSerializable;
 use crate::services::jwks::upsert_realm_jwks;
-use crate::services::protocol_manager::{create_protocol_manager_keys, get_board_client};
+use crate::services::protocol_manager::{create_protocol_manager_keys, get_b3_pgsql_client, get_board_client};
 use crate::tasks::import_election_event::ImportElectionEventBody;
 use crate::tasks::manage_election_event_date::ManageElectionDatePayload;
 use crate::types::scheduled_event::CronConfig;
@@ -67,18 +69,17 @@ pub struct ImportElectionEventSchema {
 }
 
 #[instrument(err)]
-pub async fn upsert_immu_board(tenant_id: &str, election_event_id: &str) -> Result<Value> {
-    let index_db = env::var("IMMUDB_INDEX_DB").expect(&format!("IMMUDB_INDEX_DB must be set"));
+pub async fn upsert_b3_and_elog(tenant_id: &str, election_event_id: &str) -> Result<Value> {
     let board_name = get_event_board(tenant_id, election_event_id);
-    let mut board_client = get_board_client().await?;
-    let has_board = board_client.has_database(board_name.as_str()).await?;
-    let board = if has_board {
-        board_client.get_board(&index_db, &board_name).await?
-    } else {
-        board_client.create_board(&index_db, &board_name).await?
-    };
+    // FIXME must also create the electoral log board here
+    let mut immudb_client = get_board_client().await?;
+    immudb_client.upsert_electoral_log_db(&board_name).await?;
 
-    if !has_board {
+    let mut board_client = get_b3_pgsql_client().await?;
+    let existing = board_client.get_board(board_name.as_str()).await?;
+    board_client.create_index_ine().await?;
+    board_client.create_board_ine(board_name.as_str()).await?;
+    if existing.is_none() {
         event!(
             Level::INFO,
             "creating protocol manager keys for Election event {}",
@@ -86,8 +87,14 @@ pub async fn upsert_immu_board(tenant_id: &str, election_event_id: &str) -> Resu
         );
         create_protocol_manager_keys(&board_name).await?;
     }
+    let board = board_client.get_board(board_name.as_str()).await?;
+    let board = board.ok_or(anyhow!(
+        "Unexpected error: could not retrieve created board '{}'",
+        &board_name
+    ))?;
 
     let board_serializable: BoardSerializable = board.into();
+
     let board_value = serde_json::to_value(board_serializable.clone())?;
     Ok(board_value)
 }
@@ -125,6 +132,7 @@ pub async fn upsert_keycloak_realm(
             &realm_config,
             tenant_id,
             keycloak_event_realm.is_none(),
+            None,
         )
         .await?;
     upsert_realm_jwks(realm_name.as_str()).await?;
@@ -251,79 +259,103 @@ pub async fn get_document(
 
 #[instrument(err, skip_all)]
 pub async fn process(
+    hasura_transaction: &Transaction<'_>,
     object: ImportElectionEventBody,
     election_event_id: String,
     tenant_id: String,
+    task_execution: TasksExecution,
 ) -> Result<()> {
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|err| anyhow!("Error getting hasura db pool: {err}"))?;
-
-    let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .map_err(|err| anyhow!("Error starting hasura transaction: {err}"))?;
-
-    let mut data: ImportElectionEventSchema = get_document(
-        &hasura_transaction,
+    // Get the document
+    let mut data = get_document(
+        hasura_transaction,
         object,
-        Some(election_event_id),
+        Some(election_event_id.clone()),
         tenant_id.clone(),
     )
-    .await?;
-    let tenant_id = &data.tenant_id.to_string();
-    let election_event_id = &data.election_event.id;
+    .await
+    .with_context(|| format!("Error getting document for election event ID {election_event_id} and tenant ID {tenant_id}"))?;
 
-    let board = upsert_immu_board(tenant_id.as_str(), &election_event_id).await?;
+    // Upsert immutable board
+    let board = upsert_b3_and_elog(tenant_id.as_str(), &election_event_id)
+        .await
+        .with_context(|| format!("Error upserting b3 board for tenant ID {tenant_id} and election event ID {election_event_id}"))?;
+
     data.election_event.bulletin_board_reference = Some(board);
     data.election_event.public_key = None;
-    data.election_event.statistics =
-        Some(serde_json::to_value(ElectionEventStatistics::default())?);
-    data.election_event.status = Some(serde_json::to_value(ElectionEventStatus::default())?);
+    data.election_event.statistics = Some(
+        serde_json::to_value(ElectionEventStatistics::default())
+            .with_context(|| "Error serializing election event statistics")?,
+    );
 
+    data.election_event.status = Some(
+        serde_json::to_value(ElectionEventStatus::default())
+            .with_context(|| "Error serializing election event status")?,
+    );
+
+    // Process elections
     data.elections = data
         .elections
         .into_iter()
         .map(|election| -> Result<Election> {
             let mut clone = election.clone();
-            clone.statistics = Some(serde_json::to_value(ElectionStatistics::default())?);
-            clone.status = Some(serde_json::to_value(ElectionStatus::default())?);
+            clone.statistics = Some(
+                serde_json::to_value(ElectionStatistics::default())
+                    .with_context(|| "Error serializing election statistics")?,
+            );
+            clone.status = Some(
+                serde_json::to_value(ElectionStatus::default())
+                    .with_context(|| "Error serializing election status")?,
+            );
             Ok(clone)
         })
-        .collect::<Result<Vec<Election>>>()?;
+        .collect::<Result<Vec<Election>>>()
+        .with_context(|| "Error processing elections")?;
 
     upsert_keycloak_realm(
         tenant_id.as_str(),
         &election_event_id,
         data.keycloak_event_realm.clone(),
     )
-    .await?;
-    insert_election_event(&hasura_transaction, &data).await?;
-    manage_dates(&data, &hasura_transaction).await?;
-    insert_election(&hasura_transaction, &data).await?;
-    insert_contest(&hasura_transaction, &data).await?;
+    .await
+    .with_context(|| format!("Error upserting Keycloak realm for tenant ID {tenant_id} and election event ID {election_event_id}"))?;
+
+    insert_election_event(hasura_transaction, &data)
+        .await
+        .with_context(|| "Error inserting election event")?;
+
+    manage_dates(&data, hasura_transaction)
+        .await
+        .with_context(|| "Error managing dates")?;
+
+    insert_election(hasura_transaction, &data)
+        .await
+        .with_context(|| "Error inserting election")?;
+
+    insert_contest(hasura_transaction, &data)
+        .await
+        .with_context(|| "Error inserting contest")?;
+
     insert_candidates(
-        &hasura_transaction,
-        &data.tenant_id.to_string(),
-        &data.election_event.id,
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
         &data.candidates,
     )
-    .await?;
-    insert_areas(&hasura_transaction, &data.areas).await?;
+    .await
+    .with_context(|| "Error inserting candidates")?;
+
+    insert_areas(hasura_transaction, &data.areas)
+        .await
+        .with_context(|| "Error inserting areas")?;
+
     insert_area_contests(
-        &hasura_transaction,
-        &data.tenant_id.to_string(),
-        &data.election_event.id,
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
         &data.area_contests,
     )
-    .await?;
-
-    let _commit = hasura_transaction
-        .commit()
-        .await
-        .map_err(|e| anyhow!("Commit failed: {}", e));
+    .await
+    .with_context(|| "Error inserting area contests")?;
 
     Ok(())
 }
@@ -404,33 +436,29 @@ pub async fn maybe_create_scheduled_event(
     start_date: String,
     election_id: Option<&str>,
 ) -> Result<()> {
-    let now = ISO8601::now();
-    let date = ISO8601::to_date(&start_date).ok();
     let is_start = event_processor == EventProcessors::START_ELECTION;
-    if date > Some(now) {
-        let start_task_id =
-            generate_manage_date_task_name(tenant_id, election_event_id, election_id, is_start);
-        let payload = ManageElectionDatePayload {
-            election_id: match election_id {
-                Some(id) => Some(id.to_string()),
-                None => None,
-            },
-        };
-        let cron_config = CronConfig {
-            cron: None,
-            scheduled_date: Some(start_date.to_string()),
-        };
-        insert_scheduled_event(
-            hasura_transaction,
-            tenant_id,
-            election_event_id,
-            event_processor,
-            &start_task_id,
-            cron_config,
-            serde_json::to_value(payload)?,
-        )
-        .await?;
-    }
+    let start_task_id =
+        generate_manage_date_task_name(tenant_id, election_event_id, election_id, is_start);
+    let payload = ManageElectionDatePayload {
+        election_id: match election_id {
+            Some(id) => Some(id.to_string()),
+            None => None,
+        },
+    };
+    let cron_config = CronConfig {
+        cron: None,
+        scheduled_date: Some(start_date.to_string()),
+    };
+    insert_scheduled_event(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        event_processor,
+        &start_task_id,
+        cron_config,
+        serde_json::to_value(payload)?,
+    )
+    .await?;
 
     Ok(())
 }

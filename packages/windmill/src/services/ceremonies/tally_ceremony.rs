@@ -34,7 +34,7 @@ use crate::services::ceremonies::tally_ceremony::get_tally_session_by_id::{
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
 use anyhow::{anyhow, Context, Result};
-use board_messages::braid::newtypes::BatchNumber;
+use b3::messages::newtypes::BatchNumber;
 use deadpool_postgres::Transaction;
 use futures::try_join;
 use sequent_core::serialization::deserialize_with_path::*;
@@ -479,9 +479,9 @@ pub async fn set_private_key(
 
     // The trustee name is simply the username of the user
     let trustee_name = claims
-        .preferred_username
+        .trustee
         .clone()
-        .ok_or(anyhow!("username not found"))?;
+        .ok_or(anyhow!("trustee name not found"))?;
 
     let Some((tally_session_execution, tally_session)) = find_last_tally_session_execution(
         auth_headers.clone(),

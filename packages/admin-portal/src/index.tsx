@@ -25,6 +25,8 @@ import {
     ApolloWrapper,
     defaultApolloContextValues,
 } from "./providers/ApolloContextProvider"
+import {WidgetsContextProvider} from "./providers/WidgetsContextProvider"
+import {BrowserRouter as Router} from "react-router-dom"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
@@ -32,35 +34,39 @@ initCore()
 
 root.render(
     <React.StrictMode>
-        <SettingsWrapper>
-            <AuthContextProvider>
-                <TenantContextProvider>
-                    <NewResourceContextProvider>
-                        <ElectionEventContextProvider>
-                            <ElectionContextProvider>
-                                <ContestContextProvider>
-                                    <CandidateContextProvider>
-                                        <ElectionEventTallyContextProvider>
-                                            <PublishContextProvider>
-                                                <ThemeProvider theme={fullAdminTheme}>
-                                                    <ApolloContextProvider
-                                                        role={defaultApolloContextValues.role}
-                                                    >
-                                                        <ApolloWrapper>
-                                                            <App />
-                                                        </ApolloWrapper>
-                                                    </ApolloContextProvider>
-                                                </ThemeProvider>
-                                            </PublishContextProvider>
-                                        </ElectionEventTallyContextProvider>
-                                    </CandidateContextProvider>
-                                </ContestContextProvider>
-                            </ElectionContextProvider>
-                        </ElectionEventContextProvider>
-                    </NewResourceContextProvider>
-                </TenantContextProvider>
-            </AuthContextProvider>
-        </SettingsWrapper>
+        <Router>
+            <SettingsWrapper>
+                <AuthContextProvider>
+                    <TenantContextProvider>
+                        <NewResourceContextProvider>
+                            <ElectionEventContextProvider>
+                                <ElectionContextProvider>
+                                    <ContestContextProvider>
+                                        <CandidateContextProvider>
+                                            <ElectionEventTallyContextProvider>
+                                                <PublishContextProvider>
+                                                    <ThemeProvider theme={fullAdminTheme}>
+                                                        <ApolloContextProvider
+                                                            role={defaultApolloContextValues.role}
+                                                        >
+                                                            <ApolloWrapper>
+                                                                <WidgetsContextProvider>
+                                                                    <App />
+                                                                </WidgetsContextProvider>
+                                                            </ApolloWrapper>
+                                                        </ApolloContextProvider>
+                                                    </ThemeProvider>
+                                                </PublishContextProvider>
+                                            </ElectionEventTallyContextProvider>
+                                        </CandidateContextProvider>
+                                    </ContestContextProvider>
+                                </ElectionContextProvider>
+                            </ElectionEventContextProvider>
+                        </NewResourceContextProvider>
+                    </TenantContextProvider>
+                </AuthContextProvider>
+            </SettingsWrapper>
+        </Router>
     </React.StrictMode>
 )
 

@@ -97,7 +97,7 @@ fn main() -> Result<()> {
 /// Chunking
 ///
 /// Multiplexed requests will be chunked. Truncated responses from the bulletin board will be followed
-/// up. Chunking is controlled by the value board_messages::grpc::MAX_MESSAGE_SIZE.
+/// up. Chunking is controlled by the value b3::grpc::MAX_MESSAGE_SIZE.
 ///
 /// Example run command
 ///

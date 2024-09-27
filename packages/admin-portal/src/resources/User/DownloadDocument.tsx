@@ -4,17 +4,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useContext, useEffect} from "react"
-import {FetchDocumentQuery} from "@/gql/graphql"
+import {FetchDocumentQuery, Sequent_Backend_Document} from "@/gql/graphql"
 import {useQuery} from "@apollo/client"
 import {FETCH_DOCUMENT} from "@/queries/FetchDocument"
 import {downloadUrl} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {CircularProgress} from "@mui/material"
+import {useGetOne} from "react-admin"
+import {useTenantStore} from "@/providers/TenantContextProvider"
 
 export interface DownloadDocumentProps {
     onDownload: () => void
-    fileName: string
+    fileName: string | null
     documentId: string
     electionEventId: string
+    withProgress?: boolean
 }
 
 export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
@@ -22,9 +26,17 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
     fileName,
     documentId,
     electionEventId,
+    withProgress,
 }) => {
     const [downloaded, setDownloaded] = React.useState(false)
     const {globalSettings} = useContext(SettingsContext)
+    const [tenantId] = useTenantStore()
+
+    const {data: document} = useGetOne<Sequent_Backend_Document>("sequent_backend_document", {
+        id: documentId,
+        meta: {tenant_id: tenantId},
+    })
+
     const {loading, error, data} = useQuery<FetchDocumentQuery>(FETCH_DOCUMENT, {
         variables: {
             electionEventId,
@@ -34,12 +46,23 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
     })
 
     useEffect(() => {
-        console.log(`use effect called filename=${fileName}`)
-        if (!error && data?.fetchDocument?.url && !downloaded) {
+        if (!error && data?.fetchDocument?.url && !downloaded && (fileName || document)) {
             setDownloaded(true)
-            downloadUrl(data.fetchDocument.url, fileName).then(() => onDownload())
+            let name = fileName || document?.name || "file"
+            downloadUrl(data.fetchDocument.url, name).then(() => onDownload())
         }
-    }, [data, error, loading])
+    }, [
+        data,
+        data?.fetchDocument?.url,
+        error,
+        loading,
+        document,
+        fileName,
+        downloaded,
+        setDownloaded,
+        downloadUrl,
+        onDownload,
+    ])
 
-    return <></>
+    return withProgress ? <CircularProgress /> : <></>
 }

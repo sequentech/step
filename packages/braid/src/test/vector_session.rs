@@ -4,13 +4,13 @@
 
 use crate::protocol::trustee2::Trustee;
 use crate::test::vector_board::VectorBoard;
-use board_messages::braid::artifact::{DkgPublicKey, Plaintexts};
-use board_messages::braid::message::Message;
+use b3::messages::artifact::{DkgPublicKey, Plaintexts};
+use b3::messages::message::Message;
 use log::{error, info};
 use std::sync::{Arc, Mutex};
 use strand::context::Ctx;
 
-use board_messages::braid::newtypes::{BatchNumber, TrusteePosition};
+use b3::messages::newtypes::{BatchNumber, TrusteePosition};
 
 // Implements cross-session parallelism as well as simulates cross-trustee parallelism
 #[derive(Debug)]

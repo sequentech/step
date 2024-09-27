@@ -51,9 +51,9 @@ const spanishTranslation: TranslationType = {
         reviewScreen: {
             title: "Revisa tu voto",
             description:
-                "Para realizar cambios en sus selecciones, haga clic en el botón “<b>Editar selección</b>”, para confirmar sus selecciones, haga clic en el botón “<b>Enviar tu voto</b>” debajo, y para auditar su papeleta haga clic en el botón “<b>Auditar papeleta</b>” debajo. Tenga en cuenta que una vez que envíe su papeleta, habrá votado y no se le emitirá otra papeleta para esta elección.",
+                "Para realizar cambios en sus selecciones, haga clic en el botón “<b>Editar selección</b>”, para confirmar sus selecciones, haga clic en el botón “<b>Enviar tu voto</b>” debajo, y para auditar su papeleta haga clic en el botón “<b>Auditar papeleta</b>” debajo.",
             descriptionNoAudit:
-                "Para realizar cambios en sus selecciones, haga clic en el botón “<b>Editar selección</b>”, para confirmar sus selecciones, haga clic en el botón “<b>Enviar tu voto</b>” debajo. Tenga en cuenta que una vez que envíe su papeleta, habrá votado y no se le emitirá otra papeleta para esta elección.",
+                "Para realizar cambios en sus selecciones, haga clic en el botón “<b>Editar selección</b>”, para confirmar sus selecciones, haga clic en el botón “<b>Enviar tu voto</b>” debajo.",
             backButton: "Editar tu voto",
             castBallotButton: "Enviar tu voto",
             auditButton: "Auditar papeleta",
@@ -91,7 +91,39 @@ const spanishTranslation: TranslationType = {
                 LOAD_ELECTION_EVENT:
                     "No se puede cargar el evento electoral. Por favor, inténtalo de nuevo más tarde.",
                 CAST_VOTE:
-                    "Hubo un error con GraphQL al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
+                    "Ha ocurrido un error desconocido al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                CAST_VOTE_CheckStatusFailed:
+                    "La elección no permite emitir el voto. La elección puede estar cerrada, archivada o tal vez estés intentando votar fuera del período de gracia.",
+                CAST_VOTE_AreaNotFound:
+                    "Ha ocurrido un error al emitir el voto: Área no encontrada. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                CAST_VOTE_InternalServerError:
+                    "Ha ocurrido un error interno al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                CAST_VOTE_QueueError:
+                    "Ha ocurrido un problema al procesar su voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                CAST_VOTE_Unauthorized:
+                    "No está autorizado para emitir un voto. Por favor, contacte con soporte para obtener ayuda.",
+                CAST_VOTE_ElectionEventNotFound:
+                    "No se pudo encontrar el evento electoral. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                CAST_VOTE_ElectoralLogNotFound:
+                    "No se pudo encontrar su registro de votación. Por favor, contacte con soporte para obtener ayuda.",
+                CAST_VOTE_CheckPreviousVotesFailed:
+                    "Ha ocurrido un error al verificar su estado de votación. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                CAST_VOTE_GetClientCredentialsFailed:
+                    "No se pudieron verificar sus credenciales. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                CAST_VOTE_GetAreaIdFailed:
+                    "Ha ocurrido un error al verificar su área de votación. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                CAST_VOTE_GetTransactionFailed:
+                    "Ha ocurrido un error al procesar su voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                CAST_VOTE_DeserializeBallotFailed:
+                    "Ha ocurrido un error al leer su papeleta. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                CAST_VOTE_DeserializeContestsFailed:
+                    "Ha ocurrido un error al leer sus selecciones. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                CAST_VOTE_PokValidationFailed:
+                    "No se pudo validar su voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                CAST_VOTE_UuidParseFailed:
+                    "Ha ocurrido un error al procesar su solicitud. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                CAST_VOTE_UnknownError:
+                    "Ha ocurrido un error desconocido al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
                 NO_BALLOT_SELECTION:
                     "El estado de selección para esta elección no está presente. Asegúrate de haber seleccionado correctamente tus opciones o contacta con el soporte.",
                 NO_BALLOT_STYLE:
@@ -245,6 +277,8 @@ const spanishTranslation: TranslationType = {
                     "El número de opciones seleccionadas {{numSelected}} para la lista {{type}} es mayor que el máximo {{max}}",
                 underVote:
                     "Subvoto: El número de opciones seleccionadas {{numSelected}} es menor que el máximo permitido de {{max}}",
+                overVoteDisabled:
+                    "Máximo alcanzado: Has seleccionado el máximo de {{numSelected}} opciones. Para cambiar tu selección, por favor, desmarca primero otra opción.",
                 blankVote: "Voto en Blanco: 0 opciones seleccionadas",
             },
             explicit: {

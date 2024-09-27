@@ -4,19 +4,22 @@
 
 use crate::postgres::candidate::insert_candidates;
 use crate::postgres::contest::export_contests;
+use crate::services::tasks_execution::*;
+use crate::types::error::Error;
 use crate::{
-    postgres::document::get_document,
+    postgres::{document::get_document, tasks_execution::insert_tasks_execution},
     services::{database::get_hasura_pool, documents::get_document_as_temp_file},
 };
 use anyhow::{anyhow, Context, Result};
 use csv::ReaderBuilder;
 use deadpool_postgres::Client as DbClient;
+use deadpool_postgres::Transaction;
 use encoding_rs::WINDOWS_1252;
 use encoding_rs_io::DecodeReaderBytesBuilder;
 use sequent_core::ballot::ContestPresentation;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
-use sequent_core::types::hasura::core::Candidate;
 use sequent_core::types::hasura::core::Contest;
+use sequent_core::types::hasura::core::{Candidate, TasksExecution};
 use std::fs::File;
 use std::io::BufReader;
 use std::io::Seek;
@@ -291,26 +294,53 @@ pub async fn import_candidates_task(
     tenant_id: String,
     election_event_id: String,
     document_id: String,
+    task_execution: TasksExecution,
 ) -> Result<()> {
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|err| anyhow!("Error getting hasura db pool: {err}"))?;
+    let mut hasura_db_client: DbClient = match get_hasura_pool().await.get().await {
+        Ok(client) => client,
+        Err(err) => {
+            update_fail(&task_execution, "Failed to get Hasura DB pool").await?;
+            return Err(anyhow!("Error getting Hasura DB pool: {}", err));
+        }
+    };
 
-    let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .map_err(|err| anyhow!("Error starting hasura transaction: {err}"))?;
+    let hasura_transaction = match hasura_db_client.transaction().await {
+        Ok(transaction) => transaction,
+        Err(err) => {
+            update_fail(&task_execution, "Failed to start Hasura transaction").await?;
+            return Err(anyhow!("Error starting Hasura transaction: {err}"));
+        }
+    };
 
-    let document = get_document(&hasura_transaction, &tenant_id, None, &document_id)
-        .await
-        .with_context(|| "Error obtaining the document")?
-        .ok_or(anyhow!("document not found"))?;
+    let document = match get_document(&hasura_transaction, &tenant_id, None, &document_id).await {
+        Ok(Some(document)) => document,
+        Ok(None) => {
+            update_fail(&task_execution, "Document not found").await?;
+            return Err(anyhow!("Document not found"));
+        }
+        Err(err) => {
+            update_fail(&task_execution, "Error obtaining the document").await?;
+            return Err(anyhow!("Error obtaining the document: {}", err));
+        }
+    };
 
-    let contests = export_contests(&hasura_transaction, &tenant_id, &election_event_id).await?;
+    let contests = match export_contests(&hasura_transaction, &tenant_id, &election_event_id).await
+    {
+        Ok(contests) => contests,
+        Err(err) => {
+            update_fail(&task_execution, "Document not found").await?;
+            return Err(anyhow!("Error obtaining the document"));
+        }
+    };
 
-    let mut temp_file = get_document_as_temp_file(&tenant_id, &document).await?;
+    let mut temp_file = match get_document_as_temp_file(&tenant_id, &document).await {
+        Ok(temp_file) => temp_file,
+        Err(err) => {
+            update_fail(&task_execution, "Document not found").await?;
+            return Err(anyhow!("Error obtaining the tmp document"));
+        }
+    };
+
     temp_file.rewind()?;
     let reader = BufReader::new(temp_file.as_file());
 
@@ -327,48 +357,71 @@ pub async fn import_candidates_task(
 
     let mut candidates: Vec<Candidate> = vec![];
     for result in rdr.records() {
-        event!(Level::INFO, "result {:?}", result);
-        let record = result.with_context(|| "Error reading CSV record")?;
-        let name_on_ballot = record.get(26).unwrap_or("Candidate").to_string();
-        let political_party = record.get(7).unwrap_or("\\N").to_string();
-        let postcode = record.get(2).unwrap_or("1").to_string();
+        match result.with_context(|| "Error reading CSV record") {
+            Ok(record) => {
+                event!(Level::INFO, "result {:?}", record);
+                let name_on_ballot = record.get(26).unwrap_or("Candidate").to_string();
+                let political_party = record.get(7).unwrap_or("\\N").to_string();
+                let postcode = record.get(2).unwrap_or("1").to_string();
 
-        let ext = get_political_party_extension(&political_party);
-        let contest_id_opt = get_contest_from_postcode(&contests, &postcode)?;
-        let Some(contest_id) = contest_id_opt else {
-            continue;
-        };
-        let candidate = Candidate {
-            id: Uuid::new_v4().to_string(),
-            tenant_id: tenant_id.clone(),
-            election_event_id: election_event_id.clone(),
-            contest_id: Some(contest_id),
-            created_at: None,
-            last_updated_at: None,
-            labels: None,
-            annotations: None,
-            name: Some(format!("{name_on_ballot} ({ext})")),
-            alias: None,
-            description: None,
-            r#type: None,
-            presentation: None,
-            is_public: Some(true),
-            image_document_id: None,
-        };
-        candidates.push(candidate);
+                let ext = get_political_party_extension(&political_party);
+                let contest_id_opt = get_contest_from_postcode(&contests, &postcode)?;
+                let Some(contest_id) = contest_id_opt else {
+                    continue;
+                };
+                let candidate = Candidate {
+                    id: Uuid::new_v4().to_string(),
+                    tenant_id: tenant_id.clone(),
+                    election_event_id: election_event_id.clone(),
+                    contest_id: Some(contest_id),
+                    created_at: None,
+                    last_updated_at: None,
+                    labels: None,
+                    annotations: None,
+                    name: Some(format!("{name_on_ballot} ({ext})")),
+                    alias: None,
+                    description: None,
+                    r#type: None,
+                    presentation: None,
+                    is_public: Some(true),
+                    image_document_id: None,
+                };
+                candidates.push(candidate);
+            }
+            Err(err) => {
+                event!(Level::ERROR, "Error reading CSV record: {:?}", err);
+                update_fail(&task_execution, "Error reading CSV record").await?;
+                return Err(anyhow!("Error reading CSV record: {}", err));
+            }
+        }
     }
-    insert_candidates(
+
+    match insert_candidates(
         &hasura_transaction,
         &tenant_id,
         &election_event_id,
         &candidates,
     )
-    .await?;
+    .await
+    {
+        Ok(_) => (),
+        Err(err) => {
+            update_fail(&task_execution, "Error inserting candidates to db").await?;
+            return Err(anyhow!("Inserting candidates failed: {:?}", err));
+        }
+    }
 
-    let _commit = hasura_transaction
-        .commit()
+    match hasura_transaction.commit().await {
+        Ok(_) => (),
+        Err(err) => {
+            update_fail(&task_execution, "Error updating db").await?;
+            return Err(anyhow!("Commit failed: {}", err));
+        }
+    };
+
+    update_complete(&task_execution)
         .await
-        .map_err(|e| anyhow!("Commit failed: {}", e));
+        .context("Failed to update task execution status to COMPLETED")?;
 
     Ok(())
 }

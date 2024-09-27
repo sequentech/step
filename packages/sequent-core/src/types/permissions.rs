@@ -23,6 +23,8 @@ pub enum Permissions {
     ELECTION_EVENT_READ,
     #[strum(serialize = "election-event-write")]
     ELECTION_EVENT_WRITE,
+    #[strum(serialize = "election-event-delete")]
+    ELECTION_EVENT_DELETE,
     #[strum(serialize = "voter-create")]
     VOTER_CREATE,
     #[strum(serialize = "voter-read")]
@@ -99,6 +101,8 @@ pub enum Permissions {
     PUBLISH_WRITE,
     #[strum(serialize = "logs-read")]
     LOGS_READ,
+    #[strum(serialize = "tasks-read")]
+    TASKS_READ,
     #[strum(serialize = "keys-read")]
     KEYS_READ,
     #[strum(serialize = "document-upload")]
@@ -127,6 +131,16 @@ pub enum Permissions {
     SUPPORT_MATERIAL_READ,
     #[strum(serialize = "support-material-write")]
     SUPPORT_MATERIAL_WRITE,
+    #[strum(serialize = "miru-create")]
+    MIRU_CREATE,
+    #[strum(serialize = "miru-download")]
+    MIRU_DOWNLOAD,
+    #[strum(serialize = "miru-send")]
+    MIRU_SEND,
+    #[strum(serialize = "miru-sign")]
+    MIRU_SIGN,
+    #[strum(serialize = "service-account")]
+    SERVICE_ACCOUNT,
 }
 
 #[allow(non_camel_case_types)]

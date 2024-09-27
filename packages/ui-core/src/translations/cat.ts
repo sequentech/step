@@ -119,6 +119,12 @@ const catalanTranslation: TranslationType = {
         },
         header: {
             profile: "Perfil",
+            session: {
+                title: "La seva sessió està a punt d'expirar.",
+                timeLeft: "Li queden {{time}} per emetre el seu vot.",
+                timeLeftMinutesAndSeconds: "{{timeLeftInMinutes}} minuts i {{time}} segons",
+                timeLeftSeconds: "{{timeLeft}} segons",
+            },
         },
     },
 }
