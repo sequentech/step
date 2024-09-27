@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use b3::client::pgsql::{PgsqlB3Client, PgsqlConnectionParams};
 use b3::messages::artifact::Shares;
 use b3::messages::artifact::{Ballots, Channel, Configuration, DkgPublicKey};
 use b3::messages::message::Message;
@@ -10,7 +11,6 @@ use b3::messages::newtypes::PublicKeyHash;
 use b3::messages::newtypes::{TrusteeSet, MAX_TRUSTEES, NULL_TRUSTEE};
 use b3::messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
 use b3::messages::statement::StatementType;
-use b3::client::pgsql::{PgsqlB3Client, PgsqlConnectionParams};
 
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
@@ -340,7 +340,6 @@ pub async fn add_ballots_to_board<C: Ctx>(
     info!("Adding configuration to the board..");
     b3_client.insert_ballots::<C>(board_name, message).await
 }
-
 
 #[instrument(err)]
 pub async fn get_board_client() -> Result<BoardClient> {

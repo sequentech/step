@@ -10,19 +10,19 @@ use tokio_postgres::{config::Config, NoTls};
 use tonic::{Request, Response, Status};
 use tracing::{error, info, warn};
 
-use crate::messages::statement::StatementType;
 use crate::grpc::{
     GetBoardsReply, GetBoardsRequest, GetMessagesMultiReply, GetMessagesMultiRequest,
     GetMessagesReply, GetMessagesRequest, GrpcB3Message, KeyedMessages, PutMessagesMultiReply,
     PutMessagesMultiRequest, MESSAGE_CHUNK_SIZE,
 };
 use crate::grpc::{PutMessagesReply, PutMessagesRequest};
+use crate::messages::statement::StatementType;
 
 use super::validate_board_name;
-use crate::messages::message::Message;
 use crate::client::pgsql::B3MessageRow;
 use crate::client::pgsql::PgsqlDbConnectionParams;
 use crate::client::pgsql::PooledPgsqlB3Client;
+use crate::messages::message::Message;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 
 const BB8_POOL_SIZE: u32 = 20;
@@ -343,8 +343,7 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
                         if total_bytes > MESSAGE_CHUNK_SIZE {
                             warn!(
                                 "get_messages_multi: truncating response to respect limit {} > {}",
-                                total_bytes,
-                                MESSAGE_CHUNK_SIZE
+                                total_bytes, MESSAGE_CHUNK_SIZE
                             );
                             total_bytes -= next_bytes;
                             truncated = true;
@@ -450,12 +449,12 @@ pub(crate) mod tests {
     use crate::client::pgsql::PgsqlB3Client;
     use crate::client::pgsql::PgsqlConnectionParams;
     use crate::{
+        client::grpc::B3Client,
+        grpc::proto::b3_server::B3,
         messages::{
             artifact::Configuration, newtypes::PROTOCOL_MANAGER_INDEX,
             protocol_manager::ProtocolManager,
         },
-        grpc::proto::b3_server::B3,
-        client::grpc::B3Client,
     };
     use serial_test::serial;
     use strand::{

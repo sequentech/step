@@ -18,6 +18,7 @@ use crate::protocol::board::local2::LocalBoard;
 use crate::protocol::predicate::Predicate;
 
 use crate::util::{ProtocolContext, ProtocolError};
+use b3::grpc::GrpcB3Message;
 use b3::messages::artifact::Channel;
 use b3::messages::artifact::Configuration;
 use b3::messages::artifact::DkgPublicKey;
@@ -26,7 +27,6 @@ use b3::messages::artifact::{Ballots, DecryptionFactors, Mix, Plaintexts};
 use b3::messages::message::Message;
 use b3::messages::newtypes::*;
 use b3::messages::statement::StatementType;
-use b3::grpc::GrpcB3Message;
 use std::path::PathBuf;
 use strand::util::StrandError;
 

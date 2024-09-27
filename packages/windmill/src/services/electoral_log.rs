@@ -10,14 +10,13 @@ use anyhow::{anyhow, Context, Result};
 
 use electoral_log::messages::message::Message;
 use electoral_log::messages::message::SigningData;
-use electoral_log::messages::newtypes::*;
 use electoral_log::messages::newtypes::ErrorMessageString;
 use electoral_log::messages::newtypes::KeycloakEventTypeString;
+use electoral_log::messages::newtypes::*;
 
-
+use crate::services::protocol_manager::get_event_board;
 use b3::messages::message::{self, Signer as _};
 use electoral_log::assign_value;
-use crate::services::protocol_manager::get_event_board;
 use electoral_log::ElectoralLogMessage;
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue};
 use sequent_core::services::connection;

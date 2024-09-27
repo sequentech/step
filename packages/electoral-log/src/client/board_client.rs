@@ -6,10 +6,10 @@ use anyhow::{anyhow, Context, Result};
 use log::info;
 use tracing::{event, instrument, Level};
 
+use crate::assign_value;
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue, TxMode};
 use std::fmt::Debug;
 use tokio::time::{sleep, Duration};
-use crate::assign_value;
 
 const IMMUDB_DEFAULT_LIMIT: usize = 900;
 const IMMUDB_DEFAULT_ENTRIES_TX_LIMIT: usize = 50;
@@ -67,7 +67,12 @@ impl TryFrom<&Row> for ElectoralLogMessage {
                     Some(Value::S(inner)) => user_id = Some(inner.clone()),
                     Some(Value::Null(_)) => user_id = None,
                     None => user_id = None,
-                    _ => return Err(anyhow!("invalid column value for 'user_id': {:?}", value.value.as_ref())),
+                    _ => {
+                        return Err(anyhow!(
+                            "invalid column value for 'user_id': {:?}",
+                            value.value.as_ref()
+                        ))
+                    }
                 },
                 _ => return Err(anyhow!("invalid column found '{}'", bare_column)),
             }
@@ -94,7 +99,7 @@ impl BoardClient {
 
         Ok(BoardClient { client: client })
     }
-    
+
     /// Get all electoral log messages whose id is bigger than `last_id`
     pub async fn get_electoral_log_messages(
         &mut self,
@@ -181,14 +186,8 @@ impl BoardClient {
         min_ts: Option<i64>,
         max_ts: Option<i64>,
     ) -> Result<Vec<ElectoralLogMessage>> {
-        self.get_filtered(
-            board_db,
-            kind,
-            sender_pk,
-            min_ts,
-            max_ts,
-        )
-        .await
+        self.get_filtered(board_db, kind, sender_pk, min_ts, max_ts)
+            .await
     }
 
     async fn get_filtered(
@@ -228,9 +227,7 @@ impl BoardClient {
         {}
         ORDER BY id;
         "#,
-            ELECTORAL_LOG_TABLE,
-            min_clause,
-            max_clause,
+            ELECTORAL_LOG_TABLE, min_clause, max_clause,
         );
 
         let mut params = vec![
@@ -481,11 +478,11 @@ pub(crate) mod tests {
             user_id: None,
         };
         let messages = vec![electoral_log_message];
-        
+
         b.insert_electoral_log_messages(BOARD_DB, &messages)
-             .await
-             .unwrap();
-        
+            .await
+            .unwrap();
+
         let ret = b.get_electoral_log_messages(BOARD_DB).await.unwrap();
         assert_eq!(messages, ret);
         let ret = b

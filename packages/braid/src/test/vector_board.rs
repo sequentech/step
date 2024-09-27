@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use b3::{
-    messages::{message::Message, statement::StatementType},
     grpc::GrpcB3Message,
+    messages::{message::Message, statement::StatementType},
 };
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 

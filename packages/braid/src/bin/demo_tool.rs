@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Result};
+use b3::client::pgsql;
 use b3::client::pgsql::B3IndexRow;
 use b3::client::pgsql::B3MessageRow;
-use b3::client::pgsql;
 use b3::client::pgsql::PgsqlB3Client;
 use b3::client::pgsql::PgsqlConnectionParams;
 use clap::Parser;
@@ -19,10 +19,10 @@ use b3::messages::artifact::Configuration;
 use b3::messages::artifact::DkgPublicKey;
 use b3::messages::message::Message;
 use b3::messages::newtypes::PublicKeyHash;
+use b3::messages::newtypes::MAX_TRUSTEES;
+use b3::messages::newtypes::NULL_TRUSTEE;
 use b3::messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
 use b3::messages::statement::StatementType;
-use b3::messages::newtypes::NULL_TRUSTEE;
-use b3::messages::newtypes::MAX_TRUSTEES;
 
 use braid::protocol::trustee2::TrusteeConfig;
 use rand::prelude::SliceRandom;

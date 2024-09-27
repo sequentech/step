@@ -1,5 +1,5 @@
-pub mod messages;
 pub mod client;
+pub mod messages;
 pub mod util;
 
 use std::time::{SystemTime, UNIX_EPOCH};

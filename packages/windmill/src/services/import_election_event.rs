@@ -2,11 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::protocol_manager::get_event_board;
 use crate::services::tasks_execution::update_fail;
 use ::keycloak::types::RealmRepresentation;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
-use crate::services::protocol_manager::get_event_board;
 use sequent_core::ballot::ElectionDates;
 use sequent_core::ballot::ElectionEventDates;
 use sequent_core::ballot::ElectionEventStatistics;
@@ -49,7 +49,9 @@ use crate::postgres::election_event::insert_election_event;
 use crate::postgres::scheduled_event::insert_scheduled_event;
 use crate::services::election_event_board::BoardSerializable;
 use crate::services::jwks::upsert_realm_jwks;
-use crate::services::protocol_manager::{create_protocol_manager_keys, get_b3_pgsql_client, get_board_client};
+use crate::services::protocol_manager::{
+    create_protocol_manager_keys, get_b3_pgsql_client, get_board_client,
+};
 use crate::tasks::import_election_event::ImportElectionEventBody;
 use crate::tasks::manage_election_event_date::ManageElectionDatePayload;
 use crate::types::scheduled_event::CronConfig;

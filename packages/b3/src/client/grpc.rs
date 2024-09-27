@@ -8,8 +8,8 @@ use tonic::transport::Endpoint;
 
 use crate::grpc::{
     B3Client as B3ClientInner, GetBoardsReply, GetBoardsRequest, GetMessagesMultiReply,
-    GetMessagesMultiRequest, GetMessagesRequest, GrpcB3Message, PutMessagesMultiReply,
-    PutMessagesMultiRequest, PutMessagesReply, PutMessagesRequest, GetMessagesReply
+    GetMessagesMultiRequest, GetMessagesReply, GetMessagesRequest, GrpcB3Message,
+    PutMessagesMultiReply, PutMessagesMultiRequest, PutMessagesReply, PutMessagesRequest,
 };
 use anyhow::Result;
 use rayon::prelude::*;

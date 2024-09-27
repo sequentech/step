@@ -2,8 +2,8 @@ use anyhow::Result;
 
 use b3::grpc::{GrpcB3Message, KeyedMessages};
 
-use b3::messages::message::Message;
 use b3::client::grpc::B3Client;
+use b3::messages::message::Message;
 
 use super::BoardFactory;
 
