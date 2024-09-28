@@ -44,7 +44,7 @@ use crate::util::dbg_hash;
 pub enum Action {
     SignConfiguration(ConfigurationHash),
     GenChannel(ConfigurationHash),
-    SignChannels(ConfigurationHash, ChannelsHashes),
+    SignChannels(ConfigurationHash, ChannelsHashes, TrusteePosition, TrusteeCount),
     ComputeShares(
         ConfigurationHash,
         ChannelsHashes,
@@ -146,7 +146,7 @@ impl Action {
         match self {
             Self::SignConfiguration(cfg_h) => cfg::sign_config(cfg_h, trustee),
             Self::GenChannel(cfg_h) => dkg::gen_channel(cfg_h, trustee),
-            Self::SignChannels(cfg_h, chs) => dkg::sign_channels(cfg_h, chs, trustee),
+            Self::SignChannels(cfg_h, chs, self_pos, th) => dkg::sign_channels(cfg_h, chs, self_pos, th, trustee),
             Self::ComputeShares(cfg_h, channels_hs, num_t, th) => {
                 dkg::compute_shares(cfg_h, channels_hs, num_t, th, trustee)
             }

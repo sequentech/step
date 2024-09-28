@@ -2,8 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+/// Used to retrieve and post protocol messages to the board.
 pub mod grpc_m;
-// pub mod local;
+/// A LocalBoard is a trustee's view of a bulletin board.
 pub mod local2;
 
 use anyhow::Result;
