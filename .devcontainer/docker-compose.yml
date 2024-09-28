@@ -819,6 +819,76 @@ services:
       BEAT_PROBE_LIVE_PATH: ${BEAT_PROBE_LIVE_PATH}
       BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
 
+  postgres-b3:
+    profiles: ["full"]
+    image: sequentech.local/postgresql
+    container_name: postgres-b3
+    restart: unless-stopped
+    volumes:
+      - b3_db_data:/var/lib/postgresql/data
+      - b3_db_logs:/logs
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    command: bash -c "chown -R postgres:postgres /logs && postgres -c 'config_file=/etc/postgresql/postgresql.conf'"
+    environment:
+      POSTGRES_PASSWORD: ${B3_PG_PASSWORD}
+    user: "999:999"  # This ensures that the postgres user inside the container is used
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready  -U postgres"]
+      interval: 5s
+      timeout: 10s
+      retries: 15
+      start_period: 5s
+    # depending on the `postgres` container to ensure that the
+    # `sequentech.local/postgresql` image is locally build, so that we can reuse
+    # it:
+    depends_on:
+      - postgres
+
+  b3:
+    profiles: ["full"]
+    stdin_open: true
+    image: sequentech.local/cargo-packages
+    container_name: b3
+    build:
+      context: ../packages/
+      dockerfile: ./Dockerfile.cargo-packages
+    volumes_from:
+      - devcontainer
+    depends_on:
+      - devcontainer
+      - postgres-b3
+    working_dir: /workspaces/step/packages/b3
+    entrypoint: [
+      "cargo",
+      "watch",
+      "--why",
+      # ignoring rust-local-target/ since it's used for local builds and
+      # otherwise triggers a rebuild all the time (probably rust analyzer)
+      "--ignore",
+      "rust-local-target/",
+      "--features",
+      "\"server sqlcopy\"",
+      "-x",
+      "run --bin b3",
+      "--",
+      "--host",
+      "$B3_PG_HOST",
+      "--port",
+      "$B3_PG_PORT",
+      "--username",
+      "$B3_PG_USER",
+      "--password",
+      "$B3_PG_PASSWORD",
+      "--database",
+      "$B3_PG_DATABASE",
+    ]
+    environment:
+      B3_PG_HOST: ${B3_PG_HOST}
+      B3_PG_PORT: ${B3_PG_PORT}
+      B3_PG_USER: ${B3_PG_USER}
+      B3_PG_PASSWORD: ${B3_PG_PASSWORD}
+      B3_PG_DATABASE: ${B3_PG_DATABASE}
+
 volumes:
   db_data:
   db_logs:
@@ -834,3 +904,5 @@ volumes:
   trustee3_data:
   protocol_manager_data:
   vault-volume:
+  b3_db_logs:
+  b3_db_data:
