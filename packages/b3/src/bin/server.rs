@@ -67,8 +67,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let c = PgsqlConnectionParams::new(host, port, username, &args.password);
     let c_db = c.with_database(&database);
-    let client = PgsqlB3Client::new(&c_db).await?;
+    let mut client = PgsqlB3Client::new(&c_db).await?;
     info!("pgsql connection ok");
+
+    client.create_index_ine().await?;
+    info!("pgsql index db asserted");
     let boards = client.get_boards().await?;
     info!("there are {} boards in the index", boards.len());
     drop(client);
