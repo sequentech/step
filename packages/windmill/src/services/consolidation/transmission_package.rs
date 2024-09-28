@@ -100,12 +100,18 @@ async fn generate_encrypted_compressed_xml(
 
     let (_temp_path, temp_path_string, _file_size) =
         write_into_named_temp_file(&compressed_xml, "template", ".xz")
-            .with_context(|| "Error writing to file")?;
-    let exz_temp_file = generate_temp_file("er_xxxxxxxx", ".exz")?;
+            .map_err(|e| anyhow!("Error writing into temp file: {e:?}"))?;
+    let exz_temp_file = generate_temp_file("er_xxxxxxxx", ".exz").map_err(|e| {
+        anyhow!("Error creating temp file: {e:?}")
+    })?;
     let exz_temp_file_string = exz_temp_file.path().to_string_lossy().to_string();
-    encrypt_file_aes_256_cbc(&temp_path_string, &exz_temp_file_string, &random_pass)?;
+    encrypt_file_aes_256_cbc(&temp_path_string, &exz_temp_file_string, &random_pass).map_err(|e| {
+        anyhow!("Error encrypting the ZIP file: {e:?}")
+    })?;
 
-    let encrypted_random_pass_base64 = ecies_encrypt_string(public_key_pem, &random_pass)?;
+    let encrypted_random_pass_base64 = ecies_encrypt_string(public_key_pem, &random_pass).map_err(|e| {
+        anyhow!("Error encrypting the random pass: {e:?}")
+    })?;
     Ok((exz_temp_file, encrypted_random_pass_base64))
 }
 

@@ -278,7 +278,7 @@ async fn post_ballots<C: Ctx>(board: &mut BoardClient, board_name: &str, ctx: C)
         .expect("Should have been able to read session configuration file at '{path}'");
 
     let configuration = Configuration::<C>::strand_deserialize(&contents)
-        .map_err(|e| anyhow!("Could not read configuration {}", e))?;
+        .map_err(|e| anyhow!("Could not read configuration {e:?}"))?;
 
     let sender_pk = configuration.trustees.get(0).unwrap();
     let sender_pk = sender_pk.to_der_b64_string()?;

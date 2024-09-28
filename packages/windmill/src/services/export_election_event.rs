@@ -66,17 +66,16 @@ pub async fn read_export_data(
 
 async fn generate_encrypted_zip(
     temp_path_string: String,
-    exz_temp_file_string: String,
-    public_key_pem: &str,
+    encrypted_temp_file_string: String,
 ) -> Result<(String)> {
-    let charset: String = "0123456789abcdef".into();
+    let charset: String = "0123456789abcdef!@?".into();
     let random_pass = generate_random_string_with_charset(64, &charset);
 
-    encrypt_file_aes_256_cbc(&temp_path_string, &exz_temp_file_string, &random_pass)?;
+    encrypt_file_aes_256_cbc(&temp_path_string, &encrypted_temp_file_string, &random_pass).map_err(|e| {
+        anyhow!("Error encrypting the ZIP file: {e:?}")
+    })?;
 
-    // let encrypted_random_pass_base64 = ecies_encrypt_string(public_key_pem, &random_pass)?;
-    let encrypted_random_pass_base64 = "TODO: need to generate password".to_string();
-    Ok(encrypted_random_pass_base64)
+    Ok(random_pass)
 }
 
 pub async fn write_export_document(data: ImportElectionEventSchema) -> Result<NamedTempFile> {
@@ -138,7 +137,7 @@ pub async fn process_export_zip(
                 election_id: None,
             },
         )
-        .await?;
+        .await.map_err(|e| anyhow!("Error exporting users file: {e:?}"))?;
         let voters_filename = format!("export-voters-{}.csv", election_event_id);
         zip_writer.start_file(&voters_filename, options)?;
 
@@ -155,7 +154,7 @@ pub async fn process_export_zip(
             election_event_id,
             &activity_logs_filename,
         )
-        .await?;
+        .await.map_err(|e| anyhow!("Error reading activity logs data: {e:?}"))?;
         zip_writer.start_file(&activity_logs_filename, options)?;
 
         let mut activity_logs_file = File::open(temp_activity_logs_file.path())?;
@@ -168,14 +167,12 @@ pub async fn process_export_zip(
     // Encrypt ZIP file if required
     let is_include_encryption = export_config.encrypt_with_password;
     let encrypted_zip_path = zip_path.with_extension("ezip");
-    // let public_key = prepend_miru_annotation(data);
     if is_include_encryption {
         generate_encrypted_zip(
             zip_path.to_string_lossy().to_string(),
             encrypted_zip_path.to_string_lossy().to_string(),
-            "public key",
         )
-        .await?; // TODO: generate real key
+        .await?;
     }
 
     // Use encrypted_zip_path if encryption is enabled, otherwise use zip_path
