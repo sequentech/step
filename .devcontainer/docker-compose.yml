@@ -44,10 +44,11 @@ services:
     volumes: 
       - db_logs:/logs
       - keycloak_db_logs:/keycloak_logs
+      - b3_db_logs:/b3_logs
     user: root
     group_add:
       - '999'
-    command: chown -R 999:999 /logs /keycloak_logs
+    command: chown -R 999:999 /logs /keycloak_logs /b3_logs
 
   postgres:
     profiles: ["full", "base"]
@@ -821,14 +822,16 @@ services:
 
   postgres-b3:
     profiles: ["full"]
-    image: sequentech.local/postgresql
+    image: sequentech.local/postgresql-b3
     container_name: postgres-b3
+    build:
+      context: ./postgresql-b3
+      dockerfile: Dockerfile
     restart: unless-stopped
     volumes:
       - b3_db_data:/var/lib/postgresql/data
       - b3_db_logs:/logs
-      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
-    command: bash -c "chown -R postgres:postgres /logs && postgres -c 'config_file=/etc/postgresql/postgresql.conf'"
+    command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
     environment:
       POSTGRES_PASSWORD: ${B3_PG_PASSWORD}
     user: "999:999"  # This ensures that the postgres user inside the container is used
@@ -838,11 +841,8 @@ services:
       timeout: 10s
       retries: 15
       start_period: 5s
-    # depending on the `postgres` container to ensure that the
-    # `sequentech.local/postgresql` image is locally build, so that we can reuse
-    # it:
     depends_on:
-      - postgres
+      - postgres-volume-init
 
   b3:
     profiles: ["full"]
@@ -855,7 +855,7 @@ services:
     volumes_from:
       - devcontainer
     depends_on:
-      - devcontainer
+      #- devcontainer
       - postgres-b3
     working_dir: /workspaces/step/packages/b3
     entrypoint: [
