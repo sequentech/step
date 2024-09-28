@@ -39,7 +39,7 @@ pub enum Statement {
         BatchNumber,
         CiphertextsHash,
         PublicKeyHash,
-        // the trustees to participate in mixing + decryption
+        // the trustees (1-based positions) to participate in mixing + decryption
         TrusteeSet,
     ),
     Mix(

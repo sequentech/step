@@ -8,13 +8,13 @@ resolver = "2"
 members = [
     "braid", 
     "b3",
-    "electoral-log",
-    "harvest",
+    #"electoral-log",
+    #"harvest",
     "strand",
     #"immudb-rs",
     #"sequent-core",
     #"velvet",
-    "windmill",
-    "wrap-map-err",
-    "step-cli"
+    #"windmill",
+    #"wrap-map-err",
+    #"step-cli"
 ]

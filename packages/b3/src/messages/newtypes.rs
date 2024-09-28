@@ -129,7 +129,7 @@ pub type TrusteePosition = usize;
 // 1-based
 pub type Threshold = usize;
 pub type TrusteeCount = usize;
-// 1-based _elements_
+// 1-based: the elements of the array are 1-based trustee positions
 pub type TrusteeSet = [usize; MAX_TRUSTEES];
 
 // 1-based, the position in the mixing chain (note this is not the same as the

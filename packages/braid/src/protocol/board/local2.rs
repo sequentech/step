@@ -873,7 +873,7 @@ impl<C: Ctx> LocalBoard<C> {
         let mut sei = StatementEntryIdentifier {
             kind: StatementType::Ballots,
             signer_position: PROTOCOL_MANAGER_INDEX,
-            batch: 0,
+            batch: 1,
             mix_number: 0,
         };
 

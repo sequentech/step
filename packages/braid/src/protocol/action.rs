@@ -44,7 +44,12 @@ use crate::util::dbg_hash;
 pub enum Action {
     SignConfiguration(ConfigurationHash),
     GenChannel(ConfigurationHash),
-    SignChannels(ConfigurationHash, ChannelsHashes, TrusteePosition, TrusteeCount),
+    SignChannels(
+        ConfigurationHash,
+        ChannelsHashes,
+        TrusteePosition,
+        TrusteeCount,
+    ),
     ComputeShares(
         ConfigurationHash,
         ChannelsHashes,
@@ -146,7 +151,9 @@ impl Action {
         match self {
             Self::SignConfiguration(cfg_h) => cfg::sign_config(cfg_h, trustee),
             Self::GenChannel(cfg_h) => dkg::gen_channel(cfg_h, trustee),
-            Self::SignChannels(cfg_h, chs, self_pos, th) => dkg::sign_channels(cfg_h, chs, self_pos, th, trustee),
+            Self::SignChannels(cfg_h, chs, self_pos, th) => {
+                dkg::sign_channels(cfg_h, chs, self_pos, th, trustee)
+            }
             Self::ComputeShares(cfg_h, channels_hs, num_t, th) => {
                 dkg::compute_shares(cfg_h, channels_hs, num_t, th, trustee)
             }
@@ -324,15 +331,15 @@ impl Action {
 mod cfg;
 /// Distributed verifiable decryption.
 ///
-/// As defined in Cortier et al.; based on Pedersen. Decryption
+/// As described in Cortier et al.; based on Pedersen. Decryption
 /// is verifiable through Chaum-Pedersen proofs of discrete
 /// log equality.
 mod decrypt;
 /// Distributed key generation.
 ///
-/// As defined in Cortier et al.; based on Pedersen.
+/// As described in Cortier et al.; based on Pedersen.
 mod dkg;
 /// Verifiable shuffling.
 ///
-/// As defined in Haenni et al.; Haines, based on Wikstrom et al.
+/// As described in Haenni et al.; Haines, based on Wikstrom et al.
 mod shuffle;
