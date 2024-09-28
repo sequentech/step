@@ -81,9 +81,9 @@ crepe! {
     // We subtract 1 since trustees positions are 0 based
     ChannelsUpTo(cfg_h, hashes, num_t - 1);
 
-    A(Action::SignChannels(cfg_h, hashes)) <-
+    A(Action::SignChannels(cfg_h, hashes, self_position, num_t)) <-
     ChannelsAll(cfg_h, hashes),
-    ConfigurationSignedAll(cfg_h, self_position, _num_t, _threshold),
+    ConfigurationSignedAll(cfg_h, self_position, num_t, _threshold),
     !ChannelsAllSigned(cfg_h, hashes, self_position);
 
     ChannelsAllSignedUpTo(cfg_h, channels_hs, n + 1) <-

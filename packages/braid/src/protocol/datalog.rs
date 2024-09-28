@@ -89,6 +89,15 @@ pub(crate) fn trustees_count(input: TrusteeSet) -> usize {
     input.iter().filter(|t| *t != &NULL_TRUSTEE).count()
 }
 
+/// Returns the size of a THashes array, the number of hashes
+/// in the set.
+///
+/// The size is defined as the number of values that are not
+/// NULL_HASH.
+pub(crate) fn hashes_count(input: &THashes) -> usize {
+    input.iter().filter(|t| *t != &NULL_HASH).count()
+}
+
 /// Returns the Phases that make up the protocol's main steps.
 // A Vec<Phase> loosely corresponds to a state machine.
 ///
