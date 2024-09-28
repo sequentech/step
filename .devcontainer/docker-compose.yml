@@ -869,7 +869,7 @@ services:
       "--features",
       "\"server sqlcopy\"",
       "-x",
-      "run --bin server -- --host $B3_PG_HOST --port $B3_PG_PORT --username $B3_PG_USER --password $B3_PG_PASSWORD $B3_PG_DATABASE",
+      "run --bin server -- --host $B3_PG_HOST --port $B3_PG_PORT --username $B3_PG_USER --password $B3_PG_PASSWORD --database $B3_PG_DATABASE",
     ]
     environment:
       B3_PG_HOST: ${B3_PG_HOST}
