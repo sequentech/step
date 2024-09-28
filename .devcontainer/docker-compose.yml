@@ -452,6 +452,11 @@ services:
       CLOUDFLARE_ZONE: ${CLOUDFLARE_ZONE}
       CLOUDFLARE_API_KEY: ${CLOUDFLARE_API_KEY}
       CUSTOM_URLS_IP_DNS_CONTENT: ${CUSTOM_URLS_IP_DNS_CONTENT}
+      B3_PG_HOST: ${B3_PG_HOST}
+      B3_PG_PORT: ${B3_PG_PORT}
+      B3_PG_USER: ${B3_PG_USER}
+      B3_PG_PASSWORD: ${B3_PG_PASSWORD}
+      B3_PG_DATABASE: ${B3_PG_DATABASE}
 
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
@@ -784,6 +789,11 @@ services:
       VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE: ${VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE}
        #Demo key
       DEMO_PUBLIC_KEY: ${DEMO_PUBLIC_KEY}
+      B3_PG_HOST: ${B3_PG_HOST}
+      B3_PG_PORT: ${B3_PG_PORT}
+      B3_PG_USER: ${B3_PG_USER}
+      B3_PG_PASSWORD: ${B3_PG_PASSWORD}
+      B3_PG_DATABASE: ${B3_PG_DATABASE}
 
   beat:
     profiles: ["full"]
