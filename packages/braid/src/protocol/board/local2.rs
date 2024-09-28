@@ -894,7 +894,7 @@ impl<C: Ctx> LocalBoard<C> {
 
         let per_batch_tally = 1 + (2 * t) + (t * (t - 1)) + n;
 
-        dkg + (sei.batch * per_batch_tally)
+        dkg + ((sei.batch - 1) * per_batch_tally)
 
         // self.statements.len() == max
     }
