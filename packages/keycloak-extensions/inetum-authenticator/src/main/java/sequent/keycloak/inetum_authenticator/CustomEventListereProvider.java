@@ -80,6 +80,7 @@ public class CustomEventListereProvider implements EventListenerProvider {
     String responseBody = responseFuture.join().body();
     Object accessToken;
     try {
+      log.info("responseBody " + responseBody);
       accessToken = JsonSerialization.readValue(responseBody, Map.class).get("access_token");
       log.info("authenticate " + accessToken.toString());
       this.access_token = accessToken.toString();
