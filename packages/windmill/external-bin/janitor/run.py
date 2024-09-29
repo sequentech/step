@@ -505,7 +505,6 @@ def generate_election_event():
 def gen_tree(excel_data):
     results = get_data()
     elections_object = {"elections": []}
-    breakpoint()
 
     for row in results:
         # Find or create the election object
@@ -530,26 +529,36 @@ def gen_tree(excel_data):
             elections_object["elections"].append(election)
 
         # Find or create the contest object within the election
-        contest = next((c for c in election["contests"] if c["name"] == row["DB_CONTEST_NAME"]), None)
+        contest_name = row["DB_CONTEST_NAME"]
+        contest = next((c for c in election["contests"] if c["name"] == contest_name), None)
+        contest_context = next((
+            c for c in excel_data["contests"] 
+            if c["name"] == contest_name and c["election name"] == election["name"]
+        ), None)
         
         if not contest:
             # If the contest does not exist, create it
             contest = {
-                "name": row["DB_CONTEST_NAME"],
+                "name": contest_name,
                 "eligible_amount": row["DB_RACE_ELIGIBLEAMOUNT"],
                 "district_code": row["DB_SEAT_DISTRICTCODE"],
                 "postcode": row["contest_POSTCODE"],
                 "sort_order": row["contest_SORT_ORDER"],
                 "candidates": [],
                 "areas": [],
-                **context
+                **contest_context
             }
             election["contests"].append(contest)
 
         # Add the candidate to the contest
+        candidate_name = row["DB_CANDIDATE_NAMEONBALLOT"]
+        candidate_context = next((
+            c for c in excel_data["candidates"] 
+            if c["name"] == candidate_name and c["election name"] == election["name"] and c["contest name"] == contest["name"]
+        ), None)
         candidate = {
             "code": row["DB_CANDIDATE_CAN_CODE"],
-            "name_on_ballot": row["DB_CANDIDATE_NAMEONBALLOT"],
+            "name_on_ballot": candidate_name,
             "nominated_by": row["DB_CANDIDATE_NOMINATEDBY"],
             "party_short_name": row["DB_PARTY_SHORT_NAME"],
             "party_name": row["DB_PARTY_NAME_PARTY"],
