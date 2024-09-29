@@ -10,28 +10,25 @@ import DeleteIcon from "@mui/icons-material/Delete"
 import {Button, styled, Typography} from "@mui/material"
 import React, {ReactElement, useContext, useState} from "react"
 import {
-    AuthContext,
     DatagridConfigurable,
     FunctionField,
-    Identifier,
     List,
     TextInput,
     useDelete,
     useGetList,
-    useGetOne,
     useRecordContext,
     useSidebarState,
     WrapperField,
 } from "react-admin"
 import {useTranslation} from "react-i18next"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {idCountryTranslations} from "intl-tel-input/i18n"
-import {AudienceSelection} from "../User/SendCommunication"
-import {Sequent_Backend_Election, Sequent_Backend_Tally_Session} from "@/gql/graphql"
-import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
+
+import {Sequent_Backend_Election} from "@/gql/graphql"
 import CreateEvent, {EventProcessors} from "../Events/CreateEvent"
 import {Dialog} from "@sequentech/ui-essentials"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {IPermissions} from "@/types/keycloak"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -59,25 +56,13 @@ const EditEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
     const record = useRecordContext()
     const [isOpenSidebar] = useSidebarState()
     const [tenantId] = useTenantStore()
-    const {tallyId} = useElectionEventTallyStore()
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
     const [isDeleteId, setIsDeleteId] = useState<string | undefined>()
+    const [isEditEvent, setIsEditEvent] = useState(false)
     const [deleteOne] = useDelete()
     const [openCreateEvent, setOpenCreateEvent] = useState(false)
-
-    const [recordIds, setRecordIds] = useState<Array<Identifier>>([])
-
-    const {data: tally} = useGetOne<Sequent_Backend_Tally_Session>(
-        "sequent_backend_tally_session",
-        {
-            id: tallyId,
-        },
-        {
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
-    )
+    const [selectedEventId, setSelectedEventId] = useState<string | undefined>()
+    const authContext = useContext(AuthContext)
 
     const {data: elections} = useGetList<Sequent_Backend_Election>("sequent_backend_election")
 
@@ -85,6 +70,16 @@ const EditEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
         const electionName = elections?.find((item) => election?.election === item.id)?.name
         return election.election ? electionName : "-"
     }
+
+    const canEdit = authContext.isAuthorized(true, authContext.tenantId, IPermissions.EVENTS_EDIT)
+    const canCreate = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.EVENTS_CREATE
+    )
+
+    console.log("canEdit", canEdit)
+    console.log("canCreate", canCreate)
 
     const OMIT_FIELDS: Array<string> = ["election", "email_verified"]
 
@@ -94,17 +89,15 @@ const EditEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
         <TextInput key="Schedule" source="schedule" />,
     ]
 
-    const sendCommunicationForIdAction = (id: Identifier) => {
-        console.log(idCountryTranslations)
-    }
-
-    const editAction = (id: Identifier) => {
-        setOpenCreateEvent(false)
-        setRecordIds([id as string])
+    const editAction = (id: any) => {
+        setOpenCreateEvent(true)
+        setIsEditEvent(true)
+        setSelectedEventId(id)
     }
 
     const handleClose = () => {
         setOpenCreateEvent(false)
+        setIsEditEvent(false)
     }
 
     const confirmDeleteAction = () => {
@@ -118,50 +111,16 @@ const EditEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
         setOpenCreateEvent(false)
     }
 
-    // const BulkActions = (props: any) => {
-    //     return (
-    //         <>
-    //             {/* {canSendCommunications && ( */}
-    //             <Button
-    //                 variant="actionbar"
-    //                 key="send-notification"
-    //                 onClick={() => {
-    //                     sendCommunicationAction(props.selectedIds ?? [], AudienceSelection.SELECTED)
-    //                 }}
-    //             >
-    //                 <ResourceListStyles.MailIcon />
-    //                 {t(`sendCommunication.send`)}
-    //             </Button>
-    //             {/* )} */}
-
-    //             {/* {canEditUsers && (
-    //                 // <Button
-    //                 //     variant="actionbar"
-    //                 //     onClick={() => {
-    //                 //         setSelectedIds(props.selectedIds)
-    //                 //         setOpenDeleteBulkModal(true)
-    //                 //     }}
-    //                 // >
-    //                 //     <ResourceListStyles.DeleteIcon />
-    //                 //     {t("common.label.delete")}
-    //                 // </Button>
-    //             )} */}
-    //         </>
-    //     )
-    // }
-
     const actions: Action[] = [
         {
             icon: <EditIcon className="edit-voter-icon" />,
             action: (id) => editAction(id),
-            showAction: () => {
-                return true
-            },
+            showAction: () => canEdit,
         },
         {
             icon: <DeleteIcon className="delete-voter-icon" />,
             action: (id) => deleteAction(id),
-            showAction: () => true,
+            showAction: () => canCreate,
             label: t(`common.label.delete`),
             className: "delete-voter-icon",
         },
@@ -169,6 +128,7 @@ const EditEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
 
     const filterObject: {[key: string]: any} = {
         election_event_id: record?.id || undefined,
+        tenant_id: tenantId,
     }
 
     const onOpenDrawer = () => {
@@ -216,11 +176,7 @@ const EditEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                         }
                     />
                 }
-                filter={{
-                    tenant_id: tenantId,
-                    election_event_id: record.id,
-                }}
-                // aside={aside}
+                filter={filterObject}
                 filters={Filters}
             >
                 <DataGridContainerStyle
@@ -230,7 +186,7 @@ const EditEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                 >
                     <FunctionField label={"Election"} source="election" render={getElectionName} />
                     <FunctionField
-                        label={"event_type"}
+                        label={"Event Type"}
                         source="event_type"
                         render={(record: {event_type: keyof typeof EventProcessors}) =>
                             EventProcessorsToLabel[record.event_type]
@@ -241,7 +197,7 @@ const EditEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                         source="schedule"
                         render={(record: any) => new Date(record.schedule).toLocaleString()}
                     />
-                    <WrapperField label="Actions" source="actions">
+                    <WrapperField label="Actions">
                         <ActionsColumn actions={actions} />
                     </WrapperField>
                 </DataGridContainerStyle>
@@ -251,6 +207,8 @@ const EditEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                     electionEventId={electionEventId}
                     setIsOpenDrawer={setOpenCreateEvent}
                     elections={elections}
+                    isEditEvent={isEditEvent}
+                    selectedEventId={selectedEventId}
                 />
             </ResourceListStyles.Drawer>
             <Dialog

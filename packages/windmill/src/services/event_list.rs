@@ -36,7 +36,7 @@ pub enum OrderField {
     EventType,
     TenantId,
     Schedule,
-    Actions
+    Id,
 }
 
 #[derive(Debug, Deserialize)]
@@ -124,7 +124,7 @@ pub async fn get_all_scheduled_events_from_db(
                 OrderField::EventType => item.event_type.as_ref().map_or(false, |et| et.contains(value)),
                 OrderField::TenantId => item.tenant_id.as_ref().map_or(false, |id| id.contains(value)),
                 OrderField::Schedule => item.schedule.as_ref().map_or(false, |s| s.contains(value)),
-                OrderField::Actions => false,
+                OrderField::Id => item.id.as_ref().map_or(false, |id| id.contains(value)),
             })
         });
     }
@@ -140,7 +140,7 @@ pub async fn get_all_scheduled_events_from_db(
                     OrderField::EventType => a.event_type.cmp(&b.event_type),
                     OrderField::TenantId => a.tenant_id.cmp(&b.tenant_id),
                     OrderField::Schedule => a.schedule.cmp(&b.schedule),
-                    OrderField::Actions => std::cmp::Ordering::Equal,
+                    OrderField::Id => a.id.cmp(&b.id),
                 };
                 match direction {
                     OrderDirection::Asc => ordering,

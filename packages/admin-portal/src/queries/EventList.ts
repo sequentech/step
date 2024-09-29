@@ -8,7 +8,6 @@ export const getEventListVariables = (input: any) => {
                     acc[key] = condition[key]?._eq
                 }
             })
-            console.log("acc", acc)
 
             return acc
         }, {}),

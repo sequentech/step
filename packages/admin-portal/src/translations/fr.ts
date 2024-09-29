@@ -585,11 +585,21 @@ const frenchTranslation: TranslationType = {
             messages: {
                 createSuccess: "Événement créé avec succès",
                 createError: "Erreur lors de la création de l'événement",
+                editSuccess: "Événement modifié avec succès",
+                editError: "Erreur lors de la modification de l'événement",
             },
             empty: {
                 header: "Aucun événement pour le moment.",
                 body: "Voulez-vous en créer un ?",
                 button: "Créer un événement",
+            },
+            create: {
+                title: "Créer un Événement",
+                subtitle: "Créer une nouvelle configuration d'événement.",
+            },
+            edit: {
+                title: "Modifier l'Événement",
+                subtitle: "Modifier la configuration de l'événement.",
             },
         },
         common: {

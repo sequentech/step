@@ -582,12 +582,22 @@ const tagalogTranslation: TranslationType = {
         eventsScreen: {
             messages: {
                 createSuccess: "Matagumpay na nalikha ang kaganapan",
-                createError: "May error sa paglikha ng kaganapan",
+                createError: "Error sa paglikha ng kaganapan",
+                editSuccess: "Matagumpay na na-edit ang kaganapan",
+                editError: "Error sa pag-edit ng kaganapan",
             },
             empty: {
                 header: "Wala pang mga kaganapan.",
                 body: "Gusto mo bang lumikha ng isa?",
                 button: "Lumikha ng Kaganapan",
+            },
+            create: {
+                title: "Lumikha ng Kaganapan",
+                subtitle: "Lumikha ng bagong configuration ng kaganapan.",
+            },
+            edit: {
+                title: "I-edit ang Kaganapan",
+                subtitle: "I-edit ang configuration ng kaganapan.",
             },
         },
         common: {

@@ -207,7 +207,6 @@ export const customBuildQuery =
                 ),
 
                 parseResponse: (res: any) => {
-                    console.log("res", res)
                     const response = res.data.get_event_list
                     let output = {
                         data: response.items,

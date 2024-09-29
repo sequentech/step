@@ -580,13 +580,23 @@ const spanishTranslation: TranslationType = {
         },
         eventsScreen: {
             messages: {
-                createSuccess: "Evento creado con éxito",
-                createError: "Error al crear el evento",
+                createSuccess: "Event created successfully",
+                createError: "Error creating event",
+                editSuccess: "Event edited successfully",
+                editError: "Error editing event",
             },
             empty: {
                 header: "Aún no hay eventos.",
                 body: "¿Quieres crear uno?",
                 button: "Crear evento",
+            },
+            create: {
+                title: "Crear Evento",
+                subtitle: "Crear una nueva configuración de evento.",
+            },
+            edit: {
+                title: "Editar Evento",
+                subtitle: "Editar la configuración del evento.",
             },
         },
         common: {

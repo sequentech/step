@@ -76,7 +76,7 @@ export const ElectionEventTabs: React.FC = () => {
     const showEvents = authContext.isAuthorized(
         true,
         authContext.tenantId,
-        IPermissions.ELECTION_EVENT_READ
+        IPermissions.EVENTS_READ
     )
     const {t} = useTranslation()
     const {setTallyId, setCreatingFlag, setSelectedTallySessionData} = useElectionEventTallyStore()

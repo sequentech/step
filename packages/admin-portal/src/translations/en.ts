@@ -581,11 +581,21 @@ const englishTranslation = {
             messages: {
                 createSuccess: "Event created successfully",
                 createError: "Error creating event",
+                editSuccess: "Event edited successfully",
+                editError: "Error editing event",
             },
             empty: {
                 header: "No events yet.",
                 body: "Do you want to create one?",
                 button: "Create Event",
+            },
+            create: {
+                title: "Create Event",
+                subtitle: "Create a new event configuration.",
+            },
+            edit: {
+                title: "Edit Event",
+                subtitle: "Edit event configuration.",
             },
         },
         common: {

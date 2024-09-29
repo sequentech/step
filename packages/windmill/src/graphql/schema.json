@@ -1741,16 +1741,6 @@
         "fields": null,
         "inputFields": [
           {
-            "name": "actions",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "OrderDirection",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
             "name": "election",
             "description": null,
             "type": {
@@ -1762,6 +1752,16 @@
           },
           {
             "name": "event_type",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "OrderDirection",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "id",
             "description": null,
             "type": {
               "kind": "ENUM",

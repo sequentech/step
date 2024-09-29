@@ -47,6 +47,7 @@ actions:
       template_engine: Kriti
       version: 2
   permissions:
+  - role: events-create
   - role: admin-user
 - name: create_keys_ceremony
   definition:
@@ -397,7 +398,6 @@ actions:
       template_engine: Kriti
       version: 2
   permissions:
-  - role: election-event-read
   - role: admin-user
 - name: get_manual_verification_pdf
   definition:

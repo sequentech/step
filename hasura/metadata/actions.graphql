@@ -686,10 +686,10 @@ input EventListFilter {
 }
 
 input EventListOrderBy {
+  id : OrderDirection
   election : OrderDirection
   event_type : OrderDirection
   schedule : OrderDirection
-  actions : OrderDirection
 }
 
 type GetManualVerificationOutput {

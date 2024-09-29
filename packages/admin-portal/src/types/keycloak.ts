@@ -67,4 +67,7 @@ export enum IPermissions {
     MIRU_DOWNLOAD = "miru-download",
     MIRU_SEND = "miru-send",
     MIRU_SIGN = "miru-sign",
+    EVENTS_READ = "events-read",
+    EVENTS_EDIT = "events-edit",
+    EVENTS_CREATE = "events-create",
 }

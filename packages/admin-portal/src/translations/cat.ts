@@ -581,13 +581,23 @@ const catalanTranslation: TranslationType = {
         },
         eventsScreen: {
             messages: {
-                createSuccess: "Esdeveniment creat correctament",
+                createSuccess: "Esdeveniment creat amb èxit",
                 createError: "Error en crear l'esdeveniment",
+                editSuccess: "Esdeveniment editat amb èxit",
+                editError: "Error en editar l'esdeveniment",
             },
             empty: {
                 header: "Encara no hi ha esdeveniments.",
                 body: "Vols crear-ne un?",
                 button: "Crear esdeveniment",
+            },
+            create: {
+                title: "Crear Esdeveniment",
+                subtitle: "Crear una nova configuració d'esdeveniment.",
+            },
+            edit: {
+                title: "Editar Esdeveniment",
+                subtitle: "Editar la configuració de l'esdeveniment.",
             },
         },
         common: {

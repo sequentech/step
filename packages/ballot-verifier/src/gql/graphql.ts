@@ -235,9 +235,9 @@ export type EventListFilter = {
 }
 
 export type EventListOrderBy = {
-    actions?: InputMaybe<OrderDirection>
     election?: InputMaybe<OrderDirection>
     event_type?: InputMaybe<OrderDirection>
+    id?: InputMaybe<OrderDirection>
     schedule?: InputMaybe<OrderDirection>
 }
 
