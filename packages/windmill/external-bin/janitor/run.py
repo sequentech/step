@@ -229,6 +229,76 @@ def parse_contests(sheet):
     )
     return data
 
+def parse_candidates(sheet):
+    data = parse_table_sheet(
+        sheet,
+        required_keys=[
+            r"^name$",
+            "^alias$",
+            "^contest name$",
+            "^election name$",
+            "^miru candidate id$",
+            "^miru candidate name$",
+            "^miru candidate setting$",
+            "^miru candidate affiliation id$",
+            "^miru candidate affiliation party$",
+            "^miru candidate affiliation registered name$"
+        ],
+        allowed_keys=[
+            r"^name$",
+            "^alias$",
+            "^contest name$",
+            "^election name$",
+            "^miru candidate id$",
+            "^miru candidate name$",
+            "^miru candidate setting$",
+            "^miru candidate affiliation id$",
+            "^miru candidate affiliation party$",
+            "^miru candidate affiliation registered name$"
+        ]
+    )
+    return data
+
+def parse_areas(sheet):
+    data = parse_table_sheet(
+        sheet,
+        required_keys=[
+            r"^name$",
+            "^description$",
+            "^miru area threshold$",
+            "^miru area station id$",
+            "^miru area trustee users$"
+        ],
+        allowed_keys=[
+            r"^name$",
+            "^description$",
+            "^miru area threshold$",
+            "^miru area station id$",
+            "^miru area trustee users$"
+        ]
+    )
+    return data
+
+def parse_css_servers(sheet):
+    data = parse_table_sheet(
+        sheet,
+        required_keys=[
+            r"^area name$",
+            "^server name$",
+            "^tag$",
+            "^address$",
+            "^public key$"
+        ],
+        allowed_keys=[
+            r"^area name$",
+            "^server name$",
+            "^tag$",
+            "^address$",
+            "^public key$"
+        ]
+    )
+    return data
+
 def parse_excel(excel_path):
     '''
     Parse all input files specified in the config file into their respective
@@ -240,9 +310,9 @@ def parse_excel(excel_path):
         election_event = parse_election_event(electoral_data['ElectionEvent']),
         elections = parse_elections(electoral_data['Elections']),
         contests = parse_contests(electoral_data['Contests']),
-        # candidates = parse_candidates(electoral_data['Candidates']),
-        # areas = parse_areas(electoral_data['Areas']),
-        # css_servers = parse_css_servers(electoral_data['CssServers']),
+        candidates = parse_candidates(electoral_data['Candidates']),
+        areas = parse_areas(electoral_data['Areas']),
+        css_servers = parse_css_servers(electoral_data['CssServers']),
     )
 
 # Step 5.1: Read Excel
