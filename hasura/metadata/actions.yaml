@@ -622,6 +622,18 @@ actions:
   permissions:
   - role: user
   comment: insert_cast_vote
+- name: limit_access_by_countries
+  definition:
+    kind: synchronous
+    handler: http://{{HARVEST_DOMAIN}}/limit-access-by-countries
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: admin-user
 - name: listElectoralLog
   definition:
     kind: ""
@@ -991,4 +1003,6 @@ custom_types:
   - name: DeleteElectionEvent
   - name: ExportTasksExecutionOutput
   - name: createTransmissionPackageOutput
+  - name: LimtIpByCountriesOutput
+  - name: LimitAccessByCountriesOutput
   scalars: []
