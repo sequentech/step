@@ -197,14 +197,16 @@ def parse_elections(sheet):
             "^alias$",
             "^description$",
             "^miru election id$",
-            "^miru election name$"
+            "^miru election name$",
+            "^election post$"
         ],
         allowed_keys=[
             r"^name$",
             "^alias$",
             "^description$",
             "^miru election id$",
-            "^miru election name$"
+            "^miru election name$",
+            "^election post$"
         ]
     )
     return data
@@ -316,7 +318,7 @@ def parse_excel(excel_path):
     )
 
 # Step 5.1: Read Excel
-parse_excel(excel_path)
+excel_data = parse_excel(excel_path)
 
 # Step 6: Removing Candidate Blob and convert MySQL dump to SQLite
 command = f"chmod +x removecandidatesblob mysql2sqlite && ./removecandidatesblob < {filename} > data/db_mysql_no_blob.sql && ./mysql2sqlite data/db_mysql_no_blob.sql | sqlite3 data/db_sqlite.db"
@@ -423,21 +425,27 @@ except FileNotFoundError as e:
 except Exception as e:
     logging.exception("An error occurred while loading templates.")
 
-# Step 13: Prepare context for rendering
-context = {
-#    "UUID": generate_uuid(),
-    "current_timestamp": current_timestamp,
-    "tenant_id": base_config["tenant_id"],
-    "miru_election-event-id": base_config["election_event"]["miru_election-event-id"],
-    "miru_election-id": base_config["election"]["miru_election-id"],
-    "miru_election-event-name": base_config["election_event"]["miru_election-event-name"],
-    "miru_election-name": base_config["election"]["miru_election-name"],
-    "election_event_name": base_config["election_event"]["name"],
-    "election_name": base_config["election"]["name"],
-    "election_event_description": base_config["election_event"]["description"],
-    "election_event_logo_url": base_config["election_event"]["logo_url"],
-    # Add other replacements as needed from SQLite queries
-}
+
+def generate_context(excel_data):
+    #excel_data
+    # Step 13: Prepare context for rendering
+    context = {
+    #    "UUID": generate_uuid(),
+        "current_timestamp": current_timestamp,
+        "tenant_id": base_config["tenant_id"],
+        "election_event": excel_data["election_event"]
+        # "miru_election-event-id": base_config["election_event"]["miru_election-event-id"],
+        # "miru_election-id": base_config["election"]["miru_election-id"],
+        # "miru_election-event-name": base_config["election_event"]["miru_election-event-name"],
+        # "miru_election-name": base_config["election"]["miru_election-name"],
+        # "election_event_name": base_config["election_event"]["name"],
+        # "election_name": base_config["election"]["name"],
+        # "election_event_description": base_config["election_event"]["description"],
+        # "election_event_logo_url": base_config["election_event"]["logo_url"],
+        # Add other replacements as needed from SQLite queries
+    }
+
+context = generate_context(excel_data)
 
 def get_data():
     query = """SELECT 
@@ -494,21 +502,30 @@ def generate_election_event():
     print(election_event_context)
     return json.loads(render_template(election_event_template, election_event_context)), election_event_id
 
-def gen_tree():
+def gen_tree(excel_data):
     results = get_data()
     elections_object = {"elections": []}
+    breakpoint()
 
     for row in results:
         # Find or create the election object
-        election = next((e for e in elections_object["elections"] if e["election_post"] == row["DB_POLLING_CENTER_POLLING_PLACE"]), None)
+        row_election_post = row["DB_POLLING_CENTER_POLLING_PLACE"]
+        election = next((e for e in elections_object["elections"] if e["election_post"] == row_election_post), None)
+        election_context = next((
+            c for c in excel_data["elections"] 
+            if c["election post"] == row_election_post
+        ), None)
+
+        if not election_context:
+            raise Exception(f"election with 'election post' = {row_election_post} in excel")
         
         if not election:
             # If the election does not exist, create it
             election = {
-                "election_post": row["DB_POLLING_CENTER_POLLING_PLACE"],
-                "election_name":context["election_name"],
+                "election_post": row_election_post,
+                "election_name": election_context["name"],
                 "contests": [],
-                **context
+                **election_context
             }
             elections_object["elections"].append(election)
 
@@ -555,7 +572,7 @@ def gen_tree():
     return elections_object
 
 
-def remplace_placeholder_database(election_tree, election_event_id):
+def replace_placeholder_database(election_tree, election_event_id):
     area_contests = []
     areas = []
     candidates = []
@@ -625,10 +642,10 @@ def remplace_placeholder_database(election_tree, election_event_id):
     return areas, candidates, contests, area_contests, elections
 
 # Example of how to use the function and see the result
-election_tree = gen_tree()
+election_tree = gen_tree(excel_data)
 election_event, election_event_id = generate_election_event()
 
-areas, candidates, contests, area_contests, elections = remplace_placeholder_database(election_tree, election_event_id)
+areas, candidates, contests, area_contests, elections = replace_placeholder_database(election_tree, election_event_id)
 
 final_json = {
     "tenant_id": base_config["tenant_id"],
