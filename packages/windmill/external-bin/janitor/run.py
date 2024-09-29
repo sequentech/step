@@ -281,22 +281,22 @@ def parse_areas(sheet):
     )
     return data
 
-def parse_css_servers(sheet):
+def parse_ccs_servers(sheet):
     data = parse_table_sheet(
         sheet,
         required_keys=[
-            r"^area name$",
-            "^server name$",
+            "^name$",
             "^tag$",
             "^address$",
-            "^public key$"
+            "^public key$",
+            "^send logs$"
         ],
         allowed_keys=[
-            r"^area name$",
-            "^server name$",
+            "^name$",
             "^tag$",
             "^address$",
-            "^public key$"
+            "^public key$",
+            "^send logs$"
         ]
     )
     return data
@@ -314,7 +314,7 @@ def parse_excel(excel_path):
         contests = parse_contests(electoral_data['Contests']),
         candidates = parse_candidates(electoral_data['Candidates']),
         areas = parse_areas(electoral_data['Areas']),
-        css_servers = parse_css_servers(electoral_data['CssServers']),
+        ccs_servers = parse_ccs_servers(electoral_data['CcsServers']),
     )
 
 # Step 5.1: Read Excel
@@ -583,11 +583,11 @@ def gen_tree(excel_data):
         if not area_context:
             raise Exception(f"area with 'name' = {area_name} not found in excel")
 
-        css_servers = [
-            c for c in excel_data["css_servers"] 
+        ccs_servers = [
+            c for c in excel_data["ccs_servers"] 
             if c["area name"] == area_name
         ]
-        area_context['css servers'] = css_servers
+        area_context['css servers'] = ccs_servers
 
         area = {
             "name": area_name,
