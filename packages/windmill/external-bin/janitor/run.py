@@ -8,6 +8,20 @@ import argparse
 import os
 import logging
 from pybars import Compiler
+import openpyxl
+import re
+
+def assert_folder_exists(folder_path):
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+        print(f"Created folder: {folder_path}")
+    else:
+        print(f"Folder already exists: {folder_path}")
+
+# Step 0: ensure certain folders exist
+assert_folder_exists("logs")
+assert_folder_exists("data")
+assert_folder_exists("output")
 
 # Step 1: Set up logging
 logging.basicConfig(
@@ -22,6 +36,7 @@ logging.info("Script started.")
 # Step 2: Set up argument parsing
 parser = argparse.ArgumentParser(description="Process a MYSQL COMELEC DUMP .sql file, and generate the electionconfig.json")
 parser.add_argument('filename', type=str, help='Base name of the SQL file (with .sql extension)')
+parser.add_argument('excel', type=str, help='Excel config (with .xlsx extension)')
 
 # Step 3: Parse the arguments
 args = parser.parse_args()
@@ -30,8 +45,168 @@ args = parser.parse_args()
 filename = args.filename
 logging.debug(f"Filename received: {filename}")
 
+excel_path = args.excel
+logging.debug(f"Excel received: {excel_path}")
+
 # Step 5: Determine the script's directory to use as cwd
 script_dir = os.path.dirname(os.path.abspath(__file__))
+
+
+
+def parse_table_sheet(
+    sheet,
+    required_keys=[],
+    allowed_keys=[],
+    map_f=lambda value: value
+):
+    '''
+    Reads a CSV table and returns it as a list of dict items.
+    '''
+    def check_required_keys(header_values, required_keys):
+        '''
+        Check that each required_key pattern appears in header_values
+        '''
+        matched_patterns = set()
+        for key in header_values:
+            for pattern in required_keys:
+                if re.match(pattern, key):
+                    matched_patterns.add(pattern)
+                    break
+        assert(len(matched_patterns) == len(required_keys))
+
+    def check_allowed_keys(header_values, allowed_keys):
+        allowed_keys += [
+            r"^Metadata\.Name$",
+            r"^Metadata\.Labels\[\d+\]\.Key$",
+            r"^Metadata\.Labels\[\d+\]\.Value$",
+            r"^Metadata\.Template$",
+            r"^Extra\.[a-zA-Z0-9]+$"
+        ]
+        matched_patterns = set()
+        for key in header_values:
+            found = False
+            for pattern in allowed_keys:
+                if re.match(pattern, key):
+                    matched_patterns.add(pattern)
+                    found = True
+                    break
+            if not found:
+                raise Exception(f"header {key} not allowed")
+
+    def parse_line(header_values, line_values):
+        '''
+        Once all keys are validated, let's parse them in the desired structure
+        '''
+        parsed_object = dict()
+        for (key, value) in zip(header_values, line_values):
+            split_key = key.split('.')
+            subelement = parsed_object
+            for split_key_index, split_key_item in enumerate(split_key):
+                # if it's not last
+                if split_key_index == len(split_key) - 1:
+                    if '[' not in split_key_item:
+                        subelement[split_key_item] = value
+                    else:
+                        match = re.match(
+                            r"([a-zA-Z0-9]+)\[(\d+)\]$",
+                            split_key_item
+                        )
+                        split_key_name = match.group(1)
+                        split_key_subindex = int(match.group(2))
+                        if split_key_name not in subelement:
+                            subelement[split_key_name] = []
+                        assert(
+                            split_key_subindex <= len(subelement[split_key_name])
+                        )
+                        subelement[split_key_name].append(value)
+                else:
+                    if '[' not in split_key_item:
+                        if split_key_item not in subelement:
+                            subelement[split_key_item] = dict()
+                        subelement = subelement[split_key_item]
+                    else:
+                        match = re.match(
+                            r"([a-zA-Z0-9]+)\[(\d+)\]$",
+                            split_key_item
+                        )
+                        split_key_name = match.group(1)
+                        split_key_subindex = int(match.group(2))
+                        if split_key_name not in subelement:
+                            subelement[split_key_name] = [dict()]
+                        assert(
+                            split_key_subindex <= len(subelement[split_key_name])
+                        )
+                        subelement = subelement[split_key_name][split_key_subindex]
+
+        return map_f(parsed_object)
+
+    def sanitize_values(values):
+        return [
+            sanitize_value(value)
+            for value in values
+        ]
+
+    def sanitize_value(value):
+        return value.strip() if isinstance(value, str) else value
+
+    # Get header and check required and allowed keys
+    header_values = None
+    ret_data = []
+    for row in sheet.values:
+        sanitized_row = sanitize_values(row)
+        if not header_values:
+            header_values = [
+                value
+                for value in sanitized_row
+                if value is not None
+            ]
+            check_required_keys(header_values, required_keys)
+            check_allowed_keys(header_values, allowed_keys)
+        else:
+            ret_data.append(
+                parse_line(header_values, sanitized_row)
+            )
+
+    return ret_data
+
+def parse_election_event(sheet):
+    answers = parse_table_sheet(
+        sheet,
+        required_keys=[
+            r"^name$",
+            "^description$",
+            "^miru election event id$",
+            "^miru election event name$",
+            "^logo url$"
+        ],
+        allowed_keys=[
+            r"^name$",
+            "^description$",
+            "^miru election event id$",
+            "^miru election event name$",
+            "^logo url$"
+        ]
+    )
+    return answers
+
+def parse_excel(excel_path):
+    '''
+    Parse all input files specified in the config file into their respective
+    data structures.
+    '''
+    electoral_data = openpyxl.load_workbook(excel_path)
+
+    return dict(
+        election_event = parse_election_event(electoral_data['ElectionEvent']),
+        # elections = parse_elections(electoral_data['Elections']),
+        # contests = parse_contests(electoral_data['Contests']),
+        # candidates = parse_candidates(electoral_data['Candidates']),
+        # areas = parse_areas(electoral_data['Areas']),
+        # css_servers = parse_css_servers(electoral_data['CssServers']),
+    )
+
+# Step 5.1: Read Excel
+parse_excel(excel_path)
 
 # Step 6: Removing Candidate Blob and convert MySQL dump to SQLite
 command = f"chmod +x removecandidatesblob mysql2sqlite && ./removecandidatesblob < {filename} > data/db_mysql_no_blob.sql && ./mysql2sqlite data/db_mysql_no_blob.sql | sqlite3 data/db_sqlite.db"
