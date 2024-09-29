@@ -1869,7 +1869,7 @@ export type Mutation_RootImport_CandidatesArgs = {
 export type Mutation_RootImport_Election_EventArgs = {
   check_only?: InputMaybe<Scalars['Boolean']['input']>;
   document_id: Scalars['String']['input'];
-  is_encrypted?: InputMaybe<Scalars['Boolean']['input']>;
+  password?: InputMaybe<Scalars['String']['input']>;
   tenant_id: Scalars['String']['input'];
 };
 

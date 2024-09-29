@@ -333,6 +333,12 @@ const catalanTranslation: TranslationType = {
                     description:
                         "No va introduir el camp Verificació d'integritat (SHA-256). Confirmeu que està importanr el fitxer correcte i que desitja importar-lo.",
                 },
+                passwordDialog: {
+                    title: "Contrasenya de Desxifrat",
+                    description: "Introdueix la contrasenya per desxifrar l'arxiu",
+                    label: "Contrasenya",
+                    ok: "D'acord",
+                },
             },
             export: {
                 title: "Exportar Esdeveniment Electoral",

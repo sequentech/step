@@ -9995,11 +9995,11 @@
                 "defaultValue": null
               },
               {
-                "name": "is_encrypted",
+                "name": "password",
                 "description": null,
                 "type": {
                   "kind": "SCALAR",
-                  "name": "Boolean",
+                  "name": "String",
                   "ofType": null
                 },
                 "defaultValue": null

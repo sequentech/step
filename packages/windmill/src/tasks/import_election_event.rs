@@ -18,7 +18,7 @@ use tracing::{event, instrument, Level};
 pub struct ImportElectionEventBody {
     pub tenant_id: String,
     pub document_id: String,
-    pub is_encrypted: Option<bool>,
+    pub password: Option<String>,
     pub check_only: Option<bool>,
 }
 
@@ -33,7 +33,6 @@ pub async fn import_election_event(
 ) -> Result<()> {
     let result = provide_hasura_transaction(|hasura_transaction| {
         let object = object.clone();
-        let task_execution = task_execution.clone();
         let tenant_id = tenant_id.clone();
         let election_event_id = election_event_id.clone();
 

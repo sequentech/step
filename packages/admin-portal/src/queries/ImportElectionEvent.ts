@@ -8,13 +8,13 @@ export const IMPORT_ELECTION_EVENT = gql`
     mutation ImportElectionEvent(
         $tenantId: String!
         $documentId: String!
-        $isEncrypted: Boolean
+        $password: String
         $checkOnly: Boolean
     ) {
         import_election_event(
             tenant_id: $tenantId
             document_id: $documentId
-            is_encrypted: $isEncrypted
+            password: $password
             check_only: $checkOnly
         ) {
             id

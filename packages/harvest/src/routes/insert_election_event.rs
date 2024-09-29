@@ -95,8 +95,6 @@ pub async fn import_election_event_f(
         .clone()
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
 
-    info!("Import Election Event: {:?}", input);
-
     authorize(&claims, true, Some(input.tenant_id.clone()), vec![])?;
 
     let mut hasura_db_client: DbClient =
@@ -133,13 +131,10 @@ pub async fn import_election_event_f(
         }));
     }
 
-    let document = document_result.unwrap();
-    let id = document.election_event.id.clone(); // This is the new election_event id
-
-    info!("--------document: {:?}", document);
+    let electionEventSchema = document_result.unwrap();
+    let id = electionEventSchema.election_event.id.clone();
 
     let check_only = input.check_only.unwrap_or(false);
-
     if check_only {
         return Ok(Json(ImportElectionEventOutput {
             id: Some(id),

@@ -332,6 +332,12 @@ const spanishTranslation: TranslationType = {
                     description:
                         "No ingresó el campo Verificación de integridad (SHA-256). Confirme que está importando el archivo correcto y que desea importarlo.",
                 },
+                passwordDialog: {
+                    title: "Contraseña de Descifrado",
+                    description: "Introduce la contraseña para descifrar el archivo",
+                    label: "Contraseña",
+                    ok: "Aceptar",
+                },
             },
             export: {
                 title: "Exportar Evento Electoral",

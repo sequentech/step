@@ -329,6 +329,12 @@ const englishTranslation = {
                     description:
                         "You didn't enter the Integrity Check (SHA-256) field. Please confirm  that you are importing the correct file and you want to import it.",
                 },
+                passwordDialog: {
+                    title: "Decryption Password",
+                    description: "Enter the password to decrypt the file",
+                    label: "Password",
+                    ok: "Ok",
+                },
             },
             export: {
                 title: "Export Election Event",

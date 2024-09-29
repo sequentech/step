@@ -334,6 +334,12 @@ const frenchTranslation: TranslationType = {
                     description:
                         "Vous n'avez pas entré le champ de Vérification de l'Intégrité (SHA-256). Confirmez que vous importez le fichier correct et que vous souhaitez l'importer.",
                 },
+                passwordDialog: {
+                    title: "Mot de passe de déchiffrement",
+                    description: "Entrez le mot de passe pour déchiffrer le fichier",
+                    label: "Mot de passe",
+                    ok: "OK",
+                },
             },
             export: {
                 title: "Exporter l'Événement Électoral",

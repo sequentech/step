@@ -332,6 +332,12 @@ const tagalogTranslation: TranslationType = {
                     description:
                         "Hindi mo ipinakita ang field para sa Pag-check ng Integridad (SHA-256). Mangyaring kumpirmahin na ini-import mo ang tamang file at nais mo itong i-import.",
                 },
+                passwordDialog: {
+                    title: "Decryption Password",
+                    description: "Ilagay ang password para i-decrypt ang file",
+                    label: "Password",
+                    ok: "Ok",
+                },
             },
             export: {
                 title: "I-export ang Kaganapang Halalan",

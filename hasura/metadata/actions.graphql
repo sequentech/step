@@ -272,7 +272,7 @@ type Mutation {
     tenant_id: String!
     document_id: String!
     check_only: Boolean
-    is_encrypted: Boolean
+    password: String
   ): OptionalImportEvent
 }
 
