@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 import {LimitAccessByCountriesMutation} from "@/gql/graphql"
 import {COUNTRIES} from "@/lib/countries"
 import {useTenantStore} from "@/providers/TenantContextProvider"

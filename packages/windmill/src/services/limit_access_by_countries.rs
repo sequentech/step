@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 use super::cloudflare::{
     create_ruleset, create_ruleset_rule, get_cloudflare_vars, get_rules, get_ruleset_id_by_phase,
     update_ruleset_rule, CreateCustomRuleRequest, WAF_RULESET_PHASE,
