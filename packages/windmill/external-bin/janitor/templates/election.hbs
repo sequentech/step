@@ -1,0 +1,77 @@
+{
+    "id": "{{UUID}}",
+    "tenant_id": "{{tenant_id}}",
+    "election_event_id": "{{election_event_id}}",
+    "created_at": "{{current_timestamp}}",
+    "last_updated_at": "{{current_timestamp}}",
+    "labels": null,
+    "annotations": {
+        "miru:election-id": "{{miru_election-id}}",
+        "miru:election-name": "{{miru_election-name}}"
+    },
+    "name": "{{election_name}}",
+    "description": "",
+    "presentation": {
+        "i18n": {
+            "en": {
+                "name": "{{election_name}}",
+                "alias": "{{election_post}} - {{election_name}}",
+                "description": null
+            },
+            "es": {
+                "name": "{{election_name}}"
+            },
+            "fr": {
+                "name": "{{election_name}}"
+            },
+            "cat": {
+                "name": "{{election_name}}"
+            }
+        },
+        "dates": {},
+        "language_conf": {
+            "default_language_code": "en",
+            "enabled_language_codes": [
+                "en"
+            ]
+        },
+        "contests_order": "alphabetical",
+        "cast_vote_confirm": false
+    },
+    "dates": {
+        "end_date": null,
+        "start_date": null
+    },
+    "status": {
+        "voting_status": "NOT_STARTED"
+    },
+    "eml": null,
+    "num_allowed_revotes": 1,
+    "is_consolidated_ballot_encoding": false,
+    "spoil_ballot_option": false,
+    "is_kiosk": false,
+    "alias": "{{DB_POLLING_CENTER_POLLING_PLACE}} - {{election.name}}",
+    "voting_channels": {
+        "kiosk": false,
+        "online": true
+    },
+    "image_document_id": null,
+    "statistics": {
+        "num_sms_sent": 0,
+        "num_emails_sent": 0
+    },
+    "receipts": {
+        "SMS": {
+            "allowed": true,
+            "template": null
+        },
+        "EMAIL": {
+            "allowed": true,
+            "template": null
+        },
+        "DOCUMENT": {
+            "allowed": true,
+            "template": null
+        }
+    }
+}

@@ -1,0 +1,18 @@
+{
+    "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+    "election_event": {
+        "name": "DEMO EVENT2",
+        "description":"",
+        "miru_election-event-id": "11",
+        "miru_election-event-name": "DEMO EVENT2",
+        "logo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/73/Commission_on_Elections_%28COMELEC%29.svg/1280px-Commission_on_Elections_%28COMELEC%29.svg.png"
+    },
+    "election" :{
+        "miru_election-id":"1",
+        "miru_election-name": "General Election2",
+        "name": "General Election2",
+        "description":"General Election2"
+    }
+
+
+}
