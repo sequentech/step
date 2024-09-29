@@ -516,7 +516,7 @@ def gen_tree(excel_data):
         ), None)
 
         if not election_context:
-            raise Exception(f"election with 'election post' = {row_election_post} in excel")
+            raise Exception(f"election with 'election post' = {row_election_post} not found in excel")
         
         if not election:
             # If the election does not exist, create it
@@ -535,6 +535,9 @@ def gen_tree(excel_data):
             c for c in excel_data["contests"] 
             if c["name"] == contest_name and c["election name"] == election["name"]
         ), None)
+
+        if not contest_context:
+            raise Exception(f"contest with 'name' = {contest_name} and 'election name' = {election["name"]} not found in excel")
         
         if not contest:
             # If the contest does not exist, create it
@@ -556,6 +559,10 @@ def gen_tree(excel_data):
             c for c in excel_data["candidates"] 
             if c["name"] == candidate_name and c["election name"] == election["name"] and c["contest name"] == contest["name"]
         ), None)
+
+        if not candidate_context:
+            raise Exception(f"candidate with 'name' = {candidate_name} and 'election name' = {election["name"]} and 'contest name' = {contest["name"]} not found in excel")
+
         candidate = {
             "code": row["DB_CANDIDATE_CAN_CODE"],
             "name_on_ballot": candidate_name,
@@ -567,12 +574,27 @@ def gen_tree(excel_data):
         contest["candidates"].append(candidate)
 
         # Add the area to the contest if it hasn't been added already
+        area_name = row["DB_ALLMUN_AREA_NAME"]
+        area_context = next((
+            c for c in excel_data["areas"] 
+            if c["name"] == area_name
+        ), None)
+
+        if not area_context:
+            raise Exception(f"area with 'name' = {area_name} not found in excel")
+
+        css_servers = [
+            c for c in excel_data["css_servers"] 
+            if c["area name"] == area_name
+        ]
+        area_context['css servers'] = css_servers
+
         area = {
-            "name": row["DB_ALLMUN_AREA_NAME"],
+            "name": area_name,
             "description" :row["DB_POLLING_CENTER_POLLING_PLACE"],
             "source_id": row["DB_TRANS_SOURCE_ID"],
             "dest_id": row["trans_route_TRANS_DEST_ID"],
-            **context
+            **area_context
         }
         
         if area not in contest["areas"]:
