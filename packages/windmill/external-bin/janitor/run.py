@@ -170,7 +170,7 @@ def parse_table_sheet(
     return ret_data
 
 def parse_election_event(sheet):
-    answers = parse_table_sheet(
+    data = parse_table_sheet(
         sheet,
         required_keys=[
             r"^name$",
@@ -187,7 +187,47 @@ def parse_election_event(sheet):
             "^logo url$"
         ]
     )
-    return answers
+    return data[0]
+
+def parse_elections(sheet):
+    data = parse_table_sheet(
+        sheet,
+        required_keys=[
+            r"^name$",
+            "^alias$",
+            "^description$",
+            "^miru election id$",
+            "^miru election name$"
+        ],
+        allowed_keys=[
+            r"^name$",
+            "^alias$",
+            "^description$",
+            "^miru election id$",
+            "^miru election name$"
+        ]
+    )
+    return data
+
+def parse_contests(sheet):
+    data = parse_table_sheet(
+        sheet,
+        required_keys=[
+            r"^name$",
+            "^alias$",
+            "^election name$",
+            "^miru contest id$",
+            "^miru contest name$"
+        ],
+        allowed_keys=[
+            r"^name$",
+            "^alias$",
+            "^election name$",
+            "^miru contest id$",
+            "^miru contest name$"
+        ]
+    )
+    return data
 
 def parse_excel(excel_path):
     '''
@@ -198,8 +238,8 @@ def parse_excel(excel_path):
 
     return dict(
         election_event = parse_election_event(electoral_data['ElectionEvent']),
-        # elections = parse_elections(electoral_data['Elections']),
-        # contests = parse_contests(electoral_data['Contests']),
+        elections = parse_elections(electoral_data['Elections']),
+        contests = parse_contests(electoral_data['Contests']),
         # candidates = parse_candidates(electoral_data['Candidates']),
         # areas = parse_areas(electoral_data['Areas']),
         # css_servers = parse_css_servers(electoral_data['CssServers']),
