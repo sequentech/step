@@ -70,10 +70,10 @@ async fn generate_encrypted_zip(
 ) -> Result<(String)> {
     let charset: String = "0123456789abcdef!@?".into();
     let random_pass = generate_random_string_with_charset(64, &charset);
+    println!("random_pass: {}", random_pass);
 
-    encrypt_file_aes_256_cbc(&temp_path_string, &encrypted_temp_file_string, &random_pass).map_err(|e| {
-        anyhow!("Error encrypting the ZIP file: {e:?}")
-    })?;
+    encrypt_file_aes_256_cbc(&temp_path_string, &encrypted_temp_file_string, &random_pass)
+        .map_err(|e| anyhow!("Error encrypting the ZIP file: {e:?}"))?;
 
     Ok(random_pass)
 }
@@ -137,7 +137,8 @@ pub async fn process_export_zip(
                 election_id: None,
             },
         )
-        .await.map_err(|e| anyhow!("Error exporting users file: {e:?}"))?;
+        .await
+        .map_err(|e| anyhow!("Error exporting users file: {e:?}"))?;
         let voters_filename = format!("export-voters-{}.csv", election_event_id);
         zip_writer.start_file(&voters_filename, options)?;
 
@@ -154,7 +155,8 @@ pub async fn process_export_zip(
             election_event_id,
             &activity_logs_filename,
         )
-        .await.map_err(|e| anyhow!("Error reading activity logs data: {e:?}"))?;
+        .await
+        .map_err(|e| anyhow!("Error reading activity logs data: {e:?}"))?;
         zip_writer.start_file(&activity_logs_filename, options)?;
 
         let mut activity_logs_file = File::open(temp_activity_logs_file.path())?;

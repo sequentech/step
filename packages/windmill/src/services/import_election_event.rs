@@ -19,17 +19,20 @@ use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClient};
 use sequent_core::services::replace_uuids::replace_uuids;
 use sequent_core::types::hasura::core::AreaContest;
-use sequent_core::types::hasura::core::TasksExecution;
+use sequent_core::types::hasura::core::Document;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use std::env;
 use std::fs;
 use std::fs::File;
-use std::io::Read;
+use std::io::Seek;
+use std::io::{self, Read, Write};
+use tempfile::NamedTempFile;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use zip::read::ZipArchive;
 
+use super::consolidation::aes_256_cbc_encrypt::decrypt_file_aes_256_cbc;
 use super::documents;
 use super::election_event_dates::generate_manage_date_task_name;
 use crate::hasura::election_event::get_election_event;
@@ -41,7 +44,6 @@ use crate::postgres::area_contest::insert_area_contests;
 use crate::postgres::candidate::insert_candidates;
 use crate::postgres::contest::insert_contest;
 use crate::postgres::election::insert_election;
-use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::election_event::insert_election_event;
 use crate::postgres::scheduled_event::insert_scheduled_event;
 use crate::services::election_event_board::BoardSerializable;
@@ -63,6 +65,7 @@ pub struct ImportElectionEventSchema {
     pub candidates: Vec<Candidate>,
     pub areas: Vec<Area>,
     pub area_contests: Vec<AreaContest>,
+    // pub voters: Option<Vec<Users>>,
 }
 
 #[instrument(err)]
@@ -173,6 +176,22 @@ pub async fn insert_election_event_db(
     Ok(())
 }
 
+async fn generate_decrypted_zip(
+    password: &str,
+    temp_path_string: String,
+    decrypted_temp_file_string: String,
+) -> Result<()> {
+    decrypt_file_aes_256_cbc(&temp_path_string, &decrypted_temp_file_string, password).map_err(
+        |err| {
+            anyhow!(
+                "Error decrypting file {temp_path_string} to {decrypted_temp_file_string}: {err}"
+            )
+        },
+    )?;
+
+    Ok(())
+}
+
 #[instrument(err, skip(data_str, original_data))]
 pub fn replace_ids(
     data_str: &str,
@@ -214,37 +233,80 @@ pub fn replace_ids(
     Ok(data.clone())
 }
 
-// T
-
 #[instrument(err, skip_all)]
 pub async fn get_document(
+    hasura_transaction: &Transaction<'_>,
+    document_id: String,
+    id: Option<String>,
+    tenant_id: String,
+) -> Result<Document> {
+    let document =
+        postgres::document::get_document(hasura_transaction, &tenant_id, None, &document_id)
+            .await?
+            .ok_or(anyhow!(
+                "Error trying to get document id {}: not found",
+                &document_id
+            ))?;
+
+    Ok(document)
+}
+
+#[instrument(err, skip_all)]
+pub async fn decrypt_document(
+    object: ImportElectionEventBody,
+    mut temp_file_path: NamedTempFile,
+) -> Result<NamedTempFile> {
+    let password = object.password.unwrap_or("".to_string());
+    let is_encrypted = password.len() > 0;
+    if is_encrypted {
+        // Create a new NamedTempFile for the decrypted file
+        let mut decrypted_temp_file = NamedTempFile::new()
+            .map_err(|err| anyhow!("Error creating decrypted temp file: {err}"))?;
+
+        generate_decrypted_zip(
+            &password,
+            temp_file_path.path().to_string_lossy().to_string(),
+            decrypted_temp_file.path().to_string_lossy().to_string(),
+        )
+        .await
+        .map_err(|err| anyhow!("Error decrypting file: {err}"))?;
+
+        // After decryption, move the decrypted file into temp_file_path
+        temp_file_path = decrypted_temp_file;
+    }
+    Ok(temp_file_path)
+}
+
+// A function to get the document from the database and read it
+#[instrument(err, skip_all)]
+pub async fn get_election_event_schema(
     hasura_transaction: &Transaction<'_>,
     object: ImportElectionEventBody,
     id: Option<String>,
     tenant_id: String,
 ) -> Result<ImportElectionEventSchema> {
-    let document = postgres::document::get_document(
+    let document = get_document(
         hasura_transaction,
-        &object.tenant_id,
-        None,
-        &object.document_id,
+        object.document_id.clone(),
+        id.clone(),
+        tenant_id.clone(),
     )
-    .await?
-    .ok_or(anyhow!(
-        "Error trying to get document id {}: not found",
-        &object.document_id
-    ))?;
+    .await
+    .map_err(|err| anyhow!("Error getting document: {err}"))?;
 
-    //TODO: Decrypt the document if it is encrypted
-
-    // Find the document type
-    let temp_file_path = documents::get_document_as_temp_file(&object.tenant_id, &document)
+    let mut temp_file_path = documents::get_document_as_temp_file(&object.tenant_id, &document)
         .await
-        .map_err(|err| anyhow!("Error trying to get document as temporary file {err}"))?;
+        .map_err(|err| anyhow!("Error trying to get document as temporary file {err}"))
+        .unwrap();
 
-    let document_type = document.clone().media_type.unwrap_or("application/json".to_string());
+    let document_type = document
+        .clone()
+        .media_type
+        .unwrap_or("application/json".to_string());
 
     println!("Document type: {document_type}");
+
+    temp_file_path = decrypt_document(object.clone(), temp_file_path).await?;
 
     if document_type == "application/zip" {
         // Handle the ZIP file case
@@ -283,7 +345,7 @@ pub async fn get_document(
 
         let original_data: ImportElectionEventSchema = deserialize_str(&data_str)?;
 
-        let data = replace_ids(&data_str, &original_data, id, tenant_id)?;
+        let data = replace_ids(&data_str, &original_data, id, tenant_id.clone())?;
 
         Ok(data)
     }
@@ -296,8 +358,7 @@ pub async fn process_election_event_file(
     election_event_id: String,
     tenant_id: String,
 ) -> Result<()> {
-    // Get the document
-    let mut data = get_document(
+    let mut data = get_election_event_schema(
         hasura_transaction,
         object,
         Some(election_event_id.clone()),
@@ -389,6 +450,24 @@ pub async fn process_election_event_file(
     .with_context(|| "Error inserting area contests")?;
 
     Ok(())
+}
+
+fn process_voters_file(zip: &mut ZipArchive<File>) -> Result<NamedTempFile> {
+    for i in 0..zip.len() {
+        let mut zip_file = zip.by_index(i)?;
+        let zip_file_name = zip_file.name().to_string();
+
+        // Read the Voters file inside the ZIP
+        if zip_file_name.starts_with("export-voters") {
+            let mut temp_file = NamedTempFile::new()?;
+            // Copy the contents of the zip file to the temp file
+            io::copy(&mut zip_file, &mut temp_file)?;
+            // Seek back to the beginning of the temp file so it can be read later
+            temp_file.as_file_mut().seek(io::SeekFrom::Start(0))?;
+            return Ok(temp_file);
+        }
+    }
+    Err(anyhow!("No voters file found in ZIP"))
 }
 
 #[instrument(err, skip_all)]

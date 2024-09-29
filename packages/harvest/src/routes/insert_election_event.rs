@@ -114,13 +114,14 @@ pub async fn import_election_event_f(
         },
     )?;
 
-    let document_result = services::import_election_event::get_document(
-        &hasura_transaction,
-        input.clone(),
-        None,
-        input.tenant_id.clone(),
-    )
-    .await;
+    let document_result =
+        services::import_election_event::get_election_event_schema(
+            &hasura_transaction,
+            input.clone(),
+            None,
+            input.tenant_id.clone(),
+        )
+        .await;
 
     if let Err(err) = document_result {
         return Ok(Json(ImportElectionEventOutput {
@@ -131,8 +132,8 @@ pub async fn import_election_event_f(
         }));
     }
 
-    let electionEventSchema = document_result.unwrap();
-    let id = electionEventSchema.election_event.id.clone();
+    let election_event_schema = document_result.unwrap();
+    let id = election_event_schema.election_event.id.clone();
 
     let check_only = input.check_only.unwrap_or(false);
     if check_only {
