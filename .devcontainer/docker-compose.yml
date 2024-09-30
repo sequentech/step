@@ -653,7 +653,7 @@ services:
       - harvest
     volumes:
       - ./keycloak/import:/import:z
-      - ../packages/:/app:z
+      - ${LOCAL_WORKSPACE_FOLDER:-..}/packages:/app:z
     restart: always
     working_dir: /app/immu-board
     entrypoint: [
