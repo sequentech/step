@@ -309,7 +309,7 @@ services:
     build:
       context: ../packages/
       dockerfile: Dockerfile
-    #restart: always
+    restart: always
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     ports:
@@ -317,30 +317,30 @@ services:
     stdin_open: true
     entrypoint: ["./init.sh", "start:admin-portal"]
     volumes:
-       - ../packages:/usr/src/app
+       - ${LOCAL_WORKSPACE_FOLDER:-..}/packages:/usr/src/app
     environment:
         MAX_DIFF_LINES: ${MAX_DIFF_LINES}
         SECONDS_TO_SHOW_COUNTDOWN: ${SECONDS_TO_SHOW_COUNTDOWN}
         SECONDS_TO_SHOW_ALERT: ${SECONDS_TO_SHOW_ALERT}
 
-  # voting-portal:
-  #   profiles: ["full"]
-  #   image: sequentech.local/frontend
-  #   container_name: voting-portal
-  #   # depending on the `admin-portal` container to ensure that the
-  #   # `sequentech.local/frontend` image is locally build, so that we can reuse
-  #   # it:
-  #   depends_on:
-  #     - admin-portal
-  #   #restart: always
-  #   #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
-  #   #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
-  #   ports:
-  #     - 3000:3000
-  #   stdin_open: true
-  #   entrypoint: ["./init.sh", "start"]
-  #   volumes:
-  #      - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
+  voting-portal:
+    profiles: ["full"]
+    image: sequentech.local/frontend
+    container_name: voting-portal
+    # depending on the `admin-portal` container to ensure that the
+    # `sequentech.local/frontend` image is locally build, so that we can reuse
+    # it:
+    depends_on:
+      - admin-portal
+    restart: always
+    #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
+    #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
+    ports:
+      - 3000:3000
+    stdin_open: true
+    entrypoint: ["./init.sh", "start:voting-portal"]
+    volumes:
+       - ${LOCAL_WORKSPACE_FOLDER:-..}/packages:/usr/src/app
 
   immudb:
     profiles: ["full", "base"]
