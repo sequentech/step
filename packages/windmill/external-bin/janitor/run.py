@@ -426,12 +426,12 @@ except Exception as e:
 
 def generate_context(excel_data):
     #excel_data
-    # Step 13: Prepare context for rendering
+    # Step 13: Prepare context fexcel_dataor rendering
     context = {
     #    "UUID": generate_uuid(),
         "current_timestamp": current_timestamp,
         "tenant_id": base_config["tenant_id"],
-        "election_event": excel_data["election_event"]
+        "election_event": excel_data["election_event"],
         # "miru_election-event-id": base_config["election_event"]["miru_election-event-id"],
         # "miru_election-id": base_config["election"]["miru_election-id"],
         # "miru_election-event-name": base_config["election_event"]["miru_election-event-name"],
@@ -510,11 +510,11 @@ def gen_tree(excel_data):
         election = next((e for e in elections_object["elections"] if e["election_post"] == row_election_post), None)
         election_context = next((
             c for c in excel_data["elections"] 
-            if c["election post"] == row_election_post
+            if c["election_post"] == row_election_post
         ), None)
 
         if not election_context:
-            raise Exception(f"election with 'election post' = {row_election_post} not found in excel")
+            raise Exception(f"election with 'election_post' = {row_election_post} not found in excel")
         
         if not election:
             # If the election does not exist, create it
@@ -530,12 +530,12 @@ def gen_tree(excel_data):
         contest_name = row["DB_CONTEST_NAME"]
         contest = next((c for c in election["contests"] if c["name"] == contest_name), None)
         contest_context = next((
-            c for c in excel_data["contests"] 
-            if c["name"] == contest_name and c["election name"] == election["name"]
+            c for c in excel_data["contests"]
+            if c["name"] == contest_name and c["election_name"] == election["name"]
         ), None)
 
         if not contest_context:
-            raise Exception(f"contest with 'name' = {contest_name} and 'election name' = {election["name"]} not found in excel")
+            raise Exception(f"contest with 'name' = {contest_name} and 'election_name' = {election["name"]} not found in excel")
         
         if not contest:
             # If the contest does not exist, create it
@@ -555,11 +555,11 @@ def gen_tree(excel_data):
         candidate_name = row["DB_CANDIDATE_NAMEONBALLOT"]
         candidate_context = next((
             c for c in excel_data["candidates"] 
-            if c["name"] == candidate_name and c["election name"] == election["name"] and c["contest name"] == contest["name"]
+            if c["name"] == candidate_name and c["election_name"] == election["name"] and c["contest_name"] == contest["name"]
         ), None)
 
         if not candidate_context:
-            raise Exception(f"candidate with 'name' = {candidate_name} and 'election name' = {election["name"]} and 'contest name' = {contest["name"]} not found in excel")
+            raise Exception(f"candidate with 'name' = {candidate_name} and 'election_name' = {election["name"]} and 'contest_name' = {contest["name"]} not found in excel")
 
         candidate = {
             "code": row["DB_CANDIDATE_CAN_CODE"],
@@ -581,11 +581,13 @@ def gen_tree(excel_data):
         if not area_context:
             raise Exception(f"area with 'name' = {area_name} not found in excel")
 
+        ccs_server_tags = area_context["ccs_server_tags"].split(",") if area_context["ccs_server_tags"] else []
+
         ccs_servers = [
             c for c in excel_data["ccs_servers"] 
-            if c["area name"] == area_name
+            if c["tag"] in ccs_server_tags
         ]
-        area_context['css servers'] = ccs_servers
+        area_context['css_servers'] = ccs_servers
 
         area = {
             "name": area_name,
