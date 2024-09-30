@@ -479,7 +479,7 @@ pub struct ChaumPedersen<C: Ctx> {
     pub response: C::X,
 }
 
-#[derive(BorshSerialize, BorshDeserialize)]
+#[derive(BorshSerialize)]
 pub(crate) struct ChallengeInput(HashMap<String, Vec<u8>>);
 impl ChallengeInput {
     pub(crate) fn from<T: BorshSerialize>(
@@ -489,7 +489,7 @@ impl ChallengeInput {
         for (tag, value) in values {
             let s = tag.to_string();
             let r: Result<Vec<u8>, StrandError> =
-                value.try_to_vec().map_err(|e| e.into());
+                borsh::to_vec(value).map_err(|e| e.into());
             h.insert(s, r?);
         }
 
@@ -514,7 +514,7 @@ impl ChallengeInput {
         value: &T,
     ) -> Result<(), StrandError> {
         let bytes: Result<Vec<u8>, StrandError> =
-            value.try_to_vec().map_err(|e| e.into());
+            borsh::to_vec(&value).map_err(|e| e.into());
         self.0.insert(name.to_string(), bytes?);
         Ok(())
     }
@@ -524,6 +524,6 @@ impl ChallengeInput {
     }
 
     pub(crate) fn get_bytes(&self) -> Result<Vec<u8>, StrandError> {
-        self.try_to_vec().map_err(|e| e.into())
+        borsh::to_vec(self).map_err(|e| e.into())
     }
 }

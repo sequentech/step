@@ -41,10 +41,12 @@ pub async fn process_scheduled_event(
         EventProcessors::SEND_COMMUNICATION => {
             let payload: SendCommunicationBody =
                 deserialize_value(event.event_payload.clone())?;
+            let user_id = claims.hasura_claims.user_id;
             let task = celery_app
                 .send_task(send_communication::new(
                     payload,
                     event.tenant_id,
+                    user_id,
                     event.election_event_id.clone(),
                 ))
                 .await?;

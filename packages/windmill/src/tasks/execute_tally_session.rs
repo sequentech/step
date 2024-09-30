@@ -44,7 +44,7 @@ use crate::tasks::execute_tally_session::get_last_tally_session_execution::{
 };
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
-use board_messages::braid::{artifact::Plaintexts, message::Message, statement::StatementType};
+use b3::messages::{artifact::Plaintexts, message::Message, statement::StatementType};
 use celery::prelude::TaskError;
 use chrono::{DateTime, Duration, Utc};
 use deadpool_postgres::Client as DbClient;
@@ -675,7 +675,7 @@ async fn map_plaintext_data(
     };
 
     // get board messages
-    let mut board_client = protocol_manager::get_board_client().await?;
+    let mut board_client = protocol_manager::get_b3_pgsql_client().await?;
     let board_messages = board_client.get_messages(&bulletin_board, -1).await?;
     event!(Level::INFO, "Num board_messages {}", board_messages.len());
 

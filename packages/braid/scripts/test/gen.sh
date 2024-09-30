@@ -1,0 +1,1 @@
+cargo run --release --bin demo_tool -- gen-configs --port=5432 --password=postgrespw --num-trustees=$1 --threshold=$2

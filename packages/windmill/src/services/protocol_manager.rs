@@ -2,13 +2,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use board_messages::braid::artifact::{Ballots, Channel, Configuration, DkgPublicKey};
-use board_messages::braid::message::Message;
-use board_messages::braid::newtypes::BatchNumber;
-use board_messages::braid::newtypes::PublicKeyHash;
-use board_messages::braid::newtypes::{TrusteeSet, MAX_TRUSTEES, NULL_TRUSTEE};
-use board_messages::braid::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
-use board_messages::braid::statement::StatementType;
+use b3::client::pgsql::{PgsqlB3Client, PgsqlConnectionParams};
+use b3::messages::artifact::Shares;
+use b3::messages::artifact::{Ballots, Channel, Configuration, DkgPublicKey, TrusteeShareData};
+use b3::messages::message::Message;
+use b3::messages::newtypes::BatchNumber;
+use b3::messages::newtypes::PublicKeyHash;
+use b3::messages::newtypes::{TrusteeSet, MAX_TRUSTEES, NULL_TRUSTEE};
+use b3::messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
+use b3::messages::statement::StatementType;
 
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
@@ -24,7 +26,8 @@ use std::marker::PhantomData;
 use tracing::{event, info, instrument, Level};
 
 use crate::services::vault;
-use immu_board::{BoardClient, BoardMessage};
+use b3::client::pgsql::B3MessageRow;
+use electoral_log::BoardClient;
 use immudb_rs::{sql_value::Value, Client, NamedParam, SqlValue};
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
@@ -68,16 +71,18 @@ pub fn deserialize_protocol_manager<C: Ctx>(contents: String) -> ProtocolManager
     ProtocolManager::new(pmkey)
 }
 
-#[instrument(err)]
+#[instrument(err, skip_all)]
 async fn init<C: Ctx>(
-    board: &mut BoardClient,
+    b3_client: &mut PgsqlB3Client,
     configuration: Configuration<C>,
     pm: ProtocolManager<C>,
     board_name: &str,
 ) -> Result<()> {
-    let message: BoardMessage = Message::bootstrap_msg(&configuration, &pm)?.try_into()?;
+    let message = Message::bootstrap_msg(&configuration, &pm)?;
     info!("Adding configuration to the board..");
-    board.insert_messages(board_name, &vec![message]).await
+    b3_client
+        .insert_configuration::<C>(board_name, message)
+        .await
 }
 
 #[instrument(skip(pm), err)]
@@ -95,19 +100,20 @@ pub async fn add_config_to_board<C: Ctx>(
         PhantomData,
     );
 
-    let mut board_client = get_board_client().await?;
+    // let mut board_client = get_board_client().await?;
+    let mut client = get_b3_pgsql_client().await?;
 
-    init(&mut board_client, configuration, pm, board_name).await
+    init(&mut client, configuration, pm, board_name).await
 }
 
 #[instrument(err)]
 pub async fn get_board_public_key<C: Ctx>(board_name: &str) -> Result<C::E> {
-    let mut board = get_board_client().await?;
+    let mut board = get_b3_pgsql_client().await?;
 
-    let board_messages = board.get_messages(board_name, -1).await?;
+    let b3 = board.get_messages(board_name, -1).await?;
 
     let valid_statements = vec![StatementType::PublicKey, StatementType::PublicKeySigned];
-    let messages: Vec<Message> = board_messages
+    let messages: Vec<Message> = b3
         .into_iter()
         .filter_map(|board_message| Message::strand_deserialize(&board_message.message).ok())
         .collect();
@@ -150,7 +156,7 @@ pub async fn get_board_public_key<C: Ctx>(board_name: &str) -> Result<C::E> {
 
 #[instrument(err)]
 pub async fn get_board_public_key_messages(board_name: &str) -> Result<Vec<Message>> {
-    let mut board = get_board_client().await?;
+    let board = get_b3_pgsql_client().await?;
 
     let valid_statements = vec![
         StatementType::Configuration,
@@ -162,8 +168,8 @@ pub async fn get_board_public_key_messages(board_name: &str) -> Result<Vec<Messa
         StatementType::PublicKeySigned,
     ];
 
-    let board_messages = board.get_messages(board_name, -1).await?;
-    let messages = convert_board_messages(&board_messages)?;
+    let b3 = board.get_messages(board_name, -1).await?;
+    let messages = convert_b3(&b3)?;
 
     let filtered_messages: Vec<Message> = messages
         .into_iter()
@@ -177,28 +183,55 @@ pub async fn get_board_public_key_messages(board_name: &str) -> Result<Vec<Messa
 pub async fn get_trustee_encrypted_private_key<C: Ctx>(
     board_name: &str,
     trustee_pub_key: &StrandSignaturePk,
-) -> Result<EncryptionData> {
-    let mut board = get_board_client().await?;
+) -> Result<TrusteeShareData<C>> {
+    let mut board = get_b3_pgsql_client().await?;
 
-    let messages = board.get_messages(board_name, -1).await?;
-    let pks_message = messages
+    // let messages = board.get_messages(board_name, -1).await?;
+    let messages = board
+        .get_with_kind(board_name, StatementType::Channel, trustee_pub_key)
+        .await?;
+
+    let channel_message = messages
         .into_iter()
         .map(|message| Message::strand_deserialize(&message.message))
         .filter_map(|message| message.ok())
-        .find(|message| {
-            message.statement.get_kind() == StatementType::Channel
-                && message.sender.pk == *trustee_pub_key
-        })
-        .with_context(|| format!("Private Key not found on board {}", board_name))?;
+        .next()
+        .with_context(|| format!("Channel not found on board {}", board_name))?;
 
-    let bytes = pks_message.artifact.with_context(|| {
+    let messages = board
+        .get_with_kind_only(board_name, StatementType::Shares)
+        .await?;
+
+    let shares: Result<Vec<Message>> = messages
+        .into_iter()
+        .map(|message| Ok(Message::strand_deserialize(&message.message)?))
+        .collect();
+
+    let shares: Result<Vec<Shares<C>>> = shares?
+        .into_iter()
+        .map(|s| {
+            let bytes = s.artifact.ok_or(anyhow!("Shares missing artifact bytes"))?;
+            let shares = Shares::<C>::strand_deserialize(&bytes)?;
+            Ok(shares)
+        })
+        .collect();
+
+    let channel_bytes = channel_message.artifact.with_context(|| {
         format!(
             "Artifact missing on Private Key message on board {}",
             board_name
         )
     })?;
-    let channel = Channel::<C>::strand_deserialize(&bytes).unwrap();
-    Ok(channel.encrypted_channel_sk)
+    let channel = Channel::<C>::strand_deserialize(&channel_bytes).unwrap();
+
+    let ret = TrusteeShareData {
+        channel,
+        shares: shares?,
+    };
+
+    Ok(ret)
+
+    // Ok(channel.encrypted_channel_sk)
 }
 
 pub fn get_configuration<C: Ctx>(messages: &Vec<Message>) -> Result<Configuration<C>> {
@@ -254,8 +287,8 @@ pub fn generate_trustee_set<C: Ctx>(
     selected_trustees
 }
 
-pub fn convert_board_messages(board_messages: &Vec<BoardMessage>) -> Result<Vec<Message>> {
-    let messages: Vec<Message> = board_messages
+pub fn convert_b3(b3: &Vec<B3MessageRow>) -> Result<Vec<Message>> {
+    let messages: Vec<Message> = b3
         .iter()
         .map(|board_message| Message::strand_deserialize(&board_message.message))
         .collect::<Result<Vec<_>, StrandError>>()?;
@@ -270,24 +303,31 @@ pub async fn get_protocol_manager<C: Ctx>(board_name: &str) -> Result<ProtocolMa
     Ok(deserialize_protocol_manager::<C>(protocol_manager_data))
 }
 
-pub async fn get_board_messages<C: Ctx>(
+pub async fn get_b3<C: Ctx>(
     board_name: &str,
-    board: &mut BoardClient,
+    b3_client: &mut PgsqlB3Client,
 ) -> Result<Vec<Message>> {
     let pm = get_protocol_manager::<C>(board_name).await?;
 
-    let board_messages = board.get_messages(board_name, -1).await?;
-    let messages: Vec<Message> = convert_board_messages(&board_messages)?;
+    let b3 = b3_client.get_messages(board_name, -1).await?;
+    let messages: Vec<Message> = convert_b3(&b3)?;
     Ok(messages)
 }
 
 #[instrument(
-    skip(messages, configuration, public_key_hash, selected_trustees, ballots),
+    skip(
+        messages,
+        configuration,
+        public_key_hash,
+        selected_trustees,
+        ballots,
+        b3_client
+    ),
     err
 )]
 pub async fn add_ballots_to_board<C: Ctx>(
     pm: &ProtocolManager<C>,
-    board: &mut BoardClient,
+    b3_client: &mut PgsqlB3Client,
     board_name: &str,
     messages: &Vec<Message>,
     configuration: &Configuration<C>,
@@ -320,10 +360,7 @@ pub async fn add_ballots_to_board<C: Ctx>(
         pm,
     )?;
     info!("Adding configuration to the board..");
-    let board_message: BoardMessage = message.try_into()?;
-    board
-        .insert_messages(board_name, &vec![board_message])
-        .await
+    b3_client.insert_ballots::<C>(board_name, message).await
 }
 
 #[instrument(err)]
@@ -335,6 +372,29 @@ pub async fn get_board_client() -> Result<BoardClient> {
     let mut board_client = BoardClient::new(&server_url, &username, &password).await?;
 
     Ok(board_client)
+}
+
+const PG_DATABASE: &'static str = "protocoldb";
+const PG_HOST: &'static str = "localhost";
+const PG_USER: &'static str = "postgres";
+const PG_PASSW: &'static str = "postgrespw";
+const PG_PORT: u32 = 49154;
+
+#[instrument(err)]
+pub async fn get_b3_pgsql_client() -> Result<PgsqlB3Client> {
+    let username = env::var("B3_PG_USER").context("B3_PG_USER must be set")?;
+    let password = env::var("B3_PG_PASSWORD").context("B3_PG_PASSWORD must be set")?;
+    let host = env::var("B3_PG_HOST").context("B3_PG_HOST must be set")?;
+    let port = env::var("B3_PG_PORT").context("B3_PG_PORT must be set")?;
+    let database = env::var("B3_PG_DATABASE").context("B3_PG_DATABASE must be set")?;
+
+    let port: u32 = port.parse::<u32>()?;
+
+    let c = PgsqlConnectionParams::new(&host, port, &username, &password);
+    let c_db = c.with_database(&database);
+    let client = PgsqlB3Client::new(&c_db).await?;
+
+    Ok(client)
 }
 
 #[instrument(err)]
@@ -354,4 +414,30 @@ pub fn create_named_param(name: String, value: Value) -> NamedParam {
         name,
         value: Some(SqlValue { value: Some(value) }),
     }
+}
+
+pub fn get_event_board(tenant_id: &str, election_event_id: &str) -> String {
+    format!("tenant{}event{}", tenant_id, election_event_id)
+        .chars()
+        .filter(|&c| c != '-')
+        .collect()
+}
+
+pub fn convert_board_messages(board_messages: &Vec<B3MessageRow>) -> Result<Vec<Message>> {
+    let messages: Vec<Message> = board_messages
+        .iter()
+        .map(|m| Message::strand_deserialize(&m.message))
+        .collect::<Result<Vec<_>, StrandError>>()?;
+    Ok(messages)
+}
+
+pub async fn get_board_messages<C: Ctx>(
+    board_name: &str,
+    b3_client: &PgsqlB3Client,
+) -> Result<Vec<Message>> {
+    let pm = get_protocol_manager::<C>(board_name).await?;
+
+    let board_messages = b3_client.get_messages(board_name, -1).await?;
+    let messages: Vec<Message> = convert_board_messages(&board_messages)?;
+    Ok(messages)
 }

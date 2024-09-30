@@ -90,10 +90,14 @@ pub async fn create_electoral_log(
     )
     .with_context(|| "error getting election event")
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    let electoral_log = ElectoralLog::new(board_name.as_str())
-        .await
-        .with_context(|| "error getting electoral log")
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    // let electoral_log = ElectoralLog::new(board_name.as_str())
+    let tenant_id = claims.hasura_claims.tenant_id;
+    let user_id = claims.hasura_claims.user_id;
+    let electoral_log =
+        ElectoralLog::for_admin_user(&board_name, &tenant_id, &user_id)
+            .await
+            .with_context(|| "error getting electoral log")
+            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     electoral_log
         .post_keycloak_event(
             input.election_event_id.clone(),
