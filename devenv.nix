@@ -55,6 +55,9 @@
     python3
     python3Packages.virtualenvwrapper
 
+    # for producing airgapped environment
+    xz
+
     # for parsing docker-compose.yml
     yq
   ];
