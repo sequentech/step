@@ -209,7 +209,7 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [openImportCandidates, setOpenImportCandidates] = useState(false)
     const [importCandidates] = useMutation<ImportCandidatesMutation>(IMPORT_CANDIDTATES)
     const defaultSecondsForCountdown = convertToNumber(process.env.SECONDS_TO_SHOW_COUNTDOWN) ?? 60
-    const defaultSecondsForAlret = convertToNumber(process.env.SECONDS_TO_SHOW_AlERT) ?? 180
+    const defaultSecondsForAlert = convertToNumber(process.env.SECONDS_TO_SHOW_ALERT) ?? 180
     const [manageElectionDates] = useMutation<ManageElectionDatesMutation>(MANAGE_ELECTION_DATES)
     const [customUrlsValues, setCustomUrlsValues] = useState({login: "", enrollment: "", saml: ""})
     const [customLoginRes, setCustomLoginRes] = useState<FetchResult<SetCustomUrlsMutation>>()
@@ -1191,7 +1191,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                                             label={t(
                                                 "electionEventScreen.field.countDownPolicyOptions.alertSecondsLabel"
                                             )}
-                                            defaultValue={defaultSecondsForAlret}
+                                            defaultValue={defaultSecondsForAlert}
                                             sourceToWatch="presentation.voting_portal_countdown_policy.policy"
                                             isDisabled={(selectedPolicy) =>
                                                 selectedPolicy !==
