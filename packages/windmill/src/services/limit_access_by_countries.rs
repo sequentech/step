@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::cloudflare::{
-    create_ruleset, create_ruleset_rule, get_cloudflare_vars, get_rules, get_ruleset_id_by_phase,
-    update_ruleset_rule, CreateCustomRuleRequest, WAF_RULESET_PHASE,
+    create_ruleset, create_ruleset_rule, get_cloudflare_vars, get_ruleset_by_phase,
+    update_ruleset_rule, CreateCustomRuleRequest, Rule, Ruleset, WAF_RULESET_PHASE,
 };
 use anyhow::Result;
 use rocket::{form::validate::Contains, http::Status};
@@ -32,7 +32,7 @@ fn create_limit_ip_by_countries_rule(
 
     //TODO: check
     let rule_expression = format!(
-            "((http.request.uri.path starts_with \"{:?}\"  or http.request.uri.path contain \"/registration?client_id=voting-portal\") and http.request.uri.path contains \"{}\") and (ip.geoip.country in {{{}}})",
+            "((http.request.uri.full starts_with \"{:?}\"  or http.request.uri.path contain \"/registration?client_id=voting-portal\") and http.request.uri.path contains \"{}\") and (ip.geoip.country in {{{}}})",
             voting_portal_base_url,tenant_id, countries_str
         );
 
@@ -52,14 +52,12 @@ fn create_limit_ip_by_countries_rule(
 async fn update_or_create_limit_ip_by_countries_rule(
     api_key: &str,
     zone_id: &str,
-    ruleset_id: &str,
+    ruleset: &Ruleset,
     tenant_id: String,
     countries: Vec<String>,
 ) -> Result<CreateCustomRuleRequest, (Status, String)> {
-    let existing_rules = get_rules(api_key, zone_id, ruleset_id)
-        .await
-        .map_err(|err| (Status::InternalServerError, format!("{:?}", err)))?;
-
+    let existing_rules: Vec<Rule> = ruleset.rules.clone();
+    let ruleset_id = ruleset.id.clone();
     let rule = create_limit_ip_by_countries_rule(tenant_id.clone(), countries.clone());
 
     let rule_id = existing_rules
@@ -71,7 +69,7 @@ async fn update_or_create_limit_ip_by_countries_rule(
         Some(id) => update_ruleset_rule(&api_key, &zone_id, &ruleset_id, &id, rule.clone())
             .await
             .map_err(|err| (Status::InternalServerError, format!("{:?}", err)))?,
-        None => create_ruleset_rule(&api_key, &zone_id, ruleset_id, rule.clone())
+        None => create_ruleset_rule(&api_key, &zone_id, &ruleset_id, rule.clone())
             .await
             .map_err(|err| (Status::InternalServerError, format!("{:?}", err)))?,
     };
@@ -105,16 +103,16 @@ pub async fn handle_limit_ip_access_by_countries(
     let (zone_id, api_key) =
         get_cloudflare_vars().map_err(|err| (Status::InternalServerError, format!("{:?}", err)))?;
 
-    let ruleset_id = get_ruleset_id_by_phase(&api_key, &zone_id, WAF_RULESET_PHASE)
+    let ruleset = get_ruleset_by_phase(&api_key, &zone_id, WAF_RULESET_PHASE)
         .await
         .map_err(|err| (Status::InternalServerError, format!("{:?}", err)))
         .unwrap();
 
-    match ruleset_id {
-        Some(id) => update_or_create_limit_ip_by_countries_rule(
+    match ruleset {
+        Some(ruleset) => update_or_create_limit_ip_by_countries_rule(
             &api_key,
             &zone_id,
-            &id,
+            &ruleset,
             tenant_id.clone(),
             countries,
         )

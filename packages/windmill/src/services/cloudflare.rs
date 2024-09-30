@@ -21,13 +21,24 @@ pub struct ApiResponse<T> {
 #[derive(Debug, Deserialize)]
 pub struct Ruleset {
     description: String,
+    pub id: String,
+    last_updated: String,
+    name: String,
+    version: String,
+    kind: String,
+    phase: String,
+    pub rules: Vec<Rule>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GetRulesetsResponse {
+    description: String,
     id: String,
     last_updated: String,
     name: String,
     version: String,
     kind: String,
     phase: String,
-    rules: Vec<Rule>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -39,7 +50,7 @@ pub struct CreateRulesetRequest {
     rules: Vec<CreateCustomRuleRequest>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Rule {
     pub id: Option<String>,
     pub expression: String,
@@ -83,12 +94,15 @@ pub fn get_cloudflare_vars() -> Result<(String, String), Box<dyn Error>> {
         .map_err(|_e| "Missing cloudflare env variable".to_string())?;
     let cloudflare_api_key = std::env::var("CLOUDFLARE_API_KEY")
         .map_err(|_e| "Missing cloudflare env variable".to_string())?;
-
+    print!("cloudflare_zone:: {}", cloudflare_zone);
     Ok((cloudflare_zone, cloudflare_api_key))
 }
 
 #[instrument]
-pub async fn list_rulesets(api_key: &str, zone_id: &str) -> Result<Vec<Ruleset>, Box<dyn Error>> {
+pub async fn list_rulesets(
+    api_key: &str,
+    zone_id: &str,
+) -> Result<Vec<GetRulesetsResponse>, Box<dyn Error>> {
     let client = Client::new();
 
     let response = client
@@ -104,7 +118,7 @@ pub async fn list_rulesets(api_key: &str, zone_id: &str) -> Result<Vec<Ruleset>,
         let response_text = response.text().await?;
         info!("Response: {}", response_text);
 
-        let api_response: ApiResponse<Vec<Ruleset>> = deserialize_str(&response_text)?;
+        let api_response: ApiResponse<Vec<GetRulesetsResponse>> = deserialize_str(&response_text)?;
         Ok(api_response.result)
     } else {
         let error_text = response
@@ -120,12 +134,48 @@ pub async fn list_rulesets(api_key: &str, zone_id: &str) -> Result<Vec<Ruleset>,
 }
 
 #[instrument]
-pub async fn get_ruleset_id_by_phase(
+pub async fn get_ruleset_by_id(
+    api_key: &str,
+    zone_id: &str,
+    ruleset_id: &str,
+) -> Result<Ruleset, Box<dyn Error>> {
+    let client = Client::new();
+
+    let response = client
+        .get(&format!(
+            "https://api.cloudflare.com/client/v4/zones/{}/rulesets/{}",
+            zone_id, ruleset_id
+        ))
+        .header("Authorization", format!("Bearer {}", api_key))
+        .send()
+        .await?;
+
+    if response.status().is_success() {
+        let response_text = response.text().await?;
+        info!("Response: {}", response_text);
+
+        let api_response: ApiResponse<Ruleset> = deserialize_str(&response_text)?;
+        Ok(api_response.result)
+    } else {
+        let error_text = response
+            .text()
+            .await
+            .map_err(|e| CloudflareError::new(&format!("Failed to read error response: {}", e)))?;
+        info!("Error response: {}", error_text);
+        Err(Box::new(CloudflareError::new(&format!(
+            "Failed to get ruleset: {}",
+            error_text
+        ))))
+    }
+}
+
+#[instrument]
+pub async fn get_ruleset_by_phase(
     api_key: &str,
     zone_id: &str,
     ruleset_phase: &str,
-) -> Result<Option<String>, Box<dyn Error>> {
-    let rulesets = list_rulesets(api_key, zone_id).await?;
+) -> Result<Option<Ruleset>, Box<dyn Error>> {
+    let rulesets = list_rulesets(&api_key, &zone_id).await?;
 
     let ruleset_id = match rulesets
         .into_iter()
@@ -135,7 +185,14 @@ pub async fn get_ruleset_id_by_phase(
         None => None,
     };
 
-    Ok(ruleset_id)
+    let ruleset: Option<Ruleset> = match ruleset_id {
+        Some(id) => {
+            let ruleset = get_ruleset_by_id(&api_key, &zone_id, &id).await?;
+            Some(ruleset)
+        }
+        None => None,
+    };
+    Ok(ruleset)
 }
 
 #[instrument]
@@ -258,42 +315,6 @@ pub async fn update_ruleset_rule(
         info!("Error response: {}", error_text);
         Err(Box::new(CloudflareError::new(&format!(
             "Failed to update rule: {}",
-            error_text
-        ))))
-    }
-}
-
-#[instrument]
-pub async fn get_rules(
-    api_key: &str,
-    zone_id: &str,
-    ruleset_id: &str,
-) -> Result<Vec<Rule>, Box<dyn Error>> {
-    let client = Client::new();
-
-    let response = client
-        .get(&format!(
-            "https://api.cloudflare.com/client/v4/zones/{}/rulesets/{}/rules",
-            zone_id, ruleset_id
-        ))
-        .header("Authorization", format!("Bearer {}", api_key))
-        .send()
-        .await?;
-
-    if response.status().is_success() {
-        let response_text = response.text().await?;
-        info!("Response: {}", response_text);
-
-        let api_response: ApiResponse<Vec<Rule>> = deserialize_str(&response_text)?;
-        Ok(api_response.result.into())
-    } else {
-        let error_text = response
-            .text()
-            .await
-            .map_err(|e| CloudflareError::new(&format!("Failed to read error response: {}", e)))?;
-        info!("Error response: {}", error_text);
-        Err(Box::new(CloudflareError::new(&format!(
-            "Failed to get rulesets rules: {}",
             error_text
         ))))
     }

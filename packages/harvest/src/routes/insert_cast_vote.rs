@@ -9,6 +9,7 @@ use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use sequent_core::services::connection::UserLocation;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::VoterPermissions;
 use std::time::Instant;
@@ -30,6 +31,7 @@ use windmill::services::insert_cast_vote::{
 pub async fn insert_cast_vote(
     body: Json<InsertCastVoteInput>,
     claims: JwtClaims,
+    user_info: UserLocation,
 ) -> Result<Json<InsertCastVoteOutput>, JsonError> {
     let start = Instant::now();
     let area_id = authorize_voter(&claims, vec![VoterPermissions::CAST_VOTE])
@@ -50,6 +52,8 @@ pub async fn insert_cast_vote(
         &claims.hasura_claims.user_id,
         &area_id,
         &claims.auth_time,
+        &user_info.ip.map(|ip| ip.to_string()).as_deref(),
+        &user_info.country_code.map(|country_code| country_code.to_string()).as_deref(),
     )
     .await
     .map_err(|cast_vote_err| {

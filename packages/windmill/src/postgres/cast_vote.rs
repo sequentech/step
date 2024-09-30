@@ -20,13 +20,15 @@ pub async fn insert_cast_vote(
     voter_id_string: &str,
     ballot_id: &str,
     cast_ballot_signature: &[u8],
+    voter_ip: &Option<&str>,
+    voter_country: &Option<&str>,
 ) -> Result<CastVote> {
     let statement = hasura_transaction
         .prepare(
             r#"
                 INSERT INTO
                     sequent_backend.cast_vote
-                (tenant_id, election_event_id, election_id, area_id, voter_id_string, ballot_id, content, cast_ballot_signature)
+                (tenant_id, election_event_id, election_id, area_id, voter_id_string, ballot_id, content, cast_ballot_signature, labels, annotations)
                 VALUES(
                     $1,
                     $2,
@@ -35,7 +37,8 @@ pub async fn insert_cast_vote(
                     $5,
                     $6,
                     $7,
-                    $8
+                    $8,
+                    COALESCE($9::jsonb, '{}')
                 )
                 RETURNING
                     id,
@@ -56,6 +59,23 @@ pub async fn insert_cast_vote(
             "#,
         )
         .await?;
+
+    let annotations: Option<String> = {
+        let annotation_map: serde_json::Map<String, serde_json::Value> = [
+            voter_ip.map(|ip| ("ip".to_string(), serde_json::json!(ip))),
+            voter_country.map(|country| ("country".to_string(), serde_json::json!(country))),
+        ]
+        .iter()
+        .filter_map(|x| x.clone())
+        .collect();
+
+        if annotation_map.is_empty() {
+            None
+        } else {
+            Some(serde_json::to_string(&annotation_map).unwrap())
+        }
+    };
+
     let rows: Vec<Row> = hasura_transaction
         .query(
             &statement,
@@ -68,6 +88,7 @@ pub async fn insert_cast_vote(
                 &ballot_id,
                 &content,
                 &cast_ballot_signature,
+                &annotations,
             ],
         )
         .await
