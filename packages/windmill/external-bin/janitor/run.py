@@ -236,27 +236,24 @@ def parse_candidates(sheet):
         sheet,
         required_keys=[
             r"^name$",
+            "^contest_name$",
+            "^election_name$",
             "^alias$",
-            "^contest name$",
-            "^election name$",
-            "^miru candidate id$",
-            "^miru candidate name$",
-            "^miru candidate setting$",
-            "^miru candidate affiliation id$",
-            "^miru candidate affiliation party$",
-            "^miru candidate affiliation registered name$"
+            "^annotations/miru/candidate_id$",
+            "^annotations/miru/candidate_name$",
+            "^annotations/miru/candidate_setting$",
         ],
         allowed_keys=[
             r"^name$",
+            "^contest_name$",
+            "^election_name$",
             "^alias$",
-            "^contest name$",
-            "^election name$",
-            "^miru candidate id$",
-            "^miru candidate name$",
-            "^miru candidate setting$",
-            "^miru candidate affiliation id$",
-            "^miru candidate affiliation party$",
-            "^miru candidate affiliation registered name$"
+            "^annotations/miru/candidate_id$",
+            "^annotations/miru/candidate_name$",
+            "^annotations/miru/candidate_setting$",
+            "^annotations/miru/candidate_affiliation_id$",
+            "^annotations/miru/candidate_affiliation_party$",
+            "^annotations/miru/candidate_affiliation_registered_name$"
         ]
     )
     return data
@@ -267,16 +264,17 @@ def parse_areas(sheet):
         required_keys=[
             r"^name$",
             "^description$",
-            "^miru area threshold$",
-            "^miru area station id$",
-            "^miru area trustee users$"
+            "^annotations/miru/threshold$",
+            "^annotations/miru/station_id$",
+            "^annotations/miru/trustee_servers$"
         ],
         allowed_keys=[
             r"^name$",
             "^description$",
-            "^miru area threshold$",
-            "^miru area station id$",
-            "^miru area trustee users$"
+            "^annotations/miru/threshold$",
+            "^annotations/miru/station_id$",
+            "^annotations/miru/trustee_servers$",
+            "^annotations/miru/ccs_server_tags$"
         ]
     )
     return data
@@ -288,15 +286,15 @@ def parse_ccs_servers(sheet):
             "^name$",
             "^tag$",
             "^address$",
-            "^public key$",
-            "^send logs$"
+            "^public_key$",
+            "^send_logs$"
         ],
         allowed_keys=[
             "^name$",
             "^tag$",
             "^address$",
-            "^public key$",
-            "^send logs$"
+            "^public_key$",
+            "^send_logs$"
         ]
     )
     return data
