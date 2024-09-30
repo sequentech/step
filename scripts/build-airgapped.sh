@@ -5,10 +5,10 @@ set -xe
 TODAY="$(date '+%Y-%m-%d')"
 SCRIPT_PATH="$(cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P)"
 PROJECT_ROOT=$(realpath "$SCRIPT_PATH/..")
-AIRGAPPED_ARTIFACTS_ROOT="$PROJECT_ROOT/airgapped-artifacts/$TODAY"
-IMAGE_ARTIFACTS_PATH="$AIRGAPPED_ARTIFACTS_ROOT/images"
-DELIVERABLE_PATH="$AIRGAPPED_ARTIFACTS_ROOT/deliverable"
-DELIVERABLE_TARBALL="$DELIVERABLE_PATH/$TODAY.tar"
+AIRGAPPED_ARTIFACTS_ROOT="$PROJECT_ROOT/airgapped-artifacts"
+AIRGAPPED_ARTIFACTS_TODAY="$AIRGAPPED_ARTIFACTS_ROOT/$TODAY"
+IMAGE_ARTIFACTS_PATH="$AIRGAPPED_ARTIFACTS_TODAY/images"
+DELIVERABLE_TARBALL="$AIRGAPPED_ARTIFACTS_ROOT/$TODAY.tar"
 
 info() {
     echo "(info) $1"
@@ -1290,11 +1290,11 @@ EOF
 }
 
 add-images-to-tarball() {
-    tar --append -C $AIRGAPPED_ARTIFACTS_ROOT --file=$DELIVERABLE_TARBALL images
+    tar --append -C $AIRGAPPED_ARTIFACTS_TODAY --file=$DELIVERABLE_TARBALL images
 }
 
 clean-artifacts-root() {
-    find $AIRGAPPED_ARTIFACTS_ROOT -mindepth 1 -not -name .gitkeep | xargs rm
+    rm -rf $AIRGAPPED_ARTIFACTS_TODAY
 }
 
 mkdir -p $DELIVERABLE_PATH $IMAGE_ARTIFACTS_PATH
@@ -1323,6 +1323,7 @@ add-images-to-tarball
 add-dotenv-to-tarball
 add-up-script-to-tarball
 add-readme-to-tarball
+clean-artifacts-root
 
 info "Project root: $PROJECT_ROOT"
 info "Air gapped artifacts location: $AIRGAPPED_ARTIFACTS_ROOT"
