@@ -196,6 +196,18 @@ button#kc-current-locale-link img {
     }
 }
 
+@media (min-width: 970px) {
+    .header-version-number span {
+        display: block;
+    }
+}
+
+@media (max-width: 969px) {
+    .header-version-number span{
+        display: none;
+    }
+}
+
 .pf-c-dropdown__menu {
     position: relative;
 }

@@ -71,6 +71,15 @@ SPDX-License-Identifier: AGPL-3.0-only
     <div id="kc-header" class="${properties.kcHeaderClass!}">
         <div id="kc-header-wrapper"
              class="${properties.kcHeaderWrapperClass!}">
+
+            <button id="kc-header-version-number" class="header-version-number" disabled>
+                <div class="${properties.kcLocaleMainClass!}">
+                    <span class="${properties.kcLocaleWrapperClass!}">
+                            <h1>Version: <strong>${properties.systemVersion}</strong></h1>
+                    </span>
+                </div>
+            </button>
+
             <#if realm.internationalizationEnabled  && locale.supported?size gt 1>
                 <div class="${properties.kcLocaleMainClass!}" id="kc-locale">
                     <div id="kc-locale-wrapper" class="${properties.kcLocaleWrapperClass!}">
