@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::ElectoralLogMessage;
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
@@ -176,7 +176,7 @@ impl Message {
 
     pub fn send_communication(
         event: EventIdString,
-        election: ElectionIdString,
+        _election: ElectionIdString,
         sd: &SigningData,
     ) -> Result<Self> {
         let body = StatementBody::SendCommunication;

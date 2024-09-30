@@ -51,6 +51,48 @@ pub struct InsertCastVoteInput {
     pub election_id: Uuid,
     pub content: String,
 }
+impl InsertCastVoteInput {
+    /// Returns a byte representation of this object suitable for hashing
+    /// and then signing.
+    ///
+    /// To avoid adding the borsh dependency we do the serialization
+    /// manually. This requires an invertible map which we get
+    /// by prepending a fixed length prefix to each field
+    /// with its size. Because the maximum representation of a usize is
+    /// 8, we use 8 as the fixed size length prefix.
+    pub(crate) fn get_bytes_for_signing(&self) -> Vec<u8> {
+        let mut ret: Vec<u8> = vec![];
+
+        let bytes = self.ballot_id.as_bytes();
+        let mut length = [0u8; 8];
+        let b = bytes.len().to_le_bytes();
+        let l = b.len();
+        length[0..l].copy_from_slice(&bytes[0..l]);
+
+        ret.extend(&length);
+        ret.extend(bytes);
+
+        let bytes = self.election_id.as_bytes();
+        let mut length = [0u8; 8];
+        let b = bytes.len().to_le_bytes();
+        let l = b.len();
+        length[0..l].copy_from_slice(&bytes[0..l]);
+
+        ret.extend(&length);
+        ret.extend(bytes);
+
+        let bytes = self.content.as_bytes();
+        let mut length = [0u8; 8];
+        let b = bytes.len().to_le_bytes();
+        let l = b.len();
+        length[0..l].copy_from_slice(&bytes[0..l]);
+
+        ret.extend(&length);
+        ret.extend(bytes);
+
+        ret
+    }
+}
 
 pub type InsertCastVoteOutput = CastVote;
 
@@ -289,11 +331,9 @@ pub async fn insert_cast_vote_and_commit<'a>(
         &hasura_transaction,
     );
 
-    let ballot_statement = serde_json::to_string(&input)
-        .map_err(|e| CastVoteError::BallotVoterSignatureFailed(e.to_string()))?;
-    let ballot_bytes = ballot_statement.as_bytes();
+    // These are unhashed bytes, the signing code will hash it first.
+    let ballot_bytes = input.get_bytes_for_signing();
 
-    // TODO signature must include more information
     let ballot_signature = signing_key
         .sign(&ballot_bytes)
         .map_err(|e| CastVoteError::BallotSignFailed(e.to_string()))?;

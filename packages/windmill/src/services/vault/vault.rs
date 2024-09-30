@@ -52,6 +52,16 @@ pub async fn read_secret(key: String) -> Result<Option<String>> {
     vault.read_secret(key).await
 }
 
+/// Returns the private signing key for the given voter.
+///
+/// The private key is obtained from the vault.
+/// If no such key exists, it is generated and a log post
+/// is published with the corresponding public key
+/// (with StatementType::AdminPublicKey).
+///
+/// There is a possibility that the private key is saved
+/// but the notification fails. This is logged in
+/// electorallog::post_voter_pk
 #[instrument(err)]
 pub async fn get_voter_signing_key(
     elog_database: &str,
@@ -65,6 +75,10 @@ pub async fn get_voter_signing_key(
     let sk = if let Some(sk_der_b64) = sk_der_b64 {
         StrandSignatureSk::from_der_b64_string(&sk_der_b64)?
     } else {
+        info!(
+            "Vault: generating private signing key for voter {}",
+            lookup_key.clone()
+        );
         let sk = StrandSignatureSk::gen()?;
         let sk_string = sk.to_der_b64_string()?;
         let pk = StrandSignaturePk::from_sk(&sk)?;
@@ -87,7 +101,12 @@ pub async fn get_voter_signing_key(
 ///
 /// The private key is obtained from the vault.
 /// If no such key exists, it is generated and a log post
-/// is published with the corresponding public key.
+/// is published with the corresponding public key
+/// (with StatementBody::AdminPublicKey).
+///
+/// There is a possibility that the private key is saved
+/// but the notification fails. This is logged in
+/// electorallog::post_admin_pk
 #[instrument(err)]
 pub async fn get_admin_user_signing_key(
     elog_database: &str,
@@ -100,6 +119,10 @@ pub async fn get_admin_user_signing_key(
     let sk = if let Some(sk_der_b64) = sk_der_b64 {
         StrandSignatureSk::from_der_b64_string(&sk_der_b64)?
     } else {
+        info!(
+            "Vault: generating private signing key for admin user {}",
+            lookup_key.clone()
+        );
         let sk = StrandSignatureSk::gen()?;
         let sk_string = sk.to_der_b64_string()?;
         let pk = StrandSignaturePk::from_sk(&sk)?;
