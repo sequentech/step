@@ -20,6 +20,11 @@ use crate::messages::newtypes::EventIdString;
 
 use super::newtypes::*;
 
+/// We use this when the statement is not related to any election event
+/// For the moment the only case is admin_public_key_message, which is
+/// a cross-event statement
+pub const GENERIC_EVENT: &'static str = "Generic Event";
+
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, std::fmt::Debug)]
 pub struct Message {
     pub sender: Sender,
@@ -178,6 +183,29 @@ impl Message {
         Self::from_body(event, body, sd, None)
     }
 
+    pub fn voter_public_key_message(
+        tenant_id: TenantIdString,
+        event: EventIdString,
+        user_hash: PseudonymHash,
+        pk: PublicKeyDerB64,
+        sd: &SigningData,
+    ) -> Result<Self> {
+        let body = StatementBody::VoterPublicKey(tenant_id, event.clone(), user_hash, pk);
+        Self::from_body(event, body, sd, None)
+    }
+
+    pub fn admin_public_key_message(
+        tenant_id: TenantIdString,
+        user_id: AdminUserIdString,
+        pk: PublicKeyDerB64,
+        sd: &SigningData,
+    ) -> Result<Self> {
+        let body = StatementBody::AdminPublicKey(tenant_id, user_id, pk);
+        let event = EventIdString(GENERIC_EVENT.to_string());
+
+        Self::from_body(event, body, sd, None)
+    }
+
     fn from_body(
         event: EventIdString,
         body: StatementBody,
@@ -230,10 +258,10 @@ impl Message {
     }
 }
 
-impl TryFrom<Message> for ElectoralLogMessage {
+impl TryFrom<&Message> for ElectoralLogMessage {
     type Error = anyhow::Error;
 
-    fn try_from(message: Message) -> Result<ElectoralLogMessage> {
+    fn try_from(message: &Message) -> Result<ElectoralLogMessage> {
         Ok(ElectoralLogMessage {
             id: 0,
             created: crate::timestamp() as i64,
@@ -242,7 +270,7 @@ impl TryFrom<Message> for ElectoralLogMessage {
             message: message.strand_serialize()?,
             sender_pk: message.sender.pk.to_der_b64_string()?,
             version: crate::get_schema_version(),
-            user_id: message.user_id,
+            user_id: message.user_id.clone(),
         })
     }
 }

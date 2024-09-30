@@ -10,6 +10,7 @@ use crate::services::cast_votes::CastVote;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::protocol_manager::get_protocol_manager;
+use crate::services::vault;
 use crate::{
     hasura::election_event::get_election_event::GetElectionEventSequentBackendElectionEvent,
     services::database::get_hasura_pool,
@@ -99,6 +100,8 @@ pub enum CastVoteError {
     PokValidationFailed(String),
     #[serde(rename = "ballot_sign_failed")]
     BallotSignFailed(String),
+    #[serde(rename = "ballot_voter_signature_failed")]
+    BallotVoterSignatureFailed(String),
     #[serde(rename = "uuid_parse_failed")]
     UuidParseFailed(String, String),
     #[serde(rename = "unknown_error")]
@@ -212,6 +215,11 @@ pub async fn try_insert_cast_vote(
 
     match result {
         Ok(inserted_cast_vote) => {
+            let electoral_log =
+                ElectoralLog::for_voter(election_event_id, tenant_id, election_event_id, voter_id)
+                    .await
+                    .map_err(|e| CastVoteError::ElectoralLogNotFound(e.to_string()))?;
+
             let log_result = electoral_log
                 .post_cast_vote(
                     election_event_id.to_string(),
@@ -227,7 +235,7 @@ pub async fn try_insert_cast_vote(
         }
         Err(err) => {
             error!(err=?err);
-            // TODO error message may leak implementation details
+
             let log_result = electoral_log
                 .post_cast_vote_error(
                     election_event_id.to_string(),
@@ -281,10 +289,28 @@ pub async fn insert_cast_vote_and_commit<'a>(
         &hasura_transaction,
     );
 
+    let ballot_statement = serde_json::to_string(&input)
+        .map_err(|e| CastVoteError::BallotVoterSignatureFailed(e.to_string()))?;
+    let ballot_bytes = ballot_statement.as_bytes();
+
     // TODO signature must include more information
     let ballot_signature = signing_key
-        .sign(input.content.as_bytes())
+        .sign(&ballot_bytes)
         .map_err(|e| CastVoteError::BallotSignFailed(e.to_string()))?;
+
+    let voter_signing_key = vault::get_voter_signing_key(
+        ids.election_event_id,
+        ids.tenant_id,
+        ids.election_event_id,
+        ids.voter_id,
+    )
+    .await
+    .map_err(|e| CastVoteError::BallotVoterSignatureFailed(e.to_string()))?;
+
+    // TODO do something with this
+    let voter_ballot_signature = voter_signing_key
+        .sign(&ballot_bytes)
+        .map_err(|e| CastVoteError::BallotVoterSignatureFailed(e.to_string()))?;
 
     let ballot_signature = ballot_signature.to_bytes().to_vec();
     let tenant_uuid = Uuid::parse_str(ids.tenant_id)
@@ -323,7 +349,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
     Ok(cast_vote)
 }
 
-fn hash_voter_id(voter_id: &str) -> Result<Hash, StrandError> {
+pub(crate) fn hash_voter_id(voter_id: &str) -> Result<Hash, StrandError> {
     let bytes = voter_id.to_string().strand_serialize()?;
     hash_to_array(&bytes)
 }

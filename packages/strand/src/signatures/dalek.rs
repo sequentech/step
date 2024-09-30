@@ -205,6 +205,9 @@ impl StrandSignatureSk {
         Ok(StrandSignatureSk(sk))
     }
     /// Signs the message returning a signature.
+    ///
+    /// The bytes will be hashed using sha512.
+    /// https://docs.rs/ed25519-dalek/latest/ed25519_dalek/struct.SigningKey.html
     pub fn sign(&self, msg: &[u8]) -> Result<StrandSignature, StrandError> {
         Ok(StrandSignature(self.0.sign(msg)))
     }

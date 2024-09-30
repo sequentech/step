@@ -64,6 +64,7 @@ pub async fn manage_election_event_date_wrapped(
     update_event_voting_status(
         &hasura_transaction,
         &tenant_id,
+        None,
         &election_event_id,
         &status.voting_status,
     )

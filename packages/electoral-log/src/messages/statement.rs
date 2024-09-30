@@ -51,6 +51,8 @@ impl StatementHead {
             StatementBody::TallyClose(_) => StatementType::TallyClose,
             StatementBody::SendCommunication => StatementType::SendCommunication,
             StatementBody::KeycloakUserEvent(_, _) => StatementType::KeycloakUserEvent,
+            StatementBody::VoterPublicKey(_, _, _, _) => StatementType::VoterPublicKey,
+            StatementBody::AdminPublicKey(_, _, _) => StatementType::AdminPublicKey,
         };
         let timestamp = crate::timestamp();
 
@@ -110,6 +112,22 @@ pub enum StatementBody {
 
     SendCommunication,
     KeycloakUserEvent(ErrorMessageString, KeycloakEventTypeString),
+    /// Represents the assertion that
+    ///     within the given tenant
+    ///     within the given election event
+    ///     the given user pseudonym hash
+    ///     has as their public key the given public key (in der_b64 format)
+    VoterPublicKey(
+        TenantIdString,
+        EventIdString,
+        PseudonymHash,
+        PublicKeyDerB64,
+    ),
+    /// Represents the assertion that
+    ///     within the given tenant
+    ///     the given admin user
+    ///     hash has as their public key the given public key (in der_b64 format)
+    AdminPublicKey(TenantIdString, AdminUserIdString, PublicKeyDerB64),
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug)]
@@ -130,4 +148,6 @@ pub enum StatementType {
     TallyClose,
     SendCommunication,
     KeycloakUserEvent,
+    VoterPublicKey,
+    AdminPublicKey,
 }
