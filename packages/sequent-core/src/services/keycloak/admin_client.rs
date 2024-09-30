@@ -71,6 +71,16 @@ fn get_keycloak_login_admin_config() -> KeycloakLoginConfig {
 // This enables servers to authenticate, without using a browser.
 #[instrument(err)]
 pub async fn get_client_credentials() -> Result<connection::AuthHeaders> {
+    let credentials = get_auth_credentials().await?;
+    event!(Level::INFO, "Successfully acquired credentials");
+    Ok(connection::AuthHeaders {
+        key: "authorization".into(),
+        value: format!("Bearer {}", credentials.access_token),
+    })
+}
+
+#[instrument(err)]
+pub async fn get_auth_credentials() -> Result<TokenResponse> {
     let login_config = get_keycloak_login_config();
     let body_string = serde_urlencoded::to_string::<[(String, String); 4]>([
         ("client_id".into(), login_config.client_id.clone()),
@@ -115,11 +125,10 @@ pub async fn get_client_credentials() -> Result<connection::AuthHeaders> {
     let credentials: TokenResponse = serde_json::from_str(&text)
         .map_err(|err| anyhow!(format!("{:?}, Response: {}", err, text)))?;
     event!(Level::INFO, "Successfully acquired credentials");
-    Ok(connection::AuthHeaders {
-        key: "authorization".into(),
-        value: format!("Bearer {}", credentials.access_token),
-    })
+    Ok(credentials)
 }
+
+
 
 pub struct KeycloakAdminClient {
     pub client: KeycloakAdmin,

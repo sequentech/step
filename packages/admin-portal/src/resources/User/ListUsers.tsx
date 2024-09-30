@@ -79,6 +79,7 @@ import {ETasksExecution} from "@/types/tasksExecution"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import SelectArea from "@/components/area/SelectArea"
 import {WidgetProps} from "@/components/Widget"
+import EditPermissionLabels from "./EditPermissionLabel"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -137,6 +138,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const [openUsersLogsModal, setOpenUsersLogsModal] = useState(false)
     const [openSendCommunication, setOpenSendCommunication] = useState(false)
+    const [openPermissionAccess, setOpenPermissionAccess] = useState(false)
     const [openDeleteModal, setOpenDeleteModal] = useState(false)
     const [openManualVerificationModal, setOpenManualVerificationModal] = useState(false)
     const [openDeleteBulkModal, setOpenDeleteBulkModal] = useState(false)
@@ -327,6 +329,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setOpenDrawer(false)
         setOpenNew(false)
         setOpen(false)
+        setOpenPermissionAccess(false)
         unselectAll()
     }
 
@@ -338,6 +341,18 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setOpenDeleteBulkModal(false)
         setOpenSendCommunication(false)
         setRecordIds([id as string])
+    }
+
+    const editUsesElectionPermissions = (id: Identifier) => {
+        setOpen(false)
+        setOpenNew(false)
+        setOpenSendCommunication(false)
+        setOpenManualVerificationModal(false)
+        setOpenDeleteBulkModal(false)
+        setOpenDeleteModal(false)
+        setOpenUsersLogsModal(false)
+        setOpenPermissionAccess(true)
+        setRecordIds([id])
     }
 
     const sendCommunicationForIdAction = (id: Identifier) => {
@@ -510,6 +525,12 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             icon: <VisibilityIcon />,
             action: showUsersLogsModal,
             showAction: () => !!electionEventId,
+            label: t(`usersAndRolesScreen.voters.logs.label`),
+        },
+        {
+            icon: <VisibilityIcon />,
+            action: editUsesElectionPermissions,
+            showAction: () => canEditUsers,
             label: t(`usersAndRolesScreen.voters.logs.label`),
         },
     ]
@@ -697,7 +718,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const listFields = useMemo(() => {
         const basicInfoFields: UserProfileAttribute[] = []
         const attributesFields: UserProfileAttribute[] = []
-        const omitFields = ["id", "email_verified", "email"]
+        const omitFields = ["id", "email_verified", "email", "permission_labels"]
 
         userAttributes?.get_user_profile_attributes.forEach((attr) => {
             if (attr.name && userBasicInfo.includes(attr.name)) {
@@ -743,6 +764,18 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 />
             )
         })
+
+    const renderEditElectionPermissions = () => {
+        return (
+            <ResourceListStyles.Drawer
+                anchor="right"
+                open={openPermissionAccess}
+                onClose={handleClose}
+            >
+                <EditPermissionLabels id={recordIds[0]} tenantId={tenantId} />
+            </ResourceListStyles.Drawer>
+        )
+    }
 
     return (
         <>
@@ -854,6 +887,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     close={handleClose}
                 />
             </ResourceListStyles.Drawer>
+            {renderEditElectionPermissions()}
             <ResourceListStyles.Drawer anchor="right" open={openNew} onClose={handleClose}>
                 <CreateUser
                     electionEventId={electionEventId}

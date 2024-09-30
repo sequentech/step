@@ -1,13 +1,16 @@
 // SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::keycloak::KeycloakAdminClient;
+use crate::{services::keycloak::KeycloakAdminClient, types::permissions::Permissions};
 use crate::types::keycloak::*;
 use anyhow::{anyhow, Result};
 use keycloak::types::RoleRepresentation;
 use rocket::futures::future::join_all;
-use std::convert::From;
+use serde_json::json;
+use std::{convert::From, env};
 use tracing::instrument;
+
+use super::{get_auth_credentials, get_tenant_realm};
 
 impl From<RoleRepresentation> for Permission {
     fn from(item: RoleRepresentation) -> Self {
@@ -164,7 +167,6 @@ impl KeycloakAdminClient {
         Ok(())
     }
 
-    #[instrument(skip(self), err)]
     pub async fn create_permission(
         self,
         realm: &str,
@@ -178,3 +180,4 @@ impl KeycloakAdminClient {
         Ok(permission.clone())
     }
 }
+

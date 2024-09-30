@@ -17,6 +17,20 @@ actions:
   - role: trustee-ceremony
   - role: admin-user
   comment: check private key
+- name: createResource
+  definition:
+    kind: synchronous
+    handler: http://{{HARVEST_DOMAIN}}/create-resource
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input.body}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: resource-write
+  - role: admin-user
+  comment: Create a resource for the UMA permission restriction
 - name: createScheduledEvent
   definition:
     kind: synchronous
@@ -973,4 +987,5 @@ custom_types:
   - name: SetCustomUrlsOutput
   - name: ExportTasksExecutionOutput
   - name: createTransmissionPackageOutput
+  - name: CreateResourceOutput
   scalars: []

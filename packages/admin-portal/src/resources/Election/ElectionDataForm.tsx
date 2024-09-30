@@ -24,6 +24,8 @@ import {
     useGetList,
     FormDataConsumer,
     required,
+    ArrayInput,
+    SimpleFormIterator,
 } from "react-admin"
 import {
     Accordion,
@@ -73,6 +75,7 @@ import {ManageElectionDatesMutation} from "@/gql/graphql"
 import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
 import {ManagedNumberInput} from "@/components/managed-inputs/ManagedNumberInput"
 import {ManagedSelectInput} from "@/components/managed-inputs/ManagedSelectInput"
+import PermissionLabelInput from "@/components/PermissoinLabelsInput"
 
 const LangsWrapper = styled(Box)`
     margin-top: 46px;
@@ -197,6 +200,7 @@ export const ElectionDataForm: React.FC = () => {
             incoming: Sequent_Backend_Election_Extended,
             languageSettings: Array<string>
         ): Sequent_Backend_Election_Extended => {
+            console.log("incoming", incoming);
             if (!data) {
                 return incoming as Sequent_Backend_Election_Extended
             }
@@ -248,6 +252,10 @@ export const ElectionDataForm: React.FC = () => {
             if (temp.presentation) {
                 temp.scheduledOpening = temp.presentation?.dates?.scheduled_opening
                 temp.scheduledClosing = temp.presentation?.dates?.scheduled_closing
+            }
+            console.log("temp.permissionLabels", temp.permissionLabels);
+            if (temp.permissionLabels) {
+                temp.permission_labels = temp.permissionLabels
             }
 
             temp.presentation.contests_order =
@@ -313,7 +321,7 @@ export const ElectionDataForm: React.FC = () => {
                 temp.presentation.grace_period_policy = EGracePeriodPolicy.NO_GRACE_PERIOD
                 temp.presentation.grace_period_secs = 0
             }
-
+            console.log("temppp", temp)
             return temp
         },
         [data, tenantData?.voting_channels]
@@ -478,6 +486,8 @@ export const ElectionDataForm: React.FC = () => {
             name: t(`communicationTemplate.method.${value.toLowerCase()}`),
         }))
     }
+
+    console.log("record", record)
 
     const sortedContests = (contests ?? []).sort((a, b) => {
         let presentationA = a.presentation as IContestPresentation | undefined
@@ -866,6 +876,34 @@ export const ElectionDataForm: React.FC = () => {
                                     label={t("electionScreen.edit.numAllowedVotes")}
                                     min={0}
                                 />
+                                <Typography
+                                    variant="body1"
+                                    component="span"
+                                    sx={{
+                                        fontWeight: "bold",
+                                        margin: 0,
+                                        display: {xs: "none", sm: "block"},
+                                    }}
+                                >
+                                    {t("electionScreen.edit.votingPeriod")}
+                                </Typography>
+                                <Box sx={{display: "flex", alignItems: "center", width: "50%"}}>
+
+                                <ArrayInput source="permission_labels">
+      <SimpleFormIterator>
+        <TextInput label="Permission Label" source=""/>
+      </SimpleFormIterator>
+    </ArrayInput>
+                                    {/* <PermissionLabelInput
+                                        source={"permissionLabels"}
+                                        permissionLabels={
+                                            record?.permission_labels
+                                                ? record.permission_labels
+                                                : []
+                                        }
+                                    /> */}
+                                </Box>
+
                                 <FileJsonInput
                                     parsedValue={parsedValue}
                                     fileSource="configuration"

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useCallback, useEffect, useMemo, useState} from "react"
-import {SaveButton, SimpleForm, useListContext, useNotify, useRefresh} from "react-admin"
+import {ArrayInput, SaveButton, SimpleForm, SimpleFormIterator, TextInput, useListContext, useNotify, useRefresh} from "react-admin"
 import {useMutation, useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
@@ -40,7 +40,8 @@ import {formatUserAtributes, getAttributeLabel, userBasicInfo} from "@/services/
 import PhoneInput from "@/components/PhoneInput"
 import SelectArea from "@/components/area/SelectArea"
 import SelectActedTrustee from "./SelectActedTrustee"
-import {GET_TRUSTEES_NAMES} from "@/queries/GetTrusteesNames"
+import PermissionLabelInput from "@/components/PermissoinLabelsInput"
+import {useWatch, useFormContext} from "react-hook-form"
 
 interface ListUserRolesProps {
     userId?: string
@@ -183,6 +184,15 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const notify = useNotify()
     const [createUser] = useMutation<CreateUserMutationVariables>(CREATE_USER)
     const [edit_user] = useMutation<EditUsersInput>(EDIT_USER)
+    // const [permissionLabels, setPermissionLabels] = useState<string[]>([]);
+    // const { control } = useFormContext();
+    // const permissionLabelsWatch = useWatch({control, name: "attributes.permission_labels"})
+
+    // useEffect(() => {
+    // if (permissionLabelsWatch) {
+    //     setPermissionLabels(permissionLabelsWatch)
+    // }
+    // }, [permissionLabelsWatch])
     const {data: userRoles, refetch} = useQuery<ListUserRolesQuery>(LIST_USER_ROLES, {
         variables: {
             tenantId: tenantId,
@@ -227,6 +237,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             ...formatUserAtributes(user?.attributes),
                             ...(selectedArea && {"area-id": [selectedArea]}),
                             ...(selectedActedTrustee && {trustee: [selectedActedTrustee]}),
+                            // ...(permissionLabels && {permission_labels: permissionLabels}),
                         },
                     },
                     userRolesIds: selectedRolesOnCreate,
@@ -247,7 +258,8 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         }
     }
 
-    const onSubmit = async () => {
+    const onSubmit = async (data: any) => {
+        console.log("data", data);
         if (createMode) {
             onSubmitCreateUser()
         } else {
@@ -266,6 +278,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 ...formatUserAtributes(user?.attributes),
                                 ...(selectedArea && {"area-id": [selectedArea]}),
                                 ...(selectedActedTrustee && {trustee: [selectedActedTrustee]}),
+                                ...(data.attributes.permission_labels && {permission_labels: data.attributes.permission_labels}),
                             },
                         },
                     },
@@ -316,13 +329,14 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         })
     }
 
-    const handleAttrStringValueChange = (attrName: string) => async (value: string) => {
+    const handleAttrStringValueChange = (attrName: string) => async (value: string | string[]) => {
+        console.log("handleAttrStringValueChange", value)
         setUser((prev) => {
             return {
                 ...prev,
                 attributes: {
                     ...prev?.attributes,
-                    [attrName]: [value],
+                    [attrName]: typeof value === "string" ? [value] : value,
                 },
             }
         })
@@ -353,7 +367,9 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             const value = isCustomAttribute
                 ? user?.attributes?.[attr.name]
                 : user && user[attr.name as keyof IUser]
+            
             const displayName = attr.display_name ?? ""
+            console.log("attr", attr);
             if (attr.annotations?.inputType === "select") {
                 return (
                     <FormControl fullWidth>
@@ -440,6 +456,28 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         />
                     </FormControl>
                 )
+            } 
+            else if (attr.multivalued) {
+                console.log("value", value);
+                return (
+                <ArrayInput source={`attributes.${attr.name}`} defaultValue={value} onChange={(e) => {
+                    console.log("eeeee", e);
+                }}>
+                <SimpleFormIterator>
+                  <TextInput label="Permission Label" source=""/>
+                </SimpleFormIterator>
+              </ArrayInput>
+                )
+            }
+            
+            else if (attr.name.toLowerCase().includes("permission_labels")) {
+                return (
+                    <PermissionLabelInput
+                        source={`attributes.${attr.name}`}
+                        permissionLabels={value}
+                        handleAddedLabel={handleAttrStringValueChange(attr.name ?? "")}
+                    />
+                )
             }
             return (
                 <>
@@ -475,7 +513,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             <SimpleForm
                 toolbar={<SaveButton alwaysEnable />}
                 record={user}
-                onSubmit={onSubmit}
+                onSubmit={(data) => {onSubmit(data)}}
                 sanitizeEmptyValues
             >
                 <>
@@ -532,3 +570,5 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         </PageHeaderStyles.Wrapper>
     )
 }
+
+

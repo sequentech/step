@@ -24,6 +24,7 @@ export const formatUserAtributes = (attributes: any) => {
                 newUserAttributesObject[`${key}`] = value
             }
         })
+        console.log("newUserAttributesObject", newUserAttributesObject)
         return newUserAttributesObject
     }
     return null

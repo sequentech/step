@@ -16,7 +16,7 @@ use std::{
 };
 use tokio_postgres::row::Row;
 use tokio_postgres::types::ToSql;
-use tracing::{event, instrument, Level};
+use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 
 #[instrument(skip(hasura_transaction), err)]
@@ -355,7 +355,7 @@ pub async fn list_users(
         .into_iter()
         .map(|row| -> Result<User> { row.try_into() })
         .collect::<Result<Vec<User>>>()?;
-
+    info!("Users: {:?}", users);
     if let Some(ref some_election_event_id) = filter.election_event_id {
         let area_ids: Vec<String> = users.iter().filter_map(|user| user.get_area_id()).collect();
         let areas_by_ids = get_areas(

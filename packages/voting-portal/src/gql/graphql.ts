@@ -107,6 +107,11 @@ export type CreatePermissionInput = {
   tenant_id: Scalars['String']['input'];
 };
 
+export type CreateResourceOutput = {
+  __typename?: 'CreateResourceOutput';
+  id: Scalars['String']['output'];
+};
+
 export type CreateTallyOutput = {
   __typename?: 'CreateTallyOutput';
   tally_session_id: Scalars['uuid']['output'];
@@ -570,6 +575,23 @@ export type StartTallyOutput = {
 };
 
 /** Boolean expression to compare columns of type "String". All fields are combined with logical 'AND'. */
+export type String_Array_Comparison_Exp = {
+  /** is the array contained in the given array value */
+  _contained_in?: InputMaybe<Array<Scalars['String']['input']>>;
+  /** does the array contain the given value */
+  _contains?: InputMaybe<Array<Scalars['String']['input']>>;
+  _eq?: InputMaybe<Array<Scalars['String']['input']>>;
+  _gt?: InputMaybe<Array<Scalars['String']['input']>>;
+  _gte?: InputMaybe<Array<Scalars['String']['input']>>;
+  _in?: InputMaybe<Array<Array<Scalars['String']['input']>>>;
+  _is_null?: InputMaybe<Scalars['Boolean']['input']>;
+  _lt?: InputMaybe<Array<Scalars['String']['input']>>;
+  _lte?: InputMaybe<Array<Scalars['String']['input']>>;
+  _neq?: InputMaybe<Array<Scalars['String']['input']>>;
+  _nin?: InputMaybe<Array<Array<Scalars['String']['input']>>>;
+};
+
+/** Boolean expression to compare columns of type "String". All fields are combined with logical 'AND'. */
 export type String_Comparison_Exp = {
   _eq?: InputMaybe<Scalars['String']['input']>;
   _gt?: InputMaybe<Scalars['String']['input']>;
@@ -718,6 +740,8 @@ export type Mutation_Root = {
   __typename?: 'mutation_root';
   /** check private key */
   check_private_key?: Maybe<CheckPrivateKeyOutput>;
+  /** Create a resource for the UMA permission restriction */
+  createResource?: Maybe<CreateResourceOutput>;
   /** create scheduled event */
   createScheduledEvent?: Maybe<ScheduledEventOutput3>;
   /** create keys ceremony */
@@ -1215,6 +1239,12 @@ export type Mutation_Root = {
 /** mutation root */
 export type Mutation_RootCheck_Private_KeyArgs = {
   object: CheckPrivateKeyInput;
+};
+
+
+/** mutation root */
+export type Mutation_RootCreateResourceArgs = {
+  resource_id?: InputMaybe<Scalars['String']['input']>;
 };
 
 
@@ -3675,8 +3705,10 @@ export type Query_RootList_User_RolesArgs = {
 
 
 export type Query_RootLogEventArgs = {
-  electionEventId: Scalars['String']['input'];
-  messageType: Scalars['String']['input'];
+  body: Scalars['String']['input'];
+  election_event_id: Scalars['String']['input'];
+  message_type: Scalars['String']['input'];
+  user_id?: InputMaybe<Scalars['String']['input']>;
 };
 
 
@@ -7783,6 +7815,7 @@ export type Sequent_Backend_Election = {
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
   name: Scalars['String']['output'];
   num_allowed_revotes?: Maybe<Scalars['Int']['output']>;
+  permission_labels?: Maybe<Array<Scalars['String']['output']>>;
   presentation?: Maybe<Scalars['jsonb']['output']>;
   receipts?: Maybe<Scalars['jsonb']['output']>;
   spoil_ballot_option?: Maybe<Scalars['Boolean']['output']>;
@@ -7984,6 +8017,7 @@ export type Sequent_Backend_Election_Bool_Exp = {
   last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   name?: InputMaybe<String_Comparison_Exp>;
   num_allowed_revotes?: InputMaybe<Int_Comparison_Exp>;
+  permission_labels?: InputMaybe<String_Array_Comparison_Exp>;
   presentation?: InputMaybe<Jsonb_Comparison_Exp>;
   receipts?: InputMaybe<Jsonb_Comparison_Exp>;
   spoil_ballot_option?: InputMaybe<Boolean_Comparison_Exp>;
@@ -8546,6 +8580,7 @@ export type Sequent_Backend_Election_Insert_Input = {
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   num_allowed_revotes?: InputMaybe<Scalars['Int']['input']>;
+  permission_labels?: InputMaybe<Array<Scalars['String']['input']>>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
   receipts?: InputMaybe<Scalars['jsonb']['input']>;
   spoil_ballot_option?: InputMaybe<Scalars['Boolean']['input']>;
@@ -8568,6 +8603,7 @@ export type Sequent_Backend_Election_Max_Fields = {
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
   name?: Maybe<Scalars['String']['output']>;
   num_allowed_revotes?: Maybe<Scalars['Int']['output']>;
+  permission_labels?: Maybe<Array<Scalars['String']['output']>>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
 };
 
@@ -8583,6 +8619,7 @@ export type Sequent_Backend_Election_Max_Order_By = {
   last_updated_at?: InputMaybe<Order_By>;
   name?: InputMaybe<Order_By>;
   num_allowed_revotes?: InputMaybe<Order_By>;
+  permission_labels?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
 };
 
@@ -8599,6 +8636,7 @@ export type Sequent_Backend_Election_Min_Fields = {
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
   name?: Maybe<Scalars['String']['output']>;
   num_allowed_revotes?: Maybe<Scalars['Int']['output']>;
+  permission_labels?: Maybe<Array<Scalars['String']['output']>>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
 };
 
@@ -8614,6 +8652,7 @@ export type Sequent_Backend_Election_Min_Order_By = {
   last_updated_at?: InputMaybe<Order_By>;
   name?: InputMaybe<Order_By>;
   num_allowed_revotes?: InputMaybe<Order_By>;
+  permission_labels?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
 };
 
@@ -8651,6 +8690,7 @@ export type Sequent_Backend_Election_Order_By = {
   last_updated_at?: InputMaybe<Order_By>;
   name?: InputMaybe<Order_By>;
   num_allowed_revotes?: InputMaybe<Order_By>;
+  permission_labels?: InputMaybe<Order_By>;
   presentation?: InputMaybe<Order_By>;
   receipts?: InputMaybe<Order_By>;
   spoil_ballot_option?: InputMaybe<Order_By>;
@@ -9021,6 +9061,8 @@ export enum Sequent_Backend_Election_Select_Column {
   /** column name */
   NumAllowedRevotes = 'num_allowed_revotes',
   /** column name */
+  PermissionLabels = 'permission_labels',
+  /** column name */
   Presentation = 'presentation',
   /** column name */
   Receipts = 'receipts',
@@ -9073,6 +9115,7 @@ export type Sequent_Backend_Election_Set_Input = {
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   num_allowed_revotes?: InputMaybe<Scalars['Int']['input']>;
+  permission_labels?: InputMaybe<Array<Scalars['String']['input']>>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
   receipts?: InputMaybe<Scalars['jsonb']['input']>;
   spoil_ballot_option?: InputMaybe<Scalars['Boolean']['input']>;
@@ -9140,6 +9183,7 @@ export type Sequent_Backend_Election_Stream_Cursor_Value_Input = {
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   num_allowed_revotes?: InputMaybe<Scalars['Int']['input']>;
+  permission_labels?: InputMaybe<Array<Scalars['String']['input']>>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
   receipts?: InputMaybe<Scalars['jsonb']['input']>;
   spoil_ballot_option?: InputMaybe<Scalars['Boolean']['input']>;
@@ -9435,6 +9479,8 @@ export enum Sequent_Backend_Election_Update_Column {
   Name = 'name',
   /** column name */
   NumAllowedRevotes = 'num_allowed_revotes',
+  /** column name */
+  PermissionLabels = 'permission_labels',
   /** column name */
   Presentation = 'presentation',
   /** column name */
