@@ -169,14 +169,14 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                             className="user-first-name"
                             sx={{
                                 display: {xs: "none", sm: "block"},
-                                maxWidth: "70px",
+                                maxWidth: "150px",
                                 textOverflow: "ellipsis",
                                 whiteSpace: "nowrap",
                                 overflowX: "clip",
                             }}
                             title={userProfile.firstName ?? userProfile.username}
                         >
-                            {userProfile.firstName ?? userProfile.username}
+                            Welcome, {userProfile.firstName ?? userProfile.username}
                         </Box>
                     </StyledButton>
                 </StyledButtonContainerWrapper>
