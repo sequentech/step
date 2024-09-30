@@ -107,7 +107,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                 <button class="button-version-button" tabindex="-1" type="button" disabled="">
                     <div class="button-version-div">
                         <span class="button-version-span">HASH:</span>
-                        <span class="button-version-span">qwertzuiop</span>
+                        <span class="button-version-span">${properties.systemHash}</span>
                     </div>
                 </button>
             </div>
