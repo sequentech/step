@@ -56,7 +56,7 @@ const EditEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
     const record = useRecordContext()
     const [isOpenSidebar] = useSidebarState()
     const [tenantId] = useTenantStore()
-    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)``
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
     const [isDeleteId, setIsDeleteId] = useState<string | undefined>()
     const [isEditEvent, setIsEditEvent] = useState(false)
     const [deleteOne] = useDelete()
