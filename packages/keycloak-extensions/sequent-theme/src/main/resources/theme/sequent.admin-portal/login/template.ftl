@@ -71,15 +71,6 @@ SPDX-License-Identifier: AGPL-3.0-only
     <div id="kc-header" class="${properties.kcHeaderClass!}">
         <div id="kc-header-wrapper"
              class="${properties.kcHeaderWrapperClass!}">
-
-            <button id="kc-header-version-number" class="header-version-number" disabled>
-                <div class="${properties.kcLocaleMainClass!}">
-                    <span class="${properties.kcLocaleWrapperClass!}">
-                            <h1>Version: <strong>${properties.systemVersion}</strong></h1>
-                    </span>
-                </div>
-            </button>
-
             <#if realm.internationalizationEnabled  && locale.supported?size gt 1>
                 <div class="${properties.kcLocaleMainClass!}" id="kc-locale">
                     <div id="kc-locale-wrapper" class="${properties.kcLocaleWrapperClass!}">
@@ -103,8 +94,24 @@ SPDX-License-Identifier: AGPL-3.0-only
                         </div>
                     </div>
                 </div>
-             </#if>
-             </div>
+            </#if>
+        </div>
+        <div id="kc-header-wrapper-b" class="kc-header-wrapper-b">
+            <div class="button-version-parent">
+                <button class="button-version-button" tabindex="-1" type="button" disabled="">
+                    <div class="button-version-div">
+                        <span class="button-version-span">VERSION:</span>
+                        <span class="button-version-span">${properties.systemVersion}</span>
+                    </div>
+                </button>
+                <button class="button-version-button" tabindex="-1" type="button" disabled="">
+                    <div class="button-version-div">
+                        <span class="button-version-span">HASH:</span>
+                        <span class="button-version-span">qwertzuiop</span>
+                    </div>
+                </button>
+            </div>
+        </div>
     </div>
     <div id="kc-title" class="${properties.kcTitleClass!}">
         ${kcSanitize(msg("loginTitleHtml",(realm.displayNameHtml!'')))?no_esc}
