@@ -319,7 +319,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     }, [polling])
 
     const handleClose = () => {
-		setOpenUsersLogsModal(false)
+        setOpenUsersLogsModal(false)
         setRecordIds([])
         setOpenSendCommunication(false)
         setOpenDeleteModal(false)
