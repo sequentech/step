@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::str::FromStr;
 use tokio_postgres::row::Row;
-use tracing::{instrument,info};
+use tracing::{info, instrument};
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
@@ -390,15 +390,24 @@ pub async fn insert_new_scheduled_event(
     new_event: PostgresScheduledEvent,
 ) -> Result<PostgresScheduledEvent> {
     let tenant_uuid: Option<uuid::Uuid> = match new_event.tenant_id {
-        Some(ref tenant_id) => Some(Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?),
+        Some(ref tenant_id) => {
+            Some(Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?)
+        }
         None => None,
     };
     let election_event_uuid: Option<uuid::Uuid> = match new_event.election_event_id {
-        Some(ref election_event_id) => Some(Uuid::parse_str(election_event_id).with_context(|| "Error parsing election_event_id as UUID")?),
+        Some(ref election_event_id) => Some(
+            Uuid::parse_str(election_event_id)
+                .with_context(|| "Error parsing election_event_id as UUID")?,
+        ),
         None => None,
     };
-    let cron_config_js: Option<Value> = new_event.cron_config.map(|config| serde_json::to_value(config).unwrap());
-    let event_processor_s: Option<String> = new_event.event_processor.map(|processor| processor.to_string());
+    let cron_config_js: Option<Value> = new_event
+        .cron_config
+        .map(|config| serde_json::to_value(config).unwrap());
+    let event_processor_s: Option<String> = new_event
+        .event_processor
+        .map(|processor| processor.to_string());
 
     let statement = hasura_transaction
         .prepare(
@@ -436,7 +445,12 @@ pub async fn insert_new_scheduled_event(
             "#,
         )
         .await
-        .map_err(|err| anyhow!("Error preparing insert_new_scheduled_event statement: {}", err))?;
+        .map_err(|err| {
+            anyhow!(
+                "Error preparing insert_new_scheduled_event statement: {}",
+                err
+            )
+        })?;
 
     let rows: Vec<Row> = hasura_transaction
         .query(
@@ -467,6 +481,9 @@ pub async fn insert_new_scheduled_event(
     if rows.len() == 1 {
         Ok(rows[0].clone())
     } else {
-        Err(anyhow!("Unexpected number of rows affected: {}", rows.len()))
+        Err(anyhow!(
+            "Unexpected number of rows affected: {}",
+            rows.len()
+        ))
     }
 }

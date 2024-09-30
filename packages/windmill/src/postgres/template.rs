@@ -62,10 +62,7 @@ pub async fn get_template_by_id(
     let rows: Vec<Row> = hasura_transaction
         .query(
             &statement,
-            &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(template_id)?,
-            ],
+            &[&Uuid::parse_str(tenant_id)?, &Uuid::parse_str(template_id)?],
         )
         .await?;
 

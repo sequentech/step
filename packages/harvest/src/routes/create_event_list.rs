@@ -2,17 +2,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
-use windmill::{postgres::scheduled_event::PostgresScheduledEvent, services::event_list::*, types::scheduled_event::EventProcessors};
-use rocket::serde::json::Json;
-use rocket::http::Status;
-use sequent_core::services::jwt::JwtClaims;
-use tracing::{info};
-use sequent_core::types::permissions::Permissions;
 use deadpool_postgres::Client as DbClient;
-use windmill::services::database::{get_hasura_pool};
-use tracing::{instrument, event};
+use rocket::http::Status;
+use rocket::serde::json::Json;
+use sequent_core::services::jwt::JwtClaims;
+use sequent_core::types::permissions::Permissions;
+use tracing::info;
+use tracing::{event, instrument};
+use windmill::services::database::get_hasura_pool;
+use windmill::{
+    postgres::scheduled_event::PostgresScheduledEvent, services::event_list::*,
+    types::scheduled_event::EventProcessors,
+};
 
-#[instrument] 
+#[instrument]
 #[post("/get_event_list", format = "json", data = "<body>")]
 pub async fn get_event_list(
     body: Json<GetEventListInput>,
@@ -24,25 +27,28 @@ pub async fn get_event_list(
         true,
         Some(input.tenant_id.clone()),
         vec![Permissions::USER_READ],
-    ).map_err(|e| (Status::Forbidden, format!("{:?}", e)))?;
+    )
+    .map_err(|e| (Status::Forbidden, format!("{:?}", e)))?;
 
     let mut hasura_db_client: DbClient =
-    get_hasura_pool().await.get().await.map_err(|err| {
-        (
-            Status::InternalServerError,
-            format!("Error loading hasura db client: {err}"),
-        )
-    })?;
+        get_hasura_pool().await.get().await.map_err(|err| {
+            (
+                Status::InternalServerError,
+                format!("Error loading hasura db client: {err}"),
+            )
+        })?;
     let hasura_transaction =
-    hasura_db_client.transaction().await.map_err(|err| {
-        (
-            Status::InternalServerError,
-            format!("Error creating a transaction: {err}"),
-        )
-    })?;
+        hasura_db_client.transaction().await.map_err(|err| {
+            (
+                Status::InternalServerError,
+                format!("Error creating a transaction: {err}"),
+            )
+        })?;
 
-    let schedule_events = get_all_scheduled_events_from_db(&hasura_transaction,input).await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let schedule_events =
+        get_all_scheduled_events_from_db(&hasura_transaction, input)
+            .await
+            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     Ok(Json(schedule_events))
 }
@@ -61,25 +67,27 @@ pub async fn create_event(
         true,
         Some(input.tenant_id.clone().expect("REASON")),
         vec![Permissions::USER_WRITE],
-    ).map_err(|e| (Status::Forbidden, format!("{:?}", e)))?;
+    )
+    .map_err(|e| (Status::Forbidden, format!("{:?}", e)))?;
 
     let mut hasura_db_client: DbClient =
-    get_hasura_pool().await.get().await.map_err(|err| {
-        (
-            Status::InternalServerError,
-            format!("Error loading hasura db client: {err}"),
-        )
-    })?;
+        get_hasura_pool().await.get().await.map_err(|err| {
+            (
+                Status::InternalServerError,
+                format!("Error loading hasura db client: {err}"),
+            )
+        })?;
     let hasura_transaction =
-    hasura_db_client.transaction().await.map_err(|err| {
-        (
-            Status::InternalServerError,
-            format!("Error creating a transaction: {err}"),
-        )
-    })?;
+        hasura_db_client.transaction().await.map_err(|err| {
+            (
+                Status::InternalServerError,
+                format!("Error creating a transaction: {err}"),
+            )
+        })?;
 
-    let event = create_event_in_db(&hasura_transaction, input).await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let event = create_event_in_db(&hasura_transaction, input)
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     hasura_transaction.commit().await.map_err(|err| {
         (
@@ -87,7 +95,6 @@ pub async fn create_event(
             format!("Error committing transaction: {err}"),
         )
     })?;
-    
 
     Ok(Json(event))
 }

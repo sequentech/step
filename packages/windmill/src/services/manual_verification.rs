@@ -7,7 +7,7 @@
 use std::env;
 
 use super::s3::{self, get_minio_url};
-use crate::postgres::{self, template, election};
+use crate::postgres::{self, election, template};
 use crate::services::database::get_hasura_pool;
 use crate::services::{
     documents::upload_and_return_document, temp_path::write_into_named_temp_file,

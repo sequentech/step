@@ -1,15 +1,15 @@
-use tokio_postgres::{Transaction, Row};
-use anyhow::{Result, Context, anyhow};
-use uuid::Uuid;
+use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use tokio_postgres::{Row, Transaction};
 use tracing::instrument;
+use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Schedule {
- pub id: String,
- pub date: String,
- pub name: String,
+    pub id: String,
+    pub date: String,
+    pub name: String,
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -17,9 +17,9 @@ pub async fn get_tenant_settings(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
 ) -> Result<Vec<Schedule>> {
-    let tenant_uuid: Uuid = Uuid::parse_str(tenant_id)
-        .with_context(|| "Error parsing tenant_id as UUID")?;
-    
+    let tenant_uuid: Uuid =
+        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -48,7 +48,9 @@ pub async fn get_tenant_settings(
         let json_value: Value = row.get("settings");
 
         if let Some(schedules_array) = json_value.get("schedules") {
-            if let Ok(schedule_list) = serde_json::from_value::<Vec<Schedule>>(schedules_array.clone()) {
+            if let Ok(schedule_list) =
+                serde_json::from_value::<Vec<Schedule>>(schedules_array.clone())
+            {
                 schedules.extend(schedule_list);
             } else {
                 tracing::error!("Failed to deserialize schedules: {:?}", schedules_array);
