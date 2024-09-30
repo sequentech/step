@@ -61,3 +61,32 @@ that have the trustee role.
    - In the dialog that appears, set the `Act as a Trustee` field to `trustee1`.
    - Click on `Save`.
    - Repeat the process for `trustee2`.
+
+## Send keycloak logs to harvest/immudb
+
+For keycloak to be able to send the logs, these variables need to be configured
+in the keycloak container:
+
+- KEYCLOAK_URL
+- KEYCLOAK_CLIENT_ID
+- KEYCLOAK_CLIENT_SECRET
+- HARVEST_DOMAIN
+
+For example in production deployments, the values for these variables are:
+
+- name: KEYCLOAK_URL
+ value: http://keycloak-keycloakx-http/auth
+- name: HARVEST_DOMAIN
+ value: "harvest:8400"
+
+Also, the `service-account` client for the default tenant realm `tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5` has to be configured:
+
+- Go to `Clients`, then `service-account`.
+- Click on `Client scopes`, then `service-account-dedicated`.
+- If `x-hasura-tenant-id` exists and the type is not `Hardcoded claim`, then click on the three dots `...` and `Delete` to delete it.
+- Then click `Add mapper` > `By configuration` > `Hardcoded claim`.
+- Configure:
+  - Name: `x-hasura-tenant-id`.
+  - Token Claim Name: `https://hasura\.io/jwt/claims.x-hasura-tenant-id`.
+  - Claim value: `90505c8a-23a9-4cdf-a26b-4e19f6a097d5`.
+- Click `Save`.
