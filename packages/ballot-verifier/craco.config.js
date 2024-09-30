@@ -4,6 +4,7 @@
 
 module.exports = {
     devServer: {
+        allowedHosts: "all",
         headers: {
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "*",

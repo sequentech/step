@@ -302,26 +302,26 @@ services:
       retries: 25
       start_period: 5s
 
-  # admin-portal:
-  #   profiles: ["full"]
-  #   image: sequentech.local/frontend
-  #   container_name: admin-portal
-  #   build:
-  #     context: ../packages/
-  #     dockerfile: Dockerfile
-  #   #restart: always
-  #   #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
-  #   #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
-  #   ports:
-  #     - 3002:3000
-  #   stdin_open: true
-  #   entrypoint: ["./init.sh", "start:admin:container"]
-  #   volumes:
-  #      - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
-  #   environment:
-  #       MAX_DIFF_LINES: ${MAX_DIFF_LINES}
-  #       SECONDS_TO_SHOW_COUNTDOWN: ${SECONDS_TO_SHOW_COUNTDOWN}
-  #       SECONDS_TO_SHOW_ALERT: ${SECONDS_TO_SHOW_ALERT}
+  admin-portal:
+    profiles: ["full"]
+    image: sequentech.local/frontend
+    container_name: admin-portal
+    build:
+      context: ../packages/
+      dockerfile: Dockerfile
+    #restart: always
+    #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
+    #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
+    ports:
+      - 3002:3002
+    stdin_open: true
+    entrypoint: ["./init.sh", "start:admin-portal"]
+    volumes:
+       - ../packages:/usr/src/app
+    environment:
+        MAX_DIFF_LINES: ${MAX_DIFF_LINES}
+        SECONDS_TO_SHOW_COUNTDOWN: ${SECONDS_TO_SHOW_COUNTDOWN}
+        SECONDS_TO_SHOW_ALERT: ${SECONDS_TO_SHOW_ALERT}
 
   # voting-portal:
   #   profiles: ["full"]

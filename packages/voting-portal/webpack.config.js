@@ -111,6 +111,7 @@ module.exports = function (env, argv) {
             static: {
                 directory: path.resolve(__dirname, "dist"),
             },
+            allowedHosts: "all",
             compress: true, // Enable gzip compression
             port: 3000, // Run on port 3000
             open: true, // Automatically open the browser
