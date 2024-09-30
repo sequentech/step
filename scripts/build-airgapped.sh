@@ -38,10 +38,10 @@ EOF
 add-project-root-to-image() {
     if [ -e "$2" ]; then
         info "Copying $(realpath "$PROJECT_ROOT/$2") to $1 at $3; this will get $1 retagged"
-        docker build -f- -t "$1" $PROJECT_ROOT <<EOF
-          FROM $1
-          COPY $2 $3
-EOF
+#         docker build -f- -t "$1" $PROJECT_ROOT <<EOF
+#           FROM $1
+#           COPY $2 $3
+# EOF
     fi
 }
 
@@ -60,27 +60,27 @@ archive-image-artifact() {
 
 add-readme-to-tarball() {
     tmpdir=$(mktemp -d)
-    cat <<EOF > $tmpdir/README.md
-    # Welcome to Sequent air-gapped environment
+    cat <<'EOF' > $tmpdir/README.md
+# Welcome to Sequent air-gapped environment
 
-    ## Requirements
+## Requirements
 
-    - Docker Desktop
+- Docker Desktop
 
-    ## Instructions
+## Instructions
 
-    In order to execute the system, you have to run the following command:
+In order to execute the system, you have to run the following command:
 
-    ```shell-session
-    $ ./up
-    ```
+```shell-session
+$ ./up
+```
 
-    Once that it has been imported and started, you can visit the different services at their endpoints:
+Once that it has been imported and started, you can visit the different services at their endpoints:
 
-    - Admin portal: http://localhost:3002
-    - Voting portal: http://localhost:3000
+- Admin portal: http://localhost:3002
+- Voting portal: http://localhost:3000
 EOF
-    tar --append --file=$DELIVERABLE_TARBALL $tmpdir/README.md
+    tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL README.md
 }
 
 add-up-script-to-tarball() {
@@ -91,12 +91,12 @@ add-up-script-to-tarball() {
 TODO (ereslibre)
 EOF
     chmod +x $tmpdir/up
-    tar --append --file=$DELIVERABLE_TARBALL $tmpdir/up
+    tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL up
 }
 
 add-images-to-tarball() {
     for image in $(find $IMAGE_ARTIFACTS_PATH -type f -name "*.tar.gz"); do
-        tar --append --file=$DELIVERABLE_TARBALL $image
+        tar --append -C $IMAGE_ARTIFACTS_PATH --file=$DELIVERABLE_TARBALL $(basename "$image")
     done
 }
 
@@ -104,6 +104,7 @@ clean-artifacts-root() {
     find $AIRGAPPED_ARTIFACTS_ROOT -mindepth 1 -not -name .gitkeep | xargs rm
 }
 
+mkdir -p $DELIVERABLE_PATH $IMAGE_ARTIFACTS_PATH
 tar -cf $DELIVERABLE_TARBALL -T /dev/null
 
 # First, take all images that volume mount the project source code,
