@@ -173,10 +173,10 @@ def parse_contests(sheet):
     data = parse_table_sheet(
         sheet,
         required_keys=[
-            "^election_name$"
+            "^election_post$"
         ],
         allowed_keys=[
-            "^election_name$"
+            "^election_post$"
         ]
     )
     return data
@@ -186,11 +186,11 @@ def parse_candidates(sheet):
         sheet,
         required_keys=[
             "^contest_name$",
-            "^election_name$"
+            "^election_post$"
         ],
         allowed_keys=[
             "^contest_name$",
-            "^election_name$"
+            "^election_post$"
         ]
     )
     return data
@@ -458,12 +458,12 @@ def gen_tree(excel_data):
         contest = next((c for c in election["contests"] if c["name"] == contest_name), None)
         contest_context = next((
             c for c in excel_data["contests"]
-            if c["name"] == contest_name and c["election_name"] == election["name"]
+            if c["name"] == contest_name and c["election_post"] == election["election_post"]
         ), None)
 
         if not contest_context:
             breakpoint()
-            raise Exception(f"contest with 'name' = {contest_name} and 'election_name' = {election["name"]} not found in excel")
+            raise Exception(f"contest with 'name' = {contest_name} and 'election_post' = {election["election_post"]} not found in excel")
         
         if not contest:
             # If the contest does not exist, create it
@@ -483,12 +483,12 @@ def gen_tree(excel_data):
         candidate_name = row["DB_CANDIDATE_NAMEONBALLOT"]
         candidate_context = next((
             c for c in excel_data["candidates"] 
-            if c["name"] == candidate_name and c["election_name"] == election["name"] and c["contest_name"] == contest["name"]
+            if c["name"] == candidate_name and c["election_post"] == election["election_post"] and c["contest_name"] == contest["name"]
         ), None)
 
         if not candidate_context:
             breakpoint()
-            raise Exception(f"candidate with 'name' = {candidate_name} and 'election_name' = {election["name"]} and 'contest_name' = {contest["name"]} not found in excel")
+            raise Exception(f"candidate with 'name' = {candidate_name} and 'election_post' = {election["election_post"]} and 'contest_name' = {contest["name"]} not found in excel")
 
         candidate = {
             "code": row["DB_CANDIDATE_CAN_CODE"],
