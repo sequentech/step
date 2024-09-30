@@ -138,6 +138,11 @@ export type DataListPgAudit = {
     total: TotalAggregate
 }
 
+export type DeleteElectionEvent = {
+    __typename?: "DeleteElectionEvent"
+    id?: Maybe<Scalars["String"]["output"]>
+}
+
 export type DeleteUserOutput = {
     __typename?: "DeleteUserOutput"
     id?: Maybe<Scalars["String"]["output"]>
@@ -755,6 +760,7 @@ export type Mutation_Root = {
     create_user: KeycloakUser
     /** create_vote_receipt */
     create_vote_receipt?: Maybe<CreateVoteReceiptOutput>
+    delete_election_event?: Maybe<DeleteElectionEvent>
     delete_permission?: Maybe<SetRolePermissionOutput>
     delete_role?: Maybe<SetUserRoleOutput>
     delete_role_permission?: Maybe<SetRolePermissionOutput>
@@ -1362,6 +1368,11 @@ export type Mutation_RootCreate_Vote_ReceiptArgs = {
     election_event_id: Scalars["uuid"]["input"]
     election_id: Scalars["uuid"]["input"]
     tenant_id: Scalars["uuid"]["input"]
+}
+
+/** mutation root */
+export type Mutation_RootDelete_Election_EventArgs = {
+    election_event_id: Scalars["String"]["input"]
 }
 
 /** mutation root */

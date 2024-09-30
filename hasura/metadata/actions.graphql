@@ -78,6 +78,12 @@ type Mutation {
 }
 
 type Mutation {
+  delete_election_event (
+    election_event_id: String!
+  ): DeleteElectionEvent
+}
+
+type Mutation {
   delete_permission (
     tenant_id: String!
     permission_name: String!
@@ -1062,6 +1068,10 @@ type SetCustomUrlOutput {
 type SetCustomUrlsOutput {
   success : Boolean!
   message : String
+}
+
+type DeleteElectionEvent {
+  id : String
 }
 
 type ExportTasksExecutionOutput {
