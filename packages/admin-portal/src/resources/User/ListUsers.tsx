@@ -319,6 +319,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     }, [polling])
 
     const handleClose = () => {
+		setOpenUsersLogsModal(false)
         setRecordIds([])
         setOpenSendCommunication(false)
         setOpenDeleteModal(false)
@@ -962,9 +963,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 title={t("usersAndRolesScreen.voters.logs.label")}
                 ok={t("common.label.close")}
                 open={openUsersLogsModal}
-                handleClose={(results: boolean) => {
-                    setOpenUsersLogsModal(false)
-                }}
+                handleClose={handleClose}
             >
                 <ElectoralLogList
                     showActions={false}
