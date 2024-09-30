@@ -72,15 +72,15 @@ def parse_table_sheet(
                 if re.match(pattern, key):
                     matched_patterns.add(pattern)
                     break
+        if len(matched_patterns) != len(required_keys):
+            breakpoint()
         assert(len(matched_patterns) == len(required_keys))
 
     def check_allowed_keys(header_values, allowed_keys):
         allowed_keys += [
-            r"^Metadata\.Name$",
-            r"^Metadata\.Labels\[\d+\]\.Key$",
-            r"^Metadata\.Labels\[\d+\]\.Value$",
-            r"^Metadata\.Template$",
-            r"^Extra\.[a-zA-Z0-9]+$"
+            r"^name$",
+            r"^alias$",
+            r"^annotations\.[_a-zA-Z0-9]+",
         ]
         matched_patterns = set()
         for key in header_values:
@@ -104,39 +104,11 @@ def parse_table_sheet(
             for split_key_index, split_key_item in enumerate(split_key):
                 # if it's not last
                 if split_key_index == len(split_key) - 1:
-                    if '[' not in split_key_item:
-                        subelement[split_key_item] = value
-                    else:
-                        match = re.match(
-                            r"([a-zA-Z0-9]+)\[(\d+)\]$",
-                            split_key_item
-                        )
-                        split_key_name = match.group(1)
-                        split_key_subindex = int(match.group(2))
-                        if split_key_name not in subelement:
-                            subelement[split_key_name] = []
-                        assert(
-                            split_key_subindex <= len(subelement[split_key_name])
-                        )
-                        subelement[split_key_name].append(value)
+                    subelement[split_key_item] = value
                 else:
-                    if '[' not in split_key_item:
-                        if split_key_item not in subelement:
-                            subelement[split_key_item] = dict()
-                        subelement = subelement[split_key_item]
-                    else:
-                        match = re.match(
-                            r"([a-zA-Z0-9]+)\[(\d+)\]$",
-                            split_key_item
-                        )
-                        split_key_name = match.group(1)
-                        split_key_subindex = int(match.group(2))
-                        if split_key_name not in subelement:
-                            subelement[split_key_name] = [dict()]
-                        assert(
-                            split_key_subindex <= len(subelement[split_key_name])
-                        )
-                        subelement = subelement[split_key_name][split_key_subindex]
+                    if split_key_item not in subelement:
+                        subelement[split_key_item] = dict()
+                    subelement = subelement[split_key_item]
 
         return map_f(parsed_object)
 
@@ -173,17 +145,11 @@ def parse_election_event(sheet):
     data = parse_table_sheet(
         sheet,
         required_keys=[
-            r"^name$",
             "^description$",
-            "^annotations/miru/election_event_id$",
-            "^annotations/miru/election_event_name$",
             "^logo_url$"
         ],
         allowed_keys=[
-            r"^name$",
             "^description$",
-            "^annotations/miru/election_event_id$",
-            "^annotations/miru/election_event_name$",
             "^logo_url$"
         ]
     )
@@ -193,20 +159,12 @@ def parse_elections(sheet):
     data = parse_table_sheet(
         sheet,
         required_keys=[
-            r"^election_post$"
-            "^name$",
-            "^alias$",
-            "^description$",
-            "^annotations/miru/election_id$",
-            "^annotations/miru/election_name$"
+            r"^election_post$",
+            "^description$"
         ],
         allowed_keys=[
-            r"^election_post$"
-            "^name$",
-            "^alias$",
-            "^description$",
-            "^annotations/miru/election_id$",
-            "^annotations/miru/election_name$"
+            r"^election_post$",
+            "^description$"
         ]
     )
     return data
@@ -215,18 +173,10 @@ def parse_contests(sheet):
     data = parse_table_sheet(
         sheet,
         required_keys=[
-            r"^name$",
-            "^election_name$",
-            "^alias$",
-            "^annotations/miru/contest_id$",
-            "^annotations/miru/contest_name$"
+            "^election_name$"
         ],
         allowed_keys=[
-            r"^name$",
-            "^election_name$",
-            "^alias$",
-            "^annotations/miru/contest_id$",
-            "^annotations/miru/contest_name$"
+            "^election_name$"
         ]
     )
     return data
@@ -235,25 +185,12 @@ def parse_candidates(sheet):
     data = parse_table_sheet(
         sheet,
         required_keys=[
-            r"^name$",
             "^contest_name$",
-            "^election_name$",
-            "^alias$",
-            "^annotations/miru/candidate_id$",
-            "^annotations/miru/candidate_name$",
-            "^annotations/miru/candidate_setting$",
+            "^election_name$"
         ],
         allowed_keys=[
-            r"^name$",
             "^contest_name$",
-            "^election_name$",
-            "^alias$",
-            "^annotations/miru/candidate_id$",
-            "^annotations/miru/candidate_name$",
-            "^annotations/miru/candidate_setting$",
-            "^annotations/miru/candidate_affiliation_id$",
-            "^annotations/miru/candidate_affiliation_party$",
-            "^annotations/miru/candidate_affiliation_registered_name$"
+            "^election_name$"
         ]
     )
     return data
@@ -262,19 +199,10 @@ def parse_areas(sheet):
     data = parse_table_sheet(
         sheet,
         required_keys=[
-            r"^name$",
-            "^description$",
-            "^annotations/miru/threshold$",
-            "^annotations/miru/station_id$",
-            "^annotations/miru/trustee_servers$"
+            "^description$"
         ],
         allowed_keys=[
-            r"^name$",
-            "^description$",
-            "^annotations/miru/threshold$",
-            "^annotations/miru/station_id$",
-            "^annotations/miru/trustee_servers$",
-            "^annotations/miru/ccs_server_tags$"
+            "^description$"
         ]
     )
     return data
@@ -283,14 +211,12 @@ def parse_ccs_servers(sheet):
     data = parse_table_sheet(
         sheet,
         required_keys=[
-            "^name$",
             "^tag$",
             "^address$",
             "^public_key$",
             "^send_logs$"
         ],
         allowed_keys=[
-            "^name$",
             "^tag$",
             "^address$",
             "^public_key$",
@@ -514,6 +440,7 @@ def gen_tree(excel_data):
         ), None)
 
         if not election_context:
+            breakpoint()
             raise Exception(f"election with 'election_post' = {row_election_post} not found in excel")
         
         if not election:
@@ -535,6 +462,7 @@ def gen_tree(excel_data):
         ), None)
 
         if not contest_context:
+            breakpoint()
             raise Exception(f"contest with 'name' = {contest_name} and 'election_name' = {election["name"]} not found in excel")
         
         if not contest:
@@ -559,6 +487,7 @@ def gen_tree(excel_data):
         ), None)
 
         if not candidate_context:
+            breakpoint()
             raise Exception(f"candidate with 'name' = {candidate_name} and 'election_name' = {election["name"]} and 'contest_name' = {contest["name"]} not found in excel")
 
         candidate = {
@@ -579,6 +508,7 @@ def gen_tree(excel_data):
         ), None)
 
         if not area_context:
+            breakpoint()
             raise Exception(f"area with 'name' = {area_name} not found in excel")
 
         ccs_server_tags = area_context["ccs_server_tags"].split(",") if area_context["ccs_server_tags"] else []
