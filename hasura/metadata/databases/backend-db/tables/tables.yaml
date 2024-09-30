@@ -14,6 +14,7 @@
 - "!include sequent_backend_event_execution.yaml"
 - "!include sequent_backend_keys_ceremony.yaml"
 - "!include sequent_backend_lock.yaml"
+- "!include sequent_backend_notification.yaml"
 - "!include sequent_backend_results_area_contest.yaml"
 - "!include sequent_backend_results_area_contest_candidate.yaml"
 - "!include sequent_backend_results_contest.yaml"

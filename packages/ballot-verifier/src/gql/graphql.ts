@@ -826,6 +826,10 @@ export type Mutation_Root = {
     delete_sequent_backend_lock?: Maybe<Sequent_Backend_Lock_Mutation_Response>
     /** delete single row from the table: "sequent_backend.lock" */
     delete_sequent_backend_lock_by_pk?: Maybe<Sequent_Backend_Lock>
+    /** delete data from the table: "sequent_backend.notification" */
+    delete_sequent_backend_notification?: Maybe<Sequent_Backend_Notification_Mutation_Response>
+    /** delete single row from the table: "sequent_backend.notification" */
+    delete_sequent_backend_notification_by_pk?: Maybe<Sequent_Backend_Notification>
     /** delete data from the table: "sequent_backend.results_area_contest" */
     delete_sequent_backend_results_area_contest?: Maybe<Sequent_Backend_Results_Area_Contest_Mutation_Response>
     /** delete single row from the table: "sequent_backend.results_area_contest" */
@@ -977,6 +981,10 @@ export type Mutation_Root = {
     insert_sequent_backend_lock?: Maybe<Sequent_Backend_Lock_Mutation_Response>
     /** insert a single row into the table: "sequent_backend.lock" */
     insert_sequent_backend_lock_one?: Maybe<Sequent_Backend_Lock>
+    /** insert data into the table: "sequent_backend.notification" */
+    insert_sequent_backend_notification?: Maybe<Sequent_Backend_Notification_Mutation_Response>
+    /** insert a single row into the table: "sequent_backend.notification" */
+    insert_sequent_backend_notification_one?: Maybe<Sequent_Backend_Notification>
     /** insert data into the table: "sequent_backend.results_area_contest" */
     insert_sequent_backend_results_area_contest?: Maybe<Sequent_Backend_Results_Area_Contest_Mutation_Response>
     /** insert data into the table: "sequent_backend.results_area_contest_candidate" */
@@ -1172,6 +1180,14 @@ export type Mutation_Root = {
     update_sequent_backend_lock_by_pk?: Maybe<Sequent_Backend_Lock>
     /** update multiples rows of table: "sequent_backend.lock" */
     update_sequent_backend_lock_many?: Maybe<Array<Maybe<Sequent_Backend_Lock_Mutation_Response>>>
+    /** update data of the table: "sequent_backend.notification" */
+    update_sequent_backend_notification?: Maybe<Sequent_Backend_Notification_Mutation_Response>
+    /** update single row of the table: "sequent_backend.notification" */
+    update_sequent_backend_notification_by_pk?: Maybe<Sequent_Backend_Notification>
+    /** update multiples rows of table: "sequent_backend.notification" */
+    update_sequent_backend_notification_many?: Maybe<
+        Array<Maybe<Sequent_Backend_Notification_Mutation_Response>>
+    >
     /** update data of the table: "sequent_backend.results_area_contest" */
     update_sequent_backend_results_area_contest?: Maybe<Sequent_Backend_Results_Area_Contest_Mutation_Response>
     /** update single row of the table: "sequent_backend.results_area_contest" */
@@ -1567,6 +1583,16 @@ export type Mutation_RootDelete_Sequent_Backend_LockArgs = {
 /** mutation root */
 export type Mutation_RootDelete_Sequent_Backend_Lock_By_PkArgs = {
     key: Scalars["String"]["input"]
+}
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_NotificationArgs = {
+    where: Sequent_Backend_Notification_Bool_Exp
+}
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Notification_By_PkArgs = {
+    id: Scalars["uuid"]["input"]
 }
 
 /** mutation root */
@@ -2074,6 +2100,18 @@ export type Mutation_RootInsert_Sequent_Backend_LockArgs = {
 export type Mutation_RootInsert_Sequent_Backend_Lock_OneArgs = {
     object: Sequent_Backend_Lock_Insert_Input
     on_conflict?: InputMaybe<Sequent_Backend_Lock_On_Conflict>
+}
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_NotificationArgs = {
+    objects: Array<Sequent_Backend_Notification_Insert_Input>
+    on_conflict?: InputMaybe<Sequent_Backend_Notification_On_Conflict>
+}
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Notification_OneArgs = {
+    object: Sequent_Backend_Notification_Insert_Input
+    on_conflict?: InputMaybe<Sequent_Backend_Notification_On_Conflict>
 }
 
 /** mutation root */
@@ -2756,6 +2794,33 @@ export type Mutation_RootUpdate_Sequent_Backend_Lock_ManyArgs = {
 }
 
 /** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_NotificationArgs = {
+    _append?: InputMaybe<Sequent_Backend_Notification_Append_Input>
+    _delete_at_path?: InputMaybe<Sequent_Backend_Notification_Delete_At_Path_Input>
+    _delete_elem?: InputMaybe<Sequent_Backend_Notification_Delete_Elem_Input>
+    _delete_key?: InputMaybe<Sequent_Backend_Notification_Delete_Key_Input>
+    _prepend?: InputMaybe<Sequent_Backend_Notification_Prepend_Input>
+    _set?: InputMaybe<Sequent_Backend_Notification_Set_Input>
+    where: Sequent_Backend_Notification_Bool_Exp
+}
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Notification_By_PkArgs = {
+    _append?: InputMaybe<Sequent_Backend_Notification_Append_Input>
+    _delete_at_path?: InputMaybe<Sequent_Backend_Notification_Delete_At_Path_Input>
+    _delete_elem?: InputMaybe<Sequent_Backend_Notification_Delete_Elem_Input>
+    _delete_key?: InputMaybe<Sequent_Backend_Notification_Delete_Key_Input>
+    _prepend?: InputMaybe<Sequent_Backend_Notification_Prepend_Input>
+    _set?: InputMaybe<Sequent_Backend_Notification_Set_Input>
+    pk_columns: Sequent_Backend_Notification_Pk_Columns_Input
+}
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Notification_ManyArgs = {
+    updates: Array<Sequent_Backend_Notification_Updates>
+}
+
+/** mutation root */
 export type Mutation_RootUpdate_Sequent_Backend_Results_Area_ContestArgs = {
     _append?: InputMaybe<Sequent_Backend_Results_Area_Contest_Append_Input>
     _delete_at_path?: InputMaybe<Sequent_Backend_Results_Area_Contest_Delete_At_Path_Input>
@@ -3346,6 +3411,12 @@ export type Query_Root = {
     sequent_backend_lock_aggregate: Sequent_Backend_Lock_Aggregate
     /** fetch data from the table: "sequent_backend.lock" using primary key columns */
     sequent_backend_lock_by_pk?: Maybe<Sequent_Backend_Lock>
+    /** fetch data from the table: "sequent_backend.notification" */
+    sequent_backend_notification: Array<Sequent_Backend_Notification>
+    /** fetch aggregated fields from the table: "sequent_backend.notification" */
+    sequent_backend_notification_aggregate: Sequent_Backend_Notification_Aggregate
+    /** fetch data from the table: "sequent_backend.notification" using primary key columns */
+    sequent_backend_notification_by_pk?: Maybe<Sequent_Backend_Notification>
     /** fetch data from the table: "sequent_backend.results_area_contest" */
     sequent_backend_results_area_contest: Array<Sequent_Backend_Results_Area_Contest>
     /** fetch aggregated fields from the table: "sequent_backend.results_area_contest" */
@@ -3842,6 +3913,26 @@ export type Query_RootSequent_Backend_Lock_AggregateArgs = {
 
 export type Query_RootSequent_Backend_Lock_By_PkArgs = {
     key: Scalars["String"]["input"]
+}
+
+export type Query_RootSequent_Backend_NotificationArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Notification_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Notification_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Notification_Bool_Exp>
+}
+
+export type Query_RootSequent_Backend_Notification_AggregateArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Notification_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Notification_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Notification_Bool_Exp>
+}
+
+export type Query_RootSequent_Backend_Notification_By_PkArgs = {
+    id: Scalars["uuid"]["input"]
 }
 
 export type Query_RootSequent_Backend_Results_Area_ContestArgs = {
@@ -10032,6 +10123,305 @@ export type Sequent_Backend_Lock_Updates = {
     where: Sequent_Backend_Lock_Bool_Exp
 }
 
+/** columns and relationships of "sequent_backend.notification" */
+export type Sequent_Backend_Notification = {
+    __typename?: "sequent_backend_notification"
+    alias?: Maybe<Scalars["String"]["output"]>
+    annotations?: Maybe<Scalars["jsonb"]["output"]>
+    created_at: Scalars["timestamptz"]["output"]
+    election_event_id: Scalars["uuid"]["output"]
+    election_id?: Maybe<Scalars["uuid"]["output"]>
+    id: Scalars["uuid"]["output"]
+    labels?: Maybe<Scalars["jsonb"]["output"]>
+    name?: Maybe<Scalars["String"]["output"]>
+    template_id?: Maybe<Scalars["uuid"]["output"]>
+    tenant_id: Scalars["uuid"]["output"]
+    type?: Maybe<Scalars["String"]["output"]>
+    updated_at: Scalars["timestamptz"]["output"]
+}
+
+/** columns and relationships of "sequent_backend.notification" */
+export type Sequent_Backend_NotificationAnnotationsArgs = {
+    path?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** columns and relationships of "sequent_backend.notification" */
+export type Sequent_Backend_NotificationLabelsArgs = {
+    path?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** aggregated selection of "sequent_backend.notification" */
+export type Sequent_Backend_Notification_Aggregate = {
+    __typename?: "sequent_backend_notification_aggregate"
+    aggregate?: Maybe<Sequent_Backend_Notification_Aggregate_Fields>
+    nodes: Array<Sequent_Backend_Notification>
+}
+
+/** aggregate fields of "sequent_backend.notification" */
+export type Sequent_Backend_Notification_Aggregate_Fields = {
+    __typename?: "sequent_backend_notification_aggregate_fields"
+    count: Scalars["Int"]["output"]
+    max?: Maybe<Sequent_Backend_Notification_Max_Fields>
+    min?: Maybe<Sequent_Backend_Notification_Min_Fields>
+}
+
+/** aggregate fields of "sequent_backend.notification" */
+export type Sequent_Backend_Notification_Aggregate_FieldsCountArgs = {
+    columns?: InputMaybe<Array<Sequent_Backend_Notification_Select_Column>>
+    distinct?: InputMaybe<Scalars["Boolean"]["input"]>
+}
+
+/** append existing jsonb value of filtered columns with new jsonb value */
+export type Sequent_Backend_Notification_Append_Input = {
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
+    labels?: InputMaybe<Scalars["jsonb"]["input"]>
+}
+
+/** Boolean expression to filter rows from the table "sequent_backend.notification". All fields are combined with a logical 'AND'. */
+export type Sequent_Backend_Notification_Bool_Exp = {
+    _and?: InputMaybe<Array<Sequent_Backend_Notification_Bool_Exp>>
+    _not?: InputMaybe<Sequent_Backend_Notification_Bool_Exp>
+    _or?: InputMaybe<Array<Sequent_Backend_Notification_Bool_Exp>>
+    alias?: InputMaybe<String_Comparison_Exp>
+    annotations?: InputMaybe<Jsonb_Comparison_Exp>
+    created_at?: InputMaybe<Timestamptz_Comparison_Exp>
+    election_event_id?: InputMaybe<Uuid_Comparison_Exp>
+    election_id?: InputMaybe<Uuid_Comparison_Exp>
+    id?: InputMaybe<Uuid_Comparison_Exp>
+    labels?: InputMaybe<Jsonb_Comparison_Exp>
+    name?: InputMaybe<String_Comparison_Exp>
+    template_id?: InputMaybe<Uuid_Comparison_Exp>
+    tenant_id?: InputMaybe<Uuid_Comparison_Exp>
+    type?: InputMaybe<String_Comparison_Exp>
+    updated_at?: InputMaybe<Timestamptz_Comparison_Exp>
+}
+
+/** unique or primary key constraints on table "sequent_backend.notification" */
+export enum Sequent_Backend_Notification_Constraint {
+    /** unique or primary key constraint on columns "id" */
+    NotificationPkey = "notification_pkey",
+}
+
+/** delete the field or element with specified path (for JSON arrays, negative integers count from the end) */
+export type Sequent_Backend_Notification_Delete_At_Path_Input = {
+    annotations?: InputMaybe<Array<Scalars["String"]["input"]>>
+    labels?: InputMaybe<Array<Scalars["String"]["input"]>>
+}
+
+/** delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array */
+export type Sequent_Backend_Notification_Delete_Elem_Input = {
+    annotations?: InputMaybe<Scalars["Int"]["input"]>
+    labels?: InputMaybe<Scalars["Int"]["input"]>
+}
+
+/** delete key/value pair or string element. key/value pairs are matched based on their key value */
+export type Sequent_Backend_Notification_Delete_Key_Input = {
+    annotations?: InputMaybe<Scalars["String"]["input"]>
+    labels?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** input type for inserting data into table "sequent_backend.notification" */
+export type Sequent_Backend_Notification_Insert_Input = {
+    alias?: InputMaybe<Scalars["String"]["input"]>
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
+    created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
+    election_id?: InputMaybe<Scalars["uuid"]["input"]>
+    id?: InputMaybe<Scalars["uuid"]["input"]>
+    labels?: InputMaybe<Scalars["jsonb"]["input"]>
+    name?: InputMaybe<Scalars["String"]["input"]>
+    template_id?: InputMaybe<Scalars["uuid"]["input"]>
+    tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
+    type?: InputMaybe<Scalars["String"]["input"]>
+    updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+}
+
+/** aggregate max on columns */
+export type Sequent_Backend_Notification_Max_Fields = {
+    __typename?: "sequent_backend_notification_max_fields"
+    alias?: Maybe<Scalars["String"]["output"]>
+    created_at?: Maybe<Scalars["timestamptz"]["output"]>
+    election_event_id?: Maybe<Scalars["uuid"]["output"]>
+    election_id?: Maybe<Scalars["uuid"]["output"]>
+    id?: Maybe<Scalars["uuid"]["output"]>
+    name?: Maybe<Scalars["String"]["output"]>
+    template_id?: Maybe<Scalars["uuid"]["output"]>
+    tenant_id?: Maybe<Scalars["uuid"]["output"]>
+    type?: Maybe<Scalars["String"]["output"]>
+    updated_at?: Maybe<Scalars["timestamptz"]["output"]>
+}
+
+/** aggregate min on columns */
+export type Sequent_Backend_Notification_Min_Fields = {
+    __typename?: "sequent_backend_notification_min_fields"
+    alias?: Maybe<Scalars["String"]["output"]>
+    created_at?: Maybe<Scalars["timestamptz"]["output"]>
+    election_event_id?: Maybe<Scalars["uuid"]["output"]>
+    election_id?: Maybe<Scalars["uuid"]["output"]>
+    id?: Maybe<Scalars["uuid"]["output"]>
+    name?: Maybe<Scalars["String"]["output"]>
+    template_id?: Maybe<Scalars["uuid"]["output"]>
+    tenant_id?: Maybe<Scalars["uuid"]["output"]>
+    type?: Maybe<Scalars["String"]["output"]>
+    updated_at?: Maybe<Scalars["timestamptz"]["output"]>
+}
+
+/** response of any mutation on the table "sequent_backend.notification" */
+export type Sequent_Backend_Notification_Mutation_Response = {
+    __typename?: "sequent_backend_notification_mutation_response"
+    /** number of rows affected by the mutation */
+    affected_rows: Scalars["Int"]["output"]
+    /** data from the rows affected by the mutation */
+    returning: Array<Sequent_Backend_Notification>
+}
+
+/** on_conflict condition type for table "sequent_backend.notification" */
+export type Sequent_Backend_Notification_On_Conflict = {
+    constraint: Sequent_Backend_Notification_Constraint
+    update_columns?: Array<Sequent_Backend_Notification_Update_Column>
+    where?: InputMaybe<Sequent_Backend_Notification_Bool_Exp>
+}
+
+/** Ordering options when selecting data from "sequent_backend.notification". */
+export type Sequent_Backend_Notification_Order_By = {
+    alias?: InputMaybe<Order_By>
+    annotations?: InputMaybe<Order_By>
+    created_at?: InputMaybe<Order_By>
+    election_event_id?: InputMaybe<Order_By>
+    election_id?: InputMaybe<Order_By>
+    id?: InputMaybe<Order_By>
+    labels?: InputMaybe<Order_By>
+    name?: InputMaybe<Order_By>
+    template_id?: InputMaybe<Order_By>
+    tenant_id?: InputMaybe<Order_By>
+    type?: InputMaybe<Order_By>
+    updated_at?: InputMaybe<Order_By>
+}
+
+/** primary key columns input for table: sequent_backend.notification */
+export type Sequent_Backend_Notification_Pk_Columns_Input = {
+    id: Scalars["uuid"]["input"]
+}
+
+/** prepend existing jsonb value of filtered columns with new jsonb value */
+export type Sequent_Backend_Notification_Prepend_Input = {
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
+    labels?: InputMaybe<Scalars["jsonb"]["input"]>
+}
+
+/** select columns of table "sequent_backend.notification" */
+export enum Sequent_Backend_Notification_Select_Column {
+    /** column name */
+    Alias = "alias",
+    /** column name */
+    Annotations = "annotations",
+    /** column name */
+    CreatedAt = "created_at",
+    /** column name */
+    ElectionEventId = "election_event_id",
+    /** column name */
+    ElectionId = "election_id",
+    /** column name */
+    Id = "id",
+    /** column name */
+    Labels = "labels",
+    /** column name */
+    Name = "name",
+    /** column name */
+    TemplateId = "template_id",
+    /** column name */
+    TenantId = "tenant_id",
+    /** column name */
+    Type = "type",
+    /** column name */
+    UpdatedAt = "updated_at",
+}
+
+/** input type for updating data in table "sequent_backend.notification" */
+export type Sequent_Backend_Notification_Set_Input = {
+    alias?: InputMaybe<Scalars["String"]["input"]>
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
+    created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
+    election_id?: InputMaybe<Scalars["uuid"]["input"]>
+    id?: InputMaybe<Scalars["uuid"]["input"]>
+    labels?: InputMaybe<Scalars["jsonb"]["input"]>
+    name?: InputMaybe<Scalars["String"]["input"]>
+    template_id?: InputMaybe<Scalars["uuid"]["input"]>
+    tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
+    type?: InputMaybe<Scalars["String"]["input"]>
+    updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+}
+
+/** Streaming cursor of the table "sequent_backend_notification" */
+export type Sequent_Backend_Notification_Stream_Cursor_Input = {
+    /** Stream column input with initial value */
+    initial_value: Sequent_Backend_Notification_Stream_Cursor_Value_Input
+    /** cursor ordering */
+    ordering?: InputMaybe<Cursor_Ordering>
+}
+
+/** Initial value of the column from where the streaming should start */
+export type Sequent_Backend_Notification_Stream_Cursor_Value_Input = {
+    alias?: InputMaybe<Scalars["String"]["input"]>
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
+    created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
+    election_id?: InputMaybe<Scalars["uuid"]["input"]>
+    id?: InputMaybe<Scalars["uuid"]["input"]>
+    labels?: InputMaybe<Scalars["jsonb"]["input"]>
+    name?: InputMaybe<Scalars["String"]["input"]>
+    template_id?: InputMaybe<Scalars["uuid"]["input"]>
+    tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
+    type?: InputMaybe<Scalars["String"]["input"]>
+    updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+}
+
+/** update columns of table "sequent_backend.notification" */
+export enum Sequent_Backend_Notification_Update_Column {
+    /** column name */
+    Alias = "alias",
+    /** column name */
+    Annotations = "annotations",
+    /** column name */
+    CreatedAt = "created_at",
+    /** column name */
+    ElectionEventId = "election_event_id",
+    /** column name */
+    ElectionId = "election_id",
+    /** column name */
+    Id = "id",
+    /** column name */
+    Labels = "labels",
+    /** column name */
+    Name = "name",
+    /** column name */
+    TemplateId = "template_id",
+    /** column name */
+    TenantId = "tenant_id",
+    /** column name */
+    Type = "type",
+    /** column name */
+    UpdatedAt = "updated_at",
+}
+
+export type Sequent_Backend_Notification_Updates = {
+    /** append existing jsonb value of filtered columns with new jsonb value */
+    _append?: InputMaybe<Sequent_Backend_Notification_Append_Input>
+    /** delete the field or element with specified path (for JSON arrays, negative integers count from the end) */
+    _delete_at_path?: InputMaybe<Sequent_Backend_Notification_Delete_At_Path_Input>
+    /** delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array */
+    _delete_elem?: InputMaybe<Sequent_Backend_Notification_Delete_Elem_Input>
+    /** delete key/value pair or string element. key/value pairs are matched based on their key value */
+    _delete_key?: InputMaybe<Sequent_Backend_Notification_Delete_Key_Input>
+    /** prepend existing jsonb value of filtered columns with new jsonb value */
+    _prepend?: InputMaybe<Sequent_Backend_Notification_Prepend_Input>
+    /** sets the columns of the filtered rows to the given values */
+    _set?: InputMaybe<Sequent_Backend_Notification_Set_Input>
+    /** filter the rows which have to be updated */
+    where: Sequent_Backend_Notification_Bool_Exp
+}
+
 /** columns and relationships of "sequent_backend.results_area_contest" */
 export type Sequent_Backend_Results_Area_Contest = {
     __typename?: "sequent_backend_results_area_contest"
@@ -16215,6 +16605,14 @@ export type Subscription_Root = {
     sequent_backend_lock_by_pk?: Maybe<Sequent_Backend_Lock>
     /** fetch data from the table in a streaming manner: "sequent_backend.lock" */
     sequent_backend_lock_stream: Array<Sequent_Backend_Lock>
+    /** fetch data from the table: "sequent_backend.notification" */
+    sequent_backend_notification: Array<Sequent_Backend_Notification>
+    /** fetch aggregated fields from the table: "sequent_backend.notification" */
+    sequent_backend_notification_aggregate: Sequent_Backend_Notification_Aggregate
+    /** fetch data from the table: "sequent_backend.notification" using primary key columns */
+    sequent_backend_notification_by_pk?: Maybe<Sequent_Backend_Notification>
+    /** fetch data from the table in a streaming manner: "sequent_backend.notification" */
+    sequent_backend_notification_stream: Array<Sequent_Backend_Notification>
     /** fetch data from the table: "sequent_backend.results_area_contest" */
     sequent_backend_results_area_contest: Array<Sequent_Backend_Results_Area_Contest>
     /** fetch aggregated fields from the table: "sequent_backend.results_area_contest" */
@@ -16769,6 +17167,32 @@ export type Subscription_RootSequent_Backend_Lock_StreamArgs = {
     batch_size: Scalars["Int"]["input"]
     cursor: Array<InputMaybe<Sequent_Backend_Lock_Stream_Cursor_Input>>
     where?: InputMaybe<Sequent_Backend_Lock_Bool_Exp>
+}
+
+export type Subscription_RootSequent_Backend_NotificationArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Notification_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Notification_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Notification_Bool_Exp>
+}
+
+export type Subscription_RootSequent_Backend_Notification_AggregateArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Notification_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Notification_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Notification_Bool_Exp>
+}
+
+export type Subscription_RootSequent_Backend_Notification_By_PkArgs = {
+    id: Scalars["uuid"]["input"]
+}
+
+export type Subscription_RootSequent_Backend_Notification_StreamArgs = {
+    batch_size: Scalars["Int"]["input"]
+    cursor: Array<InputMaybe<Sequent_Backend_Notification_Stream_Cursor_Input>>
+    where?: InputMaybe<Sequent_Backend_Notification_Bool_Exp>
 }
 
 export type Subscription_RootSequent_Backend_Results_Area_ContestArgs = {

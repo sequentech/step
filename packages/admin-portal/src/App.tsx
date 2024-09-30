@@ -52,6 +52,7 @@ import {styled} from "@mui/material/styles"
 import {useAtomValue} from "jotai"
 import EditEvents from "./resources/ElectionEvent/EditEvents"
 import {CommunicationTemplateList} from "./resources/CommunicationTemplate/CommunicationTemplateList"
+import Notifications from "./resources/Notifications/Notifications"
 
 interface AppProps {}
 
@@ -194,7 +195,12 @@ const App: React.FC<AppProps> = () => {
                     create={CreateDocument}
                     options={{label: "Document"}}
                 />
-
+                <Resource
+                    name="sequent_backend_notification"
+                    edit={Notifications}
+                    list={Notifications}
+                    options={{label: "Notifications"}}
+                />
                 <Resource
                     name="sequent_backend_communication_template"
                     edit={CommunicationTemplateEdit}
@@ -208,6 +214,7 @@ const App: React.FC<AppProps> = () => {
                     list={EditEvents}
                     options={{label: "Scheduled Events"}}
                 />
+
                 <Resource name="user" edit={EditArea} list={ListUsers} options={{label: "Users"}} />
             </Admin>
         </StyledAppAtom>
