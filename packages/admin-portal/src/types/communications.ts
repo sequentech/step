@@ -43,7 +43,7 @@ export interface ISmsConfig {
 export interface ISendCommunicationBody {
     audience_selection?: IAudienceSelection
     audience_voter_ids?: Array<string>
-    communication_type?: ICommunicationType
+    type?: ICommunicationType
     communication_method?: ICommunicationMethod
     schedule_now?: boolean
     schedule_date?: string

@@ -12,7 +12,7 @@ use crate::hasura::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
 use crate::postgres::area::get_event_areas;
-use crate::postgres::communication_template::get_communication_template_by_id;
+use crate::postgres::template::get_template_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::tally_sheet::get_published_tally_sheets_by_event;
 use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
@@ -879,7 +879,7 @@ pub async fn execute_tally_session_wrapped(
         report_content_template_id
     {
         let template =
-            get_communication_template_by_id(hasura_transaction, &tenant_id, &template_id).await?;
+            get_template_by_id(hasura_transaction, &tenant_id, &template_id).await?;
         let document: Option<String> = template
             .map(|value| {
                 let body: std::result::Result<SendCommunicationBody, _> =

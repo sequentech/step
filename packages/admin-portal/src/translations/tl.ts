@@ -665,7 +665,7 @@ const tagalogTranslation: TranslationType = {
             usersAndRoles: "Mga Tagagamit at Tungkulin",
             logs: "Mga Log",
             settings: "Mga Setting",
-            communicationTemplates: "Mga Template ng Komunikasyon",
+            communicationTemplates: "Templates",
             active: "Aktibo",
             archived: "Arkilado",
             addResource: {

@@ -20,7 +20,7 @@ extern "C" {
 }
 
 #[wasm_bindgen(typescript_custom_section)]
-const ICOMMUNICATION_TYPE: &'static str = r#"
+const Itype: &'static str = r#"
 enum ICommunicationType {
     CREDENTIALS = "CREDENTIALS",
     BALLOT_RECEIPT = "BALLOT_RECEIPT",
@@ -83,7 +83,7 @@ const ISEND_COMMUNICATION_BODY: &'static str = r#"
 interface ISendCommunicationBody {
     audience_selection: IAudienceSelection;
     audience_voter_ids?: Array<string>;
-    communication_type: ICommunicationType;
+    type: ICommunicationType;
     communication_method: ICommunicationMethod;
     schedule_now: boolean;
     schedule_date?: string;

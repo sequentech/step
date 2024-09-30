@@ -47,7 +47,7 @@ import {
     CreateTransmissionPackageMutation,
     SendTransmissionPackageMutation,
     Sequent_Backend_Area,
-    Sequent_Backend_Communication_Template,
+    Sequent_Backend_Template,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Keys_Ceremony,
     Sequent_Backend_Results_Event,
@@ -253,12 +253,12 @@ export const TallyCeremony: React.FC = () => {
         }
     )
 
-    const {data: tallyTemplates} = useGetList<Sequent_Backend_Communication_Template>(
-        "sequent_backend_communication_template",
+    const {data: tallyTemplates} = useGetList<Sequent_Backend_Template>(
+        "sequent_backend_template",
         {
             filter: {
                 tenant_id: tenantId,
-                communication_type: ICommunicationType.TALLY_REPORT,
+                type: ICommunicationType.TALLY_REPORT,
             },
         }
     )

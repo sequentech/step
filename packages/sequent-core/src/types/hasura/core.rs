@@ -221,7 +221,7 @@ pub struct CommunicationTemplate {
     pub created_at: Option<DateTime<Local>>,
     pub updated_at: Option<DateTime<Local>>,
     pub communication_method: String,
-    pub communication_type: String,
+    pub r#type: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Hash)]

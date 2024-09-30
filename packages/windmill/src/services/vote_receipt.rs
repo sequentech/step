@@ -6,7 +6,8 @@
 use std::env;
 
 use super::s3;
-use crate::postgres::{self, communication_template, election};
+use crate::postgres::{self, election};
+use crate::postgres::template;
 use crate::services::database::get_hasura_pool;
 use crate::services::{
     documents::upload_and_return_document, temp_path::write_into_named_temp_file,
@@ -94,7 +95,7 @@ pub async fn get_template(
         return Ok(None);
     };
 
-    let Some(communication_template) = communication_template::get_communication_template_by_id(
+    let Some(template) = template::get_template_by_id(
         hasura_transaction,
         tenant_id,
         &template_id,
@@ -104,11 +105,11 @@ pub async fn get_template(
         return Ok(None);
     };
 
-    let communication_template_value: CommunicationTemplateValue =
-        deserialize_value(communication_template.template)
+    let template_value: CommunicationTemplateValue =
+        deserialize_value(template.template)
             .with_context(|| "Error parsing the communication template")?;
 
-    Ok(Some(communication_template_value.document))
+    Ok(Some(template_value.document))
 }
 
 async fn get_public_asset_vote_receipt_template(tpl_type: TemplateType) -> Result<String> {

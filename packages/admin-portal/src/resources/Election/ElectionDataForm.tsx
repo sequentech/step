@@ -37,7 +37,7 @@ import {
 } from "@mui/material"
 import {
     GetUploadUrlMutation,
-    Sequent_Backend_Communication_Template,
+    Sequent_Backend_Template,
     Sequent_Backend_Contest,
     Sequent_Backend_Document,
     Sequent_Backend_Election,
@@ -139,15 +139,12 @@ export const ElectionDataForm: React.FC = () => {
         }
     )
 
-    const {data: receipts} = useGetList<Sequent_Backend_Communication_Template>(
-        "sequent_backend_communication_template",
-        {
-            filter: {
-                tenant_id: record.tenant_id || tenantId,
-                communication_type: ICommunicationType.BALLOT_RECEIPT,
-            },
-        }
-    )
+    const {data: receipts} = useGetList<Sequent_Backend_Template>("sequent_backend_template", {
+        filter: {
+            tenant_id: record.tenant_id || tenantId,
+            type: ICommunicationType.BALLOT_RECEIPT,
+        },
+    })
 
     const [updateImage] = useUpdate()
 

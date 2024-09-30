@@ -663,7 +663,7 @@ const englishTranslation = {
             usersAndRoles: "Users and Roles",
             logs: "Logs",
             settings: "Settings",
-            communicationTemplates: "Communication Templates",
+            communicationTemplates: "Templates",
             active: "Active",
             archived: "Archived",
             addResource: {
@@ -1252,35 +1252,35 @@ const englishTranslation = {
             },
         },
         communicationTemplate: {
-            noPermissions: "You don't have permission to access communication templates.",
-            title: "Communication Templates",
-            subtitle: "List of communication templates",
+            noPermissions: "You don't have permission to access templates.",
+            title: "Templates",
+            subtitle: "List of templates",
             empty: {
-                title: "No Communication Template Yet",
+                title: "No Template Yet",
                 subtitle: "Do you want to create one?",
             },
             action: {
-                createOne: "Create Communication Template",
+                createOne: "Create Template",
             },
             create: {
-                title: "Create a Communication Template",
-                success: "Communication Template created",
-                error: "Error creating Communication Template",
+                title: "Create a Template",
+                success: "Template created",
+                error: "Error creating Template",
             },
             update: {
-                success: "Communication Template updated",
-                error: "Error updating Communication Template",
+                success: "Template updated",
+                error: "Error updating Template",
             },
             edit: {
-                title: "Edit a Communication Template",
+                title: "Edit a Template",
             },
             form: {
                 smsMessage: "SMS Message",
                 document: "Document",
                 name: "Template Name",
                 alias: "Template Alias",
-                communicationType: "Communication Type",
-                communicationMethod: "Communication Method",
+                communicationType: "Type",
+                communicationMethod: "Method",
             },
             type: {
                 credentials: "Credentials",

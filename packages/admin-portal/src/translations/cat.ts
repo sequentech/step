@@ -665,7 +665,7 @@ const catalanTranslation: TranslationType = {
             usersAndRoles: "Usuaris i Rols",
             logs: "Bitàcora",
             settings: "Configuració",
-            communicationTemplates: "Plantilles de Comunicació",
+            communicationTemplates: "Plantilles",
             active: "Actius",
             archived: "Arxivats",
             addResource: {

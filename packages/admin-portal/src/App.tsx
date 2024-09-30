@@ -43,16 +43,16 @@ import {ContestBaseTabs} from "./resources/Contest/ContestBaseTabs"
 import {SettingsElectionsTypesCreate} from "./resources/Settings/SettingsElectionsTypesCreate"
 import {adminI18nProvider} from "./services/AdminTranslation"
 import {useTranslation} from "react-i18next"
-import {CommunicationTemplateEdit} from "./resources/CommunicationTemplate/CommunicationTemplateEdit"
-import {CommunicationTemplateCreate} from "./resources/CommunicationTemplate/CommunicationTemplateCreate"
 import {ApolloContext} from "./providers/ApolloContextProvider"
 import cssInputLookAndFeel from "@/atoms/css-input-look-and-feel"
 import {Box} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import {useAtomValue} from "jotai"
 import EditEvents from "./resources/ElectionEvent/EditEvents"
-import {CommunicationTemplateList} from "./resources/CommunicationTemplate/CommunicationTemplateList"
 import Notifications from "./resources/Notifications/Notifications"
+import {TemplateEdit} from "./resources/Template/TemplateEdit"
+import {TemplateList} from "./resources/Template/TemplateList"
+import {TemplateCreate} from "./resources/Template/TemplateCreate"
 
 interface AppProps {}
 
@@ -202,10 +202,10 @@ const App: React.FC<AppProps> = () => {
                     options={{label: "Notifications"}}
                 />
                 <Resource
-                    name="sequent_backend_communication_template"
-                    edit={CommunicationTemplateEdit}
-                    list={CommunicationTemplateList}
-                    create={CommunicationTemplateCreate}
+                    name="sequent_backend_template"
+                    edit={TemplateEdit}
+                    list={TemplateList}
+                    create={TemplateCreate}
                     options={{label: "Communication Template"}}
                 />
                 <Resource

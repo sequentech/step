@@ -28,13 +28,13 @@ import {ActionsColumn} from "@/components/ActionButons"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {Dialog, IconButton} from "@sequentech/ui-essentials"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {CommunicationTemplateCreate} from "./CommunicationTemplateCreate"
-import {CommunicationTemplateEdit} from "./CommunicationTemplateEdit"
+import {TemplateCreate} from "./TemplateCreate"
 import {CustomApolloContextProvider} from "@/providers/ApolloContextProvider"
 import ElectionHeader from "@/components/ElectionHeader"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
+import {TemplateEdit} from "./TemplateEdit"
 
-const CommunicationTemplateEmpty = styled(Box)`
+const TemplateEmpty = styled(Box)`
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -57,17 +57,13 @@ const useActionPermissions = () => {
 const OMIT_FIELDS = ["id"]
 const Filters: Array<ReactElement> = []
 
-export const CommunicationTemplateList: React.FC = () => {
+export const TemplateList: React.FC = () => {
     const {t} = useTranslation()
     const [deleteOne] = useDelete()
     const {canWriteTenant} = useActionPermissions()
     const authContext = useContext(AuthContext)
     const [tenantId] = useTenantStore()
-    const templateRead = authContext.isAuthorized(
-        true,
-        tenantId,
-        IPermissions.COMMUNICATION_TEMPLATE_READ
-    )
+    const templateRead = authContext.isAuthorized(true, tenantId, IPermissions.template_READ)
 
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
@@ -100,7 +96,7 @@ export const CommunicationTemplateList: React.FC = () => {
     }
 
     const confirmDeleteAction = () => {
-        deleteOne("sequent_backend_communication_template", {id: deleteId})
+        deleteOne("sequent_backend_template", {id: deleteId})
         setDeleteId(undefined)
     }
 
@@ -117,7 +113,7 @@ export const CommunicationTemplateList: React.FC = () => {
     )
 
     const Empty = () => (
-        <CommunicationTemplateEmpty m={1}>
+        <TemplateEmpty m={1}>
             <Typography variant="h4" paragraph>
                 {t("communicationTemplate.empty.title")}
             </Typography>
@@ -130,7 +126,7 @@ export const CommunicationTemplateList: React.FC = () => {
                     <CreateButton />
                 </>
             ) : null}
-        </CommunicationTemplateEmpty>
+        </TemplateEmpty>
     )
 
     if (!templateRead) {
@@ -155,7 +151,7 @@ export const CommunicationTemplateList: React.FC = () => {
             />
 
             <List
-                resource="sequent_backend_communication_template"
+                resource="sequent_backend_template"
                 filters={Filters}
                 actions={
                     <ListActions
@@ -163,17 +159,16 @@ export const CommunicationTemplateList: React.FC = () => {
                         withFilter
                         open={openDrawer}
                         setOpen={setOpenDrawer}
-                        Component={<CommunicationTemplateCreate close={handleCloseDrawer} />}
+                        Component={<TemplateCreate close={handleCloseDrawer} />}
                     />
                 }
                 empty={<Empty />}
             >
                 <DatagridConfigurable omit={OMIT_FIELDS}>
                     <TextField source="id" />
-                    <TextField source="template.alias" />
-                    <TextField source="template.name" />
-                    <TextField source="communication_method" />
-                    <TextField source="communication_type" />
+                    <TextField source="template.alias" label="Alias" />
+                    <TextField source="template.name" label="name" />
+                    <TextField source="type" />
                     <WrapperField source="actions" label="Actions">
                         <ActionsColumn actions={actions} />
                     </WrapperField>
@@ -189,10 +184,10 @@ export const CommunicationTemplateList: React.FC = () => {
                 }}
             >
                 {recordId ? (
-                    <CommunicationTemplateEdit id={recordId} close={handleCloseDrawer} />
+                    <TemplateEdit id={recordId} close={handleCloseDrawer} />
                 ) : (
-                    <CustomApolloContextProvider role={IPermissions.COMMUNICATION_TEMPLATE_WRITE}>
-                        <CommunicationTemplateCreate close={handleCloseDrawer} />
+                    <CustomApolloContextProvider role={IPermissions.template_WRITE}>
+                        <TemplateCreate close={handleCloseDrawer} />
                     </CustomApolloContextProvider>
                 )}
             </Drawer>

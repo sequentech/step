@@ -664,7 +664,7 @@ const spanishTranslation: TranslationType = {
             usersAndRoles: "Usuarios y Roles",
             logs: "Bitácora",
             settings: "Configuracion",
-            communicationTemplates: "Plantillas de Comunicación",
+            communicationTemplates: "Plantillas",
             active: "Activos",
             archived: "Archivados",
             addResource: {

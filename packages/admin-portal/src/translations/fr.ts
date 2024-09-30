@@ -667,7 +667,7 @@ const frenchTranslation: TranslationType = {
             usersAndRoles: "Utilisateurs et Rôles",
             logs: "Journaux",
             settings: "Configuration",
-            communicationTemplates: "Modèles de Communication",
+            communicationTemplates: "Modèles",
             active: "Actifs",
             archived: "Archivés",
             addResource: {

@@ -8,7 +8,7 @@ import {
     Sequent_Backend_Ballot_Publication,
     Sequent_Backend_Ballot_Style,
     Sequent_Backend_Cast_Vote,
-    Sequent_Backend_Communication_Template,
+    Sequent_Backend_Template,
     Sequent_Backend_Contest,
     Sequent_Backend_Document,
     Sequent_Backend_Election,
@@ -222,11 +222,11 @@ export const sequent_backend_cast_vote: Sequent_Backend_Cast_Vote = {
     voter_id_string: undefined,
 }
 
-export const sequent_backend_communication_template: Sequent_Backend_Communication_Template = {
+export const sequent_backend_template: Sequent_Backend_Template = {
     __typename: undefined,
     annotations: undefined,
     communication_method: "",
-    communication_type: "",
+    type: "",
     created_at: "",
     created_by: "",
     id: "",
@@ -553,7 +553,7 @@ export const COLUMNS_MAP: {[key: string]: Array<string>} = {
     sequent_backend_ballot_publication: Object.keys(sequent_backend_ballot_publication),
     sequent_backend_ballot_style: Object.keys(sequent_backend_ballot_style),
     sequent_backend_cast_vote: Object.keys(sequent_backend_cast_vote),
-    sequent_backend_communication_template: Object.keys(sequent_backend_communication_template),
+    sequent_backend_template: Object.keys(sequent_backend_template),
     sequent_backend_contest: Object.keys(sequent_backend_contest),
     sequent_backend_document: Object.keys(sequent_backend_document),
     sequent_backend_election: Object.keys(sequent_backend_election),

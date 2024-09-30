@@ -8,7 +8,7 @@ pub mod ballot_publication;
 pub mod ballot_style;
 pub mod candidate;
 pub mod cast_vote;
-pub mod communication_template;
+pub mod template;
 pub mod contest;
 pub mod document;
 pub mod election;

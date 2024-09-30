@@ -32,7 +32,7 @@ import {useTranslation} from "react-i18next"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {CREATE_SCHEDULED_EVENT} from "@/queries/CreateScheduledEvent"
-import {CreateScheduledEventMutation, Sequent_Backend_Communication_Template} from "@/gql/graphql"
+import {CreateScheduledEventMutation, Sequent_Backend_Template} from "@/gql/graphql"
 import {ScheduledEventType} from "@/services/ScheduledEvent"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {
@@ -53,7 +53,7 @@ export enum AudienceSelection {
 interface ICommunicationPayload {
     audience_selection: AudienceSelection
     audience_voter_ids?: Array<Identifier>
-    communication_type: ICommunicationType
+    type: ICommunicationType
     communication_method: ICommunicationMethod
     schedule_now: boolean
     schedule_date?: Date
@@ -72,7 +72,7 @@ interface ICommunication {
         selection: AudienceSelection
         voter_ids?: Array<Identifier> | undefined
     }
-    communication_type: ICommunicationType
+    type: ICommunicationType
     communication_method: ICommunicationMethod
     alias?: string
     schedule: {
@@ -125,7 +125,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
             selection: audienceSelection ?? AudienceSelection.SELECTED,
             voter_ids: ids ?? undefined,
         },
-        communication_type: ICommunicationType.BALLOT_RECEIPT,
+        type: ICommunicationType.BALLOT_RECEIPT,
         communication_method: ICommunicationMethod.EMAIL,
         schedule: {
             now: true,
@@ -155,7 +155,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
         return {
             audience_selection: formData.audience.selection,
             audience_voter_ids: formData.audience.voter_ids,
-            communication_type: formData.communication_type,
+            type: formData.type,
             communication_method: formData.communication_method,
             schedule_now: formData.schedule.now,
             schedule_date: formData.schedule.date,
@@ -222,9 +222,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
         // filter receipts by communication method
         const selectedReceipts = receipts
             ?.filter(
-                (receipt) =>
-                    receipt.communication_method === value &&
-                    receipt.communication_type === selectedType
+                (receipt) => receipt.communication_method === value && receipt.type === selectedType
             )
             .map((receipt) => receipt.template)
 
@@ -234,7 +232,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
     const handleSelectTypeChange = async (e: any) => {
         const {value} = e.target
         var newCommunication = {...communication}
-        newCommunication.communication_type = value
+        newCommunication.type = value
         setCommunication(newCommunication)
 
         setSelectedType(value)
@@ -243,8 +241,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
         const selectedReceipts = receipts
             ?.filter(
                 (receipt) =>
-                    receipt.communication_type === value &&
-                    receipt.communication_method === selectedMethod
+                    receipt.type === value && receipt.communication_method === selectedMethod
             )
             .map((receipt) => receipt.template)
 
@@ -262,7 +259,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
 
         const selectedReceipt = receipts?.filter(
             (receipt) =>
-                receipt.communication_type === selectedType &&
+                receipt.type === selectedType &&
                 receipt.communication_method === selectedMethod &&
                 receipt.template.alias === value
         )
@@ -337,22 +334,18 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
         html_body: "",
     })*/
 
-    const {data: receipts} = useGetList<Sequent_Backend_Communication_Template>(
-        "sequent_backend_communication_template",
-        {
-            filter: {
-                tenant_id: tenantId,
-            },
-        }
-    )
+    const {data: receipts} = useGetList<Sequent_Backend_Template>("sequent_backend_template", {
+        filter: {
+            tenant_id: tenantId,
+        },
+    })
 
     useEffect(() => {
         // filter receipts by communication method and sert email by default
         const selectedReceipts = receipts
             ?.filter(
                 (receipt) =>
-                    receipt.communication_type === selectedType &&
-                    receipt.communication_method === selectedMethod
+                    receipt.type === selectedType && receipt.communication_method === selectedMethod
             )
             .map((receipt) => receipt.template)
 
@@ -519,7 +512,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                         </Typography>{" "}
                         <FormStyles.Select
                             name="voters.selection"
-                            value={communication.communication_type}
+                            value={communication.type}
                             onChange={handleSelectTypeChange}
                         >
                             {Object.values(ICommunicationType).map((key) => (

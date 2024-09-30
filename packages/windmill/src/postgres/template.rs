@@ -23,7 +23,7 @@ impl TryFrom<Row> for CommunicationTemplateWrapper {
             created_at: item.get("created_at"),
             updated_at: item.get("updated_at"),
             communication_method: item.try_get("communication_method")?,
-            communication_type: item.try_get("communication_type")?,
+            r#type: item.try_get("type")?,
         }))
     }
 }
@@ -31,10 +31,10 @@ impl TryFrom<Row> for CommunicationTemplateWrapper {
 /* Returns election */
 
 #[instrument(skip(hasura_transaction), err)]
-pub async fn get_communication_template_by_id(
+pub async fn get_template_by_id(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
-    communication_template_id: &str,
+    template_id: &str,
 ) -> Result<Option<CommunicationTemplate>> {
     let statement = hasura_transaction
         .prepare(
@@ -49,9 +49,9 @@ pub async fn get_communication_template_by_id(
                 created_at,
                 updated_at,
                 communication_method,
-                communication_type
+                type
             FROM
-                sequent_backend.communication_template
+                sequent_backend.template
             WHERE
                 tenant_id = $1 AND
                 id = $2;
@@ -64,7 +64,7 @@ pub async fn get_communication_template_by_id(
             &statement,
             &[
                 &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(communication_template_id)?,
+                &Uuid::parse_str(template_id)?,
             ],
         )
         .await?;
