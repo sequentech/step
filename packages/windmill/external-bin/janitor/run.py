@@ -175,16 +175,16 @@ def parse_election_event(sheet):
         required_keys=[
             r"^name$",
             "^description$",
-            "^miru election event id$",
-            "^miru election event name$",
-            "^logo url$"
+            "^annotations/miru/election_event_id$",
+            "^annotations/miru/election_event_name$",
+            "^logo_url$"
         ],
         allowed_keys=[
             r"^name$",
             "^description$",
-            "^miru election event id$",
-            "^miru election event name$",
-            "^logo url$"
+            "^annotations/miru/election_event_id$",
+            "^annotations/miru/election_event_name$",
+            "^logo_url$"
         ]
     )
     return data[0]
@@ -193,20 +193,20 @@ def parse_elections(sheet):
     data = parse_table_sheet(
         sheet,
         required_keys=[
-            r"^name$",
+            r"^election_post$"
+            "^name$",
             "^alias$",
             "^description$",
-            "^miru election id$",
-            "^miru election name$",
-            "^election post$"
+            "^annotations/miru/election_id$",
+            "^annotations/miru/election_name$"
         ],
         allowed_keys=[
-            r"^name$",
+            r"^election_post$"
+            "^name$",
             "^alias$",
             "^description$",
-            "^miru election id$",
-            "^miru election name$",
-            "^election post$"
+            "^annotations/miru/election_id$",
+            "^annotations/miru/election_name$"
         ]
     )
     return data
@@ -216,17 +216,17 @@ def parse_contests(sheet):
         sheet,
         required_keys=[
             r"^name$",
+            "^election_name$",
             "^alias$",
-            "^election name$",
-            "^miru contest id$",
-            "^miru contest name$"
+            "^annotations/miru/contest_id$",
+            "^annotations/miru/contest_name$"
         ],
         allowed_keys=[
             r"^name$",
+            "^election_name$",
             "^alias$",
-            "^election name$",
-            "^miru contest id$",
-            "^miru contest name$"
+            "^annotations/miru/contest_id$",
+            "^annotations/miru/contest_name$"
         ]
     )
     return data
