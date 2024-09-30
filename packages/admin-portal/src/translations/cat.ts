@@ -598,6 +598,7 @@ const catalanTranslation: TranslationType = {
             edit: {
                 title: "Editar Esdeveniment",
                 subtitle: "Editar la configuració de l'esdeveniment.",
+                delete: "Estàs segur que vols eliminar aquest esdeveniment?",
             },
         },
         common: {

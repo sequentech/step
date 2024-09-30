@@ -175,11 +175,7 @@ const CreateEvent: FC<CreateEventProps> = ({
                     defaultValue={
                         isEditEvent ? selectedEvent?.cron_config.scheduled_date : scheduleDate
                     }
-                    value={
-                        isEditEvent
-                            ? new Date(selectedEvent?.cron_config.scheduled_date).toISOString()
-                            : scheduleDate
-                    }
+                    value={isEditEvent ? selectedEvent?.cron_config.scheduled_date : scheduleDate}
                     parse={(value) => value && new Date(value).toISOString()}
                     onChange={(value) => {
                         setScheduleDate(

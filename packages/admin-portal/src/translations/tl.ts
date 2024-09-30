@@ -598,6 +598,7 @@ const tagalogTranslation: TranslationType = {
             edit: {
                 title: "I-edit ang Kaganapan",
                 subtitle: "I-edit ang configuration ng kaganapan.",
+                delete: "Sigurado ka bang gusto mong tanggalin ang kaganapang ito?",
             },
         },
         common: {

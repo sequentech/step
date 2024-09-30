@@ -30,7 +30,7 @@ import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 
-const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
+export const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
         overflow-x: auto;
         width: 100%;
@@ -56,7 +56,7 @@ const EditEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
     const record = useRecordContext()
     const [isOpenSidebar] = useSidebarState()
     const [tenantId] = useTenantStore()
-    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)``
     const [isDeleteId, setIsDeleteId] = useState<string | undefined>()
     const [isEditEvent, setIsEditEvent] = useState(false)
     const [deleteOne] = useDelete()
@@ -77,9 +77,6 @@ const EditEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
         authContext.tenantId,
         IPermissions.EVENTS_CREATE
     )
-
-    console.log("canEdit", canEdit)
-    console.log("canCreate", canCreate)
 
     const OMIT_FIELDS: Array<string> = ["election", "email_verified"]
 
@@ -180,7 +177,7 @@ const EditEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                 filters={Filters}
             >
                 <DataGridContainerStyle
-                    // bulkActionButtons={<BulkActions />}
+                    bulkActionButtons={false}
                     isOpenSideBar={isOpenSidebar}
                     omit={OMIT_FIELDS}
                 >
@@ -224,7 +221,7 @@ const EditEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                     setIsDeleteModalOpen(false)
                 }}
             >
-                {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.delete.body`)}
+                {t(`eventsScreen.edit.delete`)}
             </Dialog>
         </>
     )

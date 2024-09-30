@@ -597,6 +597,7 @@ const spanishTranslation: TranslationType = {
             edit: {
                 title: "Editar Evento",
                 subtitle: "Editar la configuración del evento.",
+                delete: "¿Estás seguro de que quieres eliminar este evento?",
             },
         },
         common: {

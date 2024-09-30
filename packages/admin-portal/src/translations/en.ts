@@ -596,6 +596,7 @@ const englishTranslation = {
             edit: {
                 title: "Edit Event",
                 subtitle: "Edit event configuration.",
+                delete: "Are you sure you want delete this event?",
             },
         },
         common: {
