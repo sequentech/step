@@ -525,9 +525,10 @@ def gen_tree(excel_data):
             raise Exception(f"area with 'name' = {area_name} not found in excel")
 
         ccs_server_tags = str(area_context["annotations"]["miru_ccs_server_tags"]).split(",")
+        ccs_server_tags = [str(int(float(i))) for i in ccs_server_tags]
 
         found_servers = [
-            ccs_servers[tag]
+            ccs_servers[tag].replace('"', '\\"')
             for tag in ccs_server_tags
             if tag in ccs_servers
         ]
@@ -535,7 +536,8 @@ def gen_tree(excel_data):
         miru_trustee_users = [('"' + server + '"') for server in miru_trustee_users]
         miru_trustee_users = ",".join(miru_trustee_users)
         area_context["annotations"]["miru_ccs_servers"] = f"[{",".join(found_servers)}]"
-        area_context["annotations"]["miru_trustee_users"] = "[" + miru_trustee_users + "]"
+        area_context["annotations"]["miru_trustee_users"] = "[" + miru_trustee_users.replace('"', '\\"') + "]"
+        #breakpoint()
 
         area = {
             "name": area_name,
