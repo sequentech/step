@@ -87,7 +87,7 @@ const catalanTranslation: TranslationType = {
             tabs: {
                 votingChannels: "CANALS DE VOTACIÓ",
                 electionTypes: "TIPUS D'ELECCIÓ",
-                communications: "COMUNICACIÓ",
+                communications: "PLANTILLES",
                 languages: "IDIOMES",
                 lookAndFeel: "PERSONALITZACIÓ D'APARENÇA",
                 schedules: "ESDEVENIMENTS PROGRAMATS",
@@ -1141,7 +1141,7 @@ const catalanTranslation: TranslationType = {
                 richtext: "Cos de Text Enriquit",
             },
         },
-        sendCommunication: {
+        sendTemplate: {
             send: "Enviar",
             title: "Enviar Notificació",
             subtitle: "Enviar una notificació a usuaris/votants.",
@@ -1155,7 +1155,7 @@ const catalanTranslation: TranslationType = {
             smsMessage: "Missatge SMS",
             errorSending: "Error enviant la notificació: {{error}}",
             successSending: "Notificació programada/enviada amb èxit",
-            method: "Mètode de Comunicació",
+            method: "Mètode de Plantilles",
             type: "Tipus de Comunicació",
             alias: "Àlies de la Plantilla",
             votersSelection: {
@@ -1169,11 +1169,11 @@ const catalanTranslation: TranslationType = {
                 voters: "votants",
             },
             methodTitle: "Mètode de Comunicació",
-            communicationMethod: {
+            templateMethod: {
                 EMAIL: "Email",
                 SMS: "SMS",
             },
-            communicationType: {
+            templateType: {
                 CREDENTIALS: "Credencials",
                 BALLOT_RECEIPT: "Comprovant de Votació",
                 PARTICIPATION_REPORT: "Informe de Participació",

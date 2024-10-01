@@ -11,7 +11,7 @@ use strum_macros::EnumString;
 #[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
 pub enum EventProcessors {
     CREATE_REPORT,
-    SEND_COMMUNICATION,
+    SEND_TEMPLATE,
     START_ELECTION,
     END_ELECTION,
 }

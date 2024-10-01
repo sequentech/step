@@ -145,10 +145,7 @@ export const TemplateList: React.FC = () => {
 
     return (
         <>
-            <ElectionHeader
-                title={t("template.title")}
-                subtitle={t("template.subtitle")}
-            />
+            <ElectionHeader title={t("template.title")} subtitle={t("template.subtitle")} />
 
             <List
                 resource="sequent_backend_template"

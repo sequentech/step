@@ -87,7 +87,7 @@ const frenchTranslation: TranslationType = {
             tabs: {
                 votingChannels: "CANAUX DE VOTE",
                 electionTypes: "TYPES D'ÉLECTION",
-                communications: "COMMUNICATION",
+                communications: "MODÈLES",
                 languages: "LANGUES",
                 lookAndFeel: "PERSONNALISATION DE L'APPARENCE",
                 schedules: "ÉVÉNEMENTS PROGRAMMÉS",
@@ -1147,7 +1147,7 @@ const frenchTranslation: TranslationType = {
                 richtext: "Corps de Texte Enrichi",
             },
         },
-        sendCommunication: {
+        sendTemplate: {
             send: "Envoyer",
             title: "Envoyer Notification",
             subtitle: "Envoyer une notification aux utilisateurs/électeurs.",
@@ -1161,7 +1161,7 @@ const frenchTranslation: TranslationType = {
             smsMessage: "Message SMS",
             errorSending: "Erreur lors de l'envoi de la notification : {{error}}",
             successSending: "Notification programmée/envoyée avec succès",
-            method: "Méthode de Communication",
+            method: "Méthode de Modèles",
             type: "Type de Communication",
             alias: "Alias de la Modèle",
             votersSelection: {
@@ -1175,11 +1175,11 @@ const frenchTranslation: TranslationType = {
                 voters: "électeurs",
             },
             methodTitle: "Méthode de Communication",
-            communicationMethod: {
+            templateMethod: {
                 EMAIL: "Email",
                 SMS: "SMS",
             },
-            communicationType: {
+            templateType: {
                 CREDENTIALS: "Identifiants",
                 BALLOT_RECEIPT: "Reçu de Vote",
                 PARTICIPATION_REPORT: "Rapport de Participation",

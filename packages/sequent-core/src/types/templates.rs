@@ -24,7 +24,7 @@ pub enum AudienceSelection {
 #[derive(
     Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
 )]
-pub enum CommunicationType {
+pub enum TemplateType {
     #[strum(serialize = "CREDENTIALS")]
     CREDENTIALS,
     #[strum(serialize = "BALLOT_RECEIPT")]
@@ -43,7 +43,7 @@ pub enum CommunicationType {
 #[derive(
     Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
 )]
-pub enum CommunicationMethod {
+pub enum TemplateMethod {
     #[strum(serialize = "EMAIL")]
     EMAIL,
     #[strum(serialize = "SMS")]
@@ -65,11 +65,11 @@ pub struct SmsConfig {
 }
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
-pub struct SendCommunicationBody {
+pub struct SendTemplateBody {
     pub audience_selection: Option<AudienceSelection>,
     pub audience_voter_ids: Option<Vec<String>>,
-    pub r#type: Option<CommunicationType>,
-    pub communication_method: Option<CommunicationMethod>,
+    pub r#type: Option<TemplateType>,
+    pub communication_method: Option<TemplateMethod>,
     pub schedule_now: Option<bool>,
     pub schedule_date: Option<String>,
     pub email: Option<EmailConfig>,

@@ -50,11 +50,11 @@ pub enum Permissions {
     #[strum(serialize = "role-assign")]
     ROLE_ASSIGN,
     #[strum(serialize = "communication-template-create")]
-    template_CREATE,
+    TEMPLATE_CREATE,
     #[strum(serialize = "communication-template-read")]
-    template_READ,
+    TEMPLATE_READ,
     #[strum(serialize = "communication-template-write")]
-    template_WRITE,
+    TEMPLATE_WRITE,
     #[strum(serialize = "notification-read")]
     NOTIFICATION_READ,
     #[strum(serialize = "notification-write")]

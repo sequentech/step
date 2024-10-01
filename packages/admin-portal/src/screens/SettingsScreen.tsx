@@ -9,7 +9,7 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {Tabs} from "@/components/Tabs"
 import {HeaderTitle} from "@/components/HeaderTitle"
 import {SettingsLanguages} from "@/resources/Settings/SettingsLanguages"
-import {SettingsComunications} from "@/resources/Settings/SettingsComunications"
+import {SettingsTemplates} from "@/resources/Settings/SettingsTemplates"
 import {SettingsVotingChannels} from "@/resources/Settings/SettingsVotingChannel"
 import {SettingsElectionsTypes} from "@/resources/Settings/SettingsElectionsTypes"
 import {SettingsElectionsTypesCreate} from "@/resources/Settings/SettingsElectionsTypesCreate"
@@ -68,7 +68,7 @@ export const SettingsScreen: React.FC = () => {
                     {
                         label: t("electionTypeScreen.tabs.communications"),
                         component: () => (
-                            <Resource name="sequent_backend_tenant" list={SettingsComunications} />
+                            <Resource name="sequent_backend_tenant" list={SettingsTemplates} />
                         ),
                     },
                     {

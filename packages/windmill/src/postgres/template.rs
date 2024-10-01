@@ -3,17 +3,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::Result;
 use deadpool_postgres::Transaction;
-use sequent_core::types::hasura::core::CommunicationTemplate;
+use sequent_core::types::hasura::core::Template;
 use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
-pub struct CommunicationTemplateWrapper(pub CommunicationTemplate);
+pub struct TemplateWrapper(pub Template);
 
-impl TryFrom<Row> for CommunicationTemplateWrapper {
+impl TryFrom<Row> for TemplateWrapper {
     type Error = anyhow::Error;
     fn try_from(item: Row) -> Result<Self> {
-        Ok(CommunicationTemplateWrapper(CommunicationTemplate {
+        Ok(TemplateWrapper(Template {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
             tenant_id: item.try_get::<_, Uuid>("tenant_id")?.to_string(),
             template: item.get("template"),
@@ -35,7 +35,7 @@ pub async fn get_template_by_id(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     template_id: &str,
-) -> Result<Option<CommunicationTemplate>> {
+) -> Result<Option<Template>> {
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -66,13 +66,13 @@ pub async fn get_template_by_id(
         )
         .await?;
 
-    let elections: Vec<CommunicationTemplate> = rows
+    let elections: Vec<Template> = rows
         .into_iter()
-        .map(|row| -> Result<CommunicationTemplate> {
+        .map(|row| -> Result<Template> {
             row.try_into()
-                .map(|res: CommunicationTemplateWrapper| -> CommunicationTemplate { res.0 })
+                .map(|res: TemplateWrapper| -> Template { res.0 })
         })
-        .collect::<Result<Vec<CommunicationTemplate>>>()?;
+        .collect::<Result<Vec<Template>>>()?;
 
     Ok(elections.get(0).map(|election| election.clone()))
 }

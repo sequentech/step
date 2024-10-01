@@ -41,7 +41,7 @@ pub async fn create_scheduled_event(
 ) -> Result<Json<CreateEventOutput>, (Status, String)> {
     let input = body.into_inner();
     match input.event_processor.clone() {
-        EventProcessors::SEND_COMMUNICATION => {
+        EventProcessors::SEND_TEMPLATE => {
             authorize(
                 &claims,
                 true,

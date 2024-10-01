@@ -31,7 +31,7 @@ import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {useMutation} from "@apollo/client"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
-import {ITemplateType, ICommunicationMethod, ISendTemplateBody} from "@/types/templates"
+import {ITemplateType, ITemplateMethod, ISendTemplateBody} from "@/types/templates"
 import {useTranslation} from "react-i18next"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {INSERT_TEMPLATE} from "@/queries/InsertTemplate"
@@ -54,17 +54,17 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
     const [expandedSMS, setExpandedSMS] = useState<boolean>(false)
     const [expandedDocument, setExpandedDocument] = useState<boolean>(false)
 
-    const [selectedCommunicationType, setSelectedCommunicationType] = useState<{
+    const [selectedTemplateType, setSelectedTemplateType] = useState<{
         name: string
         value: ITemplateType
     }>()
 
-    function selectCommunicationType(event: any) {
+    function selectTemplateType(event: any) {
         const choice = event.target
-        setSelectedCommunicationType(choice)
+        setSelectedTemplateType(choice)
     }
 
-    const communicationTypeChoices = () => {
+    const templateTypeChoices = () => {
         return (Object.values(ITemplateType) as ITemplateType[]).map((value) => ({
             id: value,
             name: t(`template.type.${value.toLowerCase()}`),
@@ -77,7 +77,6 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
                 object: {
                     tenant_id: tenantId,
                     type: data.type,
-                    communication_method: data.communication_method,
                     template: {
                         ...data.template,
                     },
@@ -101,7 +100,6 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
 
         if (!incoming?.template) {
             temp.type = ITemplateType.CREDENTIALS
-            temp.communication_method = ICommunicationMethod.EMAIL
             let template: ISendTemplateBody = {
                 audience_selection: undefined,
                 audience_voter_ids: [],
@@ -117,9 +115,9 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
                 },
                 document: globalSettings.DEFAULT_DOCUMENT["en"] ?? "",
                 selected_methods: {
-                    [ICommunicationMethod.EMAIL]: false,
-                    [ICommunicationMethod.SMS]: false,
-                    [ICommunicationMethod.DOCUMENT]: false,
+                    [ITemplateMethod.EMAIL]: false,
+                    [ITemplateMethod.SMS]: false,
+                    [ITemplateMethod.DOCUMENT]: false,
                 },
             }
             temp.template = template
@@ -174,8 +172,8 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
                                                 source="type"
                                                 label={t("template.form.type")}
                                                 validate={required()}
-                                                onChange={selectCommunicationType}
-                                                choices={communicationTypeChoices()}
+                                                onChange={selectTemplateType}
+                                                choices={templateTypeChoices()}
                                             />
                                         </AccordionDetails>
                                     </Accordion>
@@ -190,7 +188,7 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
                                             gap: "16px",
                                         }}
                                     >
-                                        {Object.values(ICommunicationMethod).map((method) => (
+                                        {Object.values(ITemplateMethod).map((method) => (
                                             <BooleanInput
                                                 key={method}
                                                 source={`template.selected_methods.${method}`}
@@ -212,7 +210,7 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
                                                     >
                                                         <AccordionSummary
                                                             expandIcon={
-                                                                <ExpandMoreIcon id="communication-template-email-id" />
+                                                                <ExpandMoreIcon id="template-email-id" />
                                                             }
                                                         >
                                                             <ElectionHeaderStyles.AccordionTitle>
@@ -238,7 +236,7 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
                                                     >
                                                         <AccordionSummary
                                                             expandIcon={
-                                                                <ExpandMoreIcon id="communication-template-sms-id" />
+                                                                <ExpandMoreIcon id="template-sms-id" />
                                                             }
                                                         >
                                                             <ElectionHeaderStyles.AccordionTitle>
@@ -267,7 +265,7 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
                                                     >
                                                         <AccordionSummary
                                                             expandIcon={
-                                                                <ExpandMoreIcon id="communication-template-document-id" />
+                                                                <ExpandMoreIcon id="template-document-id" />
                                                             }
                                                         >
                                                             <ElectionHeaderStyles.AccordionTitle>

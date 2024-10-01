@@ -18,7 +18,7 @@ export enum ITemplateType {
     TALLY_REPORT = "TALLY_REPORT",
 }
 
-export enum ICommunicationMethod {
+export enum ITemplateMethod {
     EMAIL = "EMAIL",
     SMS = "SMS",
     DOCUMENT = "DOCUMENT",
@@ -41,16 +41,16 @@ export interface ISmsConfig {
 }
 
 export interface IMethods {
-    [ICommunicationMethod.EMAIL]: boolean
-    [ICommunicationMethod.SMS]: boolean
-    [ICommunicationMethod.DOCUMENT]: boolean
+    [ITemplateMethod.EMAIL]: boolean
+    [ITemplateMethod.SMS]: boolean
+    [ITemplateMethod.DOCUMENT]: boolean
 }
 
 export interface ISendTemplateBody {
     audience_selection?: IAudienceSelection
     audience_voter_ids?: Array<string>
     type?: ITemplateType
-    communication_method?: ICommunicationMethod
+    communication_method?: ITemplateMethod
     schedule_now?: boolean
     schedule_date?: string
     email?: IEmail

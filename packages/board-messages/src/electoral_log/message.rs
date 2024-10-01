@@ -170,12 +170,12 @@ impl Message {
         Self::from_body(event, body, sd, None)
     }
 
-    pub fn send_communication(
+    pub fn send_template(
         event: EventIdString,
         election: ElectionIdString,
         sd: &SigningData,
     ) -> Result<Self> {
-        let body = StatementBody::SendCommunication;
+        let body = StatementBody::SendTemplate;
         Self::from_body(event, body, sd, None)
     }
 

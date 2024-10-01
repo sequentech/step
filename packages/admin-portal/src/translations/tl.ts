@@ -87,7 +87,7 @@ const tagalogTranslation: TranslationType = {
             tabs: {
                 votingChannels: "MGA CHANNEL NG PAGBOTO",
                 electionTypes: "URI NG HALALAN",
-                communications: "KOMUNIKASYON",
+                communications: "MGA TEMPLATE",
                 languages: "WIKA",
                 lookAndFeel: "PAGPASADYA KAN ITSURA",
                 schedules: "NAISKEDYUL NA MGA KAGANAPAN",
@@ -1142,7 +1142,7 @@ const tagalogTranslation: TranslationType = {
                 richtext: "Mayamang Teksto",
             },
         },
-        sendCommunication: {
+        sendTemplate: {
             send: "Ipadala",
             title: "Ipadala ang Abiso",
             subtitle: "Magpadala ng abiso sa mga botante.",
@@ -1156,7 +1156,7 @@ const tagalogTranslation: TranslationType = {
             smsMessage: "Mensaheng SMS",
             errorSending: "Error sa pagpapadala ng abiso: {{error}}",
             successSending: "Nakaprograma/naipadala nang matagumpay ang abiso",
-            method: "Pamamaraan ng Komunikasyon",
+            method: "Pamamaraan ng Mga Template",
             type: "Uri ng Komunikasyon",
             alias: "Alias ng Template",
             votersSelection: {
@@ -1170,11 +1170,11 @@ const tagalogTranslation: TranslationType = {
                 voters: "mga botante",
             },
             methodTitle: "Template ng Komunikasyon",
-            communicationMethod: {
+            templateMethod: {
                 EMAIL: "Email",
                 SMS: "SMS",
             },
-            communicationType: {
+            templateType: {
                 CREDENTIALS: "Credentials",
                 BALLOT_RECEIPT: "Resibo ng Balota",
                 PARTICIPATION_REPORT: "Ulat ng Paglahok",

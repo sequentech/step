@@ -89,7 +89,7 @@ const englishTranslation = {
             tabs: {
                 votingChannels: "VOTING CHANELS",
                 electionTypes: "ELECTION TYPES",
-                communications: "COMMUNICATION",
+                communications: "TEMPLATES",
                 languages: "LANGUAGES",
                 lookAndFeel: "Look & Feel",
                 schedules: "SCHEDULED EVENTS",
@@ -1136,7 +1136,7 @@ const englishTranslation = {
                 richtext: "Rich Text Body",
             },
         },
-        sendCommunication: {
+        sendTemplate: {
             send: "Send",
             title: "Send Notification",
             subtitle: "Send a notification to voters.",
@@ -1150,7 +1150,7 @@ const englishTranslation = {
             smsMessage: "SMS Message",
             errorSending: "Error sending the notification: {{error}}",
             successSending: "Notification programmed/sent successfully",
-            method: "Communication Method",
+            method: "Template Method",
             type: "Communication Type",
             alias: "Template Alias",
             votersSelection: {
@@ -1164,11 +1164,11 @@ const englishTranslation = {
                 voters: "voters",
             },
             methodTitle: "Communication Template",
-            communicationMethod: {
+            templateMethod: {
                 EMAIL: "Email",
                 SMS: "SMS",
             },
-            communicationType: {
+            templateType: {
                 CREDENTIALS: "Credentials",
                 BALLOT_RECEIPT: "Ballot Receipt",
                 PARTICIPATION_REPORT: "Participation Report",

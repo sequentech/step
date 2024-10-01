@@ -64,7 +64,7 @@ import {DropFile} from "@sequentech/ui-essentials"
 import FileJsonInput from "../../components/FileJsonInput"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {ICommunicationMethod, ITemplateType} from "@/types/templates"
+import {ITemplateMethod, ITemplateType} from "@/types/templates"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import styled from "@emotion/styled"
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
@@ -287,8 +287,8 @@ export const ElectionDataForm: React.FC = () => {
             const allowed: {[key: string]: boolean} = {}
 
             if (temp.receipts) {
-                for (const value in Object.values(ICommunicationMethod) as ICommunicationMethod[]) {
-                    const key = Object.keys(ICommunicationMethod)[value]
+                for (const value in Object.values(ITemplateMethod) as ITemplateMethod[]) {
+                    const key = Object.keys(ITemplateMethod)[value]
 
                     allowed[key] = temp.receipts[key]?.allowed
                     template[key] = temp.receipts[key]?.template
@@ -451,8 +451,8 @@ export const ElectionDataForm: React.FC = () => {
         }
     }
 
-    const communicationMethodChoices = () => {
-        return (Object.values(ICommunicationMethod) as ICommunicationMethod[]).map((value) => ({
+    const templateMethodChoices = () => {
+        return (Object.values(ITemplateMethod) as ITemplateMethod[]).map((value) => ({
             id: value,
             name: t(`template.method.${value.toLowerCase()}`),
         }))
@@ -723,7 +723,7 @@ export const ElectionDataForm: React.FC = () => {
                             </AccordionSummary>
                             <AccordionDetails>
                                 <ElectionStyles.AccordionContainer>
-                                    {communicationMethodChoices().map((choice) => (
+                                    {templateMethodChoices().map((choice) => (
                                         <ElectionStyles.AccordionWrapper
                                             alignment="center"
                                             key={choice.id}

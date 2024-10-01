@@ -38,7 +38,7 @@ import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {useMutation} from "@apollo/client"
 
-import {ITemplateType, ICommunicationMethod} from "@/types/templates"
+import {ITemplateType, ITemplateMethod} from "@/types/templates"
 import {useTranslation} from "react-i18next"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import EmailEditEditor from "@/components/EmailEditEditor"
@@ -62,9 +62,9 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
     const [expandedSMS, setExpandedSMS] = useState<boolean>(false)
     const [expandedDocument, setExpandedDocument] = useState<boolean>(false)
     const [methods, setMethods] = React.useState({
-        [ICommunicationMethod.EMAIL]: false,
-        [ICommunicationMethod.SMS]: false,
-        [ICommunicationMethod.DOCUMENT]: false,
+        [ITemplateMethod.EMAIL]: false,
+        [ITemplateMethod.SMS]: false,
+        [ITemplateMethod.DOCUMENT]: false,
     })
 
     const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -75,33 +75,33 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
     }
     const [UpdateTemplate] = useMutation(UPDATE_TEMPLATE)
 
-    const communicationTypeChoices = () => {
+    const templateTypeChoices = () => {
         return (Object.values(ITemplateType) as ITemplateType[]).map((value) => ({
             id: value,
             name: t(`template.type.${value.toLowerCase()}`),
         }))
     }
-    const [selectedCommunicationType, setSelectedCommunicationType] = useState<{
+    const [selectedTemplateType, setSelectedTemplateType] = useState<{
         name: string
         value: ITemplateType
     }>()
 
-    const communicationMethodChoices = () => {
-        let res = (Object.values(ICommunicationMethod) as ICommunicationMethod[]).map((value) => ({
+    const templateMethodChoices = () => {
+        let res = (Object.values(ITemplateMethod) as ITemplateMethod[]).map((value) => ({
             id: value,
             name: t(`template.method.${value.toLowerCase()}`),
         }))
 
         if (
-            selectedCommunicationType?.value &&
+            selectedTemplateType?.value &&
             ![ITemplateType.BALLOT_RECEIPT, ITemplateType.TALLY_REPORT].includes(
-                selectedCommunicationType.value
+                selectedTemplateType.value
             )
         ) {
-            res = res.filter((cm) => cm.id !== ICommunicationMethod.DOCUMENT)
+            res = res.filter((cm) => cm.id !== ITemplateMethod.DOCUMENT)
         }
-        if (ITemplateType.TALLY_REPORT === selectedCommunicationType?.value) {
-            res = res.filter((cm) => cm.id === ICommunicationMethod.DOCUMENT)
+        if (ITemplateType.TALLY_REPORT === selectedTemplateType?.value) {
+            res = res.filter((cm) => cm.id === ITemplateMethod.DOCUMENT)
         }
 
         return res
@@ -213,11 +213,11 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
                                                 source="type"
                                                 label={t("template.form.type")}
                                                 validate={required()}
-                                                choices={communicationTypeChoices()}
+                                                choices={templateTypeChoices()}
                                                 onChange={(e) => {
                                                     const selectedType = e.target
                                                         .value as ITemplateType
-                                                    setSelectedCommunicationType({
+                                                    setSelectedTemplateType({
                                                         name: t(
                                                             `template.type.${selectedType.toLowerCase()}`
                                                         ),
@@ -238,7 +238,7 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
                                             gap: "16px",
                                         }}
                                     >
-                                        {Object.values(ICommunicationMethod).map((method) => (
+                                        {Object.values(ITemplateMethod).map((method) => (
                                             <BooleanInput
                                                 key={method}
                                                 source={`template.selected_methods.${method}`}
@@ -260,7 +260,7 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
                                                     >
                                                         <AccordionSummary
                                                             expandIcon={
-                                                                <ExpandMoreIcon id="communication-template-email-id" />
+                                                                <ExpandMoreIcon id="template-email-id" />
                                                             }
                                                         >
                                                             <ElectionHeaderStyles.AccordionTitle>
@@ -286,7 +286,7 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
                                                     >
                                                         <AccordionSummary
                                                             expandIcon={
-                                                                <ExpandMoreIcon id="communication-template-sms-id" />
+                                                                <ExpandMoreIcon id="template-sms-id" />
                                                             }
                                                         >
                                                             <ElectionHeaderStyles.AccordionTitle>
@@ -315,7 +315,7 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
                                                     >
                                                         <AccordionSummary
                                                             expandIcon={
-                                                                <ExpandMoreIcon id="communication-template-document-id" />
+                                                                <ExpandMoreIcon id="template-document-id" />
                                                             }
                                                         >
                                                             <ElectionHeaderStyles.AccordionTitle>

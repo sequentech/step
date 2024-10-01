@@ -87,7 +87,7 @@ const spanishTranslation: TranslationType = {
             tabs: {
                 votingChannels: "CANALES DE VOTACIÓN",
                 electionTypes: "TIPOS DE ELECCIÓN",
-                communications: "COMUNICACIÓN",
+                communications: "PLANTILLAS",
                 languages: "IDIOMAS",
                 lookAndFeel: "PERSONILIZACIÓN DE APARIENCIA",
                 schedules: "EVENTOS PROGRAMADOS",
@@ -1140,7 +1140,7 @@ const spanishTranslation: TranslationType = {
                 richtext: "Cuerpo de Texto Enriquecido",
             },
         },
-        sendCommunication: {
+        sendTemplate: {
             send: "Enviar",
             title: "Enviar Notificación",
             subtitle: "Enviar una notificación a usuarios/votantes.",
@@ -1154,7 +1154,7 @@ const spanishTranslation: TranslationType = {
             smsMessage: "Mensaje SMS",
             errorSending: "Error enviando la notificación: {{error}}",
             successSending: "Notificación programada/enviada con éxito",
-            method: "Método de Comunicación",
+            method: "Método de Plantillas",
             type: "Tipo de Comunicación",
             alias: "Alias de la Plantilla",
             votersSelection: {
@@ -1168,11 +1168,11 @@ const spanishTranslation: TranslationType = {
                 voters: "votantes",
             },
             methodTitle: "Método de Comunicación",
-            communicationMethod: {
+            templateMethod: {
                 EMAIL: "Email",
                 SMS: "SMS",
             },
-            communicationType: {
+            templateType: {
                 CREDENTIALS: "Credenciales",
                 BALLOT_RECEIPT: "Comprobante de Votación",
                 PARTICIPATION_REPORT: "Informe de Participación",

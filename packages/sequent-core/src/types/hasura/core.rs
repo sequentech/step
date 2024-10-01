@@ -211,7 +211,7 @@ pub struct CastVote {
 */
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
-pub struct CommunicationTemplate {
+pub struct Template {
     pub id: String,
     pub tenant_id: String,
     pub template: Value,

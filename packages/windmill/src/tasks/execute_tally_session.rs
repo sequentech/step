@@ -64,11 +64,11 @@ use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::ceremonies::TallyCeremonyStatus;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::ceremonies::TallyTrusteeStatus;
-use sequent_core::types::communications::SendCommunicationBody;
 use sequent_core::types::hasura::core::Area;
 use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::hasura::core::TallySessionConfiguration;
 use sequent_core::types::hasura::core::TallySheet;
+use sequent_core::types::templates::SendTemplateBody;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::str::FromStr;
@@ -880,7 +880,7 @@ pub async fn execute_tally_session_wrapped(
             let template = get_template_by_id(hasura_transaction, &tenant_id, &template_id).await?;
             let document: Option<String> = template
                 .map(|value| {
-                    let body: std::result::Result<SendCommunicationBody, _> =
+                    let body: std::result::Result<SendTemplateBody, _> =
                         deserialize_value(value.template);
                     body.map(|res| res.document)
                 })

@@ -49,7 +49,7 @@ pub struct ReceiptsRoot {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct CommunicationTemplateValue {
+pub struct TemplateValue {
     pub sms: String,
     pub name: String,
     pub alias: String,
@@ -101,8 +101,8 @@ pub async fn get_template(
         return Ok(None);
     };
 
-    let template_value: CommunicationTemplateValue = deserialize_value(template.template)
-        .with_context(|| "Error parsing the communication template")?;
+    let template_value: TemplateValue =
+        deserialize_value(template.template).with_context(|| "Error parsing the template")?;
 
     Ok(Some(template_value.document))
 }
