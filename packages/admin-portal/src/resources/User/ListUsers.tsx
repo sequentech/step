@@ -22,6 +22,7 @@ import {
     DateInput,
     useSidebarState,
     useUnselectAll,
+    RaRecord,
 } from "react-admin"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -71,7 +72,7 @@ import {ElectoralLogFilters, ElectoralLogList} from "@/components/ElectoralLogLi
 import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
 import {getAttributeLabel, userBasicInfo} from "@/services/UserService"
 import CustomDateField from "./CustomDateField"
-import {ActionsMenu} from "@/components/ActionsMenu"
+import {ListActionsMenu} from "@/components/ListActionsMenu"
 import EditPassword from "./EditPassword"
 import {styled} from "@mui/material/styles"
 import {DELETE_USERS} from "@/queries/DeleteUsers"
@@ -146,6 +147,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [openDrawer, setOpenDrawer] = useState<boolean>(false)
     const [openImportDrawer, setOpenImportDrawer] = useState<boolean>(false)
     const [recordIds, setRecordIds] = useState<Array<Identifier>>([])
+    const [userRecord, setUserRecord] = useState<RaRecord<Identifier> | undefined>()
     const authContext = useContext(AuthContext)
     const refresh = useRefresh()
     const unselectAll = useUnselectAll("user")
@@ -487,6 +489,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             action: editAction,
             showAction: () => canEditUsers,
             label: t(`common.label.edit`),
+            saveRecordAction: setUserRecord,
         },
         {
             icon: <DeleteIcon className="delete-voter-icon" />,
@@ -829,7 +832,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                             />
                         )}
                         <WrapperField source="actions" label="Actions">
-                            <ActionsMenu actions={actions} />
+                            <ListActionsMenu actions={actions} />
                         </WrapperField>
                     </DataGridContainerStyle>
                 )}
@@ -841,6 +844,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     close={handleClose}
                     rolesList={rolesList || []}
                     userAttributes={userAttributes?.get_user_profile_attributes || []}
+                    record={userRecord}
                 />
             </ResourceListStyles.Drawer>
             <ResourceListStyles.Drawer
