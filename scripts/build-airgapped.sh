@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
 
 set -xe
 
@@ -417,6 +420,12 @@ Once that it has been imported and started, you can visit the different services
 - Voting portal: http://localhost:3000
 EOF
     tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL README.md
+
+    cat <<'EOF' > $tmpdir/README.md.license
+SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+SPDX-License-Identifier: AGPL-3.0-only
+EOF
+    tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL README.md.license
 }
 
 add-up-script-to-tarball() {
@@ -1258,6 +1267,8 @@ EOF
 
     cat <<'EOF' > $tmpdir/up
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
 echo "Loading environment variables..."
 source .env
 echo "Loading images..."
