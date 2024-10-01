@@ -201,14 +201,16 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
                                             />
                                             <SelectInput
                                                 source="type"
-                                                label={"Template type"}
+                                                label={t("template.form.type")}
                                                 validate={required()}
                                                 onChange={selectCommunicationType}
                                                 choices={communicationTypeChoices()}
                                             />
                                         </AccordionDetails>
                                     </Accordion>
-                                    <FormLabel component="legend">Choose Methods</FormLabel>
+                                    <FormLabel component="legend">
+                                        {t(`template.chooseMethods`)}
+                                    </FormLabel>
                                     <FormGroup
                                         sx={{
                                             display: "flex",
