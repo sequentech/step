@@ -536,6 +536,9 @@ services:
   configure-minio:
     profiles: ["full", "base"]
     container_name: configure-minio
+    build:
+      context: ./minio
+      dockerfile: Dockerfile
     #image: minio/mc
     pull_policy: never
     depends_on:
@@ -1323,6 +1326,7 @@ add-images-to-tarball
 add-dotenv-to-tarball
 add-up-script-to-tarball
 add-readme-to-tarball
+
 clean-artifacts-root
 
 info "Project root: $PROJECT_ROOT"
