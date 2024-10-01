@@ -280,9 +280,7 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
                                                     minRows={4}
                                                     multiline={true}
                                                     source="template.sms.message"
-                                                    label={t(
-                                                        "template.form.smsMessage"
-                                                    )}
+                                                    label={t("template.form.smsMessage")}
                                                 />
                                             </AccordionDetails>
                                         </Accordion>
