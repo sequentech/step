@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useCallback, useEffect, useMemo, useState} from "react"
-import {ArrayInput, SaveButton, SimpleForm, SimpleFormIterator, TextInput, useListContext, useNotify, useRefresh} from "react-admin"
+import {SaveButton, SimpleForm, useListContext, useNotify, useRefresh} from "react-admin"
 import {useMutation, useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
@@ -40,8 +40,6 @@ import {formatUserAtributes, getAttributeLabel, userBasicInfo} from "@/services/
 import PhoneInput from "@/components/PhoneInput"
 import SelectArea from "@/components/area/SelectArea"
 import SelectActedTrustee from "./SelectActedTrustee"
-import PermissionLabelInput from "@/components/PermissoinLabelsInput"
-import {useWatch, useFormContext} from "react-hook-form"
 
 interface ListUserRolesProps {
     userId?: string
@@ -261,7 +259,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     }
 
     const onSubmit = async (data: any) => {
-        console.log("data", data);
         if (createMode) {
             onSubmitCreateUser()
         } else {
@@ -281,7 +278,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 ...(selectedArea && {"area-id": [selectedArea]}),
                                 ...(phoneInputs && phoneInputs),
                                 ...(selectedActedTrustee && {trustee: [selectedActedTrustee]}),
-                                ...(data.attributes.permission_labels && {permission_labels: data.attributes.permission_labels}),
                             },
                         },
                     },
@@ -475,17 +471,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             />
                         </FormControl>
                     )
-                }   else if (attr.multivalued) {
-                    console.log("value", value);
-                    return (
-                    <ArrayInput source={`attributes.${attr.name}`} defaultValue={value} onChange={(e) => {
-                        console.log("eeeee", e);
-                    }}>
-                    <SimpleFormIterator>
-                      <TextInput label="Permission Label" source=""/>
-                    </SimpleFormIterator>
-                  </ArrayInput>
-                    )
                 }
                 return (
                     <>
@@ -524,7 +509,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             <SimpleForm
                 toolbar={<SaveButton alwaysEnable />}
                 record={user}
-                onSubmit={(data) => {onSubmit(data)}}
+                onSubmit={onSubmit}
                 sanitizeEmptyValues
             >
                 <>
@@ -581,5 +566,3 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         </PageHeaderStyles.Wrapper>
     )
 }
-
-

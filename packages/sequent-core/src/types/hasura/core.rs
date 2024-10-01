@@ -110,7 +110,7 @@ pub struct Election {
     pub image_document_id: Option<String>,
     pub statistics: Option<Value>,
     pub receipts: Option<Value>,
-    pub permission_labels: Option<Vec<String>>
+    pub permission_label: Option<String>
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]

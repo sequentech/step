@@ -34,7 +34,7 @@ insert_permissions:
     - last_updated_at
     - name
     - num_allowed_revotes
-    - permission_labels
+    - permission_label
     - presentation
     - receipts
     - spoil_ballot_option
@@ -64,7 +64,7 @@ insert_permissions:
     - last_updated_at
     - name
     - num_allowed_revotes
-    - permission_labels
+    - permission_label
     - presentation
     - receipts
     - spoil_ballot_option
@@ -73,6 +73,36 @@ insert_permissions:
     - tenant_id
     - voting_channels
   role: election-event-write
+- comment: ""
+  permission:
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    columns:
+    - alias
+    - annotations
+    - created_at
+    - dates
+    - description
+    - election_event_id
+    - eml
+    - id
+    - image_document_id
+    - is_consolidated_ballot_encoding
+    - is_kiosk
+    - labels
+    - last_updated_at
+    - name
+    - num_allowed_revotes
+    - permission_label
+    - presentation
+    - receipts
+    - spoil_ballot_option
+    - statistics
+    - status
+    - tenant_id
+    - voting_channels
+  role: permission-label-write
 - comment: ""
   permission:
     check: {}
@@ -92,7 +122,7 @@ insert_permissions:
     - last_updated_at
     - name
     - num_allowed_revotes
-    - permission_labels
+    - permission_label
     - presentation
     - receipts
     - spoil_ballot_option
@@ -121,7 +151,6 @@ select_permissions:
     - last_updated_at
     - name
     - num_allowed_revotes
-    - permission_labels
     - presentation
     - receipts
     - spoil_ballot_option
@@ -130,8 +159,14 @@ select_permissions:
     - tenant_id
     - voting_channels
     filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+      - _or:
+        - permission_label:
+            _is_null: true
+        - permission_label:
+            _eq: X-Hasura-Permission-Label
   role: admin-user
 - comment: ""
   permission:
@@ -152,7 +187,7 @@ select_permissions:
     - last_updated_at
     - name
     - num_allowed_revotes
-    - permission_labels
+    - permission_label
     - presentation
     - receipts
     - spoil_ballot_option
@@ -183,7 +218,7 @@ select_permissions:
     - last_updated_at
     - name
     - num_allowed_revotes
-    - permission_labels
+    - permission_label
     - presentation
     - receipts
     - spoil_ballot_option
@@ -214,7 +249,38 @@ select_permissions:
     - last_updated_at
     - name
     - num_allowed_revotes
-    - permission_labels
+    - permission_label
+    - presentation
+    - receipts
+    - spoil_ballot_option
+    - statistics
+    - status
+    - tenant_id
+    - voting_channels
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: permission-label-write
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - alias
+    - annotations
+    - created_at
+    - dates
+    - description
+    - election_event_id
+    - eml
+    - id
+    - image_document_id
+    - is_consolidated_ballot_encoding
+    - is_kiosk
+    - labels
+    - last_updated_at
+    - name
+    - num_allowed_revotes
+    - permission_label
     - presentation
     - receipts
     - spoil_ballot_option
@@ -274,7 +340,7 @@ update_permissions:
     - last_updated_at
     - name
     - num_allowed_revotes
-    - permission_labels
+    - permission_label
     - presentation
     - receipts
     - spoil_ballot_option
@@ -307,7 +373,7 @@ update_permissions:
     - last_updated_at
     - name
     - num_allowed_revotes
-    - permission_labels
+    - permission_label
     - presentation
     - receipts
     - spoil_ballot_option
@@ -319,6 +385,37 @@ update_permissions:
       tenant_id:
         _eq: X-Hasura-Tenant-Id
   role: election-event-write
+- comment: ""
+  permission:
+    check: null
+    columns:
+    - alias
+    - annotations
+    - created_at
+    - dates
+    - description
+    - election_event_id
+    - eml
+    - id
+    - image_document_id
+    - is_consolidated_ballot_encoding
+    - is_kiosk
+    - labels
+    - last_updated_at
+    - name
+    - num_allowed_revotes
+    - permission_label
+    - presentation
+    - receipts
+    - spoil_ballot_option
+    - statistics
+    - status
+    - tenant_id
+    - voting_channels
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: permission-label-write
 - comment: ""
   permission:
     check: {}
@@ -338,7 +435,7 @@ update_permissions:
     - last_updated_at
     - name
     - num_allowed_revotes
-    - permission_labels
+    - permission_label
     - presentation
     - receipts
     - spoil_ballot_option
@@ -361,6 +458,10 @@ delete_permissions:
       tenant_id:
         _eq: X-Hasura-Tenant-Id
   role: election-event-write
+- comment: ""
+  permission:
+    filter: {}
+  role: permission-label-write
 - comment: ""
   permission:
     filter: {}

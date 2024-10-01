@@ -288,15 +288,25 @@ pub async fn list_users(
             u.realm_id,
             u.username,
             u.created_timestamp,
-            COALESCE(json_object_agg(attr.name, attr.value) FILTER (WHERE attr.name IS NOT NULL), '{{}}'::json) AS attributes,
+            COALESCE(attr_json.attributes, '{{}}'::json) AS attributes,
             COUNT(u.id) OVER() AS total_count
         FROM
             user_entity AS u
         INNER JOIN
             realm AS ra ON ra.id = u.realm_id
         {area_ids_join_clause}
-        LEFT JOIN
-            user_attribute AS attr ON u.id = attr.user_id
+        LEFT JOIN LATERAL (
+            SELECT
+                json_object_agg(attr.name, attr.values_array) AS attributes
+            FROM (
+                SELECT
+                    ua.name,
+                    json_agg(ua.value) AS values_array
+                FROM user_attribute ua
+                WHERE ua.user_id = u.id
+                GROUP BY ua.name
+            ) attr
+        ) attr_json ON true
         WHERE
             ra.name = $1 AND
             ($4::VARCHAR IS NULL OR email ILIKE $4) AND
@@ -308,8 +318,6 @@ pub async fn list_users(
             {enabled_condition}
             {email_verified_condition}
            AND ({dynamic_attr_clause})
-        GROUP BY
-            u.id
         ORDER BY {sort_clause}
         LIMIT $2 OFFSET $3;
     "#).as_str()).await?;

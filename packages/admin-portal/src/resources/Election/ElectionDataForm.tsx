@@ -76,6 +76,8 @@ import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
 import {ManagedNumberInput} from "@/components/managed-inputs/ManagedNumberInput"
 import {ManagedSelectInput} from "@/components/managed-inputs/ManagedSelectInput"
 import PermissionLabelInput from "@/components/PermissoinLabelsInput"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {IPermissions} from "@/types/keycloak"
 
 const LangsWrapper = styled(Box)`
     margin-top: 46px;
@@ -111,7 +113,12 @@ export const ElectionDataForm: React.FC = () => {
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
     const notify = useNotify()
     const refresh = useRefresh()
-
+    const authContext = useContext(AuthContext)
+    const canEditPermissionLabel = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.PERMISSION_LABEL_WRITE
+    )
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("election-data-general")
     const [languageSettings, setLanguageSettings] = useState<Array<string>>(["en"])
@@ -200,7 +207,6 @@ export const ElectionDataForm: React.FC = () => {
             incoming: Sequent_Backend_Election_Extended,
             languageSettings: Array<string>
         ): Sequent_Backend_Election_Extended => {
-            console.log("incoming", incoming);
             if (!data) {
                 return incoming as Sequent_Backend_Election_Extended
             }
@@ -252,10 +258,6 @@ export const ElectionDataForm: React.FC = () => {
             if (temp.presentation) {
                 temp.scheduledOpening = temp.presentation?.dates?.scheduled_opening
                 temp.scheduledClosing = temp.presentation?.dates?.scheduled_closing
-            }
-            console.log("temp.permissionLabels", temp.permissionLabels);
-            if (temp.permissionLabels) {
-                temp.permission_labels = temp.permissionLabels
             }
 
             temp.presentation.contests_order =
@@ -914,34 +916,9 @@ export const ElectionDataForm: React.FC = () => {
                                     label={t("electionScreen.edit.numAllowedVotes")}
                                     min={0}
                                 />
-                                <Typography
-                                    variant="body1"
-                                    component="span"
-                                    sx={{
-                                        fontWeight: "bold",
-                                        margin: 0,
-                                        display: {xs: "none", sm: "block"},
-                                    }}
-                                >
-                                    {t("electionScreen.edit.votingPeriod")}
-                                </Typography>
-                                <Box sx={{display: "flex", alignItems: "center", width: "50%"}}>
-
-                                <ArrayInput source="permission_labels">
-      <SimpleFormIterator>
-        <TextInput label="Permission Label" source=""/>
-      </SimpleFormIterator>
-    </ArrayInput>
-                                    {/* <PermissionLabelInput
-                                        source={"permissionLabels"}
-                                        permissionLabels={
-                                            record?.permission_labels
-                                                ? record.permission_labels
-                                                : []
-                                        }
-                                    /> */}
-                                </Box>
-
+                                {canEditPermissionLabel && (
+                                    <TextInput label="Permission Label" source="permission_label" />
+                                )}
                                 <FileJsonInput
                                     parsedValue={parsedValue}
                                     fileSource="configuration"

@@ -588,6 +588,7 @@ const englishTranslation = {
                 "miru-download": "Miru Download",
                 "miru-send": "Miru Send",
                 "miru-sign": "Miru Sign",
+                "permission-label-write": "Edit Permission Label",
             },
         },
         generalSettingsScreen: {

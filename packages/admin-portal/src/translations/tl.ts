@@ -593,6 +593,7 @@ const tagalogTranslation: TranslationType = {
                 "miru-download": "Miru I-download",
                 "miru-send": "Miru Ipadala",
                 "miru-sign": "Miru Lagdaan",
+                "permission-label-write": "I-edit ang label ng pahintulot",
             },
         },
         generalSettingsScreen: {

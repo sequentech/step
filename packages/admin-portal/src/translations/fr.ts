@@ -595,6 +595,7 @@ const frenchTranslation: TranslationType = {
                 "miru-download": "Miru Download",
                 "miru-send": "Miru Send",
                 "miru-sign": "Miru Sign",
+                "permission-label-write": "Modifier l'étiquette de permission",
             },
         },
         generalSettingsScreen: {

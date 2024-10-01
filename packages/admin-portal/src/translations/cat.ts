@@ -593,6 +593,7 @@ const catalanTranslation: TranslationType = {
                 "miru-download": "Miru Download",
                 "miru-send": "Miru Send",
                 "miru-sign": "Miru Sign",
+                "permission-label-write": "Edita l'etiqueta de permís",
             },
         },
         generalSettingsScreen: {

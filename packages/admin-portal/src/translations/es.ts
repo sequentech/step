@@ -592,6 +592,7 @@ const spanishTranslation: TranslationType = {
                 "miru-download": "Miru Download",
                 "miru-send": "Miru Send",
                 "miru-sign": "Miru Sign",
+                "permission-label-write": "Editar la etiqueta de permiso",
             },
         },
         generalSettingsScreen: {

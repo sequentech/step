@@ -68,4 +68,5 @@ export enum IPermissions {
     MIRU_DOWNLOAD = "miru-download",
     MIRU_SEND = "miru-send",
     MIRU_SIGN = "miru-sign",
+    PERMISSION_LABEL_WRITE = "permission-label-write",
 }
