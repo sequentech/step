@@ -49,7 +49,6 @@ const CountdownTooltipContent: React.FC<{timeLeft?: string}> = ({timeLeft = ""})
         </>
     )
 }
-
 interface ProfileMenuProps {
     userProfile: UserProfile
     logoutFn?: () => void
@@ -169,14 +168,22 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                             className="user-first-name"
                             sx={{
                                 display: {xs: "none", sm: "block"},
-                                maxWidth: "150px",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                                overflowX: "clip",
                             }}
                             title={userProfile.firstName ?? userProfile.username}
                         >
-                            Welcome, {userProfile.firstName ?? userProfile.username}
+                            <span>{t("common.welcome")}, </span>
+                            <span
+                                style={{
+                                    maxWidth: "70px",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                    overflowX: "clip",
+                                    display: "inline-block",
+                                }}
+                                className="firstname-or-username"
+                            >
+                                {userProfile.firstName ?? userProfile.username}
+                            </span>
                         </Box>
                     </StyledButton>
                 </StyledButtonContainerWrapper>

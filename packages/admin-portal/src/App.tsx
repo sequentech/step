@@ -105,7 +105,7 @@ const App: React.FC<AppProps> = () => {
                     <Route path="/settings/" element={<SettingsScreen />} />
                     <Route
                         path="/admin/login/*"
-                        element={<Navigate to="/sequent_backend_election_event" replace  />}
+                        element={<Navigate to="/sequent_backend_election_event" replace />}
                     />
                 </CustomRoutes>
 
