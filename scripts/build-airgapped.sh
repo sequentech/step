@@ -1257,6 +1257,7 @@ volumes:
   protocol_manager_data:
   vault-volume:
 EOF
+    tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL docker-compose.yml
 
     cat <<'EOF' > $tmpdir/up
 #!/usr/bin/env bash
