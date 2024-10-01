@@ -5,12 +5,6 @@ type Mutation {
 }
 
 type Mutation {
-  createResource (
-    resource_id: String
-  ): CreateResourceOutput
-}
-
-type Mutation {
   createScheduledEvent (
     tenant_id: String!
     election_event_id: uuid
