@@ -171,7 +171,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                             }}
                             title={userProfile.firstName ?? userProfile.username}
                         >
-                            <span>{t("common.welcome")}, </span>
+                            <span>{t("header.welcome")}, </span>
                             <span
                                 style={{
                                     maxWidth: "70px",

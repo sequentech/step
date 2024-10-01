@@ -595,7 +595,6 @@ const englishTranslation = {
         },
         common: {
             export: "Export can be a long operation. Are you sure you want to export records?",
-            welcome: "welcome",
             resources: {
                 electionEvent: "Election Event",
                 election: "Election",

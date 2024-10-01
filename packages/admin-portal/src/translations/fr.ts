@@ -602,7 +602,6 @@ const frenchTranslation: TranslationType = {
         },
         common: {
             export: "L'exportation peut être un processus long. Êtes-vous sûr de vouloir exporter ?",
-            welcome: "Bienvenue",
             resources: {
                 electionEvent: "Événement Électoral",
                 election: "Élection",

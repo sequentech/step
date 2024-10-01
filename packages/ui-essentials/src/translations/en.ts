@@ -117,6 +117,7 @@ const englishTranslation = {
         },
         header: {
             profile: "Profile",
+            welcome: "Welcome",
             session: {
                 title: "Your session is going to expire.",
                 timeLeft: "You have {{time}} left to cast your vote.",

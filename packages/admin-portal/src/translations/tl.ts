@@ -600,7 +600,6 @@ const tagalogTranslation: TranslationType = {
         },
         common: {
             export: "Maaaring magtagal ang pag-export. Sigurado ka bang nais mong i-export ang mga rekord?",
-            welcome: "Maligayang pagdating",
             resources: {
                 electionEvent: "Kaganapan ng Halalan",
                 election: "Halalan",

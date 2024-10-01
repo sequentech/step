@@ -119,6 +119,7 @@ const tagalogTranslation = {
         },
         header: {
             profile: "Profile",
+            welcome: "Maligayang pagdating",
             session: {
                 title: "Malapit nang mag-expire ang iyong session.",
                 timeLeft: "May natitirang {{time}} ka upang iboto ang iyong balota.",
