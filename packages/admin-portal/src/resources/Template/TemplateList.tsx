@@ -157,6 +157,9 @@ export const TemplateList: React.FC = () => {
                     <ListActions
                         custom
                         withFilter
+                        /* TODO: */
+                        withExport={false}
+                        withImport={false}
                         open={openDrawer}
                         setOpen={setOpenDrawer}
                         Component={<TemplateCreate close={handleCloseDrawer} />}
