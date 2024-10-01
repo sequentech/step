@@ -1,9 +1,0 @@
-{
-    "tenant_id": "$tenant_id",
-    "keycloak_event_realm": "$keycloak_event_realm",
-    "election_event": "$election_event",
-    "elections": "$elections_list",
-    "candidates":"$candidates_list",
-    "areas": "$area",
-    "area_contests": "$area_contests_list"
-}
