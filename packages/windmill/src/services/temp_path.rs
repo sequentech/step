@@ -21,6 +21,13 @@ pub const PUBLIC_ASSETS_EML_BASE_TEMPLATE: &'static str = "eml_base.hbs";
 pub const VOTE_RECEIPT_TEMPLATE_TITLE: &'static str = "Vote receipt - Sequentech";
 pub const VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE: &'static str = "Vote receipts - Sequentech";
 
+pub fn get_public_assets_path_env_var() -> Result<String> {
+    match env::var("PUBLIC_ASSETS_PATH") {
+        Ok(path) => Ok(path),
+        Err(e) => Err(e).with_context(|| "Error fetching PUBLIC_ASSETS_PATH env var")?,
+    }
+}
+
 pub fn get_file_size(filepath: &str) -> Result<u64> {
     let metadata = fs::metadata(filepath)?;
     Ok(metadata.len())

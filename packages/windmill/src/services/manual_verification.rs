@@ -100,7 +100,7 @@ pub async fn get_manual_verification_pdf(
     election_event_id: &str,
     voter_id: &str,
 ) -> Result<()> {
-    let public_asset_path = env::var("PUBLIC_ASSETS_PATH")?;
+    let public_asset_path = get_public_assets_path_env_var()?;
     let manual_verification_url =
         get_manual_verification_url(tenant_id, election_event_id, voter_id).await?;
 

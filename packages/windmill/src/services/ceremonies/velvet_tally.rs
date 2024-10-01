@@ -372,7 +372,7 @@ pub async fn call_velvet(base_tally_path: PathBuf) -> Result<State> {
 }
 
 async fn get_public_asset_vote_receipts_template() -> Result<String> {
-    let public_asset_path = std::env::var("PUBLIC_ASSETS_PATH")?;
+    let public_asset_path = get_public_assets_path_env_var()?;
     let minio_endpoint_base = s3::get_minio_url()?;
     let vote_receipt_template = format!(
         "{}/{}/{}",
@@ -412,8 +412,7 @@ pub async fn create_config_file(
     base_tally_path: PathBuf,
     report_content_template: Option<String>,
 ) -> Result<()> {
-    let public_asset_path = std::env::var("PUBLIC_ASSETS_PATH")
-        .map_err(|err| anyhow!("error loading PUBLIC_ASSETS_PATH var: {}", err))?;
+    let public_asset_path = get_public_assets_path_env_var()?;
 
     let template = get_public_asset_vote_receipts_template().await?;
 

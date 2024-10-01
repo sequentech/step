@@ -103,7 +103,7 @@ pub async fn get_template(
 }
 
 async fn get_public_asset_vote_receipt_template(tpl_type: TemplateType) -> Result<String> {
-    let public_assets_path = env::var("PUBLIC_ASSETS_PATH")?;
+    let public_assets_path = get_public_assets_path_env_var()?;
 
     let file_vote_receipt_template = match tpl_type {
         TemplateType::Root => PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE,
@@ -290,7 +290,7 @@ pub async fn create_vote_receipt(
     )
     .await?;
 
-    let public_assets_path = env::var("PUBLIC_ASSETS_PATH")?;
+    let public_assets_path = get_public_assets_path_env_var()?;
 
     let template_opt = get_template(
         hasura_transaction,
