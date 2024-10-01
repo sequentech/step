@@ -173,9 +173,11 @@ def parse_contests(sheet):
     data = parse_table_sheet(
         sheet,
         required_keys=[
+            "^db_contest_name$",
             "^election_post$"
         ],
         allowed_keys=[
+            "^db_contest_name$",
             "^election_post$"
         ]
     )
@@ -185,11 +187,11 @@ def parse_candidates(sheet):
     data = parse_table_sheet(
         sheet,
         required_keys=[
-            "^contest_name$",
+            "^db_contest_name$",
             "^election_post$"
         ],
         allowed_keys=[
-            "^contest_name$",
+            "^db_contest_name$",
             "^election_post$"
         ]
     )
@@ -458,7 +460,7 @@ def gen_tree(excel_data):
         contest = next((c for c in election["contests"] if c["name"] == contest_name), None)
         contest_context = next((
             c for c in excel_data["contests"]
-            if c["name"] == contest_name and c["election_post"] == election["election_post"]
+            if c["db_contest_name"] == contest_name and c["election_post"] == election["election_post"]
         ), None)
 
         if not contest_context:
@@ -482,13 +484,15 @@ def gen_tree(excel_data):
         # Add the candidate to the contest
         candidate_name = row["DB_CANDIDATE_NAMEONBALLOT"]
         candidate_context = next((
-            c for c in excel_data["candidates"] 
-            if c["name"] == candidate_name and c["election_post"] == election["election_post"] and c["contest_name"] == contest["name"]
+            c for c in excel_data["candidates"]
+            if c["name"] == candidate_name and c["election_post"] == election["election_post"] and c["db_contest_name"] == contest["db_contest_name"]
         ), None)
 
         if not candidate_context:
+            print(f"candidate with 'name' = {candidate_name} and 'election_post' = {election["election_post"]} and 'db_contest_name' = {contest["db_contest_name"]} not found in excel")
             breakpoint()
-            raise Exception(f"candidate with 'name' = {candidate_name} and 'election_post' = {election["election_post"]} and 'contest_name' = {contest["name"]} not found in excel")
+            #continue
+            raise Exception(f"candidate with 'name' = {candidate_name} and 'election_post' = {election["election_post"]} and 'db_contest_name' = {contest["db_contest_name"]} not found in excel")
 
         candidate = {
             "code": row["DB_CANDIDATE_CAN_CODE"],
@@ -496,7 +500,7 @@ def gen_tree(excel_data):
             "nominated_by": row["DB_CANDIDATE_NOMINATEDBY"],
             "party_short_name": row["DB_PARTY_SHORT_NAME"],
             "party_name": row["DB_PARTY_NAME_PARTY"],
-            **context
+            **candidate_context
         }
         contest["candidates"].append(candidate)
 
@@ -511,7 +515,7 @@ def gen_tree(excel_data):
             breakpoint()
             raise Exception(f"area with 'name' = {area_name} not found in excel")
 
-        ccs_server_tags = area_context["ccs_server_tags"].split(",") if area_context["ccs_server_tags"] else []
+        ccs_server_tags = area_context["ccs_server_tags"].split(",") if "ccs_server_tags" in area_context else []
 
         ccs_servers = [
             c for c in excel_data["ccs_servers"] 
