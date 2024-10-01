@@ -1271,6 +1271,9 @@ EOF
 # SPDX-License-Identifier: AGPL-3.0-only
 echo "Loading environment variables..."
 source .env
+echo "Creating resources..."
+mkdir -p simplesaml
+touch simplesaml/{authsources,saml20-sp-remote}.php
 echo "Loading images..."
 find images -type f -name "*.tar" | xargs -I{} docker load --input {}
 echo "Starting environment..."
