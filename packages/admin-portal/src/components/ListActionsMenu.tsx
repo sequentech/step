@@ -18,7 +18,7 @@ import {makeStyles} from "@mui/styles"
         Format: {icon: <Icon />, action: (id: Identifier) => void, label: string}
     */
 
-interface ActionsMenuProps {
+interface ListActionsMenuProps {
     actions: Array<Action>
 }
 
@@ -28,7 +28,7 @@ const useStyles = makeStyles({
     },
 })
 
-export const ActionsMenu: React.FC<ActionsMenuProps> = (props) => {
+export const ListActionsMenu: React.FC<ListActionsMenuProps> = (props) => {
     const record = useRecordContext()
     const {actions} = props
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
@@ -47,6 +47,9 @@ export const ActionsMenu: React.FC<ActionsMenuProps> = (props) => {
 
     const handleClickAction = (action: Action) => {
         action.action(record.id)
+        if (action.saveRecordAction) {
+            action.saveRecordAction(record)
+        }
         handleClose()
     }
 
