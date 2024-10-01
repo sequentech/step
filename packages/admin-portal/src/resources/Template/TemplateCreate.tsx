@@ -76,16 +76,20 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
 
         if (
             selectedCommunicationType?.value &&
-            ![ITemplateType.BALLOT_RECEIPT, ITemplateType.TALLY_REPORT].includes(
-                selectedCommunicationType.value
-            )
+            ![
+                ITemplateType.BALLOT_RECEIPT,
+                ITemplateType.TALLY_REPORT,
+                ITemplateType.MANUALLY_VERIFY_VOTER,
+            ].includes(selectedCommunicationType.value)
         ) {
             res = res.filter((cm) => cm.id !== ICommunicationMethod.DOCUMENT)
         }
         if (ITemplateType.TALLY_REPORT === selectedCommunicationType?.value) {
             res = res.filter((cm) => cm.id === ICommunicationMethod.DOCUMENT)
         }
-
+        if (ITemplateType.MANUALLY_VERIFY_VOTER === selectedCommunicationType?.value) {
+            res = res.filter((cm) => cm.id === ICommunicationMethod.DOCUMENT)
+        }
         return res
     }
 

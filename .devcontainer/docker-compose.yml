@@ -106,6 +106,7 @@ services:
       - "9002:9002"
     volumes:
       - ./minio/nginx:/etc/nginx/conf.d
+    #image: minio/mc
     depends_on:
       - minio
   
@@ -115,7 +116,6 @@ services:
     build:
       context: ./minio
       dockerfile: Dockerfile
-    #image: minio/mc
     depends_on:
       - minio
     environment:

@@ -151,6 +151,7 @@ const spanishTranslation: TranslationType = {
                 allowed: "Canales de Voto Permitidos",
                 materials: "Materiales de Soporte",
                 ballotDesign: "Diseño de la Papeleta",
+                templates: "Plantillas",
                 reorder: "Reordenar elecciones",
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importar Candidatos",
@@ -187,6 +188,8 @@ const spanishTranslation: TranslationType = {
                 materialTitle: "Titulo",
                 materialSubTitle: "Subtitulo",
                 logoUrl: "Logo URL",
+                userVerification:
+                    "Puede introducir una plantilla personalizada que se utilizará para verificar manualmente a los votantes",
                 redirectFinishUrl: "URL de redirección al finalizar",
                 css: "CSS personalizado",
                 skipElectionList: "Saltar pantalla para escoger elección",
@@ -1261,6 +1264,7 @@ const spanishTranslation: TranslationType = {
             title: "Plantillas",
             subtitle: "Listado de plantillas",
             chooseMethods: "Elige métodos",
+            default: "Usar plantilla predeterminada",
             empty: {
                 title: "No hay plantillas",
                 subtitle: "¿Quieres crear una nueva?",
@@ -1295,6 +1299,7 @@ const spanishTranslation: TranslationType = {
                 electoral_results: "Resultados Electorales",
                 otp: "OTP",
                 tally_report: "Informe de Recuento",
+                manually_verify_voter: "Verificar votante manualmente",
             },
             method: {
                 email: "Email",

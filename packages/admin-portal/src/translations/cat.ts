@@ -151,6 +151,7 @@ const catalanTranslation: TranslationType = {
                 allowed: "Canals de Vot Permesos",
                 materials: "Materials de Suport",
                 ballotDesign: "Disseny de la Papereta",
+                templates: "Plantillas",
                 reorder: "Reordenar eleccions",
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importar Candidats",
@@ -187,6 +188,8 @@ const catalanTranslation: TranslationType = {
                 materialTitle: "Títol",
                 materialSubTitle: "Subtítol",
                 logoUrl: "URL del Logotip",
+                userVerification:
+                    "Podeu introduir una plantilla personalitzada que s'utilitzarà per verificar manualment els votants",
                 redirectFinishUrl: "URL de redirecció en finalitzar",
                 css: "CSS personalitzat",
                 skipElectionList: "Saltar pantalla per escollir elecció",
@@ -1262,6 +1265,7 @@ const catalanTranslation: TranslationType = {
             title: "Plantilles",
             subtitle: "Llistat de plantilles",
             chooseMethods: "Trieu Mètodes",
+            default: "Utilitzeu la plantilla predeterminada",
             empty: {
                 title: "No hi ha plantilles",
                 subtitle: "Vols crear-ne una de nova?",
@@ -1296,6 +1300,7 @@ const catalanTranslation: TranslationType = {
                 electoral_results: "Resultats Electorals",
                 otp: "OTP",
                 tally_report: "Informe de recompte",
+                manually_verify_voter: "Verificar manualment el votant",
             },
             method: {
                 email: "Email",

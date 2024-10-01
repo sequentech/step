@@ -153,6 +153,7 @@ const englishTranslation = {
                 allowed: "Voting Channels Allowed",
                 materials: "Support Materials",
                 ballotDesign: "Ballot Design",
+                templates: "Templates",
                 reorder: "Reorder elections",
                 advancedConfigurations: "Advanced Configurations",
                 importCandidates: "Import Candidates",
@@ -189,6 +190,8 @@ const englishTranslation = {
                 materialTitle: "Title",
                 materialSubTitle: "Subtitle",
                 logoUrl: "Logo URL",
+                userVerification:
+                    "You can introduce a custom template that will be used to manually verify the voters",
                 redirectFinishUrl: "Redirect Finish URL",
                 css: "Custom CSS",
                 skipElectionList: "Skip Election List Screen",
@@ -1256,6 +1259,7 @@ const englishTranslation = {
             title: "Templates",
             subtitle: "List of templates",
             chooseMethods: "Choose Methods",
+            default: "Use default template",
             empty: {
                 title: "No Template Yet",
                 subtitle: "Do you want to create one?",
@@ -1290,6 +1294,7 @@ const englishTranslation = {
                 electoral_results: "Electoral Results",
                 otp: "OTP",
                 tally_report: "Tally Report",
+                manually_verify_voter: "Manually verify voter",
             },
             method: {
                 email: "Email",

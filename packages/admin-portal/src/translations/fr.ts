@@ -151,6 +151,7 @@ const frenchTranslation: TranslationType = {
                 allowed: "Canaux de Vote Permis",
                 materials: "Matériaux de Support",
                 ballotDesign: "Design du Bulletin",
+                templates: "Modèles",
                 reorder: "Réorganiser les élections",
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importer des Candidats",
@@ -187,6 +188,8 @@ const frenchTranslation: TranslationType = {
                 materialTitle: "Titre",
                 materialSubTitle: "Sous-titre",
                 logoUrl: "URL du Logo",
+                userVerification:
+                    "Vous pouvez introduire un modèle personnalisé qui sera utilisé pour vérifier manuellement les électeurs",
                 redirectFinishUrl: "URL de redirection à la fin",
                 css: "CSS personnalisé",
                 skipElectionList: "Passer l'écran pour choisir l'élection",
@@ -1268,6 +1271,7 @@ const frenchTranslation: TranslationType = {
             title: "Modèles",
             subtitle: "Liste des modèles",
             chooseMethods: "Choisir les méthodes",
+            default: "Utiliser le modèle par défaut",
             empty: {
                 title: "Aucun modèle",
                 subtitle: "Voulez-vous créer un nouveau ?",
@@ -1302,6 +1306,7 @@ const frenchTranslation: TranslationType = {
                 electoral_results: "Résultats Électoraux",
                 otp: "OTP",
                 tally_report: "Rapport de comptage",
+                manually_verify_voter: "Vérifier manuellement l'électeur",
             },
             method: {
                 email: "Email",

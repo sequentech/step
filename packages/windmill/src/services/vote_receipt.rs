@@ -3,8 +3,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use std::env;
-
 use super::s3;
 use crate::postgres::template;
 use crate::postgres::{self, election};

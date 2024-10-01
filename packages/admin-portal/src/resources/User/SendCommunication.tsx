@@ -513,11 +513,13 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                             value={communication.type}
                             onChange={handleSelectTypeChange}
                         >
-                            {Object.values(ITemplateType).map((key) => (
-                                <MenuItem key={key} value={key}>
-                                    {t(`sendCommunication.communicationType.${key}`)}
-                                </MenuItem>
-                            ))}
+                            {Object.values(ITemplateType)
+                                .filter((type) => type !== ITemplateType.MANUALLY_VERIFY_VOTER)
+                                .map((key) => (
+                                    <MenuItem key={key} value={key}>
+                                        {t(`sendCommunication.communicationType.${key}`)}
+                                    </MenuItem>
+                                ))}
                         </FormStyles.Select>
                         <Typography variant="body2" sx={{margin: "0"}}>
                             {t("sendCommunication.alias")}

@@ -152,6 +152,7 @@ const tagalogTranslation: TranslationType = {
                 allowed: "Pinapayagang Mga Channel ng Pagboto",
                 materials: "Mga Karagdagang Materyales",
                 ballotDesign: "Disenyo ng Balota",
+                templates: "Mga plantilya",
                 reorder: "I-reorder ang mga halalan",
                 advancedConfigurations: "Mga Advanced na Pag-configure",
                 importCandidates: "Mag-import ng mga Kandidato",
@@ -188,6 +189,8 @@ const tagalogTranslation: TranslationType = {
                 materialTitle: "Pamagat",
                 materialSubTitle: "Subtitle",
                 logoUrl: "URL ng Logo",
+                userVerification:
+                    "Puede kang mag-introdusir nin sarong pasadyang plantilya na gagamiton tanganing mano-manong ma-verify an mga botante",
                 redirectFinishUrl: "Redirect Finish URL",
                 css: "Custom CSS",
                 skipElectionList: "Laktawan ang Screen ng Listahan ng Halalan",
@@ -1262,6 +1265,7 @@ const tagalogTranslation: TranslationType = {
             title: "Mga Template",
             subtitle: "Listahan ng mga template",
             chooseMethods: "Pumili ng Mga Paraan",
+            default: "Gamiton an default na plantilya",
             empty: {
                 title: "Walang Template Pa",
                 subtitle: "Gusto mo bang lumikha ng isa?",
@@ -1296,6 +1300,7 @@ const tagalogTranslation: TranslationType = {
                 electoral_results: "Mga Resulta ng Eleksyon",
                 otp: "OTP",
                 tally_report: "Ulat ng Tally",
+                manually_verify_voter: "Manual na beripikaron an botante",
             },
             method: {
                 email: "Email",
