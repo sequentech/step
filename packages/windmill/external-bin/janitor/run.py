@@ -447,7 +447,21 @@ def gen_tree(excel_data):
     results = get_data()
     elections_object = {"elections": []}
 
-    for row in results:
+    ccs_servers = {}
+    for ccs_server in excel_data["ccs_servers"]:
+        if not ccs_server["tag"]:
+            continue
+        json_server = json.dumps({
+            "send_logs": "TRUE" == ccs_server["send_logs"],
+            "name": ccs_server["name"],
+            "tag": str(int(ccs_server["tag"])),
+            "address": ccs_server["address"],
+            "public_key_pem": ccs_server["public_key"]
+        })
+        ccs_servers[str(int(ccs_server["tag"]))] = json_server
+
+    for (idx, row) in enumerate(results):
+        print(f"processing row {idx}")
         # Find or create the election object
         row_election_post = row["DB_POLLING_CENTER_POLLING_PLACE"]
         election = next((e for e in elections_object["elections"] if e["election_post"] == row_election_post), None)
@@ -510,22 +524,18 @@ def gen_tree(excel_data):
             breakpoint()
             raise Exception(f"area with 'name' = {area_name} not found in excel")
 
-        ccs_server_tags = area_context["ccs_server_tags"].split(",") if "ccs_server_tags" in area_context else []
+        ccs_server_tags = str(area_context["annotations"]["miru_ccs_server_tags"]).split(",")
 
-        ccs_servers = [
-            c for c in excel_data["ccs_servers"] 
-            if c["tag"] in ccs_server_tags
+        found_servers = [
+            ccs_servers[tag]
+            for tag in ccs_server_tags
+            if tag in ccs_servers
         ]
-
-        ccs_servers = [{
-            "send_logs": "TRUE" == s["send_logs"],
-            "name": s["name"],
-            "tag": s["tag"],
-            "address": s["address"],
-            "public_key_pem": s["public_key"]
-        } for s in ccs_servers]
-        area_context["annotations"]["ccs_servers"] = json.dumps(ccs_servers)
-        area_context["annotations"]["miru_trustee_servers"] = json.dumps(area_context["annotations"]["miru_trustee_servers"].split(","))
+        miru_trustee_users = area_context["annotations"]["miru_trustee_servers"].split(",")
+        miru_trustee_users = [('"' + server + '"') for server in miru_trustee_users]
+        miru_trustee_users = ",".join(miru_trustee_users)
+        area_context["annotations"]["miru_ccs_servers"] = f"[{",".join(found_servers)}]"
+        area_context["annotations"]["miru_trustee_users"] = "[" + miru_trustee_users + "]"
 
         area = {
             "name": area_name,
@@ -560,6 +570,7 @@ def replace_placeholder_database(election_tree, election_event_id):
             "election_name": election["election_name"]
         }
 
+        print(f"rendering election {election["election_name"]}")
         elections.append(json.loads(render_template(election_template, election_context)))
 
         for contest in election["contests"]:
@@ -575,6 +586,7 @@ def replace_placeholder_database(election_tree, election_event_id):
                 "current_timestamp": current_timestamp
             }
 
+            print(f"rendering contest {contest["name"]}")
             contests.append(json.loads(render_template(contest_template, contest_context)))
 
             for candidate in contest["candidates"]:
@@ -586,6 +598,7 @@ def replace_placeholder_database(election_tree, election_event_id):
                     "DB_CANDIDATE_NAMEONBALLOT": candidate["name_on_ballot"]
                 }
 
+                print(f"rendering candidate {candidate["name_on_ballot"]}")
                 candidates.append(json.loads(render_template(candidate_template, candidate_context)))
 
             for area in contest["areas"]:
@@ -598,7 +611,10 @@ def replace_placeholder_database(election_tree, election_event_id):
                     "DB_POLLING_CENTER_POLLING_PLACE":area["description"]
                 }
 
-                areas.append(json.loads(render_template(area_template, area_context)))
+                print(f"rendering area {area["name"]}")
+                area_rend = render_template(area_template, area_context)
+                print(area_rend)
+                areas.append(json.loads(area_rend))
 
                 area_contest_context = {
                     "UUID": generate_uuid(),
@@ -606,6 +622,7 @@ def replace_placeholder_database(election_tree, election_event_id):
                     "contest_id": contest_context["UUID"]
                 }
 
+                print(f"rendering area_contest area: '{area["name"]}', contest: '{contest["name"]}'")
                 area_contests.append(json.loads(render_template(area_contest_template, area_contest_context)))
 
     return areas, candidates, contests, area_contests, elections
