@@ -561,6 +561,7 @@ def replace_placeholder_database(election_tree, election_event_id):
     for election in election_tree["elections"]:
         election_id = generate_uuid()
         election_context = {
+            **election,
             "UUID": election_id,
             "tenant_id": base_config["tenant_id"],
             "election_event_id": election_event_id,
@@ -576,6 +577,7 @@ def replace_placeholder_database(election_tree, election_event_id):
         for contest in election["contests"]:
             contest_id = generate_uuid()
             contest_context = {
+                **contest,
                 "UUID": contest_id,
                 "tenant_id": base_config["tenant_id"],
                 "election_event_id": election_event_id,
@@ -591,6 +593,7 @@ def replace_placeholder_database(election_tree, election_event_id):
 
             for candidate in contest["candidates"]:
                 candidate_context = {
+                    **candidate,
                     "UUID": generate_uuid(),
                     "tenant_id": base_config["tenant_id"],
                     "election_event_id": election_event_id,
@@ -603,6 +606,7 @@ def replace_placeholder_database(election_tree, election_event_id):
 
             for area in contest["areas"]:
                 area_context = {
+                    **area,
                     "UUID": generate_uuid(),
                     "tenant_id": base_config["tenant_id"],
                     "election_event_id": election_event_id,
@@ -612,8 +616,8 @@ def replace_placeholder_database(election_tree, election_event_id):
                 }
 
                 print(f"rendering area {area["name"]}")
+                print(area_context)
                 area_rend = render_template(area_template, area_context)
-                print(area_rend)
                 areas.append(json.loads(area_rend))
 
                 area_contest_context = {
