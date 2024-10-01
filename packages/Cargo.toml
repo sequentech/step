@@ -17,3 +17,10 @@ members = [
     "wrap-map-err",
     "step-cli"
 ]
+
+[workspace.dependencies]
+# Adding celery as a workspace dependency so that it can be
+# vendored. `cargo vendor` does not support multiple versions of the
+# same crate, and at this time celery is depended upon at least by two
+# different crates.
+celery = { git = "https://github.com/rusty-celery/rusty-celery.git", rev = "1a0168f4b4b521c891fcfc853c21fc30de12c2f2" }

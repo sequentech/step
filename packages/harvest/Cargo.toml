@@ -1,5 +1,5 @@
 # SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
-# 
+#
 # SPDX-License-Identifier: AGPL-3.0-only
 
 [package]
@@ -24,7 +24,7 @@ graphql_client = "0.13.0"
 tokio = { version = "1.32.0", features = ["full"] }
 chrono = "0.4.31"
 base64 = "0.21.0"
-celery = "0.5.5"
+celery = { workspace = true }
 strum = "0.25"
 strum_macros = "0.25"
 uuid = { version = "1.5.0", features = ["v4", "fast-rng"] }

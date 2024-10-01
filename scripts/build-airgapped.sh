@@ -37,6 +37,24 @@ sequentech.local/cargo-packages ./packages /app
 EOF
 }
 
+force-vendored-rust-sources() {
+    cat <<EOF
+FROM $1
+RUN cd "$2" && cargo vendor
+COPY <<EOF "$2/.cargo/config.toml"
+[source.crates-io]
+replace-with = "vendored-sources"
+
+[source."git+https://github.com/rusty-celery/rusty-celery.git?rev=1a0168f4b4b521c891fcfc853c21fc30de12c2f2"]
+git = "https://github.com/rusty-celery/rusty-celery.git"
+rev = "1a0168f4b4b521c891fcfc853c21fc30de12c2f2"
+replace-with = "vendored-sources"
+
+[source.vendored-sources]
+directory = "vendor"
+EOF
+}
+
 # Re-tag the image, but with the host paths added to it. This is
 # useful for creating air-gapped images that originally mounted
 # directories such as the source code.
@@ -1308,6 +1326,10 @@ for image in $(all-images-with-volumes); do
     target_path="${fields[2]}"
     add-project-root-to-image "$image_name" "$host_path" "$target_path"
 done
+
+# After the project root has been added to images, we can vendor their
+# crates and force their resolution from the vendored deps
+force-vendored-rust-sources "sequentech.local/cargo-packages" "/app/packages"
 
 # Archive all images
 for image in $(all-images); do
