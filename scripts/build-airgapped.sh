@@ -819,7 +819,7 @@ services:
       - devcontainer
     depends_on:
       - devcontainer
-    working_dir: /workspaces/step/packages/harvest
+    working_dir: /app/harvest
     entrypoint: [
       "cargo",
       "watch",
@@ -1134,7 +1134,7 @@ services:
     # that the `sequentech.local/cargo-packages` image is locally build, so
     # that we can reuse it:
     restart: always
-    working_dir: /workspaces/step/packages/windmill
+    working_dir: /app/windmill
     entrypoint: [
       "cargo",
       "watch",
@@ -1244,7 +1244,7 @@ services:
     depends_on:
       - devcontainer
       - harvest
-    working_dir: /workspaces/step/packages/windmill
+    working_dir: /app/windmill
     entrypoint: [
       "cargo",
       "watch",
