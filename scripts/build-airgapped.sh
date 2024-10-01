@@ -539,7 +539,7 @@ services:
   configure-minio:
     profiles: ["full", "base"]
     container_name: configure-minio
-    image: step_devcontainer-configure-minio
+    image: configure-minio
     pull_policy: never
     depends_on:
       - minio
@@ -557,7 +557,7 @@ services:
   vault:
     profiles: ["full", "base"]
     container_name: vault
-    image: step_devcontainer-vault
+    image: vault
     restart: on-failure:10
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
@@ -668,7 +668,7 @@ services:
   keycloak:
     profiles: ["full", "base"]
     container_name: keycloak
-    image: step_devcontainer-keycloak
+    image: keycloak
     restart: always
     ports:
       - 8090:8090

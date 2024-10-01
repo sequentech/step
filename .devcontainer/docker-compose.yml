@@ -112,6 +112,7 @@ services:
   configure-minio:
     profiles: ["full", "base"]
     container_name: configure-minio
+    image: configure-minio
     build:
       context: ./minio
       dockerfile: Dockerfile
@@ -132,6 +133,7 @@ services:
   vault:
     profiles: ["full", "base"]
     container_name: vault
+    image: vault
     build:
       context: ./vault
       dockerfile: Dockerfile
@@ -242,6 +244,7 @@ services:
   keycloak:
     profiles: ["full", "base"]
     container_name: keycloak
+    image: keycloak
     build:
       context: ../packages/
       dockerfile: Dockerfile.keycloak
