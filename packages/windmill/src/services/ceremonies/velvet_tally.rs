@@ -9,6 +9,7 @@ use crate::services::cast_votes::ElectionCastVotes;
 use crate::services::database::get_hasura_pool;
 use crate::services::s3;
 use crate::services::tally_sheets::tally::create_tally_sheets_map;
+use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use sequent_core::ballot::{BallotStyle, Contest};
@@ -372,14 +373,10 @@ pub async fn call_velvet(base_tally_path: PathBuf) -> Result<State> {
 
 async fn get_public_asset_vote_receipts_template() -> Result<String> {
     let public_asset_path = std::env::var("PUBLIC_ASSETS_PATH")?;
-
-    let file_velvet_vote_receipts_template =
-        std::env::var("PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE")?;
-
     let minio_endpoint_base = s3::get_minio_url()?;
     let vote_receipt_template = format!(
         "{}/{}/{}",
-        minio_endpoint_base, public_asset_path, file_velvet_vote_receipts_template
+        minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE
     );
 
     let client = reqwest::Client::new();
@@ -388,7 +385,7 @@ async fn get_public_asset_vote_receipts_template() -> Result<String> {
     if response.status() == reqwest::StatusCode::NOT_FOUND {
         return Err(anyhow!(
             "File not found: {}",
-            file_velvet_vote_receipts_template
+            PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE
         ));
     }
     if !response.status().is_success() {
@@ -417,31 +414,20 @@ pub async fn create_config_file(
 ) -> Result<()> {
     let public_asset_path = std::env::var("PUBLIC_ASSETS_PATH")
         .map_err(|err| anyhow!("error loading PUBLIC_ASSETS_PATH var: {}", err))?;
-    let file_logo = std::env::var("PUBLIC_ASSETS_LOGO_IMG")
-        .map_err(|err| anyhow!("error loading PUBLIC_ASSETS_LOGO_IMG var: {}", err))?;
-    let file_qrcode_lib = std::env::var("PUBLIC_ASSETS_QRCODE_LIB")
-        .map_err(|err| anyhow!("error loading PUBLIC_ASSETS_QRCODE_LIB var: {}", err))?;
-    let vote_receipts_title =
-        std::env::var("VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE").map_err(|err| {
-            anyhow!(
-                "error loading VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE var: {}",
-                err
-            )
-        })?;
 
     let template = get_public_asset_vote_receipts_template().await?;
 
     let minio_endpoint_base = s3::get_minio_url()?;
 
     let extra_data = VelvetTemplateData {
-        title: vote_receipts_title,
+        title: VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE.to_string(),
         file_logo: format!(
             "{}/{}/{}",
-            minio_endpoint_base, public_asset_path, file_logo
+            minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_LOGO_IMG
         ),
         file_qrcode_lib: format!(
             "{}/{}/{}",
-            minio_endpoint_base, public_asset_path, file_qrcode_lib
+            minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
         ),
     };
 

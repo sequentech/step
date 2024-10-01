@@ -9,9 +9,7 @@ use std::env;
 use super::s3::{self, get_minio_url};
 use crate::postgres::{self, election, template};
 use crate::services::database::get_hasura_pool;
-use crate::services::{
-    documents::upload_and_return_document, temp_path::write_into_named_temp_file,
-};
+use crate::services::{documents::upload_and_return_document, temp_path::*};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::services::keycloak;
@@ -20,9 +18,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
-
-const QR_CODE_TEMPLATE: &'static str = "<div id=\"qrcode\"></div>";
-const LOGO_TEMPLATE: &'static str = "<div class=\"logo\"></div>";
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ManualVerificationOutput {
@@ -106,8 +101,6 @@ pub async fn get_manual_verification_pdf(
     voter_id: &str,
 ) -> Result<()> {
     let public_asset_path = env::var("PUBLIC_ASSETS_PATH")?;
-    let file_logo = env::var("PUBLIC_ASSETS_LOGO_IMG")?;
-    let file_qrcode_lib = env::var("PUBLIC_ASSETS_QRCODE_LIB")?;
     let manual_verification_url =
         get_manual_verification_url(tenant_id, election_event_id, voter_id).await?;
 
@@ -119,11 +112,11 @@ pub async fn get_manual_verification_pdf(
         logo: LOGO_TEMPLATE.to_string(),
         file_logo: format!(
             "{}/{}/{}",
-            minio_endpoint_base, public_asset_path, file_logo
+            minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_LOGO_IMG
         ),
         file_qrcode_lib: format!(
             "{}/{}/{}",
-            minio_endpoint_base, public_asset_path, file_qrcode_lib
+            minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
         ),
     };
     let map = ManualVerificationRoot { data: data.clone() }.to_map()?;

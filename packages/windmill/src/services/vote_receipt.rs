@@ -9,9 +9,7 @@ use super::s3;
 use crate::postgres::template;
 use crate::postgres::{self, election};
 use crate::services::database::get_hasura_pool;
-use crate::services::{
-    documents::upload_and_return_document, temp_path::write_into_named_temp_file,
-};
+use crate::services::{documents::upload_and_return_document, temp_path::*};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
@@ -23,9 +21,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use tracing::instrument;
 use uuid::Uuid;
-
-const QR_CODE_TEMPLATE: &'static str = "<div id=\"qrcode\"></div>";
-const LOGO_TEMPLATE: &'static str = "<div class=\"logo\"></div>";
 
 enum TemplateType {
     Root,
@@ -108,17 +103,17 @@ pub async fn get_template(
 }
 
 async fn get_public_asset_vote_receipt_template(tpl_type: TemplateType) -> Result<String> {
-    let public_asset_path = env::var("PUBLIC_ASSETS_PATH")?;
+    let public_assets_path = env::var("PUBLIC_ASSETS_PATH")?;
 
     let file_vote_receipt_template = match tpl_type {
-        TemplateType::Root => env::var("PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE")?,
-        TemplateType::Content => env::var("PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE_CONTENT")?,
+        TemplateType::Root => PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE,
+        TemplateType::Content => PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE_CONTENT,
     };
 
     let minio_endpoint_base = s3::get_minio_url()?;
     let vote_receipt_template = format!(
         "{}/{}/{}",
-        minio_endpoint_base, public_asset_path, file_vote_receipt_template
+        minio_endpoint_base, public_assets_path, file_vote_receipt_template
     );
 
     let client = reqwest::Client::new();
@@ -295,10 +290,7 @@ pub async fn create_vote_receipt(
     )
     .await?;
 
-    let public_asset_path = env::var("PUBLIC_ASSETS_PATH")?;
-    let file_logo = env::var("PUBLIC_ASSETS_LOGO_IMG")?;
-    let file_qrcode_lib = env::var("PUBLIC_ASSETS_QRCODE_LIB")?;
-    let vote_receipt_title = env::var("VOTE_RECEIPT_TEMPLATE_TITLE")?;
+    let public_assets_path = env::var("PUBLIC_ASSETS_PATH")?;
 
     let template_opt = get_template(
         hasura_transaction,
@@ -333,13 +325,13 @@ pub async fn create_vote_receipt(
             template: Some(template),
             file_logo: format!(
                 "{}/{}/{}",
-                minio_endpoint_base, public_asset_path, file_logo
+                minio_endpoint_base, public_assets_path, PUBLIC_ASSETS_LOGO_IMG
             ),
             file_qrcode_lib: format!(
                 "{}/{}/{}",
-                minio_endpoint_base, public_asset_path, file_qrcode_lib
+                minio_endpoint_base, public_assets_path, PUBLIC_ASSETS_QRCODE_LIB
             ),
-            title: vote_receipt_title.to_string(),
+            title: VOTE_RECEIPT_TEMPLATE_TITLE.to_string(),
             ballot_tracker_url: ballot_tracker_url.to_string(),
             timestamp: generate_timestamp(time_zone, date_format, None),
         },
