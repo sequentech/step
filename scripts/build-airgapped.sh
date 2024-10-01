@@ -736,8 +736,6 @@ services:
       - 3002:3002
     stdin_open: true
     entrypoint: ["./init.sh", "start:admin-portal"]
-    volumes:
-       - ${LOCAL_WORKSPACE_FOLDER:-..}/packages:/usr/src/app
     environment:
         MAX_DIFF_LINES: ${MAX_DIFF_LINES}
         SECONDS_TO_SHOW_COUNTDOWN: ${SECONDS_TO_SHOW_COUNTDOWN}
@@ -760,8 +758,6 @@ services:
       - 3000:3000
     stdin_open: true
     entrypoint: ["./init.sh", "start:voting-portal"]
-    volumes:
-       - ${LOCAL_WORKSPACE_FOLDER:-..}/packages:/usr/src/app
 
   immudb:
     profiles: ["full", "base"]
@@ -1073,7 +1069,6 @@ services:
       - harvest
     volumes:
       - ./keycloak/import:/import:z
-      - ${LOCAL_WORKSPACE_FOLDER:-..}/packages:/app:z
     restart: always
     working_dir: /app/immu-board
     entrypoint: [
