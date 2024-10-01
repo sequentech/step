@@ -51,6 +51,7 @@ import cssInputLookAndFeel from "@/atoms/css-input-look-and-feel"
 import {Box} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import {useAtomValue} from "jotai"
+import {Navigate} from "react-router-dom"
 
 interface AppProps {}
 
@@ -98,10 +99,14 @@ const App: React.FC<AppProps> = () => {
                 i18nProvider={adminI18nProvider}
             >
                 <CustomRoutes>
-                    {/*<Route path="/logs" element={<Logs />} />*/}
+                    {/* <Route path="/logs" element={<Logs />} /> */}
                     <Route path="/user-roles" element={<UserAndRoles />} />
                     <Route path="/messages" element={<Messages />} />
                     <Route path="/settings/" element={<SettingsScreen />} />
+                    <Route
+                        path="/admin/login/*"
+                        element={<Navigate to="/sequent_backend_election_event" replace  />}
+                    />
                 </CustomRoutes>
 
                 <Resource
