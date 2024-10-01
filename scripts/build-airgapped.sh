@@ -38,10 +38,10 @@ EOF
 }
 
 force-vendored-rust-sources() {
-    cat <<EOF
+    docker build -f- -t "$1" $PROJECT_ROOT <<EOF
 FROM $1
 RUN cd "$2" && cargo vendor
-COPY <<EOF "$2/.cargo/config.toml"
+COPY <<EOD "$2/.cargo/config.toml"
 [source.crates-io]
 replace-with = "vendored-sources"
 
@@ -52,6 +52,7 @@ replace-with = "vendored-sources"
 
 [source.vendored-sources]
 directory = "vendor"
+EOD
 EOF
 }
 
@@ -136,8 +137,8 @@ AWS_S3_ACCESS_KEY=LZAw7hwBziRjwAhfP6Xi
 AWS_S3_ACCESS_SECRET=4x8krlfXgEquxp9KhlCrCdkrECrszGQQlJa5nGct
 
 # Don't set these two for production - we'll just use default AWS URIs instead
-AWS_S3_PRIVATE_URI=http://127.0.0.1:9000
-AWS_S3_PUBLIC_URI=http://127.0.0.1:9000
+AWS_S3_PRIVATE_URI=http://minio:9000
+AWS_S3_PUBLIC_URI=http://localhost:9000
 AWS_S3_BUCKET=election-event-documents
 AWS_S3_PUBLIC_BUCKET=public
 AWS_S3_UPLOAD_EXPIRATION_SECS="120"
@@ -152,13 +153,13 @@ HARVEST_PORT="8400"
 
 ################################################################################
 # This is the endpoint to connect to hasura
-HASURA_ENDPOINT=http://127.0.0.1:8080/v1/graphql
+HASURA_ENDPOINT=http://graphql-engine:8080/v1/graphql
 
 HASURA_PG_PASSWORD=postgrespassword
 HASURA_PG_USER=postgres
 HASURA_PG_PORT="5432"
 HASURA_PG_DBNAME="postgres"
-HASURA_PG_HOST="127.0.0.1"
+HASURA_PG_HOST="postgres"
 
 # postgres database to store Hasura metadata
 HASURA_GRAPHQL_METADATA_DATABASE_URL="postgres://${HASURA_PG_USER}:${HASURA_PG_PASSWORD}@${HASURA_PG_HOST}:${HASURA_PG_PORT}/${HASURA_PG_DBNAME}"
@@ -179,10 +180,12 @@ HASURA_GRAPHQL_CONSOLE_ASSETS_DIR="/srv/console-assets"
 
 HASURA_GRAPHQL_ENABLED_LOG_TYPES="startup, http-log, webhook-log, websocket-log, query-log"
 
-HASURA_GRAPHQL_METADATA_DEFAULTS='{"backend_configs":{"dataconnector":{"athena":{"uri":"http://126.0.0.1:8081/api/v1/athena"},"mariadb":{"uri":"http://127.0.0.1:8081/api/v1/mariadb"},"mysql8":{"uri":"http://127.0.0.1:8081/api/v1/mysql"},"oracle":{"uri":"http://127.0.0.1:8081/api/v1/oracle"},"snowflake":{"uri":"http://127.0.0.1:8081/api/v1/snowflake"}}}}'
+HASURA_GRAPHQL_METADATA_DEFAULTS='{"backend_configs":{"dataconnector":{"athena":{"uri":"http://data-connector-agent:8081/api/v1/athena"},"mar
+iadb":{"uri":"http://data-connector-agent:8081/api/v1/mariadb"},"mysql8":{"uri":"http://data-connector-agent:8081/api/v1/mysql"},"oracle":{"u
+ri":"http://data-connector-agent:8081/api/v1/oracle"},"snowflake":{"uri":"http://data-connector-agent:8081/api/v1/snowflake"}}}}'
 
 # keycloak jwks endpoint
-HASURA_GRAPHQL_JWT_SECRET='{"jwk_url": "http://127.0.0.1:9000/public/certs.json"}'
+HASURA_GRAPHQL_JWT_SECRET='{"jwk_url": "http://localhost:9000/public/certs.json"}'
 
 # Used by Hasura action to point to harvest
 HARVEST_DOMAIN="harvest:${HARVEST_PORT}"
@@ -192,7 +195,7 @@ HARVEST_DOMAIN="harvest:${HARVEST_PORT}"
 IMMUDB_USER=immudb
 IMMUDB_PASSWORD=immudb
 IMMUDB_LOGS_DB=defaultdb
-IMMUDB_HOST=127.0.0.1
+IMMUDB_HOST=immudb
 IMMUDB_PORT=3322
 IMMUDB_SERVER_URL="http://${IMMUDB_HOST}:${IMMUDB_PORT}"
 # We need an initial index db
@@ -225,7 +228,7 @@ AWS_SM_KEY_PREFIX=development_environment_name_
 
 # Only used when SECRETS_BACKEND=HashiCorpVault
 # Points to the Hashicorp Vault server URL
-VAULT_SERVER_URL=http://127.0.0.1:8201
+VAULT_SERVER_URL=http://vault:8201
 
 # Only used when SECRETS_BACKEND=HashiCorpVault
 # Hashicorp Vault Token
@@ -245,14 +248,14 @@ AMQP_ADDR=amqp://rabbitmq:5672
 ################################################################################
 # Keycloak related vars
 # Keycloak Base URL
-KEYCLOAK_URL=http://127.0.0.1:8090
-KC_HOSTNAME="127.0.0.1"
+KEYCLOAK_URL=http://keycloak:8090
+KC_HOSTNAME="keycloak"
 KC_HOSTNAME_STRICT="false"
 KC_HTTP_PORT="8090"
 KC_DB_USERNAME=postgres
 KC_DB_PASSWORD=postgrespassword
 KC_DB_SCHEMA=public
-KC_DB_URL_HOST=127.0.0.1
+KC_DB_URL_HOST=postgres-keycloak
 KC_DB_URL_PORT=5432
 KC_DB_URL_DATABASE=postgres
 KC_OTP_RESEND_INTERVAL="60"
@@ -336,7 +339,7 @@ DEFAULT_SQL_BATCH_SIZE="1000"
 ################################################################################
 # This is the base url of the voting portal. This is used by windmill when
 # generating urls for voters to vote during the sending of messages to voters
-VOTING_PORTAL_URL=http://127.0.0.1:3000
+VOTING_PORTAL_URL=http://localhost:3000
 
 ################################################################################
 # Configuration related to communications sent to voters, used by windmill.
@@ -747,7 +750,7 @@ services:
       postgres-keycloak:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://127.0.0.1:8090/health/live"]
+      test: ["CMD", "curl", "-f", "http://localhost:8090/health/live"]
       interval: 5s
       timeout: 10s
       retries: 25
@@ -1329,7 +1332,7 @@ done
 
 # After the project root has been added to images, we can vendor their
 # crates and force their resolution from the vendored deps
-force-vendored-rust-sources "sequentech.local/cargo-packages" "/app/packages"
+force-vendored-rust-sources "sequentech.local/cargo-packages" "/app"
 
 # Archive all images
 for image in $(all-images); do
