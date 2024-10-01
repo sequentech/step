@@ -379,7 +379,7 @@ DEMO_PUBLIC_KEY="eh8l6lsmKSnzhMewrdLXEKGe9KVxxo//QsCT2wwAkBo"
 
 #Voting portal countdwon policy default values
 SECONDS_TO_SHOW_COUNTDOWN=60
-SECONDS_TO_SHOW_ALRET=300
+SECONDS_TO_SHOW_ALERT=300
 
 
 # CLI Usage
