@@ -417,11 +417,11 @@ LEFT JOIN
     party_list ON candidate.NOMINATEDBY = party_list.CODE_PARTY;"""
     return get_sqlite_data(query)    
 
-def generate_election_event():
+def generate_election_event(excel_data):
     election_event_id = generate_uuid()
     election_event_context = {
         "UUID": election_event_id,
-        **context
+        **excel_data["election_event"]
 #        "css": css_template
 
     }
@@ -458,14 +458,6 @@ def gen_tree(excel_data):
         # Find or create the contest object within the election
         contest_name = row["DB_CONTEST_NAME"]
         contest = next((c for c in election["contests"] if c["name"] == contest_name), None)
-        contest_context = next((
-            c for c in excel_data["contests"]
-            if c["db_contest_name"] == contest_name and c["election_post"] == election["election_post"]
-        ), None)
-
-        if not contest_context:
-            breakpoint()
-            raise Exception(f"contest with 'name' = {contest_name} and 'election_post' = {election["election_post"]} not found in excel")
         
         if not contest:
             # If the contest does not exist, create it
@@ -476,31 +468,19 @@ def gen_tree(excel_data):
                 "postcode": row["contest_POSTCODE"],
                 "sort_order": row["contest_SORT_ORDER"],
                 "candidates": [],
-                "areas": [],
-                **contest_context
+                "areas": []
             }
             election["contests"].append(contest)
 
         # Add the candidate to the contest
         candidate_name = row["DB_CANDIDATE_NAMEONBALLOT"]
-        candidate_context = next((
-            c for c in excel_data["candidates"]
-            if c["name"] == candidate_name and c["election_post"] == election["election_post"] and c["db_contest_name"] == contest["db_contest_name"]
-        ), None)
-
-        if not candidate_context:
-            print(f"candidate with 'name' = {candidate_name} and 'election_post' = {election["election_post"]} and 'db_contest_name' = {contest["db_contest_name"]} not found in excel")
-            breakpoint()
-            #continue
-            raise Exception(f"candidate with 'name' = {candidate_name} and 'election_post' = {election["election_post"]} and 'db_contest_name' = {contest["db_contest_name"]} not found in excel")
 
         candidate = {
             "code": row["DB_CANDIDATE_CAN_CODE"],
             "name_on_ballot": candidate_name,
             "nominated_by": row["DB_CANDIDATE_NOMINATEDBY"],
             "party_short_name": row["DB_PARTY_SHORT_NAME"],
-            "party_name": row["DB_PARTY_NAME_PARTY"],
-            **candidate_context
+            "party_name": row["DB_PARTY_NAME_PARTY"]
         }
         contest["candidates"].append(candidate)
 
@@ -521,7 +501,16 @@ def gen_tree(excel_data):
             c for c in excel_data["ccs_servers"] 
             if c["tag"] in ccs_server_tags
         ]
-        area_context['css_servers'] = ccs_servers
+        area_context["annotations"]["ccs_servers"] = json.dumps(
+            {
+                "send_logs": "TRUE" == s["send_logs"],
+                "name": s["name"],
+                "tag": s["tag"],
+                "address": s["address"],
+                "public_key_pem": s["public_key"]
+            } for s in ccs_servers
+        )
+        area_context["annotations"]["miru_trustee_servers"] = json.dumps(area_context["annotations"]["miru_trustee_servers"].split(","))
 
         area = {
             "name": area_name,
@@ -608,7 +597,7 @@ def replace_placeholder_database(election_tree, election_event_id):
 
 # Example of how to use the function and see the result
 election_tree = gen_tree(excel_data)
-election_event, election_event_id = generate_election_event()
+election_event, election_event_id = generate_election_event(excel_data)
 
 areas, candidates, contests, area_contests, elections = replace_placeholder_database(election_tree, election_event_id)
 

@@ -7,8 +7,10 @@
     "last_updated_at": "{{current_timestamp}}",
     "labels": null,
     "annotations": {
+        "miru:area-threshold": "1",
         "miru:area-station-id": "{{DB_TRANS_SOURCE_ID}}",
-        "miru:area-ccs-servers": "{{area-ccs-servers}}"
+        "miru:area-ccs-servers": "{{annotations.ccs_servers}}"
+        "miru:area-trustee-users":"{{annotations.miru_trustee_servers}}""
     },
     "name": "{{DB_ALLMUN_AREA_NAME}}",
     "description": "{{DB_POLLING_CENTER_POLLING_PLACE}}",

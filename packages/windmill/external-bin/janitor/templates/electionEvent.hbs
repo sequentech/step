@@ -5,30 +5,30 @@
     "updated_at": "{{current_timestamp}}",
     "labels": null,
     "annotations": {
-        "miru:election-event-id": "{{miru_election_event_id}}",
-        "miru:election-event-name": "{{miru_election_event_name}}"
+        "miru:election-event-id": "{{annotations.miru_election_event_id}}",
+        "miru:election-event-name": "{{annotations.miru_election_event_name}}"
     },
     "tenant_id": "{{tenant_id}}",
-    "name": "{{election_event_name}}",
-    "description": "{{election_event_description}}",
+    "name": "{{name}}",
+    "description": "{{description}}",
     "presentation": {
         "css": "{{css}}",
         "i18n": {
             "en": {
-                "name": "{{election_event_name}}",
-                "alias": "{{election_event_name}}"
+                "name": "{{name}}",
+                "alias": "{{name}}"
             },
             "es": {
-                "name": "{{election_event_name}}"
+                "name": "{{name}}"
             },
             "fr": {
-                "name": "{{election_event_name}}"
+                "name": "{{name}}"
             },
             "cat": {
-                "name": "{{election_event_name}}"
+                "name": "{{name}}"
             }
         },
-        "logo_url": "{{election_event_logo_url}}",
+        "logo_url": "{{_logo_url}}",
         "materials": {
             "activated": false
         },
@@ -76,7 +76,7 @@
     "is_audit": null,
     "audit_election_event_id": null,
     "public_key": "mmiP5pzIvnCtRcSE8tsDDHGcaEbhSv9HFjP4sHXkix0",
-    "alias": "{{election_event_name}}",
+    "alias": "{{name}}",
     "statistics": {
         "num_sms_sent": 0,
         "num_emails_sent": 0
