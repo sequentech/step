@@ -37,6 +37,8 @@ pub enum TemplateType {
     OTP,
     #[strum(serialize = "TALLY_REPORT")]
     TALLY_REPORT,
+    #[strum(serialize = "MANUALLY_VERIFY_VOTER")]
+    MANUALLY_VERIFY_VOTER,
 }
 
 #[allow(non_camel_case_types)]

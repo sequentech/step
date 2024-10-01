@@ -16,6 +16,7 @@ export enum ITemplateType {
     ELECTORAL_RESULTS = "ELECTORAL_RESULTS",
     OTP = "OTP",
     TALLY_REPORT = "TALLY_REPORT",
+    MANUALLY_VERIFY_VOTER = "MANUALLY_VERIFY_VOTER",
 }
 
 export enum ITemplateMethod {

@@ -3,66 +3,106 @@
 // SPDX-FileCopyrightText: 2024 Kevin Nguyen <kevin@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
-use std::env;
-
-use super::s3::{self, get_minio_url};
-use crate::postgres::{self, election, template};
+use super::s3::get_minio_url;
+use crate::postgres::{election_event, template};
 use crate::services::database::get_hasura_pool;
-use crate::services::{
-    documents::upload_and_return_document, temp_path::write_into_named_temp_file,
-};
+use crate::services::{documents::upload_and_return_document, temp_path::*};
 use anyhow::{anyhow, Context, Result};
-use deadpool_postgres::{Client as DbClient, Transaction};
+use deadpool_postgres::Client as DbClient;
 use sequent_core::services::keycloak;
 use sequent_core::services::{pdf, reports};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
-use tracing::{event, instrument, Level};
-use uuid::Uuid;
+use std::env;
+use tracing::{info, instrument, warn};
 
-const QR_CODE_TEMPLATE: &'static str = "<div id=\"qrcode\"></div>";
-const LOGO_TEMPLATE: &'static str = "<div class=\"logo\"></div>";
-
+/// Struct returned by the API call
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ManualVerificationOutput {
     pub link: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ManualVerificationData {
+pub struct SystemTemplateData {
+    pub rendered_user_template: String,
     pub manual_verification_url: String,
-    pub qrcode: String,
-    pub logo: String,
     pub file_logo: String,
     pub file_qrcode_lib: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ManualVerificationRoot {
-    pub data: ManualVerificationData,
+pub struct UserTemplateData {
+    pub manual_verification_url: String,
+    pub qrcode: String,
+    pub logo: String,
 }
 
 trait ToMap {
     fn to_map(&self) -> Result<Map<String, Value>>;
 }
 
-impl ToMap for ManualVerificationRoot {
+impl ToMap for SystemTemplateData {
     fn to_map(&self) -> Result<Map<String, Value>> {
         let Value::Object(map) = serde_json::to_value(self.clone())? else {
-            return Err(anyhow!("Can't convert ManualVerificationRoot to Map"));
+            return Err(anyhow!("Can't convert SystemTemplateData to Map"));
         };
         Ok(map)
     }
 }
 
-impl ToMap for ManualVerificationData {
+impl ToMap for UserTemplateData {
     fn to_map(&self) -> Result<Map<String, Value>> {
         let Value::Object(map) = serde_json::to_value(self.clone())? else {
-            return Err(anyhow!("Can't convert ManualVerificationData to Map"));
+            return Err(anyhow!("Can't convert UserTemplateData to Map"));
         };
         Ok(map)
     }
+}
+
+#[derive(Debug)]
+enum TemplateType {
+    System,
+    User,
+}
+
+#[instrument(err)]
+async fn get_public_asset_manual_verification_template(tpl_type: TemplateType) -> Result<String> {
+    let public_asset_path = get_public_assets_path_env_var()?;
+    let file_manual_verification_template = match tpl_type {
+        TemplateType::System => PUBLIC_ASSETS_MANUAL_VERIFICATION_SYSTEM_TEMPLATE,
+        TemplateType::User => PUBLIC_ASSETS_MANUAL_VERIFICATION_USER_TEMPLATE,
+    };
+
+    let minio_endpoint_base = get_minio_url().with_context(|| "Error getting minio endpoint")?;
+
+    let manual_verification_template = format!(
+        "{}/{}/{}",
+        minio_endpoint_base, public_asset_path, file_manual_verification_template
+    );
+
+    let client = reqwest::Client::new();
+    let response = client
+        .get(&manual_verification_template)
+        .send()
+        .await
+        .with_context(|| "Error getting/send request for manual verification template")?;
+
+    if response.status() == reqwest::StatusCode::NOT_FOUND {
+        return Err(anyhow!("File not found: {}", manual_verification_template));
+    }
+    if !response.status().is_success() {
+        return Err(anyhow!(
+            "Unexpected response status: {:?}",
+            response.status()
+        ));
+    }
+
+    let template_hbs: String = response
+        .text()
+        .await
+        .with_context(|| "Error reading the manual verification template response")?;
+
+    Ok(template_hbs)
 }
 
 #[instrument(err)]
@@ -85,7 +125,7 @@ async fn get_manual_verification_url(
 
     let client = reqwest::Client::new();
 
-    event!(Level::INFO, "Requesting HTTP GET {:?}", generate_token_url);
+    info!("Requesting HTTP GET {:?}", generate_token_url);
     let response = client.get(generate_token_url).send().await?;
 
     let unwrapped_response = if response.status() != reqwest::StatusCode::OK {
@@ -99,145 +139,154 @@ async fn get_manual_verification_url(
 }
 
 #[instrument(err)]
+pub async fn get_custom_user_template(
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Option<String>> {
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .with_context(|| "Error getting hasura db pool")?;
+
+    let transaction = hasura_db_client
+        .transaction()
+        .await
+        .with_context(|| "Error starting hasura transaction")?;
+
+    let election_event =
+        election_event::get_election_event_by_id(&transaction, tenant_id, election_event_id)
+            .await
+            .with_context(|| "Error to get the election event by id")?;
+
+    let presentation = match election_event.presentation {
+        Some(val) => val,
+        None => return Err(anyhow!("Election event has no presentation")),
+    };
+
+    let active_template_ids = match presentation.get("active_template_ids") {
+        Some(val) => val,
+        None => {
+            warn!("No active_template_ids in presentation");
+            return Ok(None);
+        }
+    };
+    info!("active_template_ids: {active_template_ids}");
+
+    let usr_verfication_tpl_id = match active_template_ids
+        .get("manual_verification")
+        .and_then(Value::as_str)
+    {
+        Some(id) if !id.is_empty() => id.to_string(),
+        _ => {
+            info!("manual_verification id not found or empty");
+            return Ok(None);
+        }
+    };
+    info!("usr_verfication_tpl_id: {usr_verfication_tpl_id}");
+
+    // Get the template by ID and return its value:
+    let template_data_opt =
+        template::get_template_by_id(&transaction, tenant_id, &usr_verfication_tpl_id)
+            .await
+            .with_context(|| "Error to get template by id")?;
+
+    let tpl_document: Option<&str> = match &template_data_opt {
+        Some(template_data) => template_data
+            .template
+            .get("document")
+            .and_then(Value::as_str),
+        None => {
+            warn!("No manual verification template was found by id, perhaps it was deleted");
+            return Ok(None);
+        }
+    };
+
+    match tpl_document {
+        Some(document) if !document.is_empty() => Ok(Some(document.to_string())),
+        _ => Ok(None),
+    }
+}
+
+#[instrument(err)]
 pub async fn get_manual_verification_pdf(
     document_id: &str,
     tenant_id: &str,
     election_event_id: &str,
     voter_id: &str,
 ) -> Result<()> {
-    let public_asset_path = env::var("PUBLIC_ASSETS_PATH")?;
-    let file_logo = env::var("PUBLIC_ASSETS_LOGO_IMG")?;
-    let file_qrcode_lib = env::var("PUBLIC_ASSETS_QRCODE_LIB")?;
+    let public_asset_path = get_public_assets_path_env_var()?;
     let manual_verification_url =
-        get_manual_verification_url(tenant_id, election_event_id, voter_id).await?;
+        get_manual_verification_url(tenant_id, election_event_id, voter_id)
+            .await
+            .with_context(|| "Error getting manual verification url")?;
 
-    let minio_endpoint_base = get_minio_url()?;
+    let minio_endpoint_base = get_minio_url().with_context(|| "Error getting minio endpoint")?;
 
-    let data = ManualVerificationData {
+    let user_template_data = UserTemplateData {
         manual_verification_url: manual_verification_url.to_string(),
         qrcode: QR_CODE_TEMPLATE.to_string(),
         logo: LOGO_TEMPLATE.to_string(),
+    }
+    .to_map()?;
+
+    let custom_user_template: Option<String> =
+        get_custom_user_template(tenant_id, election_event_id)
+            .await
+            .with_context(|| "Error getting custom user template")?;
+
+    let user_template = match custom_user_template {
+        Some(template) => {
+            info!("Found a custom user template for manual verification!");
+            template
+        }
+        None => {
+            info!("Setting default user template for manual verification!");
+            get_public_asset_manual_verification_template(TemplateType::User)
+                .await
+                .map_err(|e| anyhow!("Error getting default user template: {e}"))?
+        }
+    };
+    info!("user template: {user_template:?}");
+
+    let rendered_user_template = reports::render_template_text(&user_template, user_template_data)
+        .with_context(|| "Error rendering user template")?;
+    info!("rendered user template: {rendered_user_template:?}");
+
+    let system_template_data = SystemTemplateData {
+        rendered_user_template,
+        manual_verification_url: manual_verification_url.to_string(),
         file_logo: format!(
             "{}/{}/{}",
-            minio_endpoint_base, public_asset_path, file_logo
+            minio_endpoint_base, public_asset_path, LOGO_TEMPLATE
         ),
         file_qrcode_lib: format!(
             "{}/{}/{}",
-            minio_endpoint_base, public_asset_path, file_qrcode_lib
+            minio_endpoint_base, public_asset_path, QR_CODE_TEMPLATE
         ),
-    };
-    let map = ManualVerificationRoot { data: data.clone() }.to_map()?;
-    let render = reports::render_template_text(
-        r#"
-        <html lang="en-US">
+    }
+    .to_map()
+    .with_context(|| "Error converting to map")?;
 
-        <head>
-          <meta charset="utf-8" />
-          <meta name="viewport" content="width=device-width,initial-scale=1" />
-          <title>Authenticate to Vote</title>
-          <script src="{{data.file_qrcode_lib}}"></script>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              margin: auto;
-              max-width: 640px;
-            }
-        
-            h1, h2, h3, h4 {
-              margin-top: 48px;
-              margin-bottom: 48px;
-            }
-
-            .logo {
-              content: url("{{data.file_logo}}");
-              text-align: center;
-              margin: 16px auto;
-            }
-        
-            .main {
-              margin-top: 32px;
-            }
-        
-            .main div {
-              margin-top: 32px;
-            }
-
-            .id-content {
-              print-color-adjust: exact;
-              font-family: monospace;
-              font-size:11px;
-              padding: 6px 12px;
-              background: #ecfdf5;
-              color: #191d23;
-              border-radius: 4px;
-            }
-
-            .info {
-              margin: 32px 0;
-            }
-            .info p {
-              margin: 12px 0;
-            }
-        
-            #qrcode {
-              margin-top: 32px;
-              display: flex;
-              justify-content: center;
-            }
-          </style>
-        </head>
-
-        <body>
-          <main class="main">
-            <div>
-            {{{data.logo}}}
-            </div>
-            <div>
-            <h2>Authenticate to Vote</h2>
-            <p>
-                Use the link below allows you to authenticate
-                after having performed Manual Verification:
-            </p>
-            <div class="info">
-                <p>
-                <a href="{{data.manual_verification_url}}">Login Link</a>
-                </p>
-            </div>
-            </div>
-            
-            <div>
-            <p>
-                You can also enter the link using the following QR code:
-            </p>
-            {{{data.qrcode}}}
-            </div>
-          </main>
-        </body>
-
-        <script>
-          const qrcode = new QRCode(document.getElementById("qrcode"), {
-            text: "{{data.manual_verification_url}}".replace("&#x3D;", "="),
-            width: 480,
-            height: 480,
-            colorDark: '#000000',
-            colorLight: '#ffffff',
-            correctLevel: QRCode.CorrectLevel.M,
-          });
-        </script>
-
-        </html>
-        "#,
-        map,
-    )?;
+    let system_template = get_public_asset_manual_verification_template(TemplateType::System)
+        .await
+        .with_context(|| "Error getting default system template")?;
+    info!("system template: {system_template:?}");
+    let rendered_system_template =
+        reports::render_template_text(&system_template, system_template_data)
+            .with_context(|| "Error rendering template")?;
+    info!("rendered system template: {rendered_system_template:?}");
 
     // Gen pdf
-    let bytes_pdf = pdf::html_to_pdf(render)
+    let bytes_pdf = pdf::html_to_pdf(rendered_system_template)
         .map_err(|err| anyhow!("error rendering manual verification pdf: {}", err))?;
     let (_temp_path, temp_path_string, file_size) =
         write_into_named_temp_file(&bytes_pdf, "manual-verification-", ".pdf")
             .with_context(|| "Error writing to file")?;
 
-    let auth_headers = keycloak::get_client_credentials().await?;
+    let auth_headers = keycloak::get_client_credentials()
+        .await
+        .with_context(|| "Error getting client credentials")?;
     let _document = upload_and_return_document(
         temp_path_string,
         file_size,
@@ -249,7 +298,8 @@ pub async fn get_manual_verification_pdf(
         Some(document_id.to_string()),
         true,
     )
-    .await?;
+    .await
+    .with_context(|| "Error uploading document")?;
 
     Ok(())
 }

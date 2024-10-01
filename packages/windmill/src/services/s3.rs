@@ -3,20 +3,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::temp_path::generate_temp_file;
-use crate::util::aws::{
-    get_fetch_expiration_secs, get_max_upload_size, get_s3_aws_config, get_upload_expiration_secs,
-};
+use crate::services::temp_path::{generate_temp_file, get_public_assets_path_env_var};
+use crate::util::aws::{get_fetch_expiration_secs, get_s3_aws_config, get_upload_expiration_secs};
+
 use anyhow::{anyhow, Context, Result};
 use aws_sdk_s3 as s3;
 use aws_smithy_types::byte_stream::ByteStream;
 use core::time::Duration;
 use s3::presigning::PresigningConfig;
-use std::fmt;
-use std::fs::File;
 use std::io::Write;
 use std::{env, error::Error};
-use tempfile::{tempfile, NamedTempFile};
+use tempfile::NamedTempFile;
 use tokio::io::AsyncReadExt;
 use tracing::{info, instrument};
 
@@ -222,8 +219,7 @@ pub fn get_minio_url() -> Result<String> {
 
 pub fn get_public_asset_file_path(filename: &str) -> Result<String> {
     let minio_endpoint_base = get_minio_url().with_context(|| "Error fetching get_minio_url")?;
-    let public_asset_path = env::var("PUBLIC_ASSETS_PATH")
-        .with_context(|| "Error fetching PUBLIC_ASSETS_PATH env var")?;
+    let public_asset_path = get_public_assets_path_env_var()?;
 
     Ok(format!(
         "{}/{}/{}",

@@ -1,5 +1,6 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
 // SPDX-License-Identifier: AGPL-3.0-only
-
 import React, {useContext, useState} from "react"
 
 import {
@@ -69,6 +70,31 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
             id: value,
             name: t(`template.type.${value.toLowerCase()}`),
         }))
+    }
+
+    const communicationMethodChoices = () => {
+        let res = (Object.values(ITemplateMethod) as ITemplateMethod[]).map((value) => ({
+            id: value,
+            name: t(`template.method.${value.toLowerCase()}`),
+        }))
+
+        if (
+            selectedTemplateType?.value &&
+            ![
+                ITemplateType.BALLOT_RECEIPT,
+                ITemplateType.TALLY_REPORT,
+                ITemplateType.MANUALLY_VERIFY_VOTER,
+            ].includes(selectedTemplateType.value)
+        ) {
+            res = res.filter((cm) => cm.id !== ITemplateMethod.DOCUMENT)
+        }
+        if (ITemplateType.TALLY_REPORT === selectedTemplateType?.value) {
+            res = res.filter((cm) => cm.id === ITemplateMethod.DOCUMENT)
+        }
+        if (ITemplateType.MANUALLY_VERIFY_VOTER === selectedTemplateType?.value) {
+            res = res.filter((cm) => cm.id === ITemplateMethod.DOCUMENT)
+        }
+        return res
     }
 
     const onSubmit: SubmitHandler<FieldValues> = async (data) => {
@@ -196,7 +222,6 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
                                             />
                                         ))}
                                     </FormGroup>
-
                                     <FormDataConsumer>
                                         {({formData}) => (
                                             <>
