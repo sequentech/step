@@ -138,7 +138,7 @@ AWS_S3_ACCESS_SECRET=4x8krlfXgEquxp9KhlCrCdkrECrszGQQlJa5nGct
 
 # Don't set these two for production - we'll just use default AWS URIs instead
 AWS_S3_PRIVATE_URI=http://minio:9000
-AWS_S3_PUBLIC_URI=http://localhost:9000
+AWS_S3_PUBLIC_URI=http://127.0.0.1:9000
 AWS_S3_BUCKET=election-event-documents
 AWS_S3_PUBLIC_BUCKET=public
 AWS_S3_UPLOAD_EXPIRATION_SECS="120"
@@ -180,12 +180,10 @@ HASURA_GRAPHQL_CONSOLE_ASSETS_DIR="/srv/console-assets"
 
 HASURA_GRAPHQL_ENABLED_LOG_TYPES="startup, http-log, webhook-log, websocket-log, query-log"
 
-HASURA_GRAPHQL_METADATA_DEFAULTS='{"backend_configs":{"dataconnector":{"athena":{"uri":"http://data-connector-agent:8081/api/v1/athena"},"mar
-iadb":{"uri":"http://data-connector-agent:8081/api/v1/mariadb"},"mysql8":{"uri":"http://data-connector-agent:8081/api/v1/mysql"},"oracle":{"u
-ri":"http://data-connector-agent:8081/api/v1/oracle"},"snowflake":{"uri":"http://data-connector-agent:8081/api/v1/snowflake"}}}}'
+HASURA_GRAPHQL_METADATA_DEFAULTS='{"backend_configs":{"dataconnector":{"athena":{"uri":"http://data-connector-agent:8081/api/v1/athena"},"mariadb":{"uri":"http://data-connector-agent:8081/api/v1/mariadb"},"mysql8":{"uri":"http://data-connector-agent:8081/api/v1/mysql"},"oracle":{"uri":"http://data-connector-agent:8081/api/v1/oracle"},"snowflake":{"uri":"http://data-connector-agent:8081/api/v1/snowflake"}}}}'
 
 # keycloak jwks endpoint
-HASURA_GRAPHQL_JWT_SECRET='{"jwk_url": "http://localhost:9000/public/certs.json"}'
+HASURA_GRAPHQL_JWT_SECRET='{"jwk_url": "http://127.0.0.1:9000/public/certs.json"}'
 
 # Used by Hasura action to point to harvest
 HARVEST_DOMAIN="harvest:${HARVEST_PORT}"
@@ -248,8 +246,8 @@ AMQP_ADDR=amqp://rabbitmq:5672
 ################################################################################
 # Keycloak related vars
 # Keycloak Base URL
-KEYCLOAK_URL=http://keycloak:8090
-KC_HOSTNAME="keycloak"
+KEYCLOAK_URL=http://127.0.0.1:8090
+KC_HOSTNAME="127.0.0.1"
 KC_HOSTNAME_STRICT="false"
 KC_HTTP_PORT="8090"
 KC_DB_USERNAME=postgres
@@ -339,7 +337,7 @@ DEFAULT_SQL_BATCH_SIZE="1000"
 ################################################################################
 # This is the base url of the voting portal. This is used by windmill when
 # generating urls for voters to vote during the sending of messages to voters
-VOTING_PORTAL_URL=http://localhost:3000
+VOTING_PORTAL_URL=http://127.0.0.1:3000
 
 ################################################################################
 # Configuration related to communications sent to voters, used by windmill.
