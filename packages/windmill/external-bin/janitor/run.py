@@ -10,6 +10,7 @@ import logging
 from pybars import Compiler
 import openpyxl
 import re
+import copy
 
 def assert_folder_exists(folder_path):
     if not os.path.exists(folder_path):
@@ -549,6 +550,12 @@ def gen_tree(excel_data):
         
         if area not in contest["areas"]:
             contest["areas"].append(area)
+
+    test_elections =  copy.deepcopy(elections_object["elections"])
+    for election in test_elections:
+        election["election_name"] = "Test Voting"
+
+    elections_object["elections"].extend(test_elections)
 
     return elections_object
 
