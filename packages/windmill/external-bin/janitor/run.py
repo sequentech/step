@@ -155,6 +155,22 @@ def parse_election_event(sheet):
     )
     return data[0]
 
+def parse_election_events(sheet):
+    data = parse_table_sheet(
+        sheet,
+        required_keys=[
+            "^election_alias$",
+            "^type$",
+            "^date$"
+        ],
+        allowed_keys=[
+            "^election_alias$",
+            "^type$",
+            "^date$"
+        ]
+    )
+    return data[0]
+
 def parse_elections(sheet):
     data = parse_table_sheet(
         sheet,
@@ -236,9 +252,8 @@ def parse_excel(excel_path):
 
     return dict(
         election_event = parse_election_event(electoral_data['ElectionEvent']),
+        election_events = parse_election_events(electoral_data['ElectionEvents']),
         elections = parse_elections(electoral_data['Elections']),
-        contests = parse_contests(electoral_data['Contests']),
-        candidates = parse_candidates(electoral_data['Candidates']),
         areas = parse_areas(electoral_data['Areas']),
         ccs_servers = parse_ccs_servers(electoral_data['CcsServers']),
     )
@@ -501,15 +516,15 @@ def gen_tree(excel_data):
             c for c in excel_data["ccs_servers"] 
             if c["tag"] in ccs_server_tags
         ]
-        area_context["annotations"]["ccs_servers"] = json.dumps(
-            {
-                "send_logs": "TRUE" == s["send_logs"],
-                "name": s["name"],
-                "tag": s["tag"],
-                "address": s["address"],
-                "public_key_pem": s["public_key"]
-            } for s in ccs_servers
-        )
+
+        ccs_servers = [{
+            "send_logs": "TRUE" == s["send_logs"],
+            "name": s["name"],
+            "tag": s["tag"],
+            "address": s["address"],
+            "public_key_pem": s["public_key"]
+        } for s in ccs_servers]
+        area_context["annotations"]["ccs_servers"] = json.dumps(ccs_servers)
         area_context["annotations"]["miru_trustee_servers"] = json.dumps(area_context["annotations"]["miru_trustee_servers"].split(","))
 
         area = {
