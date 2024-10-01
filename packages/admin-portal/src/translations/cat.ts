@@ -39,7 +39,7 @@ const catalanTranslation: TranslationType = {
             },
             exportTasksExecution: {
                 success: "L'exportació s'ha completat amb èxit",
-                error: "Error en exportar l'Execució de Tasques",
+                error: "Error en expo
             },
         },
         logsScreen: {
@@ -600,6 +600,7 @@ const catalanTranslation: TranslationType = {
         },
         common: {
             export: "L'exportació pot ser un procés llarg. Estàs segur que vols exportar?",
+            welcome: "Benvingut",
             resources: {
                 electionEvent: "Esdeveniment Electoral",
                 election: "Elecció",

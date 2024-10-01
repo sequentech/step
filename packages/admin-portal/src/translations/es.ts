@@ -599,6 +599,7 @@ const spanishTranslation: TranslationType = {
         },
         common: {
             export: "La exportación puede ser un proceso largo. ¿Estás seguro que quieres exportar?",
+            welcome: "Bienvenido",
             resources: {
                 electionEvent: "Evento Electoral",
                 election: "Elección",
