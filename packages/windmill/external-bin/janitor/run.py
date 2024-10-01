@@ -354,10 +354,6 @@ try:
     with open('templates/areaContest.hbs', 'r') as file:
         area_contest_template = file.read()
 
-    with open('templates/css.hbs', 'r') as file:
-        css_template = file.read()
-        print(css_template)
-
     with open('templates/COMELEC/keycloack.hbs', 'r') as file:
         keycloak_template = json.load(file) 
 
@@ -366,28 +362,6 @@ except FileNotFoundError as e:
     logging.exception(f"Template file not found: {e}")
 except Exception as e:
     logging.exception("An error occurred while loading templates.")
-
-
-def generate_context(excel_data):
-    #excel_data
-    # Step 13: Prepare context fexcel_dataor rendering
-    context = {
-    #    "UUID": generate_uuid(),
-        "current_timestamp": current_timestamp,
-        "tenant_id": base_config["tenant_id"],
-        "election_event": excel_data["election_event"],
-        # "miru_election-event-id": base_config["election_event"]["miru_election-event-id"],
-        # "miru_election-id": base_config["election"]["miru_election-id"],
-        # "miru_election-event-name": base_config["election_event"]["miru_election-event-name"],
-        # "miru_election-name": base_config["election"]["miru_election-name"],
-        # "election_event_name": base_config["election_event"]["name"],
-        # "election_name": base_config["election"]["name"],
-        # "election_event_description": base_config["election_event"]["description"],
-        # "election_event_logo_url": base_config["election_event"]["logo_url"],
-        # Add other replacements as needed from SQLite queries
-    }
-
-context = generate_context(excel_data)
 
 def get_data():
     query = """SELECT 
@@ -438,7 +412,6 @@ def generate_election_event(excel_data):
     election_event_context = {
         "UUID": election_event_id,
         **excel_data["election_event"]
-#        "css": css_template
 
     }
     print(election_event_context)
@@ -630,9 +603,7 @@ def replace_placeholder_database(election_tree, election_event_id):
                 }
 
                 print(f"rendering area {area["name"]}")
-                print(area_context)
-                area_rend = render_template(area_template, area_context)
-                areas.append(json.loads(area_rend))
+                areas.append(json.loads(render_template(area_template, area_context)))
 
                 area_contest_context = {
                     "UUID": generate_uuid(),
