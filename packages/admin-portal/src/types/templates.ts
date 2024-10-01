@@ -40,7 +40,13 @@ export interface ISmsConfig {
     message: string
 }
 
-export interface ISendCommunicationBody {
+export interface IMethods {
+    [ICommunicationMethod.EMAIL]: boolean
+    [ICommunicationMethod.SMS]: boolean
+    [ICommunicationMethod.DOCUMENT]: boolean
+}
+
+export interface ISendTemplateBody {
     audience_selection?: IAudienceSelection
     audience_voter_ids?: Array<string>
     type?: ITemplateType
@@ -52,6 +58,7 @@ export interface ISendCommunicationBody {
     name?: string
     alias?: string
     document?: string
+    selected_methods?: IMethods
 }
 
 export interface IRECEIPTS {

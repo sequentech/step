@@ -6,11 +6,9 @@ import {
     Accordion,
     AccordionDetails,
     AccordionSummary,
-    Checkbox,
     FormControl,
-    FormControlLabel,
-    FormGroup,
     FormLabel,
+    FormGroup,
 } from "@mui/material"
 
 import {
@@ -22,6 +20,8 @@ import {
     SimpleForm,
     required,
     useNotify,
+    BooleanInput,
+    FormDataConsumer,
 } from "react-admin"
 
 import {FieldValues, SubmitHandler} from "react-hook-form"
@@ -31,7 +31,7 @@ import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {useMutation} from "@apollo/client"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
-import {ITemplateType, ICommunicationMethod, ISendCommunicationBody} from "@/types/templates"
+import {ITemplateType, ICommunicationMethod, ISendTemplateBody} from "@/types/templates"
 import {useTranslation} from "react-i18next"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {INSERT_TEMPLATE} from "@/queries/InsertTemplate"
@@ -49,6 +49,10 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
     const notify = useNotify()
     const [createTemplate] = useMutation(INSERT_TEMPLATE)
     const {globalSettings} = useContext(SettingsContext)
+    const [expandedGeneral, setExpandedGeneral] = useState<boolean>(true)
+    const [expandedEmail, setExpandedEmail] = useState<boolean>(false)
+    const [expandedSMS, setExpandedSMS] = useState<boolean>(false)
+    const [expandedDocument, setExpandedDocument] = useState<boolean>(false)
 
     const [selectedCommunicationType, setSelectedCommunicationType] = useState<{
         name: string
@@ -65,27 +69,6 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
             id: value,
             name: t(`template.type.${value.toLowerCase()}`),
         }))
-    }
-
-    const communicationMethodChoices = () => {
-        let res = (Object.values(ICommunicationMethod) as ICommunicationMethod[]).map((value) => ({
-            id: value,
-            name: t(`template.method.${value.toLowerCase()}`),
-        }))
-
-        if (
-            selectedCommunicationType?.value &&
-            ![ITemplateType.BALLOT_RECEIPT, ITemplateType.TALLY_REPORT].includes(
-                selectedCommunicationType.value
-            )
-        ) {
-            res = res.filter((cm) => cm.id !== ICommunicationMethod.DOCUMENT)
-        }
-        if (ITemplateType.TALLY_REPORT === selectedCommunicationType?.value) {
-            res = res.filter((cm) => cm.id === ICommunicationMethod.DOCUMENT)
-        }
-
-        return res
     }
 
     const onSubmit: SubmitHandler<FieldValues> = async (data) => {
@@ -119,7 +102,7 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
         if (!incoming?.template) {
             temp.type = ITemplateType.CREDENTIALS
             temp.communication_method = ICommunicationMethod.EMAIL
-            let template: ISendCommunicationBody = {
+            let template: ISendTemplateBody = {
                 audience_selection: undefined,
                 audience_voter_ids: [],
                 schedule_date: undefined,
@@ -133,28 +116,16 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
                     message: globalSettings.DEFAULT_SMS_MESSAGE["en"] ?? "",
                 },
                 document: globalSettings.DEFAULT_DOCUMENT["en"] ?? "",
+                selected_methods: {
+                    [ICommunicationMethod.EMAIL]: false,
+                    [ICommunicationMethod.SMS]: false,
+                    [ICommunicationMethod.DOCUMENT]: false,
+                },
             }
             temp.template = template
         }
 
         return temp
-    }
-
-    const [expandedGeneral, setExpandedGeneral] = useState<boolean>(true)
-    const [expandedEmail, setExpandedEmail] = useState<boolean>(false)
-    const [expandedSMS, setExpandedSMS] = useState<boolean>(false)
-    const [expandedDocument, setExpandedDocument] = useState<boolean>(false)
-    const [methods, setMethods] = React.useState({
-        [ICommunicationMethod.EMAIL]: false,
-        [ICommunicationMethod.SMS]: false,
-        [ICommunicationMethod.DOCUMENT]: false,
-    })
-
-    const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        setMethods({
-            ...methods,
-            [event.target.name]: event.target.checked,
-        })
     }
 
     return (
@@ -208,6 +179,7 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
                                             />
                                         </AccordionDetails>
                                     </Accordion>
+
                                     <FormLabel component="legend">
                                         {t(`template.chooseMethods`)}
                                     </FormLabel>
@@ -218,95 +190,98 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
                                             gap: "16px",
                                         }}
                                     >
-                                        {communicationMethodChoices().map((method) => (
-                                            <FormControlLabel
-                                                key={method.id}
-                                                control={
-                                                    <Checkbox
-                                                        checked={
-                                                            methods[
-                                                                method.id as ICommunicationMethod
-                                                            ]
-                                                        }
-                                                        onChange={handleChange}
-                                                        name={method.id}
-                                                    />
-                                                }
-                                                label={method.name}
+                                        {Object.values(ICommunicationMethod).map((method) => (
+                                            <BooleanInput
+                                                key={method}
+                                                source={`template.selected_methods.${method}`}
+                                                label={t(`template.method.${method.toLowerCase()}`)}
                                             />
                                         ))}
                                     </FormGroup>
-                                    {methods[ICommunicationMethod.EMAIL] && (
-                                        <Accordion
-                                            sx={{width: "100%"}}
-                                            expanded={expandedEmail}
-                                            onChange={() => setExpandedEmail(!expandedEmail)}
-                                        >
-                                            <AccordionSummary
-                                                expandIcon={
-                                                    <ExpandMoreIcon id="communication-template-email-id" />
-                                                }
-                                            >
-                                                <ElectionHeaderStyles.AccordionTitle>
-                                                    {t("template.method.email")}
-                                                </ElectionHeaderStyles.AccordionTitle>
-                                            </AccordionSummary>
-                                            <AccordionDetails>
-                                                <EmailEditEditor
-                                                    sourceSubject="template.email.subject"
-                                                    sourceBodyHTML="template.email.html_body"
-                                                    sourceBodyPlainText="template.email.plaintext_body"
-                                                />
-                                            </AccordionDetails>
-                                        </Accordion>
-                                    )}
-                                    {methods[ICommunicationMethod.SMS] && (
-                                        <Accordion
-                                            sx={{width: "100%"}}
-                                            expanded={expandedSMS}
-                                            onChange={() => setExpandedSMS(!expandedSMS)}
-                                        >
-                                            <AccordionSummary
-                                                expandIcon={
-                                                    <ExpandMoreIcon id="communication-template-sms-id" />
-                                                }
-                                            >
-                                                <ElectionHeaderStyles.AccordionTitle>
-                                                    {t("template.form.smsMessage")}
-                                                </ElectionHeaderStyles.AccordionTitle>
-                                            </AccordionSummary>
-                                            <AccordionDetails>
-                                                <FormStyles.TextInput
-                                                    minRows={4}
-                                                    multiline={true}
-                                                    source="template.sms.message"
-                                                    label={t(
-                                                        "template.form.smsMessage"
-                                                    )}
-                                                />
-                                            </AccordionDetails>
-                                        </Accordion>
-                                    )}
-                                    {methods[ICommunicationMethod.DOCUMENT] && (
-                                        <Accordion
-                                            sx={{width: "100%"}}
-                                            expanded={expandedDocument}
-                                            onChange={() => setExpandedDocument(!expandedDocument)}
-                                        >
-                                            <AccordionSummary
-                                                expandIcon={
-                                                    <ExpandMoreIcon id="communication-template-document-id" />
-                                                }
-                                            >
-                                                <ElectionHeaderStyles.AccordionTitle>
-                                                    {t("template.form.document")}
-                                                </ElectionHeaderStyles.AccordionTitle>
-                                            </AccordionSummary>
-                                            <AccordionDetails>
-                                                <EmailEditEditor sourceBodyHTML="template.document" />
-                                            </AccordionDetails>
-                                        </Accordion>
-                                    )}
+
+                                    <FormDataConsumer>
+                                        {({formData}) => (
+                                            <>
+                                                {formData.template?.selected_methods?.EMAIL && (
+                                                    <Accordion
+                                                        sx={{width: "100%"}}
+                                                        expanded={expandedEmail}
+                                                        onChange={() =>
+                                                            setExpandedEmail(!expandedEmail)
+                                                        }
+                                                    >
+                                                        <AccordionSummary
+                                                            expandIcon={
+                                                                <ExpandMoreIcon id="communication-template-email-id" />
+                                                            }
+                                                        >
+                                                            <ElectionHeaderStyles.AccordionTitle>
+                                                                {t("template.method.email")}
+                                                            </ElectionHeaderStyles.AccordionTitle>
+                                                        </AccordionSummary>
+                                                        <AccordionDetails>
+                                                            <EmailEditEditor
+                                                                sourceSubject="template.email.subject"
+                                                                sourceBodyHTML="template.email.html_body"
+                                                                sourceBodyPlainText="template.email.plaintext_body"
+                                                            />
+                                                        </AccordionDetails>
+                                                    </Accordion>
+                                                )}
+                                                {formData.template?.selected_methods?.SMS && (
+                                                    <Accordion
+                                                        sx={{width: "100%"}}
+                                                        expanded={expandedSMS}
+                                                        onChange={() =>
+                                                            setExpandedSMS(!expandedSMS)
+                                                        }
+                                                    >
+                                                        <AccordionSummary
+                                                            expandIcon={
+                                                                <ExpandMoreIcon id="communication-template-sms-id" />
+                                                            }
+                                                        >
+                                                            <ElectionHeaderStyles.AccordionTitle>
+                                                                {t("template.form.smsMessage")}
+                                                            </ElectionHeaderStyles.AccordionTitle>
+                                                        </AccordionSummary>
+                                                        <AccordionDetails>
+                                                            <FormStyles.TextInput
+                                                                minRows={4}
+                                                                multiline={true}
+                                                                source="template.sms.message"
+                                                                label={t(
+                                                                    "template.form.smsMessage"
+                                                                )}
+                                                            />
+                                                        </AccordionDetails>
+                                                    </Accordion>
+                                                )}
+                                                {formData.template?.selected_methods?.DOCUMENT && (
+                                                    <Accordion
+                                                        sx={{width: "100%"}}
+                                                        expanded={expandedDocument}
+                                                        onChange={() =>
+                                                            setExpandedDocument(!expandedDocument)
+                                                        }
+                                                    >
+                                                        <AccordionSummary
+                                                            expandIcon={
+                                                                <ExpandMoreIcon id="communication-template-document-id" />
+                                                            }
+                                                        >
+                                                            <ElectionHeaderStyles.AccordionTitle>
+                                                                {t("template.form.document")}
+                                                            </ElectionHeaderStyles.AccordionTitle>
+                                                        </AccordionSummary>
+                                                        <AccordionDetails>
+                                                            <EmailEditEditor sourceBodyHTML="template.document" />
+                                                        </AccordionDetails>
+                                                    </Accordion>
+                                                )}
+                                            </>
+                                        )}
+                                    </FormDataConsumer>
                                 </FormControl>
                             </SimpleForm>
                         )

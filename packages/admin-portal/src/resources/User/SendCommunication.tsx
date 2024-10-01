@@ -35,12 +35,7 @@ import {CREATE_SCHEDULED_EVENT} from "@/queries/CreateScheduledEvent"
 import {CreateScheduledEventMutation, Sequent_Backend_Template} from "@/gql/graphql"
 import {ScheduledEventType} from "@/services/ScheduledEvent"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {
-    ICommunicationMethod,
-    ITemplateType,
-    IEmail,
-    ISendCommunicationBody,
-} from "@/types/templates"
+import {ICommunicationMethod, ITemplateType, IEmail, ISendTemplateBody} from "@/types/templates"
 import {useLocation} from "react-router"
 
 export enum AudienceSelection {
@@ -325,7 +320,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
         ICommunicationMethod.EMAIL
     )
     const [selectedType, setSelectedType] = useState<ITemplateType>(ITemplateType.BALLOT_RECEIPT)
-    const [selectedList, setSelectedList] = useState<ISendCommunicationBody[] | null>(null)
+    const [selectedList, setSelectedList] = useState<ISendTemplateBody[] | null>(null)
     /*const [selectedReceipt, setSelectedReceipt] = useState<IEmail | string>({
         subject: "",
         plaintext_body: "",
@@ -528,13 +523,11 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                             onChange={handleSelectAliasChange}
                         >
                             {selectedList
-                                ? selectedList?.map(
-                                      (key: ISendCommunicationBody, index: number) => (
-                                          <MenuItem key={index} value={key.alias}>
-                                              {key.alias}
-                                          </MenuItem>
-                                      )
-                                  )
+                                ? selectedList?.map((key: ISendTemplateBody, index: number) => (
+                                      <MenuItem key={index} value={key.alias}>
+                                          {key.alias}
+                                      </MenuItem>
+                                  ))
                                 : null}
                         </FormStyles.Select>
                         {communication.communication_method === ICommunicationMethod.EMAIL &&
