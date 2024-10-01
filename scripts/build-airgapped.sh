@@ -40,10 +40,10 @@ EOF
 add-project-root-to-image() {
     if [ -e "$2" ]; then
         info "Copying $(realpath "$PROJECT_ROOT/$2") to $1 at $3; this will get $1 retagged"
-#         docker build -f- -t "$1" $PROJECT_ROOT <<EOF
-#           FROM $1
-#           COPY $2 $3
-# EOF
+        docker build -f- -t "$1" $PROJECT_ROOT <<EOF
+          FROM $1
+          COPY $2 $3
+EOF
     fi
 }
 
@@ -54,14 +54,17 @@ filesystem-friendly-image-name() {
 archive-image-artifact() {
     # Base64 has characters such as '=' that are invalid in some
     # filesystems. Use Base32 instead; longer filenames but safer.
-    local image_artifact_path="$IMAGE_ARTIFACTS_PATH/$(filesystem-friendly-image-name "$1").tar.gz"
+    local image_artifact_path="$IMAGE_ARTIFACTS_PATH/$(filesystem-friendly-image-name "$1").tar"
     info "Archiving image artifact $1 into $image_artifact_path"
-    # docker save "$1" | gzip -1 > $image_artifact_path
-    echo "image $1" > $image_artifact_path
+    docker save "$1" > $image_artifact_path
 }
 
 build-images() {
     docker-compose -f "$PROJECT_ROOT/.devcontainer/docker-compose.yml" --profile full build
+}
+
+pull-images() {
+    docker-compose -f "$PROJECT_ROOT/.devcontainer/docker-compose.yml" --profile full pull --ignore-pull-failures
 }
 
 add-dotenv-to-tarball() {
@@ -536,9 +539,6 @@ services:
   configure-minio:
     profiles: ["full", "base"]
     container_name: configure-minio
-    build:
-      context: ./minio
-      dockerfile: Dockerfile
     #image: minio/mc
     pull_policy: never
     depends_on:
@@ -557,9 +557,6 @@ services:
   vault:
     profiles: ["full", "base"]
     container_name: vault
-    build:
-      context: ./vault
-      dockerfile: Dockerfile
     restart: on-failure:10
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
@@ -670,9 +667,6 @@ services:
   keycloak:
     profiles: ["full", "base"]
     container_name: keycloak
-    build:
-      context: ../packages/
-      dockerfile: Dockerfile.keycloak
     restart: always
     ports:
       - 8090:8090
@@ -735,9 +729,6 @@ services:
     image: sequentech.local/frontend
     pull_policy: never
     container_name: admin-portal
-    build:
-      context: ../packages/
-      dockerfile: Dockerfile
     restart: always
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
@@ -777,9 +768,6 @@ services:
     container_name: immudb
     image: sequentech.local/immudb
     pull_policy: never
-    build:
-      context: ../packages/
-      dockerfile: ./Dockerfile.immudb
     restart: always
     environment:
       - IMMUDB_PGSQL_SERVER=true
@@ -801,9 +789,6 @@ services:
     image: sequentech.local/cargo-packages
     pull_policy: never
     container_name: harvest
-    build:
-      context: ../packages/
-      dockerfile: ./Dockerfile.cargo-packages
     volumes_from:
       - devcontainer
     depends_on:
@@ -898,9 +883,6 @@ services:
     volumes:
       - trustee1_data:/opt/braid
     # TODO: be able to reuse the `sequentech.local/cargo-packages` image
-    build:
-      context: ../packages/
-      dockerfile: ./braid/Dockerfile
     environment:
         IMMUDB_USER: ${IMMUDB_USER}
         IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
@@ -973,9 +955,6 @@ services:
     image: sequentech.local/immudb-log-audit
     pull_policy: never
     container_name: immudb-log-audit-init
-    build:
-      context: ../vendor/immudb-log-audit
-      dockerfile: Dockerfile.immudb
     command: >
       create sql pgaudit_hasura
       --parser pgauditjsonlog
@@ -1284,7 +1263,7 @@ EOF
 echo "Loading environment variables..."
 source .env
 echo "Loading images..."
-find images -type f -name "*.tar.gz" | xargs -I{} docker load --input {}
+find images -type f -name "*.tar" | xargs -I{} docker load --input {}
 echo "Starting environment..."
 docker-compose --profile full up
 EOF
@@ -1304,6 +1283,7 @@ mkdir -p $DELIVERABLE_PATH $IMAGE_ARTIFACTS_PATH
 tar -cf $DELIVERABLE_TARBALL -T /dev/null
 
 build-images
+pull-images
 
 # Take all images that volume mount the project source code, and add
 # it to the image, retagging the images
