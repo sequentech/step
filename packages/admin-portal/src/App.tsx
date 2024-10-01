@@ -206,7 +206,7 @@ const App: React.FC<AppProps> = () => {
                     edit={TemplateEdit}
                     list={TemplateList}
                     create={TemplateCreate}
-                    options={{label: "Communication Template"}}
+                    options={{label: "Templates"}}
                 />
                 <Resource
                     name="sequent_backend_scheduled_event"

@@ -6,7 +6,7 @@ import React from "react"
 import {EditBase, Identifier, RaRecord, useUpdate} from "react-admin"
 import {ElectionDataForm} from "./ElectionDataForm"
 import {Sequent_Backend_Election_Extended} from "./ElectionDataForm"
-import {ICommunicationMethod, IRECEIPTS} from "@/types/communications"
+import {ICommunicationMethod, IRECEIPTS} from "@/types/templates"
 import {Sequent_Backend_Contest} from "@/gql/graphql"
 import {ContestsOrder, IContestPresentation, IElectionPresentation} from "@sequentech/ui-core"
 

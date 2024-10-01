@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {gql} from "@apollo/client"
 
-export const UPDATE_template = gql`
-    mutation UpdateCommunicationTemplate(
+export const UPDATE_TEMPLATE = gql`
+    mutation UpdateTemplate(
         $id: uuid!
         $tenantId: uuid!
         $set: sequent_backend_template_set_input!

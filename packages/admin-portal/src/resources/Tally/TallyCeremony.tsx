@@ -62,7 +62,7 @@ import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IResultDocuments} from "@/types/results"
 import {ResultsDataLoader} from "./ResultsDataLoader"
-import {ICommunicationType} from "@/types/communications"
+import {ITemplateType} from "@/types/templates"
 import {
     IMiruTallySessionData,
     IMiruTransmissionPackageData,
@@ -258,7 +258,7 @@ export const TallyCeremony: React.FC = () => {
         {
             filter: {
                 tenant_id: tenantId,
-                type: ICommunicationType.TALLY_REPORT,
+                type: ITemplateType.TALLY_REPORT,
             },
         }
     )

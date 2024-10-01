@@ -663,7 +663,7 @@ const englishTranslation = {
             usersAndRoles: "Users and Roles",
             logs: "Logs",
             settings: "Settings",
-            communicationTemplates: "Templates",
+            templates: "Templates",
             active: "Active",
             archived: "Archived",
             addResource: {
@@ -1251,10 +1251,11 @@ const englishTranslation = {
                 publishSuccess: "Tally sheet published",
             },
         },
-        communicationTemplate: {
+        template: {
             noPermissions: "You don't have permission to access templates.",
             title: "Templates",
             subtitle: "List of templates",
+            chooseMethods: "Choose Methods",
             empty: {
                 title: "No Template Yet",
                 subtitle: "Do you want to create one?",
@@ -1279,7 +1280,7 @@ const englishTranslation = {
                 document: "Document",
                 name: "Template Name",
                 alias: "Template Alias",
-                communicationType: "Type",
+                type: "Type",
                 communicationMethod: "Method",
             },
             type: {

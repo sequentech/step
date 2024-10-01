@@ -9,7 +9,7 @@ export enum IAudienceSelection {
     SELECTED = "SELECTED",
 }
 
-export enum ICommunicationType {
+export enum ITemplateType {
     CREDENTIALS = "CREDENTIALS",
     BALLOT_RECEIPT = "BALLOT_RECEIPT",
     PARTICIPATION_REPORT = "PARTICIPATION_REPORT",
@@ -43,7 +43,7 @@ export interface ISmsConfig {
 export interface ISendCommunicationBody {
     audience_selection?: IAudienceSelection
     audience_voter_ids?: Array<string>
-    type?: ICommunicationType
+    type?: ITemplateType
     communication_method?: ICommunicationMethod
     schedule_now?: boolean
     schedule_date?: string

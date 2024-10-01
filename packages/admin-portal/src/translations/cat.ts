@@ -665,7 +665,7 @@ const catalanTranslation: TranslationType = {
             usersAndRoles: "Usuaris i Rols",
             logs: "Bitàcora",
             settings: "Configuració",
-            communicationTemplates: "Plantilles",
+            templates: "Plantilles",
             active: "Actius",
             archived: "Arxivats",
             addResource: {
@@ -1257,36 +1257,37 @@ const catalanTranslation: TranslationType = {
             },
         },
 
-        communicationTemplate: {
-            noPermissions: "No tens permisos per accedir a les Plantilles de Comunicació.",
-            title: "Plantilles de Comunicació",
-            subtitle: "Llistat de plantilles de comunicació",
+        template: {
+            noPermissions: "No tens permisos per accedir a les Plantilles.",
+            title: "Plantilles",
+            subtitle: "Llistat de plantilles",
+            chooseMethods: "Trieu Mètodes",
             empty: {
-                title: "No hi ha plantilles de comunicació",
+                title: "No hi ha plantilles",
                 subtitle: "Vols crear-ne una de nova?",
             },
             action: {
-                createOne: "Crear Plantilla de Comunicació",
+                createOne: "Crear Plantilla",
             },
             create: {
-                title: "Crear una Plantilla de Comunicació",
-                success: "Plantilla de Comunicació creada",
-                error: "Error creant plantilla de comunicació",
+                title: "Crear una Plantilla",
+                success: "Plantilla creada",
+                error: "Error creant plantilla",
             },
             update: {
-                success: "Plantilla de Comunicació actualitzada",
-                error: "Error actualitzant plantilla de comunicació",
+                success: "Plantilla actualitzada",
+                error: "Error actualitzant plantilla",
             },
             edit: {
-                title: "Editar una Plantilla de Comunicació",
+                title: "Editar una Plantilla",
             },
             form: {
                 smsMessage: "Missatge SMS",
                 document: "Document",
                 name: "Nom de la Plantilla",
                 alias: "Àlies de la Plantilla",
-                communicationType: "Tipus de Comunicació",
-                communicationMethod: "Mètode de Comunicació",
+                type: "Tipus",
+                communicationMethod: "Mètode",
             },
             type: {
                 credentials: "Credencials",

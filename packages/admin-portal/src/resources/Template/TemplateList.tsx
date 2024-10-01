@@ -108,20 +108,20 @@ export const TemplateList: React.FC = () => {
     const CreateButton = () => (
         <Button onClick={handleCreateDrawer}>
             <IconButton icon={faPlus} fontSize="24px" />
-            {t("communicationTemplate.action.createOne")}
+            {t("template.action.createOne")}
         </Button>
     )
 
     const Empty = () => (
         <TemplateEmpty m={1}>
             <Typography variant="h4" paragraph>
-                {t("communicationTemplate.empty.title")}
+                {t("template.empty.title")}
             </Typography>
 
             {canWriteTenant ? (
                 <>
                     <Typography variant="body1" paragraph>
-                        {t("communicationTemplate.empty.subtitle")}
+                        {t("template.empty.subtitle")}
                     </Typography>
                     <CreateButton />
                 </>
@@ -133,7 +133,7 @@ export const TemplateList: React.FC = () => {
         return (
             <ResourceListStyles.EmptyBox>
                 <Typography variant="h4" paragraph>
-                    {t("communicationTemplate.noPermissions")}
+                    {t("template.noPermissions")}
                 </Typography>
             </ResourceListStyles.EmptyBox>
         )
@@ -146,8 +146,8 @@ export const TemplateList: React.FC = () => {
     return (
         <>
             <ElectionHeader
-                title={t("communicationTemplate.title")}
-                subtitle={t("communicationTemplate.subtitle")}
+                title={t("template.title")}
+                subtitle={t("template.subtitle")}
             />
 
             <List

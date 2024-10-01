@@ -664,7 +664,7 @@ const spanishTranslation: TranslationType = {
             usersAndRoles: "Usuarios y Roles",
             logs: "Bitácora",
             settings: "Configuracion",
-            communicationTemplates: "Plantillas",
+            templates: "Plantillas",
             active: "Activos",
             archived: "Archivados",
             addResource: {
@@ -1256,36 +1256,37 @@ const spanishTranslation: TranslationType = {
             },
         },
 
-        communicationTemplate: {
-            noPermissions: "No tienes permisos para acceder a las Plantillas de Comunicación.",
-            title: "Plantillas de Comunicación",
-            subtitle: "Listado de plantillas de comunicación",
+        template: {
+            noPermissions: "No tienes permisos para acceder a las Plantillas.",
+            title: "Plantillas",
+            subtitle: "Listado de plantillas",
+            chooseMethods: "Elige métodos",
             empty: {
-                title: "No hay plantillas de comunicación",
+                title: "No hay plantillas",
                 subtitle: "¿Quieres crear una nueva?",
             },
             action: {
-                createOne: "Crear Plantilla de Comunicación",
+                createOne: "Crear Plantilla",
             },
             create: {
-                title: "Crear una Plantilla de Comunicación",
-                success: "Plantilla de Comunicación creada",
-                error: "Error creando plantilla de comunicación",
+                title: "Crear una Plantilla",
+                success: "Plantilla creada",
+                error: "Error creando plantilla",
             },
             update: {
-                success: "Plantilla de Comunicación actualizada",
-                error: "Error actualizando plantilla de comunicación",
+                success: "Plantilla actualizada",
+                error: "Error actualizando plantilla",
             },
             edit: {
-                title: "Editar una Plantilla de Comunición",
+                title: "Editar una Plantilla",
             },
             form: {
                 smsMessage: "Mensaje SMS",
                 document: "Documento",
                 name: "Nombre de la Plantilla",
                 alias: "Alias de la Plantilla",
-                communicationType: "Tipo de Comunicación",
-                communicationMethod: "Método de Comunicación",
+                type: "Tipo",
+                communicationMethod: "Método",
             },
             type: {
                 credentials: "Credenciales",

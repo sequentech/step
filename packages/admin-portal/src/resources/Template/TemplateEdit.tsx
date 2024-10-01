@@ -36,12 +36,12 @@ import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {useMutation} from "@apollo/client"
 
-import {ICommunicationType, ICommunicationMethod} from "@/types/communications"
+import {ITemplateType, ICommunicationMethod} from "@/types/templates"
 import {useTranslation} from "react-i18next"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import EmailEditEditor from "@/components/EmailEditEditor"
 import {Sequent_Backend_Template} from "@/gql/graphql"
-import {UPDATE_template} from "@/queries/UpdateCommunicationTemplate"
+import {UPDATE_TEMPLATE} from "@/queries/UpdateTemplate"
 
 type TTemplateEdit = {
     id?: Identifier | undefined
@@ -56,34 +56,34 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
     const refresh = useRefresh()
     const notify = useNotify()
 
-    const [UpdateCommunicationTemplate] = useMutation(UPDATE_template)
+    const [UpdateTemplate] = useMutation(UPDATE_TEMPLATE)
 
     const communicationTypeChoices = () => {
-        return (Object.values(ICommunicationType) as ICommunicationType[]).map((value) => ({
+        return (Object.values(ITemplateType) as ITemplateType[]).map((value) => ({
             id: value,
-            name: t(`communicationTemplate.type.${value.toLowerCase()}`),
+            name: t(`template.type.${value.toLowerCase()}`),
         }))
     }
     const [selectedCommunicationType, setSelectedCommunicationType] = useState<{
         name: string
-        value: ICommunicationType
+        value: ITemplateType
     }>()
 
     const communicationMethodChoices = () => {
         let res = (Object.values(ICommunicationMethod) as ICommunicationMethod[]).map((value) => ({
             id: value,
-            name: t(`communicationTemplate.method.${value.toLowerCase()}`),
+            name: t(`template.method.${value.toLowerCase()}`),
         }))
 
         if (
             selectedCommunicationType?.value &&
-            ![ICommunicationType.BALLOT_RECEIPT, ICommunicationType.TALLY_REPORT].includes(
+            ![ITemplateType.BALLOT_RECEIPT, ITemplateType.TALLY_REPORT].includes(
                 selectedCommunicationType.value
             )
         ) {
             res = res.filter((cm) => cm.id !== ICommunicationMethod.DOCUMENT)
         }
-        if (ICommunicationType.TALLY_REPORT === selectedCommunicationType?.value) {
+        if (ITemplateType.TALLY_REPORT === selectedCommunicationType?.value) {
             res = res.filter((cm) => cm.id === ICommunicationMethod.DOCUMENT)
         }
 
@@ -93,7 +93,7 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
     const onSubmit: SubmitHandler<FieldValues> = async (data) => {
         console.log("Submit Template", data)
 
-        const {data: updated, errors} = await UpdateCommunicationTemplate({
+        const {data: updated, errors} = await UpdateTemplate({
             variables: {
                 id: id,
                 tenantId: tenantId,
@@ -102,11 +102,11 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
         })
 
         if (updated) {
-            notify("communicationTemplate.update.success", {type: "success"})
+            notify("template.update.success", {type: "success"})
         }
 
         if (errors) {
-            notify("communicationTemplate.update.error", {type: "error"})
+            notify("template.update.error", {type: "error"})
         }
 
         close?.()
@@ -171,7 +171,6 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
                     {(incoming) => {
                         const parsedValue: RaRecord<Identifier> | Omit<RaRecord<Identifier>, "id"> =
                             parseValues(incoming)
-                        console.log("parsedValue :>> ", parsedValue)
 
                         return (
                             <SimpleForm
@@ -182,7 +181,7 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
                                 <FormControl fullWidth>
                                     <ElectionHeaderStyles.Wrapper>
                                         <PageHeaderStyles.Title>
-                                            {t("communicationTemplate.edit.title")}
+                                            {t("template.edit.title")}
                                         </PageHeaderStyles.Title>
                                     </ElectionHeaderStyles.Wrapper>
                                     <Accordion
@@ -203,25 +202,25 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
                                             <FormStyles.TextInput
                                                 source="template.alias"
                                                 validate={required()}
-                                                label={t("communicationTemplate.form.alias")}
+                                                label={t("template.form.alias")}
                                             />
 
                                             <FormStyles.TextInput
                                                 source="template.name"
                                                 validate={required()}
-                                                label={t("communicationTemplate.form.name")}
+                                                label={t("template.form.name")}
                                             />
                                             <SelectInput
                                                 source="type"
-                                                label={"Template type"}
+                                                label={t("template.form.type")}
                                                 validate={required()}
                                                 choices={communicationTypeChoices()}
                                                 onChange={(e) => {
                                                     const selectedType = e.target
-                                                        .value as ICommunicationType
+                                                        .value as ITemplateType
                                                     setSelectedCommunicationType({
                                                         name: t(
-                                                            `communicationTemplate.type.${selectedType.toLowerCase()}`
+                                                            `template.type.${selectedType.toLowerCase()}`
                                                         ),
                                                         value: selectedType,
                                                     })
@@ -230,7 +229,9 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
                                         </AccordionDetails>
                                     </Accordion>
 
-                                    <FormLabel component="legend">Choose Methods</FormLabel>
+                                    <FormLabel component="legend">
+                                        {t(`template.chooseMethods`)}
+                                    </FormLabel>
                                     <FormGroup
                                         sx={{
                                             display: "flex",
@@ -269,7 +270,7 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
                                                 }
                                             >
                                                 <ElectionHeaderStyles.AccordionTitle>
-                                                    {t("communicationTemplate.method.email")}
+                                                    {t("template.method.email")}
                                                 </ElectionHeaderStyles.AccordionTitle>
                                             </AccordionSummary>
                                             <AccordionDetails>
@@ -294,7 +295,7 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
                                                 }
                                             >
                                                 <ElectionHeaderStyles.AccordionTitle>
-                                                    {t("communicationTemplate.form.smsMessage")}
+                                                    {t("template.form.smsMessage")}
                                                 </ElectionHeaderStyles.AccordionTitle>
                                             </AccordionSummary>
                                             <AccordionDetails>
@@ -302,9 +303,7 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
                                                     minRows={4}
                                                     multiline={true}
                                                     source="template.sms.message"
-                                                    label={t(
-                                                        "communicationTemplate.form.smsMessage"
-                                                    )}
+                                                    label={t("template.form.smsMessage")}
                                                 />
                                             </AccordionDetails>
                                         </Accordion>
@@ -322,7 +321,7 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
                                                 }
                                             >
                                                 <ElectionHeaderStyles.AccordionTitle>
-                                                    {t("communicationTemplate.form.document")}
+                                                    {t("template.form.document")}
                                                 </ElectionHeaderStyles.AccordionTitle>
                                             </AccordionSummary>
                                             <AccordionDetails>

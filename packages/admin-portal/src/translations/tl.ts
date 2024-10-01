@@ -665,7 +665,7 @@ const tagalogTranslation: TranslationType = {
             usersAndRoles: "Mga Tagagamit at Tungkulin",
             logs: "Mga Log",
             settings: "Mga Setting",
-            communicationTemplates: "Templates",
+            templates: "Templates",
             active: "Aktibo",
             archived: "Arkilado",
             addResource: {
@@ -1257,35 +1257,36 @@ const tagalogTranslation: TranslationType = {
                 publishSuccess: "Na-publish ang tally sheet",
             },
         },
-        communicationTemplate: {
-            noPermissions: "Wala kang permiso na ma-access ang mga communication template.",
-            title: "Mga Communication Template",
-            subtitle: "Listahan ng mga communication template",
+        template: {
+            noPermissions: "Wala kang permiso na ma-access ang mga template.",
+            title: "Mga Template",
+            subtitle: "Listahan ng mga template",
+            chooseMethods: "Pumili ng Mga Paraan",
             empty: {
-                title: "Walang Communication Template Pa",
+                title: "Walang Template Pa",
                 subtitle: "Gusto mo bang lumikha ng isa?",
             },
             action: {
-                createOne: "Lumikha ng Communication Template",
+                createOne: "Lumikha ng Template",
             },
             create: {
-                title: "Lumikha ng Communication Template",
-                success: "Nalikha ang Communication Template",
-                error: "Error sa paglikha ng Communication Template",
+                title: "Lumikha ng Template",
+                success: "Nalikha ang Template",
+                error: "Error sa paglikha ng Template",
             },
             update: {
-                success: "Na-update ang Communication Template",
-                error: "Error sa pag-update ng Communication Template",
+                success: "Na-update ang Template",
+                error: "Error sa pag-update ng Template",
             },
             edit: {
-                title: "I-edit ang Communication Template",
+                title: "I-edit ang Template",
             },
             form: {
                 smsMessage: "SMS Message",
                 document: "Dokumento",
                 name: "Pangalan ng Template",
                 alias: "Alias ng Template",
-                communicationType: "Uri ng Komunikasyon",
+                type: "Uri ng Komunikasyon",
                 communicationMethod: "Pamamaraan ng Komunikasyon",
             },
             type: {

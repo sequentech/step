@@ -64,7 +64,7 @@ import {DropFile} from "@sequentech/ui-essentials"
 import FileJsonInput from "../../components/FileJsonInput"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {ICommunicationMethod, ICommunicationType} from "@/types/communications"
+import {ICommunicationMethod, ITemplateType} from "@/types/templates"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import styled from "@emotion/styled"
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
@@ -142,7 +142,7 @@ export const ElectionDataForm: React.FC = () => {
     const {data: receipts} = useGetList<Sequent_Backend_Template>("sequent_backend_template", {
         filter: {
             tenant_id: record.tenant_id || tenantId,
-            type: ICommunicationType.BALLOT_RECEIPT,
+            type: ITemplateType.BALLOT_RECEIPT,
         },
     })
 
@@ -454,7 +454,7 @@ export const ElectionDataForm: React.FC = () => {
     const communicationMethodChoices = () => {
         return (Object.values(ICommunicationMethod) as ICommunicationMethod[]).map((value) => ({
             id: value,
-            name: t(`communicationTemplate.method.${value.toLowerCase()}`),
+            name: t(`template.method.${value.toLowerCase()}`),
         }))
     }
 

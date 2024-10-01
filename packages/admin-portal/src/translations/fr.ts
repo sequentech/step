@@ -667,7 +667,7 @@ const frenchTranslation: TranslationType = {
             usersAndRoles: "Utilisateurs et Rôles",
             logs: "Journaux",
             settings: "Configuration",
-            communicationTemplates: "Modèles",
+            templates: "Modèles",
             active: "Actifs",
             archived: "Archivés",
             addResource: {
@@ -1263,36 +1263,37 @@ const frenchTranslation: TranslationType = {
             },
         },
 
-        communicationTemplate: {
-            noPermissions: "Vous n'avez pas la permission d'accéder aux Modèles de Communication.",
-            title: "Modèles de Communication",
-            subtitle: "Liste des modèles de communication",
+        template: {
+            noPermissions: "Vous n'avez pas la permission d'accéder aux Modèles.",
+            title: "Modèles",
+            subtitle: "Liste des modèles",
+            chooseMethods: "Choisir les méthodes",
             empty: {
-                title: "Aucun modèle de communication",
+                title: "Aucun modèle",
                 subtitle: "Voulez-vous créer un nouveau ?",
             },
             action: {
-                createOne: "Créer Modèle de Communication",
+                createOne: "Créer Modèle",
             },
             create: {
-                title: "Créer un Modèle de Communication",
-                success: "Modèle de Communication créé",
-                error: "Erreur lors de la création du modèle de communication",
+                title: "Créer un Modèle",
+                success: "Modèle créé",
+                error: "Erreur lors de la création du modèle",
             },
             update: {
-                success: "Modèle de Communication mis à jour",
-                error: "Erreur lors de la mise à jour du modèle de communication",
+                success: "Modèle mis à jour",
+                error: "Erreur lors de la mise à jour du modèle",
             },
             edit: {
-                title: "Éditer un Modèle de Communication",
+                title: "Éditer un Modèle",
             },
             form: {
                 smsMessage: "Message SMS",
                 document: "Document",
                 name: "Nom du Modèle",
                 alias: "Alias du Modèle",
-                communicationType: "Type de Communication",
-                communicationMethod: "Méthode de Communication",
+                type: "Type",
+                communicationMethod: "Méthode",
             },
             type: {
                 credentials: "Identifiants",

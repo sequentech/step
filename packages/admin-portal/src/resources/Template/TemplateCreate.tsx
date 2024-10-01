@@ -31,14 +31,10 @@ import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {useMutation} from "@apollo/client"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
-import {
-    ICommunicationType,
-    ICommunicationMethod,
-    ISendCommunicationBody,
-} from "@/types/communications"
+import {ITemplateType, ICommunicationMethod, ISendCommunicationBody} from "@/types/templates"
 import {useTranslation} from "react-i18next"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {INSERT_template} from "@/queries/InsertCommunicationTemplate"
+import {INSERT_TEMPLATE} from "@/queries/InsertTemplate"
 import {Sequent_Backend_Template} from "@/gql/graphql"
 import EmailEditEditor from "@/components/EmailEditEditor"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
@@ -51,12 +47,12 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
     const notify = useNotify()
-    const [createCommunicationTemplate] = useMutation(INSERT_template)
+    const [createTemplate] = useMutation(INSERT_TEMPLATE)
     const {globalSettings} = useContext(SettingsContext)
 
     const [selectedCommunicationType, setSelectedCommunicationType] = useState<{
         name: string
-        value: ICommunicationType
+        value: ITemplateType
     }>()
 
     function selectCommunicationType(event: any) {
@@ -65,27 +61,27 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
     }
 
     const communicationTypeChoices = () => {
-        return (Object.values(ICommunicationType) as ICommunicationType[]).map((value) => ({
+        return (Object.values(ITemplateType) as ITemplateType[]).map((value) => ({
             id: value,
-            name: t(`communicationTemplate.type.${value.toLowerCase()}`),
+            name: t(`template.type.${value.toLowerCase()}`),
         }))
     }
 
     const communicationMethodChoices = () => {
         let res = (Object.values(ICommunicationMethod) as ICommunicationMethod[]).map((value) => ({
             id: value,
-            name: t(`communicationTemplate.method.${value.toLowerCase()}`),
+            name: t(`template.method.${value.toLowerCase()}`),
         }))
 
         if (
             selectedCommunicationType?.value &&
-            ![ICommunicationType.BALLOT_RECEIPT, ICommunicationType.TALLY_REPORT].includes(
+            ![ITemplateType.BALLOT_RECEIPT, ITemplateType.TALLY_REPORT].includes(
                 selectedCommunicationType.value
             )
         ) {
             res = res.filter((cm) => cm.id !== ICommunicationMethod.DOCUMENT)
         }
-        if (ICommunicationType.TALLY_REPORT === selectedCommunicationType?.value) {
+        if (ITemplateType.TALLY_REPORT === selectedCommunicationType?.value) {
             res = res.filter((cm) => cm.id === ICommunicationMethod.DOCUMENT)
         }
 
@@ -93,7 +89,7 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
     }
 
     const onSubmit: SubmitHandler<FieldValues> = async (data) => {
-        const {data: created, errors} = await createCommunicationTemplate({
+        const {data: created, errors} = await createTemplate({
             variables: {
                 object: {
                     tenant_id: tenantId,
@@ -107,11 +103,11 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
         })
 
         if (created) {
-            notify(t("communicationTemplate.create.success"), {type: "success"})
+            notify(t("template.create.success"), {type: "success"})
         }
 
         if (errors) {
-            notify(t("communicationTemplate.create.error"), {type: "error"})
+            notify(t("template.create.error"), {type: "error"})
         }
 
         close?.()
@@ -121,7 +117,7 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
         const temp = {...(incoming as Sequent_Backend_Template)}
 
         if (!incoming?.template) {
-            temp.type = ICommunicationType.CREDENTIALS
+            temp.type = ITemplateType.CREDENTIALS
             temp.communication_method = ICommunicationMethod.EMAIL
             let template: ISendCommunicationBody = {
                 audience_selection: undefined,
@@ -174,7 +170,7 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
                                 <FormControl fullWidth>
                                     <ElectionHeaderStyles.Wrapper>
                                         <PageHeaderStyles.Title>
-                                            {t("communicationTemplate.edit.title")}
+                                            {t("template.edit.title")}
                                         </PageHeaderStyles.Title>
                                     </ElectionHeaderStyles.Wrapper>
                                     <Accordion
@@ -195,13 +191,13 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
                                             <FormStyles.TextInput
                                                 source="template.alias"
                                                 validate={required()}
-                                                label={t("communicationTemplate.form.alias")}
+                                                label={t("template.form.alias")}
                                             />
 
                                             <FormStyles.TextInput
                                                 source="template.name"
                                                 validate={required()}
-                                                label={t("communicationTemplate.form.name")}
+                                                label={t("template.form.name")}
                                             />
                                             <SelectInput
                                                 source="type"
@@ -250,7 +246,7 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
                                                 }
                                             >
                                                 <ElectionHeaderStyles.AccordionTitle>
-                                                    {t("communicationTemplate.method.email")}
+                                                    {t("template.method.email")}
                                                 </ElectionHeaderStyles.AccordionTitle>
                                             </AccordionSummary>
                                             <AccordionDetails>
@@ -274,7 +270,7 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
                                                 }
                                             >
                                                 <ElectionHeaderStyles.AccordionTitle>
-                                                    {t("communicationTemplate.form.smsMessage")}
+                                                    {t("template.form.smsMessage")}
                                                 </ElectionHeaderStyles.AccordionTitle>
                                             </AccordionSummary>
                                             <AccordionDetails>
@@ -283,7 +279,7 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
                                                     multiline={true}
                                                     source="template.sms.message"
                                                     label={t(
-                                                        "communicationTemplate.form.smsMessage"
+                                                        "template.form.smsMessage"
                                                     )}
                                                 />
                                             </AccordionDetails>
@@ -301,7 +297,7 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
                                                 }
                                             >
                                                 <ElectionHeaderStyles.AccordionTitle>
-                                                    {t("communicationTemplate.form.document")}
+                                                    {t("template.form.document")}
                                                 </ElectionHeaderStyles.AccordionTitle>
                                             </AccordionSummary>
                                             <AccordionDetails>

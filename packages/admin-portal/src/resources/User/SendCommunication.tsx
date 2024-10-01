@@ -37,10 +37,10 @@ import {ScheduledEventType} from "@/services/ScheduledEvent"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {
     ICommunicationMethod,
-    ICommunicationType,
+    ITemplateType,
     IEmail,
     ISendCommunicationBody,
-} from "@/types/communications"
+} from "@/types/templates"
 import {useLocation} from "react-router"
 
 export enum AudienceSelection {
@@ -53,7 +53,7 @@ export enum AudienceSelection {
 interface ICommunicationPayload {
     audience_selection: AudienceSelection
     audience_voter_ids?: Array<Identifier>
-    type: ICommunicationType
+    type: ITemplateType
     communication_method: ICommunicationMethod
     schedule_now: boolean
     schedule_date?: Date
@@ -72,7 +72,7 @@ interface ICommunication {
         selection: AudienceSelection
         voter_ids?: Array<Identifier> | undefined
     }
-    type: ICommunicationType
+    type: ITemplateType
     communication_method: ICommunicationMethod
     alias?: string
     schedule: {
@@ -125,7 +125,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
             selection: audienceSelection ?? AudienceSelection.SELECTED,
             voter_ids: ids ?? undefined,
         },
-        type: ICommunicationType.BALLOT_RECEIPT,
+        type: ITemplateType.BALLOT_RECEIPT,
         communication_method: ICommunicationMethod.EMAIL,
         schedule: {
             now: true,
@@ -324,9 +324,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
     const [selectedMethod, setSelectedMethod] = useState<ICommunicationMethod>(
         ICommunicationMethod.EMAIL
     )
-    const [selectedType, setSelectedType] = useState<ICommunicationType>(
-        ICommunicationType.BALLOT_RECEIPT
-    )
+    const [selectedType, setSelectedType] = useState<ITemplateType>(ITemplateType.BALLOT_RECEIPT)
     const [selectedList, setSelectedList] = useState<ISendCommunicationBody[] | null>(null)
     /*const [selectedReceipt, setSelectedReceipt] = useState<IEmail | string>({
         subject: "",
@@ -515,7 +513,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                             value={communication.type}
                             onChange={handleSelectTypeChange}
                         >
-                            {Object.values(ICommunicationType).map((key) => (
+                            {Object.values(ITemplateType).map((key) => (
                                 <MenuItem key={key} value={key}>
                                     {t(`sendCommunication.communicationType.${key}`)}
                                 </MenuItem>
