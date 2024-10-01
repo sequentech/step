@@ -170,7 +170,7 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
                                 <FormControl fullWidth>
                                     <ElectionHeaderStyles.Wrapper>
                                         <PageHeaderStyles.Title>
-                                            {t("template.edit.title")}
+                                            {t("template.create.title")}
                                         </PageHeaderStyles.Title>
                                     </ElectionHeaderStyles.Wrapper>
                                     <Accordion
