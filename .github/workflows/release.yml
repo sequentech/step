@@ -101,6 +101,7 @@ jobs:
     needs: create-release-branch
     outputs:
       VERSION: ${{ steps.Release.outputs.VERSION }}
+      HASH: ${{ steps.Release.outputs.HASH }}
     steps:
 
     - name: Checkout new release branch
@@ -171,8 +172,9 @@ jobs:
         else
           release-it --ci --increment=patch --git.tagExclude=*[-]*
         fi
-        echo VERSION=$(git describe --tags --abbrev=0) | tee -a $GITHUB_ENV $GITHUB_OUTPUT
-
+        VERSION=$(git describe --tags --abbrev=0)
+        echo VERSION=$VERSION | tee -a $GITHUB_ENV $GITHUB_OUTPUT
+        echo HASH=$(git rev-parse --short $VERSION) | tee -a $GITHUB_ENV $GITHUB_OUTPUT
 
 
   # Build & Push the images
@@ -195,7 +197,7 @@ jobs:
           -H "Authorization: token ${{ secrets.PAT }}" \
           -H "Accept: application/vnd.github.v3+json" \
           "${{ secrets.GH_API_URL }}" \
-          --data '{"event_type": "new-release-trigger", "client_payload": {"version": "${{ needs.release.outputs.VERSION }}", "repository": "step"}}'
+          --data '{"event_type": "new-release-trigger", "client_payload": {"version": "${{ needs.release.outputs.VERSION }}", "hash": "${{ needs.release.outputs.HASH }}", "repository": "step"}}'
 
   cleanup:
     if: failure()
