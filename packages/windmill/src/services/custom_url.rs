@@ -182,16 +182,6 @@ pub async fn set_custom_url(
     Ok(())
 }
 
-// #[instrument]
-// fn get_cloudflare_vars() -> Result<(String, String), Box<dyn Error>> {
-//     let cloudflare_zone = std::env::var("CLOUDFLARE_ZONE")
-//         .map_err(|_e| "Missing cloudflare env variable".to_string())?;
-//     let cloudflare_api_key = std::env::var("CLOUDFLARE_API_KEY")
-//         .map_err(|_e| "Missing cloudflare env variable".to_string())?;
-
-//     Ok((cloudflare_zone, cloudflare_api_key))
-// }
-
 #[instrument]
 async fn get_all_page_rules() -> Result<Vec<PageRule>, Box<dyn Error>> {
     let (zone_id, api_key) = get_cloudflare_vars()?;
