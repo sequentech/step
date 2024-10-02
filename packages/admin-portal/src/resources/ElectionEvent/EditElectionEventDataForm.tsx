@@ -974,9 +974,9 @@ export const EditElectionEventDataForm: React.FC = () => {
                                     <SelectInput
                                         source={`presentation.active_template_ids.manual_verification`}
                                         choices={manuallyVerifyVoterTemplates()}
-                                        label={t("communicationTemplate.form.name")}
+                                        label={t("template.form.name")}
                                         translateChoice={false}
-                                        emptyText={t("communicationTemplate.default")}
+                                        emptyText={t("template.default")}
                                     />
                                 </AccordionDetails>
                             </Accordion>
