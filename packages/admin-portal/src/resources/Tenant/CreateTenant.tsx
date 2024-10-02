@@ -82,7 +82,7 @@ export const CreateTenant: React.FC<CreateTenantProps> = ({isDrawerOpen, setIsDr
                     newTenant?.slug
                 }`}</Typography>
                 <Typography variant="body2">{t("tenantScreen.new.subtitle")}</Typography>
-                <TextInput source="slug" />
+                <TextInput source="slug" onKeyDown={(event) => event.stopPropagation()} />
                 {isLoading ? <CircularProgress /> : null}
             </SimpleForm>
         </Drawer>
