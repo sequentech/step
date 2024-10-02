@@ -258,11 +258,11 @@ pub async fn get_manual_verification_pdf(
         manual_verification_url: manual_verification_url.to_string(),
         file_logo: format!(
             "{}/{}/{}",
-            minio_endpoint_base, public_asset_path, LOGO_TEMPLATE
+            minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_LOGO_IMG
         ),
         file_qrcode_lib: format!(
             "{}/{}/{}",
-            minio_endpoint_base, public_asset_path, QR_CODE_TEMPLATE
+            minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
         ),
     }
     .to_map()
