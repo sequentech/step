@@ -15,8 +15,8 @@ fn get_voting_portal_urls_prefix() -> Result<(String, String)> {
     //TODO: change default values?
     let voting_portal_url = std::env::var("VOTING_PORTAL_URL")
         .with_context(|| "Error fetching VOTING_PORTAL_URL env var")?;
-    let voting_portal_keycloak_url = std::env::var("VOTING_PORTAL_KEYCLOACK_URL")
-        .with_context(|| "Error fetching VOTING_PORTAL_KEYCLOACK_URL env var")?;
+    let voting_portal_keycloak_url = std::env::var("KEYCLOAK_PUBLIC_URL")
+        .with_context(|| "Error fetching KEYCLOAK_PUBLIC_URL env var")?;
     Ok((voting_portal_url, voting_portal_keycloak_url))
 }
 

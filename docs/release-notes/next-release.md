@@ -6,6 +6,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Next Release
 
+## ✨ Support limiting IP by country
+
+[This feature](https://github.com/sequentech/meta/issues/1696) allows limit
+voting depending on the IP address of the country of registration or voting can
+be done from anywhere in the world.
+
+### New environment vars
+
+There are multiple environment variables introduces in this PR:
+- 
+
 ## ✨ Keycloak: Add system info using env vars in header
 
 [This feature](https://github.com/sequentech/meta/issues/1699) adds the system
