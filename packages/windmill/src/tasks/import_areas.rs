@@ -12,6 +12,7 @@ use crate::{
 use anyhow::{anyhow, Context, Result};
 use csv::StringRecord;
 use deadpool_postgres::Client as DbClient;
+use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::Area;
 use sequent_core::types::hasura::core::AreaContest;
 use std::io::Seek;
@@ -20,21 +21,11 @@ use uuid::Uuid;
 
 #[instrument(err)]
 pub async fn import_areas_task(
+    hasura_transaction: &Transaction<'_>,
     tenant_id: String,
     election_event_id: String,
     document_id: String,
 ) -> Result<()> {
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|err| anyhow!("Error getting hasura db pool: {err}"))?;
-
-    let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .map_err(|err| anyhow!("Error starting hasura transaction: {err}"))?;
-
     let document = get_document(&hasura_transaction, &tenant_id, None, &document_id)
         .await
         .with_context(|| "Error obtaining the document")?
@@ -106,11 +97,6 @@ pub async fn import_areas_task(
         &area_contests,
     )
     .await?;
-
-    let _commit = hasura_transaction
-        .commit()
-        .await
-        .map_err(|e| anyhow!("Commit failed: {}", e));
 
     Ok(())
 }

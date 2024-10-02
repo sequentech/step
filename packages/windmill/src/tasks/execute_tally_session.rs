@@ -1053,6 +1053,8 @@ pub async fn transactions_wrapper(
         }
         Err(err) => {
             tracing::error!("Error in transactions_wrapper: {:?}", err);
+            let hasura_rollback = hasura_transaction.rollback().await;
+            let keycloak_rollback = keycloak_transaction.rollback().await;
             handle_tally_session_error(
                 &err.to_string(),
                 &tenant_id,
@@ -1060,8 +1062,8 @@ pub async fn transactions_wrapper(
                 &tally_session_id,
             )
             .await?;
-            hasura_transaction.rollback().await?;
-            keycloak_transaction.rollback().await?;
+            hasura_rollback?;
+            keycloak_rollback?;
             Err(err)
         }
     }

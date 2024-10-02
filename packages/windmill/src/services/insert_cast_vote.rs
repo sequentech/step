@@ -17,8 +17,12 @@ use crate::{
 use anyhow::{anyhow, Context, Result};
 use board_messages::braid::message::Signer;
 use board_messages::electoral_log::newtypes::*;
+use chrono::{DateTime, Duration, Local, NaiveDateTime, Utc};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
+use rocket::futures::TryFutureExt;
+use sequent_core::ballot::EGracePeriodPolicy;
+use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::ElectionPresentation;
 use sequent_core::ballot::ElectionStatus;
 use sequent_core::ballot::VotingStatus;
@@ -67,6 +71,8 @@ pub enum CastVoteError {
     ElectoralLogNotFound(String),
     #[serde(rename = "check_status_failed")]
     CheckStatusFailed(String),
+    #[serde(rename = "check_status_internal_failed")]
+    CheckStatusInternalFailed(String),
     #[serde(rename = "check_previous_votes_failed")]
     CheckPreviousVotesFailed(String),
     #[serde(rename = "insert_failed")]
@@ -120,6 +126,7 @@ pub async fn try_insert_cast_vote(
     tenant_id: &str,
     voter_id: &str,
     area_id: &str,
+    auth_time: &Option<i64>,
 ) -> Result<InsertCastVoteOutput, CastVoteError> {
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
@@ -199,6 +206,7 @@ pub async fn try_insert_cast_vote(
         ids,
         auth_headers,
         signing_key,
+        auth_time,
     )
     .await;
 
@@ -248,6 +256,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
     ids: CastVoteIds<'a>,
     auth_headers: AuthHeaders,
     signing_key: StrandSignatureSk,
+    auth_time: &Option<i64>,
 ) -> Result<CastVote, CastVoteError> {
     let election_id_string = input.election_id.to_string();
     let election_id = election_id_string.as_str();
@@ -258,6 +267,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
         election_id,
         auth_headers,
         &election_event,
+        auth_time,
     );
 
     // Transaction isolation begins at this future (unless above methods are
@@ -298,9 +308,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
         &ballot_signature,
     );
 
-    check_status
-        .await
-        .map_err(|e| CastVoteError::CheckStatusFailed(e.to_string()))?;
+    check_status.await?;
     check_previous_votes
         .await
         .map_err(|e| CastVoteError::CheckPreviousVotesFailed(e.to_string()))?;
@@ -365,10 +373,27 @@ async fn check_status(
     election_id: &str,
     auth_headers: AuthHeaders,
     election_event: &GetElectionEventSequentBackendElectionEvent,
-) -> anyhow::Result<()> {
+    auth_time: &Option<i64>,
+) -> Result<(), CastVoteError> {
     if election_event.is_archived {
-        return Err(anyhow!("Election event is archived"));
+        return Err(CastVoteError::CheckStatusFailed(
+            "Election event is archived".to_string(),
+        ));
     }
+
+    let auth_time_local: DateTime<Local> = if let Some(auth_time_int) = *auth_time {
+        if let Ok(auth_time_parsed) = ISO8601::timestamp_ms_utc_to_date_opt(auth_time_int) {
+            auth_time_parsed
+        } else {
+            return Err(CastVoteError::CheckStatusFailed(
+                "Invalid auth_time timestamp".to_string(),
+            ));
+        }
+    } else {
+        return Err(CastVoteError::CheckStatusFailed(
+            "auth_time is not a valid integer".to_string(),
+        ));
+    };
 
     let hasura_response = hasura::election::get_election(
         auth_headers.clone(),
@@ -377,9 +402,9 @@ async fn check_status(
         election_id.to_string(),
     )
     .await
-    .context("Cannot retrieve election data")?;
+    .context("Cannot retrieve election data")
+    .map_err(|e| CastVoteError::CheckStatusInternalFailed(e.to_string()))?;
 
-    // TODO expect
     let election = &hasura_response
         .data
         .expect("expected data".into())
@@ -392,18 +417,27 @@ async fn check_status(
         .flatten()
         .unwrap_or(Default::default());
 
-    let close_date_opt = election_presentation
-        .dates
-        .clone()
-        .map(|dates| dates.end_date)
-        .flatten()
-        .map(|end_date| ISO8601::to_date(&end_date).ok())
-        .flatten();
-
-    if let Some(close_date) = close_date_opt {
-        if ISO8601::now() > close_date {
-            return Err(anyhow!("Election is closed"));
+    let close_date_opt: Option<DateTime<Local>> = if let Some(dates) = &election.dates {
+        if let Some(end_date_str) = dates.get("end_date") {
+            if let Some(end_date_str) = end_date_str.as_str() {
+                match ISO8601::to_date(end_date_str) {
+                    Ok(close_date) => {
+                        println!("Parsed end_date: {}", close_date);
+                        Some(close_date)
+                    }
+                    Err(err) => {
+                        println!("Failed to parse end_date: {}", err);
+                        None
+                    }
+                }
+            } else {
+                None
+            }
+        } else {
+            None
         }
+    } else {
+        None
     };
 
     let election_status: ElectionStatus = election
@@ -411,10 +445,62 @@ async fn check_status(
         .clone()
         .map(|value| deserialize_value(value).context("Failed to deserialize election status"))
         .transpose()
-        .map(|value| value.unwrap_or(Default::default()))?;
+        .map(|value| value.unwrap_or(Default::default()))
+        .map_err(|e| CastVoteError::CheckStatusInternalFailed(e.to_string()))?;
 
-    if election_status.voting_status != VotingStatus::OPEN {
-        return Err(anyhow!("Election voting status is not open"));
+    // calculate if we need to apply the grace period
+    let grace_period_secs = election_presentation.grace_period_secs.unwrap_or(0);
+    let grace_period_policy = election_presentation
+        .grace_period_policy
+        .unwrap_or(EGracePeriodPolicy::NO_GRACE_PERIOD);
+
+    // We can only calculate grace period if there's a close date
+    if let Some(close_date) = close_date_opt {
+        let apply_grace_period: bool = grace_period_policy != EGracePeriodPolicy::NO_GRACE_PERIOD;
+        let grace_period_duration = Duration::seconds(grace_period_secs as i64);
+        let close_date_plus_grace_period = close_date + grace_period_duration;
+        let now = ISO8601::now();
+
+        if apply_grace_period {
+            // a voter cannot cast a vote after the grace period or if the voter
+            // authenticated after the closing date
+            if now > close_date_plus_grace_period || auth_time_local > close_date {
+                return Err(CastVoteError::CheckStatusFailed(
+                    "Cannot vote outside grace period".to_string(),
+                ));
+            }
+
+            // if we have a closing date and a grace period, we only apply
+            // checking if election is open if now is before closing period
+            if now <= close_date && election_status.voting_status != VotingStatus::OPEN {
+                return Err(CastVoteError::CheckStatusFailed(
+                    "Election voting status is not open or voting outside the grace period"
+                        .to_string(),
+                ));
+            }
+        } else {
+            // if no grace period and there's a closing date, to cast a vote you
+            // need to do it before the closing date
+            if now > close_date {
+                return Err(CastVoteError::CheckStatusFailed(
+                    "Election close date passed and no grace period".to_string(),
+                ));
+            }
+
+            // if no grace period, election needs to be open to cast a vote
+            // period
+            if election_status.voting_status != VotingStatus::OPEN {
+                return Err(CastVoteError::CheckStatusFailed(
+                    "Election voting status is not open before close date".to_string(),
+                ));
+            }
+        }
+
+    // if there's no closing date, election needs to be open to cast a vote
+    } else if election_status.voting_status != VotingStatus::OPEN {
+        return Err(CastVoteError::CheckStatusFailed(
+            "Election voting status is not open".to_string(),
+        ));
     }
 
     Ok(())

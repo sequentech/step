@@ -5,6 +5,7 @@
 pub mod ballot_publication;
 pub mod create_vote_receipt;
 pub mod custom_urls;
+pub mod delete_election_event;
 pub mod election_dates;
 pub mod election_event_stats;
 pub mod election_stats;
@@ -12,6 +13,7 @@ pub mod electoral_log;
 pub mod error_catchers;
 pub mod export_election_event;
 pub mod export_election_event_logs;
+pub mod export_tasks_execution;
 pub mod fetch_document;
 // pub mod get_task_by_id;
 pub mod create_event_list;

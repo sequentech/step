@@ -5,9 +5,11 @@
 
 pub mod create_keys;
 pub mod create_vote_receipt;
+pub mod delete_election_event;
 pub mod execute_tally_session;
 pub mod export_election_event;
 pub mod export_election_event_logs;
+pub mod export_tasks_execution;
 pub mod export_users;
 pub mod import_areas;
 pub mod import_candidates;

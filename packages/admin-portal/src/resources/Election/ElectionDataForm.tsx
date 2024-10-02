@@ -54,6 +54,7 @@ import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {ElectionStyles} from "../../components/styles/ElectionStyles"
 import {
     ContestsOrder,
+    EGracePeriodPolicy,
     EVotingPortalAuditButtonCfg,
     IContestPresentation,
     IElectionDates,
@@ -70,6 +71,8 @@ import styled from "@emotion/styled"
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {ManageElectionDatesMutation} from "@/gql/graphql"
 import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
+import {ManagedNumberInput} from "@/components/managed-inputs/ManagedNumberInput"
+import {ManagedSelectInput} from "@/components/managed-inputs/ManagedSelectInput"
 
 const LangsWrapper = styled(Box)`
     margin-top: 46px;
@@ -299,6 +302,14 @@ export const ElectionDataForm: React.FC = () => {
 
             // defaults
             temp.num_allowed_revotes = temp.num_allowed_revotes || 1
+            temp.presentation.grace_period_policy =
+                temp.presentation.grace_period_policy || EGracePeriodPolicy.NO_GRACE_PERIOD
+            temp.presentation.grace_period_secs = temp.presentation.grace_period_secs || 0
+
+            if (!temp.dates?.end_date) {
+                temp.presentation.grace_period_policy = EGracePeriodPolicy.NO_GRACE_PERIOD
+                temp.presentation.grace_period_secs = 0
+            }
 
             return temp
         },
@@ -451,6 +462,13 @@ export const ElectionDataForm: React.FC = () => {
         }
     }
 
+    const gracePeriodPolicyChoices = () => {
+        return (Object.values(EGracePeriodPolicy) as EGracePeriodPolicy[]).map((value) => ({
+            id: value,
+            name: t(`electionScreen.gracePeriodPolicy.${value.toLowerCase()}`),
+        }))
+    }
+
     const templateMethodChoices = () => {
         return (Object.values(ITemplateMethod) as ITemplateMethod[]).map((value) => ({
             id: value,
@@ -522,7 +540,11 @@ export const ElectionDataForm: React.FC = () => {
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "election-data-general"}
-                            onChange={() => setExpanded("election-data-general")}
+                            onChange={() =>
+                                setExpanded((prev) =>
+                                    prev === "election-data-general" ? "" : "election-data-general"
+                                )
+                            }
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="election-data-general" />}
@@ -544,7 +566,11 @@ export const ElectionDataForm: React.FC = () => {
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "election-data-dates"}
-                            onChange={() => setExpanded("election-data-dates")}
+                            onChange={() =>
+                                setExpanded((prev) =>
+                                    prev === "election-data-dates" ? "" : "election-data-dates"
+                                )
+                            }
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="election-data-dates" />}
@@ -601,13 +627,49 @@ export const ElectionDataForm: React.FC = () => {
                                         />
                                     </Grid>
                                 </Grid>
+                                <Typography
+                                    variant="body1"
+                                    component="span"
+                                    sx={{
+                                        padding: "0.5rem 1rem",
+                                        fontWeight: "bold",
+                                        margin: 0,
+                                        display: {xs: "none", sm: "block"},
+                                    }}
+                                >
+                                    {t("electionScreen.edit.gracePeriodPolicy")}
+                                </Typography>
+                                <ManagedSelectInput
+                                    source={`presentation.grace_period_policy`}
+                                    choices={gracePeriodPolicyChoices()}
+                                    label={t(`electionScreen.gracePeriodPolicy.label`)}
+                                    defaultValue={EGracePeriodPolicy.NO_GRACE_PERIOD}
+                                    sourceToWatch={"dates.end_date"}
+                                    isDisabled={(sourceToWatchStatus) => !sourceToWatchStatus}
+                                />
+                                <ManagedNumberInput
+                                    source={"presentation.grace_period_secs"}
+                                    label={t("electionScreen.gracePeriodPolicy.gracePeriodSecs")}
+                                    defaultValue={0}
+                                    sourceToWatch="presentation.grace_period_policy"
+                                    isDisabled={(selectedPolicy: any) =>
+                                        selectedPolicy === EGracePeriodPolicy.NO_GRACE_PERIOD ||
+                                        endDateValue === undefined
+                                    }
+                                />
                             </AccordionDetails>
                         </Accordion>
 
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "election-data-language"}
-                            onChange={() => setExpanded("election-data-language")}
+                            onChange={() =>
+                                setExpanded((prev) =>
+                                    prev === "election-data-language"
+                                        ? ""
+                                        : "election-data-language"
+                                )
+                            }
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="election-data-language" />}
@@ -631,7 +693,11 @@ export const ElectionDataForm: React.FC = () => {
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "election-data-allowed"}
-                            onChange={() => setExpanded("election-data-allowed")}
+                            onChange={() =>
+                                setExpanded((prev) =>
+                                    prev === "election-data-allowed" ? "" : "election-data-allowed"
+                                )
+                            }
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="election-data-allowed" />}
@@ -654,7 +720,11 @@ export const ElectionDataForm: React.FC = () => {
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "contest-data-design"}
-                            onChange={() => setExpanded("contest-data-design")}
+                            onChange={() =>
+                                setExpanded((prev) =>
+                                    prev === "contest-data-design" ? "" : "contest-data-design"
+                                )
+                            }
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="contest-data-design" />}
@@ -710,7 +780,13 @@ export const ElectionDataForm: React.FC = () => {
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "election-data-receipts"}
-                            onChange={() => setExpanded("election-data-receipts")}
+                            onChange={() =>
+                                setExpanded((prev) =>
+                                    prev === "election-data-receipts"
+                                        ? ""
+                                        : "election-data-receipts"
+                                )
+                            }
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="election-data-receipts" />}
@@ -758,7 +834,11 @@ export const ElectionDataForm: React.FC = () => {
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "election-data-image"}
-                            onChange={() => setExpanded("election-data-image")}
+                            onChange={() =>
+                                setExpanded((prev) =>
+                                    prev === "election-data-image" ? "" : "election-data-image"
+                                )
+                            }
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="election-data-image" />}
@@ -794,7 +874,13 @@ export const ElectionDataForm: React.FC = () => {
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "election-data-advanced"}
-                            onChange={() => setExpanded("election-data-advanced")}
+                            onChange={() =>
+                                setExpanded((prev) =>
+                                    prev === "election-data-advanced"
+                                        ? ""
+                                        : "election-data-advanced"
+                                )
+                            }
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="election-data-advanced" />}

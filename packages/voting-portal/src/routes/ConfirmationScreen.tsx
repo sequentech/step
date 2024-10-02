@@ -36,6 +36,7 @@ import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortal
 import {selectElectionById} from "../store/elections/electionsSlice"
 import {GetElectionsQuery} from "../gql/graphql"
 import {GET_ELECTIONS} from "../queries/GetElections"
+import {downloadPDF} from "../utils/downloadPdf"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -178,7 +179,10 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
         }
 
         if (documentUrl) {
-            return window.open(documentUrl, "_blank")
+            return downloadPDF(
+                documentUrl,
+                documentData?.sequent_backend_document[0]?.name ?? "voting-receipt.pdf"
+            )
         }
 
         const res = await createVoteReceipt({
@@ -257,7 +261,10 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
                     // We use a setTimeout as a work around due to this issue in React:
                     // https://stackoverflow.com/questions/76944918/should-not-already-be-working-on-window-open-in-simple-react-app
                     // https://github.com/facebook/react/issues/17355
-                    window.open(newDocumentUrl, "_blank")
+                    downloadPDF(
+                        newDocumentUrl,
+                        documentData?.sequent_backend_document[0]?.name ?? "voting-receipt.pdf"
+                    )
                 }, 0)
             }
         }

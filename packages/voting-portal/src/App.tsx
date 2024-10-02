@@ -56,6 +56,7 @@ const HeaderWithContext: React.FC = () => {
     return (
         <Header
             appVersion={{main: globalSettings.APP_VERSION}}
+            appHash={{main: globalSettings.APP_HASH}}
             userProfile={{
                 firstName: authContext.firstName,
                 username: authContext.username,

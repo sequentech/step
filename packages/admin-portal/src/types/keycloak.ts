@@ -10,6 +10,7 @@ export enum IPermissions {
     ELECTION_EVENT_CREATE = "election-event-create",
     ELECTION_EVENT_READ = "election-event-read",
     ELECTION_EVENT_WRITE = "election-event-write",
+    ELECTION_EVENT_DELETE = "election-event-delete",
     VOTER_CREATE = "voter-create",
     VOTER_READ = "voter-read",
     VOTER_WRITE = "voter-write",

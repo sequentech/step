@@ -55,6 +55,7 @@ async fn rocket() -> _ {
                 routes::insert_election_event::insert_election_event_f,
                 routes::import_candidates::import_candidates_route,
                 routes::insert_election_event::import_election_event_f,
+                routes::delete_election_event::delete_election_event_f,
                 routes::insert_tenant::insert_tenant,
                 routes::users::create_user,
                 routes::users::import_users_f,
@@ -97,7 +98,7 @@ async fn rocket() -> _ {
                 routes::miru_plugin::upload_signature,
                 routes::create_event_list::get_event_list,
                 routes::create_event_list::create_event,
-                // routes::get_task_by_id::get_task_by_id_route,
+                routes::export_tasks_execution::export_tasks_execution_route,
             ],
         )
 }

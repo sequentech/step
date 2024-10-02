@@ -96,6 +96,9 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
         // triggers the input when the button is clicked
         const onButtonClick = () => {
             setFileName("")
+            if (innerRef.current?.value) {
+                innerRef.current.value = ""
+            }
             innerRef.current?.click()
         }
 

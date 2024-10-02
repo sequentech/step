@@ -73,6 +73,8 @@ import {CREATE_TRANSMISSION_PACKAGE} from "@/queries/CreateTransmissionPackage"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {AuthContext} from "@/providers/AuthContextProvider"
+import {ETasksExecution} from "@/types/tasksExecution"
+import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 
 const WizardSteps = {
     Start: 0,
@@ -118,6 +120,7 @@ export const TallyCeremony: React.FC = () => {
     const isTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_CEREMONY)
     const [selectedElections, setSelectedElections] = useState<string[]>([])
     const [selectedTrustees, setSelectedTrustees] = useState<boolean>(false)
+    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
 
     const [CreateTallyCeremonyMutation] =
         useMutation<CreateTallyCeremonyMutation>(CREATE_TALLY_CEREMONY)
@@ -311,6 +314,7 @@ export const TallyCeremony: React.FC = () => {
         if (page === WizardSteps.Start) {
             setOpenModal(true)
         } else if (page === WizardSteps.Ceremony) {
+            setIsButtonDisabled(true)
             setOpenCeremonyModal(true)
         } else if (page === WizardSteps.Tally) {
             setPage(WizardSteps.Results)
@@ -474,9 +478,11 @@ export const TallyCeremony: React.FC = () => {
                 return
             }
 
+            const currWidget = addWidget(ETasksExecution.CREATE_TRANSMISSION_PACKAGE)
             try {
                 const {data: nextStatus, errors} = await CreateTransmissionPackage({
                     variables: {
+                        electionEventId: record?.id,
                         electionId: election_id,
                         tallySessionId: tallyId,
                         areaId: area_id,
@@ -487,19 +493,17 @@ export const TallyCeremony: React.FC = () => {
                 console.log("createTransmissionPackage", {nextStatus, errors})
 
                 if (errors) {
-                    setTransmissionLoading(false)
-                    notify(t("miruExport.create.error"), {type: "error"})
-                    return
-                }
-
-                if (nextStatus) {
-                    notify(t("miruExport.create.success"), {type: "success"})
+                    updateWidgetFail(currWidget.identifier)
+                } else if (nextStatus) {
+                    const task_id = nextStatus?.create_transmission_package?.task_execution?.id
+                    setWidgetTaskId(currWidget.identifier, task_id)
                     handleMiruExportSuccess?.({area_id, election_id})
                 }
+                setTransmissionLoading(false)
             } catch (error) {
+                updateWidgetFail(currWidget.identifier)
                 console.log(`Caught error: ${error}`)
                 setTransmissionLoading(false)
-                notify(t("miruExport.create.error"), {type: "error"})
             }
         },
         [tallySessionData, tally]
@@ -842,6 +846,8 @@ export const TallyCeremony: React.FC = () => {
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmCeremonyAction()
+                    } else {
+                        setIsButtonDisabled(false)
                     }
                     setOpenCeremonyModal(false)
                 }}

@@ -45,6 +45,16 @@ const tagalogTranslation: TranslationType = {
                 IMPORT_ELECTION_EVENT: "I-import ang Kaganapan sa Halalan",
                 IMPORT_USERS: "I-import ang mga Gumagamit",
                 IMPORT_CANDIDATES: "I-import ang mga Kandidato",
+                EXPORT_VOTERS: "I-export ang mga botante",
+                CREATE_TRANSMISSION_PACKAGE: "Lumikha ng Transmission Package",
+            },
+            widget: {
+                taskTitle: "Gawain: {{title}}",
+                viewTask: "Tingnan Ang Gawain",
+            },
+            exportTasksExecution: {
+                success: "Matagumpay na natapos ang pag-export",
+                error: "Error sa pag-export ng Tasks Execution",
             },
         },
         areas: {
@@ -350,6 +360,7 @@ const tagalogTranslation: TranslationType = {
                 numAllowedVotes: "Bilang ng pinapayagang boto",
                 reorder: "I-reorder ang mga paligsahan",
                 castVoteConfirm: "Modal ng Pagkumpirma ng Pagboto",
+                gracePeriodPolicy: "Patakaran sa Palugit",
             },
             field: {
                 name: "Pangalan",
@@ -377,6 +388,12 @@ const tagalogTranslation: TranslationType = {
                 voters: "Mga Botante",
                 publish: "I-publish",
                 logs: "Mga Log",
+            },
+            gracePeriodPolicy: {
+                "label": "Patakaran sa Palugit",
+                "no-grace-period": "Walang palugit",
+                "grace-period-without-alert": "Palugit na walang babala",
+                "gracePeriodSecs": "Palugit sa segundo",
             },
         },
         tenantScreen: {
@@ -436,6 +453,7 @@ const tagalogTranslation: TranslationType = {
                         "Ang password ay dapat maglaman ng hindi bababa sa isang digit",
                     passwordSpecialCharValidate:
                         "Ang password ay dapat maglaman ng hindi bababa sa isang espesyal na karakter",
+                    trustee: "Kumilos bilang trustee",
                 },
                 delete: {
                     body: "Sigurado ka bang gusto mong tanggalin ang tagagamit na ito?",
@@ -521,6 +539,7 @@ const tagalogTranslation: TranslationType = {
                 "election-event-create": "Lumikha ng Kaganapan ng Halalan",
                 "election-event-read": "Basahin ang Kaganapan ng Halalan",
                 "election-event-write": "I-edit ang Kaganapan ng Halalan",
+                "election-event-delete": "Tanggalin ang Kaganapan ng Halalan",
                 "voter-create": "Lumikha ng Botante",
                 "voter-read": "Basahin ang Botante",
                 "voter-write": "I-edit ang Botante",
@@ -922,7 +941,7 @@ const tagalogTranslation: TranslationType = {
             errorUploadingSignature: "Nagkaroon ng error sa pag-upload ng pirma",
             downloadTransmissionPackage: "I-download ang pakete",
             transmissionPackage: {
-                title: "Pakete ng Transmisyon para sa Lugar '{{name}}'",
+                title: "Pakete ng Transmisyon para sa Lugar '{{name}}' at Halalan na '{{eventName}}'",
                 description:
                     "Hinahayaan kang i-export ang isang Pakete ng Transmisyon sa mga Server ng Destinasyon o i-download ito.",
                 actions: {

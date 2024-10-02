@@ -30,6 +30,16 @@ const catalanTranslation: TranslationType = {
                 IMPORT_ELECTION_EVENT: "Importar esdeveniment electoral",
                 IMPORT_USERS: "Importar usuaris",
                 IMPORT_CANDIDATES: "Importar candidats",
+                EXPORT_VOTERS: "Exportar votants",
+                CREATE_TRANSMISSION_PACKAGE: "Crear paquet de transmissió",
+            },
+            widget: {
+                taskTitle: "Tasca: {{title}}",
+                viewTask: "Veure Tasca",
+            },
+            exportTasksExecution: {
+                success: "L'exportació s'ha completat amb èxit",
+                error: "Error en exportar l'Execució de Tasques",
             },
         },
         logsScreen: {
@@ -351,6 +361,7 @@ const catalanTranslation: TranslationType = {
                 numAllowedVotes: "Número de vots permesos",
                 reorder: "Reordenar concursos",
                 castVoteConfirm: "Modal de Confirmació de Vot",
+                gracePeriodPolicy: "Política de període de gràcia",
             },
             field: {
                 name: "Nom",
@@ -378,6 +389,12 @@ const catalanTranslation: TranslationType = {
                 voters: "Votants",
                 publish: "Publicar",
                 logs: "Registres",
+            },
+            gracePeriodPolicy: {
+                "label": "Política de període de gràcia",
+                "no-grace-period": "Sense període de gràcia",
+                "grace-period-without-alert": "Període de gràcia sense avís",
+                "gracePeriodSecs": "Període de gràcia (segons)",
             },
         },
         tenantScreen: {
@@ -436,6 +453,7 @@ const catalanTranslation: TranslationType = {
                     passwordDigitValidate: "La contrasenya ha de contenir almenys un dígit",
                     passwordSpecialCharValidate:
                         "La contrasenya ha de contenir almenys un caràcter especial",
+                    trustee: "Actuar com a fideïcomissari",
                 },
                 delete: {
                     body: "Estàs segur que vols esborrar aquest usuari?",
@@ -521,6 +539,7 @@ const catalanTranslation: TranslationType = {
                 "election-event-create": "Crear Esdeveniment Electoral",
                 "election-event-read": "Llegir Esdeveniment Electoral",
                 "election-event-write": "Editar Esdeveniment Electoral",
+                "election-event-delete": "Esborrar Esdeveniment Electoral",
                 "voter-create": "Crear Votant",
                 "voter-read": "Llegir Votant",
                 "voter-write": "Editar Votant",
@@ -921,7 +940,7 @@ const catalanTranslation: TranslationType = {
             errorUploadingSignature: "S'ha produït un error en carregar la signatura",
             downloadTransmissionPackage: "Descarregar paquet",
             transmissionPackage: {
-                title: "Paquet de Transmissió per a l'Àrea '{{name}}'",
+                title: "Paquet de Transmissió per a l'Àrea '{{name}}' y Elección '{{eventName}}'",
                 description:
                     "Et permet exportar un Paquet de Transmissió als Servidors de Destinació o descarregar-lo.",
                 actions: {

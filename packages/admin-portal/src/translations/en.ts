@@ -1,10 +1,7 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
-
-import {error} from "console"
-import {Placeholder} from "react-admin"
-
 // SPDX-License-Identifier: AGPL-3.0-only
+
 const englishTranslation = {
     translations: {
         loadingDataProvider: "Loading data provider...",
@@ -47,6 +44,16 @@ const englishTranslation = {
                 IMPORT_ELECTION_EVENT: "Import Election Event",
                 IMPORT_USERS: "Import Users",
                 IMPORT_CANDIDATES: "Import Candidates",
+                EXPORT_VOTERS: "Export Voters",
+                CREATE_TRANSMISSION_PACKAGE: "Create Transmission Package",
+            },
+            widget: {
+                taskTitle: "Task: {{title}}",
+                viewTask: "View Task",
+            },
+            exportTasksExecution: {
+                success: "Export finished successfully",
+                error: "Error exporting Tasks Execution",
             },
         },
         areas: {
@@ -350,6 +357,7 @@ const englishTranslation = {
                 numAllowedVotes: "Number of allowed votes",
                 reorder: "Reorder contests",
                 castVoteConfirm: "Cast Vote Confirmation Modal",
+                gracePeriodPolicy: "Grace Period",
             },
             field: {
                 name: "Name",
@@ -377,6 +385,12 @@ const englishTranslation = {
                 voters: "Voters",
                 publish: "Publish",
                 logs: "Logs",
+            },
+            gracePeriodPolicy: {
+                "label": "Grace Period Policy",
+                "no-grace-period": "No grace period",
+                "grace-period-without-alert": "Grace period without alert",
+                "gracePeriodSecs": "Grace period in seconds",
             },
         },
         tenantScreen: {
@@ -434,6 +448,7 @@ const englishTranslation = {
                     passwordDigitValidate: "Password must contain at least one digit",
                     passwordSpecialCharValidate:
                         "Password must contain at least one special character",
+                    trustee: "Act as Trustee",
                 },
                 delete: {
                     body: "Are you sure you want to delete this user?",
@@ -519,6 +534,7 @@ const englishTranslation = {
                 "election-event-create": "Create Election Event",
                 "election-event-read": "Read Election Event",
                 "election-event-write": "Edit Election Event",
+                "election-event-delete": "Delete Election Event",
                 "voter-create": "Create Voter",
                 "voter-read": "Read Voter",
                 "voter-write": "Edit Voter",
@@ -918,7 +934,7 @@ const englishTranslation = {
             errorUploadingSignature: "There was an error uploading signature",
             downloadTransmissionPackage: "Download Transmission Package",
             transmissionPackage: {
-                title: "Transmission Package for Area '{{name}}'",
+                title: "Transmission Package for Area '{{name}}' and Election '{{eventName}}'",
                 description:
                     "Allows you to export a Transmission Package to Destination Servers or download it.",
                 actions: {
