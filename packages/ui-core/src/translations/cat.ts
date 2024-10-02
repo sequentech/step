@@ -122,7 +122,7 @@ const catalanTranslation: TranslationType = {
         },
         header: {
             profile: "Perfil",
-            welcome: "Benvingut/da,<br>{{name}}",
+            welcome: "Benvingut/da,<br><span>{{name}}</span>",
             session: {
                 title: "La seva sessió està a punt d'expirar.",
                 timeLeft: "Li queden {{time}} per emetre el seu vot.",

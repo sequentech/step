@@ -24,6 +24,10 @@ const Span = styled.span`
     color: ${theme.palette.customGrey.dark};
 `
 
+const Name = styled.span`
+    font-weight: 400;
+`
+
 export const StyledButtonTooltipText = styled(Typography)`
     padding: 0;
     margin: 0;
@@ -173,6 +177,8 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                                 textOverflow: "ellipsis",
                                 whiteSpace: "nowrap",
                                 overflowX: "clip",
+                                lineHeight: "18px",
+                                fontWeight: "200",
                             }}
                             title={userProfile.firstName ?? userProfile.username}
                         >
@@ -181,7 +187,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                                 values={{
                                     name: userProfile.firstName ?? userProfile.username,
                                 }}
-                                components={{br: <br />}}
+                                components={{br: <br />, span: <Name />}}
                             />
                         </Box>
                     </StyledButton>

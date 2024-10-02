@@ -124,7 +124,7 @@ const tagalogTranslation: TranslationType = {
         },
         header: {
             profile: "Profile",
-            welcome: "Sumalubong,<br>{{name}}",
+            welcome: "Sumalubong,<br><span>{{name}}</span>",
             session: {
                 title: "Malapit nang mag-expire ang iyong session.",
                 timeLeft: "May natitirang {{time}} ka upang iboto ang iyong balota.",
