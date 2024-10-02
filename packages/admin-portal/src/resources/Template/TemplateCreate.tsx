@@ -103,6 +103,7 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
                 object: {
                     tenant_id: tenantId,
                     type: data.type,
+                    communication_method: data.communication_method,
                     template: {
                         ...data.template,
                     },
@@ -126,6 +127,7 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
 
         if (!incoming?.template) {
             temp.type = ITemplateType.CREDENTIALS
+            temp.communication_method = ITemplateMethod.EMAIL
             let template: ISendTemplateBody = {
                 audience_selection: undefined,
                 audience_voter_ids: [],
