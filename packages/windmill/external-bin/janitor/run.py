@@ -410,16 +410,22 @@ LEFT JOIN
     party_list ON candidate.NOMINATEDBY = party_list.CODE_PARTY;"""
     return get_sqlite_data(query)    
 
+base_context = {
+    "tenant_id": base_config["tenant_id"],
+    "current_timestamp": current_timestamp
+}
+
 def generate_election_event(excel_data):
     election_event_id = generate_uuid()
     election_event_context = {
         "UUID": election_event_id,
-        "current_timestamp": current_timestamp,
+        **base_context,
         **excel_data["election_event"]
 
     }
     print(election_event_context)
     return json.loads(render_template(election_event_template, election_event_context)), election_event_id
+
 
 def gen_tree(excel_data):
     results = get_data()
@@ -458,6 +464,7 @@ def gen_tree(excel_data):
                 "election_post": row_election_post,
                 "election_name": election_context["name"],
                 "contests": [],
+                **base_context,
                 **election_context
             }
             elections_object["elections"].append(election)
@@ -470,6 +477,7 @@ def gen_tree(excel_data):
             # If the contest does not exist, create it
             contest = {
                 "name": contest_name,
+                **base_context,
                 "eligible_amount": row["DB_RACE_ELIGIBLEAMOUNT"],
                 "district_code": row["DB_SEAT_DISTRICTCODE"],
                 "postcode": row["contest_POSTCODE"],
@@ -488,7 +496,7 @@ def gen_tree(excel_data):
             "nominated_by": row["DB_CANDIDATE_NOMINATEDBY"],
             "party_short_name": row["DB_PARTY_SHORT_NAME"],
             "party_name": row["DB_PARTY_NAME_PARTY"],
-            "current_timestamp": current_timestamp,
+            **base_context,
             "annotations": {
                 "miru_candidate_affiliation_id": row["DB_CANDIDATE_NOMINATEDBY"] if row["DB_CANDIDATE_NOMINATEDBY"] else " ",
                 "miru_candidate_affiliation_party": row["DB_CANDIDATE_NOMINATEDBY"] if row["DB_CANDIDATE_NOMINATEDBY"] else "NULL",
@@ -528,7 +536,7 @@ def gen_tree(excel_data):
             "description" :row["DB_POLLING_CENTER_POLLING_PLACE"],
             "source_id": row["DB_TRANS_SOURCE_ID"],
             "dest_id": row["trans_route_TRANS_DEST_ID"],
-            "current_timestamp": current_timestamp,
+            **base_context,
             **area_context
         }
         
@@ -537,7 +545,8 @@ def gen_tree(excel_data):
 
     test_elections =  copy.deepcopy(elections_object["elections"])
     for election in test_elections:
-        election["election_name"] = "Test Voting"
+        election["name"] = "Test Voting"
+        election["alias"] = "Test Voting"
 
     elections_object["elections"].extend(test_elections)
 
