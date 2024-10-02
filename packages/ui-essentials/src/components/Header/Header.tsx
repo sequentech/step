@@ -173,10 +173,7 @@ export default function Header({
                             sx={{gap: {xs: "11px", lg: "31px"}}}
                         >
                             <Version version={appVersion ?? {main: "0.0.0"}} />
-                            <Version
-                                header="hash.header"
-                                version={appHash ?? {main: "6995f9cf1e"}}
-                            />
+                            <Version header="hash.header" version={appHash ?? {main: "-"}} />
                             <LanguageMenu languagesList={languagesList} />
                             {errorVariant === HeaderErrorVariant.HIDE_PROFILE && !!logoutFn ? (
                                 <StyledButtonContainerWrapper className="logout-button-container-wrapper">

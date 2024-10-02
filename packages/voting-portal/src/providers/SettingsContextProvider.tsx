@@ -14,6 +14,7 @@ export interface GlobalSettings {
     KEYCLOAK_URL: string
     HASURA_URL: string
     APP_VERSION: string
+    APP_HASH: string
     PUBLIC_BUCKET_URL: string
     KEYCLOAK_ACCESS_TOKEN_LIFESPAN_SECS: number
     POLLING_DURATION_TIMEOUT: number
@@ -35,6 +36,7 @@ const defaultSettingsValues: SettingsContextValues = {
         KEYCLOAK_URL: "http://127.0.0.1:8090/",
         HASURA_URL: "http://localhost:8080/v1/graphql",
         APP_VERSION: "10.0.0",
+        APP_HASH: "7ed9ad6b790f",
         BALLOT_VERIFIER_URL: "http://127.0.0.1:3001/",
         PUBLIC_BUCKET_URL: "http://127.0.0.1:9002/public/",
         KEYCLOAK_ACCESS_TOKEN_LIFESPAN_SECS: 900,

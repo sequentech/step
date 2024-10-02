@@ -73,11 +73,15 @@ SPDX-License-Identifier: AGPL-3.0-only
              class="${properties.kcHeaderWrapperClass!}">
             <div class="logo"></div>
             <div class="version version-version">
-                <span class="title">VERSION:</span>
+                <span class="title">
+                    ${msg("system.version")}
+                </span>
                 <span class="value">${properties.systemVersion}</span>
             </div>
             <div class="version version-hash">
-                <span class="title">HASH:</span>
+                <span class="title">
+                    ${msg("system.hash")}
+                </span>
                 <span class="value">${properties.systemHash}</span>
             </div>
             <#if realm.internationalizationEnabled  && locale.supported?size gt 1>

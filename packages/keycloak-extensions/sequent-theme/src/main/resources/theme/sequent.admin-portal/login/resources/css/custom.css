@@ -92,25 +92,36 @@ html, body {
 
 #kc-header-wrapper > #kc-locale {
     width: initial !important;
-    padding-top: 7px;
 }
 
-@media (min-width: 0px) {
-    #kc-header-wrapper, #kc-locale-wrapper {
-        height: 37px;
+@media (max-width: 970px) {
+    #kc-header-wrapper div.logo {
+        width: 150px;
     }
 
     #kc-header-wrapper {
         gap: 11px;
     }
 
-    #kc-header-wrapper .version .title {
+    #kc-header-wrapper .version, #kc-header-wrapper .version .title {
         display: none;
     }
 }
 
+@media (min-width: 500px) and (max-width: 970px) {
+    #kc-header-wrapper .version {
+        display: inline-block !important;
+    }
+}
+
+@media (min-width: 768px) and (max-width: 970px) {
+    #kc-locale-wrapper #kc-current-locale-link {
+        padding-top: 0;
+    }
+}
+
 @media (min-width: 970px) {
-    #kc-header-wrapper, #kc-locale-wrapper {
+    #kc-header-wrapper {
         height: 47px;
     }
 
@@ -283,10 +294,9 @@ button#kc-current-locale-link img {
     }
 }
 
-@media (min-width: 768px) {
-    .login-pf-page .login-pf-page-header {
-        margin-bottom: 40px;
-    }
+
+.login-pf-page .login-pf-page-header {
+    margin-bottom: 40px;
 }
 
 .pf-c-form-control {
