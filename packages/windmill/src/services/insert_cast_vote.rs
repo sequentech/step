@@ -127,8 +127,8 @@ pub async fn try_insert_cast_vote(
     voter_id: &str,
     area_id: &str,
     auth_time: &Option<i64>,
-    voter_ip: &Option<&str>,
-    voter_country: &Option<&str>,
+    voter_ip: &Option<String>,
+    voter_country: &Option<String>,
 ) -> Result<InsertCastVoteOutput, CastVoteError> {
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
@@ -214,6 +214,12 @@ pub async fn try_insert_cast_vote(
     )
     .await;
 
+    let ip = format!("ip: {}", voter_ip.as_deref().unwrap_or("").to_string(),);
+    let country = format!(
+        "country: {}",
+        voter_country.as_deref().unwrap_or("").to_string(),
+    );
+
     match result {
         Ok(inserted_cast_vote) => {
             let log_result = electoral_log
@@ -222,6 +228,8 @@ pub async fn try_insert_cast_vote(
                     Some(election_id_string),
                     pseudonym_h,
                     vote_h,
+                    ip,
+                    country,
                 )
                 .await;
             if let Err(log_err) = log_result {
@@ -238,6 +246,8 @@ pub async fn try_insert_cast_vote(
                     Some(election_id_string),
                     pseudonym_h,
                     err.to_string(),
+                    ip,
+                    country,
                 )
                 .await;
 
@@ -261,8 +271,8 @@ pub async fn insert_cast_vote_and_commit<'a>(
     auth_headers: AuthHeaders,
     signing_key: StrandSignatureSk,
     auth_time: &Option<i64>,
-    voter_ip: &Option<&str>,
-    voter_country: &Option<&str>,
+    voter_ip: &Option<String>,
+    voter_country: &Option<String>,
 ) -> Result<CastVote, CastVoteError> {
     let election_id_string = input.election_id.to_string();
     let election_id = election_id_string.as_str();

@@ -52,8 +52,8 @@ pub async fn insert_cast_vote(
         &claims.hasura_claims.user_id,
         &area_id,
         &claims.auth_time,
-        &user_info.ip.map(|ip| ip.to_string()).as_deref(),
-        &user_info.country_code.map(|country_code| country_code.to_string()).as_deref(),
+        &user_info.ip.map(|ip| ip.to_string()),
+        &user_info.country_code.map(|country_code| country_code.to_string()),
     )
     .await
     .map_err(|cast_vote_err| {

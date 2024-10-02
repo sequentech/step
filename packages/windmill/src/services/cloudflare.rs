@@ -247,7 +247,7 @@ pub async fn create_ruleset_rule(
     zone_id: &str,
     ruleset_id: &str,
     rule: CreateCustomRuleRequest,
-) -> Result<Rule, Box<dyn Error>> {
+) -> Result<(), Box<dyn Error>> {
     let client = Client::new();
 
     let response = client
@@ -262,11 +262,7 @@ pub async fn create_ruleset_rule(
         .await?;
 
     if response.status().is_success() {
-        let response_text = response.text().await?;
-        info!("Response: {}", response_text);
-
-        let api_response: ApiResponse<Rule> = deserialize_str(&response_text)?;
-        Ok(api_response.result)
+        Ok(())
     } else {
         let error_text = response
             .text()
@@ -287,7 +283,7 @@ pub async fn update_ruleset_rule(
     ruleset_id: &str,
     rule_id: &str,
     rule: CreateCustomRuleRequest,
-) -> Result<Rule, Box<dyn Error>> {
+) -> Result<(), Box<dyn Error>> {
     let client = Client::new();
 
     let response = client
@@ -302,11 +298,7 @@ pub async fn update_ruleset_rule(
         .await?;
 
     if response.status().is_success() {
-        let response_text = response.text().await?;
-        info!("Response: {}", response_text);
-
-        let api_response: ApiResponse<Rule> = deserialize_str(&response_text)?;
-        Ok(api_response.result)
+        Ok(())
     } else {
         let error_text = response
             .text()
@@ -315,6 +307,40 @@ pub async fn update_ruleset_rule(
         info!("Error response: {}", error_text);
         Err(Box::new(CloudflareError::new(&format!(
             "Failed to update rule: {}",
+            error_text
+        ))))
+    }
+}
+
+#[instrument]
+pub async fn delete_ruleset_rule(
+    api_key: &str,
+    zone_id: &str,
+    ruleset_id: &str,
+    rule_id: &str,
+) -> Result<(), Box<dyn Error>> {
+    let client = Client::new();
+
+    let response = client
+        .delete(&format!(
+            "https://api.cloudflare.com/client/v4/zones/{}/rulesets/{}/rules/{}",
+            zone_id, ruleset_id, rule_id
+        ))
+        .header("Authorization", format!("Bearer {}", api_key))
+        .header("Content-Type", "application/json")
+        .send()
+        .await?;
+
+    if response.status().is_success() {
+        Ok(())
+    } else {
+        let error_text = response
+            .text()
+            .await
+            .map_err(|e| CloudflareError::new(&format!("Failed to read error response: {}", e)))?;
+        info!("Error response: {}", error_text);
+        Err(Box::new(CloudflareError::new(&format!(
+            "Failed to delete rule: {}",
             error_text
         ))))
     }
