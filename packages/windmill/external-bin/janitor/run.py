@@ -414,6 +414,7 @@ def generate_election_event(excel_data):
     election_event_id = generate_uuid()
     election_event_context = {
         "UUID": election_event_id,
+        "current_timestamp": current_timestamp,
         **excel_data["election_event"]
 
     }
@@ -487,6 +488,7 @@ def gen_tree(excel_data):
             "nominated_by": row["DB_CANDIDATE_NOMINATEDBY"],
             "party_short_name": row["DB_PARTY_SHORT_NAME"],
             "party_name": row["DB_PARTY_NAME_PARTY"],
+            "current_timestamp": current_timestamp,
             "annotations": {
                 "miru_candidate_affiliation_id": row["DB_CANDIDATE_NOMINATEDBY"] if row["DB_CANDIDATE_NOMINATEDBY"] else " ",
                 "miru_candidate_affiliation_party": row["DB_CANDIDATE_NOMINATEDBY"] if row["DB_CANDIDATE_NOMINATEDBY"] else "NULL",
@@ -526,6 +528,7 @@ def gen_tree(excel_data):
             "description" :row["DB_POLLING_CENTER_POLLING_PLACE"],
             "source_id": row["DB_TRANS_SOURCE_ID"],
             "dest_id": row["trans_route_TRANS_DEST_ID"],
+            "current_timestamp": current_timestamp,
             **area_context
         }
         
