@@ -25,4 +25,6 @@ migration. Now instead of applying the logo css should be applied to the
 It requires a couple of environment variables set to keycloak container that
 will be used to display system version and hash: `APP_VERSION` and `APP_HASH`.
 
-Similarly, 
+Similarly, the same new env vars `APP_VERSION` and `APP_HASH` are now also used
+in global settings by admin-portal and voting-portal (ballot-verifier is still
+missing having its own global-settings file).
