@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 import React, {FC, ReactElement, useContext} from "react"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {SettingsContext} from "@/providers/SettingsContextProvider"

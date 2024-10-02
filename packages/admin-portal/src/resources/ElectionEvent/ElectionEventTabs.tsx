@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, Suspense, lazy} from "react"
 import {TabbedShowLayout, useRecordContext} from "react-admin"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
