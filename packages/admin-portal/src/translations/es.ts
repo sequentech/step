@@ -87,7 +87,7 @@ const spanishTranslation: TranslationType = {
             tabs: {
                 votingChannels: "CANALES DE VOTACIÓN",
                 electionTypes: "TIPOS DE ELECCIÓN",
-                communications: "PLANTILLAS",
+                templates: "PLANTILLAS",
                 languages: "IDIOMAS",
                 lookAndFeel: "PERSONILIZACIÓN DE APARIENCIA",
                 schedules: "EVENTOS PROGRAMADOS",

@@ -87,7 +87,7 @@ const frenchTranslation: TranslationType = {
             tabs: {
                 votingChannels: "CANAUX DE VOTE",
                 electionTypes: "TYPES D'ÉLECTION",
-                communications: "MODÈLES",
+                templates: "MODÈLES",
                 languages: "LANGUES",
                 lookAndFeel: "PERSONNALISATION DE L'APPARENCE",
                 schedules: "ÉVÉNEMENTS PROGRAMMÉS",

@@ -66,7 +66,7 @@ export const SettingsScreen: React.FC = () => {
                         ),
                     },
                     {
-                        label: t("electionTypeScreen.tabs.communications"),
+                        label: t("electionTypeScreen.tabs.templates"),
                         component: () => (
                             <Resource name="sequent_backend_tenant" list={SettingsTemplates} />
                         ),

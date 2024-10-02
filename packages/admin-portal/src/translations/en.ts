@@ -89,7 +89,7 @@ const englishTranslation = {
             tabs: {
                 votingChannels: "VOTING CHANELS",
                 electionTypes: "ELECTION TYPES",
-                communications: "TEMPLATES",
+                templates: "TEMPLATES",
                 languages: "LANGUAGES",
                 lookAndFeel: "Look & Feel",
                 schedules: "SCHEDULED EVENTS",
