@@ -21,7 +21,6 @@ import {
     required,
     FormDataConsumer,
     useGetList,
-    useInput,
 } from "react-admin"
 import {
     Accordion,
@@ -37,7 +36,7 @@ import styled from "@emotion/styled"
 import DownloadIcon from "@mui/icons-material/Download"
 import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
-import {ICommunicationType, ISendCommunicationBody} from "@/types/communications"
+import {ITemplateType, ISendTemplateBody} from "@/types/templates"
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "@/components/CustomTabPanel"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
@@ -50,7 +49,6 @@ import {
     IElectionPresentation,
     ITenantSettings,
     EVotingPortalCountdownPolicy,
-    IActiveTemplateIds,
 } from "@sequentech/ui-core"
 import {Dialog} from "@sequentech/ui-essentials"
 import {ListActions} from "@/components/ListActions"
@@ -65,7 +63,7 @@ import {
     ManageElectionDatesMutation,
     Sequent_Backend_Election_Event,
     SetCustomUrlsMutation,
-    Sequent_Backend_Communication_Template,
+    Sequent_Backend_Template,
 } from "@/gql/graphql"
 import {ElectionStyles} from "@/components/styles/ElectionStyles"
 import {FormStyles} from "@/components/styles/FormStyles"
@@ -277,12 +275,12 @@ export const EditElectionEventDataForm: React.FC = () => {
         },
     })
 
-    const {data: verifyVoterTemplates} = useGetList<Sequent_Backend_Communication_Template>(
+    const {data: verifyVoterTemplates} = useGetList<Sequent_Backend_Template>(
         "sequent_backend_communication_template",
         {
             filter: {
                 tenant_id: tenantId,
-                communication_type: ICommunicationType.MANUALLY_VERIFY_VOTER,
+                communication_type: ITemplateType.MANUALLY_VERIFY_VOTER,
             },
         }
     )
@@ -291,9 +289,7 @@ export const EditElectionEventDataForm: React.FC = () => {
         if (!verifyVoterTemplates) {
             return []
         }
-        const template_names = (
-            verifyVoterTemplates as Sequent_Backend_Communication_Template[]
-        ).map((entry) => {
+        const template_names = (verifyVoterTemplates as Sequent_Backend_Template[]).map((entry) => {
             console.log("id: ", entry.id)
             console.log("name: ", entry.template?.name)
             return {
@@ -425,7 +421,7 @@ export const EditElectionEventDataForm: React.FC = () => {
             temp.presentation.custom_urls = {}
         }
 
-        if (!(temp.presentation as IElectionEventPresentation | undefined)?.active_template_ids) {
+        if (!(temp.presentation as IElectionEventPresentation | undefined)) {
             temp.presentation.active_template_ids = {
                 manual_verification: "",
             }
