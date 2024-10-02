@@ -6,7 +6,6 @@ use crate::{
     hasura,
     postgres::{
         scheduled_event::{insert_new_scheduled_event, insert_scheduled_event},
-        tenant::Schedule,
     },
     services::election_event_dates::generate_manage_date_task_name,
     types::resources::OrderDirection,

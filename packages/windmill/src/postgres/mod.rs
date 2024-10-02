@@ -27,5 +27,4 @@ pub mod tally_session_execution;
 pub mod tally_sheet;
 pub mod tasks_execution;
 pub mod template;
-pub mod tenant;
 pub mod trustee;
