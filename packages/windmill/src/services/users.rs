@@ -363,7 +363,6 @@ pub async fn list_users(
         .into_iter()
         .map(|row| -> Result<User> { row.try_into() })
         .collect::<Result<Vec<User>>>()?;
-    info!("Users: {:?}", users);
     if let Some(ref some_election_event_id) = filter.election_event_id {
         let area_ids: Vec<String> = users.iter().filter_map(|user| user.get_area_id()).collect();
         let areas_by_ids = get_areas(

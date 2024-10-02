@@ -20,21 +20,11 @@ const PermissionLabelInput: React.FC<PermissionLabelInputProps> = ({
     const [inputValue, setInputValue] = useState("")
     const [permissionLabelsArr, setPermissionLabels] = useState<string[]>(permissionLabels || [])
 
-    const {
-        field: {value, onChange},
-    } = useInput({source})
-
     const handleAddLabel = () => {
         if (inputValue.trim() && !permissionLabelsArr.includes(inputValue.trim())) {
             const newLabels = [...permissionLabelsArr, inputValue.trim()]
             setPermissionLabels(newLabels)
-            onChange(newLabels)
-
-            // if (handleAddedLabel) {
-            //     handleAddedLabel(newLabels)
-            // } else {
-            //     onChange(newLabels)
-            // }
+            handleAddedLabel && handleAddedLabel(newLabels)
             setInputValue("")
         }
     }

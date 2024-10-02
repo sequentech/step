@@ -48,4 +48,3 @@ pub mod users;
 pub mod vault;
 pub mod vote_receipt;
 pub mod voting_status;
-pub mod resources;

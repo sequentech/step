@@ -44,6 +44,11 @@ export interface AuthContextValues {
      * The trustee an admin user can act as
      */
     trustee: String
+
+    /**
+     * The permission labels an admin user has
+     */
+    permissionLabels: String[]
     /**
      * Function to initiate the logout
      */
@@ -93,6 +98,7 @@ const defaultAuthContextValues: AuthContextValues = {
     getAccessToken: () => undefined,
     isAuthorized: () => false,
     openProfileLink: () => new Promise(() => undefined),
+    permissionLabels: [],
 }
 
 /**
@@ -131,6 +137,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const [firstName, setFirstName] = useState<string>("")
     const [tenantId, setTenantId] = useState<string>("")
     const [trustee, setTrustee] = useState<string>("")
+    const [permissionLabels, setPermissionLabels] = useState<String[]>([])
 
     const sleepSecs = 50
     const bufferSecs = 10
@@ -306,6 +313,21 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         updateTokenPeriodically()
     }
 
+    const extractPermissionLabels = (input: string): string[] => {
+        console.log("input", input);
+            const regex = /\"(.*?)\"/g;
+            const matches = [];
+            let match;
+          
+            // Find all matches in the input string
+            while ((match = regex.exec(input)) !== null) {
+                console.log("match", match[1]);
+              matches.push(match[1]);
+            }
+          
+            return matches;
+    }
+
     // This effect loads the users profile in order to extract the username
     useEffect(() => {
         /**
@@ -340,6 +362,13 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
                 if (keycloak.tokenParsed?.trustee) {
                     setTrustee(keycloak.tokenParsed?.trustee)
+                }
+                const tokenPermissionLabels = keycloak.tokenParsed?.["https://hasura.io/jwt/claims"]?.[
+                    "x-hasura-permission-labels"
+                ]
+                if(tokenPermissionLabels) {
+                    const permissionLabelsArray = extractPermissionLabels(tokenPermissionLabels)
+                    setPermissionLabels(permissionLabelsArray)
                 }
             } catch {
                 console.log("error trying to load the users profile")
@@ -414,6 +443,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 getAccessToken,
                 isAuthorized,
                 openProfileLink,
+                permissionLabels,
             }}
         >
             {props.children}
