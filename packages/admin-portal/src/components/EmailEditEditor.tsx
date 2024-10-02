@@ -53,6 +53,7 @@ export default function EmailEditEditor({
                     source={sourceBodyPlainText}
                     multiline={true}
                     minRows={6}
+                    parse={(value) => value || ""}
                 />
             </CustomTabPanel>
             <CustomTabPanel key="richtext" value={tab} index={1}>

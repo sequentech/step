@@ -1186,6 +1186,8 @@ const frenchTranslation: TranslationType = {
             },
             email: {
                 subject: "Sujet",
+                emptyTextBoxError:
+                    "Veuillez remplir les champs de texte simple et de texte enrichi pour activer le bouton Envoyer.",
             },
         },
         tallysheet: {

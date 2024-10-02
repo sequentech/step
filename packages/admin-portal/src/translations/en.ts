@@ -1172,6 +1172,8 @@ const englishTranslation = {
             },
             email: {
                 subject: "Subject",
+                emptyTextBoxError:
+                    "Please fill in both the Plain and Rich Text boxes to enable the Send button.",
             },
         },
         tallysheet: {

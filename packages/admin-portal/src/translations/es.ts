@@ -1179,6 +1179,8 @@ const spanishTranslation: TranslationType = {
             },
             email: {
                 subject: "Subject",
+                emptyTextBoxError:
+                    "Por favor, rellena tanto las cajas de Texto Plano como de Texto Enriquecido para habilitar el botón Enviar.",
             },
         },
         tallysheet: {

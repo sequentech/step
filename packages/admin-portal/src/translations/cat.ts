@@ -1180,6 +1180,8 @@ const catalanTranslation: TranslationType = {
             },
             email: {
                 subject: "Assumpte",
+                emptyTextBoxError:
+                    "Si us plau, ompliu tant les caixes de Text Pla com de Text Enriquit per activar el botó Enviar.",
             },
         },
         tallysheet: {

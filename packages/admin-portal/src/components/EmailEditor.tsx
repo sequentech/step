@@ -27,7 +27,7 @@ export default function EmailEditor({record, setRecord}: EmailEditorProps) {
         setRecord({...(record as any), [name]: value})
     }
 
-    function handleHtmlChange() {
+    function handleHtmlChange(value?: string) {
         if (editorRef.current) {
             setRecord({...(record as any), html_body: editorRef.current.getContent()})
         }
@@ -56,13 +56,13 @@ export default function EmailEditor({record, setRecord}: EmailEditorProps) {
                     value={record?.plaintext_body}
                     onChange={handleChange}
                     multiline={true}
-                    minRows={6}
+                    minRows={4}
                 />
             </CustomTabPanel>
             <CustomTabPanel key="richtext" value={tab} index={1}>
                 <Editor
                     editorRef={editorRef}
-                    initialValue={record.html_body || ""}
+                    value={record.html_body}
                     onEditorChange={handleHtmlChange}
                 ></Editor>
             </CustomTabPanel>

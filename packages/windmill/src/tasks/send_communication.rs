@@ -220,13 +220,22 @@ impl EmailSender {
                     .data(subject)
                     .charset("UTF-8")
                     .build()
-                    .map_err(|err| anyhow!("invalid subject: {:?}", err))?;
+                    .map_err(|err| anyhow!("Invalid subject: {:?}", err))?;
                 let body_content = Content::builder()
                     .data(plaintext_body)
                     .charset("UTF-8")
                     .build()
-                    .map_err(|err| anyhow!("invalid body: {:?}", err))?;
-                let body = Body::builder().text(body_content).build();
+                    .map_err(|err| anyhow!("Invalid Plain Text body: {:?}", err))?;
+                let html_content = Content::builder()
+                    .data(html_body)
+                    .charset("UTF-8")
+                    .build()
+                    .map_err(|err| anyhow!("Invalid HTML body: {:?}", err))?;
+
+                let body = Body::builder()
+                    .text(body_content)
+                    .html(html_content)
+                    .build();
 
                 let msg = AwsMessage::builder()
                     .subject(subject_content)
