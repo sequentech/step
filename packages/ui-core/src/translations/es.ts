@@ -124,6 +124,7 @@ const spanishTranslation: TranslationType = {
         },
         header: {
             profile: "Perfil",
+            welcome: "Bienvenido/a,<br>{{name}}",
             session: {
                 title: "Su sesión está a punto de expirar.",
                 timeLeft: "Le quedan {{time}} para emitir su voto.",

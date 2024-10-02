@@ -4,7 +4,7 @@
 
 import {Box, Menu, MenuItem, Typography} from "@mui/material"
 import React, {useEffect, useState} from "react"
-import {useTranslation} from "react-i18next"
+import {useTranslation, Trans} from "react-i18next"
 import {
     IExpiryCountdown,
     StyledButton,
@@ -169,14 +169,20 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                             className="user-first-name"
                             sx={{
                                 display: {xs: "none", sm: "block"},
-                                maxWidth: "150px",
+                                maxWidth: "105px",
                                 textOverflow: "ellipsis",
                                 whiteSpace: "nowrap",
                                 overflowX: "clip",
                             }}
                             title={userProfile.firstName ?? userProfile.username}
                         >
-                            Welcome, {userProfile.firstName ?? userProfile.username}
+                            <Trans
+                                i18nKey="header.welcome"
+                                values={{
+                                    name: userProfile.firstName ?? userProfile.username,
+                                }}
+                                components={{br: <br />}}
+                            />
                         </Box>
                     </StyledButton>
                 </StyledButtonContainerWrapper>

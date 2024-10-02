@@ -1,7 +1,9 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-const tagalogTranslation = {
+import {TranslationType} from "./en"
+
+const tagalogTranslation: TranslationType = {
     translations: {
         language: "Tagalog",
         welcome: "Kamusta <br/> <strong>Mundo</strong>",
@@ -122,6 +124,7 @@ const tagalogTranslation = {
         },
         header: {
             profile: "Profile",
+            welcome: "Sumalubong,<br>{{name}}",
             session: {
                 title: "Malapit nang mag-expire ang iyong session.",
                 timeLeft: "May natitirang {{time}} ka upang iboto ang iyong balota.",
@@ -131,7 +134,5 @@ const tagalogTranslation = {
         },
     },
 }
-
-export type TranslationType = typeof tagalogTranslation
 
 export default tagalogTranslation
