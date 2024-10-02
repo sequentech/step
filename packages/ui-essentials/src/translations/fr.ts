@@ -87,7 +87,10 @@ const frenchTranslation: TranslationType = {
         },
         ballotHash: "Votre Localisateur de Vote : {{ballotId}}",
         version: {
-            header: "Version :",
+            header: "Version:",
+        },
+        hash: {
+            header: "Hash:",
         },
         logout: {
             buttonText: "Fermer la session",

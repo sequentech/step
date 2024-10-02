@@ -71,6 +71,15 @@ SPDX-License-Identifier: AGPL-3.0-only
     <div id="kc-header" class="${properties.kcHeaderClass!}">
         <div id="kc-header-wrapper"
              class="${properties.kcHeaderWrapperClass!}">
+            <div class="logo"></div>
+            <div class="version version-version">
+                <span class="title">VERSION:</span>
+                <span class="value">${properties.systemVersion}</span>
+            </div>
+            <div class="version version-hash">
+                <span class="title">HASH:</span>
+                <span class="value">${properties.systemHash}</span>
+            </div>
             <#if realm.internationalizationEnabled  && locale.supported?size gt 1>
                 <div class="${properties.kcLocaleMainClass!}" id="kc-locale">
                     <div id="kc-locale-wrapper" class="${properties.kcLocaleWrapperClass!}">
@@ -95,22 +104,6 @@ SPDX-License-Identifier: AGPL-3.0-only
                     </div>
                 </div>
             </#if>
-        </div>
-        <div id="kc-header-wrapper-b" class="kc-header-wrapper-b">
-            <div class="button-version-parent">
-                <button class="button-version-button" tabindex="-1" type="button" disabled="">
-                    <div class="button-version-div">
-                        <span class="button-version-span">VERSION:</span>
-                        <span class="button-version-span">${properties.systemVersion}</span>
-                    </div>
-                </button>
-                <button class="button-version-button" tabindex="-1" type="button" disabled="">
-                    <div class="button-version-div">
-                        <span class="button-version-span">HASH:</span>
-                        <span class="button-version-span">${properties.systemHash}</span>
-                    </div>
-                </button>
-            </div>
         </div>
     </div>
     <div id="kc-title" class="${properties.kcTitleClass!}">

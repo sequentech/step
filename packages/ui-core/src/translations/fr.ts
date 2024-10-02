@@ -89,6 +89,9 @@ const frenchTranslation: TranslationType = {
         version: {
             header: "Version :",
         },
+        hash: {
+            header: "Hash:",
+        },
         logout: {
             buttonText: "Fermer la session",
             modal: {
