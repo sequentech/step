@@ -89,6 +89,9 @@ const tagalogTranslation: TranslationType = {
         version: {
             header: "Bersyon:",
         },
+        hash: {
+            header: "Hash:",
+        },
         logout: {
             buttonText: "Mag-logout",
             modal: {

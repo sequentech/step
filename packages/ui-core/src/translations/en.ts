@@ -86,6 +86,9 @@ const englishTranslation = {
         version: {
             header: "Version:",
         },
+        hash: {
+            header: "Hash:",
+        },
         logout: {
             buttonText: "Logout",
             modal: {

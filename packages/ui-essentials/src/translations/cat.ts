@@ -87,6 +87,9 @@ const catalanTranslation: TranslationType = {
         version: {
             header: "Versió:",
         },
+        hash: {
+            header: "Hash:",
+        },
         logout: {
             buttonText: "Tanca sessió",
             modal: {
