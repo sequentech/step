@@ -243,11 +243,11 @@ export const EditElectionEventDataForm: React.FC = () => {
     })
 
     const {data: verifyVoterTemplates} = useGetList<Sequent_Backend_Template>(
-        "sequent_backend_communication_template",
+        "sequent_backend_template",
         {
             filter: {
                 tenant_id: tenantId,
-                communication_type: ITemplateType.MANUALLY_VERIFY_VOTER,
+                type: ITemplateType.MANUALLY_VERIFY_VOTER,
             },
         }
     )
