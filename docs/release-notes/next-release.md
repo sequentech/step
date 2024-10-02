@@ -30,9 +30,10 @@ in `global-settings.json` by admin-portal, voting-portal and ballot-verifier.
 This requires a change in deployment scripts to obtain the hash, otherwise a
 default `-` value will be shown.
 
-## Keycloak: Add "Events" permissions to keycloak realm:
+## Keycloak: Election event "Events" - add permissions to keycloak realm:
 
-1. go to realm roles click on "Create role"
-2. add the following roles: `events-read` `events-create` `events-edit`
-3. go to Groups and choose `admin` group name
-4. go to role mapping and click on `Assign role` and add those permissions
+It requires to add a couple of permissions In order use Election event "EVENTS" tab:
+1. Go to realm roles click on "Create role"
+2. Add the following roles: `events-read` `events-create` `events-edit`
+3. Then Go to "Groups" and choose `admin` group name
+4. Go to "role mapping" and click on `Assign role` and add those permissions
