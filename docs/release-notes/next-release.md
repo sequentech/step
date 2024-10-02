@@ -29,3 +29,10 @@ Similarly, the same new variables `APP_VERSION` and `APP_HASH` are now also used
 in `global-settings.json` by admin-portal, voting-portal and ballot-verifier.
 This requires a change in deployment scripts to obtain the hash, otherwise a
 default `-` value will be shown.
+
+## Keycloak: Add "Events" permissions to keycloak realm:
+
+1. go to realm roles click on "Create role"
+2. add the following roles: `events-read` `events-create` `events-edit`
+3. go to Groups and choose `admin` group name
+4. go to role mapping and click on `Assign role` and add those permissions
