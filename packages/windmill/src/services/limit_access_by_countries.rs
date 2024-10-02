@@ -6,17 +6,17 @@ use super::cloudflare::{
     get_ruleset_by_phase, update_ruleset_rule, CreateCustomRuleRequest, Rule, Ruleset,
     WAF_RULESET_PHASE,
 };
-use anyhow::{Context, Result, anyhow};
+use anyhow::{anyhow, Context, Result};
 use rocket::{form::validate::Contains, http::Status};
 use tracing::instrument;
 
 #[instrument]
 fn get_voting_portal_urls_prefix() -> Result<(String, String)> {
     //TODO: change default values?
-    let voting_portal_url =
-        std::env::var("VOTING_PORTAL_URL").with_context(|| "Error fetching VOTING_PORTAL_URL env var")?;
+    let voting_portal_url = std::env::var("VOTING_PORTAL_URL")
+        .with_context(|| "Error fetching VOTING_PORTAL_URL env var")?;
     let voting_portal_keycloak_url = std::env::var("VOTING_PORTAL_KEYCLOACK_URL")
-    .with_context(|| "Error fetching VOTING_PORTAL_KEYCLOACK_URL env var")?;
+        .with_context(|| "Error fetching VOTING_PORTAL_KEYCLOACK_URL env var")?;
     Ok((voting_portal_url, voting_portal_keycloak_url))
 }
 
@@ -81,13 +81,13 @@ async fn update_or_create_limit_ip_by_countries_rule(
             }
             _ => update_ruleset_rule(&api_key, &zone_id, &ruleset_id, &id, rule.clone())
                 .await
-                .map_err(|err| anyhow!("{:?}", err))?
+                .map_err(|err| anyhow!("{:?}", err))?,
         },
         None => match countries.len() {
             0 => (),
             _ => create_ruleset_rule(&api_key, &zone_id, &ruleset_id, rule.clone())
                 .await
-                .map_err(|err| anyhow!("{:?}", err))?
+                .map_err(|err| anyhow!("{:?}", err))?,
         },
     };
 
@@ -105,7 +105,9 @@ async fn create_limit_ip_by_countries_ruleset(
     let rule: CreateCustomRuleRequest =
         create_limit_ip_by_countries_rule_format(tenant_id.clone(), countries.clone())?;
 
-    create_ruleset(&api_key, &zone_id, ruleset_phase, rule.clone()).await.map_err(|err| anyhow!("{:?}", err))?;
+    create_ruleset(&api_key, &zone_id, ruleset_phase, rule.clone())
+        .await
+        .map_err(|err| anyhow!("{:?}", err))?;
 
     Ok(rule)
 }
@@ -117,25 +119,31 @@ pub async fn handle_limit_ip_access_by_countries(
 ) -> Result<()> {
     let (zone_id, api_key) = get_cloudflare_vars().map_err(|err| anyhow!("{:?}", err))?;
 
-    let ruleset = get_ruleset_by_phase(&api_key, &zone_id, WAF_RULESET_PHASE).await.map_err(|err| anyhow!("{:?}", err))?;
+    let ruleset = get_ruleset_by_phase(&api_key, &zone_id, WAF_RULESET_PHASE)
+        .await
+        .map_err(|err| anyhow!("{:?}", err))?;
 
     match ruleset {
-        Some(ruleset) => update_or_create_limit_ip_by_countries_rule(
-            &api_key,
-            &zone_id,
-            &ruleset,
-            tenant_id.clone(),
-            countries,
-        )
-        .await?,
-        None => create_limit_ip_by_countries_ruleset(
-            &api_key,
-            &zone_id,
-            tenant_id,
-            countries,
-            WAF_RULESET_PHASE,
-        )
-        .await?,
+        Some(ruleset) => {
+            update_or_create_limit_ip_by_countries_rule(
+                &api_key,
+                &zone_id,
+                &ruleset,
+                tenant_id.clone(),
+                countries,
+            )
+            .await?
+        }
+        None => {
+            create_limit_ip_by_countries_ruleset(
+                &api_key,
+                &zone_id,
+                tenant_id,
+                countries,
+                WAF_RULESET_PHASE,
+            )
+            .await?
+        }
     };
 
     Ok(())
