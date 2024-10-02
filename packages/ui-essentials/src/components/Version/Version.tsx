@@ -8,6 +8,7 @@ import {Box} from "@mui/material"
 import {styled} from "@mui/material/styles"
 
 interface VersionProps {
+    header?: string
     version: {[key: string]: string}
 }
 
@@ -19,8 +20,9 @@ const StyledButton = styled(Button)(`
     }
 `)
 
-const Version: React.FC<VersionProps> = ({version}) => {
+const Version: React.FC<VersionProps> = ({version, header}) => {
     const {t} = useTranslation()
+    const translation = useTranslation()
 
     return (
         <StyledButton
@@ -31,7 +33,7 @@ const Version: React.FC<VersionProps> = ({version}) => {
         >
             <Box sx={{width: "100%", display: "flex", flexDirection: "row", alignItems: "center"}}>
                 <Box component="span" sx={{display: {xs: "none", md: "block"}}}>
-                    {t("version.header")}
+                    {t(header ?? "version.header")}
                 </Box>
                 <Box component="span">{version["main"]}</Box>
             </Box>
