@@ -26,17 +26,6 @@ all-images() {
     yq -r '.services[].image' < $SCRIPT_PATH/../.devcontainer/docker-compose.yml | grep -vw null | sort | uniq
 }
 
-# Instead of doing some JSON/YAML golfing now, hardcode the images
-# that are mounting directories from the root project so that we can
-# repack them by adding these directories onto the image.
-all-images-with-volumes() {
-    cat <<EOF
-sequentech.local/frontend ./packages /usr/src/app
-sequentech.local/cargo-packages ./keycloak/import /import
-sequentech.local/cargo-packages ./packages /app
-EOF
-}
-
 force-vendored-rust-sources() {
     docker build -f- -t "$1" $PROJECT_ROOT <<EOF
 FROM $1
@@ -54,19 +43,6 @@ replace-with = "vendored-sources"
 directory = "vendor"
 EOD
 EOF
-}
-
-# Re-tag the image, but with the host paths added to it. This is
-# useful for creating air-gapped images that originally mounted
-# directories such as the source code.
-add-project-root-to-image() {
-    if [ -e "$2" ]; then
-        info "Copying $(realpath "$PROJECT_ROOT/$2") to $1 at $3; this will get $1 retagged"
-        docker build -f- -t "$1" $PROJECT_ROOT <<EOF
-          FROM $1
-          COPY $2 $3
-EOF
-    fi
 }
 
 filesystem-friendly-image-name() {
@@ -1316,20 +1292,6 @@ tar -cf $DELIVERABLE_TARBALL -T /dev/null
 build-images
 pull-images
 
-# Take all images that volume mount the project source code, and add
-# it to the image, retagging the images
-IFS='
-'
-for image in $(all-images-with-volumes); do
-    IFS=' ' read -a fields <<< "$image"
-    image_name="${fields[0]}"
-    host_path="${fields[1]}"
-    target_path="${fields[2]}"
-    add-project-root-to-image "$image_name" "$host_path" "$target_path"
-done
-
-# After the project root has been added to images, we can vendor their
-# crates and force their resolution from the vendored deps
 force-vendored-rust-sources "sequentech.local/cargo-packages" "/app"
 
 # Archive all images
