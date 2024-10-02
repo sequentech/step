@@ -37,3 +37,17 @@ It requires to add a couple of permissions In order use Election event "EVENTS" 
 2. Add the following roles: `events-read` `events-create` `events-edit`
 3. Then Go to "Groups" and choose `admin` group name
 4. Go to "role mapping" and click on `Assign role` and add those permissions
+
+## Templates
+Handling of templates has been inproved. The templates that are uploaded in the Templates 
+section can now be selected at election event level-> Data -> Template.
+Therefore the admin can have several templates of the same option, for example: 
+MANUALLY_VERIFY_VOTER and later select which one to apply for each election event.
+More template types can be added in the future.
+
+It is required to upload the default templates to the S3 public-assets folder:
+`step/.devcontainer/minio/public-assets/manual_verification_system.hbs`
+`step/.devcontainer/minio/public-assets/manual_verification_user.hbs`
+Being the ENV var `PUBLIC_ASSETS_PATH=public-assets` in this case.
+The rest of ENV variables starting by `PUBLIC_ASSETS_` that have been removed, used to name 
+the files and other assets but they are no longer needed by the system.
