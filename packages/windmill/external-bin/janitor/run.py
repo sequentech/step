@@ -76,8 +76,6 @@ def parse_table_sheet(
                 if re.match(pattern, key):
                     matched_patterns.add(pattern)
                     break
-        if len(matched_patterns) != len(required_keys):
-            breakpoint()
         assert(len(matched_patterns) == len(required_keys))
 
     def check_allowed_keys(header_values, allowed_keys):
@@ -446,6 +444,7 @@ def gen_tree(excel_data):
 
     for (idx, row) in enumerate(results):
         print(f"processing row {idx}")
+        breakpoint()
         # Find or create the election object
         row_election_post = row["DB_POLLING_CENTER_POLLING_PLACE"]
         election = next((e for e in elections_object["elections"] if e["election_post"] == row_election_post), None)
@@ -455,7 +454,6 @@ def gen_tree(excel_data):
         ), None)
 
         if not election_context:
-            breakpoint()
             raise Exception(f"election with 'election_post' = {row_election_post} not found in excel")
         
         if not election:
@@ -513,7 +511,6 @@ def gen_tree(excel_data):
         ), None)
 
         if not area_context:
-            breakpoint()
             raise Exception(f"area with 'name' = {area_name} not found in excel")
 
         ccs_server_tags = str(area_context["annotations"]["miru_ccs_server_tags"]).split(",")
@@ -529,7 +526,6 @@ def gen_tree(excel_data):
         miru_trustee_users = ",".join(miru_trustee_users)
         area_context["annotations"]["miru_ccs_servers"] = f"[{",".join(found_servers)}]"
         area_context["annotations"]["miru_trustee_users"] = "[" + miru_trustee_users.replace('"', '\\"') + "]"
-        #breakpoint()
 
         area = {
             "name": area_name,
@@ -561,8 +557,8 @@ def replace_placeholder_database(election_tree, election_event_id):
     elections = []
 
     keycloak_context = {
-        "country_list": "[]", #"[\"KINGDOM OF THAILAND\",\"MALDIVES\",\"PEOPLES REPUBLIC OF BANGLADESH\",\"SRI LANKA\"]",
-        "embassy_list": "[]" #"[\"KINGDOM OF THAILAND/BANGKOK PE\",\"MALDIVES/DHAKA PE\",\"PEOPLES REPUBLIC OF BANGLADESH/DHAKA PE\",\"SRI LANKA/DHAKA PE\"]"
+        "country_list": "[\\\"KINGDOM OF THAILAND\\\",\\\"MALDIVES\\\",\\\"PEOPLES REPUBLIC OF BANGLADESH\\\",\\\"SRI LANKA\\\"]",
+        "embassy_list": "[\\\"KINGDOM OF THAILAND/BANGKOK PE\\\",\\\"MALDIVES/DHAKA PE\\\",\\\"PEOPLES REPUBLIC OF BANGLADESH/DHAKA PE\\\",\\\"SRI LANKA/DHAKA PE\\\"]"
     }
 
     print(f"rendering keycloak")
