@@ -89,6 +89,9 @@ const spanishTranslation: TranslationType = {
         version: {
             header: "Versión:",
         },
+        hash: {
+            header: "Hash:",
+        },
         logout: {
             buttonText: "Cerrar sesión",
             modal: {
