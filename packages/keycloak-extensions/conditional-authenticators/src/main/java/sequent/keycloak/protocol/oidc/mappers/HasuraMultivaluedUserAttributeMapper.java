@@ -49,20 +49,6 @@ public class HasuraMultivaluedUserAttributeMapper extends AbstractOIDCProtocolMa
     configProperties.add(property);
     OIDCAttributeMapperHelper.addAttributeConfig(
         configProperties, HasuraMultivaluedUserAttributeMapper.class);
-
-    property = new ProviderConfigProperty();
-    property.setName(ProtocolMapperUtils.MULTIVALUED);
-    property.setLabel(ProtocolMapperUtils.MULTIVALUED_LABEL);
-    property.setHelpText(ProtocolMapperUtils.MULTIVALUED_HELP_TEXT);
-    property.setType(ProviderConfigProperty.BOOLEAN_TYPE);
-    configProperties.add(property);
-
-    property = new ProviderConfigProperty();
-    property.setName(ProtocolMapperUtils.AGGREGATE_ATTRS);
-    property.setLabel(ProtocolMapperUtils.AGGREGATE_ATTRS_LABEL);
-    property.setHelpText(ProtocolMapperUtils.AGGREGATE_ATTRS_HELP_TEXT);
-    property.setType(ProviderConfigProperty.BOOLEAN_TYPE);
-    configProperties.add(property);
   }
 
   public static final String PROVIDER_ID = "hasura-multivalued-oidc-usermodel-attribute-mapper";
