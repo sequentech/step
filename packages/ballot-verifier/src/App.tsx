@@ -26,6 +26,7 @@ const StyledApp = styled(Stack)`
 
 const HeaderWithContext: React.FC = () => {
     const authContext = useContext(AuthContext)
+    const {globalSettings} = useContext(SettingsContext)
     const ballotStyle = useAppSelector(selectFirstBallotStyle)
 
     let presentation: IElectionEventPresentation | undefined =
@@ -43,8 +44,8 @@ const HeaderWithContext: React.FC = () => {
 
     return (
         <Header
-            appVersion={{main: "-"}}
-            appHash={{main: "-"}}
+            appVersion={{main: globalSettings.APP_VERSION}}
+            appHash={{main: globalSettings.APP_HASH}}
             userProfile={{
                 firstName: authContext.firstName,
                 username: authContext.username,

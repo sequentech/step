@@ -37,8 +37,8 @@ const defaultSettingsValues: SettingsContextValues = {
         ONLINE_VOTING_CLIENT_ID: "admin-portal",
         KEYCLOAK_URL: "http://127.0.0.1:8090/",
         HASURA_URL: "http://localhost:8080/v1/graphql",
-        APP_VERSION: "dev",
-        APP_HASH: "dev",
+        APP_VERSION: "-",
+        APP_HASH: "-",
         DEFAULT_EMAIL_SUBJECT: {en: "Participate in {{election_event.name}}"},
         DEFAULT_EMAIL_HTML_BODY: {
             en: "<p>Hello {{user.first_name}},<br><br>Enter in {{vote_url}} to vote</p>",
