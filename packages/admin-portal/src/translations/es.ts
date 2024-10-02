@@ -1319,6 +1319,13 @@ const spanishTranslation: TranslationType = {
         widget: {
             logs: "Registros",
         },
+        settings: {
+            countries: {
+                title: "Bloqueo de Países",
+                description:
+                    "Elige a continuación los países de los cuales deseas bloquear las votaciones/inscripciones.",
+            },
+        },
     },
 }
 

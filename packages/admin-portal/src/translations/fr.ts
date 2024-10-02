@@ -1326,6 +1326,13 @@ const frenchTranslation: TranslationType = {
         widget: {
             logs: "Journaux",
         },
+        settings: {
+            countries: {
+                title: "Blocage des Pays",
+                description:
+                    "Choisissez ci-dessous les pays depuis lesquels vous souhaitez bloquer les votes/inscriptions.",
+            },
+        },
     },
 }
 

@@ -6,11 +6,15 @@ import {COUNTRIES} from "@/lib/countries"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {LIMIT_ACCESS_BY_COUNTRIES} from "@/queries/limitAccessByCountries"
 import {useMutation} from "@apollo/client"
+import {Typography} from "@mui/material"
 import React, {useEffect, useState} from "react"
 import {AutocompleteArrayInput, SaveButton, SimpleForm, useEditController} from "react-admin"
+import {useTranslation} from "react-i18next"
 
 export const SettingsCountries: React.FC<void> = () => {
     const [tenantId] = useTenantStore()
+    const {t} = useTranslation()
+
     const [limitAccessByCountries] =
         useMutation<LimitAccessByCountriesMutation>(LIMIT_ACCESS_BY_COUNTRIES)
     const {record, save} = useEditController({
@@ -52,6 +56,9 @@ export const SettingsCountries: React.FC<void> = () => {
             onSubmit={handleSumbit}
             record={record}
         >
+            <Typography variant="h4">{t("settings.countries.title")}</Typography>
+            <Typography variant="body2">{t("settings.countries.description")}</Typography>
+
             <AutocompleteArrayInput
                 fullWidth
                 source="settings.countries"
