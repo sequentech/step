@@ -39,7 +39,7 @@ The script has two inputs, a postgres dump file (.sql), and an excel (.xls) file
 You can use the example files hereby included:
 
     cd /workspaces/step/packages/windmill/external-bin/janitor
-    python3 ./run.py ovcs_ver7.sql 29-09-2024-event-import.xlsx
+    python3 ./run.py ./import-data/ovcs_ver7.sql ./import-data/29-09-2024-event-import.xlsx
 
 The output files are:
 

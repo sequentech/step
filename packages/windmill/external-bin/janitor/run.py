@@ -358,7 +358,7 @@ try:
         area_contest_template = file.read()
 
     with open('templates/COMELEC/keycloack.hbs', 'r') as file:
-        keycloak_template = json.load(file) 
+        keycloak_template = file.read()
 
     logging.info("Loaded all templates successfully.")
 except FileNotFoundError as e:
@@ -560,6 +560,15 @@ def replace_placeholder_database(election_tree, election_event_id):
     contests = []
     elections = []
 
+    keycloak_context = {
+        "country_list": "[]", #"[\"KINGDOM OF THAILAND\",\"MALDIVES\",\"PEOPLES REPUBLIC OF BANGLADESH\",\"SRI LANKA\"]",
+        "embassy_list": "[]" #"[\"KINGDOM OF THAILAND/BANGKOK PE\",\"MALDIVES/DHAKA PE\",\"PEOPLES REPUBLIC OF BANGLADESH/DHAKA PE\",\"SRI LANKA/DHAKA PE\"]"
+    }
+
+    print(f"rendering keycloak")
+    keycloak = json.loads(render_template(keycloak_template, keycloak_context))
+    
+
     for election in election_tree["elections"]:
         election_id = generate_uuid()
         election_context = {
@@ -629,17 +638,17 @@ def replace_placeholder_database(election_tree, election_event_id):
                 print(f"rendering area_contest area: '{area["name"]}', contest: '{contest["name"]}'")
                 area_contests.append(json.loads(render_template(area_contest_template, area_contest_context)))
 
-    return areas, candidates, contests, area_contests, elections
+    return areas, candidates, contests, area_contests, elections, keycloak
 
 # Example of how to use the function and see the result
 election_tree = gen_tree(excel_data)
 election_event, election_event_id = generate_election_event(excel_data)
 
-areas, candidates, contests, area_contests, elections = replace_placeholder_database(election_tree, election_event_id)
+areas, candidates, contests, area_contests, elections, keycloak = replace_placeholder_database(election_tree, election_event_id)
 
 final_json = {
     "tenant_id": base_config["tenant_id"],
-    "keycloak_event_realm": keycloak_template,  # Add appropriate value or leave it as is
+    "keycloak_event_realm": keycloak,  # Add appropriate value or leave it as is
     "election_event": election_event,  # Include the generated election event
     "elections": elections,  # Include the election objects
     "contests": contests,  # Include the contest objects
