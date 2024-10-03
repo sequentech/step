@@ -8,7 +8,7 @@ export const MANAGE_ELECTION_DATES = gql`
         $electionEventId: String!
         $electionId: String
         $scheduledDate: String
-        $isStart: String
+        $isStart: Boolean
     ) {
         manage_election_dates(
             election_event_id: $electionEventId

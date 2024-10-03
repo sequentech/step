@@ -71,8 +71,10 @@ pub async fn manage_dates(
     )
     .await?;
     if is_start {
+        info!("FF 1");
         match scheduled_date {
             Some(date) => {
+                info!("FF 2a");
                 new_dates.scheduled_opening = Some(true);
                 new_dates.start_date = Some(date.to_string());
                 //TODO: check if date is smaller than now or bigger than end_date and return error
@@ -106,20 +108,19 @@ pub async fn manage_dates(
                 }
             }
             None => {
+                info!("FF 2b");
                 new_dates.scheduled_opening = Some(false);
                 new_dates.start_date = None;
-                if (current_dates.start_date.is_none()) {
-                } else {
-                    //STOP PREVIOS START TASK
-                    new_dates.scheduled_opening = Some(false);
-                    if let Some(scheduled_manage_start_date) = scheduled_manage_start_date_opt {
-                        stop_scheduled_event(
-                            hasura_transaction,
-                            tenant_id,
-                            &scheduled_manage_start_date.id,
-                        )
-                        .await?;
-                    }
+                //STOP PREVIOUS START TASK
+                new_dates.scheduled_opening = Some(false);
+                if let Some(scheduled_manage_start_date) = scheduled_manage_start_date_opt {
+                    info!("FF 3a");
+                    stop_scheduled_event(
+                        hasura_transaction,
+                        tenant_id,
+                        &scheduled_manage_start_date.id,
+                    )
+                    .await?;
                 }
             }
         }
@@ -160,17 +161,14 @@ pub async fn manage_dates(
             None => {
                 new_dates.scheduled_closing = Some(false);
                 new_dates.end_date = None;
-                if (current_dates.scheduled_closing.is_none()) {
-                } else {
-                    //STOP PREVIOS END TASK
-                    if let Some(scheduled_manage_end_date) = scheduled_manage_end_date_opt {
-                        stop_scheduled_event(
-                            hasura_transaction,
-                            tenant_id,
-                            &scheduled_manage_end_date.id,
-                        )
-                        .await?;
-                    }
+                //STOP PREVIOUS END TASK
+                if let Some(scheduled_manage_end_date) = scheduled_manage_end_date_opt {
+                    stop_scheduled_event(
+                        hasura_transaction,
+                        tenant_id,
+                        &scheduled_manage_end_date.id,
+                    )
+                    .await?;
                 }
             }
         }

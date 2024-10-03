@@ -12911,17 +12911,17 @@
                 "defaultValue": null
               },
               {
-                "name": "end_date",
+                "name": "is_start",
                 "description": null,
                 "type": {
                   "kind": "SCALAR",
-                  "name": "String",
+                  "name": "Boolean",
                   "ofType": null
                 },
                 "defaultValue": null
               },
               {
-                "name": "start_date",
+                "name": "scheduled_date",
                 "description": null,
                 "type": {
                   "kind": "SCALAR",

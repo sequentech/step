@@ -91,16 +91,6 @@ export type CreateElectionEventOutput = {
   id: Scalars['String']['output'];
 };
 
-export type CreateEventOutput = {
-  __typename?: 'CreateEventOutput';
-  created_by?: Maybe<Scalars['String']['output']>;
-  cron_config?: Maybe<Scalars['jsonb']['output']>;
-  election_event_id?: Maybe<Scalars['uuid']['output']>;
-  event_payload: Scalars['jsonb']['output'];
-  event_processor: Scalars['String']['output'];
-  tenant_id: Scalars['String']['output'];
-};
-
 export type CreateKeysCeremonyInput = {
   election_event_id: Scalars['String']['input'];
   threshold: Scalars['Int']['input'];
@@ -127,12 +117,6 @@ export type CreateVoteReceiptOutput = {
   ballot_id?: Maybe<Scalars['String']['output']>;
   id: Scalars['uuid']['output'];
   status?: Maybe<Scalars['String']['output']>;
-};
-
-export type DataEventList = {
-  __typename?: 'DataEventList';
-  items: Array<Maybe<EventListRow>>;
-  total: TotalAggregate;
 };
 
 export type DataListElectoralLog = {
@@ -228,31 +212,6 @@ export type ElectoralLogRow = {
   statement_kind: Scalars['String']['output'];
   statement_timestamp: Scalars['Int']['output'];
   user_id: Scalars['String']['output'];
-};
-
-export type EventListFilter = {
-  election?: InputMaybe<Scalars['String']['input']>;
-  event_type?: InputMaybe<Scalars['String']['input']>;
-  schedule?: InputMaybe<Scalars['jsonb']['input']>;
-  tenant_id?: InputMaybe<Scalars['String']['input']>;
-};
-
-export type EventListOrderBy = {
-  election?: InputMaybe<OrderDirection>;
-  event_type?: InputMaybe<OrderDirection>;
-  id?: InputMaybe<OrderDirection>;
-  schedule?: InputMaybe<OrderDirection>;
-};
-
-export type EventListRow = {
-  __typename?: 'EventListRow';
-  election: Scalars['String']['output'];
-  election_event_id: Scalars['String']['output'];
-  event_type: Scalars['String']['output'];
-  id: Scalars['String']['output'];
-  schedule?: Maybe<Scalars['jsonb']['output']>;
-  task_id: Scalars['String']['output'];
-  tenant_id: Scalars['String']['output'];
 };
 
 export type ExportLogsOutput = {
@@ -771,7 +730,6 @@ export type Mutation_Root = {
   check_private_key?: Maybe<CheckPrivateKeyOutput>;
   /** create scheduled event */
   createScheduledEvent?: Maybe<ScheduledEventOutput3>;
-  create_event?: Maybe<CreateEventOutput>;
   /** create keys ceremony */
   create_keys_ceremony?: Maybe<CreateKeysCeremonyOutput>;
   create_permission?: Maybe<KeycloakPermission>;
@@ -1293,18 +1251,6 @@ export type Mutation_RootCreateScheduledEventArgs = {
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   event_payload: Scalars['jsonb']['input'];
   event_processor: Scalars['String']['input'];
-  tenant_id: Scalars['String']['input'];
-};
-
-
-/** mutation root */
-export type Mutation_RootCreate_EventArgs = {
-  created_by?: InputMaybe<Scalars['String']['input']>;
-  cron_config?: InputMaybe<Scalars['jsonb']['input']>;
-  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
-  event_payload: Scalars['jsonb']['input'];
-  event_processor: Scalars['String']['input'];
-  id?: InputMaybe<Scalars['String']['input']>;
   tenant_id: Scalars['String']['input'];
 };
 
@@ -2447,8 +2393,8 @@ export type Mutation_RootLimit_Access_By_CountriesArgs = {
 export type Mutation_RootManage_Election_DatesArgs = {
   election_event_id: Scalars['String']['input'];
   election_id?: InputMaybe<Scalars['String']['input']>;
-  end_date?: InputMaybe<Scalars['String']['input']>;
-  start_date?: InputMaybe<Scalars['String']['input']>;
+  is_start?: InputMaybe<Scalars['Boolean']['input']>;
+  scheduled_date?: InputMaybe<Scalars['String']['input']>;
 };
 
 
@@ -3559,7 +3505,6 @@ export type Query_Root = {
   getElectionEventStats?: Maybe<ElectionEventStatsOutput>;
   /** get election event stats */
   getElectionStats?: Maybe<ElectionStatsOutput>;
-  get_event_list?: Maybe<DataEventList>;
   /** list permissions */
   get_permissions: GetPermissionsOutput;
   get_roles: GetRolesOutput;
@@ -3780,16 +3725,6 @@ export type Query_RootGetElectionEventStatsArgs = {
 
 export type Query_RootGetElectionStatsArgs = {
   object: ElectionStatsInput;
-};
-
-
-export type Query_RootGet_Event_ListArgs = {
-  election_event_id: Scalars['String']['input'];
-  filter?: InputMaybe<EventListFilter>;
-  limit?: InputMaybe<Scalars['Int']['input']>;
-  offset?: InputMaybe<Scalars['Int']['input']>;
-  order_by?: InputMaybe<EventListOrderBy>;
-  tenant_id: Scalars['String']['input'];
 };
 
 

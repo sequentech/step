@@ -26,7 +26,6 @@ import {
 } from "@mui/material"
 import {useMutation} from "@apollo/client"
 import {
-    CreateEventMutation,
     ManageElectionDatesMutation,
     ManageElectionDatesMutationVariables,
     Sequent_Backend_Election,
@@ -59,6 +58,7 @@ interface SelectElectionProps {
     label?: string
     onSelectElection?: (...event: any[]) => void
     customStyle?: SxProps
+    disabled?: boolean
 }
 
 const SelectElection = ({
@@ -68,10 +68,11 @@ const SelectElection = ({
     label,
     onSelectElection,
     customStyle,
+    disabled,
 }: SelectElectionProps) => {
     const aliasRenderer = useAliasRenderer()
     const electionFilterToQuery = (searchText: string) => {
-        if (!searchText || searchText.length == 0) {
+        if (!searchText || searchText.length === 0) {
             return {name: ""}
         }
         return {name: searchText.trim()}
@@ -90,6 +91,7 @@ const SelectElection = ({
             perPage={100} // // Setting initial larger records size of areas
             enableGetChoices={({q}) => q && q.length >= 3}
             label={label}
+            disabled={disabled}
         >
             <AutocompleteInput
                 label={label}
@@ -99,6 +101,7 @@ const SelectElection = ({
                 onChange={onSelectElection}
                 debounce={100}
                 sx={customStyle}
+                disabled={disabled}
             />
         </ReferenceInput>
     )
@@ -199,6 +202,7 @@ const CreateEvent: FC<CreateEventProps> = ({
                         label={t("eventsScreen.eventType.label")}
                         value={eventType || ""}
                         onChange={(e: any) => setEventType(e.target.value)}
+                        disabled={isEditEvent}
                     >
                         <MenuItem value={EventProcessors.START_ELECTION}>
                             {t("Start Election")}
@@ -214,6 +218,7 @@ const CreateEvent: FC<CreateEventProps> = ({
                         electionEventId={electionEventId}
                         onSelectElection={(election) => setElectionId(election ?? null)}
                         source={selectedEvent?.event_payload?.election_id ?? "all"}
+                        disabled={isEditEvent}
                     />
                 </FormControl>
                 <DateTimeInput
