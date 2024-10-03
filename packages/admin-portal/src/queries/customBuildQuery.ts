@@ -10,7 +10,6 @@ import {getPermissions} from "./GetPermissions"
 import {getRoles} from "./GetRoles"
 import {isString} from "lodash"
 import {COLUMNS_MAP} from "@/types/query"
-import {getEventList, getEventListVariables} from "./EventList"
 
 export interface ParamsSort {
     field: string
@@ -195,28 +194,6 @@ export const customBuildQuery =
                     let output = {
                         data: response.items,
                         total: response.total.aggregate.count,
-                    }
-                    return output
-                },
-            }
-        } else if (resourceName === "event_list" && raFetchType === "GET_LIST") {
-            const resource: any = {
-                type: {
-                    fields: [],
-                    name: resourceName,
-                },
-            }
-            return {
-                query: getEventList(params),
-                variables: getEventListVariables(
-                    buildVariables(introspectionResults)(resource, raFetchType, params, null)
-                ),
-
-                parseResponse: (res: any) => {
-                    const response = res.data.get_event_list
-                    let output = {
-                        data: response.items,
-                        total: response.total,
                     }
                     return output
                 },
