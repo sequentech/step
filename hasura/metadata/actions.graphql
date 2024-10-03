@@ -1164,6 +1164,8 @@ type CreateEventOutput {
   cron_config : jsonb
   event_payload : jsonb!
   created_by : String
+}
+
 type LimtIpByCountriesOutput {
   success : Boolean
 }
