@@ -246,7 +246,7 @@ services:
     container_name: keycloak
     image: keycloak
     build:
-      context: ../packages/
+      context: ../packages
       dockerfile: Dockerfile.keycloak
     restart: always
     ports:
@@ -310,7 +310,7 @@ services:
     image: sequentech.local/frontend
     container_name: admin-portal
     build:
-      context: ../packages/
+      context: ../packages
       dockerfile: Dockerfile
     restart: always
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
@@ -318,9 +318,10 @@ services:
     ports:
       - 3002:3002
     stdin_open: true
+    volumes_from:
+      - devcontainer
+    working_dir: /workspaces/step/packages
     entrypoint: ["./init.sh", "start:admin-portal"]
-    volumes:
-       - ${LOCAL_WORKSPACE_FOLDER:-..}/packages:/usr/src/app
     environment:
         MAX_DIFF_LINES: ${MAX_DIFF_LINES}
         SECONDS_TO_SHOW_COUNTDOWN: ${SECONDS_TO_SHOW_COUNTDOWN}
@@ -341,17 +342,18 @@ services:
     ports:
       - 3000:3000
     stdin_open: true
+    volumes_from:
+      - devcontainer
+    working_dir: /workspaces/step/packages
     entrypoint: ["./init.sh", "start:voting-portal"]
-    volumes:
-       - ${LOCAL_WORKSPACE_FOLDER:-..}/packages:/usr/src/app
 
   immudb:
     profiles: ["full", "base"]
     container_name: immudb
     image: sequentech.local/immudb
     build:
-      context: ../packages/
-      dockerfile: ./Dockerfile.immudb
+      context: ../packages
+      dockerfile: Dockerfile.immudb
     restart: always
     environment:
       - IMMUDB_PGSQL_SERVER=true
@@ -373,13 +375,13 @@ services:
     image: sequentech.local/cargo-packages
     container_name: harvest
     build:
-      context: ../packages/
-      dockerfile: ./Dockerfile.cargo-packages
-    volumes_from:
-      - devcontainer
+      context: ../packages
+      dockerfile: Dockerfile.cargo-packages
     depends_on:
       - devcontainer
     working_dir: /workspaces/step/packages/harvest
+    volumes_from:
+      - devcontainer
     entrypoint: [
       "cargo",
       "watch",
@@ -465,12 +467,12 @@ services:
     stdin_open: true
     container_name: trustee1
     image: sequentech.local/braid
+    build:
+      context: ../packages
+      dockerfile: braid/Dockerfile
     volumes:
       - trustee1_data:/opt/braid
     # TODO: be able to reuse the `sequentech.local/cargo-packages` image
-    build:
-      context: ../packages/
-      dockerfile: ./braid/Dockerfile
     environment:
         IMMUDB_USER: ${IMMUDB_USER}
         IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
@@ -656,9 +658,10 @@ services:
       - harvest
     volumes:
       - ./keycloak/import:/import:z
-      - ${LOCAL_WORKSPACE_FOLDER:-..}/packages:/app:z
     restart: always
-    working_dir: /app/immu-board
+    working_dir: /workspaces/step/packages/immu-board
+    volumes_from:
+      - devcontainer
     entrypoint: [
       "cargo",
       "run",
