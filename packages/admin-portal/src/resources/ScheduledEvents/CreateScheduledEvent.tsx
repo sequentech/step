@@ -219,7 +219,7 @@ const CreateEvent: FC<CreateEventProps> = ({
                         tenantId={tenantId}
                         electionEventId={electionEventId}
                         onSelectElection={(election) => setElectionId(election ??  null)}
-                        source="eventPayload.election_id"
+                        source={selectedEvent?.event_payload?.election_id ?? "all"}
                     />
                 </FormControl>
                 <DateTimeInput

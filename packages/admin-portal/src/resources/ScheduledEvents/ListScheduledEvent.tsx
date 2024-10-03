@@ -24,7 +24,7 @@ import {useTranslation} from "react-i18next"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 
 import {Sequent_Backend_Election} from "@/gql/graphql"
-import CreateEvent, {EventProcessors} from "./CreateEvent"
+import CreateEvent, {EventProcessors} from "./CreateScheduledEvent"
 import {Dialog} from "@sequentech/ui-essentials"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {AuthContext} from "@/providers/AuthContextProvider"
@@ -50,7 +50,7 @@ export enum EventProcessorsToLabel {
 interface EditEventsProps {
     electionEventId: string
 }
-const EditEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
+const ListEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
     const record = useRecordContext()
@@ -62,13 +62,15 @@ const EditEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
     const [deleteOne] = useDelete()
     const [openCreateEvent, setOpenCreateEvent] = useState(false)
     const [selectedEventId, setSelectedEventId] = useState<string | undefined>()
+    const [selectedElectionId, setselectedElectionId] = useState<string | undefined>()
+    //"6630a00f-74ed-4280-803b-6e9d26485d00"
     const authContext = useContext(AuthContext)
 
     const {data: elections} = useGetList<Sequent_Backend_Election>("sequent_backend_election")
 
     const getElectionName = (election: any) => {
-        const electionName = elections?.find((item) => election?.election === item.id)?.name
-        return election.election ? electionName : "-"
+        const electionName = elections?.find((item) => election?.event_payload?.election_id === item.id)?.name
+        return election.id ? electionName : "-"
     }
 
     const canEdit = authContext.isAuthorized(true, authContext.tenantId, IPermissions.EVENTS_EDIT)
@@ -120,7 +122,7 @@ const EditEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
     ]
 
     const filterObject: {[key: string]: any} = {
-        election_event_id: record?.id || undefined,
+        election_event_id: electionEventId || undefined,
         tenant_id: tenantId,
     }
 
@@ -147,7 +149,7 @@ const EditEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
     return (
         <>
             <List
-                resource="event_list"
+                resource="sequent_backend_scheduled_event"
                 queryOptions={{
                     refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
                 }}
@@ -171,22 +173,22 @@ const EditEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                 filters={Filters}
             >
                 <DataGridContainerStyle
-                    bulkActionButtons={false}
+                    // bulkActionButtons={false}
                     isOpenSideBar={isOpenSidebar}
                     omit={OMIT_FIELDS}
                 >
-                    <FunctionField label={"Election"} source="election" render={getElectionName} />
+                    <FunctionField label={"Election"} source="event_payload.election_id" render={getElectionName} />
                     <FunctionField
                         label={"Event Type"}
-                        source="event_type"
-                        render={(record: {event_type: keyof typeof EventProcessors}) =>
-                            EventProcessorsToLabel[record.event_type]
+                        source="event_processor"
+                        render={(record: {event_processor: keyof typeof EventProcessors}) =>
+                            EventProcessorsToLabel[record.event_processor]
                         }
                     />
                     <FunctionField
                         label={"Schedule"}
-                        source="schedule"
-                        render={(record: any) => new Date(record.schedule).toLocaleString()}
+                        source="cron_config.scheduled_date"
+                        render={(record: any) => new Date(record.cron_config.scheduled_date).toLocaleString()}
                     />
                     <WrapperField label="Actions">
                         <ActionsColumn actions={actions} />
@@ -221,4 +223,4 @@ const EditEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
     )
 }
 
-export default EditEvents
+export default ListEvents

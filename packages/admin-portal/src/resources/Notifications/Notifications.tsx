@@ -10,7 +10,7 @@ import {FunctionField, List, TextInput, useRecordContext, WrapperField} from "re
 import {useTranslation} from "react-i18next"
 import {ListActions} from "@/components/ListActions"
 import {Action, ActionsColumn} from "@/components/ActionButons"
-import {DataGridContainerStyle} from "../Events/EditEvents"
+import {DataGridContainerStyle} from "../ScheduledEvents/ListScheduledEvent"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 
 interface notificationsProps {

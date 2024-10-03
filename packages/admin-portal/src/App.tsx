@@ -49,7 +49,7 @@ import {Box} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import {useAtomValue} from "jotai"
 import {Navigate} from "react-router-dom"
-import EditEvents from "./resources/Events/EditEvents"
+import ListEvents from "./resources/ScheduledEvents/ListScheduledEvent"
 import Notifications from "./resources/Notifications/Notifications"
 import {TemplateEdit} from "./resources/Template/TemplateEdit"
 import {TemplateList} from "./resources/Template/TemplateList"
@@ -215,8 +215,8 @@ const App: React.FC<AppProps> = () => {
                 />
                 <Resource
                     name="sequent_backend_scheduled_event"
-                    edit={EditEvents}
-                    list={EditEvents}
+                    edit={ListEvents}
+                    list={ListEvents}
                     options={{label: "Scheduled Events"}}
                 />
 

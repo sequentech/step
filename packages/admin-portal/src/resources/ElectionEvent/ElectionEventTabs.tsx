@@ -43,8 +43,8 @@ const ElectoralLog = lazy(() =>
 const EditElectionEventTasks = lazy(() =>
     import("./EditElectionEventTasks").then((module) => ({default: module.EditElectionEventTasks}))
 )
-const EditElectionEvents = lazy(() =>
-    import("./EditElectionEvents").then((module) => ({default: module.EditElectionEvents}))
+const EditElectionEventEvents = lazy(() =>
+    import("./EditElectionEventScheduledEvents").then((module) => ({default: module.EditElectionEventEvents}))
 )
 const EditNotifications = lazy(() =>
     import("../Notifications/EditNotifications").then((module) => ({
@@ -204,7 +204,7 @@ export const ElectionEventTabs: React.FC = () => {
             case 10:
                 return showEvents ? (
                     <Suspense fallback={<div>Loading Events...</div>}>
-                        <EditElectionEvents electionEventId={record?.id} />
+                        <EditElectionEventEvents electionEventId={record?.id} />
                     </Suspense>
                 ) : null
             case 11:

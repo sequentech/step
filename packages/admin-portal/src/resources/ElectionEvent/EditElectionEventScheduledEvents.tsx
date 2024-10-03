@@ -6,12 +6,12 @@ import React, {useContext} from "react"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {IPermissions} from "@/types/keycloak"
-import EditEvents from "../Events/EditEvents"
+import ListEvents from "../ScheduledEvents/ListScheduledEvent"
 
 interface EditElectionEventsProps {
     electionEventId: string
 }
-export const EditElectionEvents: React.FC<EditElectionEventsProps> = ({electionEventId}) => {
+export const EditElectionEventEvents: React.FC<EditElectionEventsProps> = ({electionEventId}) => {
     const authContext = useContext(AuthContext)
     const [tenantId] = useTenantStore()
     const showEvents = authContext.isAuthorized(true, tenantId, IPermissions.ELECTION_EVENT_READ)
@@ -20,5 +20,5 @@ export const EditElectionEvents: React.FC<EditElectionEventsProps> = ({electionE
         return null
     }
 
-    return <EditEvents electionEventId={electionEventId} />
+    return <ListEvents electionEventId={electionEventId} />
 }
