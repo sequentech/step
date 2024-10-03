@@ -99,6 +99,7 @@ async fn rocket() -> _ {
                 routes::create_event_list::get_event_list,
                 routes::create_event_list::create_event,
                 routes::export_tasks_execution::export_tasks_execution_route,
+                routes::limit_access_by_countries::limit_access_by_countries,
             ],
         )
 }

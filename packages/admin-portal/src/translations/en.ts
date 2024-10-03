@@ -1342,6 +1342,15 @@ const englishTranslation = {
         widget: {
             logs: "Logs",
         },
+        settings: {
+            countries: {
+                title: "Country Blocking",
+                description: "Choose below the countries you want to block voting/enrollment from.",
+                error: {
+                    errorSaving: "Error saving the country list",
+                },
+            },
+        },
     },
 }
 

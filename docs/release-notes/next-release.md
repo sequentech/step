@@ -6,6 +6,23 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Next Release
 
+## ✨ Support limiting IP by country
+
+[This feature](https://github.com/sequentech/meta/issues/1696) allows limit
+voting depending on the IP address of the country of registration or voting can
+be done from anywhere in the world.
+
+### Env vars changes
+
+There are multiple environment variable changes introduces in this PR:
+- `KEYCLOAK_PUBLIC_URL`, which contains the base URL of keycloak and thus the
+  one that needs to be blocked when using this feature. This is added to both
+  `harvest` and `windmill` services.
+- `VOTING_PORTAL_URL` is also the base URL for the public Voting Portal and is
+  also used to be blocked by country when using this feature. This variable was
+  used before in `windmill` service, but now also added to the `harvest`
+  service.
+
 ## ✨ Keycloak: Add system info using env vars in header
 
 [This feature](https://github.com/sequentech/meta/issues/1699) adds the system

@@ -331,6 +331,12 @@ type Mutation {
   ): InsertCastVoteOutput
 }
 
+type Mutation {
+  limit_access_by_countries (
+    countries: [String!]!
+  ): LimitAccessByCountriesOutput
+}
+
 type Query {
   listElectoralLog (
     limit: Int
@@ -1158,5 +1164,11 @@ type CreateEventOutput {
   cron_config : jsonb
   event_payload : jsonb!
   created_by : String
+type LimtIpByCountriesOutput {
+  success : Boolean
+}
+
+type LimitAccessByCountriesOutput {
+  success : Boolean
 }
 
