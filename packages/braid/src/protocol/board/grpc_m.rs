@@ -4,7 +4,7 @@
 
 use anyhow::Result;
 
-use b3::grpc::{GrpcB3Message, KeyedMessages};
+use b3::grpc::{GrpcB3Message, BoardMessages};
 
 use b3::client::grpc::B3Client;
 use b3::messages::message::Message;
@@ -45,7 +45,7 @@ impl super::BoardMulti for GrpcB3 {
     async fn get_messages_multi(
         &self,
         requests: &Vec<(String, i64)>,
-    ) -> Result<(Vec<KeyedMessages>, bool)> {
+    ) -> Result<(Vec<BoardMessages>, bool)> {
         let response = self.client.get_messages_multi(requests).await?;
         let response = response.into_inner();
 
@@ -108,7 +108,7 @@ impl GrpcB3Index {
     }
 
     /// Whether the board name is valid, as defined in
-    /// board_messages.
+    /// b3.
     fn is_board_name_valid(name: &str) -> bool {
         if b3::grpc::validate_board_name(name).is_ok() {
             true

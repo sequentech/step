@@ -12,7 +12,7 @@ use tracing::{error, info, warn};
 
 use crate::grpc::{
     GetBoardsReply, GetBoardsRequest, GetMessagesMultiReply, GetMessagesMultiRequest,
-    GetMessagesReply, GetMessagesRequest, GrpcB3Message, KeyedMessages, PutMessagesMultiReply,
+    GetMessagesReply, GetMessagesRequest, GrpcB3Message, BoardMessages, PutMessagesMultiReply,
     PutMessagesMultiRequest, MESSAGE_CHUNK_SIZE,
 };
 use crate::grpc::{PutMessagesReply, PutMessagesRequest};
@@ -305,7 +305,7 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
 
         let now = Instant::now();
 
-        let mut keyed: Vec<KeyedMessages> = vec![];
+        let mut keyed: Vec<BoardMessages> = vec![];
         let mut total_bytes: usize = 0;
         let mut truncated = false;
 
@@ -319,7 +319,7 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
                         total_bytes += m.message.len();
                         send.push(m);
                     }
-                    let k = KeyedMessages {
+                    let k = BoardMessages {
                         board: request.board.clone(),
                         messages: send,
                     };
@@ -352,7 +352,7 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
                         send.push(m);
                     }
 
-                    let k = KeyedMessages {
+                    let k = BoardMessages {
                         board: request.board.clone(),
                         messages: send,
                     };

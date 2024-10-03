@@ -8,7 +8,7 @@ pub mod grpc_m;
 pub mod local2;
 
 use anyhow::Result;
-use b3::grpc::KeyedMessages;
+use b3::grpc::BoardMessages;
 use b3::{grpc::GrpcB3Message, messages::message::Message};
 
 /// Defines the interface with a bulletin board.
@@ -64,10 +64,13 @@ pub trait BoardFactory<B: Board>: Sized {
 pub trait BoardMulti: Sized {
     type Factory: BoardFactoryMulti<Self>;
 
+    /// Returns a list of BoardMessages for the given requests.
+    /// 
+    /// BoardMessages are a list of messages for one board,
     fn get_messages_multi(
         &self,
         requests: &Vec<(String, i64)>,
-    ) -> impl std::future::Future<Output = Result<(Vec<KeyedMessages>, bool)>> + Send;
+    ) -> impl std::future::Future<Output = Result<(Vec<BoardMessages>, bool)>> + Send;
 
     fn insert_messages_multi(
         &self,

@@ -62,15 +62,6 @@ impl B3Client {
         Ok(response)
     }
 
-    pub async fn get_boards(&self) -> Result<Response<GetBoardsReply>> {
-        let request = Self::get_boards_request();
-
-        let mut client = self.get_grpc_client().await?;
-        let response = client.get_boards(request).await?;
-
-        Ok(response)
-    }
-
     pub async fn get_messages_multi(
         &self,
         requests: &Vec<(String, i64)>,
@@ -118,6 +109,15 @@ impl B3Client {
         }
 
         Ok(responses)
+    }
+
+    pub async fn get_boards(&self) -> Result<Response<GetBoardsReply>> {
+        let request = Self::get_boards_request();
+
+        let mut client = self.get_grpc_client().await?;
+        let response = client.get_boards(request).await?;
+
+        Ok(response)
     }
 
     async fn put_message_batch(

@@ -74,6 +74,9 @@ pub struct Trustee<C: Ctx> {
     // FIXME consider moving this into LocalBoard. This field would be
     // updated in LocalBoard when calling add, instead of being returned to
     // the calling Trustee
+    // This is the last message id that was updated to the LocalBoard's memory
+    // it is used when updating the LocalBoard's memory from the message store.
+    // See self::store_and_return_messages.
     pub(crate) last_message_id: i64,
     pub(crate) step_counter: i64,
     pub(crate) max_concurrent_actions: Option<usize>,

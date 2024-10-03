@@ -340,7 +340,7 @@ impl SessionSet {
 
                 if post_messages.len() > 0 {
                     info!(
-                        "Set {}: posting {} keyed messages with {:.3} MB",
+                        "Set {}: posting messages for {} boards with {:.3} MB",
                         self.name,
                         post_messages.len(),
                         f64::from(total_bytes) / (1024.0 * 1024.0)
