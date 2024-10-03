@@ -4,6 +4,8 @@
 
 # FIXME detect empty input file and issue a warning
 
+function printerr( s ){ print s | "cat >&2" }
+
 BEGIN {
   print "[LOG] Script started." >> "logs/mysql2sqlite.log"
   if( ARGC != 2 ){
@@ -33,6 +35,25 @@ BEGIN {
   print "PRAGMA synchronous = OFF;"
   print "PRAGMA journal_mode = MEMORY;"
   print "BEGIN TRANSACTION;"
+}
+
+function bit_to_int( str_bit,   powtwo, i, res, bit, overflow ){
+  powtwo = 1
+  overflow = 0
+  # 011101 = 1*2^0 + 0*2^1 + 1*2^2 ...
+  for( i = length( str_bit ); i > 0; --i ){
+    bit = substr( str_bit, i, 1 )
+    if( overflow || ( bit == 1 && res > INT_MAX_HALF ) ){
+      printerr( \
+        NR ": WARN Bit field overflow, number truncated (LSBs saved, MSBs ignored)." )
+      break
+    }
+    res = res + bit * powtwo
+    # no warning here as it might be the last iteration
+    if( powtwo > INT_MAX_HALF ){ overflow = 1; continue }
+    powtwo = powtwo * 2
+  }
+  return res
 }
 
 /^\/\*.*(CREATE.*TRIGGER|create.*trigger)/ {

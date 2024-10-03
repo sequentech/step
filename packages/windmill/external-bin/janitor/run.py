@@ -264,7 +264,7 @@ def parse_excel(excel_path):
 excel_data = parse_excel(excel_path)
 
 # Step 6: Removing Candidate Blob and convert MySQL dump to SQLite
-command = f"chmod +x removecandidatesblob mysql2sqlite && ./removecandidatesblob < {filename} > data/db_mysql_no_blob.sql && ./mysql2sqlite data/db_mysql_no_blob.sql | sqlite3 data/db_sqlite.db"
+command = f"chmod +x removecandidatesblob.py mysql2sqlite && python ./removecandidatesblob.py {filename} data/db_mysql_no_blob.sql && ./mysql2sqlite data/db_mysql_no_blob.sql | sqlite3 data/db_sqlite.db"
 
 # Log the constructed command
 logging.debug(f"Constructed command: {command}")
@@ -442,9 +442,9 @@ def gen_tree(excel_data):
         })
         ccs_servers[str(int(ccs_server["tag"]))] = json_server
 
+    breakpoint()
     for (idx, row) in enumerate(results):
         print(f"processing row {idx}")
-        breakpoint()
         # Find or create the election object
         row_election_post = row["DB_POLLING_CENTER_POLLING_PLACE"]
         election = next((e for e in elections_object["elections"] if e["election_post"] == row_election_post), None)
