@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Félix Robles <dev@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement, useState} from "react"
+import React, {ReactElement, useEffect, useState} from "react"
 import {
     List,
     TextInput,
@@ -11,6 +11,7 @@ import {
     DatagridConfigurable,
     useNotify,
     Identifier,
+    useListController,
 } from "react-admin"
 import {useTranslation} from "react-i18next"
 import {ExportTasksExecutionMutation, Sequent_Backend_Election_Event} from "@/gql/graphql"
@@ -24,6 +25,7 @@ import {FormStyles} from "@/components/styles/FormStyles"
 import {DownloadDocument} from "../User/DownloadDocument"
 import {Dialog} from "@sequentech/ui-essentials"
 import {IPermissions} from "@/types/keycloak"
+import {useLocation, useNavigate} from "react-router"
 
 export interface ListTasksProps {
     onViewTask: (id: Identifier) => void
@@ -101,6 +103,42 @@ export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRe
             console.log(err)
         }
     }
+
+    /* **
+    Avoid error when coming from filterd list in other tabs
+    */
+    const listContext = useListController({
+        resource: "sequent_backend_tasks_execution",
+        filter: {election_event_id: electionEventRecord?.id || undefined},
+    })
+
+    const navigate = useNavigate()
+    const location = useLocation()
+
+    useEffect(() => {
+        // navigate to self but without search params
+        navigate(
+            {
+                pathname: location.pathname,
+                search: "",
+            },
+            {replace: true}
+        )
+
+        // Reset filters when the component mounts
+        if (listContext && listContext.setFilters) {
+            listContext.setFilters({}, {})
+        }
+        return () => {
+            // Reset filters when the component unmounts
+            if (listContext && listContext.setFilters) {
+                listContext.setFilters({}, {})
+            }
+        }
+    }, [])
+    /* **
+    Avoid error when coming from filterd list in other tabs
+    */
 
     return (
         <>
