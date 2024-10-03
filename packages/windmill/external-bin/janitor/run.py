@@ -355,7 +355,7 @@ try:
     with open('templates/areaContest.hbs', 'r') as file:
         area_contest_template = file.read()
 
-    with open('templates/COMELEC/keycloack.hbs', 'r') as file:
+    with open('templates/COMELEC/keycloak.hbs', 'r') as file:
         keycloak_template = file.read()
 
     logging.info("Loaded all templates successfully.")
@@ -442,7 +442,6 @@ def gen_tree(excel_data):
         })
         ccs_servers[str(int(ccs_server["tag"]))] = json_server
 
-    breakpoint()
     for (idx, row) in enumerate(results):
         print(f"processing row {idx}")
         # Find or create the election object
@@ -524,7 +523,7 @@ def gen_tree(excel_data):
         miru_trustee_users = area_context["annotations"]["miru_trustee_servers"].split(",")
         miru_trustee_users = [('"' + server + '"') for server in miru_trustee_users]
         miru_trustee_users = ",".join(miru_trustee_users)
-        area_context["annotations"]["miru_ccs_servers"] = f"[{",".join(found_servers)}]"
+        area_context["annotations"]["miru_ccs_servers"] = "[" + ",".join(found_servers) + "]"
         area_context["annotations"]["miru_trustee_users"] = "[" + miru_trustee_users.replace('"', '\\"') + "]"
 
         area = {
@@ -578,7 +577,7 @@ def replace_placeholder_database(election_tree, election_event_id):
             "election_name": election["election_name"]
         }
 
-        print(f"rendering election {election["election_name"]}")
+        print(f"rendering election {election['election_name']}")
         elections.append(json.loads(render_template(election_template, election_context)))
 
         for contest in election["contests"]:
@@ -595,7 +594,7 @@ def replace_placeholder_database(election_tree, election_event_id):
                 "current_timestamp": current_timestamp
             }
 
-            print(f"rendering contest {contest["name"]}")
+            print(f"rendering contest {contest['name']}")
             contests.append(json.loads(render_template(contest_template, contest_context)))
 
             for candidate in contest["candidates"]:
@@ -608,7 +607,7 @@ def replace_placeholder_database(election_tree, election_event_id):
                     "DB_CANDIDATE_NAMEONBALLOT": candidate["name_on_ballot"]
                 }
 
-                print(f"rendering candidate {candidate["name_on_ballot"]}")
+                print(f"rendering candidate {candidate['name_on_ballot']}")
                 candidates.append(json.loads(render_template(candidate_template, candidate_context)))
 
             for area in contest["areas"]:
@@ -622,7 +621,7 @@ def replace_placeholder_database(election_tree, election_event_id):
                     "DB_POLLING_CENTER_POLLING_PLACE":area["description"]
                 }
 
-                print(f"rendering area {area["name"]}")
+                print(f"rendering area {area['name']}")
                 areas.append(json.loads(render_template(area_template, area_context)))
 
                 area_contest_context = {
@@ -631,7 +630,7 @@ def replace_placeholder_database(election_tree, election_event_id):
                     "contest_id": contest_context["UUID"]
                 }
 
-                print(f"rendering area_contest area: '{area["name"]}', contest: '{contest["name"]}'")
+                print(f"rendering area_contest area: '{area['name']}', contest: '{contest['name']}'")
                 area_contests.append(json.loads(render_template(area_contest_template, area_contest_context)))
 
     return areas, candidates, contests, area_contests, elections, keycloak
