@@ -40,6 +40,7 @@ import {IPermissions} from "@/types/keycloak"
 import {useMutation} from "@apollo/client"
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {ICronConfig, IManageElectionDatePayload} from "@/types/scheduledEvents"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 export const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -75,6 +76,7 @@ const ListEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
     const [selectedEventId, setSelectedEventId] = useState<string | undefined>()
     const [selectedElectionId, setselectedElectionId] = useState<string | undefined>()
     const authContext = useContext(AuthContext)
+    const aliasRenderer = useAliasRenderer()
 
     const [manageElectionDates] = useMutation<ManageElectionDatesMutation>(MANAGE_ELECTION_DATES, {
         context: {
@@ -86,10 +88,11 @@ const ListEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
     const {data: elections} = useGetList<Sequent_Backend_Election>(
         "sequent_backend_election",
         {
-            pagination: {page: 1, perPage: 1},
+            pagination: {page: 1, perPage: 100},
             sort: {field: "created_at", order: "DESC"},
             filter: {
                 tenant_id: tenantId,
+                election_event_id: electionEventId,
             },
         },
         {
@@ -115,11 +118,11 @@ const ListEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
         }
     )
 
-    const getElectionName = (election: any) => {
-        const electionName = elections?.find(
-            (item) => election?.event_payload?.election_id === item.id
-        )?.name
-        return election.id ? electionName : "-"
+    const getElectionName = (scheduledEvent: Sequent_Backend_Scheduled_Event) => {
+        let electionId = (scheduledEvent?.event_payload as IManageElectionDatePayload | undefined)
+            ?.election_id
+        const foundElection = elections?.find((item) => electionId === item.id)
+        return (foundElection && aliasRenderer(foundElection)) || "-"
     }
 
     const canEdit = authContext.isAuthorized(true, authContext.tenantId, IPermissions.EVENTS_EDIT)
@@ -197,15 +200,6 @@ const ListEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
         },
     ]
 
-    const filterObject: {[key: string]: any} = {
-        election_event_id: electionEventId || undefined,
-        tenant_id: tenantId,
-        stopped_at: {
-            format: "hasura-raw-query",
-            _is_null: true,
-        },
-    }
-
     const onOpenDrawer = () => {
         setOpenCreateEvent(!openCreateEvent)
     }
@@ -230,6 +224,15 @@ const ListEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
         <>
             <List
                 resource="sequent_backend_scheduled_event"
+                filter={{
+                    election_event_id: electionEventId || undefined,
+                    tenant_id: tenantId,
+                    stopped_at: {
+                        format: "hasura-raw-query",
+                        //value: {_is_null: true},
+                    },
+                }}
+                filters={Filters}
                 queryOptions={{
                     refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
                 }}
@@ -249,8 +252,6 @@ const ListEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                         }
                     />
                 }
-                filter={filterObject}
-                filters={Filters}
             >
                 <DataGridContainerStyle
                     // bulkActionButtons={false}
@@ -270,9 +271,17 @@ const ListEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                         }
                     />
                     <FunctionField
+                        label={"Stopped At"}
+                        source="stopped_at"
+                        render={(record: Sequent_Backend_Scheduled_Event) =>
+                            record.stopped_at && new Date(record.stopped_at).toLocaleString()
+                        }
+                    />
+                    <FunctionField
                         label={"Schedule"}
                         source="cron_config.scheduled_date"
-                        render={(record: any) =>
+                        render={(record: Sequent_Backend_Scheduled_Event) =>
+                            (record.cron_config as ICronConfig | undefined)?.scheduled_date &&
                             new Date(record.cron_config.scheduled_date).toLocaleString()
                         }
                     />
