@@ -77,7 +77,10 @@ pub(crate) mod tests {
         let election = ElectionIdString(Some(DUMMY_STR.to_string()));
         let pseudonym = PseudonymHash::new(DUMMY_H);
         let vote = CastVoteHash::new(DUMMY_H);
-        let message = Message::cast_vote_message(event, election, pseudonym, vote, &sd).unwrap();
+        let ip = VoterIpString(DUMMY_STR.to_string());
+        let country = VoterCountryString(DUMMY_STR.to_string());
+        let message =
+            Message::cast_vote_message(event, election, pseudonym, vote, &sd, ip, country).unwrap();
         let mut board_message: ElectoralLogMessage = message.try_into().unwrap();
         // We do this so that the id matches the auto generated id in the db, otherwise the assert_eq fails
         board_message.id = 1;

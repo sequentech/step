@@ -3671,6 +3671,29 @@
       },
       {
         "kind": "OBJECT",
+        "name": "LimitAccessByCountriesOutput",
+        "description": null,
+        "fields": [
+          {
+            "name": "success",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
         "name": "LogEventOutput",
         "description": null,
         "fields": [
@@ -12689,6 +12712,41 @@
             "deprecationReason": null
           },
           {
+            "name": "limit_access_by_countries",
+            "description": null,
+            "args": [
+              {
+                "name": "countries",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "LIST",
+                    "name": null,
+                    "ofType": {
+                      "kind": "NON_NULL",
+                      "name": null,
+                      "ofType": {
+                        "kind": "SCALAR",
+                        "name": "String",
+                        "ofType": null
+                      }
+                    }
+                  }
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "OBJECT",
+              "name": "LimitAccessByCountriesOutput",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "manage_election_dates",
             "description": null,
             "args": [
@@ -20762,7 +20820,7 @@
             "description": "log an event in immudb",
             "args": [
               {
-                "name": "electionEventId",
+                "name": "body",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -20776,7 +20834,7 @@
                 "defaultValue": null
               },
               {
-                "name": "messageType",
+                "name": "election_event_id",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -20786,6 +20844,30 @@
                     "name": "String",
                     "ofType": null
                   }
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "message_type",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "user_id",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
                 },
                 "defaultValue": null
               }
