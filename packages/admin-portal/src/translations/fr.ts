@@ -612,6 +612,8 @@ const frenchTranslation: TranslationType = {
             },
             eventType: {
                 label: "Type d'Événement",
+                START_ELECTION: "Commencer l'élection",
+                END_ELECTION: "Terminer l'élection",
             },
             empty: {
                 header: "Aucun événement pour le moment.",
@@ -626,6 +628,12 @@ const frenchTranslation: TranslationType = {
                 title: "Modifier l'Événement",
                 subtitle: "Modifier la configuration de l'événement.",
                 delete: "Êtes-vous sûr de vouloir supprimer cet événement ?",
+            },
+            fields: {
+                electionId: "Élection",
+                eventProcessor: "Type d'événement",
+                stoppedAt: "Arrêté à",
+                scheduledDate: "Calendrier",
             },
         },
         common: {

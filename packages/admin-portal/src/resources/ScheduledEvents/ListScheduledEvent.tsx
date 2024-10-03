@@ -10,6 +10,7 @@ import DeleteIcon from "@mui/icons-material/Delete"
 import {Button, styled, Typography} from "@mui/material"
 import React, {ReactElement, useContext, useState} from "react"
 import {
+    BooleanInput,
     DatagridConfigurable,
     FunctionField,
     List,
@@ -54,10 +55,6 @@ export const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBa
         }
     }
 `
-export enum EventProcessorsToLabel {
-    START_ELECTION = "Start Election",
-    END_ELECTION = "End Election",
-}
 
 interface EditEventsProps {
     electionEventId: string
@@ -259,33 +256,33 @@ const ListEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                     omit={OMIT_FIELDS}
                 >
                     <FunctionField
-                        label={"Election"}
+                        label={t("eventsScreen.fields.electionId")}
                         source="event_payload.election_id"
                         render={getElectionName}
                     />
                     <FunctionField
-                        label={"Event Type"}
+                        label={t("eventsScreen.fields.eventProcessor")}
                         source="event_processor"
                         render={(record: {event_processor: keyof typeof EventProcessors}) =>
-                            EventProcessorsToLabel[record.event_processor]
+                            t("eventsScreen.eventType." + record.event_processor)
                         }
                     />
                     <FunctionField
-                        label={"Stopped At"}
+                        label={t("eventsScreen.fields.stoppedAt")}
                         source="stopped_at"
                         render={(record: Sequent_Backend_Scheduled_Event) =>
                             record.stopped_at && new Date(record.stopped_at).toLocaleString()
                         }
                     />
                     <FunctionField
-                        label={"Schedule"}
+                        label={t("eventsScreen.fields.scheduledDate")}
                         source="cron_config.scheduled_date"
                         render={(record: Sequent_Backend_Scheduled_Event) =>
                             (record.cron_config as ICronConfig | undefined)?.scheduled_date &&
                             new Date(record.cron_config.scheduled_date).toLocaleString()
                         }
                     />
-                    <WrapperField label="Actions">
+                    <WrapperField label={t("common.label.actions")}>
                         <ActionsColumn actions={actions} />
                     </WrapperField>
                 </DataGridContainerStyle>

@@ -605,6 +605,8 @@ const englishTranslation = {
             },
             eventType: {
                 label: "Event Type",
+                START_ELECTION: "Start Election",
+                END_ELECTION: "End Election",
             },
             empty: {
                 header: "No events yet.",
@@ -619,6 +621,12 @@ const englishTranslation = {
                 title: "Edit Event",
                 subtitle: "Edit event configuration.",
                 delete: "Are you sure you want delete this event?",
+            },
+            fields: {
+                electionId: "Election",
+                eventProcessor: "Event Type",
+                stoppedAt: "Stopped At",
+                scheduledDate: "Schedule",
             },
         },
         common: {

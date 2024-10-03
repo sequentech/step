@@ -610,6 +610,8 @@ const tagalogTranslation: TranslationType = {
             },
             eventType: {
                 label: "Uri ng Kaganapan",
+                START_ELECTION: "Simulan ang Halalan",
+                END_ELECTION: "Tapusin ang Halalan",
             },
             empty: {
                 header: "Wala pang mga kaganapan.",
@@ -624,6 +626,12 @@ const tagalogTranslation: TranslationType = {
                 title: "I-edit ang Kaganapan",
                 subtitle: "I-edit ang configuration ng kaganapan.",
                 delete: "Sigurado ka bang gusto mong tanggalin ang kaganapang ito?",
+            },
+            fields: {
+                electionId: "Halalan",
+                eventProcessor: "Uri ng Kaganapan",
+                stoppedAt: "Huminto Sa",
+                scheduledDate: "Iskedyul",
             },
         },
         common: {

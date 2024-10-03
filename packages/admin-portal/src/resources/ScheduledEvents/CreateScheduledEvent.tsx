@@ -37,6 +37,7 @@ import {IPermissions} from "@/types/keycloak"
 import {v4 as uuidv4} from "uuid"
 import {getAttributeLabel} from "@/services/UserService"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {ICronConfig, IManageElectionDatePayload} from "@/types/scheduledEvents"
 
 interface CreateEventProps {
     electionEventId: string
@@ -205,10 +206,10 @@ const CreateEvent: FC<CreateEventProps> = ({
                         disabled={isEditEvent}
                     >
                         <MenuItem value={EventProcessors.START_ELECTION}>
-                            {t("Start Election")}
+                            {t("eventsScreen.eventType.START_ELECTION")}
                         </MenuItem>
                         <MenuItem value={EventProcessors.END_ELECTION}>
-                            {t("End Election")}
+                            {t("eventsScreen.eventType.END_ELECTION")}
                         </MenuItem>
                     </Select>
                 </FormControl>
@@ -217,7 +218,10 @@ const CreateEvent: FC<CreateEventProps> = ({
                         tenantId={tenantId}
                         electionEventId={electionEventId}
                         onSelectElection={(election) => setElectionId(election ?? null)}
-                        source={selectedEvent?.event_payload?.election_id ?? "all"}
+                        source={
+                            (selectedEvent?.event_payload as IManageElectionDatePayload | undefined)
+                                ?.election_id ?? "all"
+                        }
                         disabled={isEditEvent}
                     />
                 </FormControl>
@@ -225,11 +229,23 @@ const CreateEvent: FC<CreateEventProps> = ({
                     required
                     disabled={isLoading}
                     source="dates.start_date"
-                    label={t("electionScreen.field.startDateTime")}
-                    defaultValue={
-                        isEditEvent ? selectedEvent?.cron_config.scheduled_date : scheduleDate
+                    label={
+                        eventType === EventProcessors.START_ELECTION
+                            ? t("electionScreen.field.startDateTime")
+                            : t("electionScreen.field.endDateTime")
                     }
-                    value={isEditEvent ? selectedEvent?.cron_config.scheduled_date : scheduleDate}
+                    defaultValue={
+                        isEditEvent
+                            ? (selectedEvent?.cron_config as ICronConfig | undefined)
+                                  ?.scheduled_date
+                            : scheduleDate
+                    }
+                    value={
+                        isEditEvent
+                            ? (selectedEvent?.cron_config as ICronConfig | undefined)
+                                  ?.scheduled_date
+                            : scheduleDate
+                    }
                     parse={(value) => value && new Date(value).toISOString()}
                     onChange={(value) => {
                         setScheduleDate(

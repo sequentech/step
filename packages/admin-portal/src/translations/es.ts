@@ -602,13 +602,15 @@ const spanishTranslation: TranslationType = {
         },
         eventsScreen: {
             messages: {
-                createSuccess: "Event created successfully",
-                createError: "Error creating event",
-                editSuccess: "Event edited successfully",
-                editError: "Error editing event",
+                createSuccess: "Evento creado con éxito",
+                createError: "Error al crear el evento",
+                editSuccess: "Evento editado con éxito",
+                editError: "Error al editar el evento",
             },
             eventType: {
                 label: "Tipo de Evento",
+                START_ELECTION: "Iniciar elección",
+                END_ELECTION: "Finalizar elección",
             },
             empty: {
                 header: "Aún no hay eventos.",
@@ -623,6 +625,12 @@ const spanishTranslation: TranslationType = {
                 title: "Editar Evento",
                 subtitle: "Editar la configuración del evento.",
                 delete: "¿Estás seguro de que quieres eliminar este evento?",
+            },
+            fields: {
+                electionId: "Elección",
+                eventProcessor: "Tipo de evento",
+                stoppedAt: "Detenido A",
+                scheduledDate: "Calendario",
             },
         },
         common: {

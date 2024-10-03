@@ -610,6 +610,8 @@ const catalanTranslation: TranslationType = {
             },
             eventType: {
                 label: "Tipus d'Esdeveniment",
+                START_ELECTION: "Comença l'elecció",
+                END_ELECTION: "Acaba l'elecció",
             },
             empty: {
                 header: "Encara no hi ha esdeveniments.",
@@ -624,6 +626,12 @@ const catalanTranslation: TranslationType = {
                 title: "Editar Esdeveniment",
                 subtitle: "Editar la configuració de l'esdeveniment.",
                 delete: "Estàs segur que vols eliminar aquest esdeveniment?",
+            },
+            fields: {
+                electionId: "Elecció",
+                eventProcessor: "Tipus d'esdeveniment",
+                stoppedAt: "Aturat A",
+                scheduledDate: "Horari",
             },
         },
         common: {
