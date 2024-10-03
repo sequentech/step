@@ -442,9 +442,9 @@ def gen_tree(excel_data):
         })
         ccs_servers[str(int(ccs_server["tag"]))] = json_server
 
+    breakpoint()
     for (idx, row) in enumerate(results):
         print(f"processing row {idx}")
-        breakpoint()
         # Find or create the election object
         row_election_post = row["DB_POLLING_CENTER_POLLING_PLACE"]
         election = next((e for e in elections_object["elections"] if e["election_post"] == row_election_post), None)
