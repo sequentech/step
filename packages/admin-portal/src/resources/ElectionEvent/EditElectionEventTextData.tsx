@@ -9,7 +9,6 @@ import EditElectionEventTextDataTable from "./EditElectionEventTextDataTable"
 import {useNavigate, useLocation} from "react-router-dom"
 
 const EditElectionEventTextData = () => {
-
     const transform = (data: Sequent_Backend_Election_Event_Extended): RaRecord<Identifier> => {
         console.log("TRANSFORM :: ", data)
         // save presentation object
