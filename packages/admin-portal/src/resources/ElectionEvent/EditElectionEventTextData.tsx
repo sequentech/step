@@ -2,12 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React from "react"
+import React, {useEffect} from "react"
 import {Sequent_Backend_Election_Event_Extended} from "./EditElectionEventDataForm"
 import {EditBase, Identifier, RaRecord} from "react-admin"
 import EditElectionEventTextDataTable from "./EditElectionEventTextDataTable"
+import {useNavigate, useLocation} from "react-router-dom"
 
 const EditElectionEventTextData = () => {
+
     const transform = (data: Sequent_Backend_Election_Event_Extended): RaRecord<Identifier> => {
         console.log("TRANSFORM :: ", data)
         // save presentation object

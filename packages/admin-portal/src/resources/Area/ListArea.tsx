@@ -15,6 +15,7 @@ import {
     FunctionField,
     useRefresh,
     useNotify,
+    useListController,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {Box, Button, Drawer, Typography} from "@mui/material"
@@ -38,6 +39,7 @@ import {useMutation} from "@apollo/client"
 import {IMPORT_AREAS} from "@/queries/ImportAreas"
 import styled from "@emotion/styled"
 import {UPSERT_AREAS} from "@/queries/UpsertAreas"
+import {useNavigate, useLocation} from "react-router-dom"
 
 const ActionsBox = styled(Box)`
     display: flex;
@@ -102,6 +104,45 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
             setOpen(true)
         }
     }, [recordId])
+
+    /* **
+    Avoid error when coming from filterd list in other tabs
+    */
+    const listContext = useListController({
+        resource: "sequent_backend_area",
+        filter: {
+            tenant_id: tenantId || undefined,
+            election_event_id: record?.id || undefined,
+        },
+    })
+
+    const navigate = useNavigate()
+    const location = useLocation()
+
+    useEffect(() => {
+        // navigate to self but without search params
+        navigate(
+            {
+                pathname: location.pathname,
+                search: "",
+            },
+            {replace: true}
+        )
+
+        // Reset filters when the component mounts
+        if (listContext && listContext.setFilters) {
+            listContext.setFilters({}, {})
+        }
+        return () => {
+            // Reset filters when the component unmounts
+            if (listContext && listContext.setFilters) {
+                listContext.setFilters({}, {})
+            }
+        }
+    }, [])
+    /* **
+    Avoid error when coming from filterd list in other tabs
+    */
 
     const createAction = () => {
         setOpenCreate(true)
@@ -235,12 +276,13 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                 }
                 empty={<Empty />}
                 sx={{flexGrow: 2}}
-                filter={{
-                    tenant_id: tenantId || undefined,
-                    election_event_id: record?.id || undefined,
-                }}
+                // filter={{
+                //     tenant_id: tenantId || undefined,
+                //     election_event_id: record?.id || undefined,
+                // }}
                 storeKey={false}
                 filters={Filters}
+                filterDefaultValues={{}}
             >
                 <DatagridConfigurable omit={OMIT_FIELDS}>
                     <TextField source="id" />

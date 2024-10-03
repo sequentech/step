@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement, useContext, useMemo} from "react"
+import React, {ReactElement, useContext, useEffect, useMemo} from "react"
 import {styled as MUIStiled} from "@mui/material/styles"
 import {
     DatagridConfigurable,
@@ -17,6 +17,7 @@ import {
     useGetList,
     useNotify,
     useRefresh,
+    useListController,
 } from "react-admin"
 import CellTowerIcon from "@mui/icons-material/CellTower"
 import {ListActions} from "../../components/ListActions"
@@ -47,6 +48,7 @@ import {IExecutionStatus, ITallyCeremonyStatus, ITallyExecutionStatus} from "@/t
 import {useMutation} from "@apollo/client"
 import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
 import {IPermissions} from "@/types/keycloak"
+import {useLocation, useNavigate} from "react-router"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -287,6 +289,45 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         }
     }
     let activeCeremony = getActiveCeremony(keysCeremonies, authContext)
+
+    /* **
+    Avoid error when coming from filterd list in other tabs
+    */
+    const listContext = useListController({
+        resource: "sequent_backend_tally_session",
+        filter: {
+            tenant_id: tenantId || undefined,
+            election_event_id: electionEventRecord?.id || undefined,
+        },
+    })
+
+    const navigate = useNavigate()
+    const location = useLocation()
+
+    useEffect(() => {
+        // navigate to self but without search params
+        navigate(
+            {
+                pathname: location.pathname,
+                search: "",
+            },
+            {replace: true}
+        )
+
+        // Reset filters when the component mounts
+        if (listContext && listContext.setFilters) {
+            listContext.setFilters({}, {})
+        }
+        return () => {
+            // Reset filters when the component unmounts
+            if (listContext && listContext.setFilters) {
+                listContext.setFilters({}, {})
+            }
+        }
+    }, [])
+    /* **
+    Avoid error when coming from filterd list in other tabs
+    */
 
     return (
         <>
