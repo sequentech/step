@@ -1325,6 +1325,9 @@ const catalanTranslation: TranslationType = {
                 title: "Bloqueig de Països",
                 description:
                     "Trieu a continuació els països dels quals voleu bloquejar les votacions/enregistraments.",
+                error: {
+                    errorSaving: "Error en desar la llista de països",
+                },
             },
         },
     },
