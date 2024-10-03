@@ -83,9 +83,11 @@ const EditEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
     const Filters: Array<ReactElement> = []
 
     const editAction = (id: any) => {
+        console.log("editAction")
+        console.log(id)
         setOpenCreateEvent(true)
-        setIsEditEvent(true)
         setSelectedEventId(id)
+        setIsEditEvent(true)
     }
 
     const handleClose = () => {

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {FC, useMemo, useState} from "react"
+import React, {FC, useMemo, useState, useEffect} from "react"
 import {SxProps} from "@mui/material"
 import {
     AutocompleteInput,
@@ -14,6 +14,7 @@ import {
     useNotify,
     useRefresh,
     useUpdate,
+    SelectInput,
 } from "react-admin"
 import {useTranslation} from "react-i18next"
 import {
@@ -75,7 +76,7 @@ const SelectElection = ({
         <ReferenceInput
             required
             fullWidth={true}
-            reference="sequent_backend_election"
+            reference="sequent_backend_scheduled_event"
             source={source}
             filter={{
                 tenant_id: tenantId,
@@ -120,16 +121,54 @@ const CreateEvent: FC<CreateEventProps> = ({
         },
     })
 
+    console.log("eventList: ", eventList)
+    console.log("selectedEventId: ", selectedEventId)
+    console.log("isEditEvent: ", isEditEvent)
     const selectedEvent = useMemo(() => {
         return eventList?.find((event) => event.id === selectedEventId)
     }, [eventList, selectedEventId])
-    const [electionId, setElectionId] = useState(
-        isEditEvent
-            ? elections?.find(
-                  (election) => election.id === selectedEvent?.event_payload.election_id
-              )?.id
-            : null
-    )
+
+    console.log("is found selectedEvent?: ", selectedEvent)
+    console.log("elections: ", elections)
+    const [electionId, setElectionId] = useState(null)
+    const [electionName, setElectionName] = useState("")
+
+    useEffect(() => {
+        console.log("useEffect ", isEditEvent)
+
+        if(isEditEvent) {
+            const element = elections?.find((election) => election.id === selectedEvent?.event_payload.election_id)
+            const el_id = element?.id
+            const name = element?.name?? ""
+            console.log("element: ", element)
+            console.log("el_id: ", el_id)
+            console.log("name: ", name)
+            setElectionId(el_id)
+            setElectionName(name)
+        }
+    }, [isEditEvent, selectedEvent])
+
+    console.log("electionId: ", electionId)
+    
+    interface EnumChoice<T> {
+        id: T
+        name: string
+    }
+    const electionChoices = (): Array<EnumChoice<string>> => {
+        if (!elections) {
+            return []
+        }
+        const election_choices = elections.map((entry) => {
+            console.log("id: ", entry.id)
+            console.log("name: ", entry.name)
+            return {
+                id: entry.id,
+                name: entry.name,
+            }
+        })
+        console.log("election_choices: ", election_choices)
+        return election_choices
+    }
     const [scheduleDate, setScheduleDate] = useState<string | undefined>(
         isEditEvent ? selectedEvent?.cron_config.scheduled_date : null
     )
@@ -215,11 +254,22 @@ const CreateEvent: FC<CreateEventProps> = ({
                     </Select>
                 </FormControl>
                 <FormControl fullWidth>
-                    <SelectElection
-                        tenantId={tenantId}
-                        electionEventId={electionEventId}
-                        onSelectElection={(election) => setElectionId(election ??  null)}
-                        source="eventPayload.election_id"
+                    {/* <InputLabel id="election-select-label">
+                        {t("common.resources.election")}
+                    </InputLabel> */}
+                    <SelectInput
+                        // name="Election"
+                        defaultValue={electionName?? ""}
+                        choices={electionChoices()}
+                        // electionEventId={electionEventId}
+                        // onSelectElection={(election) => setElectionId(election ??  null)}
+                        // source={selectedEvent?.event_payload.election_id?? ""}
+                        // source={electionName?? ""}
+                        // source="eventPayload.election_id"
+                        source="eventPayload.election_name"
+                        emptyText={t("All the elections")} // TODO
+                        // source="event_payload.election_id"
+                        // source="id"
                     />
                 </FormControl>
                 <DateTimeInput
