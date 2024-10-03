@@ -246,8 +246,10 @@ export const ElectionEventTabs: React.FC = () => {
                         <Tab label={t("electionEventScreen.tabs.tasks")} />
                     ) : null}
                     {showLogs ? <Tab label={t("electionEventScreen.tabs.logs")} /> : null}
-                    {showEvents ? <Tab label="Events" /> : null}
-                    {showNotifications ? <Tab label="Notifications" /> : null}
+                    {showEvents ? <Tab label={t("electionEventScreen.tabs.events")} /> : null}
+                    {showNotifications ? (
+                        <Tab label={t("electionEventScreen.tabs.notifications")} />
+                    ) : null}
                 </Tabs>
             </Box>
 

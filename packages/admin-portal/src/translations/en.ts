@@ -269,6 +269,8 @@ const englishTranslation = {
                 publish: "Publish",
                 logs: "Logs",
                 tasks: "Tasks",
+                events: "Scheduled Events",
+                notifications: "Notifications",
             },
             tally: {
                 emptyHeader: "No Tally yet.",

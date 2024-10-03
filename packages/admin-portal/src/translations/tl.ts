@@ -271,6 +271,8 @@ const tagalogTranslation: TranslationType = {
                 publish: "I-publish",
                 logs: "Mga Log",
                 tasks: "Mga Gawain",
+                events: "Mga Naka-schedule na Kaganapan",
+                notifications: "Mga Abiso",
             },
             tally: {
                 emptyHeader: "Walang pang Tally.",
