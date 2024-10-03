@@ -264,7 +264,7 @@ def parse_excel(excel_path):
 excel_data = parse_excel(excel_path)
 
 # Step 6: Removing Candidate Blob and convert MySQL dump to SQLite
-command = f"chmod +x removecandidatesblob mysql2sqlite && ./removecandidatesblob < {filename} > data/db_mysql_no_blob.sql && ./mysql2sqlite data/db_mysql_no_blob.sql | sqlite3 data/db_sqlite.db"
+command = f"chmod +x removecandidatesblob.py mysql2sqlite && python ./removecandidatesblob.py {filename} data/db_mysql_no_blob.sql && ./mysql2sqlite data/db_mysql_no_blob.sql | sqlite3 data/db_sqlite.db"
 
 # Log the constructed command
 logging.debug(f"Constructed command: {command}")
