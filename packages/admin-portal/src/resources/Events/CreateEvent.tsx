@@ -218,7 +218,7 @@ const CreateEvent: FC<CreateEventProps> = ({
                     <SelectElection
                         tenantId={tenantId}
                         electionEventId={electionEventId}
-                        onSelectElection={(election) => setElectionId(election?.id ?? null)}
+                        onSelectElection={(election) => setElectionId(election ??  null)}
                         source="eventPayload.election_id"
                     />
                 </FormControl>

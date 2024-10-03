@@ -24,7 +24,7 @@ import {useTranslation} from "react-i18next"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 
 import {Sequent_Backend_Election} from "@/gql/graphql"
-import CreateEvent, {EventProcessors} from "../Events/CreateEvent"
+import CreateEvent, {EventProcessors} from "./CreateEvent"
 import {Dialog} from "@sequentech/ui-essentials"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {AuthContext} from "@/providers/AuthContextProvider"

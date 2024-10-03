@@ -6,7 +6,7 @@ import React, {useContext} from "react"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {IPermissions} from "@/types/keycloak"
-import EditEvents from "../ElectionEvent/EditEvents"
+import EditEvents from "../Events/EditEvents"
 
 interface EditElectionEventsProps {
     electionEventId: string
