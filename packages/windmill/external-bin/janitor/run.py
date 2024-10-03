@@ -424,9 +424,29 @@ def generate_election_event(excel_data):
     print(election_event_context)
     return json.loads(render_template(election_event_template, election_event_context)), election_event_id
 
+def gen_keycloak_context(results):
 
-def gen_tree(excel_data):
-    results = get_data()
+    print(f"generating keycloak context")
+    country_set = set()
+    embassy_set = set()
+
+    for row in results:
+        if not row["allbgy_AREANAME"]:
+            continue
+        country_set.add("\\\"" + row["allbgy_AREANAME"] + "\\\"")
+        if not row["DB_ALLMUN_AREA_NAME"]:
+            continue
+        embassy_set.add("\\\"" + row["allbgy_AREANAME"] + "/" + row["DB_ALLMUN_AREA_NAME"] + "\\\"")
+
+    keycloak_context = {
+        #"country_list": "[\\\"KINGDOM OF THAILAND\\\",\\\"MALDIVES\\\",\\\"PEOPLES REPUBLIC OF BANGLADESH\\\",\\\"SRI LANKA\\\"]",
+        #"embassy_list": "[\\\"KINGDOM OF THAILAND/BANGKOK PE\\\",\\\"MALDIVES/DHAKA PE\\\",\\\"PEOPLES REPUBLIC OF BANGLADESH/DHAKA PE\\\",\\\"SRI LANKA/DHAKA PE\\\"]"
+        "embassy_list": "[" + ",".join(country_set) + "]",
+        "country_list": "[" + ",".join(embassy_set) + "]"
+    }
+    return keycloak_context
+
+def gen_tree(excel_data, results):
     elections_object = {"elections": []}
 
     ccs_servers = {}
@@ -547,18 +567,12 @@ def gen_tree(excel_data):
 
     return elections_object
 
-
-def replace_placeholder_database(election_tree, election_event_id):
+def replace_placeholder_database(election_tree, election_event_id, keycloak_context):
     area_contests = []
     areas = []
     candidates = []
     contests = []
     elections = []
-
-    keycloak_context = {
-        "country_list": "[\\\"KINGDOM OF THAILAND\\\",\\\"MALDIVES\\\",\\\"PEOPLES REPUBLIC OF BANGLADESH\\\",\\\"SRI LANKA\\\"]",
-        "embassy_list": "[\\\"KINGDOM OF THAILAND/BANGKOK PE\\\",\\\"MALDIVES/DHAKA PE\\\",\\\"PEOPLES REPUBLIC OF BANGLADESH/DHAKA PE\\\",\\\"SRI LANKA/DHAKA PE\\\"]"
-    }
 
     print(f"rendering keycloak")
     keycloak = json.loads(render_template(keycloak_template, keycloak_context))
@@ -636,10 +650,12 @@ def replace_placeholder_database(election_tree, election_event_id):
     return areas, candidates, contests, area_contests, elections, keycloak
 
 # Example of how to use the function and see the result
-election_tree = gen_tree(excel_data)
+results = get_data()
+election_tree = gen_tree(excel_data, results)
+keycloak_context = gen_keycloak_context(results)
 election_event, election_event_id = generate_election_event(excel_data)
 
-areas, candidates, contests, area_contests, elections, keycloak = replace_placeholder_database(election_tree, election_event_id)
+areas, candidates, contests, area_contests, elections, keycloak = replace_placeholder_database(election_tree, election_event_id, keycloak_context)
 
 final_json = {
     "tenant_id": base_config["tenant_id"],
