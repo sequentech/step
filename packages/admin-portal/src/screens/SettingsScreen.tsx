@@ -40,7 +40,10 @@ export const SettingsScreen: React.FC = () => {
     }
 
     return (
-        <Box>
+        <Box
+            sx={{maxWidth: "calc(100vw - 320px)", bgcolor: "background.paper"}}
+            className="settings-box"
+        >
             <HeaderTitle
                 title={t("electionTypeScreen.common.settingTitle")}
                 subtitle={t("electionTypeScreen.common.settingSubtitle")}

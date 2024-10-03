@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::authorization::authorize;
+use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -26,21 +27,34 @@ pub struct LimitAccessByCountriesOutput {
 pub async fn limit_access_by_countries(
     claims: JwtClaims,
     body: Json<LimitAccessByCountriesInput>,
-) -> Result<Json<LimitAccessByCountriesOutput>, (Status, String)> {
+) -> Result<Json<LimitAccessByCountriesOutput>, JsonError> {
     let input = body.into_inner();
     authorize(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::ADMIN_USER],
-    )?;
+    )
+    .map_err(|e| {
+        ErrorResponse::new(
+            Status::Unauthorized,
+            &format!("{e:?}"),
+            ErrorCode::Unauthorized,
+        )
+    })?;
 
     handle_limit_ip_access_by_countries(
         claims.hasura_claims.tenant_id.clone(),
         input.countries,
     )
     .await
-    .map_err(|err| (Status::InternalServerError, format!("{:?}", err)))?;
+    .map_err(|e| {
+        ErrorResponse::new(
+            Status::InternalServerError,
+            &format!("{e:?}"),
+            ErrorCode::InternalServerError,
+        )
+    })?;
 
     Ok(Json(LimitAccessByCountriesOutput { success: true }))
 }
