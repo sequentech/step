@@ -25,9 +25,15 @@ import {
     Typography,
 } from "@mui/material"
 import {useMutation} from "@apollo/client"
-import {CreateEventMutation, Sequent_Backend_Election} from "@/gql/graphql"
+import {
+    CreateEventMutation,
+    ManageElectionDatesMutation,
+    ManageElectionDatesMutationVariables,
+    Sequent_Backend_Election,
+    Sequent_Backend_Scheduled_Event,
+} from "@/gql/graphql"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {CREATE_EVENT} from "@/queries/CreateEvent"
+import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {IPermissions} from "@/types/keycloak"
 import {v4 as uuidv4} from "uuid"
 import {getAttributeLabel} from "@/services/UserService"
@@ -109,13 +115,14 @@ const CreateEvent: FC<CreateEventProps> = ({
     const [isLoading, setIsLoading] = useState(false)
     const refresh = useRefresh()
     const [tenantId] = useTenantStore()
-    const [update] = useUpdate()
-    const {data: eventList} = useGetList("sequent_backend_scheduled_event")
+    const {data: eventList} = useGetList<Sequent_Backend_Scheduled_Event>(
+        "sequent_backend_scheduled_event"
+    )
     const notify = useNotify()
-    const [createEvent] = useMutation<CreateEventMutation>(CREATE_EVENT, {
+    const [manageElectionDates] = useMutation<ManageElectionDatesMutation>(MANAGE_ELECTION_DATES, {
         context: {
             headers: {
-                "x-hasura-role": IPermissions.EVENTS_CREATE,
+                "x-hasura-role": IPermissions.EVENTS_EDIT,
             },
         },
     })
@@ -123,7 +130,7 @@ const CreateEvent: FC<CreateEventProps> = ({
     const selectedEvent = useMemo(() => {
         return eventList?.find((event) => event.id === selectedEventId)
     }, [eventList, selectedEventId])
-    const [electionId, setElectionId] = useState(
+    const [electionId, setElectionId] = useState<string | null>(
         isEditEvent
             ? elections?.find(
                   (election) => election.id === selectedEvent?.event_payload.election_id
@@ -133,45 +140,32 @@ const CreateEvent: FC<CreateEventProps> = ({
     const [scheduleDate, setScheduleDate] = useState<string | undefined>(
         isEditEvent ? selectedEvent?.cron_config.scheduled_date : null
     )
-    const [eventType, setEventType] = useState<EventProcessors | null>(
-        isEditEvent ? selectedEvent?.event_processor : null
+    const [eventType, setEventType] = useState<EventProcessors>(
+        isEditEvent
+            ? (selectedEvent?.event_processor as EventProcessors | null) ??
+                  EventProcessors.START_ELECTION
+            : EventProcessors.START_ELECTION
     )
 
     const onSubmit = async () => {
         setIsLoading(true)
         try {
-            if (isEditEvent) {
-                update("sequent_backend_scheduled_event", {
-                    id: selectedEventId,
-                    data: {
-                        event_processor: eventType,
-                        event_payload: {election_id: electionId},
-                        cron_config: {cron: null, scheduled_date: scheduleDate},
-                    },
-                })
-                notify(t("eventsScreen.messages.editSuccess"), {type: "success"})
-                setIsLoading(false)
-                setIsOpenDrawer(false)
-                refresh()
+            let variables: ManageElectionDatesMutationVariables = {
+                electionEventId: electionEventId,
+                electionId: electionId,
+                scheduledDate: scheduleDate,
+                isStart: eventType === EventProcessors.START_ELECTION,
+            }
+            const {errors} = await manageElectionDates({
+                variables,
+            })
+            setIsLoading(false)
+            setIsOpenDrawer(false)
+            refresh()
+            if (errors) {
+                notify(t("eventsScreen.messages.createError"), {type: "error"})
             } else {
-                const {data, errors} = await createEvent({
-                    variables: {
-                        tenantId: tenantId,
-                        electionEventId: electionEventId,
-                        eventProcessor: eventType,
-                        cronConfig: {cron: null, scheduled_date: scheduleDate},
-                        eventPayload: {election_id: electionId},
-                        created_at: new Date().toISOString(),
-                        id: uuidv4(),
-                    },
-                })
-                notify(t("eventsScreen.messages.createSuccess"), {type: "success"})
-                setIsLoading(false)
-                setIsOpenDrawer(false)
-                refresh()
-                if (errors) {
-                    notify(t("eventsScreen.messages.createError"), {type: "error"})
-                }
+                notify(t("eventsScreen.messages.editSuccess"), {type: "success"})
             }
         } catch (error) {
             console.error(error)

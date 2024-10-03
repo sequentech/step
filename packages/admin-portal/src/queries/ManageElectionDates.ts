@@ -7,14 +7,14 @@ export const MANAGE_ELECTION_DATES = gql`
     mutation ManageElectionDates(
         $electionEventId: String!
         $electionId: String
-        $start_date: String
-        $end_date: String
+        $scheduledDate: String
+        $isStart: String
     ) {
         manage_election_dates(
             election_event_id: $electionEventId
             election_id: $electionId
-            start_date: $start_date
-            end_date: $end_date
+            scheduled_date: $scheduledDate
+            is_start: $isStart
         ) {
             something
         }

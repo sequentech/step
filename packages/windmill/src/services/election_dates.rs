@@ -18,8 +18,8 @@ pub async fn manage_dates(
     tenant_id: &str,
     election_event_id: &str,
     election_id: &str,
-    start_date: Option<&str>,
-    end_date: Option<&str>,
+    scheduled_date: Option<&str>,
+    is_start: bool,
 ) -> Result<()> {
     let found_election = get_election_by_id(
         hasura_transaction,
@@ -59,109 +59,111 @@ pub async fn manage_dates(
         &end_task_id,
     )
     .await?;
-    match start_date {
-        Some(date) => {
-            new_dates.scheduled_opening = Some(true);
-            new_dates.start_date = Some(date.to_string());
-            //TODO: check if date is smaller than now or bigger than end_date and return error
-            let cron_config = CronConfig {
-                cron: None,
-                scheduled_date: Some(date.to_string()),
-            };
-
-            if let Some(scheduled_manage_start_date) = scheduled_manage_start_date_opt {
-                update_scheduled_event(
-                    hasura_transaction,
-                    tenant_id,
-                    &scheduled_manage_start_date.id,
-                    cron_config,
-                )
-                .await?;
-            } else {
-                let event_processor = EventProcessors::START_ELECTION;
-
-                let payload = ManageElectionDatePayload {
-                    election_id: Some(election_id.to_string()),
+    if is_start {
+        match scheduled_date {
+            Some(date) => {
+                new_dates.scheduled_opening = Some(true);
+                new_dates.start_date = Some(date.to_string());
+                //TODO: check if date is smaller than now or bigger than end_date and return error
+                let cron_config = CronConfig {
+                    cron: None,
+                    scheduled_date: Some(date.to_string()),
                 };
-                insert_scheduled_event(
-                    hasura_transaction,
-                    tenant_id,
-                    election_event_id,
-                    event_processor,
-                    &start_task_id,
-                    cron_config,
-                    deserialize_value(serde_json::to_value(payload)?)?,
-                )
-                .await?;
-            }
-        }
-        None => {
-            new_dates.scheduled_opening = Some(false);
-            new_dates.start_date = None;
-            if (current_dates.start_date.is_none()) {
-            } else {
-                //STOP PREVIOUS START TASK
-                new_dates.scheduled_opening = Some(false);
+
                 if let Some(scheduled_manage_start_date) = scheduled_manage_start_date_opt {
-                    stop_scheduled_event(
+                    update_scheduled_event(
                         hasura_transaction,
                         tenant_id,
                         &scheduled_manage_start_date.id,
+                        cron_config,
+                    )
+                    .await?;
+                } else {
+                    let event_processor = EventProcessors::START_ELECTION;
+
+                    let payload = ManageElectionDatePayload {
+                        election_id: Some(election_id.to_string()),
+                    };
+                    insert_scheduled_event(
+                        hasura_transaction,
+                        tenant_id,
+                        election_event_id,
+                        event_processor,
+                        &start_task_id,
+                        cron_config,
+                        deserialize_value(serde_json::to_value(payload)?)?,
                     )
                     .await?;
                 }
             }
-        }
-    }
-
-    match end_date {
-        Some(date) => {
-            new_dates.scheduled_closing = Some(true);
-            new_dates.end_date = Some(date.to_string());
-            //TODO: check if date is smaller than now or bigger than end_date and return error;
-            let cron_config = CronConfig {
-                cron: None,
-                scheduled_date: Some(date.to_string()),
-            };
-            if let Some(scheduled_manage_end_date) = scheduled_manage_end_date_opt {
-                update_scheduled_event(
-                    hasura_transaction,
-                    tenant_id,
-                    &scheduled_manage_end_date.id,
-                    cron_config,
-                )
-                .await?;
-            } else {
-                let event_processor = EventProcessors::END_ELECTION;
-
-                let payload = ManageElectionDatePayload {
-                    election_id: Some(election_id.to_string()),
-                };
-                insert_scheduled_event(
-                    hasura_transaction,
-                    tenant_id,
-                    election_event_id,
-                    event_processor,
-                    &end_task_id,
-                    cron_config,
-                    serde_json::to_value(payload)?,
-                )
-                .await?;
+            None => {
+                new_dates.scheduled_opening = Some(false);
+                new_dates.start_date = None;
+                if (current_dates.start_date.is_none()) {
+                } else {
+                    //STOP PREVIOUS START TASK
+                    new_dates.scheduled_opening = Some(false);
+                    if let Some(scheduled_manage_start_date) = scheduled_manage_start_date_opt {
+                        stop_scheduled_event(
+                            hasura_transaction,
+                            tenant_id,
+                            &scheduled_manage_start_date.id,
+                        )
+                        .await?;
+                    }
+                }
             }
         }
-        None => {
-            new_dates.scheduled_closing = Some(false);
-            new_dates.end_date = None;
-            if (current_dates.scheduled_closing.is_none()) {
-            } else {
-                //STOP PREVIOUS END TASK
+    } else {
+        match scheduled_date {
+            Some(date) => {
+                new_dates.scheduled_closing = Some(true);
+                new_dates.end_date = Some(date.to_string());
+                //TODO: check if date is smaller than now or bigger than end_date and return error;
+                let cron_config = CronConfig {
+                    cron: None,
+                    scheduled_date: Some(date.to_string()),
+                };
                 if let Some(scheduled_manage_end_date) = scheduled_manage_end_date_opt {
-                    stop_scheduled_event(
+                    update_scheduled_event(
                         hasura_transaction,
                         tenant_id,
                         &scheduled_manage_end_date.id,
+                        cron_config,
                     )
                     .await?;
+                } else {
+                    let event_processor = EventProcessors::END_ELECTION;
+
+                    let payload = ManageElectionDatePayload {
+                        election_id: Some(election_id.to_string()),
+                    };
+                    insert_scheduled_event(
+                        hasura_transaction,
+                        tenant_id,
+                        election_event_id,
+                        event_processor,
+                        &end_task_id,
+                        cron_config,
+                        serde_json::to_value(payload)?,
+                    )
+                    .await?;
+                }
+            }
+            None => {
+                new_dates.scheduled_closing = Some(false);
+                new_dates.end_date = None;
+                if (current_dates.scheduled_closing.is_none()) {
+                } else {
+                    //STOP PREVIOUS END TASK
+                    if let Some(scheduled_manage_end_date) = scheduled_manage_end_date_opt {
+                        stop_scheduled_event(
+                            hasura_transaction,
+                            tenant_id,
+                            &scheduled_manage_end_date.id,
+                        )
+                        .await?;
+                    }
                 }
             }
         }

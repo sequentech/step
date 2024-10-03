@@ -18,8 +18,8 @@ use windmill::services::{election_dates, election_event_dates};
 pub struct ManageElectionDatesBody {
     election_event_id: String,
     election_id: Option<String>,
-    start_date: Option<String>,
-    end_date: Option<String>,
+    scheduled_date: Option<String>,
+    is_start: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -57,8 +57,8 @@ pub async fn manage_election_dates(
                 &claims.hasura_claims.tenant_id,
                 &input.election_event_id,
                 &id,
-                input.start_date.as_deref(),
-                input.end_date.as_deref(),
+                input.scheduled_date.as_deref(),
+                input.is_start,
             )
             .await
             .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
@@ -68,8 +68,8 @@ pub async fn manage_election_dates(
                 &hasura_transaction,
                 &claims.hasura_claims.tenant_id,
                 &input.election_event_id,
-                input.start_date.as_deref(),
-                input.end_date.as_deref(),
+                input.scheduled_date.as_deref(),
+                input.is_start,
             )
             .await
             .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
