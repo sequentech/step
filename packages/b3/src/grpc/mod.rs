@@ -11,7 +11,7 @@ pub use proto::GetMessagesMultiRequest;
 pub use proto::GetMessagesReply;
 pub use proto::GetMessagesRequest;
 pub use proto::GrpcB3Message;
-pub use proto::KeyedMessages;
+pub use proto::BoardMessages;
 pub use proto::PutMessagesMultiReply;
 pub use proto::PutMessagesMultiRequest;
 pub use proto::PutMessagesReply;

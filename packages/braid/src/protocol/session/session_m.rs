@@ -19,9 +19,21 @@ use crate::util::ProtocolError;
 use strand::context::Ctx;
 
 /// A protocol session, M version.
-///
-/// The M version is used with SessionSets, supporting
-/// concurrency, multiplexing and chunking.
+/// 
+/// As opposed to the non-M implementation, SessionM's
+/// support concurrency, multiplexing and chunking.
+/// 
+/// A protocol session handles one board in the
+/// bulletin board. Unlike the other Session implementation,
+/// this implementation does not handle any messaging to/from 
+/// the remote bulletin board, this is done by SessionSet; 
+/// a SessionM step only calls its trustee's step.
+/// 
+/// SessionM's belong to a SessionSet, which 
+/// is the unit of both session concurrency and multiplexing
+/// (see also SessionSet::run and main_m::run).
+/// SessionSets will create and drop SessionM's as necessary 
+/// according to updates to the bulletin board index.
 pub struct SessionM<C: Ctx + 'static> {
     pub board_name: String,
     trustee: Trustee<C>,
@@ -40,12 +52,12 @@ impl<C: Ctx> SessionM<C> {
     /// Executes one step of the protocol main loop.
     ///
     /// Not all calls of step will supply new messages, but the
-    /// call is still required because there may be messages in the message_store
-    /// whose required Actions have not yet executed, leading to a
-    /// possible protocol hang.
+    /// call is still required because there may be messages in the 
+    /// message_store whose required Actions have not yet executed, 
+    /// leading to a possible protocol hang.
     pub fn step(&mut self, messages: &Vec<GrpcB3Message>) -> Result<Vec<Message>, ProtocolError> {
         // NOTE: we must call step even if there are no new remote messages
-        // because there may be actions pending in the trustees memory board
+        // because there may be actions pending in the trustees LocalBoard.
         let step_result = self.trustee.step(messages)?;
 
         Ok(step_result.messages)
