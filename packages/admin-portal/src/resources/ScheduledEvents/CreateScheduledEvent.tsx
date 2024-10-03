@@ -137,7 +137,7 @@ const CreateEvent: FC<CreateEventProps> = ({
         isEditEvent ? selectedEvent?.event_processor : null
     )
 
-    const onSubmit = async (data: any) => {
+    const onSubmit = async () => {
         setIsLoading(true)
         try {
             if (isEditEvent) {
@@ -218,7 +218,7 @@ const CreateEvent: FC<CreateEventProps> = ({
                     <SelectElection
                         tenantId={tenantId}
                         electionEventId={electionEventId}
-                        onSelectElection={(election) => setElectionId(election ??  null)}
+                        onSelectElection={(election) => setElectionId(election ?? null)}
                         source={selectedEvent?.event_payload?.election_id ?? "all"}
                     />
                 </FormControl>

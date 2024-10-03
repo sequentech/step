@@ -16,7 +16,6 @@ pub mod export_election_event_logs;
 pub mod export_tasks_execution;
 pub mod fetch_document;
 // pub mod get_task_by_id;
-pub mod create_event_list;
 pub mod immudb_log_audit;
 pub mod import_areas;
 pub mod import_candidates;

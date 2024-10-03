@@ -44,7 +44,9 @@ const EditElectionEventTasks = lazy(() =>
     import("./EditElectionEventTasks").then((module) => ({default: module.EditElectionEventTasks}))
 )
 const EditElectionEventEvents = lazy(() =>
-    import("./EditElectionEventScheduledEvents").then((module) => ({default: module.EditElectionEventEvents}))
+    import("./EditElectionEventScheduledEvents").then((module) => ({
+        default: module.EditElectionEventEvents,
+    }))
 )
 const EditNotifications = lazy(() =>
     import("../Notifications/EditNotifications").then((module) => ({

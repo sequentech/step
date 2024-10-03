@@ -69,7 +69,9 @@ const ListEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
     const {data: elections} = useGetList<Sequent_Backend_Election>("sequent_backend_election")
 
     const getElectionName = (election: any) => {
-        const electionName = elections?.find((item) => election?.event_payload?.election_id === item.id)?.name
+        const electionName = elections?.find(
+            (item) => election?.event_payload?.election_id === item.id
+        )?.name
         return election.id ? electionName : "-"
     }
 
@@ -177,7 +179,11 @@ const ListEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                     isOpenSideBar={isOpenSidebar}
                     omit={OMIT_FIELDS}
                 >
-                    <FunctionField label={"Election"} source="event_payload.election_id" render={getElectionName} />
+                    <FunctionField
+                        label={"Election"}
+                        source="event_payload.election_id"
+                        render={getElectionName}
+                    />
                     <FunctionField
                         label={"Event Type"}
                         source="event_processor"
@@ -188,7 +194,9 @@ const ListEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                     <FunctionField
                         label={"Schedule"}
                         source="cron_config.scheduled_date"
-                        render={(record: any) => new Date(record.cron_config.scheduled_date).toLocaleString()}
+                        render={(record: any) =>
+                            new Date(record.cron_config.scheduled_date).toLocaleString()
+                        }
                     />
                     <WrapperField label="Actions">
                         <ActionsColumn actions={actions} />
