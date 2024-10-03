@@ -69,6 +69,10 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import styled from "@emotion/styled"
 import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
 
+const LangsWrapper = styled(Box)`
+    margin-top: 46px;
+`
+
 const ContestRows = styled.div`
     display: flex;
     flex-direction: column;
@@ -469,8 +473,7 @@ export const ElectionDataForm: React.FC = () => {
                     languageSettings
                 )
 
-                const onSave = async () => {
-                }
+                const onSave = async () => {}
 
                 return (
                     <SimpleForm

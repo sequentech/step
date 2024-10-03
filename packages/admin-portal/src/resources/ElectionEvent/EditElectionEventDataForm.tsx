@@ -264,7 +264,6 @@ export const EditElectionEventDataForm: React.FC = () => {
         kiosk: tenant?.voting_channels?.kiosk || false,
     })
 
-
     useEffect(() => {
         let tenantAvailableLangs = (tenant?.settings as ITenantSettings | undefined)?.language_conf
             ?.enabled_language_codes ?? ["en"]
