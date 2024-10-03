@@ -355,7 +355,7 @@ try:
     with open('templates/areaContest.hbs', 'r') as file:
         area_contest_template = file.read()
 
-    with open('templates/COMELEC/keycloack.hbs', 'r') as file:
+    with open('templates/COMELEC/keycloak.hbs', 'r') as file:
         keycloak_template = file.read()
 
     logging.info("Loaded all templates successfully.")
@@ -424,9 +424,27 @@ def generate_election_event(excel_data):
     print(election_event_context)
     return json.loads(render_template(election_event_template, election_event_context)), election_event_id
 
+def gen_keycloak_context(results):
 
-def gen_tree(excel_data):
-    results = get_data()
+    print(f"generating keycloak context")
+    country_set = set()
+    embassy_set = set()
+
+    for row in results:
+        if not row["DB_ALLMUN_AREA_NAME"]:
+            continue
+        country_set.add("\\\"" + row["DB_ALLMUN_AREA_NAME"] + "\\\"")
+        if not row["allbgy_AREANAME"]:
+            continue
+        embassy_set.add("\\\"" + row["DB_ALLMUN_AREA_NAME"] + "/" + row["allbgy_AREANAME"] + "\\\"")
+
+    keycloak_context = {
+        "embassy_list": "[" + ",".join(embassy_set) + "]",
+        "country_list": "[" + ",".join(country_set) + "]"
+    }
+    return keycloak_context
+
+def gen_tree(excel_data, results):
     elections_object = {"elections": []}
 
     ccs_servers = {}
@@ -441,8 +459,47 @@ def gen_tree(excel_data):
             "public_key_pem": ccs_server["public_key"]
         })
         ccs_servers[str(int(ccs_server["tag"]))] = json_server
+    
+    # areas
+    areas = {}
+    for row in results:
+        area_name = row["DB_ALLMUN_AREA_NAME"]
 
-    breakpoint()
+        # the area
+        if area_name in areas:
+            continue
+        area_context = next((
+            c for c in excel_data["areas"] 
+            if c["name"] == area_name
+        ), None)
+
+        if not area_context:
+            raise Exception(f"area with 'name' = {area_name} not found in excel")
+
+        ccs_server_tags = str(area_context["annotations"]["miru_ccs_server_tags"]).split(",")
+        ccs_server_tags = [str(int(float(i))) for i in ccs_server_tags]
+
+        found_servers = [
+            ccs_servers[tag].replace('"', '\\"')
+            for tag in ccs_server_tags
+            if tag in ccs_servers
+        ]
+        miru_trustee_users = area_context["annotations"]["miru_trustee_servers"].split(",")
+        miru_trustee_users = [('"' + server + '"') for server in miru_trustee_users]
+        miru_trustee_users = ",".join(miru_trustee_users)
+        area_context["annotations"]["miru_ccs_servers"] = "[" + ",".join(found_servers) + "]"
+        area_context["annotations"]["miru_trustee_users"] = "[" + miru_trustee_users.replace('"', '\\"') + "]"
+
+        area = {
+            "name": area_name,
+            "description" :row["DB_POLLING_CENTER_POLLING_PLACE"],
+            "source_id": row["DB_TRANS_SOURCE_ID"],
+            "dest_id": row["trans_route_TRANS_DEST_ID"],
+            **base_context,
+            **area_context
+        }
+        areas[area_name] = area
+
     for (idx, row) in enumerate(results):
         print(f"processing row {idx}")
         # Find or create the election object
@@ -505,39 +562,8 @@ def gen_tree(excel_data):
 
         # Add the area to the contest if it hasn't been added already
         area_name = row["DB_ALLMUN_AREA_NAME"]
-        area_context = next((
-            c for c in excel_data["areas"] 
-            if c["name"] == area_name
-        ), None)
-
-        if not area_context:
-            raise Exception(f"area with 'name' = {area_name} not found in excel")
-
-        ccs_server_tags = str(area_context["annotations"]["miru_ccs_server_tags"]).split(",")
-        ccs_server_tags = [str(int(float(i))) for i in ccs_server_tags]
-
-        found_servers = [
-            ccs_servers[tag].replace('"', '\\"')
-            for tag in ccs_server_tags
-            if tag in ccs_servers
-        ]
-        miru_trustee_users = area_context["annotations"]["miru_trustee_servers"].split(",")
-        miru_trustee_users = [('"' + server + '"') for server in miru_trustee_users]
-        miru_trustee_users = ",".join(miru_trustee_users)
-        area_context["annotations"]["miru_ccs_servers"] = f"[{",".join(found_servers)}]"
-        area_context["annotations"]["miru_trustee_users"] = "[" + miru_trustee_users.replace('"', '\\"') + "]"
-
-        area = {
-            "name": area_name,
-            "description" :row["DB_POLLING_CENTER_POLLING_PLACE"],
-            "source_id": row["DB_TRANS_SOURCE_ID"],
-            "dest_id": row["trans_route_TRANS_DEST_ID"],
-            **base_context,
-            **area_context
-        }
-        
-        if area not in contest["areas"]:
-            contest["areas"].append(area)
+        if area_name not in contest["areas"]:
+            contest["areas"].append(area_name)
 
     test_elections =  copy.deepcopy(elections_object["elections"])
     for election in test_elections:
@@ -546,20 +572,15 @@ def gen_tree(excel_data):
 
     elections_object["elections"].extend(test_elections)
 
-    return elections_object
+    return elections_object, areas
 
-
-def replace_placeholder_database(election_tree, election_event_id):
+def replace_placeholder_database(election_tree, areas_dict, election_event_id, keycloak_context):
     area_contests = []
+    area_contexts_dict = {}
     areas = []
     candidates = []
     contests = []
     elections = []
-
-    keycloak_context = {
-        "country_list": "[\\\"KINGDOM OF THAILAND\\\",\\\"MALDIVES\\\",\\\"PEOPLES REPUBLIC OF BANGLADESH\\\",\\\"SRI LANKA\\\"]",
-        "embassy_list": "[\\\"KINGDOM OF THAILAND/BANGKOK PE\\\",\\\"MALDIVES/DHAKA PE\\\",\\\"PEOPLES REPUBLIC OF BANGLADESH/DHAKA PE\\\",\\\"SRI LANKA/DHAKA PE\\\"]"
-    }
 
     print(f"rendering keycloak")
     keycloak = json.loads(render_template(keycloak_template, keycloak_context))
@@ -578,7 +599,7 @@ def replace_placeholder_database(election_tree, election_event_id):
             "election_name": election["election_name"]
         }
 
-        print(f"rendering election {election["election_name"]}")
+        print(f"rendering election {election['election_name']}")
         elections.append(json.loads(render_template(election_template, election_context)))
 
         for contest in election["contests"]:
@@ -595,7 +616,7 @@ def replace_placeholder_database(election_tree, election_event_id):
                 "current_timestamp": current_timestamp
             }
 
-            print(f"rendering contest {contest["name"]}")
+            print(f"rendering contest {contest['name']}")
             contests.append(json.loads(render_template(contest_template, contest_context)))
 
             for candidate in contest["candidates"]:
@@ -608,22 +629,30 @@ def replace_placeholder_database(election_tree, election_event_id):
                     "DB_CANDIDATE_NAMEONBALLOT": candidate["name_on_ballot"]
                 }
 
-                print(f"rendering candidate {candidate["name_on_ballot"]}")
+                print(f"rendering candidate {candidate['name_on_ballot']}")
                 candidates.append(json.loads(render_template(candidate_template, candidate_context)))
 
-            for area in contest["areas"]:
-                area_context = {
-                    **area,
-                    "UUID": generate_uuid(),
-                    "tenant_id": base_config["tenant_id"],
-                    "election_event_id": election_event_id,
-                    "DB_TRANS_SOURCE_ID": area["source_id"],
-                    "DB_ALLMUN_AREA_NAME": area["name"],
-                    "DB_POLLING_CENTER_POLLING_PLACE":area["description"]
-                }
+            for area_name in contest["areas"]:
+                if area_name not in areas_dict:
+                    breakpoint()
+                area = areas_dict[area_name]
 
-                print(f"rendering area {area["name"]}")
-                areas.append(json.loads(render_template(area_template, area_context)))
+                if area_name not in area_contexts_dict:
+                    area_context = {
+                        **area,
+                        "UUID": generate_uuid(),
+                        "tenant_id": base_config["tenant_id"],
+                        "election_event_id": election_event_id,
+                        "DB_TRANS_SOURCE_ID": area["source_id"],
+                        "DB_ALLMUN_AREA_NAME": area["name"],
+                        "DB_POLLING_CENTER_POLLING_PLACE":area["description"]
+                    }
+                    area_contexts_dict[area_name] = area_context
+
+                    print(f"rendering area {area['name']}")
+                    areas.append(json.loads(render_template(area_template, area_context)))
+                else:
+                    area_context = area_contexts_dict[area_name]
 
                 area_contest_context = {
                     "UUID": generate_uuid(),
@@ -631,16 +660,18 @@ def replace_placeholder_database(election_tree, election_event_id):
                     "contest_id": contest_context["UUID"]
                 }
 
-                print(f"rendering area_contest area: '{area["name"]}', contest: '{contest["name"]}'")
+                print(f"rendering area_contest area: '{area['name']}', contest: '{contest['name']}'")
                 area_contests.append(json.loads(render_template(area_contest_template, area_contest_context)))
 
     return areas, candidates, contests, area_contests, elections, keycloak
 
 # Example of how to use the function and see the result
-election_tree = gen_tree(excel_data)
+results = get_data()
+election_tree, areas_dict = gen_tree(excel_data, results)
+keycloak_context = gen_keycloak_context(results)
 election_event, election_event_id = generate_election_event(excel_data)
 
-areas, candidates, contests, area_contests, elections, keycloak = replace_placeholder_database(election_tree, election_event_id)
+areas, candidates, contests, area_contests, elections, keycloak = replace_placeholder_database(election_tree, areas_dict, election_event_id, keycloak_context)
 
 final_json = {
     "tenant_id": base_config["tenant_id"],

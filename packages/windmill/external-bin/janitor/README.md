@@ -36,7 +36,7 @@ Then you need to install the packages the script uses:
 # Configuration
 
 You'll need to add the COMELEC keycloak template. Upload it to 
-/workspaces/step/packages/windmill/external-bin/janitor/COMELEC/keycloak.hbs
+/workspaces/step/packages/windmill/external-bin/janitor/templates/COMELEC/keycloak.hbs
 
 # Use
 
