@@ -80,11 +80,7 @@ const EditEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
 
     const OMIT_FIELDS: Array<string> = []
 
-    const Filters: Array<ReactElement> = [
-        <TextInput key="Election" source="election" />,
-        <TextInput key="Event Type" source="event_type" />,
-        <TextInput key="Schedule" source="schedule" />,
-    ]
+    const Filters: Array<ReactElement> = []
 
     const editAction = (id: any) => {
         setOpenCreateEvent(true)

@@ -73,6 +73,7 @@ const SelectElection = ({
 
     return (
         <ReferenceInput
+            required
             fullWidth={true}
             reference="sequent_backend_election"
             source={source}
@@ -222,6 +223,7 @@ const CreateEvent: FC<CreateEventProps> = ({
                     />
                 </FormControl>
                 <DateTimeInput
+                    required
                     disabled={isLoading}
                     source="dates.start_date"
                     label={t("electionScreen.field.startDateTime")}
