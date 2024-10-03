@@ -603,6 +603,9 @@ const englishTranslation = {
                 editSuccess: "Event edited successfully",
                 editError: "Error editing event",
             },
+            eventType: {
+                label: "Event Type",
+            },
             empty: {
                 header: "No events yet.",
                 body: "Do you want to create one?",

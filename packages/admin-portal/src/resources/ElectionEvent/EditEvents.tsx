@@ -78,7 +78,7 @@ const EditEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
         IPermissions.EVENTS_CREATE
     )
 
-    const OMIT_FIELDS: Array<string> = ["election", "email_verified"]
+    const OMIT_FIELDS: Array<string> = []
 
     const Filters: Array<ReactElement> = [
         <TextInput key="Election" source="election" />,
@@ -158,10 +158,8 @@ const EditEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                 empty={<Empty />}
                 actions={
                     <ListActions
-                        withImport
-                        // doImport={handleImport}
-                        withExport
-                        // doExport={handleExport}
+                        withImport={false}
+                        withExport={false}
                         open={openCreateEvent}
                         setOpen={onOpenDrawer}
                         Component={

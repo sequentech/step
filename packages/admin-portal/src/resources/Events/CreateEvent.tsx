@@ -2,7 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {FC, useMemo, useState} from "react"
+import {SxProps} from "@mui/material"
 import {
+    AutocompleteInput,
+    Identifier,
+    ReferenceInput,
     Create,
     DateTimeInput,
     SimpleForm,
@@ -27,6 +31,7 @@ import {CREATE_EVENT} from "@/queries/CreateEvent"
 import {IPermissions} from "@/types/keycloak"
 import {v4 as uuidv4} from "uuid"
 import {getAttributeLabel} from "@/services/UserService"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 interface CreateEventProps {
     electionEventId: string
@@ -39,6 +44,57 @@ interface CreateEventProps {
 export enum EventProcessors {
     START_ELECTION = "START_ELECTION",
     END_ELECTION = "END_ELECTION",
+}
+
+interface SelectElectionProps {
+    tenantId: string | null
+    electionEventId: string | Identifier | undefined
+    source: string
+    label?: string
+    onSelectElection?: (...event: any[]) => void
+    customStyle?: SxProps
+}
+
+const SelectElection = ({
+    tenantId,
+    electionEventId,
+    source,
+    label,
+    onSelectElection,
+    customStyle,
+}: SelectElectionProps) => {
+    const aliasRenderer = useAliasRenderer()
+    const electionFilterToQuery = (searchText: string) => {
+        if (!searchText || searchText.length == 0) {
+            return {name: ""}
+        }
+        return {name: searchText.trim()}
+    }
+
+    return (
+        <ReferenceInput
+            fullWidth={true}
+            reference="sequent_backend_election"
+            source={source}
+            filter={{
+                tenant_id: tenantId,
+                election_event_id: electionEventId,
+            }}
+            perPage={100} // // Setting initial larger records size of areas
+            enableGetChoices={({q}) => q && q.length >= 3}
+            label={label}
+        >
+            <AutocompleteInput
+                label={label}
+                fullWidth={true}
+                optionText={aliasRenderer}
+                filterToQuery={electionFilterToQuery}
+                onChange={onSelectElection}
+                debounce={100}
+                sx={customStyle}
+            />
+        </ReferenceInput>
+    )
 }
 
 const CreateEvent: FC<CreateEventProps> = ({
@@ -66,7 +122,7 @@ const CreateEvent: FC<CreateEventProps> = ({
     const selectedEvent = useMemo(() => {
         return eventList?.find((event) => event.id === selectedEventId)
     }, [eventList, selectedEventId])
-    const [election, setElection] = useState(
+    const [electionId, setElectionId] = useState(
         isEditEvent
             ? elections?.find(
                   (election) => election.id === selectedEvent?.event_payload.election_id
@@ -88,7 +144,7 @@ const CreateEvent: FC<CreateEventProps> = ({
                     id: selectedEventId,
                     data: {
                         event_processor: eventType,
-                        event_payload: {election_id: election},
+                        event_payload: {election_id: electionId},
                         cron_config: {cron: null, scheduled_date: scheduleDate},
                     },
                 })
@@ -103,7 +159,7 @@ const CreateEvent: FC<CreateEventProps> = ({
                         electionEventId: electionEventId,
                         eventProcessor: eventType,
                         cronConfig: {cron: null, scheduled_date: scheduleDate},
-                        eventPayload: {election_id: election},
+                        eventPayload: {election_id: electionId},
                         created_at: new Date().toISOString(),
                         id: uuidv4(),
                     },
@@ -137,13 +193,15 @@ const CreateEvent: FC<CreateEventProps> = ({
                     )}
                 </Typography>
                 <FormControl fullWidth>
-                    <InputLabel id="event-type-select-label">{t("eventType")}</InputLabel>
+                    <InputLabel id="event-type-select-label">
+                        {t("eventsScreen.eventType.label")}
+                    </InputLabel>
                     <Select
                         required
                         name="event_type"
                         defaultValue={isEditEvent && EventProcessors.START_ELECTION}
                         labelId="event-type-select-label"
-                        label={t("eventType")}
+                        label={t("eventsScreen.eventType.label")}
                         value={eventType || ""}
                         onChange={(e: any) => setEventType(e.target.value)}
                     >
@@ -156,20 +214,12 @@ const CreateEvent: FC<CreateEventProps> = ({
                     </Select>
                 </FormControl>
                 <FormControl fullWidth>
-                    <InputLabel id="select-label">{getAttributeLabel("Election")}</InputLabel>
-                    <Select
-                        name={"election"}
-                        labelId="select-label"
-                        label={getAttributeLabel("Election")}
-                        value={election || ""}
-                        onChange={(e: any) => setElection(e.target.value)}
-                    >
-                        {elections?.map((election) => (
-                            <MenuItem key={election.id} value={election.id}>
-                                {election.name}
-                            </MenuItem>
-                        ))}
-                    </Select>
+                    <SelectElection
+                        tenantId={tenantId}
+                        electionEventId={electionEventId}
+                        onSelectElection={(election) => setElectionId(election?.id ?? null)}
+                        source="eventPayload.election_id"
+                    />
                 </FormControl>
                 <DateTimeInput
                     disabled={isLoading}

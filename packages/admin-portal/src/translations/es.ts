@@ -607,6 +607,9 @@ const spanishTranslation: TranslationType = {
                 editSuccess: "Event edited successfully",
                 editError: "Error editing event",
             },
+            eventType: {
+                label: "Tipo de Evento",
+            },
             empty: {
                 header: "Aún no hay eventos.",
                 body: "¿Quieres crear uno?",

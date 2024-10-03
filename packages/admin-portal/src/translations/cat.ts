@@ -608,6 +608,9 @@ const catalanTranslation: TranslationType = {
                 editSuccess: "Esdeveniment editat amb èxit",
                 editError: "Error en editar l'esdeveniment",
             },
+            eventType: {
+                label: "Tipus d'Esdeveniment",
+            },
             empty: {
                 header: "Encara no hi ha esdeveniments.",
                 body: "Vols crear-ne un?",

@@ -610,6 +610,9 @@ const frenchTranslation: TranslationType = {
                 editSuccess: "Événement modifié avec succès",
                 editError: "Erreur lors de la modification de l'événement",
             },
+            eventType: {
+                label: "Type d'Événement",
+            },
             empty: {
                 header: "Aucun événement pour le moment.",
                 body: "Voulez-vous en créer un ?",

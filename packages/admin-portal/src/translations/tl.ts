@@ -608,6 +608,9 @@ const tagalogTranslation: TranslationType = {
                 editSuccess: "Matagumpay na na-edit ang kaganapan",
                 editError: "Error sa pag-edit ng kaganapan",
             },
+            eventType: {
+                label: "Uri ng Kaganapan",
+            },
             empty: {
                 header: "Wala pang mga kaganapan.",
                 body: "Gusto mo bang lumikha ng isa?",

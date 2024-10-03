@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {
     BooleanInput,
-    DateTimeInput,
     RecordContext,
     SimpleForm,
     TextInput,
@@ -17,7 +16,6 @@ import {
     useNotify,
     Button,
     SelectInput,
-    NumberInput,
     required,
     FormDataConsumer,
     useGetList,
@@ -34,9 +32,9 @@ import {
 } from "@mui/material"
 import styled from "@emotion/styled"
 import DownloadIcon from "@mui/icons-material/Download"
-import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
-import {ITemplateType, ISendTemplateBody} from "@/types/templates"
+import {ITemplateType} from "@/types/templates"
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "@/components/CustomTabPanel"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
@@ -44,7 +42,6 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {
     ElectionsOrder,
-    IElectionDates,
     IElectionEventPresentation,
     IElectionPresentation,
     ITenantSettings,
@@ -60,7 +57,6 @@ import {
     ExportElectionEventMutation,
     ImportCandidatesMutation,
     Sequent_Backend_Election,
-    ManageElectionDatesMutation,
     Sequent_Backend_Election_Event,
     SetCustomUrlsMutation,
     Sequent_Backend_Template,
@@ -73,12 +69,10 @@ import {FetchResult, useMutation} from "@apollo/client"
 import {IMPORT_CANDIDTATES} from "@/queries/ImportCandidates"
 import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
 import {convertToNumber} from "@/lib/helpers"
-import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {ManagedNumberInput} from "@/components/managed-inputs/ManagedNumberInput"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-// import {SET_CUSTOM_URL} from "@/queries/SetCustomUrl"
 import {SET_CUSTOM_URLS} from "@/queries/SetCustomUrls"
 import {getAuthUrl} from "@/services/UrlGeneration"
 import {WizardStyles} from "@/components/styles/WizardStyles"
@@ -209,8 +203,7 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [openImportCandidates, setOpenImportCandidates] = useState(false)
     const [importCandidates] = useMutation<ImportCandidatesMutation>(IMPORT_CANDIDTATES)
     const defaultSecondsForCountdown = convertToNumber(process.env.SECONDS_TO_SHOW_COUNTDOWN) ?? 60
-    const defaultSecondsForAlret = convertToNumber(process.env.SECONDS_TO_SHOW_AlERT) ?? 180
-    const [manageElectionDates] = useMutation<ManageElectionDatesMutation>(MANAGE_ELECTION_DATES)
+    const defaultSecondsForAlert = convertToNumber(process.env.SECONDS_TO_SHOW_AlERT) ?? 180
     const [customUrlsValues, setCustomUrlsValues] = useState({login: "", enrollment: "", saml: ""})
     const [customLoginRes, setCustomLoginRes] = useState<FetchResult<SetCustomUrlsMutation>>()
     const [customEnrollmentRes, setCustomEnrollmentRes] =
@@ -227,8 +220,6 @@ export const EditElectionEventDataForm: React.FC = () => {
         },
     })
 
-    const [startDate, setStartDate] = useState<string | undefined>(undefined)
-    const [endDate, setEndDate] = useState<string | undefined>(undefined)
     const {record: tenant} = useEditController({
         resource: "sequent_backend_tenant",
         id: tenantId,
@@ -273,23 +264,6 @@ export const EditElectionEventDataForm: React.FC = () => {
         kiosk: tenant?.voting_channels?.kiosk || false,
     })
 
-    useEffect(() => {
-        let dates = record.dates as IElectionDates | undefined
-        if (dates?.start_date && !startDate) {
-            setStartDate(dates.start_date)
-        }
-        if (dates?.end_date && !endDate) {
-            setEndDate(dates.end_date)
-        }
-    }, [
-        record.dates,
-        record.dates?.start_date,
-        record.dates?.end_date,
-        startDate,
-        setStartDate,
-        endDate,
-        setEndDate,
-    ])
 
     useEffect(() => {
         let tenantAvailableLangs = (tenant?.settings as ITenantSettings | undefined)?.language_conf
@@ -407,9 +381,6 @@ export const EditElectionEventDataForm: React.FC = () => {
 
     const formValidator = (values: any): any => {
         const errors: any = {dates: {}}
-        if (values?.dates?.start_date && values?.dates?.end_date <= values?.dates?.start_date) {
-            errors.dates.end_date = t("electionScreen.error.endDate")
-        }
         return errors
     }
 
@@ -692,16 +663,6 @@ export const EditElectionEventDataForm: React.FC = () => {
                         languageSettings
                     )
                     const onSave = async () => {
-                        await manageElectionDates({
-                            variables: {
-                                electionEventId: record.id,
-                                start_date: startDate,
-                                end_date: endDate,
-                            },
-                            onError() {
-                                notify("Error updating custom url", {type: "error"})
-                            },
-                        })
                         await handleUpdateCustomUrls(
                             parsedValue.presentation as IElectionEventPresentation,
                             record.id
@@ -750,70 +711,6 @@ export const EditElectionEventDataForm: React.FC = () => {
                                         {renderTabs(parsedValue)}
                                     </Tabs>
                                     {renderTabContent(parsedValue)}
-                                </AccordionDetails>
-                            </Accordion>
-
-                            <Accordion
-                                sx={{width: "100%"}}
-                                expanded={expanded === "election-event-data-dates"}
-                                onChange={() =>
-                                    setExpanded((prev) =>
-                                        prev === "election-event-data-dates"
-                                            ? ""
-                                            : "election-event-data-dates"
-                                    )
-                                }
-                            >
-                                <AccordionSummary
-                                    expandIcon={<ExpandMoreIcon id="election-event-data-dates" />}
-                                >
-                                    <ElectionHeaderStyles.Wrapper>
-                                        <ElectionHeaderStyles.Title>
-                                            {t("electionEventScreen.edit.dates")}
-                                        </ElectionHeaderStyles.Title>
-                                    </ElectionHeaderStyles.Wrapper>
-                                </AccordionSummary>
-                                <AccordionDetails>
-                                    <Grid container spacing={4}>
-                                        <Grid item xs={12} md={6}>
-                                            <DateTimeInput
-                                                disabled={!canEdit}
-                                                source="dates.start_date"
-                                                label={t("electionScreen.field.startDateTime")}
-                                                parse={(value) =>
-                                                    value && new Date(value).toISOString()
-                                                }
-                                                onChange={(value) => {
-                                                    setStartDate(
-                                                        value && value.target.value !== ""
-                                                            ? new Date(
-                                                                  value.target.value
-                                                              ).toISOString()
-                                                            : undefined
-                                                    )
-                                                }}
-                                            />
-                                        </Grid>
-                                        <Grid item xs={12} md={6}>
-                                            <DateTimeInput
-                                                disabled={!canEdit}
-                                                source="dates.end_date"
-                                                label={t("electionScreen.field.endDateTime")}
-                                                parse={(value) =>
-                                                    value && new Date(value).toISOString()
-                                                }
-                                                onChange={(value) => {
-                                                    setEndDate(
-                                                        value.target.value !== ""
-                                                            ? new Date(
-                                                                  value.target.value
-                                                              ).toISOString()
-                                                            : undefined
-                                                    )
-                                                }}
-                                            />
-                                        </Grid>
-                                    </Grid>
                                 </AccordionDetails>
                             </Accordion>
 
@@ -1261,7 +1158,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                                             label={t(
                                                 "electionEventScreen.field.countDownPolicyOptions.alertSecondsLabel"
                                             )}
-                                            defaultValue={defaultSecondsForAlret}
+                                            defaultValue={defaultSecondsForAlert}
                                             sourceToWatch="presentation.voting_portal_countdown_policy.policy"
                                             isDisabled={(selectedPolicy) =>
                                                 selectedPolicy !==
