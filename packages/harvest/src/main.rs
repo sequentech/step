@@ -97,6 +97,7 @@ async fn rocket() -> _ {
                 routes::miru_plugin::send_transmission_package,
                 routes::miru_plugin::upload_signature,
                 routes::export_tasks_execution::export_tasks_execution_route,
+                routes::limit_access_by_countries::limit_access_by_countries,
             ],
         )
 }
