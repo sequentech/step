@@ -431,16 +431,16 @@ def gen_keycloak_context(results):
     embassy_set = set()
 
     for row in results:
-        if not row["allbgy_AREANAME"]:
-            continue
-        country_set.add("\\\"" + row["allbgy_AREANAME"] + "\\\"")
         if not row["DB_ALLMUN_AREA_NAME"]:
             continue
-        embassy_set.add("\\\"" + row["allbgy_AREANAME"] + "/" + row["DB_ALLMUN_AREA_NAME"] + "\\\"")
+        country_set.add("\\\"" + row["DB_ALLMUN_AREA_NAME"] + "\\\"")
+        if not row["allbgy_AREANAME"]:
+            continue
+        embassy_set.add("\\\"" + row["DB_ALLMUN_AREA_NAME"] + "/" + row["allbgy_AREANAME"] + "\\\"")
 
     keycloak_context = {
-        "embassy_list": "[" + ",".join(country_set) + "]",
-        "country_list": "[" + ",".join(embassy_set) + "]"
+        "embassy_list": "[" + ",".join(embassy_set) + "]",
+        "country_list": "[" + ",".join(country_set) + "]"
     }
     return keycloak_context
 
