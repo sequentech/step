@@ -33,6 +33,11 @@ Then you need to install the packages the script uses:
     cd /workspaces/step/packages/windmill/external-bin/janitor
 	pip install -r requirements.txt
 
+# Configuration
+
+You'll need to add the COMELEC keycloak template. Upload it to 
+/workspaces/step/packages/windmill/external-bin/janitor/COMELEC/keycloak.hbs
+
 # Use
 
 The script has two inputs, a postgres dump file (.sql), and an excel (.xls) file.
