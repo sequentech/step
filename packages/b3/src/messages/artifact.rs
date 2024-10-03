@@ -110,37 +110,6 @@ pub struct TrusteeShareData<C: Ctx> {
     pub shares: Vec<Shares<C>>,
 }
 
-/*
-// For some reason, deriving these does not work
-impl<C: Ctx> BorshSerialize for Channel<C> {
-    fn serialize<W: std::io::Write>(
-        &self,
-        writer: &mut W,
-    ) -> std::io::Result<()> {
-        let mut bytes: Vec<Vec<u8>> = vec![];
-        bytes.push(borsh::to_vec(&self.channel_pk)?);
-        bytes.push(borsh::to_vec(&self.pk_proof)?);
-        bytes.push(borsh::to_vec(&self.encrypted_channel_sk)?);
-
-        bytes.serialize(writer)
-    }
-}
-
-impl<C: Ctx> BorshDeserialize for Channel<C> {
-    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> Result<Self, std::io::Error> {
-        let bytes = <Vec<Vec<u8>>>::deserialize_reader(reader)?;
-        let channel_pk = C::E::try_from_slice(&bytes[0])?;
-        let pk_proof = Schnorr::<C>::try_from_slice(&bytes[1])?;
-        let encrypted_channel_sk = symm::EncryptionData::try_from_slice(&bytes[2])?;
-
-        Ok(Channel {
-            channel_pk,
-            pk_proof,
-            encrypted_channel_sk
-        })
-    }
-}*/
-
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct Shares<C: Ctx> {
     // Commitments to the coefficients of the generated polynomial
@@ -179,31 +148,6 @@ impl<C: Ctx> Ballots<C> {
     }
 }
 
-/*
-// For some reason, deriving these does not work
-impl<C: Ctx> BorshSerialize for Ballots<C> {
-    fn serialize<W: std::io::Write>(
-        &self,
-        writer: &mut W,
-    ) -> std::io::Result<()> {
-        let mut bytes: Vec<Vec<u8>> = vec![];
-        bytes.push(borsh::to_vec(&self.ciphertexts)?);
-
-        bytes.serialize(writer)
-    }
-}
-
-impl<C: Ctx> BorshDeserialize for Ballots<C> {
-    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> Result<Self, std::io::Error> {
-        let bytes = <Vec<Vec<u8>>>::deserialize_reader(reader)?;
-        let ciphertexts = StrandVector::<Ciphertext<C>>::try_from_slice(&bytes[0])?;
-
-        Ok(Ballots {
-            ciphertexts
-        })
-    }
-}*/
-
 #[derive(Clone, BorshSerialize, BorshDeserialize)]
 pub struct Mix<C: Ctx> {
     pub ciphertexts: StrandVector<Ciphertext<C>>,
@@ -231,38 +175,6 @@ impl<C: Ctx> Mix<C> {
     }
 }
 
-/*
-// For some reason, deriving these does not work
-impl<C: Ctx> BorshSerialize for Mix<C> {
-    fn serialize<W: std::io::Write>(
-        &self,
-        writer: &mut W,
-    ) -> std::io::Result<()> {
-        let mut bytes: Vec<Vec<u8>> = vec![];
-        bytes.push(borsh::to_vec(&self.ciphertexts)?);
-        bytes.push(borsh::to_vec(&self.proof)?);
-        bytes.push(borsh::to_vec(&self.mix_number)?);
-
-        bytes.serialize(writer)
-    }
-}
-
-impl<C: Ctx> BorshDeserialize for Mix<C> {
-    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> Result<Self, std::io::Error> {
-        let bytes = <Vec<Vec<u8>>>::deserialize_reader(reader)?;
-        let ciphertexts = StrandVector::<Ciphertext<C>>::try_from_slice(&bytes[0])?;
-        let proof = Option::<ShuffleProof::<C>>::try_from_slice(&bytes[1])?;
-        let mix_number = MixNumber::try_from_slice(&bytes[2])?;
-
-        Ok(Mix {
-            ciphertexts,
-            proof,
-            mix_number
-        })
-    }
-}
-    */
-
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct DecryptionFactors<C: Ctx> {
     pub factors: StrandVector<C::E>,
@@ -276,35 +188,6 @@ impl<C: Ctx> DecryptionFactors<C> {
         }
     }
 }
-
-/*
-// For some reason, deriving these does not work
-impl<C: Ctx> BorshSerialize for DecryptionFactors<C> {
-    fn serialize<W: std::io::Write>(
-        &self,
-        writer: &mut W,
-    ) -> std::io::Result<()> {
-        let mut bytes: Vec<Vec<u8>> = vec![];
-        bytes.push(borsh::to_vec(&self.factors)?);
-        bytes.push(borsh::to_vec(&self.proofs)?);
-
-        bytes.serialize(writer)
-    }
-}
-
-impl<C: Ctx> BorshDeserialize for DecryptionFactors<C> {
-    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> Result<Self, std::io::Error> {
-        let bytes = <Vec<Vec<u8>>>::deserialize_reader(reader)?;
-        let factors = StrandVector::<C::E>::try_from_slice(&bytes[0])?;
-        let proofs = StrandVector::<ChaumPedersen<C>>::try_from_slice(&bytes[1])?;
-
-        Ok(DecryptionFactors {
-            factors,
-            proofs,
-        })
-    }
-}
-    */
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct Plaintexts<C: Ctx>(pub StrandVector<C::P>);

@@ -8,6 +8,22 @@ use anyhow::Result;
 
 use super::*;
 
+/// Computes a mix.
+///
+/// If this is the first mix of the chain (mix_no == 1),
+/// the mix inputs come from the Ballots artifact. Other
+/// wise they come from the previous Mix.
+///
+/// The proof of shuffle is not self verified. If the number
+/// of ciphertexts is zero, the output has zero ciphertexts
+/// an no proof (None).
+///
+/// Returns a Message of type Mix signed by the current trustee.
+///
+/// The shuffle is implemented in strand, as described in Haenni
+/// et al., Haines; based on Wikstrom et al. The generators
+/// are computed with a seed from the configuration label
+/// and the mix number.
 pub(crate) fn mix<C: Ctx>(
     cfg_h: &ConfigurationHash,
     batch: &BatchNumber,
@@ -89,6 +105,17 @@ pub(crate) fn mix<C: Ctx>(
     Ok(vec![m])
 }
 
+/// Verifies a mix.
+///
+/// If the number of ciphertexts is zero, the output ciphertexts
+/// is checked to be zero and the proof is checked to be None.
+///
+/// Returns a Message of type MixSigned signed by this trustee.
+///
+/// The shuffle is implemented in strand, as described in Haenni
+/// et al., Haines; based on Wikstrom et al. The generators
+/// are computed with a seed from the configuration label
+/// and the mix number.
 pub(crate) fn sign_mix<C: Ctx>(
     cfg_h: &ConfigurationHash,
     batch: &BatchNumber,
@@ -138,15 +165,21 @@ pub(crate) fn sign_mix<C: Ctx>(
 
     // Null mix
     if source_cs.0.len() == 0 {
-        assert_eq!(mix.ciphertexts.0.len(), 0);
-        assert!(mix.proof.is_none());
+        if (mix.ciphertexts.0.len() != 0) || mix.proof.is_some() {
+            return Err(ProtocolError::VerificationError(format!(
+                "A null mix should have no outout ciphertexts or proof"
+            )));
+        }
+
         let m = Message::mix_signed_msg(cfg, *batch, *source_h, *cipher_h, mix_number, trustee)?;
         return Ok(vec![m]);
     }
-    assert!(
-        mix.proof.is_some(),
-        "Mix cannot be null if there are source ciphertexts"
-    );
+
+    let Some(proof) = mix.proof else {
+        return Err(ProtocolError::VerificationError(format!(
+            "Mix cannot be null if there are source ciphertexts"
+        )));
+    };
 
     let dkg_pk = trustee
         .get_dkg_public_key(pk_h, 0)
@@ -158,21 +191,20 @@ pub(crate) fn sign_mix<C: Ctx>(
     let shuffler = strand::shuffler::Shuffler::new(&pk, &ctx);
 
     let label = cfg.label(*batch, format!("shuffle{mix_number}"));
-    let ok = shuffler.check_proof(
-        mix.proof.as_ref().expect("Should not be a null mix"),
-        source_cs.0,
-        mix.ciphertexts.0,
-        hs,
-        &label,
-    )?;
+    let ok = shuffler.check_proof(&proof, source_cs.0, mix.ciphertexts.0, hs, &label)?;
     info!(
-        "SignMix verifying shuffle [{}] => [{}] ok = {}",
+        "SignMix shuffle verification [{}] => [{}] ok = {}",
         dbg_hash(&source_h.0),
         dbg_hash(&cipher_h.0),
         ok
     );
-    // FIXME assert
-    assert!(ok);
+
+    if !ok {
+        return Err(ProtocolError::VerificationError(format!(
+            "Mix verification failed"
+        )));
+    }
+
     let m = Message::mix_signed_msg(cfg, *batch, *source_h, *cipher_h, mix_number, trustee)?;
     Ok(vec![m])
 }

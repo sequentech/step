@@ -256,19 +256,19 @@ pub async fn create_protocol_test<C: Ctx>(
     );
 
     let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
-    pgsql::drop_database(&c, PG_DATABASE).await.unwrap();
-
-    pgsql::create_database(&c, PG_DATABASE).await.unwrap();
+    // swallow database already exists errors
+    let _ = pgsql::create_database(&c, PG_DATABASE).await;
 
     let c = c.with_database(PG_DATABASE);
-    let mut b = PgsqlB3Client::new(&c).await?;
-    b.create_index_ine().await.unwrap();
-    b.create_board_ine(TEST_BOARD).await.unwrap();
+    let mut client = PgsqlB3Client::new(&c).await.unwrap();
+    client.clear_database().await.unwrap();
+    client.create_index_ine().await.unwrap();
+    client.create_board_ine(TEST_BOARD).await.unwrap();
 
     let message = Message::bootstrap_msg(&cfg, &pm)?;
     let bm: Result<B3MessageRow> = message.try_into();
     let messages = vec![bm.unwrap()];
-    b.insert_messages(TEST_BOARD, &messages).await.unwrap();
+    client.insert_messages(TEST_BOARD, &messages).await.unwrap();
 
     Ok(ProtocolTest {
         ctx,

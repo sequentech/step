@@ -114,21 +114,25 @@ pub(crate) fn get_phases() -> Vec<Phase> {
     ]
 }
 
-/// Run all Phases of the datalog engine for the input Predicates.
+/// Runs datalog inference for all Phases against thee input Predicates.
 ///
-/// Returns the set of Actions that must be executed to follow the protocol
-/// given the supplied bulletin board state. For greater clarity, the rules
-/// that define the protocol are decomposed into four parts which are represented
-/// by Phase objects. These are:
+/// The protocol is advanced through the execution of Actions output by
+/// datalog inference rules. For greater clarity, these rules are decomposed
+/// into four parts which are represented by Phase objects. These are:
 ///
 /// Cfg: approving and signing the protocol configuration
-/// Dkg: the distributed key generation as defined in Cortier et al.;
+/// Dkg: the distributed key generation as described in Cortier et al.;
 /// based on Pedersen
-/// Shuffle: Verifiable shuffling as defined in Haenni et al, Haines;
+/// Shuffle: Verifiable shuffling as described in Haenni et al, Haines;
 /// based on Wikstrom et al.
-/// Decrypt: Verifiable distributed decryption, as defined in Cortier et al.;
+/// Decrypt: Verifiable distributed decryption, as described in Cortier et al.;
 /// based on Pedersen. Decryption is verifiable through Chaum-Pedersen proofs
 /// of discrete log equality.
+///
+/// Each Phase outputs its required Actions which are accumulated. The output
+/// predicates are also accumulated and passed on to subsequent Phases.
+///
+/// Returns the set of required Actions.
 pub(crate) fn run(predicates: &Vec<Predicate>) -> Result<HashSet<Action>, ProtocolError> {
     let phases = get_phases();
     let mut all_predicates = vec![];

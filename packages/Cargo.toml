@@ -11,7 +11,7 @@ members = [
     "electoral-log",
     "harvest",
     "strand",
-    #"immudb-rs",
+    "immudb-rs",
     "sequent-core",
     "velvet",
     "windmill",

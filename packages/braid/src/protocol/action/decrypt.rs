@@ -11,15 +11,15 @@ use rayon::prelude::*;
 use strand::{serialization::StrandVector, zkp::ChaumPedersen};
 
 /// Computes the decryption factors using this trustee's secret share.
-/// 
+///
 /// The plaintexts can be calculated from a threshold number of
 /// decryption factors. Each ciphertext produces one decryption
 /// factor and one proof of discrete log equality.
-/// 
+///
 /// Returns a Message of type DecryptionFactors signed by
 /// this trustee.
-/// 
-/// As defined in Cortier et al.; based on Pedersen.
+///
+/// As described in Cortier et al.; based on Pedersen.
 pub(super) fn compute_decryption_factors<C: Ctx>(
     cfg_h: &ConfigurationHash,
     batch: &BatchNumber,
@@ -98,8 +98,8 @@ pub(super) fn compute_decryption_factors<C: Ctx>(
 }
 
 /// Computes the plaintexts from a threshold number of decryption factors.
-/// 
-/// Includes verification of decryption proofs. Returns a Message of type 
+///
+/// Includes verification of decryption proofs. Returns a Message of type
 /// Plaintexts signed by this trustee.
 pub(super) fn compute_plaintexts<C: Ctx>(
     cfg_h: &ConfigurationHash,
@@ -138,8 +138,8 @@ pub(super) fn compute_plaintexts<C: Ctx>(
 }
 
 /// Verifies the plaintexts by re-computing the plaintexts independently.
-/// 
-/// Includes verification of decryption proofs. Returns a Message of type 
+///
+/// Includes verification of decryption proofs. Returns a Message of type
 /// PlaintextsSigned signed by this trustee.
 pub(super) fn sign_plaintexts<C: Ctx>(
     cfg_h: &ConfigurationHash,
@@ -201,14 +201,14 @@ pub(super) fn sign_plaintexts<C: Ctx>(
 }
 
 /// Computes the plaintexts from a threshold number of decryption factors.
-/// 
+///
 /// For each ciphertext and trustee, verifies the decryption factors, then
 /// combines them into a single divisor. This divisor is then applied to
 /// the mhr part of the ciphertext to yield the plaintext.
-/// 
+///
 /// Returns a Message of type Plaintexts signed by this trustee.
-/// 
-/// As defined in Cortier et al.; based on Pedersen.
+///
+/// As described in Cortier et al.; based on Pedersen.
 fn compute_plaintexts_<C: Ctx>(
     cfg_h: &ConfigurationHash,
     batch: &BatchNumber,
@@ -240,7 +240,11 @@ fn compute_plaintexts_<C: Ctx>(
         num_ciphertexts,
     );
 
-    assert_eq!(datalog::hashes_count(&dfactors_hs.0), *threshold, "Unexpected number of decryption factors");
+    assert_eq!(
+        datalog::hashes_count(&dfactors_hs.0),
+        *threshold,
+        "Unexpected number of decryption factors"
+    );
 
     // Decryption factors for each trustee
     for (t, df_h) in dfactors_hs.0.iter().enumerate() {

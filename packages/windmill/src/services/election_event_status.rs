@@ -35,6 +35,7 @@ pub fn has_config_created(status_json_opt: Option<Value>) -> bool {
 pub async fn update_event_voting_status(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
+    user_id: Option<&str>,
     election_event_id: &str,
     new_status: &VotingStatus,
 ) -> Result<ElectionEvent> {
@@ -103,6 +104,8 @@ pub async fn update_event_voting_status(
     }
 
     update_board_on_status_change(
+        &tenant_id,
+        user_id,
         election_event.id.to_string(),
         election_event.bulletin_board_reference.clone(),
         new_status.clone(),
@@ -118,6 +121,7 @@ pub async fn update_event_voting_status(
 #[instrument(err)]
 pub async fn update_election_voting_status_impl(
     tenant_id: String,
+    user_id: Option<&str>,
     election_event_id: String,
     election_id: String,
     new_status: VotingStatus,
@@ -194,6 +198,8 @@ pub async fn update_election_voting_status_impl(
     .with_context(|| "Error updating election voting status")?;
 
     update_board_on_status_change(
+        &tenant_id,
+        user_id,
         election_event_id.to_string(),
         bulletin_board_reference.clone(),
         new_status.clone(),
