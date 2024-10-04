@@ -86,27 +86,6 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
         value: ITemplateType
     }>()
 
-    const templateMethodChoices = () => {
-        let res = (Object.values(ITemplateMethod) as ITemplateMethod[]).map((value) => ({
-            id: value,
-            name: t(`template.method.${value.toLowerCase()}`),
-        }))
-
-        if (
-            selectedTemplateType?.value &&
-            ![ITemplateType.BALLOT_RECEIPT, ITemplateType.TALLY_REPORT].includes(
-                selectedTemplateType.value
-            )
-        ) {
-            res = res.filter((cm) => cm.id !== ITemplateMethod.DOCUMENT)
-        }
-        if (ITemplateType.TALLY_REPORT === selectedTemplateType?.value) {
-            res = res.filter((cm) => cm.id === ITemplateMethod.DOCUMENT)
-        }
-
-        return res
-    }
-
     const onSubmit: SubmitHandler<FieldValues> = async (data) => {
         console.log("Submit Template", data)
 
@@ -323,7 +302,10 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
                                                             </ElectionHeaderStyles.AccordionTitle>
                                                         </AccordionSummary>
                                                         <AccordionDetails>
-                                                            <EmailEditEditor sourceBodyHTML="template.document" />
+                                                            <EmailEditEditor
+                                                                sourceBodyHTML="template.document"
+                                                                sourceBodyPlainText="template.document"
+                                                            />
                                                         </AccordionDetails>
                                                     </Accordion>
                                                 )}
