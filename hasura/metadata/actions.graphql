@@ -308,6 +308,12 @@ type Mutation {
   ): InsertCastVoteOutput
 }
 
+type Mutation {
+  limit_access_by_countries (
+    countries: [String!]!
+  ): LimitAccessByCountriesOutput
+}
+
 type Query {
   listElectoralLog (
     limit: Int
@@ -1078,7 +1084,11 @@ type createTransmissionPackageOutput {
   task_execution : tasks_execution_type
 }
 
-type CreateResourceOutput {
-  id : String!
+type LimtIpByCountriesOutput {
+  success : Boolean
+}
+
+type LimitAccessByCountriesOutput {
+  success : Boolean
 }
 

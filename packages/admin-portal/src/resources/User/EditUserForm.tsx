@@ -2,19 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
-import {
-    ArrayInput,
-    AutocompleteArrayInput,
-    AutocompleteArrayInputProps,
-    ReferenceArrayInput,
-    SaveButton,
-    SimpleForm,
-    SimpleFormIterator,
-    TextInput,
-    useListContext,
-    useNotify,
-    useRefresh,
-} from "react-admin"
+import {Identifier, RaRecord, SaveButton, SimpleForm, useNotify, useRefresh, AutocompleteArrayInput,} from "react-admin"
 import {useMutation, useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
@@ -167,6 +155,22 @@ export const ListUserRoles: React.FC<ListUserRolesProps> = ({
     )
 }
 
+const convertRecordToUser = (record: RaRecord<Identifier>): IUser => {
+    const user: IUser = {
+        id: record.id ? String(record.id) : undefined,
+        attributes: record.attributes || {},
+        email: record.email,
+        email_verified: record.email_verified,
+        enabled: record.enabled,
+        first_name: record.first_name,
+        last_name: record.last_name,
+        username: record.username,
+        area: record.area,
+        votes_info: record.votes_info || [],
+    }
+    return user
+}
+
 interface EditUserFormProps {
     id?: string
     electionEventId?: string
@@ -174,6 +178,7 @@ interface EditUserFormProps {
     rolesList: Array<IRole>
     userAttributes: UserProfileAttribute[]
     createMode?: boolean
+    record?: RaRecord<Identifier>
 }
 
 export const EditUserForm: React.FC<EditUserFormProps> = ({
@@ -183,11 +188,12 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     rolesList,
     userAttributes,
     createMode = false,
+    record,
 }) => {
     const {t} = useTranslation()
-    const {data, isLoading} = useListContext<IUser & {id: string}>()
-    let userOriginal: IUser | undefined = data?.find((element) => element.id === id)
-    const [user, setUser] = useState<IUser | undefined>(createMode ? {enabled: true} : userOriginal)
+    const [user, setUser] = useState<IUser | undefined>(
+        createMode ? {enabled: true} : (record && convertRecordToUser(record)) || {}
+    )
     const [selectedArea, setSelectedArea] = useState<string>("")
     const [selectedActedTrustee, setSelectedActedTrustee] = useState<string>("")
     const [selectedRolesOnCreate, setSelectedRolesOnCreate] = useState<string[]>([])
@@ -227,13 +233,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             electionEventId: electionEventId,
         },
     })
-
-    useEffect(() => {
-        if (!createMode && !isLoading && data) {
-            let userOriginal: IUser | undefined = data?.find((element) => element.id === id)
-            setUser(userOriginal)
-        }
-    }, [isLoading, data, id])
 
     const handleSelectedRolesOnCreate = useCallback(
         (id: string) => {

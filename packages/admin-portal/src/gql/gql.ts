@@ -89,6 +89,7 @@ const documents = {
     "\n    mutation UpdateTallyCeremony(\n        $election_event_id: uuid!\n        $tally_session_id: uuid!\n        $status: String!\n    ) {\n        update_tally_ceremony(\n            election_event_id: $election_event_id\n            tally_session_id: $tally_session_id\n            status: $status\n        ) {\n            tally_session_id\n        }\n    }\n": types.UpdateTallyCeremonyDocument,
     "\n    mutation UploadSignature(\n        $electionId: uuid!\n        $tallySessionId: uuid!\n        $areaId: uuid!\n        $documentId: uuid!\n        $password: String!\n    ) {\n        upload_signature(\n            election_id: $electionId\n            tally_session_id: $tallySessionId\n            area_id: $areaId\n            document_id: $documentId\n            password: $password\n        ) {\n            id\n        }\n    }\n": types.UploadSignatureDocument,
     "\n    mutation UpsertAreas($electionEventId: String!, $documentId: String!) {\n        upsert_areas(election_event_id: $electionEventId, document_id: $documentId) {\n            id\n        }\n    }\n": types.UpsertAreasDocument,
+    "\n    mutation limitAccessByCountries($countries: [String!]!) {\n        limit_access_by_countries(countries: $countries) {\n            success\n        }\n    }\n": types.LimitAccessByCountriesDocument,
 };
 
 /**
@@ -409,6 +410,10 @@ export function graphql(source: "\n    mutation UploadSignature(\n        $elect
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n    mutation UpsertAreas($electionEventId: String!, $documentId: String!) {\n        upsert_areas(election_event_id: $electionEventId, document_id: $documentId) {\n            id\n        }\n    }\n"): (typeof documents)["\n    mutation UpsertAreas($electionEventId: String!, $documentId: String!) {\n        upsert_areas(election_event_id: $electionEventId, document_id: $documentId) {\n            id\n        }\n    }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n    mutation limitAccessByCountries($countries: [String!]!) {\n        limit_access_by_countries(countries: $countries) {\n            success\n        }\n    }\n"): (typeof documents)["\n    mutation limitAccessByCountries($countries: [String!]!) {\n        limit_access_by_countries(countries: $countries) {\n            success\n        }\n    }\n"];
 
 export function graphql(source: string) {
   return (documents as any)[source] ?? {};
