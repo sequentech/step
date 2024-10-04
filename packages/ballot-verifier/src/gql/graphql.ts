@@ -7259,7 +7259,6 @@ export type Sequent_Backend_Election = {
     /** An aggregate relationship */
     contests_aggregate: Sequent_Backend_Contest_Aggregate
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
-    dates?: Maybe<Scalars["jsonb"]["output"]>
     description?: Maybe<Scalars["String"]["output"]>
     election_event_id: Scalars["uuid"]["output"]
     eml?: Maybe<Scalars["String"]["output"]>
@@ -7301,11 +7300,6 @@ export type Sequent_Backend_ElectionContests_AggregateArgs = {
     offset?: InputMaybe<Scalars["Int"]["input"]>
     order_by?: InputMaybe<Array<Sequent_Backend_Contest_Order_By>>
     where?: InputMaybe<Sequent_Backend_Contest_Bool_Exp>
-}
-
-/** columns and relationships of "sequent_backend.election" */
-export type Sequent_Backend_ElectionDatesArgs = {
-    path?: InputMaybe<Scalars["String"]["input"]>
 }
 
 /** columns and relationships of "sequent_backend.election" */
@@ -7412,7 +7406,6 @@ export type Sequent_Backend_Election_Aggregate_Order_By = {
 /** append existing jsonb value of filtered columns with new jsonb value */
 export type Sequent_Backend_Election_Append_Input = {
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
-    dates?: InputMaybe<Scalars["jsonb"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     presentation?: InputMaybe<Scalars["jsonb"]["input"]>
     receipts?: InputMaybe<Scalars["jsonb"]["input"]>
@@ -7449,7 +7442,6 @@ export type Sequent_Backend_Election_Bool_Exp = {
     contests?: InputMaybe<Sequent_Backend_Contest_Bool_Exp>
     contests_aggregate?: InputMaybe<Sequent_Backend_Contest_Aggregate_Bool_Exp>
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
-    dates?: InputMaybe<Jsonb_Comparison_Exp>
     description?: InputMaybe<String_Comparison_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     eml?: InputMaybe<String_Comparison_Exp>
@@ -7479,7 +7471,6 @@ export enum Sequent_Backend_Election_Constraint {
 /** delete the field or element with specified path (for JSON arrays, negative integers count from the end) */
 export type Sequent_Backend_Election_Delete_At_Path_Input = {
     annotations?: InputMaybe<Array<Scalars["String"]["input"]>>
-    dates?: InputMaybe<Array<Scalars["String"]["input"]>>
     labels?: InputMaybe<Array<Scalars["String"]["input"]>>
     presentation?: InputMaybe<Array<Scalars["String"]["input"]>>
     receipts?: InputMaybe<Array<Scalars["String"]["input"]>>
@@ -7491,7 +7482,6 @@ export type Sequent_Backend_Election_Delete_At_Path_Input = {
 /** delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array */
 export type Sequent_Backend_Election_Delete_Elem_Input = {
     annotations?: InputMaybe<Scalars["Int"]["input"]>
-    dates?: InputMaybe<Scalars["Int"]["input"]>
     labels?: InputMaybe<Scalars["Int"]["input"]>
     presentation?: InputMaybe<Scalars["Int"]["input"]>
     receipts?: InputMaybe<Scalars["Int"]["input"]>
@@ -7503,7 +7493,6 @@ export type Sequent_Backend_Election_Delete_Elem_Input = {
 /** delete key/value pair or string element. key/value pairs are matched based on their key value */
 export type Sequent_Backend_Election_Delete_Key_Input = {
     annotations?: InputMaybe<Scalars["String"]["input"]>
-    dates?: InputMaybe<Scalars["String"]["input"]>
     labels?: InputMaybe<Scalars["String"]["input"]>
     presentation?: InputMaybe<Scalars["String"]["input"]>
     receipts?: InputMaybe<Scalars["String"]["input"]>
@@ -7520,7 +7509,6 @@ export type Sequent_Backend_Election_Event = {
     audit_election_event_id?: Maybe<Scalars["uuid"]["output"]>
     bulletin_board_reference?: Maybe<Scalars["jsonb"]["output"]>
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
-    dates?: Maybe<Scalars["jsonb"]["output"]>
     description?: Maybe<Scalars["String"]["output"]>
     /** An array relationship */
     elections: Array<Sequent_Backend_Election>
@@ -7549,11 +7537,6 @@ export type Sequent_Backend_Election_EventAnnotationsArgs = {
 
 /** columns and relationships of "sequent_backend.election_event" */
 export type Sequent_Backend_Election_EventBulletin_Board_ReferenceArgs = {
-    path?: InputMaybe<Scalars["String"]["input"]>
-}
-
-/** columns and relationships of "sequent_backend.election_event" */
-export type Sequent_Backend_Election_EventDatesArgs = {
     path?: InputMaybe<Scalars["String"]["input"]>
 }
 
@@ -7625,7 +7608,6 @@ export type Sequent_Backend_Election_Event_Aggregate_FieldsCountArgs = {
 export type Sequent_Backend_Election_Event_Append_Input = {
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
     bulletin_board_reference?: InputMaybe<Scalars["jsonb"]["input"]>
-    dates?: InputMaybe<Scalars["jsonb"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     presentation?: InputMaybe<Scalars["jsonb"]["input"]>
     statistics?: InputMaybe<Scalars["jsonb"]["input"]>
@@ -7643,7 +7625,6 @@ export type Sequent_Backend_Election_Event_Bool_Exp = {
     audit_election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     bulletin_board_reference?: InputMaybe<Jsonb_Comparison_Exp>
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
-    dates?: InputMaybe<Jsonb_Comparison_Exp>
     description?: InputMaybe<String_Comparison_Exp>
     elections?: InputMaybe<Sequent_Backend_Election_Bool_Exp>
     elections_aggregate?: InputMaybe<Sequent_Backend_Election_Aggregate_Bool_Exp>
@@ -7673,7 +7654,6 @@ export enum Sequent_Backend_Election_Event_Constraint {
 export type Sequent_Backend_Election_Event_Delete_At_Path_Input = {
     annotations?: InputMaybe<Array<Scalars["String"]["input"]>>
     bulletin_board_reference?: InputMaybe<Array<Scalars["String"]["input"]>>
-    dates?: InputMaybe<Array<Scalars["String"]["input"]>>
     labels?: InputMaybe<Array<Scalars["String"]["input"]>>
     presentation?: InputMaybe<Array<Scalars["String"]["input"]>>
     statistics?: InputMaybe<Array<Scalars["String"]["input"]>>
@@ -7685,7 +7665,6 @@ export type Sequent_Backend_Election_Event_Delete_At_Path_Input = {
 export type Sequent_Backend_Election_Event_Delete_Elem_Input = {
     annotations?: InputMaybe<Scalars["Int"]["input"]>
     bulletin_board_reference?: InputMaybe<Scalars["Int"]["input"]>
-    dates?: InputMaybe<Scalars["Int"]["input"]>
     labels?: InputMaybe<Scalars["Int"]["input"]>
     presentation?: InputMaybe<Scalars["Int"]["input"]>
     statistics?: InputMaybe<Scalars["Int"]["input"]>
@@ -7697,7 +7676,6 @@ export type Sequent_Backend_Election_Event_Delete_Elem_Input = {
 export type Sequent_Backend_Election_Event_Delete_Key_Input = {
     annotations?: InputMaybe<Scalars["String"]["input"]>
     bulletin_board_reference?: InputMaybe<Scalars["String"]["input"]>
-    dates?: InputMaybe<Scalars["String"]["input"]>
     labels?: InputMaybe<Scalars["String"]["input"]>
     presentation?: InputMaybe<Scalars["String"]["input"]>
     statistics?: InputMaybe<Scalars["String"]["input"]>
@@ -7712,7 +7690,6 @@ export type Sequent_Backend_Election_Event_Insert_Input = {
     audit_election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     bulletin_board_reference?: InputMaybe<Scalars["jsonb"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
-    dates?: InputMaybe<Scalars["jsonb"]["input"]>
     description?: InputMaybe<Scalars["String"]["input"]>
     elections?: InputMaybe<Sequent_Backend_Election_Arr_Rel_Insert_Input>
     encryption_protocol?: InputMaybe<Scalars["String"]["input"]>
@@ -7786,7 +7763,6 @@ export type Sequent_Backend_Election_Event_Order_By = {
     audit_election_event_id?: InputMaybe<Order_By>
     bulletin_board_reference?: InputMaybe<Order_By>
     created_at?: InputMaybe<Order_By>
-    dates?: InputMaybe<Order_By>
     description?: InputMaybe<Order_By>
     elections_aggregate?: InputMaybe<Sequent_Backend_Election_Aggregate_Order_By>
     encryption_protocol?: InputMaybe<Order_By>
@@ -7814,7 +7790,6 @@ export type Sequent_Backend_Election_Event_Pk_Columns_Input = {
 export type Sequent_Backend_Election_Event_Prepend_Input = {
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
     bulletin_board_reference?: InputMaybe<Scalars["jsonb"]["input"]>
-    dates?: InputMaybe<Scalars["jsonb"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     presentation?: InputMaybe<Scalars["jsonb"]["input"]>
     statistics?: InputMaybe<Scalars["jsonb"]["input"]>
@@ -7834,8 +7809,6 @@ export enum Sequent_Backend_Election_Event_Select_Column {
     BulletinBoardReference = "bulletin_board_reference",
     /** column name */
     CreatedAt = "created_at",
-    /** column name */
-    Dates = "dates",
     /** column name */
     Description = "description",
     /** column name */
@@ -7875,7 +7848,6 @@ export type Sequent_Backend_Election_Event_Set_Input = {
     audit_election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     bulletin_board_reference?: InputMaybe<Scalars["jsonb"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
-    dates?: InputMaybe<Scalars["jsonb"]["input"]>
     description?: InputMaybe<Scalars["String"]["input"]>
     encryption_protocol?: InputMaybe<Scalars["String"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -7908,7 +7880,6 @@ export type Sequent_Backend_Election_Event_Stream_Cursor_Value_Input = {
     audit_election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     bulletin_board_reference?: InputMaybe<Scalars["jsonb"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
-    dates?: InputMaybe<Scalars["jsonb"]["input"]>
     description?: InputMaybe<Scalars["String"]["input"]>
     encryption_protocol?: InputMaybe<Scalars["String"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -7938,8 +7909,6 @@ export enum Sequent_Backend_Election_Event_Update_Column {
     BulletinBoardReference = "bulletin_board_reference",
     /** column name */
     CreatedAt = "created_at",
-    /** column name */
-    Dates = "dates",
     /** column name */
     Description = "description",
     /** column name */
@@ -8000,7 +7969,6 @@ export type Sequent_Backend_Election_Insert_Input = {
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
     contests?: InputMaybe<Sequent_Backend_Contest_Arr_Rel_Insert_Input>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
-    dates?: InputMaybe<Scalars["jsonb"]["input"]>
     description?: InputMaybe<Scalars["String"]["input"]>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     eml?: InputMaybe<Scalars["String"]["input"]>
@@ -8105,7 +8073,6 @@ export type Sequent_Backend_Election_Order_By = {
     annotations?: InputMaybe<Order_By>
     contests_aggregate?: InputMaybe<Sequent_Backend_Contest_Aggregate_Order_By>
     created_at?: InputMaybe<Order_By>
-    dates?: InputMaybe<Order_By>
     description?: InputMaybe<Order_By>
     election_event_id?: InputMaybe<Order_By>
     eml?: InputMaybe<Order_By>
@@ -8136,7 +8103,6 @@ export type Sequent_Backend_Election_Pk_Columns_Input = {
 /** prepend existing jsonb value of filtered columns with new jsonb value */
 export type Sequent_Backend_Election_Prepend_Input = {
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
-    dates?: InputMaybe<Scalars["jsonb"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     presentation?: InputMaybe<Scalars["jsonb"]["input"]>
     receipts?: InputMaybe<Scalars["jsonb"]["input"]>
@@ -8459,8 +8425,6 @@ export enum Sequent_Backend_Election_Select_Column {
     /** column name */
     CreatedAt = "created_at",
     /** column name */
-    Dates = "dates",
-    /** column name */
     Description = "description",
     /** column name */
     ElectionEventId = "election_event_id",
@@ -8523,7 +8487,6 @@ export type Sequent_Backend_Election_Set_Input = {
     alias?: InputMaybe<Scalars["String"]["input"]>
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
-    dates?: InputMaybe<Scalars["jsonb"]["input"]>
     description?: InputMaybe<Scalars["String"]["input"]>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     eml?: InputMaybe<Scalars["String"]["input"]>
@@ -8590,7 +8553,6 @@ export type Sequent_Backend_Election_Stream_Cursor_Value_Input = {
     alias?: InputMaybe<Scalars["String"]["input"]>
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
-    dates?: InputMaybe<Scalars["jsonb"]["input"]>
     description?: InputMaybe<Scalars["String"]["input"]>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     eml?: InputMaybe<Scalars["String"]["input"]>
@@ -8870,8 +8832,6 @@ export enum Sequent_Backend_Election_Update_Column {
     Annotations = "annotations",
     /** column name */
     CreatedAt = "created_at",
-    /** column name */
-    Dates = "dates",
     /** column name */
     Description = "description",
     /** column name */
