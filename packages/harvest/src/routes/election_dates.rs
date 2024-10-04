@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
+use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -19,7 +20,7 @@ pub struct ManageElectionDatesBody {
     election_event_id: String,
     election_id: Option<String>,
     scheduled_date: Option<String>,
-    is_start: bool,
+    is_start: bool, // TODO USE ENUM
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -30,25 +31,38 @@ pub struct ManageElectionDatesResponse {}
 pub async fn manage_election_dates(
     body: Json<ManageElectionDatesBody>,
     claims: JwtClaims,
-) -> Result<Json<ManageElectionDatesResponse>, (Status, String)> {
+) -> Result<Json<ManageElectionDatesResponse>, JsonError> {
     authorize(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::ELECTION_EVENT_WRITE],
-    )?;
-
+        vec![Permissions::EVENTS_EDIT],
+    )
+    .map_err(|e| {
+        ErrorResponse::new(
+            Status::Unauthorized,
+            &format!("{e:?}"),
+            ErrorCode::Unauthorized,
+        )
+    })?;
     let input = body.into_inner();
 
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|e| {
+            ErrorResponse::new(
+                Status::InternalServerError,
+                &format!("hasura db client failed: {e:?}"),
+                ErrorCode::InternalServerError,
+            )
+        })?;
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|e| {
+            ErrorResponse::new(
+                Status::InternalServerError,
+                &format!("hasura transaction failed: {e:?}"),
+                ErrorCode::InternalServerError,
+            )
+        })?;
 
     match input.election_id {
         Some(id) => {
@@ -61,7 +75,13 @@ pub async fn manage_election_dates(
                 input.is_start,
             )
             .await
-            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+            .map_err(|e| {
+                ErrorResponse::new(
+                    Status::InternalServerError,
+                    &format!("manage election dates failed:  {e:?}"),
+                    ErrorCode::InternalServerError,
+                )
+            })?;
         }
         None => {
             election_event_dates::manage_dates(
@@ -72,14 +92,23 @@ pub async fn manage_election_dates(
                 input.is_start,
             )
             .await
-            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+            .map_err(|e| {
+                ErrorResponse::new(
+                    Status::InternalServerError,
+                    &format!("manage election event dates failed: {e:?}"),
+                    ErrorCode::InternalServerError,
+                )
+            })?;
         }
     }
 
-    let _commit = hasura_transaction
-        .commit()
-        .await
-        .map_err(|e| anyhow!("Commit failed: {}", e));
+    let _commit = hasura_transaction.commit().await.map_err(|e| {
+        ErrorResponse::new(
+            Status::InternalServerError,
+            &format!("commit failed: {e:?}"),
+            ErrorCode::InternalServerError,
+        )
+    })?;
 
     Ok(Json(ManageElectionDatesResponse {}))
 }

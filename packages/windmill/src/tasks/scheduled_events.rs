@@ -79,7 +79,7 @@ pub async fn scheduled_events() -> Result<()> {
                 return Ok(());
             };
             let payload: ManageElectionDatePayload = deserialize_value(event_payload)?;
-            // create the public keys in async task
+            // run the actual task in a different async task
             match payload.election_id.clone() {
                 Some(election_id) => {
                     let task = celery_app

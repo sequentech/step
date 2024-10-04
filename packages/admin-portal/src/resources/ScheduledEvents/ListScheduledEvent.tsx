@@ -10,16 +10,12 @@ import DeleteIcon from "@mui/icons-material/Delete"
 import {Button, styled, Typography} from "@mui/material"
 import React, {ReactElement, useContext, useState} from "react"
 import {
-    BooleanInput,
     DatagridConfigurable,
     FunctionField,
     List,
-    TextInput,
-    useDelete,
     useGetList,
     useGetOne,
     useNotify,
-    useRecordContext,
     useRefresh,
     useSidebarState,
     WrapperField,
@@ -61,7 +57,7 @@ const BulkActionButtons = () => <></>
 interface EditEventsProps {
     electionEventId: string
 }
-const ListEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
+const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
     const [isOpenSidebar] = useSidebarState()
@@ -83,6 +79,21 @@ const ListEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
             },
         },
     })
+
+    const {data: scheduledEventToDelete} = useGetOne<Sequent_Backend_Scheduled_Event>(
+        "sequent_backend_scheduled_event",
+        {
+            id: isDeleteId ?? tenantId,
+            meta: {tenant_id: tenantId},
+        },
+        {
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchIntervalInBackground: true,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
+        }
+    )
     const {data: elections} = useGetList<Sequent_Backend_Election>(
         "sequent_backend_election",
         {
@@ -95,21 +106,6 @@ const ListEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
         },
         {
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
-    )
-
-    const {data: scheduledEventToDelete} = useGetOne<Sequent_Backend_Scheduled_Event>(
-        "sequent_backend_scheduled_event",
-        {
-            id: isDeleteId ?? tenantId,
-            meta: {tenant_id: tenantId},
-        },
-        {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-            refetchIntervalInBackground: true,
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
             refetchOnMount: false,
@@ -164,12 +160,10 @@ const ListEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                         variables,
                     })
                     if (errors) {
-                        refresh()
                         console.error(errors)
                         notify(t("eventsScreen.messages.editError"), {type: "error"})
                     }
                 } catch (error) {
-                    refresh()
                     console.error(error)
                     notify(t("eventsScreen.messages.editError"), {type: "error"})
                 }
@@ -229,6 +223,7 @@ const ListEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                     tenant_id: tenantId,
                     stopped_at: {
                         format: "hasura-raw-query",
+                        value: {_is_null: true},
                     },
                 }}
                 filters={Filters}
@@ -246,7 +241,6 @@ const ListEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                             <CreateEvent
                                 electionEventId={electionEventId}
                                 setIsOpenDrawer={setOpenCreateEvent}
-                                elections={elections}
                             />
                         }
                     />
@@ -270,14 +264,6 @@ const ListEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                         }
                     />
                     <FunctionField
-                        label={t("eventsScreen.fields.stoppedAt")}
-                        source="stopped_at"
-                        render={(record: Sequent_Backend_Scheduled_Event) =>
-                            (record.stopped_at && new Date(record.stopped_at).toLocaleString()) ||
-                            "-"
-                        }
-                    />
-                    <FunctionField
                         label={t("eventsScreen.fields.scheduledDate")}
                         source="cron_config.scheduled_date"
                         render={(record: Sequent_Backend_Scheduled_Event) =>
@@ -295,7 +281,6 @@ const ListEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                 <CreateEvent
                     electionEventId={electionEventId}
                     setIsOpenDrawer={setOpenCreateEvent}
-                    elections={elections}
                     isEditEvent={isEditEvent}
                     selectedEventId={selectedEventId}
                 />
@@ -319,4 +304,4 @@ const ListEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
     )
 }
 
-export default ListEvents
+export default ListScheduledEvents

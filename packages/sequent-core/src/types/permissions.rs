@@ -141,6 +141,12 @@ pub enum Permissions {
     MIRU_SIGN,
     #[strum(serialize = "service-account")]
     SERVICE_ACCOUNT,
+    #[strum(serialize = "events-create")]
+    EVENTS_CREATE,
+    #[strum(serialize = "events-read")]
+    EVENTS_READ,
+    #[strum(serialize = "events-edit")]
+    EVENTS_EDIT,
 }
 
 #[allow(non_camel_case_types)]

@@ -2,11 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {FC, useMemo, useState} from "react"
-import {SxProps} from "@mui/material"
 import {
-    AutocompleteInput,
-    Identifier,
-    ReferenceInput,
     Create,
     DateTimeInput,
     SimpleForm,
@@ -34,16 +30,12 @@ import {
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {IPermissions} from "@/types/keycloak"
-import {v4 as uuidv4} from "uuid"
-import {getAttributeLabel} from "@/services/UserService"
-import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {ICronConfig, IManageElectionDatePayload} from "@/types/scheduledEvents"
 import SelectElection from "@/components/election/SelectElection"
 
 interface CreateEventProps {
     electionEventId: string
     setIsOpenDrawer: (state: boolean) => void
-    elections?: Sequent_Backend_Election[]
     isEditEvent?: boolean
     selectedEventId?: string
 }
@@ -56,7 +48,6 @@ export enum EventProcessors {
 const CreateEvent: FC<CreateEventProps> = ({
     electionEventId,
     setIsOpenDrawer,
-    elections,
     isEditEvent,
     selectedEventId,
 }) => {
@@ -80,11 +71,7 @@ const CreateEvent: FC<CreateEventProps> = ({
         return eventList?.find((event) => event.id === selectedEventId)
     }, [eventList, selectedEventId])
     const [electionId, setElectionId] = useState<string | null>(
-        isEditEvent
-            ? elections?.find(
-                  (election) => election.id === selectedEvent?.event_payload.election_id
-              )?.id
-            : null
+        isEditEvent ? selectedEvent?.event_payload.election_id : null
     )
     const [scheduleDate, setScheduleDate] = useState<string | undefined>(
         isEditEvent ? selectedEvent?.cron_config.scheduled_date : null
@@ -148,7 +135,7 @@ const CreateEvent: FC<CreateEventProps> = ({
                         label={t("eventsScreen.eventType.label")}
                         value={eventType || ""}
                         onChange={(e: any) => setEventType(e.target.value)}
-                        disabled={isEditEvent}
+                        disabled={isEditEvent || isLoading}
                     >
                         <MenuItem value={EventProcessors.START_VOTING_PERIOD}>
                             {t("eventsScreen.eventType.START_VOTING_PERIOD")}
@@ -165,7 +152,7 @@ const CreateEvent: FC<CreateEventProps> = ({
                         label={t("eventsScreen.election.label")}
                         onSelectElection={(election) => setElectionId(election?.id ?? null)}
                         source="event_payload.election_id"
-                        disabled={isEditEvent}
+                        disabled={isEditEvent || isLoading}
                         value={
                             isEditEvent
                                 ? (
