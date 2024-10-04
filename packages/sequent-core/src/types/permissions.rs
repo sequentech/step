@@ -143,6 +143,8 @@ pub enum Permissions {
     SERVICE_ACCOUNT,
     #[strum(serialize = "candidate-write")]
     CANDIDATE_WRITE,
+    #[strum(serialize = "candidate-read")]
+    CANDIDATE_READ,
 }
 
 #[allow(non_camel_case_types)]

@@ -593,6 +593,7 @@ const spanishTranslation: TranslationType = {
                 "miru-send": "Miru Send",
                 "miru-sign": "Miru Sign",
                 "candidate-write": "Editar Candidatos",
+                "candidate-read": "Leer Candidatos",
             },
         },
         generalSettingsScreen: {

@@ -611,15 +611,9 @@
         "description": "${role_default-roles}",
         "composite": true,
         "composites": {
-          "realm": [
-            "offline_access",
-            "uma_authorization"
-          ],
+          "realm": ["offline_access", "uma_authorization"],
           "client": {
-            "account": [
-              "manage-account",
-              "view-profile"
-            ]
+            "account": ["manage-account", "view-profile"]
           }
         },
         "clientRole": false,
@@ -647,6 +641,15 @@
       {
         "id": "871a98b0-0f77-44ec-bc4a-40f9d49cbba2",
         "name": "candidate-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "11bef13b-1dab-4c9d-94a4-38067341650f",
+        "name": "candidate-read",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -701,9 +704,7 @@
           "composite": true,
           "composites": {
             "client": {
-              "realm-management": [
-                "query-clients"
-              ]
+              "realm-management": ["query-clients"]
             }
           },
           "clientRole": true,
@@ -858,10 +859,7 @@
           "composite": true,
           "composites": {
             "client": {
-              "realm-management": [
-                "query-groups",
-                "query-users"
-              ]
+              "realm-management": ["query-groups", "query-users"]
             }
           },
           "clientRole": true,
@@ -934,9 +932,7 @@
           "composite": true,
           "composites": {
             "client": {
-              "account": [
-                "manage-account-links"
-              ]
+              "account": ["manage-account-links"]
             }
           },
           "clientRole": true,
@@ -968,9 +964,7 @@
           "composite": true,
           "composites": {
             "client": {
-              "account": [
-                "view-consent"
-              ]
+              "account": ["view-consent"]
             }
           },
           "clientRole": true,
@@ -1085,7 +1079,8 @@
         "document-download",
         "election-type-create",
         "publish-read",
-        "candidate-write"
+        "candidate-write",
+        "candidate-read"
       ],
       "clientRoles": {}
     },
@@ -1115,9 +1110,7 @@
     "clientRole": false,
     "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a"
   },
-  "requiredCredentials": [
-    "password"
-  ],
+  "requiredCredentials": ["password"],
   "otpPolicyType": "totp",
   "otpPolicyAlgorithm": "HmacSHA1",
   "otpPolicyInitialCounter": 0,
@@ -1132,9 +1125,7 @@
   ],
   "localizationTexts": {},
   "webAuthnPolicyRpEntityName": "keycloak",
-  "webAuthnPolicySignatureAlgorithms": [
-    "ES256"
-  ],
+  "webAuthnPolicySignatureAlgorithms": ["ES256"],
   "webAuthnPolicyRpId": "",
   "webAuthnPolicyAttestationConveyancePreference": "not specified",
   "webAuthnPolicyAuthenticatorAttachment": "not specified",
@@ -1145,9 +1136,7 @@
   "webAuthnPolicyAcceptableAaguids": [],
   "webAuthnPolicyExtraOrigins": [],
   "webAuthnPolicyPasswordlessRpEntityName": "keycloak",
-  "webAuthnPolicyPasswordlessSignatureAlgorithms": [
-    "ES256"
-  ],
+  "webAuthnPolicyPasswordlessSignatureAlgorithms": ["ES256"],
   "webAuthnPolicyPasswordlessRpId": "",
   "webAuthnPolicyPasswordlessAttestationConveyancePreference": "not specified",
   "webAuthnPolicyPasswordlessAuthenticatorAttachment": "not specified",
@@ -1166,15 +1155,9 @@
       "email": "edu@sequentech.io",
       "emailVerified": true,
       "attributes": {
-        "sequent.read-only.otp-method": [
-          "email-or-sms"
-        ],
-        "sequent.read-only.mobile-number": [
-          "+34666000222"
-        ],
-        "tenant-id": [
-          "90505c8a-23a9-4cdf-a26b-4e19f6a097d5"
-        ]
+        "sequent.read-only.otp-method": ["email-or-sms"],
+        "sequent.read-only.mobile-number": ["+34666000222"],
+        "tenant-id": ["90505c8a-23a9-4cdf-a26b-4e19f6a097d5"]
       },
       "createdTimestamp": 1692312554121,
       "enabled": true,
@@ -1191,13 +1174,9 @@
       ],
       "disableableCredentialTypes": [],
       "requiredActions": [],
-      "realmRoles": [
-        "default-roles-electoral-process"
-      ],
+      "realmRoles": ["default-roles-electoral-process"],
       "notBefore": 1712715173,
-      "groups": [
-        "/admin"
-      ]
+      "groups": ["/admin"]
     },
     {
       "id": "c0124bdb-1deb-4517-aa69-bf73b991e0bf",
@@ -1205,18 +1184,10 @@
       "email": "edu+api_user@sequentech.io",
       "emailVerified": true,
       "attributes": {
-        "sequent.read-only.otp-method": [
-          "email-or-sms"
-        ],
-        "sequent.read-only.mobile-number": [
-          "+34666000222"
-        ],
-        "locale": [
-          "en"
-        ],
-        "tenant-id": [
-          "90505c8a-23a9-4cdf-a26b-4e19f6a097d5"
-        ]
+        "sequent.read-only.otp-method": ["email-or-sms"],
+        "sequent.read-only.mobile-number": ["+34666000222"],
+        "locale": ["en"],
+        "tenant-id": ["90505c8a-23a9-4cdf-a26b-4e19f6a097d5"]
       },
       "createdTimestamp": 1721744057416,
       "enabled": true,
@@ -1233,37 +1204,21 @@
       ],
       "disableableCredentialTypes": [],
       "requiredActions": [],
-      "realmRoles": [
-        "default-roles-electoral-process"
-      ],
+      "realmRoles": ["default-roles-electoral-process"],
       "notBefore": 0,
-      "groups": [
-        "/admin"
-      ]
+      "groups": ["/admin"]
     },
     {
       "id": "0516ed22-3a8f-48ca-9514-83020e242159",
       "username": "felix",
       "emailVerified": true,
       "attributes": {
-        "sequent.read-only.otp-method": [
-          "email-or-sms"
-        ],
-        "sequent.read-only.email-address": [
-          "edu@sequentech.io"
-        ],
-        "sequent.read-only.mobile-number": [
-          "+34634571634"
-        ],
-        "area-id": [
-          "2f312a36-f39c-46e4-9670-1d1ce4625745"
-        ],
-        "locale": [
-          "en"
-        ],
-        "tenant-id": [
-          "90505c8a-23a9-4cdf-a26b-4e19f6a097d5"
-        ]
+        "sequent.read-only.otp-method": ["email-or-sms"],
+        "sequent.read-only.email-address": ["edu@sequentech.io"],
+        "sequent.read-only.mobile-number": ["+34634571634"],
+        "area-id": ["2f312a36-f39c-46e4-9670-1d1ce4625745"],
+        "locale": ["en"],
+        "tenant-id": ["90505c8a-23a9-4cdf-a26b-4e19f6a097d5"]
       },
       "createdTimestamp": 1691702289318,
       "enabled": true,
@@ -1279,13 +1234,9 @@
       ],
       "disableableCredentialTypes": [],
       "requiredActions": [],
-      "realmRoles": [
-        "default-roles-electoral-process"
-      ],
+      "realmRoles": ["default-roles-electoral-process"],
       "clientRoles": {
-        "voting-portal": [
-          "user"
-        ]
+        "voting-portal": ["user"]
       },
       "notBefore": 0,
       "groups": []
@@ -1301,9 +1252,7 @@
       "credentials": [],
       "disableableCredentialTypes": [],
       "requiredActions": [],
-      "realmRoles": [
-        "default-roles-electoral-process"
-      ],
+      "realmRoles": ["default-roles-electoral-process"],
       "notBefore": 0,
       "groups": []
     },
@@ -1318,14 +1267,9 @@
       "credentials": [],
       "disableableCredentialTypes": [],
       "requiredActions": [],
-      "realmRoles": [
-        "admin-user",
-        "default-roles-electoral-process"
-      ],
+      "realmRoles": ["admin-user", "default-roles-electoral-process"],
       "clientRoles": {
-        "service-account": [
-          "service-role"
-        ]
+        "service-account": ["service-role"]
       },
       "notBefore": 0,
       "groups": []
@@ -1337,18 +1281,10 @@
       "email": "edu+trustee1@sequentech.io",
       "emailVerified": true,
       "attributes": {
-        "sequent.read-only.otp-method": [
-          "email-or-sms"
-        ],
-        "sequent.read-only.mobile-number": [
-          "+34666000222"
-        ],
-        "trustee": [
-          "trustee1"
-        ],
-        "tenant-id": [
-          "90505c8a-23a9-4cdf-a26b-4e19f6a097d5"
-        ]
+        "sequent.read-only.otp-method": ["email-or-sms"],
+        "sequent.read-only.mobile-number": ["+34666000222"],
+        "trustee": ["trustee1"],
+        "tenant-id": ["90505c8a-23a9-4cdf-a26b-4e19f6a097d5"]
       },
       "createdTimestamp": 1701889059568,
       "enabled": true,
@@ -1371,9 +1307,7 @@
         "default-roles-electoral-process"
       ],
       "notBefore": 0,
-      "groups": [
-        "/trustee"
-      ]
+      "groups": ["/trustee"]
     },
     {
       "id": "ac7080d2-3fd1-4150-983a-2761423f085d",
@@ -1382,15 +1316,9 @@
       "email": "edu+trustee2@sequentech.io",
       "emailVerified": true,
       "attributes": {
-        "sequent.read-only.mobile-number": [
-          "+34666000222"
-        ],
-        "trustee": [
-          "trustee2"
-        ],
-        "tenant-id": [
-          "90505c8a-23a9-4cdf-a26b-4e19f6a097d5"
-        ]
+        "sequent.read-only.mobile-number": ["+34666000222"],
+        "trustee": ["trustee2"],
+        "tenant-id": ["90505c8a-23a9-4cdf-a26b-4e19f6a097d5"]
       },
       "createdTimestamp": 1701929500428,
       "enabled": true,
@@ -1407,31 +1335,22 @@
       ],
       "disableableCredentialTypes": [],
       "requiredActions": [],
-      "realmRoles": [
-        "default-roles-electoral-process"
-      ],
+      "realmRoles": ["default-roles-electoral-process"],
       "notBefore": 0,
-      "groups": [
-        "/trustee"
-      ]
+      "groups": ["/trustee"]
     }
   ],
   "scopeMappings": [
     {
       "clientScope": "offline_access",
-      "roles": [
-        "offline_access"
-      ]
+      "roles": ["offline_access"]
     }
   ],
   "clientScopeMappings": {
     "account": [
       {
         "client": "account-console",
-        "roles": [
-          "manage-account",
-          "view-groups"
-        ]
+        "roles": ["manage-account", "view-groups"]
       }
     ]
   },
@@ -1446,9 +1365,7 @@
       "enabled": true,
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
-      "redirectUris": [
-        "/realms/electoral-process/account/*"
-      ],
+      "redirectUris": ["/realms/electoral-process/account/*"],
       "webOrigins": [],
       "notBefore": 0,
       "bearerOnly": false,
@@ -1492,12 +1409,8 @@
       "enabled": true,
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
-      "redirectUris": [
-        "*"
-      ],
-      "webOrigins": [
-        "*"
-      ],
+      "redirectUris": ["*"],
+      "webOrigins": ["*"],
       "notBefore": 0,
       "bearerOnly": false,
       "consentRequired": false,
@@ -1596,12 +1509,8 @@
       "enabled": true,
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
-      "redirectUris": [
-        "*"
-      ],
-      "webOrigins": [
-        "*"
-      ],
+      "redirectUris": ["*"],
+      "webOrigins": ["*"],
       "notBefore": 0,
       "bearerOnly": false,
       "consentRequired": false,
@@ -1741,12 +1650,8 @@
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
       "secret": "4lzmxNgZHjfzS5BwDVlyrRUDqwvFLUvL",
-      "redirectUris": [
-        "*"
-      ],
-      "webOrigins": [
-        "*"
-      ],
+      "redirectUris": ["*"],
+      "webOrigins": ["*"],
       "notBefore": 0,
       "bearerOnly": false,
       "consentRequired": false,
@@ -1903,12 +1808,8 @@
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
       "secret": "wBy8rpuKQxPWikQ3rIFv9g42t0WK0Xiu",
-      "redirectUris": [
-        "*"
-      ],
-      "webOrigins": [
-        "*"
-      ],
+      "redirectUris": ["*"],
+      "webOrigins": ["*"],
       "notBefore": 0,
       "bearerOnly": false,
       "consentRequired": false,
@@ -2068,12 +1969,8 @@
       "enabled": true,
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
-      "redirectUris": [
-        "/admin/electoral-process/console/*"
-      ],
-      "webOrigins": [
-        "+"
-      ],
+      "redirectUris": ["/admin/electoral-process/console/*"],
+      "webOrigins": ["+"],
       "notBefore": 0,
       "bearerOnly": false,
       "consentRequired": false,
@@ -2135,12 +2032,8 @@
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
       "secret": "zh0GWEjbynXJDcpF1YipFXUleEKTQiO0",
-      "redirectUris": [
-        "/*"
-      ],
-      "webOrigins": [
-        "/*"
-      ],
+      "redirectUris": ["/*"],
+      "webOrigins": ["/*"],
       "notBefore": 0,
       "bearerOnly": false,
       "consentRequired": false,
@@ -2300,12 +2193,8 @@
       "enabled": true,
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
-      "redirectUris": [
-        "*"
-      ],
-      "webOrigins": [
-        "*"
-      ],
+      "redirectUris": ["*"],
+      "webOrigins": ["*"],
       "notBefore": 0,
       "bearerOnly": false,
       "consentRequired": false,
@@ -2963,9 +2852,7 @@
   "emailTheme": "",
   "eventsEnabled": true,
   "eventsExpiration": 15552000,
-  "eventsListeners": [
-    "jboss-logging"
-  ],
+  "eventsListeners": ["jboss-logging"],
   "enabledEventTypes": [
     "UPDATE_CONSENT_ERROR",
     "SEND_RESET_PASSWORD",
@@ -3087,9 +2974,7 @@
         "subType": "anonymous",
         "subComponents": {},
         "config": {
-          "max-clients": [
-            "200"
-          ]
+          "max-clients": ["200"]
         }
       },
       {
@@ -3099,12 +2984,8 @@
         "subType": "anonymous",
         "subComponents": {},
         "config": {
-          "host-sending-registration-request-must-match": [
-            "true"
-          ],
-          "client-uris-must-match": [
-            "true"
-          ]
+          "host-sending-registration-request-must-match": ["true"],
+          "client-uris-must-match": ["true"]
         }
       },
       {
@@ -3122,9 +3003,7 @@
         "subType": "authenticated",
         "subComponents": {},
         "config": {
-          "allow-default-scopes": [
-            "true"
-          ]
+          "allow-default-scopes": ["true"]
         }
       },
       {
@@ -3134,9 +3013,7 @@
         "subType": "anonymous",
         "subComponents": {},
         "config": {
-          "allow-default-scopes": [
-            "true"
-          ]
+          "allow-default-scopes": ["true"]
         }
       },
       {
@@ -3178,15 +3055,9 @@
         "providerId": "aes-generated",
         "subComponents": {},
         "config": {
-          "kid": [
-            "4f316e90-47c5-4a39-be7d-9687ac6ca39a"
-          ],
-          "secret": [
-            "z-1rgNKJPcEuNxxwH4H5rg"
-          ],
-          "priority": [
-            "100"
-          ]
+          "kid": ["4f316e90-47c5-4a39-be7d-9687ac6ca39a"],
+          "secret": ["z-1rgNKJPcEuNxxwH4H5rg"],
+          "priority": ["100"]
         }
       },
       {
@@ -3195,18 +3066,12 @@
         "providerId": "hmac-generated",
         "subComponents": {},
         "config": {
-          "kid": [
-            "24dd58d0-0e2e-43e5-81b1-676488fb80e3"
-          ],
+          "kid": ["24dd58d0-0e2e-43e5-81b1-676488fb80e3"],
           "secret": [
             "D7e_ET4HdOH4ntsWy-tyf5l_oJm5ZwhZlhkR6y8tZFqyIpuY4nc4e2qM5y0qqahhcggirCrN39LAeRBx417tQQxtF8pjVEB1MaHxFlt75O6HlF2Z1XSXEoOEwfY73udt58aNnVQzHsR3O_CLYRvq4ur4C4wMKy3zH20_W46mXk0"
           ],
-          "priority": [
-            "100"
-          ],
-          "algorithm": [
-            "HS512"
-          ]
+          "priority": ["100"],
+          "algorithm": ["HS512"]
         }
       },
       {
@@ -3221,9 +3086,7 @@
           "certificate": [
             "MIICsTCCAZkCBgGJ6hDOLTANBgkqhkiG9w0BAQsFADAcMRowGAYDVQQDDBFlbGVjdG9yYWwtcHJvY2VzczAeFw0yMzA4MTIxNDAzMzdaFw0zMzA4MTIxNDA1MTdaMBwxGjAYBgNVBAMMEWVsZWN0b3JhbC1wcm9jZXNzMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAq8+wv/ypwU2h2PjANU2/NNQT5NNVzI8au8Nzh7SD7Va2GJ41oef0zxa5SOIipBqcnbAcX9hCSaBqjg5CbSWy6XMWky54QzjDWdGhq9sqXIA6TAf2vKsrbL5daNQsRwBLwguB9QQKw52cL7T2NcIPS+y3H1oxPTfNUA92p2K8Eg7S3UN+kzxSyoytSJsO75HW20qrOcLls9u3/2wkMxy4Dn9ves4rcAEOR6IoMZVtOyZ8UBxiF552VhF1bC9yU6WSnDWaKdhACMf4mW2nJk5IvPF16iQ/cw2YJ5ro1KSVVra5WzPCZTIPuIu1IRWnZDgASnYJdrAu/pbNLO+JlwqGuQIDAQABMA0GCSqGSIb3DQEBCwUAA4IBAQCrSOi+z/AenFHHcFT+/j8NO7vepzCPAlwFB7oZuEJHJQ7P05j0Sz8S2V8zPXd8SXrU2iQIYwZH3sYoRB1bYxFAp+5AuXzzR1UKOUgme0T2cpYkmcPBY1QeWJ3URQJ3T3OsOlXGBaSRpNQg97UgsnlKfIDG8p28LgaOZLu991XttyToqMzIuix/4lyque7PZqHJ4IaLmARNgHRiTQTxW5zMw8Fi5DkCQdOStmggMgFegNeObNsbYO3TCFJN8FWQ7gQ9cSvGWXboIFUOAAT31rqZRHqv/2TTW8qq4mPZ8TH7a7PB2eKqk1cV8wpNk/tDsopWEgvj4DFj0hQUrU9D3u4l"
           ],
-          "priority": [
-            "100"
-          ]
+          "priority": ["100"]
         }
       },
       {
@@ -3232,18 +3095,12 @@
         "providerId": "hmac-generated",
         "subComponents": {},
         "config": {
-          "kid": [
-            "fe980665-0cbf-457f-893e-25fd0cc24d2d"
-          ],
+          "kid": ["fe980665-0cbf-457f-893e-25fd0cc24d2d"],
           "secret": [
             "2m4LfxLgYaEEiNtrYuObn-3tJYDMMiEX8m9e532plNDlvSt5eOpV7TM2JC95TFmw1nIoTywSOa3C3GjnP6Cu-rOlu-4ZU7qonEq6CgInnVDtOgpXDQoNTJhwpSrcU-PhXyfexJuZ_83OpG_CYorPkzYtJafsyPiCCdTfe1cDOIg"
           ],
-          "priority": [
-            "100"
-          ],
-          "algorithm": [
-            "HS256"
-          ]
+          "priority": ["100"],
+          "algorithm": ["HS256"]
         }
       },
       {
@@ -3258,20 +3115,14 @@
           "certificate": [
             "MIICsTCCAZkCBgGJ6hDOuDANBgkqhkiG9w0BAQsFADAcMRowGAYDVQQDDBFlbGVjdG9yYWwtcHJvY2VzczAeFw0yMzA4MTIxNDAzMzdaFw0zMzA4MTIxNDA1MTdaMBwxGjAYBgNVBAMMEWVsZWN0b3JhbC1wcm9jZXNzMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApH0OAklVfiVdC7q3Ycdr71rV8xVmdWrm1N78C6ZZMm+cWPSsbVMzWsX25gYqgQEz1/y840ZrOb/U5y3jxMZrQ2e/PhaIdUW9ypYtgPoXLNzXaXHqGuOgVgypMgZ3f6ZSP0QtgkjtQ7seTwVRm78SdxOiGNfXudF/ssDgpeGb4qKBUxLst/6XpfJzTmhZinXxyYWIvwhQvvRNZr7tYWAkkmRK3Ssp7BjTvJENyUn7gpnEcZ4Dn/ur4g1oq+UXRuM9jJQKBtU2UMXVtCn11/mhpO6oRl5MqIYtJNvt+H7GIa2Vt2EVryQekMtubSyz7dA2DYshvgJWw7xKtlVyR6DRcQIDAQABMA0GCSqGSIb3DQEBCwUAA4IBAQAxTFwTI62E2gyDifL57k+GR+7Jp+EvQncdLs1cnG9e3RJWaKnGyets1VwpBkoHUmFZT5ebY3cmHuYX5IdAOKmTioGOO60PQZ45ToFxVLszcYPG1jSLFuIvVPKahb3hHD6KEFX8ZGcuvVDVsVNDU2WUVwu0Do19HDRAMZQmxJjiDk3LSKLcLdO8+z2iVj3p9y7TRPnSsJQKB2tqv0kEdwpjOJiXZGEnBeKFT4tGRIiphazUZf51p8HYhRuX1pRDxZ1lsEYC13NV5YuPYDkNrBf6tyaMSQVa+5MXqv+Td0JqKqNr2jpYNbD+6OQ6MY8311F+y9kk17Tkx2cmZCQ7MCgl"
           ],
-          "priority": [
-            "100"
-          ],
-          "algorithm": [
-            "RSA-OAEP"
-          ]
+          "priority": ["100"],
+          "algorithm": ["RSA-OAEP"]
         }
       }
     ]
   },
   "internationalizationEnabled": true,
-  "supportedLocales": [
-    "en"
-  ],
+  "supportedLocales": ["en"],
   "defaultLocale": "en",
   "authenticationFlows": [
     {

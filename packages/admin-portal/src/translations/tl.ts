@@ -594,6 +594,7 @@ const tagalogTranslation: TranslationType = {
                 "miru-send": "Miru Ipadala",
                 "miru-sign": "Miru Lagdaan",
                 "candidate-write": "I-edit ang mga kandidato",
+                "candidate-read": "Basahin ang mga kandidato",
             },
         },
         generalSettingsScreen: {

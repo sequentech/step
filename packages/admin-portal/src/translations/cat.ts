@@ -594,6 +594,7 @@ const catalanTranslation: TranslationType = {
                 "miru-send": "Miru Send",
                 "miru-sign": "Miru Sign",
                 "candidate-write": "Editar Candidats",
+                "candidate-read": "Llegir Candidats",
             },
         },
         generalSettingsScreen: {

@@ -589,6 +589,7 @@ const englishTranslation = {
                 "miru-send": "Miru Send",
                 "miru-sign": "Miru Sign",
                 "candidate-write": "Edit Candidate",
+                "candidate-read": "Read Candidate",
             },
         },
         generalSettingsScreen: {
