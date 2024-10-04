@@ -199,15 +199,14 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const [createUser] = useMutation<CreateUserMutationVariables>(CREATE_USER)
     const [edit_user] = useMutation<EditUsersInput>(EDIT_USER)
     const [permissionLabels, setPermissionLabels] = useState<string[]>(
-        user?.attributes?.permission_labels as string[]
+        (user?.attributes?.permission_labels as string[]) || []
     )
     const [choices, setChoices] = useState<any[]>(
         (user?.attributes?.permission_labels as string[])?.map((label) => ({
             id: label,
             name: label,
-        }))
+        })) || []
     )
-    const [triggerRerender, setTriggerRerender] = useState(0)
 
     useEffect(() => {
         const userPermissionLabels = user?.attributes?.permission_labels as string[] | undefined
@@ -218,28 +217,9 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 name: label,
             }))
             setChoices([...transformedChoices])
-            console.log("Set permissionLabels:", userPermissionLabels)
-            console.log("Set choices:", transformedChoices)
         }
     }, [user])
-    useEffect(() => {
-        console.log("choices", choices)
-    }, [choices])
 
-    useEffect(() => {
-        console.log("permissionLabels", permissionLabels)
-    }, [permissionLabels])
-    const handleAutocompleteChange: AutocompleteArrayInputProps["onChange"] = (value, records) => {
-        console.log("value", value)
-        console.log("records", records)
-        // handleAutocompleteChange will be called with, for instance:
-        //   value: [2],
-        //   record: [{ id: 2, name: 'Victor Hugo', language: 'French' }]
-        // setValue(
-        //     'language',
-        //     records?.map(record => record.language)
-        // );
-    }
     const {data: userRoles, refetch} = useQuery<ListUserRolesQuery>(LIST_USER_ROLES, {
         variables: {
             tenantId: tenantId,
@@ -330,7 +310,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     },
                 })
                 if (authContext.userId === user?.id) {
-                    authContext.updateToken()
+                    authContext.updateTokenAndPermissionLabels()
                 }
                 notify(t("usersAndRolesScreen.voters.errors.editSuccess"), {type: "success"})
                 refresh()
@@ -393,7 +373,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
     const handlePermissionLabelRemoved = (value: string[]) => {
         console.log("handlePermissionLabelRemoved", value)
-        if (value.length < permissionLabels.length) {
+        if (value?.length < permissionLabels?.length) {
             setUser((prev) => {
                 return {
                     ...prev,
@@ -550,12 +530,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     )
                 } else if (attr.name.toLowerCase().includes("permission_labels")) {
                     return (
-                        // <PermissionLabelInput
-                        //     source={`attributes.${attr.name}`}
-                        //     permissionLabels={value}
-                        //     handleAddedLabel={handleAttrStringValueChange(attr.name ?? "")}
-                        // />
-
                         <AutocompleteArrayInput
                             key={user?.id || "create"}
                             source={`attributes.${attr.name}`}

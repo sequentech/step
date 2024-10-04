@@ -62,7 +62,7 @@ export interface AuthContextValues {
      */
     getAccessToken: () => string | undefined
 
-    updateToken: () => void
+    updateTokenAndPermissionLabels: () => void
 
     /**
      * Check whether the user has permissions for an action or data
@@ -101,7 +101,7 @@ const defaultAuthContextValues: AuthContextValues = {
     isAuthorized: () => false,
     openProfileLink: () => new Promise(() => undefined),
     permissionLabels: [],
-    updateToken: () => {},
+    updateTokenAndPermissionLabels: () => {},
 }
 
 /**
@@ -431,9 +431,23 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         await keycloak.accountManagement()
     }
 
-    const updateToken = () => {
+    const updateTokenAndPermissionLabels = () => {
         if (keycloak) {
-            keycloak.updateToken(keycloak.tokenParsed?.exp || 30)
+            const refresh = keycloak.updateToken(keycloak.tokenParsed?.exp || 30)
+            refresh
+                .then(() => {
+                    const tokenPermissionLabels =
+                        keycloak.tokenParsed?.["https://hasura.io/jwt/claims"]?.[
+                            "x-hasura-permission-labels"
+                        ]
+                    if (tokenPermissionLabels) {
+                        const permissionLabelsArray = extractPermissionLabels(tokenPermissionLabels)
+                        setPermissionLabels(permissionLabelsArray)
+                    }
+                })
+                .catch((error) => {
+                    console.log("error updating token", error)
+                })
         }
     }
 
@@ -454,7 +468,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 isAuthorized,
                 openProfileLink,
                 permissionLabels,
-                updateToken,
+                updateTokenAndPermissionLabels,
             }}
         >
             {props.children}

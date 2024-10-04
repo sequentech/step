@@ -52,6 +52,8 @@ export const ElectionTabs: React.FC = () => {
             !usersPermissionLabels.includes(record.permission_label)
         ) {
             setHasPermissionToViewElection(false)
+        } else {
+            setHasPermissionToViewElection(true)
         }
     }, [record])
 
@@ -59,7 +61,7 @@ export const ElectionTabs: React.FC = () => {
         return (
             <ResourceListStyles.EmptyBox>
                 <Typography variant="h4" paragraph>
-                    {t("electionScreen.noPermissions")}
+                    {t("electionScreen.common.noPermission")}
                 </Typography>
             </ResourceListStyles.EmptyBox>
         )
