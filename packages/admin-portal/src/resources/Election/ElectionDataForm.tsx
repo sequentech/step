@@ -911,7 +911,10 @@ export const ElectionDataForm: React.FC = () => {
                                     min={0}
                                 />
                                 {canEditPermissionLabel && (
-                                    <TextInput label={t("electionScreen.edit.permissionLabel")} source="permission_label" />
+                                    <TextInput
+                                        label={t("electionScreen.edit.permissionLabel")}
+                                        source="permission_label"
+                                    />
                                 )}
                                 <FileJsonInput
                                     parsedValue={parsedValue}

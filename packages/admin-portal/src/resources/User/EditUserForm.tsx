@@ -2,7 +2,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
-import {Identifier, RaRecord, SaveButton, SimpleForm, useNotify, useRefresh, AutocompleteArrayInput,} from "react-admin"
+import {
+    Identifier,
+    RaRecord,
+    SaveButton,
+    SimpleForm,
+    useNotify,
+    useRefresh,
+    AutocompleteArrayInput,
+} from "react-admin"
 import {useMutation, useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
