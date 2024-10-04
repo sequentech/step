@@ -27,6 +27,7 @@ import {
 } from "./providers/ApolloContextProvider"
 import {WidgetsContextProvider} from "./providers/WidgetsContextProvider"
 import {BrowserRouter as Router} from "react-router-dom"
+import { CustomNavigationContextProvider } from "./providers/NavContextProvider"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
@@ -44,6 +45,7 @@ root.render(
                                     <ContestContextProvider>
                                         <CandidateContextProvider>
                                             <ElectionEventTallyContextProvider>
+												<CustomNavigationContextProvider>
                                                 <PublishContextProvider>
                                                     <ThemeProvider theme={fullAdminTheme}>
                                                         <ApolloContextProvider
@@ -57,6 +59,7 @@ root.render(
                                                         </ApolloContextProvider>
                                                     </ThemeProvider>
                                                 </PublishContextProvider>
+												</CustomNavigationContextProvider>
                                             </ElectionEventTallyContextProvider>
                                         </CandidateContextProvider>
                                     </ContestContextProvider>

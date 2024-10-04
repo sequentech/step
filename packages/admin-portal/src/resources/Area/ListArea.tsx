@@ -15,6 +15,9 @@ import {
     FunctionField,
     useRefresh,
     useNotify,
+	FilterForm,
+	WithListContext,
+	useListContext,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {Box, Button, Drawer, Typography} from "@mui/material"
@@ -27,7 +30,7 @@ import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
 import {useTranslation} from "react-i18next"
 import {useTenantStore} from "../../providers/TenantContextProvider"
-import {useParams} from "react-router"
+import {useLocation, useParams} from "react-router"
 import {AreaContestItems} from "@/components/AreaContestItems"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
@@ -38,6 +41,7 @@ import {useMutation} from "@apollo/client"
 import {IMPORT_AREAS} from "@/queries/ImportAreas"
 import styled from "@emotion/styled"
 import {UPSERT_AREAS} from "@/queries/UpsertAreas"
+import { useNavigationStore } from "@/providers/NavContextProvider"
 
 const ActionsBox = styled(Box)`
     display: flex;
@@ -55,8 +59,52 @@ const Filters: Array<ReactElement> = [
     <TextInput source="election_event_id" key={3} />,
 ]
 
+// const Filters = (props: any) => {
+// 	return <FilterForm {...props}>
+// 		<TextInput label="Name" source="name" key={0} />
+// 		<TextInput label="Description" source="description" key={1} />
+// 		<TextInput label="ID" source="id" key={2} />
+// 		<TextInput label="Type" source="type" key={3} />
+// 		<TextInput source="election_event_id" key={3} />
+// 	</FilterForm>
+// }
+
 export interface ListAreaProps {
     aside?: ReactElement
+}
+
+export const ListAreaTable = ({ actions }:any) => {
+	const { setFiltersRef, displayFiltersRef } = useNavigationStore()
+	// const listContext = useListContext()
+    const {t} = useTranslation()
+	const { setFilters, displayedFilters } = useListContext();
+	const location = useLocation()
+
+	console.log({
+		displayedFilters, setFilters
+})
+	useEffect(() => {
+		displayFiltersRef.current = displayedFilters
+		setFiltersRef.current = setFilters
+		}, [setFilters, displayFiltersRef]);
+
+
+	// console.log({ listContext })
+
+	return <DatagridConfigurable omit={OMIT_FIELDS}>
+		<TextField source="id" />
+		<TextField source="name" className="area-name" />
+		<TextField source="description" className="area-description" />
+
+		<FunctionField
+			label={t("areas.sequent_backend_area_contest")}
+			render={(record: any) => <AreaContestItems record={record} />}
+		/>
+
+		<WrapperField source="actions" label="Actions">
+			<ActionsColumn actions={actions} />
+		</WrapperField>
+	</DatagridConfigurable>
 }
 
 export const ListArea: React.FC<ListAreaProps> = (props) => {
@@ -240,22 +288,11 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                     election_event_id: record?.id || undefined,
                 }}
                 storeKey={false}
+                // filters={<Filters />}
                 filters={Filters}
-            >
-                <DatagridConfigurable omit={OMIT_FIELDS}>
-                    <TextField source="id" />
-                    <TextField source="name" className="area-name" />
-                    <TextField source="description" className="area-description" />
-
-                    <FunctionField
-                        label={t("areas.sequent_backend_area_contest")}
-                        render={(record: any) => <AreaContestItems record={record} />}
-                    />
-
-                    <WrapperField source="actions" label="Actions">
-                        <ActionsColumn actions={actions} />
-                    </WrapperField>
-                </DatagridConfigurable>
+			>
+				{/* <WithListContext render={} /> */}
+				<ListAreaTable actions={actions} />
             </List>
             <Drawer
                 anchor="right"

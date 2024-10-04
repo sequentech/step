@@ -18,6 +18,11 @@ export interface ParamsSort {
 
 export const customBuildQuery =
     (introspectionResults: any) => (raFetchType: any, resourceName: any, params: any) => {
+		console.warn({
+			raFetchType,
+			resourceName,
+			params
+			})
         let sort: ParamsSort | undefined | null = params.sort
         if (
             isString(resourceName) &&

@@ -19,6 +19,7 @@ import {
     SingleFieldList,
     ChipField,
     FunctionField,
+	useListContext,
 } from "react-admin"
 import {Button, Typography, Chip, Alert} from "@mui/material"
 import {theme, IconButton} from "@sequentech/ui-essentials"
@@ -37,6 +38,8 @@ import KeyIcon from "@mui/icons-material/Key"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {ListActions} from "../../components/ListActions"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import { useNavigationStore } from "@/providers/NavContextProvider"
+import { useLocation } from "react-router"
 
 const NotificationLink = styled.span`
     text-decoration: underline;
@@ -106,6 +109,56 @@ const getActiveCeremony = (
 interface EditElectionEventKeysProps {
     isShowCeremony?: string | null
     isShowTrusteeCeremony?: string | null
+}
+
+export const ListKeysTable = ({ actions }: any) => {
+	const { setFiltersRef, displayFiltersRef } = useNavigationStore()
+	// const listContext = useListContext()
+	const { t } = useTranslation()
+	const { setFilters, displayedFilters,...rest } = useListContext();
+	// const location = useLocation()
+
+	console.log({
+		displayedFilters, setFilters, rest
+	})
+	useEffect(() => {
+		// displayFiltersRef.current = displayedFilters
+		// setFiltersRef.current = setFilters
+		setFilters({},{})
+	}, []);
+	// useEffect(() => {
+	// 	// displayFiltersRef.current = displayedFilters
+	// 	// setFiltersRef.current = setFilters
+	// 	setFilters({},{})
+	// }, [setFilters, displayFiltersRef, location]);
+
+
+	// console.log({ listContext })
+
+	return <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
+		<TextField source="id" />
+		<DateField
+			source="created_at"
+			showTime={true}
+			label={t("electionEventScreen.keys.started")}
+		/>
+
+		<FunctionField
+			label={t("electionEventScreen.keys.statusLabel")}
+			render={(record: any) => <StatusChip record={record} />}
+		/>
+
+		<ReferenceArrayField
+			perPage={10}
+			reference="sequent_backend_trustee"
+			source="trustee_ids"
+		>
+			<SingleFieldList linkType={false}>
+				<ChipField source="name" />
+			</SingleFieldList>
+		</ReferenceArrayField>
+		<ActionsColumn actions={actions} label={t("common.label.actions")} />
+	</DatagridConfigurable>
 }
 
 export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (props) => {
@@ -274,30 +327,7 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
                     empty={<Empty />}
                     actions={<ListActions withFilter={false} withImport={false} />}
                 >
-                    <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
-                        <TextField source="id" />
-                        <DateField
-                            source="created_at"
-                            showTime={true}
-                            label={t("electionEventScreen.keys.started")}
-                        />
-
-                        <FunctionField
-                            label={t("electionEventScreen.keys.statusLabel")}
-                            render={(record: any) => <StatusChip record={record} />}
-                        />
-
-                        <ReferenceArrayField
-                            perPage={10}
-                            reference="sequent_backend_trustee"
-                            source="trustee_ids"
-                        >
-                            <SingleFieldList linkType={false}>
-                                <ChipField source="name" />
-                            </SingleFieldList>
-                        </ReferenceArrayField>
-                        <ActionsColumn actions={actions} label={t("common.label.actions")} />
-                    </DatagridConfigurable>
+					<ListKeysTable actions={actions} />
                 </List>
             )}
         </>

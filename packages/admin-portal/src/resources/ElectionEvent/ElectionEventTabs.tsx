@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useContext, useEffect} from "react"
-import {TabbedShowLayout, useRecordContext} from "react-admin"
+// import { useHistory } from 'react-router-dom';
+import { TabbedShowLayout, useRecordContext, useListContext } from "react-admin"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
 import ElectionHeader from "@/components/ElectionHeader"
 import {EditElectionEventData} from "./EditElectionEventData"
@@ -23,6 +24,7 @@ import {ElectoralLog} from "./ElectoralLog"
 import EditElectionEventTextData from "./EditElectionEventTextData"
 import {v4 as uuidv4} from "uuid"
 import {EditElectionEventTasks} from "./EditElectionEventTasks"
+import { useNavigationStore } from "@/providers/NavContextProvider"
 
 export const ElectionEventTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -32,8 +34,24 @@ export const ElectionEventTabs: React.FC = () => {
     const [tabKey, setTabKey] = React.useState<string>(uuidv4())
     const location = useLocation()
     const navigate = useNavigate()
+	// const { filterValues, filter, setFilters } = useListContext();
+
+	// console.log({filter, filterValues, setFilters})
+
 
     const refreshRef = React.useRef<HTMLButtonElement>()
+
+
+	// useEffect(() => {
+	// 	setFilters({});
+	// 	// const unlisten = navigate.listen(() => {
+	// 	// 	setFilters({});
+	// 	// });
+
+	// 	// return () => {
+	// 	// 	unlisten();
+	// 	// };
+	// }, [location, setFilters]);
 
     const showDashboard = authContext.isAuthorized(
         true,
@@ -74,6 +92,7 @@ export const ElectionEventTabs: React.FC = () => {
 
     const {t} = useTranslation()
     const {setTallyId, setCreatingFlag, setSelectedTallySessionData} = useElectionEventTallyStore()
+	const { setFiltersRef, displayFiltersRef } = useNavigationStore()
 
     useEffect(() => {
         const locArr = location.pathname.split("/").slice(0, 3).join("/")
@@ -146,6 +165,12 @@ export const ElectionEventTabs: React.FC = () => {
                         className="election-keys-tab"
                         onClick={() => {
                             setShowKeysList(Date.now().toString())
+
+							console.log({
+								setFiltersRef, displayFiltersRef
+							})
+
+							setFiltersRef?.current?.({},{})
                         }}
                     >
                         <EditElectionEventKeys
