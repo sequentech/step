@@ -75,7 +75,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
     const [manageElectionDates] = useMutation<ManageElectionDatesMutation>(MANAGE_ELECTION_DATES, {
         context: {
             headers: {
-                "x-hasura-role": IPermissions.EVENTS_EDIT,
+                "x-hasura-role": IPermissions.SCHEDULED_EVENT_WRITE,
             },
         },
     })
@@ -119,11 +119,10 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
         return (foundElection && aliasRenderer(foundElection)) || "-"
     }
 
-    const canEdit = authContext.isAuthorized(true, authContext.tenantId, IPermissions.EVENTS_EDIT)
-    const canCreate = authContext.isAuthorized(
+    const canEdit = authContext.isAuthorized(
         true,
         authContext.tenantId,
-        IPermissions.EVENTS_CREATE
+        IPermissions.SCHEDULED_EVENT_WRITE
     )
 
     const OMIT_FIELDS: Array<string> = []
@@ -188,7 +187,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
         {
             icon: <DeleteIcon className="delete-voter-icon" />,
             action: (id) => deleteAction(id),
-            showAction: () => canCreate,
+            showAction: () => canEdit,
             label: t(`common.label.delete`),
             className: "delete-voter-icon",
         },

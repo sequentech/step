@@ -104,7 +104,7 @@ export const ElectionEventTabs: React.FC = () => {
     const showEvents = authContext.isAuthorized(
         true,
         authContext.tenantId,
-        IPermissions.EVENTS_READ
+        IPermissions.SCHEDULED_EVENT_WRITE
     )
     const showNotifications = authContext.isAuthorized(
         true,

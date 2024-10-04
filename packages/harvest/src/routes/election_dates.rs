@@ -36,7 +36,7 @@ pub async fn manage_election_dates(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::EVENTS_EDIT],
+        vec![Permissions::SCHEDULED_EVENT_WRITE],
     )
     .map_err(|e| {
         ErrorResponse::new(

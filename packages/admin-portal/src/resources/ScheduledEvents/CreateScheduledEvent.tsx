@@ -65,7 +65,7 @@ const CreateEvent: FC<CreateEventProps> = ({
     const [manageElectionDates] = useMutation<ManageElectionDatesMutation>(MANAGE_ELECTION_DATES, {
         context: {
             headers: {
-                "x-hasura-role": IPermissions.EVENTS_EDIT,
+                "x-hasura-role": IPermissions.SCHEDULED_EVENT_WRITE,
             },
         },
     })
