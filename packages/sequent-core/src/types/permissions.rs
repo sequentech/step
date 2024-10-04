@@ -141,6 +141,8 @@ pub enum Permissions {
     MIRU_SIGN,
     #[strum(serialize = "service-account")]
     SERVICE_ACCOUNT,
+    #[strum(serialize = "candidate-write")]
+    CANDIDATE_WRITE,
 }
 
 #[allow(non_camel_case_types)]

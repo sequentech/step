@@ -643,6 +643,15 @@
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
         "attributes": {}
+      },
+      {
+        "id": "871a98b0-0f77-44ec-bc4a-40f9d49cbba2",
+        "name": "candidate-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
       }
     ],
     "client": {
@@ -1075,7 +1084,8 @@
         "tenant-write",
         "document-download",
         "election-type-create",
-        "publish-read"
+        "publish-read",
+        "candidate-write"
       ],
       "clientRoles": {}
     },
