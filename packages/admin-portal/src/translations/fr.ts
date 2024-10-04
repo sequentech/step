@@ -344,6 +344,7 @@ const frenchTranslation: TranslationType = {
                 title: "Élection",
                 subtitle: "Configuration de l'élection.",
                 fileLoaded: "Fichier chargé",
+                noPermission: "Vous n'avez pas la permission d'accéder à cette élection.",
             },
             edit: {
                 general: "Général",

@@ -342,6 +342,7 @@ const spanishTranslation: TranslationType = {
                 title: "Elección",
                 subtitle: "Configuración de la elección.",
                 fileLoaded: "Archivo cargado",
+                noPermission: "No tienes permiso para acceder a esta elección.",
             },
             edit: {
                 general: "General",

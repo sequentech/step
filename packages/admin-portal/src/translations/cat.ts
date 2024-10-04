@@ -343,6 +343,7 @@ const catalanTranslation: TranslationType = {
                 title: "Elecció",
                 subtitle: "Configuració de l'elecció.",
                 fileLoaded: "Fitxer carregat",
+                noPermission: "No tens permís per accedir a aquesta elecció.",
             },
             edit: {
                 general: "General",

@@ -62,6 +62,8 @@ export interface AuthContextValues {
      */
     getAccessToken: () => string | undefined
 
+    updateToken: () => void
+
     /**
      * Check whether the user has permissions for an action or data
      * @param tenantId
@@ -99,6 +101,7 @@ const defaultAuthContextValues: AuthContextValues = {
     isAuthorized: () => false,
     openProfileLink: () => new Promise(() => undefined),
     permissionLabels: [],
+    updateToken: () => {},
 }
 
 /**
@@ -314,18 +317,18 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     }
 
     const extractPermissionLabels = (input: string): string[] => {
-        console.log("input", input);
-            const regex = /\"(.*?)\"/g;
-            const matches = [];
-            let match;
-          
-            // Find all matches in the input string
-            while ((match = regex.exec(input)) !== null) {
-                console.log("match", match[1]);
-              matches.push(match[1]);
-            }
-          
-            return matches;
+        console.log("input", input)
+        const regex = /\"(.*?)\"/g
+        const matches = []
+        let match
+
+        // Find all matches in the input string
+        while ((match = regex.exec(input)) !== null) {
+            console.log("match", match[1])
+            matches.push(match[1])
+        }
+
+        return matches
     }
 
     // This effect loads the users profile in order to extract the username
@@ -363,10 +366,11 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 if (keycloak.tokenParsed?.trustee) {
                     setTrustee(keycloak.tokenParsed?.trustee)
                 }
-                const tokenPermissionLabels = keycloak.tokenParsed?.["https://hasura.io/jwt/claims"]?.[
-                    "x-hasura-permission-labels"
-                ]
-                if(tokenPermissionLabels) {
+                const tokenPermissionLabels =
+                    keycloak.tokenParsed?.["https://hasura.io/jwt/claims"]?.[
+                        "x-hasura-permission-labels"
+                    ]
+                if (tokenPermissionLabels) {
                     const permissionLabelsArray = extractPermissionLabels(tokenPermissionLabels)
                     setPermissionLabels(permissionLabelsArray)
                 }
@@ -427,6 +431,12 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         await keycloak.accountManagement()
     }
 
+    const updateToken = () => {
+        if (keycloak) {
+            keycloak.updateToken(keycloak.tokenParsed?.exp || 30)
+        }
+    }
+
     // Setup the context provider
     return (
         <AuthContext.Provider
@@ -444,6 +454,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 isAuthorized,
                 openProfileLink,
                 permissionLabels,
+                updateToken,
             }}
         >
             {props.children}

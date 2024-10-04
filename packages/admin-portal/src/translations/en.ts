@@ -339,6 +339,7 @@ const englishTranslation = {
                 title: "Election",
                 subtitle: "Election configuration.",
                 fileLoaded: "File loaded",
+                noPermission: "You don't have permission to access this election.",
             },
             edit: {
                 general: "General",

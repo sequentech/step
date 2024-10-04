@@ -342,6 +342,7 @@ const tagalogTranslation: TranslationType = {
                 title: "Halalan",
                 subtitle: "Pag-configure ng halalan.",
                 fileLoaded: "Na-load ang file",
+                noPermission: "Wala kang pahintulot na ma-access ang halalang ito.",
             },
             edit: {
                 general: "Pangkalahatan",

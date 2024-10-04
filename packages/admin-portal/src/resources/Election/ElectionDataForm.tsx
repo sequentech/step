@@ -116,7 +116,6 @@ export const ElectionDataForm: React.FC = () => {
         tenantId,
         IPermissions.PERMISSION_LABEL_WRITE
     )
-    const userPermissionLabels = authContext.permissionLabels;
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("election-data-general")
     const [languageSettings, setLanguageSettings] = useState<Array<string>>(["en"])
@@ -282,8 +281,6 @@ export const ElectionDataForm: React.FC = () => {
 
             //permission labels
 
-           
-
             // name, alias and description fields
             if (!temp.presentation) {
                 temp.presentation = {}
@@ -297,7 +294,7 @@ export const ElectionDataForm: React.FC = () => {
             temp.presentation.i18n.en.name = temp.name
             temp.presentation.i18n.en.alias = temp.alias
             temp.presentation.i18n.en.description = temp.description
-           
+
             // receipts
             const template: {[key: string]: string | null} = {}
             const allowed: {[key: string]: boolean} = {}
@@ -318,7 +315,7 @@ export const ElectionDataForm: React.FC = () => {
             temp.presentation.grace_period_policy =
                 temp.presentation.grace_period_policy || EGracePeriodPolicy.NO_GRACE_PERIOD
             temp.presentation.grace_period_secs = temp.presentation.grace_period_secs || 0
-           
+
             if (!temp.dates?.end_date) {
                 temp.presentation.grace_period_policy = EGracePeriodPolicy.NO_GRACE_PERIOD
                 temp.presentation.grace_period_secs = 0
@@ -914,16 +911,7 @@ export const ElectionDataForm: React.FC = () => {
                                     min={0}
                                 />
                                 {canEditPermissionLabel && (
-                                    userPermissionLabels.length 
-                                    ?
-                                     <SelectInput
-                                        source="permission_label"
-                                        choices={userPermissionLabels.map((label) => ({
-                                            id: label,
-                                            name: label,
-                                        }))}/> 
-                                     : 
-                                     <TextInput label="Permission Label" source="permission_label" />
+                                    <TextInput label="Permission Label" source="permission_label" />
                                 )}
                                 <FileJsonInput
                                     parsedValue={parsedValue}

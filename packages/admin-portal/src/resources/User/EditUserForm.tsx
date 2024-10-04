@@ -1,8 +1,20 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useCallback, useEffect, useMemo, useState} from "react"
-import {ArrayInput, SaveButton, SimpleForm, SimpleFormIterator, TextInput, useListContext, useNotify, useRefresh} from "react-admin"
+import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
+import {
+    ArrayInput,
+    AutocompleteArrayInput,
+    AutocompleteArrayInputProps,
+    ReferenceArrayInput,
+    SaveButton,
+    SimpleForm,
+    SimpleFormIterator,
+    TextInput,
+    useListContext,
+    useNotify,
+    useRefresh,
+} from "react-admin"
 import {useMutation, useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
@@ -41,6 +53,7 @@ import PhoneInput from "@/components/PhoneInput"
 import SelectArea from "@/components/area/SelectArea"
 import SelectActedTrustee from "./SelectActedTrustee"
 import PermissionLabelInput from "./PermissionLabelInput"
+import {AuthContext} from "@/providers/AuthContextProvider"
 
 interface ListUserRolesProps {
     userId?: string
@@ -182,8 +195,51 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const [tenantId] = useTenantStore()
     const refresh = useRefresh()
     const notify = useNotify()
+    const authContext = useContext(AuthContext)
     const [createUser] = useMutation<CreateUserMutationVariables>(CREATE_USER)
     const [edit_user] = useMutation<EditUsersInput>(EDIT_USER)
+    const [permissionLabels, setPermissionLabels] = useState<string[]>(
+        user?.attributes?.permission_labels as string[]
+    )
+    const [choices, setChoices] = useState<any[]>(
+        (user?.attributes?.permission_labels as string[])?.map((label) => ({
+            id: label,
+            name: label,
+        }))
+    )
+    const [triggerRerender, setTriggerRerender] = useState(0)
+
+    useEffect(() => {
+        const userPermissionLabels = user?.attributes?.permission_labels as string[] | undefined
+        if (userPermissionLabels?.length) {
+            setPermissionLabels([...userPermissionLabels])
+            const transformedChoices = userPermissionLabels?.map((label) => ({
+                id: label,
+                name: label,
+            }))
+            setChoices([...transformedChoices])
+            console.log("Set permissionLabels:", userPermissionLabels)
+            console.log("Set choices:", transformedChoices)
+        }
+    }, [user])
+    useEffect(() => {
+        console.log("choices", choices)
+    }, [choices])
+
+    useEffect(() => {
+        console.log("permissionLabels", permissionLabels)
+    }, [permissionLabels])
+    const handleAutocompleteChange: AutocompleteArrayInputProps["onChange"] = (value, records) => {
+        console.log("value", value)
+        console.log("records", records)
+        // handleAutocompleteChange will be called with, for instance:
+        //   value: [2],
+        //   record: [{ id: 2, name: 'Victor Hugo', language: 'French' }]
+        // setValue(
+        //     'language',
+        //     records?.map(record => record.language)
+        // );
+    }
     const {data: userRoles, refetch} = useQuery<ListUserRolesQuery>(LIST_USER_ROLES, {
         variables: {
             tenantId: tenantId,
@@ -273,6 +329,9 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         },
                     },
                 })
+                if (authContext.userId === user?.id) {
+                    authContext.updateToken()
+                }
                 notify(t("usersAndRolesScreen.voters.errors.editSuccess"), {type: "success"})
                 refresh()
                 close?.()
@@ -320,12 +379,40 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     }
 
     const handleAttrStringValueChange = (attrName: string) => async (value: string | string[]) => {
+        console.log("handleAttrStringValueChange", value)
         setUser((prev) => {
             return {
                 ...prev,
                 attributes: {
                     ...prev?.attributes,
                     [attrName]: typeof value === "string" ? [value] : value,
+                },
+            }
+        })
+    }
+
+    const handlePermissionLabelRemoved = (value: string[]) => {
+        console.log("handlePermissionLabelRemoved", value)
+        if (value.length < permissionLabels.length) {
+            setUser((prev) => {
+                return {
+                    ...prev,
+                    attributes: {
+                        ...prev?.attributes,
+                        permission_labels: value,
+                    },
+                }
+            })
+        }
+    }
+
+    const handlePermissionLabelAdded = (value: string[]) => {
+        setUser((prev) => {
+            return {
+                ...prev,
+                attributes: {
+                    ...prev?.attributes,
+                    permission_labels: value,
                 },
             }
         })
@@ -396,7 +483,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     attr.annotations?.inputType === "multiselect-checkboxes" &&
                     attr.annotations?.inputOptionLabels
                 ) {
-                    const choices = Object.entries(attr.annotations?.inputOptionLabels).map(
+                    const choices = Object.entries(attr.annotations?.inputOptionLabels)?.map(
                         ([key, value]) => {
                             return {id: key, name: getAttributeLabel(value as string)}
                         }
@@ -463,10 +550,36 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     )
                 } else if (attr.name.toLowerCase().includes("permission_labels")) {
                     return (
-                        <PermissionLabelInput
+                        // <PermissionLabelInput
+                        //     source={`attributes.${attr.name}`}
+                        //     permissionLabels={value}
+                        //     handleAddedLabel={handleAttrStringValueChange(attr.name ?? "")}
+                        // />
+
+                        <AutocompleteArrayInput
+                            key={user?.id || "create"}
                             source={`attributes.${attr.name}`}
-                            permissionLabels={value}
-                            handleAddedLabel={handleAttrStringValueChange(attr.name ?? "")}
+                            label={"Permission Labels"}
+                            defaultValue={permissionLabels}
+                            fullWidth
+                            debounce={100}
+                            onChange={handlePermissionLabelRemoved}
+                            onCreate={(newLabel) => {
+                                if (newLabel) {
+                                    const updatedChoices = [
+                                        ...choices,
+                                        {id: newLabel, name: newLabel},
+                                    ]
+                                    const updatedLabels = [...permissionLabels, newLabel]
+                                    setChoices(updatedChoices)
+                                    setPermissionLabels(updatedLabels)
+                                    handlePermissionLabelAdded(updatedLabels)
+                                    return newLabel
+                                }
+                            }}
+                            optionText="name"
+                            choices={choices}
+                            freeSolo={true}
                         />
                     )
                 }
@@ -491,12 +604,13 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 )
             }
         },
-        [user]
+        [user, permissionLabels, choices]
     )
 
     const formFields = useMemo(() => {
+        console.log("formFields")
         return userAttributes?.map((attr) => renderFormField(attr))
-    }, [userAttributes, user])
+    }, [userAttributes, user, permissionLabels, choices])
 
     if (!user && !createMode) {
         return null
