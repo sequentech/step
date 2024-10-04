@@ -7,7 +7,7 @@ use crate::services::authorization::authorize;
 use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
-use windmill::types::scheduled_event::*;
+use sequent_core::types::scheduled_event::*;
 
 use anyhow::Result;
 use rocket::http::Status;

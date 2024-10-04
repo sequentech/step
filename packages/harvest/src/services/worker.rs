@@ -7,13 +7,13 @@ use crate::services::worker::scheduled_event::CreateEventBody;
 use anyhow::{anyhow, Result};
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::jwt::JwtClaims;
+use sequent_core::types::scheduled_event::*;
 use sequent_core::types::templates::SendTemplateBody;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
 use windmill::tasks::render_report;
 use windmill::tasks::send_template::*;
-use windmill::types::scheduled_event::*;
 
 #[instrument(skip(claims), err)]
 pub async fn process_scheduled_event(
