@@ -147,15 +147,6 @@
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
         "attributes": {}
       }, {
-      "id" : "6238cde1-ae66-4f28-88e8-947cbb58c75d",
-      "name" : "events-create",
-      "description" : "",
-      "composite" : false,
-      "clientRole" : false,
-      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-      "attributes" : { }
-    },
-      {
         "id": "f26aa3b9-40b6-4745-8b95-e961995ddd62",
         "name": "logs-read",
         "description": "",
@@ -201,7 +192,7 @@
         "attributes": {}
       }, {
       "id" : "f9bdca59-0d6c-43bc-b8ca-b0c58882f97d",
-      "name" : "events-edit",
+      "name" : "scheduled-events-write",
       "description" : "",
       "composite" : false,
       "clientRole" : false,
@@ -602,15 +593,7 @@
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
         "attributes": {}
-      }, {
-      "id" : "b4ab0723-ca3c-49cc-a2d7-6f0dc7bd825d",
-      "name" : "events-read",
-      "description" : "",
-      "composite" : false,
-      "clientRole" : false,
-      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-      "attributes" : { }
-    },
+      },
       {
         "id": "d07f0c85-7a5a-4930-ad10-8049a6a5eec1",
         "name": "document-write",
@@ -1059,13 +1042,12 @@
         "user-permission-write",
         "tally-sheet-create",
         "role-write",
-        "events-create",
         "logs-read",
         "communication-template-create",
         "election-state-write",
         "role-create",
         "election-type-read",
-        "events-edit",
+        "scheduled-events-write",
         "tally-read",
         "tasks-read",
         "voter-write",
@@ -1107,7 +1089,6 @@
         "publish-write",
         "support-material-read",
         "communication-template-read",
-        "events-read",
         "document-write",
         "tenant-write",
         "document-download",
