@@ -192,7 +192,7 @@
         "attributes": {}
       }, {
       "id" : "f9bdca59-0d6c-43bc-b8ca-b0c58882f97d",
-      "name" : "scheduled-events-write",
+      "name" : "scheduled-event-write",
       "description" : "",
       "composite" : false,
       "clientRole" : false,
@@ -1047,7 +1047,7 @@
         "election-state-write",
         "role-create",
         "election-type-read",
-        "scheduled-events-write",
+        "scheduled-event-write",
         "tally-read",
         "tasks-read",
         "voter-write",
