@@ -232,23 +232,35 @@ export const ElectionEventTabs: React.FC = () => {
                     scrollButtons="auto"
                     aria-label="scrollable auto tabs example"
                 >
-                    {showDashboard ? <Tab label={t("electionEventScreen.tabs.dashboard")} /> : null}
-                    {showData ? <Tab label={t("electionEventScreen.tabs.data")} /> : null}
+                    {showDashboard ? (
+                        <Tab label={t("electionEventScreen.tabs.dashboard")} value={0} />
+                    ) : null}
+                    {showData ? <Tab label={t("electionEventScreen.tabs.data")} value={1} /> : null}
                     {showTextData ? (
-                        <Tab label={t("electionEventScreen.tabs.localization")} />
+                        <Tab label={t("electionEventScreen.tabs.localization")} value={2} />
                     ) : null}
-                    {showVoters ? <Tab label={t("electionEventScreen.tabs.voters")} /> : null}
-                    {showAreas ? <Tab label={t("electionEventScreen.tabs.areas")} /> : null}
-                    {showKeys ? <Tab label={t("electionEventScreen.tabs.keys")} /> : null}
-                    {showTally ? <Tab label={t("electionEventScreen.tabs.tally")} /> : null}
-                    {showPublish ? <Tab label={t("electionEventScreen.tabs.publish")} /> : null}
+                    {showVoters ? (
+                        <Tab label={t("electionEventScreen.tabs.voters")} value={3} />
+                    ) : null}
+                    {showAreas ? (
+                        <Tab label={t("electionEventScreen.tabs.areas")} value={4} />
+                    ) : null}
+                    {showKeys ? <Tab label={t("electionEventScreen.tabs.keys")} value={5} /> : null}
+                    {showTally ? (
+                        <Tab label={t("electionEventScreen.tabs.tally")} value={6} />
+                    ) : null}
+                    {showPublish ? (
+                        <Tab label={t("electionEventScreen.tabs.publish")} value={7} />
+                    ) : null}
                     {showTasksExecution ? (
-                        <Tab label={t("electionEventScreen.tabs.tasks")} />
+                        <Tab label={t("electionEventScreen.tabs.tasks")} value={8} />
                     ) : null}
-                    {showLogs ? <Tab label={t("electionEventScreen.tabs.logs")} /> : null}
-                    {showEvents ? <Tab label={t("electionEventScreen.tabs.events")} /> : null}
+                    {showLogs ? <Tab label={t("electionEventScreen.tabs.logs")} value={9} /> : null}
+                    {showEvents ? (
+                        <Tab label={t("electionEventScreen.tabs.events")} value={10} />
+                    ) : null}
                     {showNotifications ? (
-                        <Tab label={t("electionEventScreen.tabs.notifications")} />
+                        <Tab label={t("electionEventScreen.tabs.notifications")} value={11} />
                     ) : null}
                 </Tabs>
             </Box>
