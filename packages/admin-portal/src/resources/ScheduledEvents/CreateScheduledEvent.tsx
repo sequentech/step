@@ -38,6 +38,7 @@ import {v4 as uuidv4} from "uuid"
 import {getAttributeLabel} from "@/services/UserService"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {ICronConfig, IManageElectionDatePayload} from "@/types/scheduledEvents"
+import SelectElection from "@/components/election/SelectElection"
 
 interface CreateEventProps {
     electionEventId: string
@@ -48,68 +49,8 @@ interface CreateEventProps {
 }
 
 export enum EventProcessors {
-    START_ELECTION = "START_ELECTION",
-    END_ELECTION = "END_ELECTION",
-}
-
-interface SelectElectionProps {
-    tenantId: string | null
-    electionEventId: string | Identifier | undefined
-    source: string
-    label?: string
-    onSelectElection?: (event: Sequent_Backend_Election) => void
-    customStyle?: SxProps
-    disabled?: boolean
-    value?: string | null
-}
-
-const SelectElection = ({
-    tenantId,
-    electionEventId,
-    source,
-    label,
-    onSelectElection,
-    customStyle,
-    disabled,
-    value,
-}: SelectElectionProps) => {
-    const aliasRenderer = useAliasRenderer()
-    const electionFilterToQuery = (searchText: string) => {
-        if (!searchText || searchText.length === 0) {
-            return {name: ""}
-        }
-        return {name: searchText.trim()}
-    }
-
-    return (
-        <ReferenceInput
-            required
-            fullWidth={true}
-            reference="sequent_backend_election"
-            source={source}
-            filter={{
-                tenant_id: tenantId,
-                election_event_id: electionEventId,
-            }}
-            perPage={100} // // Setting initial larger records size of areas
-            enableGetChoices={({q}) => q && q.length >= 3}
-            label={label}
-            disabled={disabled}
-            value={value}
-            defaultValue={value}
-        >
-            <AutocompleteInput
-                label={label}
-                fullWidth={true}
-                optionText={aliasRenderer}
-                filterToQuery={electionFilterToQuery}
-                onChange={onSelectElection}
-                debounce={100}
-                sx={customStyle}
-                disabled={disabled}
-            />
-        </ReferenceInput>
-    )
+    START_VOTING_PERIOD = "START_VOTING_PERIOD",
+    END_VOTING_PERIOD = "END_VOTING_PERIOD",
 }
 
 const CreateEvent: FC<CreateEventProps> = ({
@@ -151,8 +92,8 @@ const CreateEvent: FC<CreateEventProps> = ({
     const [eventType, setEventType] = useState<EventProcessors>(
         isEditEvent
             ? (selectedEvent?.event_processor as EventProcessors | null) ??
-                  EventProcessors.START_ELECTION
-            : EventProcessors.START_ELECTION
+                  EventProcessors.START_VOTING_PERIOD
+            : EventProcessors.START_VOTING_PERIOD
     )
 
     const onSubmit = async () => {
@@ -162,7 +103,7 @@ const CreateEvent: FC<CreateEventProps> = ({
                 electionEventId: electionEventId,
                 electionId: electionId,
                 scheduledDate: scheduleDate,
-                isStart: eventType === EventProcessors.START_ELECTION,
+                isStart: eventType === EventProcessors.START_VOTING_PERIOD,
             }
             const {errors} = await manageElectionDates({
                 variables,
@@ -202,18 +143,18 @@ const CreateEvent: FC<CreateEventProps> = ({
                     <Select
                         required
                         name="event_type"
-                        defaultValue={isEditEvent && EventProcessors.START_ELECTION}
+                        defaultValue={isEditEvent && EventProcessors.START_VOTING_PERIOD}
                         labelId="event-type-select-label"
                         label={t("eventsScreen.eventType.label")}
                         value={eventType || ""}
                         onChange={(e: any) => setEventType(e.target.value)}
                         disabled={isEditEvent}
                     >
-                        <MenuItem value={EventProcessors.START_ELECTION}>
-                            {t("eventsScreen.eventType.START_ELECTION")}
+                        <MenuItem value={EventProcessors.START_VOTING_PERIOD}>
+                            {t("eventsScreen.eventType.START_VOTING_PERIOD")}
                         </MenuItem>
-                        <MenuItem value={EventProcessors.END_ELECTION}>
-                            {t("eventsScreen.eventType.END_ELECTION")}
+                        <MenuItem value={EventProcessors.END_VOTING_PERIOD}>
+                            {t("eventsScreen.eventType.END_VOTING_PERIOD")}
                         </MenuItem>
                     </Select>
                 </FormControl>
@@ -221,6 +162,7 @@ const CreateEvent: FC<CreateEventProps> = ({
                     <SelectElection
                         tenantId={tenantId}
                         electionEventId={electionEventId}
+                        label={t("eventsScreen.election.label")}
                         onSelectElection={(election) => setElectionId(election?.id ?? null)}
                         source="event_payload.election_id"
                         disabled={isEditEvent}
@@ -240,7 +182,7 @@ const CreateEvent: FC<CreateEventProps> = ({
                     disabled={isLoading}
                     source="cron_config.scheduled_date"
                     label={
-                        eventType === EventProcessors.START_ELECTION
+                        eventType === EventProcessors.START_VOTING_PERIOD
                             ? t("electionScreen.field.startDateTime")
                             : t("electionScreen.field.endDateTime")
                     }

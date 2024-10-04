@@ -50,8 +50,8 @@ pub async fn process_scheduled_event(
                 .await?;
             event!(Level::INFO, "Sent SEND_TEMPLATE task {}", task.task_id);
         }
-        EventProcessors::START_ELECTION => {}
-        EventProcessors::END_ELECTION => {}
+        EventProcessors::START_VOTING_PERIOD => {}
+        EventProcessors::END_VOTING_PERIOD => {}
     }
     Ok(element_id)
 }

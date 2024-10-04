@@ -66,15 +66,15 @@ async fn manage_election_date_wrapper(
         return Err(anyhow!("Missing event processor"));
     };
 
-    election_status.voting_status = if EventProcessors::START_ELECTION == event_processor {
+    election_status.voting_status = if EventProcessors::START_VOTING_PERIOD == event_processor {
         VotingStatus::OPEN
     } else {
         VotingStatus::CLOSED
     };
 
     election_status.voting_status = match event_processor {
-        EventProcessors::START_ELECTION => VotingStatus::OPEN,
-        EventProcessors::END_ELECTION => VotingStatus::CLOSED,
+        EventProcessors::START_VOTING_PERIOD => VotingStatus::OPEN,
+        EventProcessors::END_VOTING_PERIOD => VotingStatus::CLOSED,
         _ => {
             info!("Invalid scheduled event type: {:?}", event_processor);
             stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id)

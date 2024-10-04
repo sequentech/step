@@ -92,7 +92,7 @@ pub async fn manage_dates(
                     )
                     .await?;
                 } else {
-                    let event_processor = EventProcessors::START_ELECTION;
+                    let event_processor = EventProcessors::START_VOTING_PERIOD;
 
                     let payload = ManageElectionDatePayload { election_id: None };
                     insert_scheduled_event(
@@ -143,7 +143,7 @@ pub async fn manage_dates(
                     )
                     .await?;
                 } else {
-                    let event_processor = EventProcessors::END_ELECTION;
+                    let event_processor = EventProcessors::END_VOTING_PERIOD;
 
                     let payload = ManageElectionDatePayload { election_id: None };
                     insert_scheduled_event(

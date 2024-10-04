@@ -369,7 +369,7 @@ pub async fn manage_dates(
                     hasura_transaction,
                     data.tenant_id.to_string().as_str(),
                     &data.election_event.id,
-                    EventProcessors::START_ELECTION,
+                    EventProcessors::START_VOTING_PERIOD,
                     start_date,
                     None,
                 )
@@ -380,7 +380,7 @@ pub async fn manage_dates(
                     hasura_transaction,
                     data.tenant_id.to_string().as_str(),
                     &data.election_event.id,
-                    EventProcessors::END_ELECTION,
+                    EventProcessors::END_VOTING_PERIOD,
                     end_date,
                     None,
                 )
@@ -400,7 +400,7 @@ pub async fn manage_dates(
                     hasura_transaction,
                     data.tenant_id.to_string().as_str(),
                     &data.election_event.id,
-                    EventProcessors::START_ELECTION,
+                    EventProcessors::START_VOTING_PERIOD,
                     start_date,
                     Some(&election.id),
                 )
@@ -411,7 +411,7 @@ pub async fn manage_dates(
                     hasura_transaction,
                     data.tenant_id.to_string().as_str(),
                     &data.election_event.id,
-                    EventProcessors::END_ELECTION,
+                    EventProcessors::END_VOTING_PERIOD,
                     end_date,
                     Some(&election.id),
                 )
@@ -431,7 +431,7 @@ pub async fn maybe_create_scheduled_event(
     start_date: String,
     election_id: Option<&str>,
 ) -> Result<()> {
-    let is_start = event_processor == EventProcessors::START_ELECTION;
+    let is_start = event_processor == EventProcessors::START_VOTING_PERIOD;
     let start_task_id =
         generate_manage_date_task_name(tenant_id, election_event_id, election_id, is_start);
     let payload = ManageElectionDatePayload {

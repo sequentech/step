@@ -56,6 +56,8 @@ export const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBa
     }
 `
 
+const BulkActionButtons = () => <></>
+
 interface EditEventsProps {
     electionEventId: string
 }
@@ -71,7 +73,6 @@ const ListEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
     const [isEditEvent, setIsEditEvent] = useState(false)
     const [openCreateEvent, setOpenCreateEvent] = useState(false)
     const [selectedEventId, setSelectedEventId] = useState<string | undefined>()
-    const [selectedElectionId, setselectedElectionId] = useState<string | undefined>()
     const authContext = useContext(AuthContext)
     const aliasRenderer = useAliasRenderer()
 
@@ -157,16 +158,18 @@ const ListEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                         scheduledDate: undefined,
                         isStart:
                             scheduledEventToDelete.event_processor ===
-                            EventProcessors.START_ELECTION,
+                            EventProcessors.START_VOTING_PERIOD,
                     }
                     const {errors} = await manageElectionDates({
                         variables,
                     })
                     if (errors) {
+                        refresh()
                         console.error(errors)
                         notify(t("eventsScreen.messages.editError"), {type: "error"})
                     }
                 } catch (error) {
+                    refresh()
                     console.error(error)
                     notify(t("eventsScreen.messages.editError"), {type: "error"})
                 }
@@ -226,7 +229,6 @@ const ListEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                     tenant_id: tenantId,
                     stopped_at: {
                         format: "hasura-raw-query",
-                        //value: {_is_null: true},
                     },
                 }}
                 filters={Filters}
@@ -251,7 +253,7 @@ const ListEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                 }
             >
                 <DataGridContainerStyle
-                    // bulkActionButtons={false}
+                    bulkActionButtons={<BulkActionButtons />}
                     isOpenSideBar={isOpenSidebar}
                     omit={OMIT_FIELDS}
                 >
@@ -271,15 +273,17 @@ const ListEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                         label={t("eventsScreen.fields.stoppedAt")}
                         source="stopped_at"
                         render={(record: Sequent_Backend_Scheduled_Event) =>
-                            record.stopped_at && new Date(record.stopped_at).toLocaleString()
+                            (record.stopped_at && new Date(record.stopped_at).toLocaleString()) ||
+                            "-"
                         }
                     />
                     <FunctionField
                         label={t("eventsScreen.fields.scheduledDate")}
                         source="cron_config.scheduled_date"
                         render={(record: Sequent_Backend_Scheduled_Event) =>
-                            (record.cron_config as ICronConfig | undefined)?.scheduled_date &&
-                            new Date(record.cron_config.scheduled_date).toLocaleString()
+                            ((record.cron_config as ICronConfig | undefined)?.scheduled_date &&
+                                new Date(record.cron_config.scheduled_date).toLocaleString()) ||
+                            "-"
                         }
                     />
                     <WrapperField label={t("common.label.actions")}>

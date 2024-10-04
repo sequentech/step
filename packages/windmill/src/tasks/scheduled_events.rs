@@ -62,8 +62,8 @@ pub async fn scheduled_events() -> Result<()> {
         let Some(event_processor) = scheduled_event.event_processor.clone() else {
             continue;
         };
-        if EventProcessors::START_ELECTION == event_processor
-            || EventProcessors::END_ELECTION == event_processor
+        if EventProcessors::START_VOTING_PERIOD == event_processor
+            || EventProcessors::END_VOTING_PERIOD == event_processor
         {
             let Some(datetime) = get_datetime(scheduled_event) else {
                 continue;

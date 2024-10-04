@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Eduardo Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 #![allow(non_camel_case_types)]
@@ -12,8 +13,8 @@ use strum_macros::EnumString;
 pub enum EventProcessors {
     CREATE_REPORT,
     SEND_TEMPLATE,
-    START_ELECTION,
-    END_ELECTION,
+    START_VOTING_PERIOD,
+    END_VOTING_PERIOD,
 }
 
 #[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Clone)]
