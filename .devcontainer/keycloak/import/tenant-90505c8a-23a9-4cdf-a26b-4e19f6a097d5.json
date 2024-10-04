@@ -103,15 +103,6 @@
         "attributes": {}
       },
       {
-        "id": "5e649942-3115-4d1b-badf-f44d37511079",
-        "name": "candidate-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
         "id": "c33bdf25-fe49-4528-a0de-0d7c14e4a6ce",
         "name": "notification-send",
         "description": "",
@@ -1037,7 +1028,6 @@
         "trustee-write",
         "user-write",
         "election-event-write",
-        "candidate-write",
         "notification-send",
         "user-permission-write",
         "tally-sheet-create",
