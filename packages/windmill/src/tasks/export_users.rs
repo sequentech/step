@@ -16,8 +16,8 @@ use crate::util::aws::get_max_upload_size;
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction as _};
-use sequent_core::services::keycloak;
 use sequent_core::services::keycloak::KeycloakAdminClient;
+use sequent_core::services::keycloak::{self, MULTIVALUE_USER_ATTRIBUTE_SEPARATOR};
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::keycloak::{User, UserProfileAttribute};
@@ -28,7 +28,7 @@ use std::io::{BufWriter, Write};
 use tempfile::NamedTempFile;
 use tracing::{debug, info, instrument};
 
-pub const USER_FIELDS: [&str; 8] = [
+pub const USER_FIELDS: [&str; 9] = [
     "id",
     "email",
     "first_name",
@@ -37,6 +37,7 @@ pub const USER_FIELDS: [&str; 8] = [
     "enabled",
     "email_verified",
     "area-id",
+    "authorized-election-ids",
 ];
 
 #[derive(Deserialize, Debug, Clone, Serialize)]
@@ -82,6 +83,7 @@ fn get_headers(
         "last_name".to_string(),
         "username".to_string(),
         "area".to_string(),
+        "authorized-election-ids".to_string(),
     ];
     for attr in user_attributes {
         match (&attr.name, &attr.display_name) {
@@ -116,6 +118,18 @@ fn get_user_record(
     user_attributes: &Vec<UserProfileAttribute>,
 ) -> Vec<String> {
     let votes_info_map_opt = user.get_votes_info_by_election_id();
+    let elections_by_id: HashMap<_, _> = match elections {
+        Some(election) => election
+            .iter()
+            .map(|election| {
+                (
+                    election.id.clone(),
+                    election.alias.clone().unwrap_or(election.id.clone()),
+                )
+            })
+            .collect(),
+        None => HashMap::new(),
+    };
 
     let mut user_info: Vec<String> = vec![
         user.id.clone().unwrap_or("-".to_string()),
@@ -134,12 +148,29 @@ fn get_user_record(
                 .to_string(),
             None => "-".to_string(),
         },
+        match user.get_authorized_election_ids() {
+            Some(ref election_ids) => election_ids
+                .iter()
+                .map(|election_id| {
+                    elections_by_id
+                        .get(election_id)
+                        .unwrap_or(election_id)
+                        .to_string()
+                })
+                .collect::<Vec<String>>()
+                .join(MULTIVALUE_USER_ATTRIBUTE_SEPARATOR),
+            None => "-".to_string(),
+        },
     ];
     for attr in user_attributes {
         match &attr.name {
             Some(name) => {
-                if (!USER_FIELDS.contains(&name.as_str())) {
-                    user_info.push(user.get_attribute_val(name).unwrap_or("-".to_string()))
+                if !USER_FIELDS.contains(&name.as_str()) {
+                    if let Some(true) = &attr.multivalued {
+                        user_info.push(user.get_attribute_multival(name).unwrap_or("-".to_string()))
+                    } else {
+                        user_info.push(user.get_attribute_val(name).unwrap_or("-".to_string()))
+                    }
                 }
             }
             _ => (),
@@ -260,6 +291,8 @@ pub async fn export_users(
                 },
             );
 
+            // TODO elections_by_id
+
             let areas_by_id = Some(
                 match get_areas_by_id(
                     &hasura_transaction,
@@ -377,6 +410,7 @@ pub async fn export_users(
 
         for user in users {
             let record = get_user_record(&elections, &areas_by_id, &user, &attributes);
+            info!("{:?}", record);
             writer.write_record(&record)?;
         }
 
