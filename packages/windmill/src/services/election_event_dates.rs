@@ -71,10 +71,8 @@ pub async fn manage_dates(
     )
     .await?;
     if is_start {
-        info!("FF 1");
         match scheduled_date {
             Some(date) => {
-                info!("FF 2a");
                 new_dates.scheduled_opening = Some(true);
                 new_dates.start_date = Some(date.to_string());
                 //TODO: check if date is smaller than now or bigger than end_date and return error
@@ -108,13 +106,11 @@ pub async fn manage_dates(
                 }
             }
             None => {
-                info!("FF 2b");
                 new_dates.scheduled_opening = Some(false);
                 new_dates.start_date = None;
                 //STOP PREVIOUS START TASK
                 new_dates.scheduled_opening = Some(false);
                 if let Some(scheduled_manage_start_date) = scheduled_manage_start_date_opt {
-                    info!("FF 3a");
                     stop_scheduled_event(
                         hasura_transaction,
                         tenant_id,
