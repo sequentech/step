@@ -598,6 +598,9 @@ const catalanTranslation: TranslationType = {
                 "miru-download": "Miru Download",
                 "miru-send": "Miru Send",
                 "miru-sign": "Miru Sign",
+                "events-create": "Crear Esdeveniments Programats",
+                "events-edit": "Editar Esdeveniments Programats",
+                "events-read": "Llegir Esdeveniments Programats",
             },
         },
         generalSettingsScreen: {
