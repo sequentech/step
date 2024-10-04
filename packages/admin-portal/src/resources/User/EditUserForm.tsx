@@ -40,7 +40,6 @@ import {formatUserAtributes, getAttributeLabel, userBasicInfo} from "@/services/
 import PhoneInput from "@/components/PhoneInput"
 import SelectArea from "@/components/area/SelectArea"
 import SelectActedTrustee from "./SelectActedTrustee"
-import PermissionLabelInput from "./PermissionLabelInput"
 import {AuthContext} from "@/providers/AuthContextProvider"
 
 interface ListUserRolesProps {
@@ -357,21 +356,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         })
     }
 
-    const handleAttrStringValueChange = (attrName: string) => async (value: string | string[]) => {
-        console.log("handleAttrStringValueChange", value)
-        setUser((prev) => {
-            return {
-                ...prev,
-                attributes: {
-                    ...prev?.attributes,
-                    [attrName]: typeof value === "string" ? [value] : value,
-                },
-            }
-        })
-    }
-
     const handlePermissionLabelRemoved = (value: string[]) => {
-        console.log("handlePermissionLabelRemoved", value)
         if (value?.length < permissionLabels?.length) {
             setUser((prev) => {
                 return {
@@ -532,7 +517,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         <AutocompleteArrayInput
                             key={user?.id || "create"}
                             source={`attributes.${attr.name}`}
-                            label={"Permission Labels"}
+                            label={t("usersAndRolesScreen.users.fields.permissionLabel")}
                             defaultValue={permissionLabels}
                             fullWidth
                             debounce={100}

@@ -317,17 +317,12 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     }
 
     const extractPermissionLabels = (input: string): string[] => {
-        console.log("input", input)
         const regex = /\"(.*?)\"/g
         const matches = []
         let match
-
-        // Find all matches in the input string
         while ((match = regex.exec(input)) !== null) {
-            console.log("match", match[1])
             matches.push(match[1])
         }
-
         return matches
     }
 

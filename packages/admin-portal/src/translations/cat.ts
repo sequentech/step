@@ -360,6 +360,7 @@ const catalanTranslation: TranslationType = {
                 reorder: "Reordenar concursos",
                 castVoteConfirm: "Modal de Confirmació de Vot",
                 gracePeriodPolicy: "Política de període de gràcia",
+                permissionLabel: "Etiqueta de permís",
             },
             field: {
                 name: "Nom",
@@ -452,6 +453,7 @@ const catalanTranslation: TranslationType = {
                     passwordSpecialCharValidate:
                         "La contrasenya ha de contenir almenys un caràcter especial",
                     trustee: "Actuar com a fideïcomissari",
+                    permissionLabel: "Etiqueta de permís",
                 },
                 delete: {
                     body: "Estàs segur que vols esborrar aquest usuari?",

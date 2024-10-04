@@ -359,6 +359,7 @@ const spanishTranslation: TranslationType = {
                 reorder: "Reordenar concursos",
                 castVoteConfirm: "Modal de Confirmación de Voto",
                 gracePeriodPolicy: "Política de período de gracia",
+                permissionLabel: "Etiqueta de permiso",
             },
             field: {
                 name: "Nombre",
@@ -451,6 +452,7 @@ const spanishTranslation: TranslationType = {
                     passwordSpecialCharValidate:
                         "La contraseña debe contener al menos un carácter especial",
                     trustee: "Actuar como fideicomisario",
+                    permissionLabel: "Etiqueta de permiso",
                 },
                 delete: {
                     body: "¿Estás seguro que quieres borrar este usuario?",

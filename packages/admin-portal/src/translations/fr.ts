@@ -361,6 +361,7 @@ const frenchTranslation: TranslationType = {
                 reorder: "Réorganiser les concours",
                 castVoteConfirm: "Modal de Confirmation de Vote",
                 gracePeriodPolicy: "Politique de période de grâce",
+                permissionLabel: "Étiquette de permission",
             },
             field: {
                 name: "Nom",

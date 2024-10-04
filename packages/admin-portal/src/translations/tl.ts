@@ -359,6 +359,7 @@ const tagalogTranslation: TranslationType = {
                 reorder: "I-reorder ang mga paligsahan",
                 castVoteConfirm: "Modal ng Pagkumpirma ng Pagboto",
                 gracePeriodPolicy: "Patakaran sa Palugit",
+                permissionLabel: "Label ng pahintulot",
             },
             field: {
                 name: "Pangalan",
@@ -452,6 +453,7 @@ const tagalogTranslation: TranslationType = {
                     passwordSpecialCharValidate:
                         "Ang password ay dapat maglaman ng hindi bababa sa isang espesyal na karakter",
                     trustee: "Kumilos bilang trustee",
+                    permissionLabel: "Label ng pahintulot",
                 },
                 delete: {
                     body: "Sigurado ka bang gusto mong tanggalin ang tagagamit na ito?",

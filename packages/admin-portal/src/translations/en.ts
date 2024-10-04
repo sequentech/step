@@ -356,6 +356,7 @@ const englishTranslation = {
                 reorder: "Reorder contests",
                 castVoteConfirm: "Cast Vote Confirmation Modal",
                 gracePeriodPolicy: "Grace Period",
+                permissionLabel: "Permission Label",
             },
             field: {
                 name: "Name",
@@ -447,6 +448,7 @@ const englishTranslation = {
                     passwordSpecialCharValidate:
                         "Password must contain at least one special character",
                     trustee: "Act as Trustee",
+                    permissionLabel: "Permissio Label",
                 },
                 delete: {
                     body: "Are you sure you want to delete this user?",
