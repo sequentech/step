@@ -3,26 +3,24 @@ use crate::hasura::scheduled_event;
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::scheduled_event::find_all_active_events;
-use crate::postgres::scheduled_event::PostgresScheduledEvent;
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::get_hasura_pool;
 use crate::services::date::ISO8601;
 use crate::tasks::manage_election_dates::manage_election_date;
 use crate::tasks::manage_election_event_date::manage_election_event_date;
-use crate::tasks::manage_election_event_date::ManageElectionDatePayload;
 use crate::types::error::Result;
-use crate::types::scheduled_event::EventProcessors;
 use anyhow::anyhow;
 use celery::error::TaskError;
 use chrono::prelude::*;
 use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
+use sequent_core::types::scheduled_event::*;
 use tracing::instrument;
 use tracing::{event, info, Level};
 
 #[instrument]
-pub fn get_datetime(event: &PostgresScheduledEvent) -> Option<DateTime<Local>> {
+pub fn get_datetime(event: &ScheduledEvent) -> Option<DateTime<Local>> {
     let Some(cron_config) = event.cron_config.clone() else {
         return None;
     };

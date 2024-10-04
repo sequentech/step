@@ -7,12 +7,11 @@ use ::keycloak::types::RealmRepresentation;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use immu_board::util::get_event_board;
-use sequent_core::ballot::ElectionDates;
-use sequent_core::ballot::ElectionEventDates;
 use sequent_core::ballot::ElectionEventStatistics;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::ElectionStatistics;
 use sequent_core::ballot::ElectionStatus;
+use sequent_core::ballot::VotingPeriodDates;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::connection;
@@ -34,7 +33,6 @@ use uuid::Uuid;
 use super::database::get_hasura_pool;
 use super::date::ISO8601;
 use super::documents;
-use super::election_event_dates::generate_manage_date_task_name;
 use crate::hasura::election_event::get_election_event;
 use crate::hasura::election_event::insert_election_event as insert_election_event_hasura;
 use crate::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
@@ -44,17 +42,14 @@ use crate::postgres::area_contest::insert_area_contests;
 use crate::postgres::candidate::insert_candidates;
 use crate::postgres::contest::insert_contest;
 use crate::postgres::election::insert_election;
-use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::election_event::insert_election_event;
 use crate::postgres::scheduled_event::insert_scheduled_event;
 use crate::services::election_event_board::BoardSerializable;
 use crate::services::jwks::upsert_realm_jwks;
 use crate::services::protocol_manager::{create_protocol_manager_keys, get_board_client};
 use crate::tasks::import_election_event::ImportElectionEventBody;
-use crate::tasks::manage_election_event_date::ManageElectionDatePayload;
-use crate::types::scheduled_event::CronConfig;
-use crate::types::scheduled_event::EventProcessors;
 use sequent_core::types::hasura::core::{Area, Candidate, Contest, Election, ElectionEvent};
+use sequent_core::types::scheduled_event::*;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ImportElectionEventSchema {
@@ -66,6 +61,7 @@ pub struct ImportElectionEventSchema {
     pub candidates: Vec<Candidate>,
     pub areas: Vec<Area>,
     pub area_contests: Vec<AreaContest>,
+    pub scheduled_events: Vec<ScheduledEvent>,
 }
 
 #[instrument(err)]
@@ -361,62 +357,64 @@ pub async fn manage_dates(
     hasura_transaction: &Transaction<'_>,
 ) -> Result<()> {
     //Manage election event
-    match &data.election_event.dates {
-        Some(dates) => {
-            let election_event_dates: ElectionEventDates = deserialize_value(dates.clone())?;
-            if let Some(start_date) = election_event_dates.start_date {
-                maybe_create_scheduled_event(
-                    hasura_transaction,
-                    data.tenant_id.to_string().as_str(),
-                    &data.election_event.id,
-                    EventProcessors::START_VOTING_PERIOD,
-                    start_date,
-                    None,
-                )
-                .await?;
-            }
-            if let Some(end_date) = election_event_dates.end_date {
-                maybe_create_scheduled_event(
-                    hasura_transaction,
-                    data.tenant_id.to_string().as_str(),
-                    &data.election_event.id,
-                    EventProcessors::END_VOTING_PERIOD,
-                    end_date,
-                    None,
-                )
-                .await?;
-            }
-        }
-
-        None => {}
+    let election_event_dates = generate_voting_period_dates(
+        data.scheduled_events.clone(),
+        data.tenant_id.to_string().as_str(),
+        &data.election_event.id,
+        None,
+    )?;
+    if let Some(start_date) = election_event_dates.start_date {
+        maybe_create_scheduled_event(
+            hasura_transaction,
+            data.tenant_id.to_string().as_str(),
+            &data.election_event.id,
+            EventProcessors::START_VOTING_PERIOD,
+            start_date,
+            None,
+        )
+        .await?;
+    }
+    if let Some(end_date) = election_event_dates.end_date {
+        maybe_create_scheduled_event(
+            hasura_transaction,
+            data.tenant_id.to_string().as_str(),
+            &data.election_event.id,
+            EventProcessors::END_VOTING_PERIOD,
+            end_date,
+            None,
+        )
+        .await?;
     }
     //Manage elections
     let elections = &data.elections;
     for election in elections {
-        if let Some(dates_js) = election.dates.clone() {
-            let dates: ElectionDates = deserialize_value(dates_js)?;
-            if let Some(start_date) = dates.start_date {
-                maybe_create_scheduled_event(
-                    hasura_transaction,
-                    data.tenant_id.to_string().as_str(),
-                    &data.election_event.id,
-                    EventProcessors::START_VOTING_PERIOD,
-                    start_date,
-                    Some(&election.id),
-                )
-                .await?;
-            }
-            if let Some(end_date) = dates.end_date {
-                maybe_create_scheduled_event(
-                    hasura_transaction,
-                    data.tenant_id.to_string().as_str(),
-                    &data.election_event.id,
-                    EventProcessors::END_VOTING_PERIOD,
-                    end_date,
-                    Some(&election.id),
-                )
-                .await?;
-            }
+        let dates = generate_voting_period_dates(
+            data.scheduled_events.clone(),
+            data.tenant_id.to_string().as_str(),
+            &data.election_event.id,
+            Some(&election.id),
+        )?;
+        if let Some(start_date) = dates.start_date {
+            maybe_create_scheduled_event(
+                hasura_transaction,
+                data.tenant_id.to_string().as_str(),
+                &data.election_event.id,
+                EventProcessors::START_VOTING_PERIOD,
+                start_date,
+                Some(&election.id),
+            )
+            .await?;
+        }
+        if let Some(end_date) = dates.end_date {
+            maybe_create_scheduled_event(
+                hasura_transaction,
+                data.tenant_id.to_string().as_str(),
+                &data.election_event.id,
+                EventProcessors::END_VOTING_PERIOD,
+                end_date,
+                Some(&election.id),
+            )
+            .await?;
         }
     }
     Ok(())

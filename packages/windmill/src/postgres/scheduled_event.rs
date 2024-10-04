@@ -1,34 +1,23 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::types::scheduled_event::{CronConfig, EventProcessors};
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
-use sequent_core::serialization::deserialize_with_path::deserialize_value;
-use serde::{Deserialize, Serialize};
+use sequent_core::types::scheduled_event::*;
+use sequent_core::{
+    serialization::deserialize_with_path::deserialize_value,
+    types::scheduled_event::{EventProcessors, ScheduledEvent},
+};
 use serde_json::Value;
 use std::str::FromStr;
 use tokio_postgres::row::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
-pub struct PostgresScheduledEvent {
-    pub id: String,
-    pub tenant_id: Option<String>,
-    pub election_event_id: Option<String>,
-    pub created_at: Option<DateTime<Utc>>,
-    pub stopped_at: Option<DateTime<Utc>>,
-    pub labels: Option<Value>,
-    pub annotations: Option<Value>,
-    pub event_processor: Option<EventProcessors>,
-    pub cron_config: Option<CronConfig>,
-    pub event_payload: Option<Value>,
-    pub task_id: Option<String>,
-}
+pub struct ScheduledEventWrapper(pub ScheduledEvent);
 
-impl TryFrom<Row> for PostgresScheduledEvent {
+impl TryFrom<Row> for ScheduledEventWrapper {
     type Error = anyhow::Error;
 
     #[instrument(skip_all, err)]
@@ -43,7 +32,7 @@ impl TryFrom<Row> for PostgresScheduledEvent {
         let cron_config: Option<CronConfig> =
             cron_config_js.map(|val| deserialize_value(val).unwrap());
 
-        Ok(PostgresScheduledEvent {
+        Ok(ScheduledEventWrapper(ScheduledEvent {
             id: item
                 .try_get::<_, Uuid>("id")
                 .map_err(|err| anyhow!("Error deserializing id: {err}"))?
@@ -64,14 +53,14 @@ impl TryFrom<Row> for PostgresScheduledEvent {
             cron_config: cron_config,
             event_payload: item.get("event_payload"),
             task_id: item.get("task_id"),
-        })
+        }))
     }
 }
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn find_all_active_events(
     hasura_transaction: &Transaction<'_>,
-) -> Result<Vec<PostgresScheduledEvent>> {
+) -> Result<Vec<ScheduledEvent>> {
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -91,9 +80,12 @@ pub async fn find_all_active_events(
 
     let scheduled_events = rows
         .into_iter()
-        .map(|row| -> Result<PostgresScheduledEvent> { row.try_into() })
-        .collect::<Result<Vec<PostgresScheduledEvent>>>()
-        .with_context(|| "Error converting rows into PostgresScheduledEvent")?;
+        .map(|row| -> Result<ScheduledEvent> {
+            row.try_into()
+                .map(|res: ScheduledEventWrapper| -> ScheduledEvent { res.0 })
+        })
+        .collect::<Result<Vec<ScheduledEvent>>>()
+        .with_context(|| "Error converting rows into ScheduledEvent")?;
     Ok(scheduled_events)
 }
 
@@ -103,7 +95,7 @@ pub async fn find_scheduled_event_by_id(
     tenant_id: Option<String>,
     election_event_id: Option<String>,
     id: &str,
-) -> Result<Option<PostgresScheduledEvent>> {
+) -> Result<Option<ScheduledEvent>> {
     let tenant_uuid: Option<uuid::Uuid> = match tenant_id {
         Some(ref tenant_id) => {
             Some(Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?)
@@ -141,9 +133,12 @@ pub async fn find_scheduled_event_by_id(
 
     let scheduled_events = rows
         .into_iter()
-        .map(|row| -> Result<PostgresScheduledEvent> { row.try_into() })
-        .collect::<Result<Vec<PostgresScheduledEvent>>>()
-        .with_context(|| "Error converting rows into PostgresScheduledEvent")?;
+        .map(|row| -> Result<ScheduledEvent> {
+            row.try_into()
+                .map(|res: ScheduledEventWrapper| -> ScheduledEvent { res.0 })
+        })
+        .collect::<Result<Vec<ScheduledEvent>>>()
+        .with_context(|| "Error converting rows into ScheduledEvent")?;
 
     Ok(scheduled_events.get(0).cloned())
 }
@@ -154,7 +149,7 @@ pub async fn find_scheduled_event_by_task_id(
     tenant_id: &str,
     election_event_id: &str,
     task_id: &str,
-) -> Result<Option<PostgresScheduledEvent>> {
+) -> Result<Option<ScheduledEvent>> {
     let tenant_uuid: uuid::Uuid =
         Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
     let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
@@ -182,9 +177,12 @@ pub async fn find_scheduled_event_by_task_id(
 
     let scheduled_events = rows
         .into_iter()
-        .map(|row| -> Result<PostgresScheduledEvent> { row.try_into() })
-        .collect::<Result<Vec<PostgresScheduledEvent>>>()
-        .with_context(|| "Error converting rows into PostgresScheduledEvent")?;
+        .map(|row| -> Result<ScheduledEvent> {
+            row.try_into()
+                .map(|res: ScheduledEventWrapper| -> ScheduledEvent { res.0 })
+        })
+        .collect::<Result<Vec<ScheduledEvent>>>()
+        .with_context(|| "Error converting rows into ScheduledEvent")?;
 
     Ok(scheduled_events.get(0).cloned())
 }
@@ -269,7 +267,7 @@ pub async fn insert_scheduled_event(
     task_id: &str,
     cron_config: CronConfig,
     event_payload: Value,
-) -> Result<PostgresScheduledEvent> {
+) -> Result<ScheduledEvent> {
     let tenant_uuid: uuid::Uuid =
         Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
     let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
@@ -330,10 +328,13 @@ pub async fn insert_scheduled_event(
         .await
         .map_err(|err| anyhow!("Error inserting scheduled event: {}", err))?;
 
-    let rows: Vec<PostgresScheduledEvent> = rows
+    let rows: Vec<ScheduledEvent> = rows
         .into_iter()
-        .map(|row| -> Result<PostgresScheduledEvent> { row.try_into() })
-        .collect::<Result<Vec<PostgresScheduledEvent>>>()
+        .map(|row| -> Result<ScheduledEvent> {
+            row.try_into()
+                .map(|res: ScheduledEventWrapper| -> ScheduledEvent { res.0 })
+        })
+        .collect::<Result<Vec<ScheduledEvent>>>()
         .map_err(|err| anyhow!("Error deserializing scheduled event: {}", err))?;
 
     if 1 == rows.len() {
@@ -348,7 +349,7 @@ pub async fn find_scheduled_event_by_election_event_id(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-) -> Result<Vec<PostgresScheduledEvent>> {
+) -> Result<Vec<ScheduledEvent>> {
     let tenant_uuid: uuid::Uuid =
         Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
     let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
@@ -377,9 +378,12 @@ pub async fn find_scheduled_event_by_election_event_id(
 
     let scheduled_events = rows
         .into_iter()
-        .map(|row| -> Result<PostgresScheduledEvent> { row.try_into() })
-        .collect::<Result<Vec<PostgresScheduledEvent>>>()
-        .with_context(|| "Error converting rows into PostgresScheduledEvent")?;
+        .map(|row| -> Result<ScheduledEvent> {
+            row.try_into()
+                .map(|res: ScheduledEventWrapper| -> ScheduledEvent { res.0 })
+        })
+        .collect::<Result<Vec<ScheduledEvent>>>()
+        .with_context(|| "Error converting rows into ScheduledEvent")?;
 
     Ok(scheduled_events)
 }
@@ -387,8 +391,8 @@ pub async fn find_scheduled_event_by_election_event_id(
 #[instrument(skip(hasura_transaction), err)]
 pub async fn insert_new_scheduled_event(
     hasura_transaction: &Transaction<'_>,
-    new_event: PostgresScheduledEvent,
-) -> Result<PostgresScheduledEvent> {
+    new_event: ScheduledEvent,
+) -> Result<ScheduledEvent> {
     let tenant_uuid: Option<uuid::Uuid> = match new_event.tenant_id {
         Some(ref tenant_id) => {
             Some(Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?)
@@ -472,10 +476,13 @@ pub async fn insert_new_scheduled_event(
         .await
         .map_err(|err| anyhow!("Error inserting new scheduled event: {}", err))?;
 
-    let rows: Vec<PostgresScheduledEvent> = rows
+    let rows: Vec<ScheduledEvent> = rows
         .into_iter()
-        .map(|row| -> Result<PostgresScheduledEvent> { row.try_into() })
-        .collect::<Result<Vec<PostgresScheduledEvent>>>()
+        .map(|row| -> Result<ScheduledEvent> {
+            row.try_into()
+                .map(|res: ScheduledEventWrapper| -> ScheduledEvent { res.0 })
+        })
+        .collect::<Result<Vec<ScheduledEvent>>>()
         .map_err(|err| anyhow!("Error deserializing new scheduled event: {}", err))?;
 
     if rows.len() == 1 {

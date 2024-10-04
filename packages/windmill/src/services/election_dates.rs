@@ -1,15 +1,13 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::postgres::election::*;
 use crate::postgres::scheduled_event::*;
-use crate::services::election_event_dates::generate_manage_date_task_name;
-use crate::tasks::manage_election_event_date::ManageElectionDatePayload;
-use crate::types::scheduled_event::EventProcessors;
-use crate::{postgres::election::*, types::scheduled_event::CronConfig};
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::{ElectionDates, ElectionPresentation};
+use sequent_core::ballot::{ElectionPresentation, VotingPeriodDates};
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
+use sequent_core::types::scheduled_event::*;
 use tracing::{info, instrument};
 
 #[instrument(skip(hasura_transaction), err)]
@@ -32,14 +30,6 @@ pub async fn manage_dates(
         return Err(anyhow!("Election not found"));
     };
 
-    let current_dates: ElectionDates = election
-        .dates
-        .clone()
-        .map(|presentation| deserialize_value(presentation))
-        .transpose()
-        .map_err(|err| anyhow!("Error parsing election dates {:?}", err))?
-        .unwrap_or(Default::default());
-    let mut new_dates = current_dates.clone();
     let start_task_id =
         generate_manage_date_task_name(tenant_id, election_event_id, Some(election_id), true);
     let end_task_id =
@@ -63,8 +53,6 @@ pub async fn manage_dates(
     if is_start {
         match scheduled_date {
             Some(date) => {
-                new_dates.scheduled_opening = Some(true);
-                new_dates.start_date = Some(date.to_string());
                 //TODO: check if date is smaller than now or bigger than end_date and return error
                 let cron_config = CronConfig {
                     cron: None,
@@ -98,10 +86,7 @@ pub async fn manage_dates(
                 }
             }
             None => {
-                new_dates.scheduled_opening = Some(false);
-                new_dates.start_date = None;
                 //STOP PREVIOUS START TASK
-                new_dates.scheduled_opening = Some(false);
                 if let Some(scheduled_manage_start_date) = scheduled_manage_start_date_opt {
                     stop_scheduled_event(
                         hasura_transaction,
@@ -115,8 +100,6 @@ pub async fn manage_dates(
     } else {
         match scheduled_date {
             Some(date) => {
-                new_dates.scheduled_closing = Some(true);
-                new_dates.end_date = Some(date.to_string());
                 //TODO: check if date is smaller than now or bigger than end_date and return error;
                 let cron_config = CronConfig {
                     cron: None,
@@ -149,8 +132,6 @@ pub async fn manage_dates(
                 }
             }
             None => {
-                new_dates.scheduled_closing = Some(false);
-                new_dates.end_date = None;
                 //STOP PREVIOUS END TASK
                 if let Some(scheduled_manage_end_date) = scheduled_manage_end_date_opt {
                     stop_scheduled_event(
@@ -163,14 +144,5 @@ pub async fn manage_dates(
             }
         }
     }
-
-    update_election_dates(
-        hasura_transaction,
-        tenant_id,
-        election_event_id,
-        election_id,
-        serde_json::to_value(new_dates)?,
-    )
-    .await?;
     Ok(())
 }

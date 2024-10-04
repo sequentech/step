@@ -8,22 +8,17 @@ use crate::services::date::ISO8601;
 use crate::services::election_event_status::update_event_voting_status;
 use crate::services::pg_lock::PgLock;
 use crate::types::error::{Error, Result};
-use crate::types::scheduled_event::EventProcessors;
 use anyhow::{anyhow, Result as AnyhowResult};
 use celery::error::TaskError;
 use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::{ElectionStatus, VotingStatus};
+use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use tracing::{event, info, Level};
 use uuid::Uuid;
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ManageElectionDatePayload {
-    pub election_id: Option<String>,
-}
 
 #[instrument(err)]
 pub async fn manage_election_event_date_wrapped(

@@ -8,5 +8,6 @@ pub mod hasura;
 pub mod keycloak;
 pub mod permissions;
 pub mod results;
+pub mod scheduled_event;
 pub mod tally_sheets;
 pub mod templates;
