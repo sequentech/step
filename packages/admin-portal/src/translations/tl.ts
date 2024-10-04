@@ -598,9 +598,7 @@ const tagalogTranslation: TranslationType = {
                 "miru-download": "Miru I-download",
                 "miru-send": "Miru Ipadala",
                 "miru-sign": "Miru Lagdaan",
-                "events-create": "Lumikha ng Naka-schedule na Kaganapan",
-                "events-edit": "I-edit ang Naka-schedule na Kaganapan",
-                "events-read": "Basahin ang Naka-schedule na Kaganapan",
+                "scheduled-event-write": "I-edit ang Naka-schedule na Kaganapan",
             },
         },
         generalSettingsScreen: {

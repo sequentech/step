@@ -600,9 +600,7 @@ const frenchTranslation: TranslationType = {
                 "miru-download": "Miru Download",
                 "miru-send": "Miru Send",
                 "miru-sign": "Miru Sign",
-                "events-create": "Créer des Événements Planifiés",
-                "events-edit": "Modifier des Événements Planifiés",
-                "events-read": "Lire des Événements Planifiés",
+                "scheduled-event-write": "Modifier des Événements Planifiés",
             },
         },
         generalSettingsScreen: {

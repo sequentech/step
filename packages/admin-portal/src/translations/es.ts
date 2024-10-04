@@ -597,9 +597,7 @@ const spanishTranslation: TranslationType = {
                 "miru-download": "Miru Download",
                 "miru-send": "Miru Send",
                 "miru-sign": "Miru Sign",
-                "events-create": "Crear Eventos Programados",
-                "events-edit": "Editar Eventos Programados",
-                "events-read": "Leer Eventos Programados",
+                "scheduled-event-write": "Editar Eventos Programados",
             },
         },
         generalSettingsScreen: {

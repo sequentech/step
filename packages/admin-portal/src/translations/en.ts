@@ -593,9 +593,7 @@ const englishTranslation = {
                 "miru-download": "Miru Download",
                 "miru-send": "Miru Send",
                 "miru-sign": "Miru Sign",
-                "events-create": "Create Scheduled Events",
-                "events-edit": "Edit Scheduled Events",
-                "events-read": "Read Scheduled Events",
+                "scheduled-event-write": "Edit Scheduled Events",
             },
         },
         generalSettingsScreen: {
