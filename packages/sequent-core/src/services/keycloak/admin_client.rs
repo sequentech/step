@@ -170,8 +170,6 @@ pub async fn get_auth_credentials() -> Result<TokenResponse> {
     Ok(credentials)
 }
 
-
-
 pub struct KeycloakAdminClient {
     pub client: KeycloakAdmin,
 }

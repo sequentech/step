@@ -1,12 +1,12 @@
 // SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::{services::keycloak::KeycloakAdminClient};
+use crate::services::keycloak::KeycloakAdminClient;
 use crate::types::keycloak::*;
 use anyhow::{anyhow, Result};
 use keycloak::types::RoleRepresentation;
 use rocket::futures::future::join_all;
-use std::{convert::From};
+use std::convert::From;
 use tracing::instrument;
 
 impl From<RoleRepresentation> for Permission {
@@ -177,4 +177,3 @@ impl KeycloakAdminClient {
         Ok(permission.clone())
     }
 }
-

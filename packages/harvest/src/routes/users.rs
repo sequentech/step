@@ -14,7 +14,7 @@ use sequent_core::services::jwt;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::keycloak::{
-    User, UserProfileAttribute, PERMISSION_LABELS, TENANT_ID_ATTR_NAME
+    User, UserProfileAttribute, PERMISSION_LABELS, TENANT_ID_ATTR_NAME,
 };
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
@@ -285,17 +285,13 @@ pub async fn create_user(
         required_perms.push(Permissions::USER_CREATE);
         if let Some(attributes) = &input.user.attributes {
             if attributes.contains_key(PERMISSION_LABELS) {
-                // only user who has this permission can edit the user permission_labels if it present in the body.
+                // only user who has this permission can edit the user
+                // permission_labels if it present in the body.
                 required_perms.push(Permissions::PERMISSION_LABEL_WRITE);
             }
         }
     };
-    authorize(
-        &claims,
-        true,
-        Some(input.tenant_id.clone()),
-        required_perms,
-    )?;
+    authorize(&claims, true, Some(input.tenant_id.clone()), required_perms)?;
     let realm = match input.election_event_id.clone() {
         Some(election_event_id) => {
             get_event_realm(&input.tenant_id, &election_event_id)
@@ -393,18 +389,14 @@ pub async fn edit_user(
         required_perms.push(Permissions::USER_WRITE);
         if let Some(attributes) = &input.attributes {
             if attributes.contains_key(PERMISSION_LABELS) {
-                // only user who has this permission can edit the user permission_labels if it present in the body.
+                // only user who has this permission can edit the user
+                // permission_labels if it present in the body.
                 required_perms.push(Permissions::PERMISSION_LABEL_WRITE);
             }
         }
     };
 
-    authorize(
-        &claims,
-        true,
-        Some(input.tenant_id.clone()),
-        required_perms,
-    )?;
+    authorize(&claims, true, Some(input.tenant_id.clone()), required_perms)?;
     let realm = match input.election_event_id {
         Some(election_event_id) => {
             get_event_realm(&input.tenant_id, &election_event_id)

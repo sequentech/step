@@ -277,7 +277,10 @@ pub async fn list_users(
         )
     };
 
-    let statement = keycloak_transaction.prepare(format!(r#"
+    let statement = keycloak_transaction
+        .prepare(
+            format!(
+                r#"
         SELECT
             u.id,
             u.email,
@@ -320,7 +323,11 @@ pub async fn list_users(
            AND ({dynamic_attr_clause})
         ORDER BY {sort_clause}
         LIMIT $2 OFFSET $3;
-    "#).as_str()).await?;
+    "#
+            )
+            .as_str(),
+        )
+        .await?;
 
     let mut params: Vec<&(dyn ToSql + Sync)> = vec![
         &filter.realm,
