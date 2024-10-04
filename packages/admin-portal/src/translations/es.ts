@@ -272,7 +272,7 @@ const spanishTranslation: TranslationType = {
                 publish: "Publicar",
                 logs: "Logs",
                 tasks: "Tareas",
-                events: "Eventos programados",
+                events: "Eventos",
                 notifications: "Notificaciones",
             },
             tally: {

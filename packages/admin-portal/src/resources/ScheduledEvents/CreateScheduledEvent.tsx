@@ -57,9 +57,10 @@ interface SelectElectionProps {
     electionEventId: string | Identifier | undefined
     source: string
     label?: string
-    onSelectElection?: (...event: any[]) => void
+    onSelectElection?: (event: Sequent_Backend_Election) => void
     customStyle?: SxProps
     disabled?: boolean
+    value?: string | null
 }
 
 const SelectElection = ({
@@ -70,6 +71,7 @@ const SelectElection = ({
     onSelectElection,
     customStyle,
     disabled,
+    value,
 }: SelectElectionProps) => {
     const aliasRenderer = useAliasRenderer()
     const electionFilterToQuery = (searchText: string) => {
@@ -93,6 +95,8 @@ const SelectElection = ({
             enableGetChoices={({q}) => q && q.length >= 3}
             label={label}
             disabled={disabled}
+            value={value}
+            defaultValue={value}
         >
             <AutocompleteInput
                 label={label}
@@ -217,18 +221,24 @@ const CreateEvent: FC<CreateEventProps> = ({
                     <SelectElection
                         tenantId={tenantId}
                         electionEventId={electionEventId}
-                        onSelectElection={(election) => setElectionId(election ?? null)}
-                        source={
-                            (selectedEvent?.event_payload as IManageElectionDatePayload | undefined)
-                                ?.election_id ?? "all"
-                        }
+                        onSelectElection={(election) => setElectionId(election?.id ?? null)}
+                        source="event_payload.election_id"
                         disabled={isEditEvent}
+                        value={
+                            isEditEvent
+                                ? (
+                                      selectedEvent?.event_payload as
+                                          | IManageElectionDatePayload
+                                          | undefined
+                                  )?.election_id
+                                : electionId
+                        }
                     />
                 </FormControl>
                 <DateTimeInput
                     required
                     disabled={isLoading}
-                    source="dates.start_date"
+                    source="cron_config.scheduled_date"
                     label={
                         eventType === EventProcessors.START_ELECTION
                             ? t("electionScreen.field.startDateTime")

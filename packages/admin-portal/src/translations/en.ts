@@ -269,7 +269,7 @@ const englishTranslation = {
                 publish: "Publish",
                 logs: "Logs",
                 tasks: "Tasks",
-                events: "Scheduled Events",
+                events: "Events",
                 notifications: "Notifications",
             },
             tally: {

@@ -272,7 +272,7 @@ const catalanTranslation: TranslationType = {
                 publish: "Publicar",
                 logs: "Registres",
                 tasks: "Tasques",
-                events: "Esdeveniments programats",
+                events: "Esdeveniments",
                 notifications: "Notificacions",
             },
             tally: {

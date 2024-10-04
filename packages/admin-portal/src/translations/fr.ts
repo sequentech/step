@@ -272,7 +272,7 @@ const frenchTranslation: TranslationType = {
                 publish: "Publier",
                 logs: "Journaux",
                 tasks: "Tâches",
-                events: "Événements programmés",
+                events: "Événements",
                 notifications: "Notifications",
             },
             tally: {
