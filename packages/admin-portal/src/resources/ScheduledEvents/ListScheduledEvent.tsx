@@ -112,7 +112,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
         }
     )
 
-    const getElectionName = (scheduledEvent: Sequent_Backend_Scheduled_Event) => {
+    const getElectionName = (scheduledEvent: Sequent_Backend_Scheduled_Event): string => {
         let electionId = (scheduledEvent?.event_payload as IManageElectionDatePayload | undefined)
             ?.election_id
         const foundElection = elections?.find((item) => electionId === item.id)
@@ -241,6 +241,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                             <CreateEvent
                                 electionEventId={electionEventId}
                                 setIsOpenDrawer={setOpenCreateEvent}
+                                getElectionName={getElectionName}
                             />
                         }
                     />
@@ -283,6 +284,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                     setIsOpenDrawer={setOpenCreateEvent}
                     isEditEvent={isEditEvent}
                     selectedEventId={selectedEventId}
+                    getElectionName={getElectionName}
                 />
             </ResourceListStyles.Drawer>
             <Dialog

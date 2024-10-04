@@ -18,6 +18,7 @@ import {
     InputLabel,
     MenuItem,
     Select,
+    TextField,
     Typography,
 } from "@mui/material"
 import {useMutation} from "@apollo/client"
@@ -38,6 +39,7 @@ interface CreateEventProps {
     setIsOpenDrawer: (state: boolean) => void
     isEditEvent?: boolean
     selectedEventId?: string
+    getElectionName: (scheduledEvent: Sequent_Backend_Scheduled_Event) => string
 }
 
 export enum EventProcessors {
@@ -50,6 +52,7 @@ const CreateEvent: FC<CreateEventProps> = ({
     setIsOpenDrawer,
     isEditEvent,
     selectedEventId,
+    getElectionName,
 }) => {
     const {t} = useTranslation()
     const [isLoading, setIsLoading] = useState(false)
@@ -146,23 +149,23 @@ const CreateEvent: FC<CreateEventProps> = ({
                     </Select>
                 </FormControl>
                 <FormControl fullWidth>
-                    <SelectElection
-                        tenantId={tenantId}
-                        electionEventId={electionEventId}
-                        label={t("eventsScreen.election.label")}
-                        onSelectElection={(election) => setElectionId(election?.id ?? null)}
-                        source="event_payload.election_id"
-                        disabled={isEditEvent || isLoading}
-                        value={
-                            isEditEvent
-                                ? (
-                                      selectedEvent?.event_payload as
-                                          | IManageElectionDatePayload
-                                          | undefined
-                                  )?.election_id
-                                : electionId
-                        }
-                    />
+                    {isEditEvent ? (
+                        <TextField
+                            label={t("eventsScreen.election.label")}
+                            disabled={true}
+                            value={selectedEvent ? getElectionName(selectedEvent) : "-"}
+                        />
+                    ) : (
+                        <SelectElection
+                            tenantId={tenantId}
+                            electionEventId={electionEventId}
+                            label={t("eventsScreen.election.label")}
+                            onSelectElection={(electionId) => setElectionId(electionId)}
+                            source="event_payload.election_id"
+                            disabled={isEditEvent || isLoading}
+                            value={electionId}
+                        />
+                    )}
                 </FormControl>
                 <DateTimeInput
                     required

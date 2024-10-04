@@ -12,7 +12,7 @@ interface SelectElectionProps {
     electionEventId: string | Identifier | undefined
     source: string
     label?: string
-    onSelectElection?: (event: Sequent_Backend_Election) => void
+    onSelectElection?: (electionId: string) => void
     customStyle?: SxProps
     disabled?: boolean
     value?: string | null
