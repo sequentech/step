@@ -68,3 +68,12 @@ It is required to upload the default templates to the S3 public-assets folder:
 Being the ENV var `PUBLIC_ASSETS_PATH=public-assets` in this case.
 The rest of ENV variables starting by `PUBLIC_ASSETS_` that have been removed, used to name 
 the files and other assets but they are no longer needed by the system.
+
+## Scheduled Events
+
+There's a new tab "Scheduled Events" in the Election Event section. This lists the
+next scheduled events. In order to see this tab, the role `scheduled-event-write`
+has to be added in Keycloak and the role has to be added to the `admin` group
+for existing tenants. Also notice that this includes a migration to delete the `dates`
+column in both Elections and Election Events. There's also a minor speed improvement
+in the cast vote action as it's not using hasura graphql calls anymore.
