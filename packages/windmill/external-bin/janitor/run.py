@@ -160,22 +160,6 @@ def parse_election_event(sheet):
     )
     return data[0]
 
-def parse_election_events(sheet):
-    data = parse_table_sheet(
-        sheet,
-        required_keys=[
-            "^election_alias$",
-            "^type$",
-            "^date$"
-        ],
-        allowed_keys=[
-            "^election_alias$",
-            "^type$",
-            "^date$"
-        ]
-    )
-    return data[0]
-
 def parse_elections(sheet):
     data = parse_table_sheet(
         sheet,
@@ -248,6 +232,22 @@ def parse_ccs_servers(sheet):
     )
     return data
 
+def parse_scheduled_events(sheet):
+    data = parse_table_sheet(
+        sheet,
+        required_keys=[
+            "^election_alias$",
+            "^type$",
+            "^date$"
+        ],
+        allowed_keys=[
+            "^election_alias$",
+            "^type$",
+            "^date$"
+        ]
+    )
+    return data
+
 def parse_excel(excel_path):
     '''
     Parse all input files specified in the config file into their respective
@@ -257,10 +257,10 @@ def parse_excel(excel_path):
 
     return dict(
         election_event = parse_election_event(electoral_data['ElectionEvent']),
-        election_events = parse_election_events(electoral_data['ElectionEvents']),
         elections = parse_elections(electoral_data['Elections']),
         areas = parse_areas(electoral_data['Areas']),
         ccs_servers = parse_ccs_servers(electoral_data['CcsServers']),
+        scheduled_events = parse_scheduled_events(electoral_data['ScheduledEvents']),
     )
 
 # Step 5.1: Read Excel
@@ -360,6 +360,9 @@ try:
 
     with open('templates/COMELEC/keycloak.hbs', 'r') as file:
         keycloak_template = file.read()
+
+    with open('templates/scheduledEvent.hbs', 'r') as file:
+        scheduled_event_template = file.read()
 
     logging.info("Loaded all templates successfully.")
 except FileNotFoundError as e:
@@ -515,6 +518,13 @@ def gen_tree(excel_data, results):
 
         if not election_context:
             raise Exception(f"election with 'election_post' = {row_election_post} not found in excel")
+
+        election_scheduled_events = [
+            scheduled_event
+            for scheduled_event
+            in excel_data["scheduled_events"] 
+            if scheduled_event["election_alias"] == election_context["alias"]
+        ]
         
         if not election:
             # If the election does not exist, create it
@@ -522,6 +532,7 @@ def gen_tree(excel_data, results):
                 "election_post": row_election_post,
                 "election_name": election_context["name"],
                 "contests": [],
+                "scheduled_events": election_scheduled_events,
                 **base_context,
                 **election_context
             }
@@ -584,6 +595,7 @@ def replace_placeholder_database(election_tree, areas_dict, election_event_id, k
     candidates = []
     contests = []
     elections = []
+    scheduled_events = []
 
     print(f"rendering keycloak")
     keycloak = json.loads(render_template(keycloak_template, keycloak_context))
@@ -604,6 +616,21 @@ def replace_placeholder_database(election_tree, areas_dict, election_event_id, k
 
         print(f"rendering election {election['election_name']}")
         elections.append(json.loads(render_template(election_template, election_context)))
+
+        for scheduled_event in election["scheduled_events"]:
+            scheduled_event_id = generate_uuid()
+            scheduled_event_context = {
+                "UUID": scheduled_event_id,
+                "tenant_id": base_config["tenant_id"],
+                "election_event_id": election_event_id,
+                "election_id": election_context["UUID"],
+                "election_alias": scheduled_event["election_alias"],
+                "event_processor": scheduled_event["type"],
+                "current_timestamp": current_timestamp
+            }
+            print(f"rendering scheduled event {scheduled_event_context['election_alias']} {scheduled_event_context['event_processor']}")
+            scheduled_events.append(json.loads(render_template(scheduled_event_template, scheduled_event_context)))
+
 
         for contest in election["contests"]:
             contest_id = generate_uuid()
@@ -666,7 +693,7 @@ def replace_placeholder_database(election_tree, areas_dict, election_event_id, k
                 print(f"rendering area_contest area: '{area['name']}', contest: '{contest['name']}'")
                 area_contests.append(json.loads(render_template(area_contest_template, area_contest_context)))
 
-    return areas, candidates, contests, area_contests, elections, keycloak
+    return areas, candidates, contests, area_contests, elections, keycloak, scheduled_events
 
 # Example of how to use the function and see the result
 results = get_data()
@@ -674,7 +701,7 @@ election_tree, areas_dict = gen_tree(excel_data, results)
 keycloak_context = gen_keycloak_context(results)
 election_event, election_event_id = generate_election_event(excel_data)
 
-areas, candidates, contests, area_contests, elections, keycloak = replace_placeholder_database(election_tree, areas_dict, election_event_id, keycloak_context)
+areas, candidates, contests, area_contests, elections, keycloak, scheduled_events = replace_placeholder_database(election_tree, areas_dict, election_event_id, keycloak_context)
 
 final_json = {
     "tenant_id": base_config["tenant_id"],
@@ -685,7 +712,7 @@ final_json = {
     "candidates":candidates, # Include the candidate objects
     "areas": areas,  # Include the area objects
     "area_contests": area_contests,  # Include the area-contest relationships
-    "scheduled_events": []
+    "scheduled_events": scheduled_events
 }
 
 # Step 14: Save final JSON to a file
