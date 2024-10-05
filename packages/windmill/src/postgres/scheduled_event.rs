@@ -52,7 +52,8 @@ impl TryFrom<Row> for ScheduledEventWrapper {
                 .map_err(|err| anyhow!("Error deserializing election_event_id: {err}"))?
                 .map(|val| val.to_string()),
             created_at: item.get("created_at"),
-            stopped_at: item.get("created_at"),
+            stopped_at: item.get("stopped_at"),
+            archived_at: item.get("archived_at"),
             labels: item.get("labels"),
             annotations: item.get("annotations"),
             event_processor: event_processors,
@@ -171,7 +172,6 @@ pub async fn find_scheduled_event_by_task_id(
                 tenant_id = $1
                 AND election_event_id = $2
                 AND task_id = $3
-                AND stopped_at IS NULL
                 AND archived_at IS NULL
             "#,
         )
@@ -251,7 +251,6 @@ pub async fn archive_scheduled_event(
             WHERE
                 tenant_id = $1
                 AND id = $2
-                AND stopped_at IS NULL
             "#,
         )
         .await?;
@@ -346,6 +345,7 @@ pub async fn insert_scheduled_event(
                     election_event_id,
                     created_at,
                     stopped_at,
+                    archived_at,
                     labels,
                     annotations,
                     event_processor,

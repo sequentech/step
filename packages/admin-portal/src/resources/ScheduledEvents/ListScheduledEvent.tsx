@@ -265,6 +265,14 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                         }
                     />
                     <FunctionField
+                        label={t("eventsScreen.fields.stoppedAt")}
+                        source="stopped_at"
+                        render={(record: Sequent_Backend_Scheduled_Event) =>
+                            (record.stopped_at && new Date(record.stopped_at).toLocaleString()) ||
+                            "-"
+                        }
+                    />
+                    <FunctionField
                         label={t("eventsScreen.fields.scheduledDate")}
                         source="cron_config.scheduled_date"
                         render={(record: Sequent_Backend_Scheduled_Event) =>

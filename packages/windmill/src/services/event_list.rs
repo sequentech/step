@@ -99,6 +99,7 @@ pub async fn create_event_in_db(
         event_processor: event.event_processor,
         created_at: Some(chrono::Utc::now()),
         stopped_at: event.stopped_at,
+        archived_at: None,
         labels: event.labels,
         annotations: event.annotations,
         task_id: Some(format!(

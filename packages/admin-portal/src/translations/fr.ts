@@ -638,7 +638,7 @@ const frenchTranslation: TranslationType = {
             fields: {
                 electionId: "Élection",
                 eventProcessor: "Type",
-                stoppedAt: "Exécuté Le",
+                stoppedAt: "Arrêté Le",
                 scheduledDate: "Planifié Le",
             },
         },

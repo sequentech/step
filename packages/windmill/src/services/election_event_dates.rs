@@ -41,30 +41,33 @@ pub async fn manage_dates(
             scheduled_date: Some(date.to_string()),
         };
 
-        if let Some(old_scheduled_event) = old_scheduled_event_opt {
-            update_scheduled_event(
-                hasura_transaction,
-                tenant_id,
-                &old_scheduled_event.id,
-                cron_config,
-            )
-            .await
-            .map_err(|e| anyhow!("error updating scheduled event: {e:?}"))?;
-        } else {
-            let payload = ManageElectionDatePayload { election_id: None };
-            insert_scheduled_event(
-                hasura_transaction,
-                tenant_id,
-                election_event_id,
-                event_processor_val,
-                &task_id,
-                cron_config,
-                serde_json::to_value(payload)
-                    .map_err(|e| anyhow!("error deserializing payload: {e:?}"))?,
-            )
-            .await
-            .map_err(|e| anyhow!("error inserting scheduled event: {e:?}"))?;
-        }
+        match old_scheduled_event_opt {
+            Some(old_scheduled_event) if old_scheduled_event.archived_at.is_none() => {
+                update_scheduled_event(
+                    hasura_transaction,
+                    tenant_id,
+                    &old_scheduled_event.id,
+                    cron_config,
+                )
+                .await
+                .map_err(|e| anyhow!("error updating scheduled event: {e:?}"))?
+            }
+            _ => {
+                let payload = ManageElectionDatePayload { election_id: None };
+                insert_scheduled_event(
+                    hasura_transaction,
+                    tenant_id,
+                    election_event_id,
+                    event_processor_val,
+                    &task_id,
+                    cron_config,
+                    serde_json::to_value(payload)
+                        .map_err(|e| anyhow!("error deserializing payload: {e:?}"))?,
+                )
+                .await
+                .map_err(|e| anyhow!("error inserting scheduled event: {e:?}"))?;
+            }
+        };
     } else {
         // Archive previous task if the date is set to null and we found some
         // task

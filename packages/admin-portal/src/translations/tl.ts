@@ -636,7 +636,7 @@ const tagalogTranslation: TranslationType = {
             fields: {
                 electionId: "Halalan",
                 eventProcessor: "Uri",
-                stoppedAt: "Isinagawa Noong",
+                stoppedAt: "Huminto Noong",
                 scheduledDate: "Naka-schedule Noong",
             },
         },

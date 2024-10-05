@@ -631,7 +631,7 @@ const englishTranslation = {
             fields: {
                 electionId: "Election",
                 eventProcessor: "Type",
-                stoppedAt: "Executed At",
+                stoppedAt: "Stopped At",
                 scheduledDate: "Scheduled At",
             },
         },

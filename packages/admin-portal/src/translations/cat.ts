@@ -636,7 +636,7 @@ const catalanTranslation: TranslationType = {
             fields: {
                 electionId: "Elecció",
                 eventProcessor: "Tipus",
-                stoppedAt: "Executat A",
+                stoppedAt: "Aturat A",
                 scheduledDate: "Programat A",
             },
         },

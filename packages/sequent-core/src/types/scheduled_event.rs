@@ -42,6 +42,7 @@ pub struct ScheduledEvent {
     pub election_event_id: Option<String>,
     pub created_at: Option<DateTime<Utc>>,
     pub stopped_at: Option<DateTime<Utc>>,
+    pub archived_at: Option<DateTime<Utc>>,
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
     pub event_processor: Option<EventProcessors>,
