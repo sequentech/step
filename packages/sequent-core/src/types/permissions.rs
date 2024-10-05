@@ -52,11 +52,11 @@ pub enum Permissions {
     #[strum(serialize = "role-assign")]
     ROLE_ASSIGN,
     #[strum(serialize = "communication-template-create")]
-    COMMUNICATION_TEMPLATE_CREATE,
+    TEMPLATE_CREATE,
     #[strum(serialize = "communication-template-read")]
-    COMMUNICATION_TEMPLATE_READ,
+    TEMPLATE_READ,
     #[strum(serialize = "communication-template-write")]
-    COMMUNICATION_TEMPLATE_WRITE,
+    TEMPLATE_WRITE,
     #[strum(serialize = "notification-read")]
     NOTIFICATION_READ,
     #[strum(serialize = "notification-write")]
@@ -141,6 +141,8 @@ pub enum Permissions {
     MIRU_SIGN,
     #[strum(serialize = "service-account")]
     SERVICE_ACCOUNT,
+    #[strum(serialize = "scheduled-event-write")]
+    SCHEDULED_EVENT_WRITE,
 }
 
 #[allow(non_camel_case_types)]
