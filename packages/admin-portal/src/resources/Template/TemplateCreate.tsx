@@ -300,7 +300,10 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
                                                             </ElectionHeaderStyles.AccordionTitle>
                                                         </AccordionSummary>
                                                         <AccordionDetails>
-                                                            <EmailEditEditor sourceBodyHTML="template.document" />
+                                                            <EmailEditEditor
+                                                                sourceBodyHTML="template.document"
+                                                                sourceBodyPlainText="template.document"
+                                                            />
                                                         </AccordionDetails>
                                                     </Accordion>
                                                 )}
