@@ -684,7 +684,8 @@ final_json = {
     "contests": contests,  # Include the contest objects
     "candidates":candidates, # Include the candidate objects
     "areas": areas,  # Include the area objects
-    "area_contests": area_contests  # Include the area-contest relationships
+    "area_contests": area_contests,  # Include the area-contest relationships
+    "scheduled_events": []
 }
 
 # Step 14: Save final JSON to a file
