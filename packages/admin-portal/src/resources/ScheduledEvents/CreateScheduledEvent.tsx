@@ -93,7 +93,7 @@ const CreateEvent: FC<CreateEventProps> = ({
                 electionEventId: electionEventId,
                 electionId: electionId,
                 scheduledDate: scheduleDate,
-                isStart: eventType === EventProcessors.START_VOTING_PERIOD,
+                eventProcessor: eventType,
             }
             const {errors} = await manageElectionDates({
                 variables,

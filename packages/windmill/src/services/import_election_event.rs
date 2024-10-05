@@ -429,9 +429,8 @@ pub async fn maybe_create_scheduled_event(
     start_date: String,
     election_id: Option<&str>,
 ) -> Result<()> {
-    let is_start = event_processor == EventProcessors::START_VOTING_PERIOD;
     let start_task_id =
-        generate_manage_date_task_name(tenant_id, election_event_id, election_id, is_start);
+        generate_manage_date_task_name(tenant_id, election_event_id, election_id, &event_processor);
     let payload = ManageElectionDatePayload {
         election_id: match election_id {
             Some(id) => Some(id.to_string()),

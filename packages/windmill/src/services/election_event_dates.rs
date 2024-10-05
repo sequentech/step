@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use std::str::FromStr;
+
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::*;
 use anyhow::{anyhow, Result};
@@ -17,116 +19,60 @@ pub async fn manage_dates(
     tenant_id: &str,
     election_event_id: &str,
     scheduled_date: Option<&str>,
-    is_start: bool,
+    event_processor: &str,
 ) -> Result<()> {
-    let election_event =
-        get_election_event_by_id(hasura_transaction, tenant_id, election_event_id).await?;
+    let event_processor_val: EventProcessors = EventProcessors::from_str(&event_processor)
+        .map_err(|err| {
+            anyhow!("Error mapping {event_processor:?} into an EventProcessor: {err:?}")
+        })?;
 
-    let start_task_id = generate_manage_date_task_name(tenant_id, election_event_id, None, true);
-    let end_task_id = generate_manage_date_task_name(tenant_id, election_event_id, None, false);
-    let scheduled_manage_start_date_opt = find_scheduled_event_by_task_id(
-        hasura_transaction,
-        tenant_id,
-        election_event_id,
-        &start_task_id,
-    )
-    .await?;
-    let scheduled_manage_end_date_opt = find_scheduled_event_by_task_id(
-        hasura_transaction,
-        tenant_id,
-        election_event_id,
-        &end_task_id,
-    )
-    .await?;
-    if is_start {
-        match scheduled_date {
-            Some(date) => {
-                //TODO: check if date is smaller than now or bigger than end_date and return error
-                let cron_config = CronConfig {
-                    cron: None,
-                    scheduled_date: Some(date.to_string()),
-                };
+    let task_id =
+        generate_manage_date_task_name(tenant_id, election_event_id, None, &event_processor_val);
 
-                if let Some(scheduled_manage_start_date) = scheduled_manage_start_date_opt {
-                    update_scheduled_event(
-                        hasura_transaction,
-                        tenant_id,
-                        &scheduled_manage_start_date.id,
-                        cron_config,
-                    )
-                    .await?;
-                } else {
-                    let event_processor = EventProcessors::START_VOTING_PERIOD;
+    let old_scheduled_event_opt =
+        find_scheduled_event_by_task_id(hasura_transaction, tenant_id, election_event_id, &task_id)
+            .await
+            .map_err(|e| anyhow!("scheduled event by task id not found: {e:?}"))?;
 
-                    let payload = ManageElectionDatePayload { election_id: None };
-                    insert_scheduled_event(
-                        hasura_transaction,
-                        tenant_id,
-                        election_event_id,
-                        event_processor,
-                        &start_task_id,
-                        cron_config,
-                        serde_json::to_value(payload)?,
-                    )
-                    .await?;
-                }
-            }
-            None => {
-                //STOP PREVIOUS START TASK
-                if let Some(scheduled_manage_start_date) = scheduled_manage_start_date_opt {
-                    stop_scheduled_event(
-                        hasura_transaction,
-                        tenant_id,
-                        &scheduled_manage_start_date.id,
-                    )
-                    .await?;
-                }
-            }
+    // if there's an schedule date, we have to either insert or create this
+    if let Some(date) = scheduled_date {
+        let cron_config = CronConfig {
+            cron: None,
+            scheduled_date: Some(date.to_string()),
+        };
+
+        if let Some(old_scheduled_event) = old_scheduled_event_opt {
+            update_scheduled_event(
+                hasura_transaction,
+                tenant_id,
+                &old_scheduled_event.id,
+                cron_config,
+            )
+            .await
+            .map_err(|e| anyhow!("error updating scheduled event: {e:?}"))?;
+        } else {
+            let payload = ManageElectionDatePayload { election_id: None };
+            insert_scheduled_event(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                event_processor_val,
+                &task_id,
+                cron_config,
+                serde_json::to_value(payload)
+                    .map_err(|e| anyhow!("error deserializing payload: {e:?}"))?,
+            )
+            .await
+            .map_err(|e| anyhow!("error inserting scheduled event: {e:?}"))?;
         }
     } else {
-        match scheduled_date {
-            Some(date) => {
-                //TODO: check if date is smaller than now or bigger than end_date and return error;
-                let cron_config = CronConfig {
-                    cron: None,
-                    scheduled_date: Some(date.to_string()),
-                };
-                if let Some(scheduled_manage_end_date) = scheduled_manage_end_date_opt {
-                    update_scheduled_event(
-                        hasura_transaction,
-                        tenant_id,
-                        &scheduled_manage_end_date.id,
-                        cron_config,
-                    )
-                    .await?;
-                } else {
-                    let event_processor = EventProcessors::END_VOTING_PERIOD;
-
-                    let payload = ManageElectionDatePayload { election_id: None };
-                    insert_scheduled_event(
-                        hasura_transaction,
-                        tenant_id,
-                        election_event_id,
-                        event_processor,
-                        &end_task_id,
-                        cron_config,
-                        serde_json::to_value(payload)?,
-                    )
-                    .await?;
-                }
-            }
-            None => {
-                //STOP PREVIOUS END TASK
-                if let Some(scheduled_manage_end_date) = scheduled_manage_end_date_opt {
-                    stop_scheduled_event(
-                        hasura_transaction,
-                        tenant_id,
-                        &scheduled_manage_end_date.id,
-                    )
-                    .await?;
-                }
-            }
+        // Stop previous task if the date is set to null and we found some task
+        if let Some(old_scheduled_event) = old_scheduled_event_opt {
+            stop_scheduled_event(hasura_transaction, tenant_id, &old_scheduled_event.id)
+                .await
+                .map_err(|e| anyhow!("error deleting scheduled event: {e:?}"))?;
         }
     }
+
     Ok(())
 }

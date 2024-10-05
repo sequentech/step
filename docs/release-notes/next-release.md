@@ -51,7 +51,7 @@ default `-` value will be shown.
 
 It requires to add a couple of permissions In order use Election event "EVENTS" tab:
 1. Go to realm roles, select the admin role and click on "Create role"
-2. Add the following roles: `events-read` `events-create` `events-edit`
+2. Add the following roles: `scheduled-event-write`
 3. Then Go to "Groups" and choose `admin` group name
 4. Go to "role mapping" and click on `Assign role` and add those permissions
 

@@ -24,7 +24,13 @@ impl TryFrom<Row> for ScheduledEventWrapper {
     fn try_from(item: Row) -> Result<Self> {
         let event_processors_js: Option<String> = item.try_get("event_processor")?;
         let event_processors: Option<EventProcessors> =
-            event_processors_js.map(|val: String| EventProcessors::from_str(&val).unwrap());
+            if let Some(val) = event_processors_js {
+                Some(EventProcessors::from_str(&val).map_err(|err| {
+                    anyhow!("Error mapping {val:?} into an EventProcessor: {err:?}")
+                })?)
+            } else {
+                None
+            };
 
         let cron_config_js: Option<Value> = item
             .try_get("cron_config")
@@ -204,7 +210,8 @@ pub async fn stop_scheduled_event(
             UPDATE
                 "sequent_backend".scheduled_event
             SET
-                stopped_at = NOW()
+                stopped_at = NOW(),
+                archived_at = NOW()
             WHERE
                 tenant_id = $1
                 AND id = $2
@@ -363,7 +370,7 @@ pub async fn find_scheduled_event_by_election_event_id(
             WHERE
                 tenant_id = $1
                 AND election_event_id = $2
-                AND stopped_at IS NULL
+                AND archived_at IS NULL
             "#,
         )
         .await

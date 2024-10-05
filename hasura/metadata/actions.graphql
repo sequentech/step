@@ -356,7 +356,7 @@ type Mutation {
     election_event_id: String!
     election_id: String
     scheduled_date: String
-    is_start: Boolean
+    event_processor: String!
   ): ManageElectionDatesOutput
 }
 

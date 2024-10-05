@@ -10,6 +10,7 @@ use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
+use sequent_core::types::scheduled_event::EventProcessors;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use windmill::services::database::get_hasura_pool;
@@ -20,7 +21,7 @@ pub struct ManageElectionDatesBody {
     election_event_id: String,
     election_id: Option<String>,
     scheduled_date: Option<String>,
-    is_start: bool, // TODO USE ENUM
+    event_processor: EventProcessors,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -47,6 +48,16 @@ pub async fn manage_election_dates(
     })?;
     let input = body.into_inner();
 
+    if input.event_processor == EventProcessors::CREATE_REPORT
+        || input.event_processor == EventProcessors::SEND_TEMPLATE
+    {
+        return Err(ErrorResponse::new(
+            Status::BadRequest,
+            &format!("Invalid event_processors: {:?}", input.event_processor),
+            ErrorCode::InvalidEventProcessor,
+        ));
+    }
+
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|e| {
             ErrorResponse::new(
@@ -72,7 +83,7 @@ pub async fn manage_election_dates(
                 &input.election_event_id,
                 &id,
                 input.scheduled_date.as_deref(),
-                input.is_start,
+                input.event_processor.to_string().as_str(),
             )
             .await
             .map_err(|e| {
@@ -89,7 +100,7 @@ pub async fn manage_election_dates(
                 &claims.hasura_claims.tenant_id,
                 &input.election_event_id,
                 input.scheduled_date.as_deref(),
-                input.is_start,
+                input.event_processor.to_string().as_str(),
             )
             .await
             .map_err(|e| {

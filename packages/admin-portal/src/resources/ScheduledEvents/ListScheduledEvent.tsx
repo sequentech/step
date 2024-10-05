@@ -145,15 +145,16 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
             let payload = scheduledEventToDelete.event_payload as
                 | IManageElectionDatePayload
                 | undefined
-            if (scheduledEventToDelete.election_event_id) {
+            if (
+                scheduledEventToDelete.election_event_id &&
+                scheduledEventToDelete.event_processor
+            ) {
                 try {
                     let variables: ManageElectionDatesMutationVariables = {
                         electionEventId: scheduledEventToDelete.election_event_id,
                         electionId: payload?.election_id,
-                        scheduledDate: undefined,
-                        isStart:
-                            scheduledEventToDelete.event_processor ===
-                            EventProcessors.START_VOTING_PERIOD,
+                        scheduledDate: undefined, // to archive, set date to undefined
+                        eventProcessor: scheduledEventToDelete.event_processor,
                     }
                     const {errors} = await manageElectionDates({
                         variables,
@@ -220,7 +221,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                 filter={{
                     election_event_id: electionEventId || undefined,
                     tenant_id: tenantId,
-                    stopped_at: {
+                    archived_at: {
                         format: "hasura-raw-query",
                         value: {_is_null: true},
                     },

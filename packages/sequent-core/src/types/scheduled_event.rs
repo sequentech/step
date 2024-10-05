@@ -54,7 +54,7 @@ pub fn generate_manage_date_task_name(
     tenant_id: &str,
     election_event_id: &str,
     election_id: Option<&str>,
-    is_start: bool,
+    event_processor: &EventProcessors,
 ) -> String {
     let base = format!("tenant_{}_event_{}_", tenant_id, election_event_id,);
 
@@ -63,11 +63,7 @@ pub fn generate_manage_date_task_name(
         None => base,
     };
 
-    format!(
-        "{}{}",
-        base_with_election,
-        if is_start { "start" } else { "end" },
-    )
+    format!("{}{}", base_with_election, event_processor,)
 }
 
 pub fn generate_voting_period_dates(
@@ -80,7 +76,7 @@ pub fn generate_voting_period_dates(
         tenant_id,
         election_event_id,
         election_id,
-        true,
+        &EventProcessors::START_VOTING_PERIOD,
     );
     let payload = ManageElectionDatePayload {
         election_id: election_id.map(|s| s.to_string()),
@@ -102,7 +98,7 @@ pub fn generate_voting_period_dates(
         tenant_id,
         election_event_id,
         election_id,
-        false,
+        &EventProcessors::END_VOTING_PERIOD,
     );
     let end_date = scheduled_events.into_iter().find(|scheduled_event| {
         scheduled_event.tenant_id == Some(tenant_id.to_string())
