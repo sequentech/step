@@ -128,6 +128,7 @@ pub async fn find_scheduled_event_by_id(
                 AND (election_event_id = $2 OR $2 IS NULL)
                 AND id = $3
                 AND stopped_at IS NULL
+                AND archived_at IS NULL
             "#,
         )
         .await?;
@@ -171,6 +172,7 @@ pub async fn find_scheduled_event_by_task_id(
                 AND election_event_id = $2
                 AND task_id = $3
                 AND stopped_at IS NULL
+                AND archived_at IS NULL
             "#,
         )
         .await
