@@ -32,15 +32,10 @@ import {useTranslation} from "react-i18next"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {CREATE_SCHEDULED_EVENT} from "@/queries/CreateScheduledEvent"
-import {CreateScheduledEventMutation, Sequent_Backend_Communication_Template} from "@/gql/graphql"
+import {CreateScheduledEventMutation, Sequent_Backend_Template} from "@/gql/graphql"
 import {ScheduledEventType} from "@/services/ScheduledEvent"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {
-    ICommunicationMethod,
-    ICommunicationType,
-    IEmail,
-    ISendCommunicationBody,
-} from "@/types/communications"
+import {ITemplateMethod, ITemplateType, IEmail, ISendTemplateBody} from "@/types/templates"
 import {useLocation} from "react-router"
 
 export enum AudienceSelection {
@@ -50,11 +45,11 @@ export enum AudienceSelection {
     SELECTED = "SELECTED",
 }
 
-interface ICommunicationPayload {
+interface ITemplatePayload {
     audience_selection: AudienceSelection
     audience_voter_ids?: Array<Identifier>
-    communication_type: ICommunicationType
-    communication_method: ICommunicationMethod
+    type: ITemplateType
+    communication_method: ITemplateMethod
     schedule_now: boolean
     schedule_date?: Date
     email?: {
@@ -67,13 +62,13 @@ interface ICommunicationPayload {
     }
 }
 
-interface ICommunication {
+interface ITemplate {
     audience: {
         selection: AudienceSelection
         voter_ids?: Array<Identifier> | undefined
     }
-    communication_type: ICommunicationType
-    communication_method: ICommunicationMethod
+    type: ITemplateType
+    communication_method: ITemplateMethod
     alias?: string
     schedule: {
         now: boolean
@@ -97,14 +92,14 @@ interface ICommunication {
     }
 }
 
-interface SendCommunicationProps {
+interface SendTemplateProps {
     ids?: Array<Identifier>
     audienceSelection?: AudienceSelection
     electionEventId?: string
     close?: () => void
 }
 
-export const SendCommunication: React.FC<SendCommunicationProps> = ({
+export const SendTemplate: React.FC<SendTemplateProps> = ({
     ids,
     audienceSelection,
     close,
@@ -120,13 +115,13 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
     const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
     const [showProgress, setShowProgress] = useState(false)
 
-    const [communication, setCommunication] = useState<ICommunication>({
+    const [template, setTemplate] = useState<ITemplate>({
         audience: {
             selection: audienceSelection ?? AudienceSelection.SELECTED,
             voter_ids: ids ?? undefined,
         },
-        communication_type: ICommunicationType.BALLOT_RECEIPT,
-        communication_method: ICommunicationMethod.EMAIL,
+        type: ITemplateType.BALLOT_RECEIPT,
+        communication_method: ITemplateMethod.EMAIL,
         schedule: {
             now: true,
             date: undefined,
@@ -149,13 +144,11 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
         },
     })
 
-    const getPayload: (formData: ICommunication) => ICommunicationPayload = (
-        formData: ICommunication
-    ) => {
+    const getPayload: (formData: ITemplate) => ITemplatePayload = (formData: ITemplate) => {
         return {
             audience_selection: formData.audience.selection,
             audience_voter_ids: formData.audience.voter_ids,
-            communication_type: formData.communication_type,
+            type: formData.type,
             communication_method: formData.communication_method,
             schedule_now: formData.schedule.now,
             schedule_date: formData.schedule.date,
@@ -164,7 +157,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
         }
     }
 
-    const onSubmit: SubmitHandler<any> = async (formData: ICommunication) => {
+    const onSubmit: SubmitHandler<any> = async (formData: ITemplate) => {
         setErrors(null)
         setShowProgress(true)
         try {
@@ -172,7 +165,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                 variables: {
                     tenantId: tenantId,
                     electionEventId: electionEventId,
-                    eventProcessor: ScheduledEventType.SEND_COMMUNICATION,
+                    eventProcessor: ScheduledEventType.SEND_TEMPLATE,
                     cronConfig: undefined,
                     eventPayload: getPayload(formData),
                 },
@@ -193,38 +186,36 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
 
     const handleNowChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const {checked} = e.target
-        var newCommunication = {...communication}
-        newCommunication.schedule.now = checked
-        setCommunication(newCommunication)
+        var newTemplate = {...template}
+        newTemplate.schedule.now = checked
+        setTemplate(newTemplate)
     }
     const handleSmsChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const {value} = e.target
-        var newCommunication = {...communication}
-        newCommunication.i18n["en"].sms = {message: value}
-        setCommunication(newCommunication)
+        var newTemplate = {...template}
+        newTemplate.i18n["en"].sms = {message: value}
+        setTemplate(newTemplate)
     }
 
     const handleSelectChange = async (e: any) => {
         const {value} = e.target
-        var newCommunication = {...communication}
-        newCommunication.audience.selection = value
-        setCommunication(newCommunication)
+        var newTemplate = {...template}
+        newTemplate.audience.selection = value
+        setTemplate(newTemplate)
     }
 
     const handleSelectMethodChange = async (e: any) => {
         const {value} = e.target
-        var newCommunication = {...communication}
-        newCommunication.communication_method = value
-        setCommunication(newCommunication)
+        var newTemplate = {...template}
+        newTemplate.communication_method = value
+        setTemplate(newTemplate)
 
         setSelectedMethod(value)
 
         // filter receipts by communication method
         const selectedReceipts = receipts
             ?.filter(
-                (receipt) =>
-                    receipt.communication_method === value &&
-                    receipt.communication_type === selectedType
+                (receipt) => receipt.communication_method === value && receipt.type === selectedType
             )
             .map((receipt) => receipt.template)
 
@@ -233,9 +224,9 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
 
     const handleSelectTypeChange = async (e: any) => {
         const {value} = e.target
-        var newCommunication = {...communication}
-        newCommunication.communication_type = value
-        setCommunication(newCommunication)
+        var newTemplate = {...template}
+        newTemplate.type = value
+        setTemplate(newTemplate)
 
         setSelectedType(value)
 
@@ -243,8 +234,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
         const selectedReceipts = receipts
             ?.filter(
                 (receipt) =>
-                    receipt.communication_type === value &&
-                    receipt.communication_method === selectedMethod
+                    receipt.type === value && receipt.communication_method === selectedMethod
             )
             .map((receipt) => receipt.template)
 
@@ -255,14 +245,14 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
         console.log("handleSelectAliasChange", e.target.value)
 
         const {value} = e.target
-        var newCommunication = {...communication}
-        newCommunication.alias = value
-        console.log("handleSelectAliasChange newCommunication", newCommunication)
-        setCommunication(newCommunication)
+        var newTemplate = {...template}
+        newTemplate.alias = value
+        console.log("handleSelectAliasChange newTemplate", newTemplate)
+        setTemplate(newTemplate)
 
         const selectedReceipt = receipts?.filter(
             (receipt) =>
-                receipt.communication_type === selectedType &&
+                receipt.type === selectedType &&
                 receipt.communication_method === selectedMethod &&
                 receipt.template.alias === value
         )
@@ -272,7 +262,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                 "selectedReceipt",
                 selectedReceipt[0]["template"][selectedMethod.toLowerCase()]
             )
-            if (selectedMethod === ICommunicationMethod.EMAIL) {
+            if (selectedMethod === ITemplateMethod.EMAIL) {
                 let newEmail = selectedReceipt[0]["template"][
                     selectedMethod.toLowerCase()
                 ] as IEmail
@@ -280,79 +270,71 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
             } else {
                 let newSms = selectedReceipt[0]["template"][selectedMethod.toLowerCase()]
                     .message as string
-                let newSMSCommunication = {...newCommunication}
+                let newSMSCommunication = {...newTemplate}
                 let a = newSMSCommunication.i18n?.["en"]
                 if (a?.sms?.message) {
                     a.sms.message = newSms
                 }
-                setCommunication(newSMSCommunication)
+                setTemplate(newSMSCommunication)
             }
         }
     }
 
     useEffect(() => {
-        console.log("handleSelectAliasChange communication", communication)
-    }, [communication])
+        console.log("handleSelectAliasChange communication", template)
+    }, [template])
 
     const setEmail = async (newEmail: any, alias = "") => {
-        var newCommunication = {...communication, alias}
-        newCommunication.i18n["en"].email = newEmail
-        setCommunication(newCommunication)
+        var newTemplate = {...template, alias}
+        newTemplate.i18n["en"].email = newEmail
+        setTemplate(newTemplate)
     }
 
     const handleLangChange = (lang: string) => async (e: React.ChangeEvent<HTMLInputElement>) => {
         const {checked} = e.target
-        var newCommunication = {...communication}
+        var newTemplate = {...template}
         if (checked) {
             // Add the language if it's not already in the array
-            if (!newCommunication.language_conf.enabled_languages.includes(lang)) {
-                newCommunication.language_conf.enabled_languages.push(lang)
+            if (!newTemplate.language_conf.enabled_languages.includes(lang)) {
+                newTemplate.language_conf.enabled_languages.push(lang)
             }
         } else {
             // Remove the language if it's in the array
-            newCommunication.language_conf.enabled_languages =
-                newCommunication.language_conf.enabled_languages.filter((l) => l !== lang)
+            newTemplate.language_conf.enabled_languages =
+                newTemplate.language_conf.enabled_languages.filter((l) => l !== lang)
         }
-        setCommunication(newCommunication)
+        setTemplate(newTemplate)
     }
 
     const validateDate = (value: any) => {
-        if (!communication.schedule.now && !value) {
+        if (!template.schedule.now && !value) {
             return t("sendCommunication.chooseDate")
         }
     }
 
     // communication templates
 
-    const [selectedMethod, setSelectedMethod] = useState<ICommunicationMethod>(
-        ICommunicationMethod.EMAIL
-    )
-    const [selectedType, setSelectedType] = useState<ICommunicationType>(
-        ICommunicationType.BALLOT_RECEIPT
-    )
-    const [selectedList, setSelectedList] = useState<ISendCommunicationBody[] | null>(null)
+    const [selectedMethod, setSelectedMethod] = useState<ITemplateMethod>(ITemplateMethod.EMAIL)
+    const [selectedType, setSelectedType] = useState<ITemplateType>(ITemplateType.BALLOT_RECEIPT)
+    const [selectedList, setSelectedList] = useState<ISendTemplateBody[] | null>(null)
     /*const [selectedReceipt, setSelectedReceipt] = useState<IEmail | string>({
         subject: "",
         plaintext_body: "",
         html_body: "",
     })*/
 
-    const {data: receipts} = useGetList<Sequent_Backend_Communication_Template>(
-        "sequent_backend_communication_template",
-        {
-            filter: {
-                tenant_id: tenantId,
-            },
-        }
-    )
+    const {data: receipts} = useGetList<Sequent_Backend_Template>("sequent_backend_template", {
+        filter: {
+            tenant_id: tenantId,
+        },
+    })
 
     useEffect(() => {
         // filter receipts by communication method and sert email by default
         const selectedReceipts = receipts
             ?.filter(
                 (receipt) =>
-                    receipt.communication_type === selectedType &&
-                    receipt.communication_method === selectedMethod
+                    receipt.type === selectedType && receipt.communication_method === selectedMethod
             )
             .map((receipt) => receipt.template)
 
@@ -392,7 +374,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                         />
                     </Toolbar>
                 }
-                record={communication}
+                record={template}
                 onSubmit={onSubmit}
                 sanitizeEmptyValues
             >
@@ -415,14 +397,14 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                     <AccordionDetails>
                         <FormStyles.Select
                             name="audience.selection"
-                            value={communication.audience.selection}
+                            value={template.audience.selection}
                             onChange={handleSelectChange}
                         >
                             {(Object.keys(AudienceSelection) as Array<AudienceSelection>).map(
                                 (key) => (
                                     <MenuItem key={key} value={key}>
                                         {t(`sendCommunication.votersSelection.${key}`, {
-                                            total: communication.audience.voter_ids?.length ?? 0,
+                                            total: template.audience.voter_ids?.length ?? 0,
                                             voters: location.pathname.includes("user")
                                                 ? t("sendCommunication.path.users")
                                                 : t("sendCommunication.path.voters"),
@@ -451,14 +433,14 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                             label={t("sendCommunication.nowInput")}
                             control={
                                 <Switch
-                                    checked={communication.schedule.now}
+                                    checked={template.schedule.now}
                                     onChange={handleNowChange}
                                 />
                             }
                         />
                         <DateTimeInput
                             validate={validateDate}
-                            disabled={communication.schedule.now}
+                            disabled={template.schedule.now}
                             source="schedule.date"
                             label={t("sendCommunication.dateInput")}
                             parse={(value) => new Date(value).toISOString()}
@@ -503,11 +485,11 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                         </Typography>{" "}
                         <FormStyles.Select
                             name="voters.selection"
-                            value={communication.communication_method}
+                            value={template.communication_method}
                             onChange={handleSelectMethodChange}
                         >
-                            {Object.values(ICommunicationMethod)
-                                .filter((method) => method !== ICommunicationMethod.DOCUMENT)
+                            {Object.values(ITemplateMethod)
+                                .filter((method) => method !== ITemplateMethod.DOCUMENT)
                                 .map((key) => (
                                     <MenuItem key={key} value={key}>
                                         {t(`sendCommunication.communicationMethod.${key}`)}
@@ -519,45 +501,45 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                         </Typography>{" "}
                         <FormStyles.Select
                             name="voters.selection"
-                            value={communication.communication_type}
+                            value={template.type}
                             onChange={handleSelectTypeChange}
                         >
-                            {Object.values(ICommunicationType).map((key) => (
-                                <MenuItem key={key} value={key}>
-                                    {t(`sendCommunication.communicationType.${key}`)}
-                                </MenuItem>
-                            ))}
+                            {Object.values(ITemplateType)
+                                .filter((type) => type !== ITemplateType.MANUALLY_VERIFY_VOTER)
+                                .map((key) => (
+                                    <MenuItem key={key} value={key}>
+                                        {t(`sendCommunication.communicationType.${key}`)}
+                                    </MenuItem>
+                                ))}
                         </FormStyles.Select>
                         <Typography variant="body2" sx={{margin: "0"}}>
                             {t("sendCommunication.alias")}
                         </Typography>
                         <FormStyles.Select
                             name="alias"
-                            value={communication.alias || ""}
+                            value={template.alias || ""}
                             onChange={handleSelectAliasChange}
                         >
                             {selectedList
-                                ? selectedList?.map(
-                                      (key: ISendCommunicationBody, index: number) => (
-                                          <MenuItem key={index} value={key.alias}>
-                                              {key.alias}
-                                          </MenuItem>
-                                      )
-                                  )
+                                ? selectedList?.map((key: ISendTemplateBody, index: number) => (
+                                      <MenuItem key={index} value={key.alias}>
+                                          {key.alias}
+                                      </MenuItem>
+                                  ))
                                 : null}
                         </FormStyles.Select>
-                        {communication.communication_method === ICommunicationMethod.EMAIL &&
-                            communication.i18n["en"].email && (
+                        {template.communication_method === ITemplateMethod.EMAIL &&
+                            template.i18n["en"].email && (
                                 <EmailEditor
-                                    record={communication.i18n["en"].email}
+                                    record={template.i18n["en"].email}
                                     setRecord={setEmail}
                                 />
                             )}
-                        {communication.communication_method === ICommunicationMethod.SMS && (
+                        {template.communication_method === ITemplateMethod.SMS && (
                             <FormStyles.TextField
                                 name="sms"
                                 label={t("sendCommunication.smsMessage")}
-                                value={communication.i18n["en"].sms?.message ?? ""}
+                                value={template.i18n["en"].sms?.message ?? ""}
                                 onChange={handleSmsChange}
                                 multiline={true}
                                 minRows={4}

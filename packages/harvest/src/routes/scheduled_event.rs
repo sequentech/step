@@ -7,7 +7,7 @@ use crate::services::authorization::authorize;
 use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
-use windmill::types::scheduled_event::*;
+use sequent_core::types::scheduled_event::*;
 
 use anyhow::Result;
 use rocket::http::Status;
@@ -41,7 +41,7 @@ pub async fn create_scheduled_event(
 ) -> Result<Json<CreateEventOutput>, (Status, String)> {
     let input = body.into_inner();
     match input.event_processor.clone() {
-        EventProcessors::SEND_COMMUNICATION => {
+        EventProcessors::SEND_TEMPLATE => {
             authorize(
                 &claims,
                 true,

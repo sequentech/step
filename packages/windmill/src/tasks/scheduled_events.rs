@@ -3,26 +3,24 @@ use crate::hasura::scheduled_event;
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::scheduled_event::find_all_active_events;
-use crate::postgres::scheduled_event::PostgresScheduledEvent;
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::get_hasura_pool;
 use crate::services::date::ISO8601;
 use crate::tasks::manage_election_dates::manage_election_date;
 use crate::tasks::manage_election_event_date::manage_election_event_date;
-use crate::tasks::manage_election_event_date::ManageElectionDatePayload;
 use crate::types::error::Result;
-use crate::types::scheduled_event::EventProcessors;
 use anyhow::anyhow;
 use celery::error::TaskError;
 use chrono::prelude::*;
 use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
+use sequent_core::types::scheduled_event::*;
 use tracing::instrument;
 use tracing::{event, info, Level};
 
 #[instrument]
-pub fn get_datetime(event: &PostgresScheduledEvent) -> Option<DateTime<Local>> {
+pub fn get_datetime(event: &ScheduledEvent) -> Option<DateTime<Local>> {
     let Some(cron_config) = event.cron_config.clone() else {
         return None;
     };
@@ -62,8 +60,8 @@ pub async fn scheduled_events() -> Result<()> {
         let Some(event_processor) = scheduled_event.event_processor.clone() else {
             continue;
         };
-        if EventProcessors::START_ELECTION == event_processor
-            || EventProcessors::END_ELECTION == event_processor
+        if EventProcessors::START_VOTING_PERIOD == event_processor
+            || EventProcessors::END_VOTING_PERIOD == event_processor
         {
             let Some(datetime) = get_datetime(scheduled_event) else {
                 continue;
@@ -79,7 +77,7 @@ pub async fn scheduled_events() -> Result<()> {
                 return Ok(());
             };
             let payload: ManageElectionDatePayload = deserialize_value(event_payload)?;
-            // create the public keys in async task
+            // run the actual task in a different async task
             match payload.election_id.clone() {
                 Some(election_id) => {
                     let task = celery_app
