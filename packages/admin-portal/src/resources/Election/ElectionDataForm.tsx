@@ -279,8 +279,6 @@ export const ElectionDataForm: React.FC = () => {
                 temp.voting_channels = {...temp.voting_channels, ...enabled_item}
             }
 
-            //permission labels
-
             // name, alias and description fields
             if (!temp.presentation) {
                 temp.presentation = {}
