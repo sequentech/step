@@ -605,6 +605,9 @@ const tagalogTranslation: TranslationType = {
             body: "I-enable ang mga wika sa sistema. Tanging ang mga wikang pinagana dito ang magagamait para sa mga kaganapan ng halalan.",
         },
         eventsScreen: {
+            title: "Naka-schedule na Kaganapan",
+            subtitle:
+                "Pinamamahalaan ang configuration ng awtomatikong pagpapatupad ng mga kaganapan tulad ng pagsisimula o pagtatapos ng panahon ng pagboto.",
             messages: {
                 createSuccess: "Matagumpay na nalikha ang Naka-schedule na Kaganapan",
                 createError: "Error sa paglikha ng Naka-schedule na Kaganapan",

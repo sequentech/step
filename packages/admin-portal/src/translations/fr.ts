@@ -607,6 +607,9 @@ const frenchTranslation: TranslationType = {
             body: "Activez les langues dans le système. Seules les langues activées ici seront disponibles pour les événements électoraux.",
         },
         eventsScreen: {
+            title: "Événements Planifiés",
+            subtitle:
+                "Gère la configuration de l'exécution automatique des événements tels que le début ou la fin de la période de vote.",
             messages: {
                 createSuccess: "Événement Planifié créé avec succès",
                 createError: "Erreur lors de la création de l'Événement Planifié",

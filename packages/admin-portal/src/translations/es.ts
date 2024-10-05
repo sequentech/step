@@ -604,6 +604,9 @@ const spanishTranslation: TranslationType = {
             body: "Active los idiomas en el sistema. Solo los idiomas activados aquí estarán disponibles para eventos electorales.",
         },
         eventsScreen: {
+            title: "Eventos Programados",
+            subtitle:
+                "Gestiona la configuración de la ejecución automática de eventos como el inicio o fin del período de votación.",
             messages: {
                 createSuccess: "Evento Programado creado con éxito",
                 createError: "Error al crear el Evento Programado",

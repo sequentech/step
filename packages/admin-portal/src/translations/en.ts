@@ -600,6 +600,9 @@ const englishTranslation = {
             body: "Enable languages in the system. Only languages enabled here will be available for election events.",
         },
         eventsScreen: {
+            title: "Scheduled Events",
+            subtitle:
+                "Manages the configuration of the automatic execution of events like the start or end of the voting period.",
             messages: {
                 createSuccess: "Scheduled Event created successfully",
                 createError: "Error creating Scheduled Event",

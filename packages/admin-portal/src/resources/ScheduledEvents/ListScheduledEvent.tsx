@@ -38,6 +38,8 @@ import {useMutation} from "@apollo/client"
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {ICronConfig, IManageElectionDatePayload} from "@/types/scheduledEvents"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import ElectionHeader from "@/components/ElectionHeader"
+import {SidebarScreenStyles} from "@/components/styles/SidebarScreenStyles"
 
 export const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -216,6 +218,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
     )
     return (
         <>
+            <ElectionHeader title={t("eventsScreen.title")} subtitle="eventsScreen.subtitle" />
             <List
                 resource="sequent_backend_scheduled_event"
                 filter={{

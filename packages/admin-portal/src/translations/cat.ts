@@ -605,6 +605,9 @@ const catalanTranslation: TranslationType = {
             body: "Activeu els idiomes al sistema. Només els idiomes activats aquí estaran disponibles per a esdeveniments electorals.",
         },
         eventsScreen: {
+            title: "Esdeveniments Programats",
+            subtitle:
+                "Gestiona la configuració de l'execució automàtica d'esdeveniments com l'inici o el final del període de votació.",
             messages: {
                 createSuccess: "Esdeveniment Programat creat amb èxit",
                 createError: "Error en crear l'Esdeveniment Programat",
