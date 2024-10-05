@@ -583,6 +583,7 @@ def gen_tree(excel_data, results):
     for election in test_elections:
         election["name"] = "Test Voting"
         election["alias"] = "Test Voting"
+        election["scheduled_events"] = []
 
     elections_object["elections"].extend(test_elections)
 
@@ -626,6 +627,7 @@ def replace_placeholder_database(election_tree, areas_dict, election_event_id, k
                 "election_id": election_context["UUID"],
                 "election_alias": scheduled_event["election_alias"],
                 "event_processor": scheduled_event["type"],
+                "scheduled_date": scheduled_event["date"],
                 "current_timestamp": current_timestamp
             }
             print(f"rendering scheduled event {scheduled_event_context['election_alias']} {scheduled_event_context['event_processor']}")
