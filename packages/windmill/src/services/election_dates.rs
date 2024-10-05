@@ -85,11 +85,12 @@ pub async fn manage_dates(
             .map_err(|e| anyhow!("error inserting scheduled event: {e:?}"))?;
         }
     } else {
-        // Stop previous task if the date is set to null and we found some task
+        // Archive previous task if the date is set to null and we found some
+        // task
         if let Some(old_scheduled_event) = old_scheduled_event_opt {
-            stop_scheduled_event(hasura_transaction, tenant_id, &old_scheduled_event.id)
+            archive_scheduled_event(hasura_transaction, tenant_id, &old_scheduled_event.id)
                 .await
-                .map_err(|e| anyhow!("error deleting scheduled event: {e:?}"))?;
+                .map_err(|e| anyhow!("error archiving scheduled event: {e:?}"))?;
         }
     }
 

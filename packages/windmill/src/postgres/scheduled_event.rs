@@ -212,6 +212,40 @@ pub async fn stop_scheduled_event(
             UPDATE
                 "sequent_backend".scheduled_event
             SET
+                stopped_at = NOW()
+            WHERE
+                tenant_id = $1
+                AND id = $2
+                AND stopped_at IS NULL
+            "#,
+        )
+        .await?;
+
+    let _rows: Vec<Row> = hasura_transaction
+        .query(&statement, &[&tenant_uuid, &id_uuid])
+        .await
+        .map_err(|err| anyhow!("Error running the stop_scheduled_event query: {err}"))?;
+
+    Ok(())
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn archive_scheduled_event(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    id: &str,
+) -> Result<()> {
+    let tenant_uuid: uuid::Uuid =
+        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let id_uuid: uuid::Uuid =
+        Uuid::parse_str(id).with_context(|| "Error parsing election_event_id as UUID")?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            UPDATE
+                "sequent_backend".scheduled_event
+            SET
                 stopped_at = NOW(),
                 archived_at = NOW()
             WHERE
@@ -225,7 +259,7 @@ pub async fn stop_scheduled_event(
     let _rows: Vec<Row> = hasura_transaction
         .query(&statement, &[&tenant_uuid, &id_uuid])
         .await
-        .map_err(|err| anyhow!("Error running the stop_scheduled_event query: {err}"))?;
+        .map_err(|err| anyhow!("Error running the archive_scheduled_event query: {err}"))?;
 
     Ok(())
 }
