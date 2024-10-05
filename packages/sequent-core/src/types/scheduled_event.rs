@@ -1,0 +1,121 @@
+// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+#![allow(non_camel_case_types)]
+
+use anyhow::Result;
+use chrono::DateTime;
+use chrono::Utc;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use strum_macros::Display;
+use strum_macros::EnumString;
+
+use crate::ballot::VotingPeriodDates;
+
+#[derive(
+    Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
+)]
+pub enum EventProcessors {
+    CREATE_REPORT,
+    SEND_TEMPLATE,
+    START_VOTING_PERIOD,
+    END_VOTING_PERIOD,
+}
+
+#[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Clone)]
+pub struct CronConfig {
+    pub cron: Option<String>,
+    pub scheduled_date: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ManageElectionDatePayload {
+    pub election_id: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct ScheduledEvent {
+    pub id: String,
+    pub tenant_id: Option<String>,
+    pub election_event_id: Option<String>,
+    pub created_at: Option<DateTime<Utc>>,
+    pub stopped_at: Option<DateTime<Utc>>,
+    pub archived_at: Option<DateTime<Utc>>,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+    pub event_processor: Option<EventProcessors>,
+    pub cron_config: Option<CronConfig>,
+    pub event_payload: Option<Value>,
+    pub task_id: Option<String>,
+}
+
+pub fn generate_manage_date_task_name(
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: Option<&str>,
+    event_processor: &EventProcessors,
+) -> String {
+    let base = format!("tenant_{}_event_{}_", tenant_id, election_event_id,);
+
+    let base_with_election = match election_id {
+        Some(id) => format!("{}election_{}_", base, id),
+        None => base,
+    };
+
+    format!("{}{}", base_with_election, event_processor,)
+}
+
+pub fn generate_voting_period_dates(
+    scheduled_events: Vec<ScheduledEvent>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: Option<&str>,
+) -> Result<VotingPeriodDates> {
+    let start_date_name = generate_manage_date_task_name(
+        tenant_id,
+        election_event_id,
+        election_id,
+        &EventProcessors::START_VOTING_PERIOD,
+    );
+    let payload = ManageElectionDatePayload {
+        election_id: election_id.map(|s| s.to_string()),
+    };
+    let payload_val = serde_json::to_value(&payload)?;
+    let start_date =
+        scheduled_events
+            .clone()
+            .into_iter()
+            .find(|scheduled_event| {
+                scheduled_event.tenant_id == Some(tenant_id.to_string())
+                    && scheduled_event.election_event_id
+                        == Some(election_event_id.to_string())
+                    && scheduled_event.task_id == Some(start_date_name.clone())
+                    && scheduled_event.event_payload
+                        == Some(payload_val.clone())
+            });
+    let end_date_name = generate_manage_date_task_name(
+        tenant_id,
+        election_event_id,
+        election_id,
+        &EventProcessors::END_VOTING_PERIOD,
+    );
+    let end_date = scheduled_events.into_iter().find(|scheduled_event| {
+        scheduled_event.tenant_id == Some(tenant_id.to_string())
+            && scheduled_event.election_event_id
+                == Some(election_event_id.to_string())
+            && scheduled_event.task_id == Some(end_date_name.clone())
+            && scheduled_event.event_payload == Some(payload_val.clone())
+    });
+    Ok(VotingPeriodDates {
+        start_date: start_date
+            .map(|val| val.cron_config.map(|val| val.scheduled_date))
+            .flatten()
+            .flatten(),
+        end_date: end_date
+            .map(|val| val.cron_config.map(|val| val.scheduled_date))
+            .flatten()
+            .flatten(),
+    })
+}

@@ -29,6 +29,7 @@ pub enum ErrorCode {
     PokValidationFailed,
     UuidParseFailed,
     UnknownError,
+    InvalidEventProcessor,
     // Add any other needed error codes
 }
 

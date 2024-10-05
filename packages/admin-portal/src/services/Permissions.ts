@@ -54,15 +54,15 @@ const AdminOperationMap: Record<string, IPermissions> = {
     // cast_vote
     sequent_backend_cast_vote: IPermissions.CAST_VOTE_READ,
     sequent_backend_cast_votes: IPermissions.CAST_VOTE_READ,
-    // communication_template
-    sequent_backend_communication_template: IPermissions.COMMUNICATION_TEMPLATE_READ,
-    sequent_backend_communication_templates: IPermissions.COMMUNICATION_TEMPLATE_READ,
-    insert_sequent_backend_communication_template: IPermissions.COMMUNICATION_TEMPLATE_WRITE,
-    insert_sequent_backend_communication_templates: IPermissions.COMMUNICATION_TEMPLATE_WRITE,
-    update_sequent_backend_communication_template: IPermissions.COMMUNICATION_TEMPLATE_WRITE,
-    update_sequent_backend_communication_templates: IPermissions.COMMUNICATION_TEMPLATE_WRITE,
-    delete_sequent_backend_communication_template: IPermissions.COMMUNICATION_TEMPLATE_WRITE,
-    delete_sequent_backend_communication_templates: IPermissions.COMMUNICATION_TEMPLATE_WRITE,
+    // template
+    sequent_backend_template: IPermissions.template_READ,
+    sequent_backend_templates: IPermissions.template_READ,
+    insert_sequent_backend_template: IPermissions.template_WRITE,
+    insert_sequent_backend_templates: IPermissions.template_WRITE,
+    update_sequent_backend_template: IPermissions.template_WRITE,
+    update_sequent_backend_templates: IPermissions.template_WRITE,
+    delete_sequent_backend_template: IPermissions.template_WRITE,
+    delete_sequent_backend_templates: IPermissions.template_WRITE,
     // contest
     sequent_backend_contest: IPermissions.ELECTION_EVENT_READ,
     sequent_backend_contests: IPermissions.ELECTION_EVENT_READ,
