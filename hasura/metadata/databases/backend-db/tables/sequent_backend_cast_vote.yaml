@@ -36,7 +36,7 @@ insert_permissions:
       - tenant_id:
           _eq: X-Hasura-Tenant-Id
       - election_id:
-          _in: X-Hasura-Election-Ids
+          _in: X-Hasura-Authorized-Election-Ids
     columns:
     - annotations
     - area_id
@@ -142,7 +142,7 @@ select_permissions:
       - voter_id_string:
           _eq: X-Hasura-User-Id
       - election_id:
-          _in: X-Hasura-Election-Ids
+          _in: X-Hasura-Authorized-Election-Ids
   role: user
 update_permissions:
 - comment: ""

@@ -175,7 +175,7 @@ select_permissions:
       - area_id:
           _eq: X-Hasura-Area-Id
       - election_id:
-          _in: X-Hasura-Election-Ids
+          _in: X-Hasura-Authorized-Election-Ids
   role: user
 update_permissions:
 - comment: ""
