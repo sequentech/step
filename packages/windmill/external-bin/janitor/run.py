@@ -106,7 +106,10 @@ def parse_table_sheet(
             for split_key_index, split_key_item in enumerate(split_key):
                 # if it's not last
                 if split_key_index == len(split_key) - 1:
-                    subelement[split_key_item] = value
+                    if isinstance(value, float):
+                        subelement[split_key_item] = int(value)
+                    else:
+                        subelement[split_key_item] = value
                 else:
                     if split_key_item not in subelement:
                         subelement[split_key_item] = dict()
