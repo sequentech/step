@@ -10,7 +10,7 @@ import {useEditController} from "react-admin"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {useTranslation} from "react-i18next"
 
-const SettingsCommunicationsStyles = {
+const SettingsTemplatesStyles = {
     Wrapper: styled.div`
         display: flex;
         flex-direction: column;
@@ -26,7 +26,7 @@ const SettingsCommunicationsStyles = {
     `,
 }
 
-export const SettingsComunications: React.FC<void> = () => {
+export const SettingsTemplates: React.FC<void> = () => {
     const [tenantId] = useTenantStore()
     const {t} = useTranslation()
     const {record, save, isLoading} = useEditController({
@@ -72,20 +72,20 @@ export const SettingsComunications: React.FC<void> = () => {
     if (isLoading) return null
 
     return (
-        <SettingsCommunicationsStyles.Wrapper>
+        <SettingsTemplatesStyles.Wrapper>
             {Object.keys(setting).map((method: string) => (
-                <SettingsCommunicationsStyles.Content key={method}>
-                    <SettingsCommunicationsStyles.Text>
+                <SettingsTemplatesStyles.Content key={method}>
+                    <SettingsTemplatesStyles.Text>
                         {t(`electionTypeScreen.common.${method}`)}
-                    </SettingsCommunicationsStyles.Text>
+                    </SettingsTemplatesStyles.Text>
 
                     <Switch
                         disabled={true}
                         checked={setting?.[method] || false}
                         onChange={() => handleToggle(method)}
                     />
-                </SettingsCommunicationsStyles.Content>
+                </SettingsTemplatesStyles.Content>
             ))}
-        </SettingsCommunicationsStyles.Wrapper>
+        </SettingsTemplatesStyles.Wrapper>
     )
 }

@@ -18,7 +18,6 @@ query GetAllElectionsForEvent(
     name
     description
     presentation
-    dates
     status
     eml
     num_allowed_revotes
