@@ -518,13 +518,6 @@ def gen_tree(excel_data, results):
 
         if not election_context:
             raise Exception(f"election with 'election_post' = {row_election_post} not found in excel")
-
-        election_scheduled_events = [
-            scheduled_event
-            for scheduled_event
-            in excel_data["scheduled_events"] 
-            if scheduled_event["election_alias"] == election_context["alias"]
-        ]
         
         if not election:
             # If the election does not exist, create it
@@ -532,7 +525,7 @@ def gen_tree(excel_data, results):
                 "election_post": row_election_post,
                 "election_name": election_context["name"],
                 "contests": [],
-                "scheduled_events": election_scheduled_events,
+                "scheduled_events": [],
                 **base_context,
                 **election_context
             }
@@ -579,13 +572,23 @@ def gen_tree(excel_data, results):
         if area_name not in contest["areas"]:
             contest["areas"].append(area_name)
 
+    # test elections
     test_elections =  copy.deepcopy(elections_object["elections"])
     for election in test_elections:
         election["name"] = "Test Voting"
         election["alias"] = "Test Voting"
-        election["scheduled_events"] = []
 
     elections_object["elections"].extend(test_elections)
+
+    # scheduled events
+    for election in elections_object["elections"]:
+        election_scheduled_events = [
+            scheduled_event
+            for scheduled_event
+            in excel_data["scheduled_events"] 
+            if scheduled_event["election_alias"] == election["alias"]
+        ]
+        election["scheduled_events"] = election_scheduled_events
 
     return elections_object, areas
 
