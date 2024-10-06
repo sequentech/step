@@ -46,3 +46,62 @@ Similarly, the same new variables `APP_VERSION` and `APP_HASH` are now also used
 in `global-settings.json` by admin-portal, voting-portal and ballot-verifier.
 This requires a change in deployment scripts to obtain the hash, otherwise a
 default `-` value will be shown.
+
+## Keycloak: Election Event `Scheduled Events` feature
+
+### Scheduled Events
+
+There's a new tab `Scheduled Events` in the Election Event section. This lists
+the next scheduled events. In order to see this tab, the role
+`scheduled-event-write` has to be added in Keycloak and the role has to be added
+to the `admin` group for existing tenants. Also notice that this includes a
+migration to delete the `dates` column in both Elections and Election Events.
+There's also a minor speed improvement in the cast vote action as it's not using
+hasura graphql calls anymore.
+
+### Migration to add permissions to keycloak realm
+
+It requires to add a couple of permissions In order use Election event
+`Scheduled Events` tab:
+1. Go to realm roles, select the admin role and click on `Create role`
+2. Add the following roles: `scheduled-event-write`
+3. Then Go to `Groups` and choose `admin` group name
+4. Go to `role mapping` and click on `Assign role` and add those permissions
+
+### Migration of scheduled events configuration
+
+Scheduled Events like `Start Voting Period` and `End Voting Period` have been
+moved from `Election` and `Election Event` to the `Scheduled Events` tab. They
+have been renamed, because before the event processor was `START_ELECTION`
+instead of `START_VOTING_PERIOD`, and has suffered changes in the table
+structure.
+
+This means that any previous election with scheduled events created or
+configured in a release previous to this one will not work properly. These
+elections should be deleted.
+
+### Migrations of election events import/export json
+
+Inside the election event json import format, Scheduled Events like `Start
+Voting Period` and `End Voting Period` have been moved from inside the
+`election` and `election_event` to the `scheduled_events` section.
+
+This means that any previous election event exported in a previous version will
+not work properly. These configs should be adapted or re-exported and
+re-configured to work properly.
+
+## Improved Templates section
+
+Handling of templates has been improved. The templates that are uploaded in the
+Templates section can now be selected at `Election Event` -> `Data` tab ->
+`Template`. Therefore the admin can have several templates of the same option,
+for example: `MANUALLY_VERIFY_VOTER` and later select which one to apply for
+each election event. More template types can be added in the future.
+
+It is required to upload the default templates to the S3 public-assets folder:
+`step/.devcontainer/minio/public-assets/manual_verification_system.hbs`
+`step/.devcontainer/minio/public-assets/manual_verification_user.hbs` Being the
+ENV var `PUBLIC_ASSETS_PATH=public-assets` in this case. The rest of ENV
+variables starting by `PUBLIC_ASSETS_` that have been removed, used to name the
+files and other assets but they are no longer needed by the system.
+
