@@ -11,9 +11,9 @@ use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::database::get_hasura_pool;
 use crate::services::export_election_event_logs;
 use crate::services::import_election_event::ImportElectionEventSchema;
+use crate::services::s3;
 use crate::services::{
     password::generate_random_string_with_charset,
-    s3::{download_s3_file_to_string, get_public_asset_file_path},
     temp_path::{generate_temp_file, write_into_named_temp_file},
 };
 use crate::tasks::export_election_event::ExportOptions;
@@ -165,6 +165,30 @@ pub async fn process_export_zip(
 
         let mut activity_logs_file = File::open(temp_activity_logs_file.path())?;
         std::io::copy(&mut activity_logs_file, &mut zip_writer)?;
+    }
+
+    // Add the S3 files to the ZIP archive
+    let is_include_s3_files = export_config.s3_files;
+    if is_include_s3_files {
+        let s3_folder_name = format!("s3-files");
+        let documents_prefix = format!("tenant-{}/event-{}/", tenant_id, election_event_id);
+        let bucket = s3::get_private_bucket()?;
+
+        let s3_files = s3::get_files_from_s3(bucket, documents_prefix)
+            .await
+            .map_err(|err| anyhow!("Error retrieving files from S3: {err:?}"))?;
+        let mut file_counter = 1;
+
+        for file_path in s3_files {
+            let file_name = file_path.file_name().unwrap().to_string_lossy().to_string();
+            let file_name_in_zip = format!("{}/{}-{}", s3_folder_name, file_counter, file_name);
+            zip_writer.start_file(&file_name_in_zip, options)?;
+
+            let mut s3_file = File::open(&file_path)?;
+            std::io::copy(&mut s3_file, &mut zip_writer)?;
+
+            file_counter += 1;
+        }
     }
 
     // Finalize the ZIP file
