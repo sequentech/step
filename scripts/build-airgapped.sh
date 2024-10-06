@@ -382,6 +382,12 @@ EOF
     tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL .env
 }
 
+
+add-janitor-to-tarball() {
+    JANITOR_PARENT="${PROJECT_ROOT}/packages/windmill/external-bin/"
+    tar --append -C $JANITOR_PARENT --file=$DELIVERABLE_TARBALL janitor
+}
+
 add-readme-to-tarball() {
     tmpdir=$(mktemp -d)
     cat <<'EOF' > $tmpdir/README.md
@@ -1287,6 +1293,7 @@ add-trustees-data-to-tarball
 add-hasura-data-to-tarball
 add-up-script-to-tarball
 add-readme-to-tarball
+add-janitor-to-tarball
 
 clean-artifacts-root
 
