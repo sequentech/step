@@ -172,6 +172,7 @@ public class MessageOTPAuthenticator
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
     KeycloakSession session = context.getSession();
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
+    String sessionId = context.getAuthenticationSession().getParentSession().getId();
     Utils.MessageCourier messageCourier =
         Utils.MessageCourier.fromString(config.getConfig().get(Utils.MESSAGE_COURIER_ATTRIBUTE));
     boolean deferredUser = config.getConfig().get(Utils.DEFERRED_USER_ATTRIBUTE).equals("true");
@@ -269,7 +270,8 @@ public class MessageOTPAuthenticator
           AuthenticationFlowError.INTERNAL_ERROR,
           context
               .form()
-              .setError("messageNotSent", error.getMessage())
+              .setError(context.form().getMessage("messageNotSent") + "<br><br>code_id: "
+              + sessionId)
               .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
     }
   }
