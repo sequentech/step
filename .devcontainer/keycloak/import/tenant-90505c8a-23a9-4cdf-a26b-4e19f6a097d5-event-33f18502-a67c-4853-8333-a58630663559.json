@@ -414,7 +414,6 @@
     "email" : "edulix@nvotes.com",
     "emailVerified" : true,
     "attributes" : {
-      "election-ids" : [ "f2f1065e-b784-46d1-b81a-c71bfeb9ad55" ],
       "sequent.read-only.id-card-number-validated" : [ "VERIFIED" ],
       "sequent.read-only.mobile-number" : [ "+34634571634" ],
       "sequent.read-only.id-card-number" : [ "44055908Y" ],
@@ -462,7 +461,6 @@
     "emailVerified" : true,
     "attributes" : {
       "country" : [ "Algiers/Algeria" ],
-      "election-ids" : [ "f2f1065e-b784-46d1-b81a-c71bfeb9ad55" ],
       "sequent.read-only.id-card-number-validated" : [ "VERIFIED" ],
       "sequent.read-only.mobile-number" : [ "" ],
       "sequent.read-only.id-card-number" : [ "39380103D" ],
