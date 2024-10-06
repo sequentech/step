@@ -247,13 +247,6 @@
         "containerId" : "0ffb2d0c-ad6e-4351-83f5-53278059116c",
         "attributes" : { }
       }, {
-        "id" : "dee9c6f4-4f0a-4a16-94b8-6560fa91667e",
-        "name" : "uma_protection",
-        "composite" : false,
-        "clientRole" : true,
-        "containerId" : "0ffb2d0c-ad6e-4351-83f5-53278059116c",
-        "attributes" : { }
-      }, {
         "id" : "7da4fe8e-a96d-4f05-bc87-f72c7df6988a",
         "name" : "view-events",
         "description" : "${role_view-events}",
@@ -435,23 +428,6 @@
     "realmRoles" : [ "default-roles-tenant90505c8a23a94cdfa26b4e19f6a097d5event33f18502a67c48538333a58630663559" ],
     "notBefore" : 0,
     "groups" : [ "/voter" ]
-  }, {
-    "id" : "69cb2793-ddfd-4911-af51-12e59482fb75",
-    "username" : "service-account-realm-management",
-    "emailVerified" : false,
-    "createdTimestamp" : 1727684912110,
-    "enabled" : true,
-    "totp" : false,
-    "serviceAccountClientId" : "realm-management",
-    "credentials" : [ ],
-    "disableableCredentialTypes" : [ ],
-    "requiredActions" : [ ],
-    "realmRoles" : [ "default-roles-tenant90505c8a23a94cdfa26b4e19f6a097d5event33f18502a67c48538333a58630663559" ],
-    "clientRoles" : {
-      "realm-management" : [ "uma_protection" ]
-    },
-    "notBefore" : 0,
-    "groups" : [ ]
   }, {
     "id" : "6bbb4575-8761-4eaf-9799-03dbbb0f637b",
     "username" : "xavier.alsina@sequentech.io",
@@ -805,12 +781,12 @@
     "redirectUris" : [ ],
     "webOrigins" : [ ],
     "notBefore" : 0,
-    "bearerOnly" : false,
+    "bearerOnly" : true,
     "consentRequired" : false,
     "standardFlowEnabled" : true,
     "implicitFlowEnabled" : false,
     "directAccessGrantsEnabled" : false,
-    "serviceAccountsEnabled" : true,
+    "serviceAccountsEnabled" : false,
     "authorizationServicesEnabled" : true,
     "publicClient" : false,
     "frontchannelLogout" : false,
