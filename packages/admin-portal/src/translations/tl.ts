@@ -97,7 +97,7 @@ const tagalogTranslation: TranslationType = {
             tabs: {
                 votingChannels: "MGA CHANNEL NG PAGBOTO",
                 electionTypes: "URI NG HALALAN",
-                communications: "KOMUNIKASYON",
+                templates: "MGA TEMPLATE",
                 languages: "WIKA",
                 lookAndFeel: "PAGPASADYA KAN ITSURA",
                 schedules: "NAISKEDYUL NA MGA KAGANAPAN",
@@ -162,6 +162,7 @@ const tagalogTranslation: TranslationType = {
                 allowed: "Pinapayagang Mga Channel ng Pagboto",
                 materials: "Mga Karagdagang Materyales",
                 ballotDesign: "Disenyo ng Balota",
+                templates: "Mga plantilya",
                 reorder: "I-reorder ang mga halalan",
                 advancedConfigurations: "Mga Advanced na Pag-configure",
                 importCandidates: "Mag-import ng mga Kandidato",
@@ -198,6 +199,8 @@ const tagalogTranslation: TranslationType = {
                 materialTitle: "Pamagat",
                 materialSubTitle: "Subtitle",
                 logoUrl: "URL ng Logo",
+                userVerification:
+                    "Puede kang mag-introdusir nin sarong pasadyang plantilya na gagamiton tanganing mano-manong ma-verify an mga botante",
                 redirectFinishUrl: "Redirect Finish URL",
                 css: "Custom CSS",
                 skipElectionList: "Laktawan ang Screen ng Listahan ng Halalan",
@@ -268,6 +271,8 @@ const tagalogTranslation: TranslationType = {
                 publish: "I-publish",
                 logs: "Mga Log",
                 tasks: "Mga Gawain",
+                events: "Naka-schedule na Kaganapan",
+                notifications: "Mga Abiso",
             },
             tally: {
                 emptyHeader: "Walang pang Tally.",
@@ -597,10 +602,50 @@ const tagalogTranslation: TranslationType = {
                 "miru-send": "Miru Ipadala",
                 "miru-sign": "Miru Lagdaan",
                 "permission-label-write": "I-edit ang label ng pahintulot",
+                "scheduled-event-write": "I-edit ang Naka-schedule na Kaganapan",
             },
         },
         generalSettingsScreen: {
             body: "I-enable ang mga wika sa sistema. Tanging ang mga wikang pinagana dito ang magagamait para sa mga kaganapan ng halalan.",
+        },
+        eventsScreen: {
+            title: "Naka-schedule na Kaganapan",
+            subtitle:
+                "Pinamamahalaan ang configuration ng awtomatikong pagpapatupad ng mga kaganapan tulad ng pagsisimula o pagtatapos ng panahon ng pagboto.",
+            messages: {
+                createSuccess: "Matagumpay na nalikha ang Naka-schedule na Kaganapan",
+                createError: "Error sa paglikha ng Naka-schedule na Kaganapan",
+                editSuccess: "Matagumpay na na-edit ang Naka-schedule na Kaganapan",
+                editError: "Error sa pag-edit ng Naka-schedule na Kaganapan",
+            },
+            eventType: {
+                label: "Uri",
+                START_VOTING_PERIOD: "Simula ng Panahon ng Pagboto",
+                END_VOTING_PERIOD: "Pagtatapos ng Panahon ng Pagboto",
+            },
+            election: {
+                label: "Halalan",
+            },
+            empty: {
+                header: "Wala pang Naka-schedule na Kaganapan.",
+                body: "Gusto mo bang lumikha ng isa?",
+                button: "Lumikha ng Naka-schedule na Kaganapan",
+            },
+            create: {
+                title: "Lumikha ng Naka-schedule na Kaganapan",
+                subtitle: "Lumikha ng bagong configuration ng Naka-schedule na Kaganapan.",
+            },
+            edit: {
+                title: "I-edit ang Naka-schedule na Kaganapan",
+                subtitle: "I-edit ang configuration ng Naka-schedule na Kaganapan.",
+                delete: "Sigurado ka bang gusto mong tanggalin ang Naka-schedule na Kaganapan na ito?",
+            },
+            fields: {
+                electionId: "Halalan",
+                eventProcessor: "Uri",
+                stoppedAt: "Huminto Noong",
+                scheduledDate: "Naka-schedule Noong",
+            },
         },
         common: {
             export: "Maaaring magtagal ang pag-export. Sigurado ka bang nais mong i-export ang mga rekord?",
@@ -666,7 +711,7 @@ const tagalogTranslation: TranslationType = {
             usersAndRoles: "Mga Tagagamit at Tungkulin",
             logs: "Mga Log",
             settings: "Mga Setting",
-            communicationTemplates: "Mga Template ng Komunikasyon",
+            templates: "Templates",
             active: "Aktibo",
             archived: "Arkilado",
             addResource: {
@@ -1143,7 +1188,7 @@ const tagalogTranslation: TranslationType = {
                 richtext: "Mayamang Teksto",
             },
         },
-        sendCommunication: {
+        sendTemplate: {
             send: "Ipadala",
             title: "Ipadala ang Abiso",
             subtitle: "Magpadala ng abiso sa mga botante.",
@@ -1157,7 +1202,7 @@ const tagalogTranslation: TranslationType = {
             smsMessage: "Mensaheng SMS",
             errorSending: "Error sa pagpapadala ng abiso: {{error}}",
             successSending: "Nakaprograma/naipadala nang matagumpay ang abiso",
-            method: "Pamamaraan ng Komunikasyon",
+            method: "Pamamaraan ng Mga Template",
             type: "Uri ng Komunikasyon",
             alias: "Alias ng Template",
             votersSelection: {
@@ -1171,11 +1216,11 @@ const tagalogTranslation: TranslationType = {
                 voters: "mga botante",
             },
             methodTitle: "Template ng Komunikasyon",
-            communicationMethod: {
+            templateMethod: {
                 EMAIL: "Email",
                 SMS: "SMS",
             },
-            communicationType: {
+            templateType: {
                 CREDENTIALS: "Credentials",
                 BALLOT_RECEIPT: "Resibo ng Balota",
                 PARTICIPATION_REPORT: "Ulat ng Paglahok",
@@ -1258,35 +1303,37 @@ const tagalogTranslation: TranslationType = {
                 publishSuccess: "Na-publish ang tally sheet",
             },
         },
-        communicationTemplate: {
-            noPermissions: "Wala kang permiso na ma-access ang mga communication template.",
-            title: "Mga Communication Template",
-            subtitle: "Listahan ng mga communication template",
+        template: {
+            noPermissions: "Wala kang permiso na ma-access ang mga template.",
+            title: "Mga Template",
+            subtitle: "Listahan ng mga template",
+            chooseMethods: "Pumili ng Mga Paraan",
+            default: "Gamiton an default na plantilya",
             empty: {
-                title: "Walang Communication Template Pa",
+                title: "Walang Template Pa",
                 subtitle: "Gusto mo bang lumikha ng isa?",
             },
             action: {
-                createOne: "Lumikha ng Communication Template",
+                createOne: "Lumikha ng Template",
             },
             create: {
-                title: "Lumikha ng Communication Template",
-                success: "Nalikha ang Communication Template",
-                error: "Error sa paglikha ng Communication Template",
+                title: "Lumikha ng Template",
+                success: "Nalikha ang Template",
+                error: "Error sa paglikha ng Template",
             },
             update: {
-                success: "Na-update ang Communication Template",
-                error: "Error sa pag-update ng Communication Template",
+                success: "Na-update ang Template",
+                error: "Error sa pag-update ng Template",
             },
             edit: {
-                title: "I-edit ang Communication Template",
+                title: "I-edit ang Template",
             },
             form: {
                 smsMessage: "SMS Message",
                 document: "Dokumento",
                 name: "Pangalan ng Template",
                 alias: "Alias ng Template",
-                communicationType: "Uri ng Komunikasyon",
+                type: "Uri ng Komunikasyon",
                 communicationMethod: "Pamamaraan ng Komunikasyon",
             },
             type: {
@@ -1296,6 +1343,7 @@ const tagalogTranslation: TranslationType = {
                 electoral_results: "Mga Resulta ng Eleksyon",
                 otp: "OTP",
                 tally_report: "Ulat ng Tally",
+                manually_verify_voter: "Manual na beripikaron an botante",
             },
             method: {
                 email: "Email",

@@ -3,17 +3,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::Result;
 use deadpool_postgres::Transaction;
-use sequent_core::types::hasura::core::CommunicationTemplate;
+use sequent_core::types::hasura::core::Template;
 use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
-pub struct CommunicationTemplateWrapper(pub CommunicationTemplate);
+pub struct TemplateWrapper(pub Template);
 
-impl TryFrom<Row> for CommunicationTemplateWrapper {
+impl TryFrom<Row> for TemplateWrapper {
     type Error = anyhow::Error;
     fn try_from(item: Row) -> Result<Self> {
-        Ok(CommunicationTemplateWrapper(CommunicationTemplate {
+        Ok(TemplateWrapper(Template {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
             tenant_id: item.try_get::<_, Uuid>("tenant_id")?.to_string(),
             template: item.get("template"),
@@ -23,7 +23,7 @@ impl TryFrom<Row> for CommunicationTemplateWrapper {
             created_at: item.get("created_at"),
             updated_at: item.get("updated_at"),
             communication_method: item.try_get("communication_method")?,
-            communication_type: item.try_get("communication_type")?,
+            r#type: item.try_get("type")?,
         }))
     }
 }
@@ -31,11 +31,11 @@ impl TryFrom<Row> for CommunicationTemplateWrapper {
 /* Returns election */
 
 #[instrument(skip(hasura_transaction), err)]
-pub async fn get_communication_template_by_id(
+pub async fn get_template_by_id(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
-    communication_template_id: &str,
-) -> Result<Option<CommunicationTemplate>> {
+    template_id: &str,
+) -> Result<Option<Template>> {
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -49,9 +49,9 @@ pub async fn get_communication_template_by_id(
                 created_at,
                 updated_at,
                 communication_method,
-                communication_type
+                type
             FROM
-                sequent_backend.communication_template
+                sequent_backend.template
             WHERE
                 tenant_id = $1 AND
                 id = $2;
@@ -62,20 +62,17 @@ pub async fn get_communication_template_by_id(
     let rows: Vec<Row> = hasura_transaction
         .query(
             &statement,
-            &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(communication_template_id)?,
-            ],
+            &[&Uuid::parse_str(tenant_id)?, &Uuid::parse_str(template_id)?],
         )
         .await?;
 
-    let elections: Vec<CommunicationTemplate> = rows
+    let elections: Vec<Template> = rows
         .into_iter()
-        .map(|row| -> Result<CommunicationTemplate> {
+        .map(|row| -> Result<Template> {
             row.try_into()
-                .map(|res: CommunicationTemplateWrapper| -> CommunicationTemplate { res.0 })
+                .map(|res: TemplateWrapper| -> Template { res.0 })
         })
-        .collect::<Result<Vec<CommunicationTemplate>>>()?;
+        .collect::<Result<Vec<Template>>>()?;
 
     Ok(elections.get(0).map(|election| election.clone()))
 }

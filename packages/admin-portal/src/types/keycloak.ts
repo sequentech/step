@@ -24,9 +24,9 @@ export enum IPermissions {
     ROLE_READ = "role-read",
     ROLE_WRITE = "role-write",
     ROLE_ASSIGN = "role-assign",
-    COMMUNICATION_TEMPLATE_CREATE = "communication-template-create",
-    COMMUNICATION_TEMPLATE_READ = "communication-template-read",
-    COMMUNICATION_TEMPLATE_WRITE = "communication-template-write",
+    template_CREATE = "communication-template-create",
+    template_READ = "communication-template-read",
+    template_WRITE = "communication-template-write",
     NOTIFICATION_READ = "notification-read",
     NOTIFICATION_WRITE = "notification-write",
     NOTIFICATION_SEND = "notification-send",
@@ -69,4 +69,5 @@ export enum IPermissions {
     MIRU_SEND = "miru-send",
     MIRU_SIGN = "miru-sign",
     PERMISSION_LABEL_WRITE = "permission-label-write",
+    SCHEDULED_EVENT_WRITE = "scheduled-event-write",
 }

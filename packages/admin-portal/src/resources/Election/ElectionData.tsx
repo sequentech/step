@@ -6,7 +6,7 @@ import React from "react"
 import {EditBase, Identifier, RaRecord, useUpdate} from "react-admin"
 import {ElectionDataForm} from "./ElectionDataForm"
 import {Sequent_Backend_Election_Extended} from "./ElectionDataForm"
-import {ICommunicationMethod, IRECEIPTS} from "@/types/communications"
+import {ITemplateMethod, IRECEIPTS} from "@/types/templates"
 import {Sequent_Backend_Contest} from "@/gql/graphql"
 import {ContestsOrder, IContestPresentation, IElectionPresentation} from "@sequentech/ui-core"
 
@@ -41,8 +41,8 @@ export const EditElectionData: React.FC = () => {
 
         // save receipts object
         const receipts: IRECEIPTS = {}
-        for (const value in Object.values(ICommunicationMethod) as ICommunicationMethod[]) {
-            const key = Object.keys(ICommunicationMethod)[value]
+        for (const value in Object.values(ITemplateMethod) as ITemplateMethod[]) {
+            const key = Object.keys(ITemplateMethod)[value]
             receipts[key] = {}
             receipts[key]["allowed"] = data.allowed?.[key] || false
             receipts[key]["template"] = data.template?.[key] || null

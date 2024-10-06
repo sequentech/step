@@ -75,7 +75,6 @@ pub struct ElectionEvent {
     pub bulletin_board_reference: Option<Value>,
     pub is_archived: bool,
     pub voting_channels: Option<Value>,
-    pub dates: Option<Value>,
     pub status: Option<Value>,
     pub user_boards: Option<String>,
     pub encryption_protocol: String,
@@ -98,7 +97,6 @@ pub struct Election {
     pub name: String,
     pub description: Option<String>,
     pub presentation: Option<Value>,
-    pub dates: Option<Value>,
     pub status: Option<Value>,
     pub eml: Option<String>,
     pub num_allowed_revotes: Option<i64>,
@@ -212,7 +210,7 @@ pub struct CastVote {
 */
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
-pub struct CommunicationTemplate {
+pub struct Template {
     pub id: String,
     pub tenant_id: String,
     pub template: Value,
@@ -222,7 +220,7 @@ pub struct CommunicationTemplate {
     pub created_at: Option<DateTime<Local>>,
     pub updated_at: Option<DateTime<Local>>,
     pub communication_method: String,
-    pub communication_type: String,
+    pub r#type: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Hash)]

@@ -2,16 +2,16 @@ table:
   name: election
   schema: sequent_backend
 array_relationships:
-- name: contests
-  using:
-    foreign_key_constraint_on:
-      columns:
-      - election_id
-      - tenant_id
-      - election_event_id
-      table:
-        name: contest
-        schema: sequent_backend
+  - name: contests
+    using:
+      foreign_key_constraint_on:
+        columns:
+          - election_id
+          - tenant_id
+          - election_event_id
+        table:
+          name: contest
+          schema: sequent_backend
 insert_permissions:
 - comment: ""
   permission:
@@ -28,7 +28,6 @@ insert_permissions:
     - alias
     - annotations
     - created_at
-    - dates
     - description
     - election_event_id
     - eml
@@ -58,7 +57,6 @@ insert_permissions:
     - alias
     - annotations
     - created_at
-    - dates
     - description
     - election_event_id
     - eml
@@ -88,7 +86,6 @@ insert_permissions:
     - alias
     - annotations
     - created_at
-    - dates
     - description
     - election_event_id
     - eml
@@ -116,7 +113,6 @@ insert_permissions:
     - alias
     - annotations
     - created_at
-    - dates
     - description
     - election_event_id
     - eml
@@ -145,7 +141,6 @@ select_permissions:
     - alias
     - annotations
     - created_at
-    - dates
     - description
     - election_event_id
     - eml
@@ -182,7 +177,6 @@ select_permissions:
     - alias
     - annotations
     - created_at
-    - dates
     - description
     - election_event_id
     - eml
@@ -213,7 +207,6 @@ select_permissions:
     - alias
     - annotations
     - created_at
-    - dates
     - description
     - election_event_id
     - eml
@@ -250,7 +243,6 @@ select_permissions:
     - alias
     - annotations
     - created_at
-    - dates
     - description
     - election_event_id
     - eml
@@ -281,7 +273,6 @@ select_permissions:
     - alias
     - annotations
     - created_at
-    - dates
     - description
     - election_event_id
     - eml
@@ -309,7 +300,6 @@ select_permissions:
     - alias
     - annotations
     - created_at
-    - dates
     - description
     - election_event_id
     - eml
@@ -341,7 +331,6 @@ update_permissions:
     - alias
     - annotations
     - created_at
-    - dates
     - description
     - election_event_id
     - eml
@@ -374,7 +363,6 @@ update_permissions:
     - alias
     - annotations
     - created_at
-    - dates
     - description
     - election_event_id
     - eml
@@ -405,7 +393,6 @@ update_permissions:
     - alias
     - annotations
     - created_at
-    - dates
     - description
     - election_event_id
     - eml
@@ -436,7 +423,6 @@ update_permissions:
     - alias
     - annotations
     - created_at
-    - dates
     - description
     - election_event_id
     - eml

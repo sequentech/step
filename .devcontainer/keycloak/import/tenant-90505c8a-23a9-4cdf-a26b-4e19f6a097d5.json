@@ -175,6 +175,15 @@
       "clientRole" : false,
       "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
       "attributes" : { }
+      },
+    }, {
+      "id" : "f9bdca59-0d6c-43bc-b8ca-b0c58882f97d",
+      "name" : "scheduled-event-write",
+      "description" : "",
+      "composite" : false,
+      "clientRole" : false,
+      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+      "attributes" : { }
     }, {
       "id" : "19050a2f-765c-4e6f-87f0-7ed149098591",
       "name" : "tally-read",
@@ -279,6 +288,15 @@
       "clientRole" : false,
       "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
       "attributes" : { }
+    },
+    {
+      "id": "375caae7-dd36-4667-8ffd-6f3399edc5c4",
+      "name": "election-event-delete",
+      "description": "",
+      "composite": false,
+      "clientRole": false,
+      "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+      "attributes": {}
     }, {
       "id" : "44d713dc-4c3c-44bb-b597-8d718063871a",
       "name" : "keys-read",
@@ -889,7 +907,7 @@
     "path" : "/admin",
     "subGroups" : [ ],
     "attributes" : { },
-    "realmRoles" : [ "admin-dashboard-view", "permission-label-write", "support-material-write", "tally-write", "trustee-write", "user-write", "election-event-write", "notification-send", "user-permission-write", "tally-sheet-create", "role-write", "logs-read", "communication-template-create", "election-state-write", "role-create", "election-type-read", "tally-read", "tasks-read", "voter-write", "role-assign", "voting-channel-read", "tally-sheet-publish", "document-upload", "user-permission-read", "election-event-create", "notification-write", "trustee-read", "keys-read", "user-read", "create-election-event", "document-read", "notification-read", "area-write", "trustee-create", "election-event-read", "user-permission-create", "communication-template-write", "cast-vote-read", "tally-results-read", "voting-channel-write", "tally-sheet-view", "role-read", "admin-ceremony", "area-read", "tenant-read", "tally-start", "admin-user", "voter-create", "user-create", "tally-sheet-delete", "voter-read", "tenant-create", "election-type-write", "publish-write", "support-material-read", "communication-template-read", "document-write", "tenant-write", "resource-write", "document-download", "election-type-create", "publish-read" ],
+    "realmRoles" : [ "admin-dashboard-view", "permission-label-write", "support-material-write", "tally-write", "trustee-write", "user-write", "election-event-write", "notification-send", "user-permission-write", "tally-sheet-create", "role-write", "logs-read", "communication-template-create", "election-state-write", "role-create", "election-type-read", "scheduled-event-write", "tally-read", "tasks-read", "voter-write", "role-assign", "voting-channel-read", "tally-sheet-publish", "document-upload", "user-permission-read", "election-event-create", "notification-write", "trustee-read", "keys-read", "election-event-delete", "user-read", "create-election-event", "document-read", "notification-read", "area-write", "trustee-create", "election-event-read", "user-permission-create", "communication-template-write", "cast-vote-read", "tally-results-read", "voting-channel-write", "tally-sheet-view", "role-read", "admin-ceremony", "area-read", "tenant-read", "tally-start", "admin-user", "voter-create", "user-create", "tally-sheet-delete", "voter-read", "tenant-create", "election-type-write", "publish-write", "support-material-read", "communication-template-read", "document-write", "tenant-write", "resource-write", "document-download", "election-type-create", "publish-read" ],
     "clientRoles" : { }
   }, {
     "id" : "dbc85f9a-a33d-4b3f-9bf1-20282931130b",
@@ -897,7 +915,7 @@
     "path" : "/admin-light",
     "subGroups" : [ ],
     "attributes" : { },
-    "realmRoles" : [ "admin-dashboard-view", "support-material-write", "tally-write", "user-write", "election-event-write", "notification-send", "user-permission-write", "tally-sheet-create", "role-write", "logs-read", "communication-template-create", "election-state-write", "role-create", "election-type-read", "tally-read", "tasks-read", "uma_authorization", "voter-write", "role-assign", "voting-channel-read", "tally-sheet-publish", "document-upload", "user-permission-read", "election-event-create", "notification-write", "trustee-read", "keys-read", "user-read", "create-election-event", "document-read", "notification-read", "area-write", "trustee-create", "election-event-read", "offline_access", "user-permission-create", "communication-template-write", "cast-vote-read", "tally-results-read", "tally-sheet-view", "voting-channel-write", "role-read", "admin-ceremony", "area-read", "tenant-read", "tally-start", "voter-create", "tally-sheet-delete", "user-create", "voter-read", "tenant-create", "election-type-write", "publish-write", "support-material-read", "communication-template-read", "document-write", "resource-write", "tenant-write", "document-download", "default-roles-electoral-process", "election-type-create", "publish-read" ],
+    "realmRoles" : [ "admin-dashboard-view", "support-material-write", "tally-write", "user-write", "election-event-write", "notification-send", "user-permission-write", "tally-sheet-create", "role-write", "logs-read", "communication-template-create", "election-state-write", "role-create", "election-type-read", "scheduled-event-write", "tally-read", "tasks-read", "uma_authorization", "voter-write", "role-assign", "voting-channel-read", "tally-sheet-publish", "document-upload", "user-permission-read", "election-event-create", "notification-write", "trustee-read", "keys-read", "election-event-delete", "user-read", "create-election-event", "document-read", "notification-read", "area-write", "trustee-create", "election-event-read", "offline_access", "user-permission-create", "communication-template-write", "cast-vote-read", "tally-results-read", "tally-sheet-view", "voting-channel-write", "role-read", "admin-ceremony", "area-read", "tenant-read", "tally-start", "voter-create", "tally-sheet-delete", "user-create", "voter-read", "tenant-create", "election-type-write", "publish-write", "support-material-read", "communication-template-read", "document-write", "resource-write", "tenant-write", "document-download", "default-roles-electoral-process", "election-type-create", "publish-read" ],
     "clientRoles" : { }
   }, {
     "id" : "d0b2a193-32fc-479c-9bde-08b7b7b25c72",

@@ -9,7 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 Janitor is an conversion tool. It converts a sql dump and an excel file
 into an election event configuration that can be imported through the
 admin-portal.
-
+ 
 ## Installation
 
 Before using it, you need python3 and pip. In Ubuntu, you can install it with:
