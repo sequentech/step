@@ -454,6 +454,7 @@ const frenchTranslation: TranslationType = {
                     passwordSpecialCharValidate:
                         "Le mot de passe doit contenir au moins un caractère spécial",
                     trustee: "Agir en tant que fiduciaire",
+                    permissionLabel: "Libellé d'autorisation",
                 },
                 delete: {
                     body: "Êtes-vous sûr de vouloir supprimer cet utilisateur ?",
