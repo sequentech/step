@@ -10,6 +10,7 @@ use tracing::{event, instrument, Level};
 
 use crate::tasks::create_keys::create_keys;
 use crate::tasks::create_vote_receipt::create_vote_receipt;
+use crate::tasks::delete_election_event::delete_election_event_t;
 use crate::tasks::execute_tally_session::execute_tally_session;
 use crate::tasks::export_election_event::export_election_event;
 use crate::tasks::export_election_event_logs::export_election_event_logs;
@@ -28,7 +29,7 @@ use crate::tasks::process_board::process_board;
 use crate::tasks::render_report::render_report;
 use crate::tasks::review_boards::review_boards;
 use crate::tasks::scheduled_events::scheduled_events;
-use crate::tasks::send_communication::send_communication;
+use crate::tasks::send_template::send_template;
 use crate::tasks::set_public_key::set_public_key;
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 
@@ -113,7 +114,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             update_election_event_ballot_styles,
             insert_election_event_t,
             insert_tenant,
-            send_communication,
+            send_template,
             import_users,
             export_users,
             import_election_event,
@@ -125,6 +126,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             export_election_event_logs,
             create_transmission_package_task,
             send_transmission_package_task,
+            delete_election_event_t,
             export_tasks_execution,
         ],
         // Route certain tasks to certain queues based on glob matching.
@@ -141,7 +143,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             "update_voting_status" => "short_queue",
             "insert_election_event_t" => "short_queue",
             "insert_tenant" => "short_queue",
-            "send_communication" => "communication_queue",
+            "send_template" => "communication_queue",
             "import_users" => "import_export_queue",
             "export_users" => "import_export_queue",
             "export_election_event" => "import_export_queue",
@@ -153,6 +155,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             "manage_election_event_date" => "beat",
             "create_transmission_package_task" => "short_queue",
             "send_transmission_package_task" => "short_queue",
+            "delete_election_event_t" => "short_queue",
         ],
         prefetch_count = prefetch_count,
         acks_late = acks_late,

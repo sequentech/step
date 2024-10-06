@@ -97,7 +97,7 @@ const catalanTranslation: TranslationType = {
             tabs: {
                 votingChannels: "CANALS DE VOTACIÓ",
                 electionTypes: "TIPUS D'ELECCIÓ",
-                communications: "COMUNICACIÓ",
+                templates: "PLANTILLES",
                 languages: "IDIOMES",
                 lookAndFeel: "PERSONALITZACIÓ D'APARENÇA",
                 schedules: "ESDEVENIMENTS PROGRAMATS",
@@ -161,6 +161,7 @@ const catalanTranslation: TranslationType = {
                 allowed: "Canals de Vot Permesos",
                 materials: "Materials de Suport",
                 ballotDesign: "Disseny de la Papereta",
+                templates: "Plantillas",
                 reorder: "Reordenar eleccions",
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importar Candidats",
@@ -197,6 +198,8 @@ const catalanTranslation: TranslationType = {
                 materialTitle: "Títol",
                 materialSubTitle: "Subtítol",
                 logoUrl: "URL del Logotip",
+                userVerification:
+                    "Podeu introduir una plantilla personalitzada que s'utilitzarà per verificar manualment els votants",
                 redirectFinishUrl: "URL de redirecció en finalitzar",
                 css: "CSS personalitzat",
                 skipElectionList: "Saltar pantalla per escollir elecció",
@@ -269,6 +272,8 @@ const catalanTranslation: TranslationType = {
                 publish: "Publicar",
                 logs: "Registres",
                 tasks: "Tasques",
+                events: "Esdeveniment Programat",
+                notifications: "Notificacions",
             },
             tally: {
                 emptyHeader: "Encara no hi ha Recompte.",
@@ -536,6 +541,7 @@ const catalanTranslation: TranslationType = {
                 "election-event-create": "Crear Esdeveniment Electoral",
                 "election-event-read": "Llegir Esdeveniment Electoral",
                 "election-event-write": "Editar Esdeveniment Electoral",
+                "election-event-delete": "Esborrar Esdeveniment Electoral",
                 "voter-create": "Crear Votant",
                 "voter-read": "Llegir Votant",
                 "voter-write": "Editar Votant",
@@ -592,10 +598,50 @@ const catalanTranslation: TranslationType = {
                 "miru-download": "Miru Download",
                 "miru-send": "Miru Send",
                 "miru-sign": "Miru Sign",
+                "scheduled-event-write": "Editar Esdeveniments Programats",
             },
         },
         generalSettingsScreen: {
             body: "Activeu els idiomes al sistema. Només els idiomes activats aquí estaran disponibles per a esdeveniments electorals.",
+        },
+        eventsScreen: {
+            title: "Esdeveniments Programats",
+            subtitle:
+                "Gestiona la configuració de l'execució automàtica d'esdeveniments com l'inici o el final del període de votació.",
+            messages: {
+                createSuccess: "Esdeveniment Programat creat amb èxit",
+                createError: "Error en crear l'Esdeveniment Programat",
+                editSuccess: "Esdeveniment Programat editat amb èxit",
+                editError: "Error en editar l'Esdeveniment Programat",
+            },
+            eventType: {
+                label: "Tipus",
+                START_VOTING_PERIOD: "Inici del Període de Votació",
+                END_VOTING_PERIOD: "Final del Període de Votació",
+            },
+            election: {
+                label: "Elecció",
+            },
+            empty: {
+                header: "Encara no hi ha Esdeveniments Programats.",
+                body: "Voleu crear-ne un?",
+                button: "Crear Esdeveniment Programat",
+            },
+            create: {
+                title: "Crear Esdeveniment Programat",
+                subtitle: "Crea una nova configuració d'Esdeveniment Programat.",
+            },
+            edit: {
+                title: "Editar Esdeveniment Programat",
+                subtitle: "Edita la configuració de l'Esdeveniment Programat.",
+                delete: "Esteu segur que voleu suprimir aquest Esdeveniment Programat?",
+            },
+            fields: {
+                electionId: "Elecció",
+                eventProcessor: "Tipus",
+                stoppedAt: "Aturat A",
+                scheduledDate: "Programat A",
+            },
         },
         common: {
             export: "L'exportació pot ser un procés llarg. Estàs segur que vols exportar?",
@@ -661,7 +707,7 @@ const catalanTranslation: TranslationType = {
             usersAndRoles: "Usuaris i Rols",
             logs: "Bitàcora",
             settings: "Configuració",
-            communicationTemplates: "Plantilles de Comunicació",
+            templates: "Plantilles",
             active: "Actius",
             archived: "Arxivats",
             addResource: {
@@ -1137,7 +1183,7 @@ const catalanTranslation: TranslationType = {
                 richtext: "Cos de Text Enriquit",
             },
         },
-        sendCommunication: {
+        sendTemplate: {
             send: "Enviar",
             title: "Enviar Notificació",
             subtitle: "Enviar una notificació a usuaris/votants.",
@@ -1151,7 +1197,7 @@ const catalanTranslation: TranslationType = {
             smsMessage: "Missatge SMS",
             errorSending: "Error enviant la notificació: {{error}}",
             successSending: "Notificació programada/enviada amb èxit",
-            method: "Mètode de Comunicació",
+            method: "Mètode de Plantilles",
             type: "Tipus de Comunicació",
             alias: "Àlies de la Plantilla",
             votersSelection: {
@@ -1165,11 +1211,11 @@ const catalanTranslation: TranslationType = {
                 voters: "votants",
             },
             methodTitle: "Mètode de Comunicació",
-            communicationMethod: {
+            templateMethod: {
                 EMAIL: "Email",
                 SMS: "SMS",
             },
-            communicationType: {
+            templateType: {
                 CREDENTIALS: "Credencials",
                 BALLOT_RECEIPT: "Comprovant de Votació",
                 PARTICIPATION_REPORT: "Informe de Participació",
@@ -1253,36 +1299,38 @@ const catalanTranslation: TranslationType = {
             },
         },
 
-        communicationTemplate: {
-            noPermissions: "No tens permisos per accedir a les Plantilles de Comunicació.",
-            title: "Plantilles de Comunicació",
-            subtitle: "Llistat de plantilles de comunicació",
+        template: {
+            noPermissions: "No tens permisos per accedir a les Plantilles.",
+            title: "Plantilles",
+            subtitle: "Llistat de plantilles",
+            chooseMethods: "Trieu Mètodes",
+            default: "Utilitzeu la plantilla predeterminada",
             empty: {
-                title: "No hi ha plantilles de comunicació",
+                title: "No hi ha plantilles",
                 subtitle: "Vols crear-ne una de nova?",
             },
             action: {
-                createOne: "Crear Plantilla de Comunicació",
+                createOne: "Crear Plantilla",
             },
             create: {
-                title: "Crear una Plantilla de Comunicació",
-                success: "Plantilla de Comunicació creada",
-                error: "Error creant plantilla de comunicació",
+                title: "Crear una Plantilla",
+                success: "Plantilla creada",
+                error: "Error creant plantilla",
             },
             update: {
-                success: "Plantilla de Comunicació actualitzada",
-                error: "Error actualitzant plantilla de comunicació",
+                success: "Plantilla actualitzada",
+                error: "Error actualitzant plantilla",
             },
             edit: {
-                title: "Editar una Plantilla de Comunicació",
+                title: "Editar una Plantilla",
             },
             form: {
                 smsMessage: "Missatge SMS",
                 document: "Document",
                 name: "Nom de la Plantilla",
                 alias: "Àlies de la Plantilla",
-                communicationType: "Tipus de Comunicació",
-                communicationMethod: "Mètode de Comunicació",
+                type: "Tipus",
+                communicationMethod: "Mètode",
             },
             type: {
                 credentials: "Credencials",
@@ -1291,6 +1339,7 @@ const catalanTranslation: TranslationType = {
                 electoral_results: "Resultats Electorals",
                 otp: "OTP",
                 tally_report: "Informe de recompte",
+                manually_verify_voter: "Verificar manualment el votant",
             },
             method: {
                 email: "Email",
@@ -1318,6 +1367,16 @@ const catalanTranslation: TranslationType = {
         },
         widget: {
             logs: "Registres",
+        },
+        settings: {
+            countries: {
+                title: "Bloqueig de Països",
+                description:
+                    "Trieu a continuació els països dels quals voleu bloquejar les votacions/enregistraments.",
+                error: {
+                    errorSaving: "Error en desar la llista de països",
+                },
+            },
         },
     },
 }

@@ -51,6 +51,9 @@
     pkgs.sqlite
 
     pkgs.cargo-watch
+
+    pkgs.python3
+    pkgs.python3Packages.virtualenvwrapper
   ];
 
   # https://devenv.sh/scripts/

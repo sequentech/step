@@ -4,9 +4,9 @@
 
 use super::core::{Candidate, Contest, Election, ElectionEvent};
 use crate::ballot::{
-    CandidatePresentation, ContestPresentation, ElectionDates,
-    ElectionEventPresentation, ElectionEventStatistics, ElectionEventStatus,
-    ElectionPresentation, ElectionStatistics, ElectionStatus,
+    CandidatePresentation, ContestPresentation, ElectionEventPresentation,
+    ElectionEventStatistics, ElectionEventStatus, ElectionPresentation,
+    ElectionStatistics, ElectionStatus,
 };
 use anyhow::{anyhow, Result};
 use schemars::JsonSchema;
@@ -41,10 +41,6 @@ impl ElectionEvent {
             serde_json::from_value::<VotingChannels>(voting_channels.clone())?;
         }
 
-        if let Some(dates) = &self.dates {
-            serde_json::from_value::<ElectionDates>(dates.clone())?;
-        }
-
         if let Some(status) = &self.status {
             serde_json::from_value::<ElectionEventStatus>(status.clone())?;
         }
@@ -75,10 +71,6 @@ impl Election {
 
         if let Some(voting_channels) = &self.voting_channels {
             serde_json::from_value::<VotingChannels>(voting_channels.clone())?;
-        }
-
-        if let Some(dates) = &self.dates {
-            serde_json::from_value::<ElectionDates>(dates.clone())?;
         }
 
         if let Some(status) = &self.status {

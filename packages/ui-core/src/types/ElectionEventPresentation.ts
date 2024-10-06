@@ -21,6 +21,10 @@ export enum ElectionsOrder {
     ALPHABETICAL = "alphabetical",
 }
 
+export interface IActiveTemplateIds {
+    manual_verification?: string
+}
+
 export interface IElectionEventPresentation {
     i18n?: Record<string, Record<string, string>>
     materials?: IElectionEventMaterials
@@ -33,4 +37,5 @@ export interface IElectionEventPresentation {
     elections_order?: ElectionsOrder
     voting_portal_countdown_policy?: IVotingPortalCountdownPolicy
     custom_urls?: ICustomUrls
+    active_template_ids?: IActiveTemplateIds
 }

@@ -53,7 +53,6 @@ export const GET_TALLY_DATA = gql`
             eml
             election_event_id
             description
-            dates
             created_at
         }
         sequent_backend_candidate(

@@ -4,7 +4,7 @@
 
 import {Box, Menu, MenuItem, Typography} from "@mui/material"
 import React, {useEffect, useState} from "react"
-import {useTranslation} from "react-i18next"
+import {useTranslation, Trans} from "react-i18next"
 import {
     IExpiryCountdown,
     StyledButton,
@@ -22,6 +22,10 @@ import {EVotingPortalCountdownPolicy} from "@sequentech/ui-core"
 const Span = styled.span`
     font-size: 14px;
     color: ${theme.palette.customGrey.dark};
+`
+
+const Name = styled.span`
+    font-weight: 400;
 `
 
 export const StyledButtonTooltipText = styled(Typography)`
@@ -169,14 +173,22 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                             className="user-first-name"
                             sx={{
                                 display: {xs: "none", sm: "block"},
-                                maxWidth: "70px",
+                                maxWidth: "105px",
                                 textOverflow: "ellipsis",
                                 whiteSpace: "nowrap",
                                 overflowX: "clip",
+                                lineHeight: "18px",
+                                fontWeight: "200",
                             }}
                             title={userProfile.firstName ?? userProfile.username}
                         >
-                            {userProfile.firstName ?? userProfile.username}
+                            <Trans
+                                i18nKey="header.welcome"
+                                values={{
+                                    name: userProfile.firstName ?? userProfile.username,
+                                }}
+                                components={{br: <br />, span: <Name />}}
+                            />
                         </Box>
                     </StyledButton>
                 </StyledButtonContainerWrapper>

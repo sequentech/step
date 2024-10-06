@@ -97,7 +97,7 @@ const spanishTranslation: TranslationType = {
             tabs: {
                 votingChannels: "CANALES DE VOTACIÓN",
                 electionTypes: "TIPOS DE ELECCIÓN",
-                communications: "COMUNICACIÓN",
+                templates: "PLANTILLAS",
                 languages: "IDIOMAS",
                 lookAndFeel: "PERSONILIZACIÓN DE APARIENCIA",
                 schedules: "EVENTOS PROGRAMADOS",
@@ -161,6 +161,7 @@ const spanishTranslation: TranslationType = {
                 allowed: "Canales de Voto Permitidos",
                 materials: "Materiales de Soporte",
                 ballotDesign: "Diseño de la Papeleta",
+                templates: "Plantillas",
                 reorder: "Reordenar elecciones",
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importar Candidatos",
@@ -197,6 +198,8 @@ const spanishTranslation: TranslationType = {
                 materialTitle: "Titulo",
                 materialSubTitle: "Subtitulo",
                 logoUrl: "Logo URL",
+                userVerification:
+                    "Puede introducir una plantilla personalizada que se utilizará para verificar manualmente a los votantes",
                 redirectFinishUrl: "URL de redirección al finalizar",
                 css: "CSS personalizado",
                 skipElectionList: "Saltar pantalla para escoger elección",
@@ -269,6 +272,8 @@ const spanishTranslation: TranslationType = {
                 publish: "Publicar",
                 logs: "Logs",
                 tasks: "Tareas",
+                events: "Eventos Programados",
+                notifications: "Notificaciones",
             },
             tally: {
                 emptyHeader: "Ningún Recuento aún.",
@@ -535,6 +540,7 @@ const spanishTranslation: TranslationType = {
                 "election-event-create": "Crear Evento Electoral",
                 "election-event-read": "Leer Evento Electoral",
                 "election-event-write": "Editar Evento Electoral",
+                "election-event-delete": "Eliminar Evento Electoral",
                 "voter-create": "Crear Votante",
                 "voter-read": "Leer Votante",
                 "voter-write": "Editar Votante",
@@ -591,10 +597,50 @@ const spanishTranslation: TranslationType = {
                 "miru-download": "Miru Download",
                 "miru-send": "Miru Send",
                 "miru-sign": "Miru Sign",
+                "scheduled-event-write": "Editar Eventos Programados",
             },
         },
         generalSettingsScreen: {
             body: "Active los idiomas en el sistema. Solo los idiomas activados aquí estarán disponibles para eventos electorales.",
+        },
+        eventsScreen: {
+            title: "Eventos Programados",
+            subtitle:
+                "Gestiona la configuración de la ejecución automática de eventos como el inicio o fin del período de votación.",
+            messages: {
+                createSuccess: "Evento Programado creado con éxito",
+                createError: "Error al crear el Evento Programado",
+                editSuccess: "Evento Programado editado con éxito",
+                editError: "Error al editar el Evento Programado",
+            },
+            eventType: {
+                label: "Tipo",
+                START_VOTING_PERIOD: "Inicio del Período de Votación",
+                END_VOTING_PERIOD: "Fin del Período de Votación",
+            },
+            election: {
+                label: "Elección",
+            },
+            empty: {
+                header: "No hay Eventos Programados todavía.",
+                body: "¿Quieres crear uno?",
+                button: "Crear Evento Programado",
+            },
+            create: {
+                title: "Crear Evento Programado",
+                subtitle: "Crea una nueva configuración de Evento Programado.",
+            },
+            edit: {
+                title: "Editar Evento Programado",
+                subtitle: "Edita la configuración del Evento Programado.",
+                delete: "¿Estás seguro de que quieres eliminar este Evento Programado?",
+            },
+            fields: {
+                electionId: "Elección",
+                eventProcessor: "Tipo",
+                stoppedAt: "Detenido En",
+                scheduledDate: "Programado En",
+            },
         },
         common: {
             export: "La exportación puede ser un proceso largo. ¿Estás seguro que quieres exportar?",
@@ -660,7 +706,7 @@ const spanishTranslation: TranslationType = {
             usersAndRoles: "Usuarios y Roles",
             logs: "Bitácora",
             settings: "Configuracion",
-            communicationTemplates: "Plantillas de Comunicación",
+            templates: "Plantillas",
             active: "Activos",
             archived: "Archivados",
             addResource: {
@@ -1136,7 +1182,7 @@ const spanishTranslation: TranslationType = {
                 richtext: "Cuerpo de Texto Enriquecido",
             },
         },
-        sendCommunication: {
+        sendTemplate: {
             send: "Enviar",
             title: "Enviar Notificación",
             subtitle: "Enviar una notificación a usuarios/votantes.",
@@ -1150,7 +1196,7 @@ const spanishTranslation: TranslationType = {
             smsMessage: "Mensaje SMS",
             errorSending: "Error enviando la notificación: {{error}}",
             successSending: "Notificación programada/enviada con éxito",
-            method: "Método de Comunicación",
+            method: "Método de Plantillas",
             type: "Tipo de Comunicación",
             alias: "Alias de la Plantilla",
             votersSelection: {
@@ -1164,11 +1210,11 @@ const spanishTranslation: TranslationType = {
                 voters: "votantes",
             },
             methodTitle: "Método de Comunicación",
-            communicationMethod: {
+            templateMethod: {
                 EMAIL: "Email",
                 SMS: "SMS",
             },
-            communicationType: {
+            templateType: {
                 CREDENTIALS: "Credenciales",
                 BALLOT_RECEIPT: "Comprobante de Votación",
                 PARTICIPATION_REPORT: "Informe de Participación",
@@ -1252,36 +1298,38 @@ const spanishTranslation: TranslationType = {
             },
         },
 
-        communicationTemplate: {
-            noPermissions: "No tienes permisos para acceder a las Plantillas de Comunicación.",
-            title: "Plantillas de Comunicación",
-            subtitle: "Listado de plantillas de comunicación",
+        template: {
+            noPermissions: "No tienes permisos para acceder a las Plantillas.",
+            title: "Plantillas",
+            subtitle: "Listado de plantillas",
+            chooseMethods: "Elige métodos",
+            default: "Usar plantilla predeterminada",
             empty: {
-                title: "No hay plantillas de comunicación",
+                title: "No hay plantillas",
                 subtitle: "¿Quieres crear una nueva?",
             },
             action: {
-                createOne: "Crear Plantilla de Comunicación",
+                createOne: "Crear Plantilla",
             },
             create: {
-                title: "Crear una Plantilla de Comunicación",
-                success: "Plantilla de Comunicación creada",
-                error: "Error creando plantilla de comunicación",
+                title: "Crear una Plantilla",
+                success: "Plantilla creada",
+                error: "Error creando plantilla",
             },
             update: {
-                success: "Plantilla de Comunicación actualizada",
-                error: "Error actualizando plantilla de comunicación",
+                success: "Plantilla actualizada",
+                error: "Error actualizando plantilla",
             },
             edit: {
-                title: "Editar una Plantilla de Comunición",
+                title: "Editar una Plantilla",
             },
             form: {
                 smsMessage: "Mensaje SMS",
                 document: "Documento",
                 name: "Nombre de la Plantilla",
                 alias: "Alias de la Plantilla",
-                communicationType: "Tipo de Comunicación",
-                communicationMethod: "Método de Comunicación",
+                type: "Tipo",
+                communicationMethod: "Método",
             },
             type: {
                 credentials: "Credenciales",
@@ -1290,6 +1338,7 @@ const spanishTranslation: TranslationType = {
                 electoral_results: "Resultados Electorales",
                 otp: "OTP",
                 tally_report: "Informe de Recuento",
+                manually_verify_voter: "Verificar votante manualmente",
             },
             method: {
                 email: "Email",
@@ -1317,6 +1366,16 @@ const spanishTranslation: TranslationType = {
         },
         widget: {
             logs: "Registros",
+        },
+        settings: {
+            countries: {
+                title: "Bloqueo de Países",
+                description:
+                    "Elige a continuación los países de los cuales deseas bloquear las votaciones/inscripciones.",
+                error: {
+                    errorSaving: "Error al guardar la lista de países",
+                },
+            },
         },
     },
 }

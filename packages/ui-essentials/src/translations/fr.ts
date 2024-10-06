@@ -87,7 +87,10 @@ const frenchTranslation: TranslationType = {
         },
         ballotHash: "Votre Localisateur de Vote : {{ballotId}}",
         version: {
-            header: "Version :",
+            header: "Version:",
+        },
+        hash: {
+            header: "Hash:",
         },
         logout: {
             buttonText: "Fermer la session",
@@ -121,6 +124,7 @@ const frenchTranslation: TranslationType = {
         },
         header: {
             profile: "Profil",
+            welcome: "Bienvenue,<br><span>{{name}}</span>",
             session: {
                 title: "Votre session est sur le point d'expirer.",
                 timeLeft: "Il vous reste {{time}} pour voter.",

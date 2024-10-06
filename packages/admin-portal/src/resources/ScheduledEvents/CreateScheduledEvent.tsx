@@ -1,0 +1,206 @@
+// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+import React, {FC, useMemo, useState} from "react"
+import {
+    Create,
+    DateTimeInput,
+    SimpleForm,
+    useGetList,
+    useNotify,
+    useRefresh,
+    useUpdate,
+} from "react-admin"
+import {useTranslation} from "react-i18next"
+import {
+    CircularProgress,
+    FormControl,
+    InputLabel,
+    MenuItem,
+    Select,
+    TextField,
+    Typography,
+} from "@mui/material"
+import {useMutation} from "@apollo/client"
+import {
+    ManageElectionDatesMutation,
+    ManageElectionDatesMutationVariables,
+    Sequent_Backend_Election,
+    Sequent_Backend_Scheduled_Event,
+} from "@/gql/graphql"
+import {useTenantStore} from "@/providers/TenantContextProvider"
+import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
+import {IPermissions} from "@/types/keycloak"
+import {ICronConfig, IManageElectionDatePayload} from "@/types/scheduledEvents"
+import SelectElection from "@/components/election/SelectElection"
+
+interface CreateEventProps {
+    electionEventId: string
+    setIsOpenDrawer: (state: boolean) => void
+    isEditEvent?: boolean
+    selectedEventId?: string
+    getElectionName: (scheduledEvent: Sequent_Backend_Scheduled_Event) => string
+}
+
+export enum EventProcessors {
+    START_VOTING_PERIOD = "START_VOTING_PERIOD",
+    END_VOTING_PERIOD = "END_VOTING_PERIOD",
+}
+
+const CreateEvent: FC<CreateEventProps> = ({
+    electionEventId,
+    setIsOpenDrawer,
+    isEditEvent,
+    selectedEventId,
+    getElectionName,
+}) => {
+    const {t} = useTranslation()
+    const [isLoading, setIsLoading] = useState(false)
+    const refresh = useRefresh()
+    const [tenantId] = useTenantStore()
+    const {data: eventList} = useGetList<Sequent_Backend_Scheduled_Event>(
+        "sequent_backend_scheduled_event"
+    )
+    const notify = useNotify()
+    const [manageElectionDates] = useMutation<ManageElectionDatesMutation>(MANAGE_ELECTION_DATES, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.SCHEDULED_EVENT_WRITE,
+            },
+        },
+    })
+
+    const selectedEvent = useMemo(() => {
+        return eventList?.find((event) => event.id === selectedEventId)
+    }, [eventList, selectedEventId])
+    const [electionId, setElectionId] = useState<string | null>(
+        isEditEvent ? selectedEvent?.event_payload.election_id : null
+    )
+    const [scheduleDate, setScheduleDate] = useState<string | undefined>(
+        isEditEvent ? selectedEvent?.cron_config.scheduled_date : null
+    )
+    const [eventType, setEventType] = useState<EventProcessors>(
+        isEditEvent
+            ? (selectedEvent?.event_processor as EventProcessors | null) ??
+                  EventProcessors.START_VOTING_PERIOD
+            : EventProcessors.START_VOTING_PERIOD
+    )
+
+    const onSubmit = async () => {
+        setIsLoading(true)
+        try {
+            let variables: ManageElectionDatesMutationVariables = {
+                electionEventId: electionEventId,
+                electionId: electionId && electionId.length > 0 ? electionId : null,
+                scheduledDate: scheduleDate,
+                eventProcessor: eventType,
+            }
+            const {errors} = await manageElectionDates({
+                variables,
+            })
+            setIsLoading(false)
+            setIsOpenDrawer(false)
+            refresh()
+            if (errors) {
+                notify(t("eventsScreen.messages.createError"), {type: "error"})
+            } else {
+                notify(t("eventsScreen.messages.editSuccess"), {type: "success"})
+            }
+        } catch (error) {
+            console.error(error)
+        }
+    }
+
+    return (
+        <Create hasEdit={isEditEvent}>
+            <SimpleForm onSubmit={onSubmit}>
+                <Typography variant="h4">
+                    {t(`${isEditEvent ? "eventsScreen.edit.title" : "eventsScreen.create.title"}`)}
+                </Typography>
+                <Typography variant="body2">
+                    {t(
+                        `${
+                            isEditEvent
+                                ? "eventsScreen.edit.subtitle"
+                                : "eventsScreen.create.subtitle"
+                        }`
+                    )}
+                </Typography>
+                <FormControl fullWidth>
+                    <InputLabel id="event-type-select-label">
+                        {t("eventsScreen.eventType.label")}
+                    </InputLabel>
+                    <Select
+                        required
+                        name="event_type"
+                        defaultValue={isEditEvent && EventProcessors.START_VOTING_PERIOD}
+                        labelId="event-type-select-label"
+                        label={t("eventsScreen.eventType.label")}
+                        value={eventType || ""}
+                        onChange={(e: any) => setEventType(e.target.value)}
+                        disabled={isEditEvent || isLoading}
+                    >
+                        <MenuItem value={EventProcessors.START_VOTING_PERIOD}>
+                            {t("eventsScreen.eventType.START_VOTING_PERIOD")}
+                        </MenuItem>
+                        <MenuItem value={EventProcessors.END_VOTING_PERIOD}>
+                            {t("eventsScreen.eventType.END_VOTING_PERIOD")}
+                        </MenuItem>
+                    </Select>
+                </FormControl>
+                <FormControl fullWidth>
+                    {isEditEvent ? (
+                        <TextField
+                            label={t("eventsScreen.election.label")}
+                            disabled={true}
+                            value={selectedEvent ? getElectionName(selectedEvent) : "-"}
+                        />
+                    ) : (
+                        <SelectElection
+                            tenantId={tenantId}
+                            electionEventId={electionEventId}
+                            label={t("eventsScreen.election.label")}
+                            onSelectElection={(electionId) => setElectionId(electionId)}
+                            source="event_payload.election_id"
+                            disabled={isEditEvent || isLoading}
+                            value={electionId}
+                        />
+                    )}
+                </FormControl>
+                <DateTimeInput
+                    required
+                    disabled={isLoading}
+                    source="cron_config.scheduled_date"
+                    label={
+                        eventType === EventProcessors.START_VOTING_PERIOD
+                            ? t("electionScreen.field.startDateTime")
+                            : t("electionScreen.field.endDateTime")
+                    }
+                    defaultValue={
+                        isEditEvent
+                            ? (selectedEvent?.cron_config as ICronConfig | undefined)
+                                  ?.scheduled_date
+                            : scheduleDate
+                    }
+                    value={
+                        isEditEvent
+                            ? (selectedEvent?.cron_config as ICronConfig | undefined)
+                                  ?.scheduled_date
+                            : scheduleDate
+                    }
+                    parse={(value) => value && new Date(value).toISOString()}
+                    onChange={(value) => {
+                        setScheduleDate(
+                            value && value.target.value !== ""
+                                ? new Date(value.target.value).toISOString()
+                                : undefined
+                        )
+                    }}
+                />
+                {isLoading ? <CircularProgress /> : null}
+            </SimpleForm>
+        </Create>
+    )
+}
+
+export default CreateEvent
