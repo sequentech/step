@@ -134,9 +134,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
     const user_id = params.get("user_id")
     const filters: Array<ReactElement> = []
 
-    /* **
-    Avoid error when coming from filterd list in other tabs
-    */
+    // Avoid error when coming from filtered list in other tabs
     const listContext = useListController({
         resource: "electoral_log",
         filter: {
@@ -145,7 +143,6 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
     })
 
     const navigate = useNavigate()
-    // const location = useLocation()
 
     useEffect(() => {
         for (const filter of Object.values(ElectoralLogFilters)) {
@@ -172,15 +169,6 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
             }
         }
     }, [])
-    /* **
-    Avoid error when coming from filterd list in other tabs
-    */
-
-    // useEffect(() => {
-    //     for (const filter of Object.values(ElectoralLogFilters)) {
-    //         filters.push(<TextInput key={filter} source={filter} />)
-    //     }
-    // }, [])
     const [openExport, setOpenExport] = React.useState(false)
 
     const handleExport = () => {

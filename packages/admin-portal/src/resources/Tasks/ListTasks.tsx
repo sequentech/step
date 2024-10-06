@@ -104,9 +104,7 @@ export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRe
         }
     }
 
-    /* **
-    Avoid error when coming from filterd list in other tabs
-    */
+    // Avoid error when coming from filterd list in other tabs
     const listContext = useListController({
         resource: "sequent_backend_tasks_execution",
         filter: {election_event_id: electionEventRecord?.id || undefined},
@@ -136,9 +134,6 @@ export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRe
             }
         }
     }, [])
-    /* **
-    Avoid error when coming from filterd list in other tabs
-    */
 
     return (
         <>

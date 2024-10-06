@@ -56,9 +56,7 @@ const EditElectionEventTextDataTable = () => {
     const [deleteId, setDeleteId] = useState<Identifier | null>(null)
     const [recordId, setRecordId] = useState<Identifier | null>(null)
 
-    /* **
-    Avoid error when coming from filterd list in other tabs
-    */
+    // Avoid error when coming from filterd list in other tabs
     const listContext = useListController()
 
     const navigate = useNavigate()
@@ -84,9 +82,6 @@ const EditElectionEventTextDataTable = () => {
             }
         }
     }, [])
-    /* **
-    END Avoid error when coming from filterd list in other tabs
-    */
 
     const languageOptions = useMemo(() => {
         return (record?.presentation?.language_conf?.enabled_language_codes ?? []) as string[]

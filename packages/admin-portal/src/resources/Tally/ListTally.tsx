@@ -290,9 +290,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     }
     let activeCeremony = getActiveCeremony(keysCeremonies, authContext)
 
-    /* **
-    Avoid error when coming from filterd list in other tabs
-    */
+    // Avoid error when coming from filterd list in other tabs
     const listContext = useListController({
         resource: "sequent_backend_tally_session",
         filter: {
@@ -325,9 +323,6 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
             }
         }
     }, [])
-    /* **
-    Avoid error when coming from filterd list in other tabs
-    */
 
     return (
         <>

@@ -105,9 +105,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
         }
     }, [recordId])
 
-    /* **
-    Avoid error when coming from filterd list in other tabs
-    */
+    // Avoid error when coming from filtered list in other tabs
     const listContext = useListController({
         resource: "sequent_backend_area",
         filter: {
@@ -140,9 +138,6 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
             }
         }
     }, [])
-    /* **
-    Avoid error when coming from filterd list in other tabs
-    */
 
     const createAction = () => {
         setOpenCreate(true)
@@ -276,10 +271,6 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                 }
                 empty={<Empty />}
                 sx={{flexGrow: 2}}
-                // filter={{
-                //     tenant_id: tenantId || undefined,
-                //     election_event_id: record?.id || undefined,
-                // }}
                 storeKey={false}
                 filters={Filters}
                 filterDefaultValues={{}}

@@ -228,9 +228,7 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
         },
     ]
 
-    /* **
-    Avoid error when coming from filterd list in other tabs
-    */
+    // Avoid error when coming from filterd list in other tabs
     const listContext = useListController({
         resource: "sequent_backend_keys_ceremony",
         filter: {
@@ -263,9 +261,6 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
             }
         }
     }, [])
-    /* **
-    Avoid error when coming from filterd list in other tabs
-    */
 
     return (
         <>

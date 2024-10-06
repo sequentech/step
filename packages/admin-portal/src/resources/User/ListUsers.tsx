@@ -327,9 +327,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const navigate = useNavigate()
     const location = useLocation()
 
-    /* **
-    Avoid error when coming from filterd list in other tabs
-    */
+    // Avoid error when coming from filterd list in other tabs
     const listContext = useListController({
         resource: "user",
         filter: {
@@ -360,9 +358,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             }
         }
     }, [])
-    /* **
-    Avoid error when coming from filterd list in other tabs
-    */
 
     const handleClose = () => {
         setOpenUsersLogsModal(false)
