@@ -20,7 +20,6 @@ query GetElection(
     name
     description
     presentation
-    dates
     status
     statistics
     eml

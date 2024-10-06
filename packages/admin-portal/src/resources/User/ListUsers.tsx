@@ -22,6 +22,7 @@ import {
     DateInput,
     useSidebarState,
     useUnselectAll,
+    RaRecord,
 } from "react-admin"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -38,7 +39,7 @@ import PasswordIcon from "@mui/icons-material/Password"
 import DeleteIcon from "@mui/icons-material/Delete"
 import VisibilityIcon from "@mui/icons-material/Visibility"
 import {EditUser} from "./EditUser"
-import {AudienceSelection, SendCommunication} from "./SendCommunication"
+import {AudienceSelection, SendTemplate} from "./SendTemplate"
 import {CreateUser} from "./CreateUser"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {
@@ -71,7 +72,7 @@ import {ElectoralLogFilters, ElectoralLogList} from "@/components/ElectoralLogLi
 import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
 import {getAttributeLabel, userBasicInfo} from "@/services/UserService"
 import CustomDateField from "./CustomDateField"
-import {ActionsMenu} from "@/components/ActionsMenu"
+import {ListActionsMenu} from "@/components/ListActionsMenu"
 import EditPassword from "./EditPassword"
 import {styled} from "@mui/material/styles"
 import {DELETE_USERS} from "@/queries/DeleteUsers"
@@ -135,17 +136,18 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const documentUrlRef = React.useRef(documentUrl)
     const {getDocumentUrl} = useGetPublicDocumentUrl()
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
-    const [openUsersLogsModal, setOpenUsersLogsModal] = useState(false)
-    const [openSendCommunication, setOpenSendCommunication] = useState(false)
-    const [openDeleteModal, setOpenDeleteModal] = useState(false)
-    const [openManualVerificationModal, setOpenManualVerificationModal] = useState(false)
-    const [openDeleteBulkModal, setOpenDeleteBulkModal] = useState(false)
+    const [openUsersLogsModal, setOpenUsersLogsModal] = React.useState(false)
+    const [openSendTemplate, setOpenSendTemplate] = React.useState(false)
+    const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
+    const [openManualVerificationModal, setOpenManualVerificationModal] = React.useState(false)
+    const [openDeleteBulkModal, setOpenDeleteBulkModal] = React.useState(false)
     const [openEditPassword, setOpenEditPassword] = React.useState(false)
     const [selectedIds, setSelectedIds] = useState<Identifier[]>([])
     const [deleteId, setDeleteId] = useState<string | undefined>()
     const [openDrawer, setOpenDrawer] = useState<boolean>(false)
     const [openImportDrawer, setOpenImportDrawer] = useState<boolean>(false)
     const [recordIds, setRecordIds] = useState<Array<Identifier>>([])
+    const [userRecord, setUserRecord] = useState<RaRecord<Identifier> | undefined>()
     const authContext = useContext(AuthContext)
     const refresh = useRefresh()
     const unselectAll = useUnselectAll("user")
@@ -232,7 +234,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         },
     })
     const canEditUsers = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_WRITE)
-    const canSendCommunications = authContext.isAuthorized(
+    const canSendTemplates = authContext.isAuthorized(
         true,
         tenantId,
         IPermissions.NOTIFICATION_SEND
@@ -319,8 +321,9 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     }, [polling])
 
     const handleClose = () => {
+        setOpenUsersLogsModal(false)
         setRecordIds([])
-        setOpenSendCommunication(false)
+        setOpenSendTemplate(false)
         setOpenDeleteModal(false)
         setOpenManualVerificationModal(false)
         setOpenDeleteBulkModal(false)
@@ -336,15 +339,15 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setOpenDeleteModal(false)
         setOpenManualVerificationModal(false)
         setOpenDeleteBulkModal(false)
-        setOpenSendCommunication(false)
+        setOpenSendTemplate(false)
         setRecordIds([id as string])
     }
 
-    const sendCommunicationForIdAction = (id: Identifier) => {
-        sendCommunicationAction([id])
+    const sendTemplateForIdAction = (id: Identifier) => {
+        sendTemplateAction([id])
     }
 
-    const sendCommunicationAction = (
+    const sendTemplateAction = (
         ids: Array<Identifier>,
         audienceSelection = AudienceSelection.SELECTED
     ) => {
@@ -353,7 +356,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setOpenDeleteModal(false)
         setOpenManualVerificationModal(false)
         setOpenDeleteBulkModal(false)
-        setOpenSendCommunication(true)
+        setOpenSendTemplate(true)
         setAudienceSelection(audienceSelection)
         setRecordIds(ids)
     }
@@ -364,7 +367,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         }
         setOpen(false)
         setOpenNew(false)
-        setOpenSendCommunication(false)
+        setOpenSendTemplate(false)
         setOpenManualVerificationModal(false)
         setOpenDeleteBulkModal(false)
         setOpenDeleteModal(true)
@@ -377,7 +380,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         }
         setOpen(false)
         setOpenNew(false)
-        setOpenSendCommunication(false)
+        setOpenSendTemplate(false)
         setOpenManualVerificationModal(true)
         setOpenDeleteBulkModal(false)
         setOpenDeleteModal(false)
@@ -387,7 +390,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const editPasswordAction = (id: Identifier) => {
         setOpen(false)
         setOpenNew(false)
-        setOpenSendCommunication(false)
+        setOpenSendTemplate(false)
         setOpenManualVerificationModal(false)
         setOpenDeleteBulkModal(false)
         setOpenDeleteModal(false)
@@ -466,7 +469,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         }
         setOpen(false)
         setOpenNew(false)
-        setOpenSendCommunication(false)
+        setOpenSendTemplate(false)
         setOpenManualVerificationModal(false)
         setOpenDeleteBulkModal(false)
         setOpenDeleteModal(false)
@@ -477,15 +480,16 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const actions: Action[] = [
         {
             icon: <MailIcon />,
-            action: sendCommunicationForIdAction,
-            showAction: () => canSendCommunications,
-            label: t(`sendCommunication.send`),
+            action: sendTemplateForIdAction,
+            showAction: () => canSendTemplates,
+            label: t(`sendTemplate.send`),
         },
         {
             icon: <EditIcon className="edit-voter-icon" />,
             action: editAction,
             showAction: () => canEditUsers,
             label: t(`common.label.edit`),
+            saveRecordAction: setUserRecord,
         },
         {
             icon: <DeleteIcon className="delete-voter-icon" />,
@@ -551,19 +555,16 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     function BulkActions(props) {
         return (
             <>
-                {canSendCommunications && (
+                {canSendTemplates && (
                     <Button
                         variant="actionbar"
                         key="send-notification"
                         onClick={() => {
-                            sendCommunicationAction(
-                                props.selectedIds ?? [],
-                                AudienceSelection.SELECTED
-                            )
+                            sendTemplateAction(props.selectedIds ?? [], AudienceSelection.SELECTED)
                         }}
                     >
                         <ResourceListStyles.MailIcon />
-                        {t(`sendCommunication.send`)}
+                        {t(`sendTemplate.send`)}
                     </Button>
                 )}
 
@@ -773,11 +774,11 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                             <Button
                                 key="send-notification"
                                 onClick={() => {
-                                    sendCommunicationAction([], AudienceSelection.ALL_USERS)
+                                    sendTemplateAction([], AudienceSelection.ALL_USERS)
                                 }}
                             >
                                 <ResourceListStyles.MailIcon />
-                                {t("sendCommunication.send")}
+                                {t("sendTemplate.send")}
                             </Button>,
                         ]}
                     />
@@ -828,7 +829,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                             />
                         )}
                         <WrapperField source="actions" label="Actions">
-                            <ActionsMenu actions={actions} />
+                            <ListActionsMenu actions={actions} />
                         </WrapperField>
                     </DataGridContainerStyle>
                 )}
@@ -840,14 +841,11 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     close={handleClose}
                     rolesList={rolesList || []}
                     userAttributes={userAttributes?.get_user_profile_attributes || []}
+                    record={userRecord}
                 />
             </ResourceListStyles.Drawer>
-            <ResourceListStyles.Drawer
-                anchor="right"
-                open={openSendCommunication}
-                onClose={handleClose}
-            >
-                <SendCommunication
+            <ResourceListStyles.Drawer anchor="right" open={openSendTemplate} onClose={handleClose}>
+                <SendTemplate
                     ids={recordIds}
                     audienceSelection={audienceSelection}
                     electionEventId={electionEventId}
@@ -962,9 +960,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 title={t("usersAndRolesScreen.voters.logs.label")}
                 ok={t("common.label.close")}
                 open={openUsersLogsModal}
-                handleClose={(results: boolean) => {
-                    setOpenUsersLogsModal(false)
-                }}
+                handleClose={handleClose}
             >
                 <ElectoralLogList
                     showActions={false}

@@ -24,7 +24,7 @@ on:
         default: 'admin'
   pull_request:
   push:
-      branches: [ 'main' ]
+      branches: [ 'main', 'release/[0-9]+.[0-9]+' ]
 
 jobs:
   e2e:

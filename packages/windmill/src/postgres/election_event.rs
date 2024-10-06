@@ -1,10 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::{
-    services::import_election_event::ImportElectionEventSchema,
-    types::scheduled_event::EventProcessors,
-};
+use crate::services::import_election_event::ImportElectionEventSchema;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::VotingStatus;
@@ -32,7 +29,6 @@ impl TryFrom<Row> for ElectionEventWrapper {
             bulletin_board_reference: item.try_get("bulletin_board_reference")?,
             is_archived: item.get("is_archived"),
             voting_channels: item.try_get("voting_channels")?,
-            dates: item.try_get("dates")?,
             status: item.try_get("status")?,
             user_boards: item.get("user_boards"),
             encryption_protocol: item.get("encryption_protocol"),
@@ -58,9 +54,9 @@ pub async fn insert_election_event(
         .prepare(
             r#"
                 INSERT INTO sequent_backend.election_event
-                (id, created_at, updated_at, labels, annotations, tenant_id, name, description, presentation, bulletin_board_reference, is_archived, voting_channels, dates, status, user_boards, encryption_protocol, is_audit, audit_election_event_id, public_key, alias, statistics)
+                (id, created_at, updated_at, labels, annotations, tenant_id, name, description, presentation, bulletin_board_reference, is_archived, voting_channels, status, user_boards, encryption_protocol, is_audit, audit_election_event_id, public_key, alias, statistics)
                 VALUES
-                ($1, NOW(), NOW(), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19);
+                ($1, NOW(), NOW(), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18);
             "#,
         )
         .await?;
@@ -79,7 +75,6 @@ pub async fn insert_election_event(
                 &data.election_event.bulletin_board_reference,
                 &data.election_event.is_archived,
                 &data.election_event.voting_channels,
-                &data.election_event.dates,
                 &data.election_event.status,
                 &data.election_event.user_boards,
                 &data.election_event.encryption_protocol,
@@ -110,7 +105,7 @@ pub async fn get_election_event_by_id(
         .prepare(
             r#"
                 SELECT
-                    id, created_at, updated_at, labels, annotations, tenant_id, name, description, presentation, bulletin_board_reference, is_archived, voting_channels, dates, status, user_boards, encryption_protocol, is_audit, audit_election_event_id, public_key, alias, statistics
+                    id, created_at, updated_at, labels, annotations, tenant_id, name, description, presentation, bulletin_board_reference, is_archived, voting_channels, status, user_boards, encryption_protocol, is_audit, audit_election_event_id, public_key, alias, statistics
                 FROM
                     sequent_backend.election_event
                 WHERE
@@ -142,34 +137,6 @@ pub async fn get_election_event_by_id(
         .get(0)
         .map(|election_event| election_event.clone())
         .ok_or(anyhow!("Election event {election_event_id} not found"))
-}
-
-#[instrument(skip(hasura_transaction), err)]
-pub async fn update_election_event_dates(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: &str,
-    election_event_id: &str,
-    dates: Value,
-) -> Result<()> {
-    let tenant_uuid: uuid::Uuid =
-        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
-    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
-        .with_context(|| "Error parsing election_event_id as UUID")?;
-    let statement = hasura_transaction
-        .prepare(
-            r#"
-                UPDATE sequent_backend.election_event
-                SET dates = $1
-                WHERE tenant_id = $2 AND id = $3;
-            "#,
-        )
-        .await?;
-    let _row: Vec<Row> = hasura_transaction
-        .query(&statement, &[&dates, &tenant_uuid, &election_event_uuid])
-        .await
-        .map_err(|err| anyhow!("Error running the update_election_dates query: {err}"))?;
-
-    Ok(())
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -306,4 +273,86 @@ pub async fn get_election_event_by_election_area(
         .get(0)
         .map(|election_event| election_event.clone())
         .ok_or(anyhow!("Election event not found"))
+}
+
+#[instrument(err, skip_all)]
+pub async fn delete_election_event(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<()> {
+    let related_tables = vec![
+        "area_contest",
+        "results_area_contest_candidate",
+        "results_area_contest",
+        "election_result",
+        "results_contest_candidate",
+        "results_contest",
+        "results_election",
+        "ballot_style",
+        "ballot_publication",
+        "candidate",
+        "tally_session_contest",
+        "tally_sheet",
+        "tally_session_execution",
+        "contest",
+        "cast_vote",
+        "election",
+        "document",
+        "event_execution",
+        "tally_session",
+        "keys_ceremony",
+        "scheduled_event",
+        "support_material",
+        "results_event",
+        "area",
+        "tasks_execution",
+    ];
+
+    for table in related_tables {
+        let query = format!(
+            r#"
+            DELETE FROM sequent_backend.{}
+            WHERE tenant_id = $1 AND election_event_id = $2;
+            "#,
+            table
+        );
+
+        // Now prepare the statement with the dynamically generated query
+        let statement = hasura_transaction.prepare(&query).await?;
+        hasura_transaction
+            .execute(
+                &statement,
+                &[
+                    &Uuid::parse_str(tenant_id)?,
+                    &Uuid::parse_str(election_event_id)?,
+                ],
+            )
+            .await
+            .map_err(|err| anyhow!("Error executing the delete query: {err}"))?;
+    }
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            DELETE FROM sequent_backend.election_event
+            WHERE
+                tenant_id = $1 AND
+                id = $2;
+        "#,
+        )
+        .await?;
+
+    hasura_transaction
+        .execute(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error executing the delete query: {err}"))?;
+
+    Ok(())
 }

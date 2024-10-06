@@ -9,7 +9,7 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {Tabs} from "@/components/Tabs"
 import {HeaderTitle} from "@/components/HeaderTitle"
 import {SettingsLanguages} from "@/resources/Settings/SettingsLanguages"
-import {SettingsComunications} from "@/resources/Settings/SettingsComunications"
+import {SettingsTemplates} from "@/resources/Settings/SettingsTemplates"
 import {SettingsVotingChannels} from "@/resources/Settings/SettingsVotingChannel"
 import {SettingsElectionsTypes} from "@/resources/Settings/SettingsElectionsTypes"
 import {SettingsElectionsTypesCreate} from "@/resources/Settings/SettingsElectionsTypesCreate"
@@ -21,6 +21,7 @@ import {SettingsSchedules} from "@/resources/Settings/SettingsSchedules"
 import {SettingsSchedulesCreate} from "@/resources/Settings/SettingsSchedulesCreate"
 import {SettingsTrustees} from "@/resources/Settings/SettingsTrustees"
 import {SettingsLookAndFeel} from "@/resources/Settings/SettingsLookAndFeel"
+import {SettingsCountries} from "@/resources/Settings/SettingsCountries"
 
 export const SettingsScreen: React.FC = () => {
     const {t} = useTranslation()
@@ -39,7 +40,10 @@ export const SettingsScreen: React.FC = () => {
     }
 
     return (
-        <Box>
+        <Box
+            sx={{maxWidth: "calc(100vw - 320px)", bgcolor: "background.paper"}}
+            className="settings-box"
+        >
             <HeaderTitle
                 title={t("electionTypeScreen.common.settingTitle")}
                 subtitle={t("electionTypeScreen.common.settingSubtitle")}
@@ -66,9 +70,9 @@ export const SettingsScreen: React.FC = () => {
                         ),
                     },
                     {
-                        label: t("electionTypeScreen.tabs.communications"),
+                        label: t("electionTypeScreen.tabs.templates"),
                         component: () => (
-                            <Resource name="sequent_backend_tenant" list={SettingsComunications} />
+                            <Resource name="sequent_backend_tenant" list={SettingsTemplates} />
                         ),
                     },
                     {
@@ -99,6 +103,12 @@ export const SettingsScreen: React.FC = () => {
                         label: t("electionTypeScreen.tabs.trustees"),
                         component: () => (
                             <Resource name="sequent_backend_trustee" list={SettingsTrustees} />
+                        ),
+                    },
+                    {
+                        label: "Countries",
+                        component: () => (
+                            <Resource name="sequent_backend_tenant" list={SettingsCountries} />
                         ),
                     },
                 ]}

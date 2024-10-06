@@ -23,7 +23,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip \
     curl \
     && rm -rf /var/lib/apt/lists/*
-RUN rustup default nightly
+
+# Install the specific nightly toolchain
+RUN rustup toolchain install nightly-2024-09-01 \
+    && rustup default nightly-2024-09-01
 
 ARG VAULT_VERSION=1.15.5
 #install vault
