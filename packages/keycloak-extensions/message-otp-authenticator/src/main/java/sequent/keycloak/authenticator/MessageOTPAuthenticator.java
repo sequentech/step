@@ -270,8 +270,8 @@ public class MessageOTPAuthenticator
           AuthenticationFlowError.INTERNAL_ERROR,
           context
               .form()
-              .setError(context.form().getMessage("messageNotSent") + "<br><br>code_id: "
-              + sessionId)
+              .setError(
+                  context.form().getMessage("messageNotSent") + "<br><br>code_id: " + sessionId)
               .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
     }
   }

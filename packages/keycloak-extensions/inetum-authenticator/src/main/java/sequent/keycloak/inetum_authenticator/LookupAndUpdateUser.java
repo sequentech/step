@@ -220,9 +220,9 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
           context.failureChallenge(
               AuthenticationFlowError.INTERNAL_ERROR,
               context
-              .form()
-              .setError(context.form().getMessage("messageNotSent" + "<br><br>code_id: "
-              + sessionId))
+                  .form()
+                  .setError(
+                      context.form().getMessage("messageNotSent" + "<br><br>code_id: " + sessionId))
                   .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
         }
       }

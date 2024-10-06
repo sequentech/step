@@ -164,8 +164,8 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
       log.infov("there was an error {0}", error);
       context.failure();
       context.challenge(
-          form.setError(context.form().getMessage("messageNotSent") + "<br><br>code_id: "
-          + sessionId)
+          form.setError(
+                  context.form().getMessage("messageNotSent") + "<br><br>code_id: " + sessionId)
               .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
     }
   }
