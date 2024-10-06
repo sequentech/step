@@ -68,7 +68,6 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
     String codeLength = config.getConfig().get(Utils.CODE_LENGTH);
     UserModel user = context.getUser();
     String resendTimer = config.getConfig().get(Utils.RESEND_ACTIVATION_TIMER);
-
     if (code == null || ttl == null) {
       context.failure();
       context.challenge(context.form().createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
@@ -125,7 +124,7 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
   private void initiateForm(RequiredActionContext context) {
     KeycloakSession session = context.getSession();
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
-
+    String sessionId = context.getAuthenticationSession().getParentSession().getId();
     AuthenticatorConfigModel config = Utils.getConfig(authSession.getRealm()).get();
     String resendTimer = config.getConfig().get(Utils.RESEND_ACTIVATION_TIMER);
     boolean isOtl = config.getConfig().get(Utils.ONE_TIME_LINK).equals("true");
@@ -165,7 +164,7 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
       log.infov("there was an error {0}", error);
       context.failure();
       context.challenge(
-          form.setError("messageNotSent", error.getMessage())
+          form.setError(Utils.ERROR_MESSAGE_NOT_SENT, sessionId)
               .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
     }
   }

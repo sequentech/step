@@ -75,6 +75,7 @@ public class Utils {
   public final String SEND_LINK_EMAIL_SUBJECT = "messageOtp.sendLink.email.subject";
   public final String SEND_LINK_EMAIL_FTL = "send-link-email.ftl";
 
+  public static final String ERROR_MESSAGE_NOT_SENT = "messageNotSent";
   public static final String SEND_SUCCESS_SMS_I18N_KEY = "messageSuccessSms";
   public static final String SEND_SUCCESS_EMAIL_SUBJECT = "messageSuccessEmailSubject";
   public static final String SEND_SUCCESS_EMAIL_FTL = "success-email.ftl";
