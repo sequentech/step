@@ -51,6 +51,12 @@ export const customBuildQuery =
                 },
             }
         } else if (resourceName === "electoral_log" && raFetchType === "GET_LIST") {
+            let validFilters = ["election_event_id", "user_id"]
+            Object.keys(params.filter).forEach((f) => {
+                if (!validFilters.includes(f)) {
+                    delete params.filter[f]
+                }
+            })
             const resource: any = {
                 type: {
                     fields: [],

@@ -264,7 +264,7 @@ pub async fn export_users_file(
             .with_context(|| "Error retrieving users with vote info")?,
             _ => list_users(&hasura_transaction, &keycloak_transaction, filter.clone())
                 .await
-                .with_context(|| "Error retrieving users")?,
+                .with_context(|| "Error listing users")?,
         };
 
         if total_count.is_none() {

@@ -17,17 +17,6 @@ use sequent_core::util;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, info, instrument};
 
-pub const USER_FIELDS: [&str; 8] = [
-    "id",
-    "email",
-    "first_name",
-    "last_name",
-    "username",
-    "enabled",
-    "email_verified",
-    "area-id",
-];
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ExportUsersOutput {
     pub document_id: String,
@@ -121,9 +110,9 @@ pub async fn export_users(
         Ok(_) => (),
         Err(err) => {
             if let Some(task_execution) = &task_execution {
-                update_fail(&task_execution, "Error uploading to S3").await?;
+                update_fail(&task_execution, "Failed to upload file to s3").await?;
             }
-            return Err(Error::String(format!("Error uploading to S3: {err:?}")));
+            return Err(Error::String(format!("Error uploading file to s3: {err}")));
         }
     }
 

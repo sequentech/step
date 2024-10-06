@@ -5,6 +5,7 @@
 pub mod ballot_publication;
 pub mod create_vote_receipt;
 pub mod custom_urls;
+pub mod delete_election_event;
 pub mod election_dates;
 pub mod election_event_stats;
 pub mod election_stats;
@@ -21,6 +22,7 @@ pub mod insert_cast_vote;
 pub mod insert_election_event;
 pub mod insert_tenant;
 pub mod keys_ceremony;
+pub mod limit_access_by_countries;
 pub mod manual_verification_pdf;
 pub mod miru_plugin;
 pub mod permissions;

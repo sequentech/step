@@ -5,7 +5,6 @@
 
 import {
     BooleanInput,
-    DateTimeInput,
     SelectInput,
     TextInput,
     useRecordContext,
@@ -37,7 +36,7 @@ import {
 } from "@mui/material"
 import {
     GetUploadUrlMutation,
-    Sequent_Backend_Communication_Template,
+    Sequent_Backend_Template,
     Sequent_Backend_Contest,
     Sequent_Backend_Document,
     Sequent_Backend_Election,
@@ -65,11 +64,9 @@ import {DropFile} from "@sequentech/ui-essentials"
 import FileJsonInput from "../../components/FileJsonInput"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {ICommunicationMethod, ICommunicationType} from "@/types/communications"
+import {ITemplateMethod, ITemplateType} from "@/types/templates"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import styled from "@emotion/styled"
-import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
-import {ManageElectionDatesMutation} from "@/gql/graphql"
 import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
 import {ManagedNumberInput} from "@/components/managed-inputs/ManagedNumberInput"
 import {ManagedSelectInput} from "@/components/managed-inputs/ManagedSelectInput"
@@ -77,6 +74,7 @@ import {ManagedSelectInput} from "@/components/managed-inputs/ManagedSelectInput
 const LangsWrapper = styled(Box)`
     margin-top: 46px;
 `
+
 const ContestRows = styled.div`
     display: flex;
     flex-direction: column;
@@ -84,15 +82,6 @@ const ContestRows = styled.div`
     cursor: pointer;
     margin-bottom: 0.1rem;
     padding: 1rem;
-`
-
-const ListWrapper = styled.div`
-    display: flex;
-    flex-direction: column;
-    border-radius: 4px;
-    border: 1px solid #777;
-    padding: 8px;
-    margin-bottom: 4px;
 `
 
 export type Sequent_Backend_Election_Extended = RaRecord<Identifier> & {
@@ -113,10 +102,6 @@ export const ElectionDataForm: React.FC = () => {
     const [expanded, setExpanded] = useState("election-data-general")
     const [languageSettings, setLanguageSettings] = useState<Array<string>>(["en"])
     const {globalSettings} = useContext(SettingsContext)
-    const [startDateValue, setStartDateValue] = useState<string | undefined>(undefined)
-    const [endDateValue, setEndDateValue] = useState<string | undefined>(undefined)
-
-    const [manageElectionDates] = useMutation<ManageElectionDatesMutation>(MANAGE_ELECTION_DATES)
 
     const {data} = useGetOne<Sequent_Backend_Election_Event>("sequent_backend_election_event", {
         id: record.election_event_id,
@@ -142,35 +127,14 @@ export const ElectionDataForm: React.FC = () => {
         }
     )
 
-    const {data: receipts} = useGetList<Sequent_Backend_Communication_Template>(
-        "sequent_backend_communication_template",
-        {
-            filter: {
-                tenant_id: record.tenant_id || tenantId,
-                communication_type: ICommunicationType.BALLOT_RECEIPT,
-            },
-        }
-    )
+    const {data: receipts} = useGetList<Sequent_Backend_Template>("sequent_backend_template", {
+        filter: {
+            tenant_id: record.tenant_id || tenantId,
+            type: ITemplateType.BALLOT_RECEIPT,
+        },
+    })
 
     const [updateImage] = useUpdate()
-
-    useEffect(() => {
-        let dates = record.dates as IElectionDates | undefined
-        if (dates?.start_date && !startDateValue) {
-            setStartDateValue(dates.start_date)
-        }
-        if (dates?.end_date && !endDateValue) {
-            setEndDateValue(dates.end_date)
-        }
-    }, [
-        record.dates,
-        record.dates?.start_date,
-        record.dates?.end_date,
-        startDateValue,
-        setStartDateValue,
-        endDateValue,
-        setEndDateValue,
-    ])
 
     useEffect(() => {
         if (!data || !record) {
@@ -293,8 +257,8 @@ export const ElectionDataForm: React.FC = () => {
             const allowed: {[key: string]: boolean} = {}
 
             if (temp.receipts) {
-                for (const value in Object.values(ICommunicationMethod) as ICommunicationMethod[]) {
-                    const key = Object.keys(ICommunicationMethod)[value]
+                for (const value in Object.values(ITemplateMethod) as ITemplateMethod[]) {
+                    const key = Object.keys(ITemplateMethod)[value]
 
                     allowed[key] = temp.receipts[key]?.allowed
                     template[key] = temp.receipts[key]?.template
@@ -321,9 +285,6 @@ export const ElectionDataForm: React.FC = () => {
 
     const formValidator = (values: any): any => {
         const errors: any = {dates: {}}
-        if (values?.dates?.start_date && values?.dates?.end_date <= values?.dates?.start_date) {
-            errors.dates.end_date = t("electionScreen.error.endDate")
-        }
         return errors
     }
 
@@ -472,10 +433,10 @@ export const ElectionDataForm: React.FC = () => {
         }))
     }
 
-    const communicationMethodChoices = () => {
-        return (Object.values(ICommunicationMethod) as ICommunicationMethod[]).map((value) => ({
+    const templateMethodChoices = () => {
+        return (Object.values(ITemplateMethod) as ITemplateMethod[]).map((value) => ({
             id: value,
-            name: t(`communicationTemplate.method.${value.toLowerCase()}`),
+            name: t(`template.method.${value.toLowerCase()}`),
         }))
     }
 
@@ -514,22 +475,12 @@ export const ElectionDataForm: React.FC = () => {
                     languageSettings
                 )
 
-                const onSave = async () => {
-                    await manageElectionDates({
-                        variables: {
-                            electionEventId: parsedValue.election_event_id,
-                            electionId: parsedValue.id,
-                            start_date: startDateValue,
-                            end_date: endDateValue,
-                        },
-                    })
-                }
+                const onSave = async () => {}
 
                 return (
                     <SimpleForm
                         defaultValues={{contestsOrder: sortedContests}}
                         record={parsedValue}
-                        validate={formValidator}
                         toolbar={
                             <Toolbar>
                                 <SaveButton
@@ -543,7 +494,11 @@ export const ElectionDataForm: React.FC = () => {
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "election-data-general"}
-                            onChange={() => setExpanded("election-data-general")}
+                            onChange={() =>
+                                setExpanded((prev) =>
+                                    prev === "election-data-general" ? "" : "election-data-general"
+                                )
+                            }
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="election-data-general" />}
@@ -564,101 +519,14 @@ export const ElectionDataForm: React.FC = () => {
 
                         <Accordion
                             sx={{width: "100%"}}
-                            expanded={expanded === "election-data-dates"}
-                            onChange={() => setExpanded("election-data-dates")}
-                        >
-                            <AccordionSummary
-                                expandIcon={<ExpandMoreIcon id="election-data-dates" />}
-                            >
-                                <ElectionStyles.Wrapper>
-                                    <ElectionStyles.Title>
-                                        {t("electionScreen.edit.dates")}
-                                    </ElectionStyles.Title>
-                                </ElectionStyles.Wrapper>
-                            </AccordionSummary>
-                            <AccordionDetails>
-                                <Typography
-                                    variant="body1"
-                                    component="span"
-                                    sx={{
-                                        fontWeight: "bold",
-                                        margin: 0,
-                                        display: {xs: "none", sm: "block"},
-                                    }}
-                                >
-                                    {t("electionScreen.edit.votingPeriod")}
-                                </Typography>
-                                <Grid container spacing={4}>
-                                    <Grid item xs={12} md={6}>
-                                        <DateTimeInput
-                                            source={`dates.start_date`}
-                                            label={t("electionScreen.field.startDateTime")}
-                                            parse={(value) =>
-                                                value && new Date(value).toISOString()
-                                            }
-                                            onChange={(value) => {
-                                                setStartDateValue(
-                                                    value.target.value !== ""
-                                                        ? new Date(value.target.value).toISOString()
-                                                        : undefined
-                                                )
-                                            }}
-                                        />
-                                    </Grid>
-                                    <Grid item xs={12} md={6}>
-                                        <DateTimeInput
-                                            source="dates.end_date"
-                                            label={t("electionScreen.field.endDateTime")}
-                                            parse={(value) =>
-                                                value && new Date(value).toISOString()
-                                            }
-                                            onChange={(value) => {
-                                                setEndDateValue(
-                                                    value.target.value !== ""
-                                                        ? new Date(value.target.value).toISOString()
-                                                        : undefined
-                                                )
-                                            }}
-                                        />
-                                    </Grid>
-                                </Grid>
-                                <Typography
-                                    variant="body1"
-                                    component="span"
-                                    sx={{
-                                        padding: "0.5rem 1rem",
-                                        fontWeight: "bold",
-                                        margin: 0,
-                                        display: {xs: "none", sm: "block"},
-                                    }}
-                                >
-                                    {t("electionScreen.edit.gracePeriodPolicy")}
-                                </Typography>
-                                <ManagedSelectInput
-                                    source={`presentation.grace_period_policy`}
-                                    choices={gracePeriodPolicyChoices()}
-                                    label={t(`electionScreen.gracePeriodPolicy.label`)}
-                                    defaultValue={EGracePeriodPolicy.NO_GRACE_PERIOD}
-                                    sourceToWatch={"dates.end_date"}
-                                    isDisabled={(sourceToWatchStatus) => !sourceToWatchStatus}
-                                />
-                                <ManagedNumberInput
-                                    source={"presentation.grace_period_secs"}
-                                    label={t("electionScreen.gracePeriodPolicy.gracePeriodSecs")}
-                                    defaultValue={0}
-                                    sourceToWatch="presentation.grace_period_policy"
-                                    isDisabled={(selectedPolicy: any) =>
-                                        selectedPolicy === EGracePeriodPolicy.NO_GRACE_PERIOD ||
-                                        endDateValue === undefined
-                                    }
-                                />
-                            </AccordionDetails>
-                        </Accordion>
-
-                        <Accordion
-                            sx={{width: "100%"}}
                             expanded={expanded === "election-data-language"}
-                            onChange={() => setExpanded("election-data-language")}
+                            onChange={() =>
+                                setExpanded((prev) =>
+                                    prev === "election-data-language"
+                                        ? ""
+                                        : "election-data-language"
+                                )
+                            }
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="election-data-language" />}
@@ -682,7 +550,11 @@ export const ElectionDataForm: React.FC = () => {
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "election-data-allowed"}
-                            onChange={() => setExpanded("election-data-allowed")}
+                            onChange={() =>
+                                setExpanded((prev) =>
+                                    prev === "election-data-allowed" ? "" : "election-data-allowed"
+                                )
+                            }
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="election-data-allowed" />}
@@ -705,7 +577,11 @@ export const ElectionDataForm: React.FC = () => {
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "contest-data-design"}
-                            onChange={() => setExpanded("contest-data-design")}
+                            onChange={() =>
+                                setExpanded((prev) =>
+                                    prev === "contest-data-design" ? "" : "contest-data-design"
+                                )
+                            }
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="contest-data-design" />}
@@ -761,7 +637,13 @@ export const ElectionDataForm: React.FC = () => {
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "election-data-receipts"}
-                            onChange={() => setExpanded("election-data-receipts")}
+                            onChange={() =>
+                                setExpanded((prev) =>
+                                    prev === "election-data-receipts"
+                                        ? ""
+                                        : "election-data-receipts"
+                                )
+                            }
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="election-data-receipts" />}
@@ -774,7 +656,7 @@ export const ElectionDataForm: React.FC = () => {
                             </AccordionSummary>
                             <AccordionDetails>
                                 <ElectionStyles.AccordionContainer>
-                                    {communicationMethodChoices().map((choice) => (
+                                    {templateMethodChoices().map((choice) => (
                                         <ElectionStyles.AccordionWrapper
                                             alignment="center"
                                             key={choice.id}
@@ -809,7 +691,11 @@ export const ElectionDataForm: React.FC = () => {
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "election-data-image"}
-                            onChange={() => setExpanded("election-data-image")}
+                            onChange={() =>
+                                setExpanded((prev) =>
+                                    prev === "election-data-image" ? "" : "election-data-image"
+                                )
+                            }
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="election-data-image" />}
@@ -845,7 +731,13 @@ export const ElectionDataForm: React.FC = () => {
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "election-data-advanced"}
-                            onChange={() => setExpanded("election-data-advanced")}
+                            onChange={() =>
+                                setExpanded((prev) =>
+                                    prev === "election-data-advanced"
+                                        ? ""
+                                        : "election-data-advanced"
+                                )
+                            }
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="election-data-advanced" />}
