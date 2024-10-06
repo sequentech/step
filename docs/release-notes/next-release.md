@@ -35,6 +35,13 @@ user level.
    which is now included in the `admin` group, and a new Group is added like
    `admin` without this permission was added,  called `admin-light`.
 
+#### Migration: permission_labels attribute
+
+In the Admin Portal realm, go to `Realm settings` > `User Profile`, then click
+on `Create Attribute`. The `Attribue [Name]` and `Display name`should be
+`permission_labels`. Set `Multivalued` on and in `Permissions` set the `Admin`
+with both edit and view permissions. Then click `Save`.
+
 # Next Release
 
 ## ✨ Support limiting IP by country
