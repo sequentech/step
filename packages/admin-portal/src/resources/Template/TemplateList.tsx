@@ -33,6 +33,8 @@ import {CustomApolloContextProvider} from "@/providers/ApolloContextProvider"
 import ElectionHeader from "@/components/ElectionHeader"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {TemplateEdit} from "./TemplateEdit"
+import {useMutation} from "@apollo/client"
+import {EXPORT_TEMPLATE} from "@/queries/ExportTemplate"
 
 const TemplateEmpty = styled(Box)`
     display: flex;
@@ -69,6 +71,7 @@ export const TemplateList: React.FC = () => {
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
     const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
     const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
+    const [ExportTemplate] = useMutation(EXPORT_TEMPLATE)
     const refresh = useRefresh()
 
     const handleCloseDrawer = () => {
