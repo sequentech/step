@@ -28,7 +28,7 @@ use std::io::{BufWriter, Write};
 use tempfile::NamedTempFile;
 use tracing::{debug, info, instrument};
 
-pub const USER_FIELDS: [&str; 9] = [
+pub const USER_FIELDS: [&str; 8] = [
     "id",
     "email",
     "first_name",
@@ -37,7 +37,6 @@ pub const USER_FIELDS: [&str; 9] = [
     "enabled",
     "email_verified",
     "area-id",
-    "authorized-election-ids",
 ];
 
 #[derive(Deserialize, Debug, Clone, Serialize)]
@@ -83,7 +82,6 @@ fn get_headers(
         "last_name".to_string(),
         "username".to_string(),
         "area".to_string(),
-        "authorized-election-ids".to_string(),
     ];
     for attr in user_attributes {
         match (&attr.name, &attr.display_name) {
@@ -118,18 +116,6 @@ fn get_user_record(
     user_attributes: &Vec<UserProfileAttribute>,
 ) -> Vec<String> {
     let votes_info_map_opt = user.get_votes_info_by_election_id();
-    let elections_by_id: HashMap<_, _> = match elections {
-        Some(election) => election
-            .iter()
-            .map(|election| {
-                (
-                    election.id.clone(),
-                    election.alias.clone().unwrap_or(election.id.clone()),
-                )
-            })
-            .collect(),
-        None => HashMap::new(),
-    };
 
     let mut user_info: Vec<String> = vec![
         user.id.clone().unwrap_or("-".to_string()),
@@ -146,19 +132,6 @@ fn get_user_record(
                 .get(area_id)
                 .unwrap_or(area_id)
                 .to_string(),
-            None => "-".to_string(),
-        },
-        match user.get_authorized_election_ids() {
-            Some(ref election_ids) => election_ids
-                .iter()
-                .map(|election_id| {
-                    elections_by_id
-                        .get(election_id)
-                        .unwrap_or(election_id)
-                        .to_string()
-                })
-                .collect::<Vec<String>>()
-                .join(MULTIVALUE_USER_ATTRIBUTE_SEPARATOR),
             None => "-".to_string(),
         },
     ];
@@ -291,8 +264,6 @@ pub async fn export_users(
                 },
             );
 
-            // TODO elections_by_id
-
             let areas_by_id = Some(
                 match get_areas_by_id(
                     &hasura_transaction,
@@ -410,7 +381,6 @@ pub async fn export_users(
 
         for user in users {
             let record = get_user_record(&elections, &areas_by_id, &user, &attributes);
-            info!("{:?}", record);
             writer.write_record(&record)?;
         }
 

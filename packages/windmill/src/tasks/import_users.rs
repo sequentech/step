@@ -4,7 +4,6 @@
 
 use crate::postgres::area::get_areas_by_name;
 use crate::postgres::document::get_document;
-use crate::postgres::election::export_elections;
 use crate::postgres::keycloak_realm;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::documents::get_document_as_temp_file;
@@ -333,12 +332,6 @@ impl ImportUsersBody {
                 .collect::<Vec<String>>()
                 .join(" UNION ALL ");
 
-            // TODO Add multiple queries for multivalue
-
-            // INSERT INTO target_table (id, value)
-            // SELECT id, unnest(string_to_array(values_column, ',')) AS value
-            // FROM source_table
-            // WHERE id = <your_conditions>;
             format!(
                 r#"
                 INSERT
@@ -522,29 +515,6 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
         .await
         .with_context(|| "can't set transaction isolation level or encoding")?;
 
-    let elections_map = match body.election_event_id {
-        Some(ref election_event_id) => {
-            match export_elections(
-                &hasura_transaction,
-                body.tenant_id.as_str(),
-                election_event_id.as_str(),
-            )
-            .await
-            {
-                Ok(elections) => Some(
-                    elections
-                        .iter()
-                        .map(|election| (election.name.clone(), election.id.clone()))
-                        .collect::<HashMap<_, _>>(),
-                ),
-                Err(err) => {
-                    update_fail(&task_execution, "Error retrieving elections").await?;
-                    return Err(Error::String(format!("Error retrieving elections: {err}")));
-                }
-            }
-        }
-        None => None,
-    };
     let areas_map = match body.election_event_id {
         Some(ref election_event_id) => {
             match get_areas_by_name(
@@ -710,29 +680,6 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
                             update_fail(&task_execution, &error_message).await?;
                             return Err(Error::String(error_message));
                         }
-                    }
-                }
-                column_name if column_name == AUTHORIZED_ELECTION_IDS_NAME => {
-                    match data.split(MULTIVALUE_USER_ATTRIBUTE_SEPARATOR).map(|data| {
-                            match elections_map
-                            .as_ref()
-                            .ok_or_else(|| {
-                                anyhow!("Using authorized-election-ids without providing election-event-id")
-                            })?
-                            .get(data)
-                        {
-                            Some(election_id) => Ok(election_id.to_string()),
-                            None => {
-                                let error_message = format!("Election not found by name=`{data}`");
-                                Err(Error::String(error_message))
-                            }
-                        }
-                    }).collect::<Result<Vec<String>,_>>() {
-                        Ok(election_names) => election_names.join(MULTIVALUE_USER_ATTRIBUTE_SEPARATOR),
-                        Err(error) => {
-                            update_fail(&task_execution, &error.to_string()).await?;
-                            return Err(error);
-                        },
                     }
                 }
                 _ => data.to_string(),

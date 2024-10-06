@@ -48,7 +48,7 @@ public class HasuraMultivaluedUserAttributeMapper extends AbstractOIDCProtocolMa
     property.setType(ProviderConfigProperty.USER_PROFILE_ATTRIBUTE_LIST_TYPE);
     configProperties.add(property);
     OIDCAttributeMapperHelper.addAttributeConfig(
-        configProperties, HasuraMultivaluedUserAttributeMapper.class);
+        configProperties, AuthorizedElectionsUserAttributeMapper.class);
   }
 
   public static final String PROVIDER_ID = "hasura-multivalued-oidc-usermodel-attribute-mapper";

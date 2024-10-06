@@ -104,6 +104,44 @@ pub async fn insert_ballot_style(
 }
 
 #[instrument(skip(hasura_transaction), err)]
+pub async fn get_all_ballot_styles(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    area_id: &str,
+    authorized_election_ids: &Vec<String>,
+) -> Result<Vec<BallotStyle>> {
+    let query: tokio_postgres::Statement = hasura_transaction
+        .prepare(
+            r#"
+            SELECT
+                *
+            FROM
+                sequent_backend.ballot_style
+            WHERE
+                tenant_id = $1 AND
+                area_id = $2 AND
+                election_id = ANY($3) AND
+                deleted_at IS NULL;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(&query, &[&tenant_id, &area_id, authorized_election_ids])
+        .await?;
+
+    let results: Vec<BallotStyle> = rows
+        .into_iter()
+        .map(|row| -> Result<BallotStyle> {
+            row.try_into()
+                .map(|res: BallotStyleWrapper| -> BallotStyle { res.0 })
+        })
+        .collect::<Result<Vec<BallotStyle>>>()?;
+
+    Ok(results)
+}
+
+#[instrument(skip(hasura_transaction), err)]
 pub async fn get_ballot_styles_by_ballot_publication_by_id(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
