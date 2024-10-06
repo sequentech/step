@@ -37,10 +37,21 @@ user level.
 
 #### Migration: permission_labels attribute
 
-In the Admin Portal realm, go to `Realm settings` > `User Profile`, then click
+In the Admin Portal realm in keycloak, go to `Realm settings` > `User Profile`, then click
 on `Create Attribute`. The `Attribue [Name]` and `Display name`should be
 `permission_labels`. Set `Multivalued` on and in `Permissions` set the `Admin`
 with both edit and view permissions. Then click `Save`.
+
+#### Migration: Hasura multivalued mapper
+
+In the Admin Portal realm in keycloak, go to `Clients` > `admin-portal` > `Client scopes`
+, then click on `admin-portal-dedicated` and `Add mapper` > `By configuration`, then click on 
+`Hasura Multivalue User Attribute`. Then configure:
+- Name: `x-hasura-permission-labels`.
+- User Attribute: `permission_labels`.
+- Token Claim Name: `https://hasura\.io/jwt/claims.x-hasura-permission-labels`.
+
+And click `Save`.
 
 # Next Release
 
