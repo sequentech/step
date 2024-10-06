@@ -12,6 +12,7 @@ use crate::postgres::candidate::export_candidates;
 use crate::postgres::contest::export_contests;
 use crate::postgres::election::export_elections;
 use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::database::get_hasura_pool;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
@@ -23,6 +24,7 @@ use sequent_core::types::hasura::core::{
     self as hasura_type, Area, AreaContest, BallotPublication, BallotStyle, Candidate, Contest,
     Election, ElectionEvent,
 };
+use sequent_core::types::scheduled_event::ScheduledEvent;
 
 use std::collections::{HashMap, HashSet};
 use tracing::{event, instrument, Level};
@@ -100,6 +102,7 @@ pub async fn create_ballot_style_postgres(
     contests_map: &HashMap<String, Contest>,
     candidates_map: &HashMap<String, Candidate>,
     area_contests_map: &HashMap<String, AreaContest>,
+    scheduled_events: &Vec<ScheduledEvent>,
 ) -> Result<()> {
     let election_contest_map = get_elections_contests_map_for_area(
         area,
@@ -141,6 +144,7 @@ pub async fn create_ballot_style_postgres(
             election.clone(),
             contests.clone(),
             candidates.clone(),
+            scheduled_events.clone(),
         )?;
         let election_dto_json_string = serde_json::to_string(&election_dto)?;
         let _created_ballot_style = insert_ballot_style(
@@ -193,14 +197,16 @@ pub async fn update_election_event_ballot_styles(
     else {
         return Err(anyhow!("can't find ballot publication"));
     };
-    let (election_event, elections, contests, candidates, areas, area_contests) = try_join!(
-        get_election_event_by_id(&transaction, tenant_id, election_event_id),
-        export_elections(&transaction, tenant_id, election_event_id),
-        export_contests(&transaction, tenant_id, election_event_id),
-        export_candidates(&transaction, tenant_id, election_event_id),
-        get_event_areas(&transaction, tenant_id, election_event_id),
-        export_area_contests(&transaction, tenant_id, election_event_id),
-    )?;
+    let (election_event, elections, contests, candidates, areas, area_contests, scheduled_events) =
+        try_join!(
+            get_election_event_by_id(&transaction, tenant_id, election_event_id),
+            export_elections(&transaction, tenant_id, election_event_id),
+            export_contests(&transaction, tenant_id, election_event_id),
+            export_candidates(&transaction, tenant_id, election_event_id),
+            get_event_areas(&transaction, tenant_id, election_event_id),
+            export_area_contests(&transaction, tenant_id, election_event_id),
+            find_scheduled_event_by_election_event_id(&transaction, tenant_id, election_event_id),
+        )?;
 
     let elections_map: HashMap<String, Election> = elections
         .into_iter()
@@ -237,6 +243,7 @@ pub async fn update_election_event_ballot_styles(
             &contests_map,
             &candidates_map,
             &area_contests_map,
+            &scheduled_events,
         )
         .await?;
     }

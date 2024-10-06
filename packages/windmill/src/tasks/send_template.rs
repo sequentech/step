@@ -9,7 +9,7 @@ use crate::services::election_event_statistics::update_election_event_statistics
 use crate::services::election_statistics::update_election_statistics;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::users::{list_users, list_users_with_vote_info, ListUsersFilter};
-use crate::tasks::send_communication::get_election_event::GetElectionEventSequentBackendElectionEvent;
+use crate::tasks::send_template::get_election_event::GetElectionEventSequentBackendElectionEvent;
 use crate::types::error::Result;
 use crate::util::aws::get_from_env_aws_config;
 
@@ -29,10 +29,10 @@ use sequent_core::services::generate_urls::get_auth_url;
 use sequent_core::services::generate_urls::AuthAction;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::services::{keycloak, reports};
-use sequent_core::types::communications::{
-    AudienceSelection, CommunicationMethod, EmailConfig, SendCommunicationBody, SmsConfig,
-};
 use sequent_core::types::keycloak::{User, UserArea};
+use sequent_core::types::templates::{
+    AudienceSelection, EmailConfig, SendTemplateBody, SmsConfig, TemplateMethod,
+};
 use serde_json::json;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
@@ -272,7 +272,7 @@ impl EmailSender {
 }
 
 #[instrument(skip(sender), err)]
-async fn send_communication_sms(
+async fn send_template_sms(
     receiver: &Option<String>,
     template: &Option<SmsConfig>,
     variables: &Map<String, Value>,
@@ -290,7 +290,7 @@ async fn send_communication_sms(
 }
 
 #[instrument(skip(sender), err)]
-async fn send_communication_email(
+async fn send_template_email(
     receiver: &Option<String>,
     template: &Option<EmailConfig>,
     variables: &Map<String, Value>,
@@ -326,15 +326,15 @@ struct Metrics {
     metrics_by_election_id: HashMap<String, MetricsUnit>,
 }
 
-fn update_metrics_unit(metrics_unit: &mut MetricsUnit, communication_method: &CommunicationMethod) {
+fn update_metrics_unit(metrics_unit: &mut MetricsUnit, communication_method: &TemplateMethod) {
     match communication_method {
-        &CommunicationMethod::EMAIL => {
+        &TemplateMethod::EMAIL => {
             metrics_unit.num_emails_sent += 1;
         }
-        &CommunicationMethod::SMS => {
+        &TemplateMethod::SMS => {
             metrics_unit.num_sms_sent += 1;
         }
-        &CommunicationMethod::DOCUMENT => {}
+        &TemplateMethod::DOCUMENT => {}
     };
 }
 
@@ -342,7 +342,7 @@ fn update_metrics(
     metrics: &mut Metrics,
     elections_by_area: &HashMap<String, Vec<String>>,
     user: &User,
-    communication_method: &CommunicationMethod,
+    communication_method: &TemplateMethod,
     success: bool,
 ) {
     // if the op was not successful, then do not update
@@ -424,8 +424,8 @@ async fn update_stats(
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
-pub async fn send_communication(
-    body: SendCommunicationBody,
+pub async fn send_template(
+    body: SendTemplateBody,
     tenant_id: String,
     election_event_id: Option<String>,
 ) -> Result<()> {
@@ -574,13 +574,13 @@ pub async fn send_communication(
         };
 
         let Some(communication_method) = body.communication_method.clone() else {
-            return Err(Error::String("Missing communication method".into()));
+            return Err(Error::String("Missing template method".into()));
         };
 
         for user in filtered_users.iter() {
             event!(
                 Level::INFO,
-                "Sending communication to user with id={id:?} and email={email:?}",
+                "Sending template to user with id={id:?} and email={email:?}",
                 id = user.id,
                 email = user.email,
             );
@@ -591,8 +591,8 @@ pub async fn send_communication(
                 AuthAction::Login,
             )?;
             let success = match communication_method {
-                CommunicationMethod::EMAIL => {
-                    let sending_result = send_communication_email(
+                TemplateMethod::EMAIL => {
+                    let sending_result = send_template_email(
                         /* receiver */ &user.email,
                         /* template */ &body.email,
                         /* variables */ &variables,
@@ -606,8 +606,8 @@ pub async fn send_communication(
                         Ok(())
                     }
                 }
-                CommunicationMethod::SMS => {
-                    let sending_result = send_communication_sms(
+                TemplateMethod::SMS => {
+                    let sending_result = send_template_sms(
                         /* receiver */ &user.get_mobile_phone(),
                         /* template */ &body.sms,
                         /* variables */ &variables,
@@ -621,7 +621,7 @@ pub async fn send_communication(
                         Ok(())
                     }
                 }
-                CommunicationMethod::DOCUMENT => {
+                TemplateMethod::DOCUMENT => {
                     //nothing to do
                     Ok(())
                 }
@@ -668,7 +668,7 @@ pub async fn send_communication(
         let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
 
         electoral_log
-            .post_send_communication(election_event.id, None)
+            .post_send_template(election_event.id, None)
             .await
             .with_context(|| "error posting to the electoral log")?;
     }

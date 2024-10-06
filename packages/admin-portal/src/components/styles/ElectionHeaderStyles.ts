@@ -36,4 +36,13 @@ export const ElectionHeaderStyles = {
         letter-spacing: 0.17px;
         word-wrap: break-word;
     `,
+    AccordionTitle: styled.div`
+        color: rgba(0, 0, 0, 0.6);
+        font-size: 16px;
+        font-family: Roboto;
+        font-weight: 700;
+        line-height: 20.02px;
+        letter-spacing: 0.17px;
+        word-wrap: break-word;
+    `,
 }

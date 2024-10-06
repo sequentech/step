@@ -11,7 +11,6 @@ use crate::services::pg_lock::PgLock;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::voting_status::{self};
 use crate::types::error::{Error, Result};
-use crate::types::scheduled_event::EventProcessors;
 use anyhow::{anyhow, Context, Result as AnyhowResult};
 use async_trait::async_trait;
 use celery::error::TaskError;
@@ -19,6 +18,7 @@ use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::{ElectionStatus, VotingStatus};
+use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use tracing::{error, event, info, Level};
@@ -66,15 +66,15 @@ async fn manage_election_date_wrapper(
         return Err(anyhow!("Missing event processor"));
     };
 
-    election_status.voting_status = if EventProcessors::START_ELECTION == event_processor {
+    election_status.voting_status = if EventProcessors::START_VOTING_PERIOD == event_processor {
         VotingStatus::OPEN
     } else {
         VotingStatus::CLOSED
     };
 
     election_status.voting_status = match event_processor {
-        EventProcessors::START_ELECTION => VotingStatus::OPEN,
-        EventProcessors::END_ELECTION => VotingStatus::CLOSED,
+        EventProcessors::START_VOTING_PERIOD => VotingStatus::OPEN,
+        EventProcessors::END_VOTING_PERIOD => VotingStatus::CLOSED,
         _ => {
             info!("Invalid scheduled event type: {:?}", event_processor);
             stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id)
