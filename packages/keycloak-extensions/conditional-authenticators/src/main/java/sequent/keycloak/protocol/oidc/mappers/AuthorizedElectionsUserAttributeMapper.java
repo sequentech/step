@@ -35,18 +35,16 @@ import org.keycloak.representations.IDToken;
 import org.keycloak.util.JsonSerialization;
 
 /**
- * Mappings UserModel.attribute to an ID Token claim. Token claim name can be a
- * full qualified
- * nested object name, i.e. "address.country". This will create a nested json
- * object within the toke
+ * Mappings UserModel.attribute to an ID Token claim. Token claim name can be a full qualified
+ * nested object name, i.e. "address.country". This will create a nested json object within the toke
  * claim.
  */
 @JBossLog
 public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocolMapper
     implements OIDCAccessTokenMapper,
-    OIDCIDTokenMapper,
-    UserInfoTokenMapper,
-    TokenIntrospectionTokenMapper {
+        OIDCIDTokenMapper,
+        UserInfoTokenMapper,
+        TokenIntrospectionTokenMapper {
 
   private String keycloakUrl = System.getenv("KEYCLOAK_URL");
   private String tenantId = System.getenv("SUPER_ADMIN_TENANT_ID");
@@ -55,7 +53,8 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
   private String hasuraEndpoint = System.getenv("HASURA_ENDPOINT");
   private String access_token;
 
-  private static final List<ProviderConfigProperty> configProperties = new ArrayList<ProviderConfigProperty>();
+  private static final List<ProviderConfigProperty> configProperties =
+      new ArrayList<ProviderConfigProperty>();
 
   static {
     ProviderConfigProperty property;
@@ -100,8 +99,10 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
 
     UserModel user = userSession.getUser();
     String attributeName = mappingModel.getConfig().get(ProtocolMapperUtils.USER_ATTRIBUTE);
-    boolean aggregateAttrs = Boolean.valueOf(mappingModel.getConfig().get(ProtocolMapperUtils.AGGREGATE_ATTRS));
-    Collection<String> attributeValue = KeycloakModelUtils.resolveAttribute(user, attributeName, aggregateAttrs);
+    boolean aggregateAttrs =
+        Boolean.valueOf(mappingModel.getConfig().get(ProtocolMapperUtils.AGGREGATE_ATTRS));
+    Collection<String> attributeValue =
+        KeycloakModelUtils.resolveAttribute(user, attributeName, aggregateAttrs);
 
     log.infov("Realm id: {0}", userSession.getRealm().getName());
     String electionEventId = userSession.getRealm().getName().split("\\-event\\-")[1];
@@ -131,13 +132,15 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
     }
 
     // Format the collection as a string
-    String result = authorizedElectionIds.stream()
-        .map(
-            electionAlias -> electionsAliasIds.get(electionAlias)) // Map election alias to election id
-        .map(s -> "\"" + s + "\"") // Add double quotes around each string
-        .collect(
-            Collectors.joining(
-                ", ", "{", "}")); // Join with commas and wrap with curly brackets
+    String result =
+        authorizedElectionIds.stream()
+            .map(
+                electionAlias ->
+                    electionsAliasIds.get(electionAlias)) // Map election alias to election id
+            .map(s -> "\"" + s + "\"") // Add double quotes around each string
+            .collect(
+                Collectors.joining(
+                    ", ", "{", "}")); // Join with commas and wrap with curly brackets
     log.infov("Result: {0}", result);
     OIDCAttributeMapperHelper.mapClaim(token, mappingModel, result);
   }
@@ -173,15 +176,16 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
       boolean introspectionEndpoint,
       boolean multivalued,
       boolean aggregateAttrs) {
-    ProtocolMapperModel mapper = OIDCAttributeMapperHelper.createClaimMapper(
-        name,
-        userAttribute,
-        tokenClaimName,
-        claimType,
-        accessToken,
-        idToken,
-        introspectionEndpoint,
-        PROVIDER_ID);
+    ProtocolMapperModel mapper =
+        OIDCAttributeMapperHelper.createClaimMapper(
+            name,
+            userAttribute,
+            tokenClaimName,
+            claimType,
+            accessToken,
+            idToken,
+            introspectionEndpoint,
+            PROVIDER_ID);
 
     if (multivalued) {
       mapper.getConfig().put(ProtocolMapperUtils.MULTIVALUED, "true");
@@ -215,26 +219,29 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
 
   public String authenticate() {
     HttpClient client = HttpClient.newHttpClient();
-    String url = this.keycloakUrl
-        + "/realms/"
-        + getTenantRealmName(this.tenantId)
-        + "/protocol/openid-connect/token";
+    String url =
+        this.keycloakUrl
+            + "/realms/"
+            + getTenantRealmName(this.tenantId)
+            + "/protocol/openid-connect/token";
     Map<Object, Object> data = new HashMap<>();
     data.put("client_id", this.clientId);
     data.put("scope", "openid");
     data.put("client_secret", this.clientSecret);
     data.put("grant_type", "client_credentials");
 
-    String form = data.entrySet().stream()
-        .map(entry -> entry.getKey() + "=" + entry.getValue())
-        .reduce((entry1, entry2) -> entry1 + "&" + entry2)
-        .orElse("");
+    String form =
+        data.entrySet().stream()
+            .map(entry -> entry.getKey() + "=" + entry.getValue())
+            .reduce((entry1, entry2) -> entry1 + "&" + entry2)
+            .orElse("");
     log.info(form);
-    HttpRequest request = HttpRequest.newBuilder()
-        .uri(URI.create(url))
-        .header("Content-Type", "application/x-www-form-urlencoded")
-        .POST(HttpRequest.BodyPublishers.ofString(form))
-        .build();
+    HttpRequest request =
+        HttpRequest.newBuilder()
+            .uri(URI.create(url))
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .POST(HttpRequest.BodyPublishers.ofString(form))
+            .build();
 
     CompletableFuture<HttpResponse<String>> responseFuture;
     responseFuture = client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
@@ -259,29 +266,31 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
       throws IOException, InterruptedException {
     HttpClient client = HttpClient.newHttpClient();
     String url = this.hasuraEndpoint;
-    String requestBody = String.format(
-        "{\"query\":\"query GetAllElectionsFromEvent {\\n"
-            + //
-            "  sequent_backend_election(where: {election_event_id: {_eq: \\\"%s\\\"}}) {\\n"
-            + //
-            "    id\\n"
-            + //
-            "    alias\\n"
-            + //
-            "    name\\n"
-            + //
-            "  }\\n"
-            + //
-            "}\\n"
-            + //
-            "\",\"variables\":null,\"operationName\":\"GetAllElectionsFromEvent\"}",
-        electionEventId);
-    HttpRequest request = HttpRequest.newBuilder()
-        .uri(URI.create(url))
-        .header("Content-Type", "application/json")
-        .header("Authorization", "Bearer " + token)
-        .POST(HttpRequest.BodyPublishers.ofString(requestBody))
-        .build();
+    String requestBody =
+        String.format(
+            "{\"query\":\"query GetAllElectionsFromEvent {\\n"
+                + //
+                "  sequent_backend_election(where: {election_event_id: {_eq: \\\"%s\\\"}}) {\\n"
+                + //
+                "    id\\n"
+                + //
+                "    alias\\n"
+                + //
+                "    name\\n"
+                + //
+                "  }\\n"
+                + //
+                "}\\n"
+                + //
+                "\",\"variables\":null,\"operationName\":\"GetAllElectionsFromEvent\"}",
+            electionEventId);
+    HttpRequest request =
+        HttpRequest.newBuilder()
+            .uri(URI.create(url))
+            .header("Content-Type", "application/json")
+            .header("Authorization", "Bearer " + token)
+            .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+            .build();
     HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
     String body = response.body();
