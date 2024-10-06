@@ -9,16 +9,17 @@ export enum IAudienceSelection {
     SELECTED = "SELECTED",
 }
 
-export enum ICommunicationType {
+export enum ITemplateType {
     CREDENTIALS = "CREDENTIALS",
     BALLOT_RECEIPT = "BALLOT_RECEIPT",
     PARTICIPATION_REPORT = "PARTICIPATION_REPORT",
     ELECTORAL_RESULTS = "ELECTORAL_RESULTS",
     OTP = "OTP",
     TALLY_REPORT = "TALLY_REPORT",
+    MANUALLY_VERIFY_VOTER = "MANUALLY_VERIFY_VOTER",
 }
 
-export enum ICommunicationMethod {
+export enum ITemplateMethod {
     EMAIL = "EMAIL",
     SMS = "SMS",
     DOCUMENT = "DOCUMENT",
@@ -40,11 +41,17 @@ export interface ISmsConfig {
     message: string
 }
 
-export interface ISendCommunicationBody {
+export interface IMethods {
+    [ITemplateMethod.EMAIL]: boolean
+    [ITemplateMethod.SMS]: boolean
+    [ITemplateMethod.DOCUMENT]: boolean
+}
+
+export interface ISendTemplateBody {
     audience_selection?: IAudienceSelection
     audience_voter_ids?: Array<string>
-    communication_type?: ICommunicationType
-    communication_method?: ICommunicationMethod
+    type?: ITemplateType
+    communication_method?: ITemplateMethod
     schedule_now?: boolean
     schedule_date?: string
     email?: IEmail
@@ -52,6 +59,7 @@ export interface ISendCommunicationBody {
     name?: string
     alias?: string
     document?: string
+    selected_methods?: IMethods
 }
 
 export interface IRECEIPTS {

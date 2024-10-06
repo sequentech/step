@@ -20,25 +20,26 @@ extern "C" {
 }
 
 #[wasm_bindgen(typescript_custom_section)]
-const ICOMMUNICATION_TYPE: &'static str = r#"
-enum ICommunicationType {
+const Itype: &'static str = r#"
+enum ITemplateType {
     CREDENTIALS = "CREDENTIALS",
     BALLOT_RECEIPT = "BALLOT_RECEIPT",
     PARTICIPATION_REPORT = "PARTICIPATION_REPORT",
     ELECTORAL_RESULTS = "ELECTORAL_RESULTS",
-    OTP = "OTP"
+    OTP = "OTP",
+    MANUALLY_VERIFY_VOTER = "MANUALLY_VERIFY_VOTER",
 }
 "#;
 
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(typescript_type = "ICommunicationType")]
-    pub type ICommunicationType;
+    #[wasm_bindgen(typescript_type = "ITemplateType")]
+    pub type ITemplateType;
 }
 
 #[wasm_bindgen(typescript_custom_section)]
-const ICOMMUNICATION_METHOD: &'static str = r#"
-enum ICommunicationMethod {
+const ITemplate_METHOD: &'static str = r#"
+enum ITemplateMethod {
     EMAIL = "EMAIL",
     SMS = "SMS"
 }
@@ -46,8 +47,8 @@ enum ICommunicationMethod {
 
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(typescript_type = "ICommunicationMethod")]
-    pub type ICommunicationMethod;
+    #[wasm_bindgen(typescript_type = "ITemplateMethod")]
+    pub type ITemplateMethod;
 }
 
 #[wasm_bindgen(typescript_custom_section)]
@@ -79,12 +80,12 @@ extern "C" {
 }
 
 #[wasm_bindgen(typescript_custom_section)]
-const ISEND_COMMUNICATION_BODY: &'static str = r#"
-interface ISendCommunicationBody {
+const ISEND_Template_BODY: &'static str = r#"
+interface ISendTemplateBody {
     audience_selection: IAudienceSelection;
     audience_voter_ids?: Array<string>;
-    communication_type: ICommunicationType;
-    communication_method: ICommunicationMethod;
+    type: ITemplateType;
+    communication_method: ITemplateMethod;
     schedule_now: boolean;
     schedule_date?: string;
     email?: IEmailConfig,
@@ -94,6 +95,6 @@ interface ISendCommunicationBody {
 
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(typescript_type = "ISendCommunicationBody")]
-    pub type ISendCommunicationBody;
+    #[wasm_bindgen(typescript_type = "ISendTemplateBody")]
+    pub type ISendTemplateBody;
 }

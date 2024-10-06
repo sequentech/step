@@ -85,6 +85,7 @@ public class Utils {
   private static final String USER_ID = "userId";
   public static final String MULTIVALUE_SEPARATOR = "##";
   public static final String ATTRIBUTE_TO_VALIDATE_SEPARATOR = ":";
+  public static final String ERROR_MESSAGE_NOT_SENT = "messageNotSent";
   public static final String ERROR_USER_NOT_FOUND = "userNotFound";
   public static final String ERROR_USER_HAS_CREDENTIALS = "userHasCredentials";
   public static final String ERROR_USER_ATTRIBUTES_NOT_UNSET = "userAttributesNotUnset";

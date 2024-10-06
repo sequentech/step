@@ -8,7 +8,7 @@ import Editor from "@/components/Editor"
 import {Tabs, Tab} from "@mui/material"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {CustomTabPanel} from "@/components/CustomTabPanel"
-import {IEmail} from "@/types/communications"
+import {IEmail} from "@/types/templates"
 
 interface EmailEditorProps {
     record: IEmail

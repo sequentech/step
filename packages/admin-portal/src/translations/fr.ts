@@ -97,7 +97,7 @@ const frenchTranslation: TranslationType = {
             tabs: {
                 votingChannels: "CANAUX DE VOTE",
                 electionTypes: "TYPES D'ÉLECTION",
-                communications: "COMMUNICATION",
+                templates: "MODÈLES",
                 languages: "LANGUES",
                 lookAndFeel: "PERSONNALISATION DE L'APPARENCE",
                 schedules: "ÉVÉNEMENTS PROGRAMMÉS",
@@ -161,6 +161,7 @@ const frenchTranslation: TranslationType = {
                 allowed: "Canaux de Vote Permis",
                 materials: "Matériaux de Support",
                 ballotDesign: "Design du Bulletin",
+                templates: "Modèles",
                 reorder: "Réorganiser les élections",
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importer des Candidats",
@@ -197,6 +198,8 @@ const frenchTranslation: TranslationType = {
                 materialTitle: "Titre",
                 materialSubTitle: "Sous-titre",
                 logoUrl: "URL du Logo",
+                userVerification:
+                    "Vous pouvez introduire un modèle personnalisé qui sera utilisé pour vérifier manuellement les électeurs",
                 redirectFinishUrl: "URL de redirection à la fin",
                 css: "CSS personnalisé",
                 skipElectionList: "Passer l'écran pour choisir l'élection",
@@ -269,6 +272,8 @@ const frenchTranslation: TranslationType = {
                 publish: "Publier",
                 logs: "Journaux",
                 tasks: "Tâches",
+                events: "Événement Planifié",
+                notifications: "Notifications",
             },
             tally: {
                 emptyHeader: "Aucun Comptage pour l'instant.",
@@ -595,10 +600,50 @@ const frenchTranslation: TranslationType = {
                 "miru-download": "Miru Download",
                 "miru-send": "Miru Send",
                 "miru-sign": "Miru Sign",
+                "scheduled-event-write": "Modifier des Événements Planifiés",
             },
         },
         generalSettingsScreen: {
             body: "Activez les langues dans le système. Seules les langues activées ici seront disponibles pour les événements électoraux.",
+        },
+        eventsScreen: {
+            title: "Événements Planifiés",
+            subtitle:
+                "Gère la configuration de l'exécution automatique des événements tels que le début ou la fin de la période de vote.",
+            messages: {
+                createSuccess: "Événement Planifié créé avec succès",
+                createError: "Erreur lors de la création de l'Événement Planifié",
+                editSuccess: "Événement Planifié modifié avec succès",
+                editError: "Erreur lors de la modification de l'Événement Planifié",
+            },
+            eventType: {
+                label: "Type",
+                START_VOTING_PERIOD: "Début de la Période de Vote",
+                END_VOTING_PERIOD: "Fin de la Période de Vote",
+            },
+            election: {
+                label: "Élection",
+            },
+            empty: {
+                header: "Pas encore d'Événements Planifiés.",
+                body: "Voulez-vous en créer un ?",
+                button: "Créer un Événement Planifié",
+            },
+            create: {
+                title: "Créer un Événement Planifié",
+                subtitle: "Créer une nouvelle configuration d'Événement Planifié.",
+            },
+            edit: {
+                title: "Modifier l'Événement Planifié",
+                subtitle: "Modifier la configuration de l'Événement Planifié.",
+                delete: "Êtes-vous sûr de vouloir supprimer cet Événement Planifié ?",
+            },
+            fields: {
+                electionId: "Élection",
+                eventProcessor: "Type",
+                stoppedAt: "Arrêté Le",
+                scheduledDate: "Planifié Le",
+            },
         },
         common: {
             export: "L'exportation peut être un processus long. Êtes-vous sûr de vouloir exporter ?",
@@ -664,7 +709,7 @@ const frenchTranslation: TranslationType = {
             usersAndRoles: "Utilisateurs et Rôles",
             logs: "Journaux",
             settings: "Configuration",
-            communicationTemplates: "Modèles de Communication",
+            templates: "Modèles",
             active: "Actifs",
             archived: "Archivés",
             addResource: {
@@ -1144,7 +1189,7 @@ const frenchTranslation: TranslationType = {
                 richtext: "Corps de Texte Enrichi",
             },
         },
-        sendCommunication: {
+        sendTemplate: {
             send: "Envoyer",
             title: "Envoyer Notification",
             subtitle: "Envoyer une notification aux utilisateurs/électeurs.",
@@ -1158,7 +1203,7 @@ const frenchTranslation: TranslationType = {
             smsMessage: "Message SMS",
             errorSending: "Erreur lors de l'envoi de la notification : {{error}}",
             successSending: "Notification programmée/envoyée avec succès",
-            method: "Méthode de Communication",
+            method: "Méthode de Modèles",
             type: "Type de Communication",
             alias: "Alias de la Modèle",
             votersSelection: {
@@ -1172,11 +1217,11 @@ const frenchTranslation: TranslationType = {
                 voters: "électeurs",
             },
             methodTitle: "Méthode de Communication",
-            communicationMethod: {
+            templateMethod: {
                 EMAIL: "Email",
                 SMS: "SMS",
             },
-            communicationType: {
+            templateType: {
                 CREDENTIALS: "Identifiants",
                 BALLOT_RECEIPT: "Reçu de Vote",
                 PARTICIPATION_REPORT: "Rapport de Participation",
@@ -1260,36 +1305,38 @@ const frenchTranslation: TranslationType = {
             },
         },
 
-        communicationTemplate: {
-            noPermissions: "Vous n'avez pas la permission d'accéder aux Modèles de Communication.",
-            title: "Modèles de Communication",
-            subtitle: "Liste des modèles de communication",
+        template: {
+            noPermissions: "Vous n'avez pas la permission d'accéder aux Modèles.",
+            title: "Modèles",
+            subtitle: "Liste des modèles",
+            chooseMethods: "Choisir les méthodes",
+            default: "Utiliser le modèle par défaut",
             empty: {
-                title: "Aucun modèle de communication",
+                title: "Aucun modèle",
                 subtitle: "Voulez-vous créer un nouveau ?",
             },
             action: {
-                createOne: "Créer Modèle de Communication",
+                createOne: "Créer Modèle",
             },
             create: {
-                title: "Créer un Modèle de Communication",
-                success: "Modèle de Communication créé",
-                error: "Erreur lors de la création du modèle de communication",
+                title: "Créer un Modèle",
+                success: "Modèle créé",
+                error: "Erreur lors de la création du modèle",
             },
             update: {
-                success: "Modèle de Communication mis à jour",
-                error: "Erreur lors de la mise à jour du modèle de communication",
+                success: "Modèle mis à jour",
+                error: "Erreur lors de la mise à jour du modèle",
             },
             edit: {
-                title: "Éditer un Modèle de Communication",
+                title: "Éditer un Modèle",
             },
             form: {
                 smsMessage: "Message SMS",
                 document: "Document",
                 name: "Nom du Modèle",
                 alias: "Alias du Modèle",
-                communicationType: "Type de Communication",
-                communicationMethod: "Méthode de Communication",
+                type: "Type",
+                communicationMethod: "Méthode",
             },
             type: {
                 credentials: "Identifiants",
@@ -1298,6 +1345,7 @@ const frenchTranslation: TranslationType = {
                 electoral_results: "Résultats Électoraux",
                 otp: "OTP",
                 tally_report: "Rapport de comptage",
+                manually_verify_voter: "Vérifier manuellement l'électeur",
             },
             method: {
                 email: "Email",

@@ -29,7 +29,7 @@ use crate::tasks::process_board::process_board;
 use crate::tasks::render_report::render_report;
 use crate::tasks::review_boards::review_boards;
 use crate::tasks::scheduled_events::scheduled_events;
-use crate::tasks::send_communication::send_communication;
+use crate::tasks::send_template::send_template;
 use crate::tasks::set_public_key::set_public_key;
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 
@@ -114,7 +114,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             update_election_event_ballot_styles,
             insert_election_event_t,
             insert_tenant,
-            send_communication,
+            send_template,
             import_users,
             export_users,
             import_election_event,
@@ -143,7 +143,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             "update_voting_status" => "short_queue",
             "insert_election_event_t" => "short_queue",
             "insert_tenant" => "short_queue",
-            "send_communication" => "communication_queue",
+            "send_template" => "communication_queue",
             "import_users" => "import_export_queue",
             "export_users" => "import_export_queue",
             "export_election_event" => "import_export_queue",
