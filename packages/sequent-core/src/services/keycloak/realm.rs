@@ -1,3 +1,4 @@
+use crate::serialization::deserialize_with_path::deserialize_str;
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -76,7 +77,7 @@ impl KeycloakAdminClient {
             json_realm_config.to_string()
         };
         let mut realm: RealmRepresentation =
-            serde_json::from_str(&replaced_ids_config)?;
+            deserialize_str(&replaced_ids_config)?;
 
         // set realm name
         realm.realm = Some(board_name.into());

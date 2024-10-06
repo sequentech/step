@@ -175,7 +175,6 @@
       "clientRole" : false,
       "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
       "attributes" : { }
-      },
     }, {
       "id" : "f9bdca59-0d6c-43bc-b8ca-b0c58882f97d",
       "name" : "scheduled-event-write",
