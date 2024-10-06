@@ -7,6 +7,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 ## Authorize voters to election events
 
+A new keycloak user attribute has been added to specify which election is a user authorized.
+
 ### Keycloak: Add a new mapper to voting-portal client
 It requires to add to change the configuration a bit:
 1. Go to the realm of the election event you want to configure
@@ -26,9 +28,14 @@ It requires to add to change the configuration a bit:
 3. Click on Create Attribute
 4. Put the following values:
     Attribute Name: authorized-election-ids
-    Display name: Authorized Elections Ids
+    Display name: Authorized Elections
     Multivalued: On
     Attribute group: None
     Enabled when: Always
     Required field: Off
 5. Click save
+
+### Keycloak: New env variable added
+An addidiontal environment variable is required for keycloak to make calls to hasura.
+    HASURA_ENDPOINT: ${HASURA_ENDPOINT}
+    example in dev environment: http://graphql-engine:8080/v1/graphql

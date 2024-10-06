@@ -304,8 +304,9 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
 
     for (JsonNode election : elections.get("data").get("sequent_backend_election")) {
       log.infov("Name: {0}", election.get("name").textValue());
+      log.infov("Alias: {0}", election.get("alias").textValue());
       log.infov("Id: {0}", election.get("id").textValue());
-      electionIds.put(election.get("name").textValue(), election.get("id").textValue());
+      electionIds.put(election.get("alias").textValue(), election.get("id").textValue());
     }
 
     return electionIds;
