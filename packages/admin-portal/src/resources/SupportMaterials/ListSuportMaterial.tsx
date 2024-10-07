@@ -139,12 +139,6 @@ export const ListSupportMaterials: React.FC<ListAreaProps> = (props) => {
         if (listContext && listContext.setFilters) {
             listContext.setFilters({}, {})
         }
-        return () => {
-            // Reset filters when the component unmounts
-            if (listContext && listContext.setFilters) {
-                listContext.setFilters({}, {})
-            }
-        }
     }, [])
 
     return (
