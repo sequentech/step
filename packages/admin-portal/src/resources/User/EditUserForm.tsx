@@ -366,6 +366,18 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         })
     }
 
+    const handleArraySelectChange = (attrName: string) => async (value: string[]) => {
+        setUser((prev) => {
+            return {
+                ...prev,
+                attributes: {
+                    ...prev?.attributes,
+                    [attrName]: value,
+                },
+            }
+        })
+    }
+
     const handlePermissionLabelRemoved = (value: string[]) => {
         if (value?.length < permissionLabels?.length) {
             setUser((prev) => {
@@ -546,9 +558,10 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 label={getAttributeLabel(displayName)}
                                 className="elections-selector"
                                 fullWidth={true}
+                                optionValue="alias"
                                 optionText={aliasRenderer}
                                 filterToQuery={electionFilterToQuery}
-                                debounce={100}
+                                onChange={handleArraySelectChange(attr.name)}
                             />
                         </ReferenceArrayInput>
                     )
@@ -560,7 +573,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             label={t("usersAndRolesScreen.users.fields.permissionLabel")}
                             defaultValue={permissionLabels}
                             fullWidth
-                            debounce={100}
                             onChange={handlePermissionLabelRemoved}
                             onCreate={(newLabel) => {
                                 if (newLabel) {
