@@ -50,7 +50,7 @@ It requires to add to change the configuration a bit:
    - Required field: `Off`
 5. Click `Save`
 
-### Keycloak: New env variable added
+### Migration: New env variable added for Keycloak container
 
 An addidiontal environment variable is required for keycloak to make calls to
 hasura:
