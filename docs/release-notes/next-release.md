@@ -95,4 +95,3 @@ In the Admin Portal realm in keycloak, go to `Clients` > `admin-portal` > `Clien
 - Token Claim Name: `https://hasura\.io/jwt/claims.x-hasura-permission-labels`.
 
 And click `Save`.
->>>>>>> origin/main
