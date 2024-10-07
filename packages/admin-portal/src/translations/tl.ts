@@ -435,31 +435,31 @@ const tagalogTranslation: TranslationType = {
                     subtitle: "Lumikha ng tagagamit",
                 },
                 fields: {
-                    has_voted: "Nakaboto",
-                    username: "Username",
-                    first_name: "Unang Pangalan",
-                    last_name: "Huling Pangalan",
-                    email: "Email",
-                    enabled: "Pinagana",
-                    emailVerified: "Na-verify ang Email",
-                    groups: "Mga Grupo",
-                    attributes: "Mga Katangian",
-                    area: "Lugar",
-                    password: "Password",
-                    repeatPassword: "Ulitin ang Password",
-                    passwordMismatch: "Dapat magkatugma ang mga password",
-                    passwordLengthValidate: "Ang password ay dapat hindi bababa sa 8 karakter",
-                    passwordUppercaseValidate:
+                    "has_voted": "Nakaboto",
+                    "username": "Username",
+                    "first_name": "Unang Pangalan",
+                    "last_name": "Huling Pangalan",
+                    "email": "Email",
+                    "enabled": "Pinagana",
+                    "emailVerified": "Na-verify ang Email",
+                    "groups": "Mga Grupo",
+                    "attributes": "Mga Katangian",
+                    "area": "Lugar",
+                    "password": "Password",
+                    "repeatPassword": "Ulitin ang Password",
+                    "passwordMismatch": "Dapat magkatugma ang mga password",
+                    "passwordLengthValidate": "Ang password ay dapat hindi bababa sa 8 karakter",
+                    "passwordUppercaseValidate":
                         "Ang password ay dapat maglaman ng hindi bababa sa isang malaking titik",
-                    passwordLowercaseValidate:
+                    "passwordLowercaseValidate":
                         "Ang password ay dapat maglaman ng hindi bababa sa isang maliit na titik",
-                    passwordDigitValidate:
+                    "passwordDigitValidate":
                         "Ang password ay dapat maglaman ng hindi bababa sa isang digit",
-                    passwordSpecialCharValidate:
+                    "passwordSpecialCharValidate":
                         "Ang password ay dapat maglaman ng hindi bababa sa isang espesyal na karakter",
-                    trustee: "Kumilos bilang trustee",
-                    permissionLabel: "Label ng pahintulot",
-                    'authorized-election-ids': "Halalan",
+                    "trustee": "Kumilos bilang trustee",
+                    "permissionLabel": "Label ng pahintulot",
+                    "authorized-election-ids": "Halalan",
                 },
                 delete: {
                     body: "Sigurado ka bang gusto mong tanggalin ang tagagamit na ito?",

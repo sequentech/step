@@ -50,7 +50,7 @@ import PhoneInput from "@/components/PhoneInput"
 import SelectArea from "@/components/area/SelectArea"
 import SelectActedTrustee from "./SelectActedTrustee"
 import {AuthContext} from "@/providers/AuthContextProvider"
-import { useAliasRenderer } from "@/hooks/useAliasRenderer"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 interface ListUserRolesProps {
     userId?: string
@@ -554,7 +554,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             }}
                             enableGetChoices={({q}) => q && q.length >= 3}
                         >
-                            <AutocompleteArrayInput
+                            <FormStyles.AutocompleteArrayInput
                                 label={getAttributeLabel(displayName)}
                                 className="elections-selector"
                                 fullWidth={true}

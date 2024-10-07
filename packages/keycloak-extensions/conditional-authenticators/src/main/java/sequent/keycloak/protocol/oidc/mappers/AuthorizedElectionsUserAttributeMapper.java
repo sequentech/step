@@ -35,9 +35,9 @@ import org.keycloak.representations.IDToken;
 import org.keycloak.util.JsonSerialization;
 
 /**
- * Mappings UserModel.attribute to an ID Token claim. Token claim name can be a
- * full qualified nested object name, i.e. "address.country". This will create a
- * nested json object within the toke claim.
+ * Mappings UserModel.attribute to an ID Token claim. Token claim name can be a full qualified
+ * nested object name, i.e. "address.country". This will create a nested json object within the toke
+ * claim.
  */
 @JBossLog
 public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocolMapper
@@ -144,8 +144,7 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
     // If voter is not authorized to any election in this election event. We
     // authorize him to all
     // elections.
-    if (attributeValue.isEmpty()
-        || attributeValue == null) {
+    if (attributeValue.isEmpty() || attributeValue == null) {
       log.infov("Empty: {0}", electionsAliasIds.keySet().stream().collect(Collectors.joining("|")));
       authorizedElectionIds.addAll(electionsAliasIds.keySet());
     } else {
