@@ -354,8 +354,11 @@ const tagalogTranslation: TranslationType = {
                 bulletinBoard: "Bulletin Board",
                 publications: "Mga Publikasyon",
                 s3Files: "Mga File ng S3",
+                scheduledEvents: "Nakatakdang Mga Kaganapan",
                 exportSuccess: "Matagumpay na nai-export ang Kaganapang Halalan",
                 exportError: "Error sa pag-export ng Kaganapang Halalan",
+                passwordTitle: "Password",
+                passwordDescription: "Password para i-decrypt ang file:",
             },
             taskNotification:
                 "{{action}} ay nagsimula na. Maaari mong makita ang status nito sa Talahanayan ng Pagpapatupad ng Mga Gawain.",

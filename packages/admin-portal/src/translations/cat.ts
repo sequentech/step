@@ -355,8 +355,11 @@ const catalanTranslation: TranslationType = {
                 bulletinBoard: "Tauler d'Anuncis",
                 publications: "Publicacions",
                 s3Files: "Fitxers S3",
+                scheduledEvents: "Esdeveniments Programats",
                 exportSuccess: "Esdeveniment Electoral exportat amb èxit",
                 exportError: "Error en exportar l'Esdeveniment Electoral",
+                passwordTitle: "Contrasenya",
+                passwordDescription: "Contrasenya per desxifrar el fitxer:",
             },
             taskNotification:
                 "{{action}} ha començat. Podeu veure el seu estat a la taula d'Execució de Tasques.",

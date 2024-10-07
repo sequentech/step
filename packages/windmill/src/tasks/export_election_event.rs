@@ -20,6 +20,7 @@ pub struct ExportOptions {
     pub bulletin_board: bool,
     pub publications: bool,
     pub s3_files: bool,
+    pub scheduled_events: bool,
 }
 
 #[instrument(err)]

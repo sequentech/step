@@ -27,6 +27,7 @@ use zip::write::FileOptions;
 
 use super::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
 use super::documents::upload_and_return_document_postgres;
+use super::export_schedule_events;
 use super::export_users::export_users_file;
 use super::export_users::ExportBody;
 use super::password;
@@ -182,6 +183,23 @@ pub async fn process_export_zip(
 
             file_counter += 1;
         }
+    }
+
+    // Add Activity Logs data file to the ZIP archive
+    let is_include_schedule_events = export_config.scheduled_events;
+    if is_include_schedule_events {
+        let schedule_events_filename = format!("export-schedule_events-{}.csv", election_event_id);
+        let temp_schedule_events_file = export_schedule_events::read_export_data(
+            &hasura_transaction,
+            tenant_id,
+            election_event_id,
+        )
+        .await
+        .map_err(|e| anyhow!("Error reading activity logs data: {e:?}"))?;
+        zip_writer.start_file(&schedule_events_filename, options)?;
+
+        let mut schedule_events_file = File::open(temp_schedule_events_file)?;
+        std::io::copy(&mut schedule_events_file, &mut zip_writer)?;
     }
 
     // Finalize the ZIP file

@@ -354,8 +354,11 @@ const spanishTranslation: TranslationType = {
                 bulletinBoard: "Tablón de Anuncios",
                 publications: "Publicaciones",
                 s3Files: "Archivos S3",
+                scheduledEvents: "Eventos Programados",
                 exportSuccess: "Evento Electoral exportado con éxito",
                 exportError: "Error al exportar el Evento Electoral",
+                passwordTitle: "Contraseña",
+                passwordDescription: "Contraseña para descifrar el archivo:",
             },
             taskNotification:
                 "{{action}} ha comenzado. Puedes ver su estado en la tabla de Ejecución de Tareas.",

@@ -351,8 +351,11 @@ const englishTranslation = {
                 bulletinBoard: "Bulletin Board",
                 publications: "Publications",
                 s3Files: "S3 Files",
+                scheduledEvents: "Scheduled Events",
                 exportSuccess: "Election Event exported successfully",
                 exportError: "Error exporting Election Event",
+                passwordTitle: "Password",
+                passwordDescription: "Password to decrypt the file:",
             },
             taskNotification:
                 "{{action}} has started. You can see its status at Tasks Execution table.",

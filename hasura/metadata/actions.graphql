@@ -692,12 +692,13 @@ input EventListOrderBy {
 }
 
 input ExportOptions {
-  password : String
+  password : String!
   include_voters : Boolean
   activity_logs : Boolean
   bulletin_board : Boolean
   publications : Boolean
   s3_files : Boolean
+  scheduled_events : Boolean
 }
 
 type GetManualVerificationOutput {

@@ -356,8 +356,11 @@ const frenchTranslation: TranslationType = {
                 bulletinBoard: "Tableau d'Affichage",
                 publications: "Publications",
                 s3Files: "Fichiers S3",
+                scheduledEvents: "Événements Planifiés",
                 exportSuccess: "Événement Électoral exporté avec succès",
                 exportError: "Erreur lors de l'exportation de l'Événement Électoral",
+                passwordTitle: "Mot de Passe",
+                passwordDescription: "Mot de passe pour déchiffrer le fichier :",
             },
             taskNotification:
                 "{{action}} a commencé. Vous pouvez voir son statut dans le tableau d'Exécution des Tâches.",

@@ -53,7 +53,8 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
     const [bulletinBoard, setBulletinBoard] = useState(false)
     const [publications, setPublications] = useState(false)
     const [s3Files, setS3Files] = useState(false)
-    const [password, setPassword] = useState<string | null>(null)
+    const [scheduledEvents, setScheduledEvents] = useState(false)
+    const [password, setPassword] = useState<string>("")
     const [openPasswordDialog, setOpenPasswordDialog] = useState<boolean>(false)
 
     const [exportElectionEvent] = useMutation<ExportElectionEventMutation>(EXPORT_ELECTION_EVENT, {
@@ -70,7 +71,8 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
         const currWidget: WidgetProps = addWidget(ETasksExecution.EXPORT_ELECTION_EVENT)
         setLoadingExport(true)
 
-        const generatedPassword = encryptWithPassword ? generateRandomPassword() : null
+        const generatedPassword = encryptWithPassword ? generateRandomPassword() : password
+        generatedPassword && setPassword(generatedPassword)
 
         try {
             const {data: exportElectionEventData, errors} = await exportElectionEvent({
@@ -83,6 +85,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                         bulletin_board: bulletinBoard,
                         publications: publications,
                         s3_files: s3Files,
+                        scheduled_events: scheduledEvents,
                     },
                 },
             })
@@ -99,10 +102,6 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
             const task_id = exportElectionEventData?.export_election_event?.task_execution.id
             setWidgetTaskId(currWidget.identifier, task_id)
             setExportDocumentId(documentId)
-
-            if (generatedPassword) {
-                setPassword(generatedPassword)
-            }
         } catch (e) {
             updateWidgetFail(currWidget.identifier)
             setLoadingExport(false)
@@ -188,6 +187,15 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                             />
                         }
                         label={t("electionEventScreen.export.s3Files")}
+                    />
+                    <FormControlLabel
+                        control={
+                            <StyledCheckbox
+                                checked={scheduledEvents}
+                                onChange={() => setScheduledEvents(!scheduledEvents)}
+                            />
+                        }
+                        label={t("electionEventScreen.export.scheduledEvents")}
                     />
                 </FormGroup>
             </Dialog>
