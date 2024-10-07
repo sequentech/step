@@ -23,9 +23,9 @@ import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.representations.IDToken;
 
 /**
- * Mappings UserModel.attribute to an ID Token claim. Token claim name can be a full qualified
- * nested object name, i.e. "address.country". This will create a nested json object within the toke
- * claim.
+ * Mappings UserModel.attribute to an ID Token claim. Token claim name can be a
+ * full qualified nested object name, i.e. "address.country". This will create a
+ * nested json object within the toke claim.
  *
  * @author <a href="mailto:bill@burkecentral.com">Bill Burke</a>
  * @version $Revision: 1 $
@@ -48,7 +48,7 @@ public class HasuraMultivaluedUserAttributeMapper extends AbstractOIDCProtocolMa
     property.setType(ProviderConfigProperty.USER_PROFILE_ATTRIBUTE_LIST_TYPE);
     configProperties.add(property);
     OIDCAttributeMapperHelper.addAttributeConfig(
-        configProperties, AuthorizedElectionsUserAttributeMapper.class);
+        configProperties, HasuraMultivaluedUserAttributeMapper.class);
   }
 
   public static final String PROVIDER_ID = "hasura-multivalued-oidc-usermodel-attribute-mapper";
