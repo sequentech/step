@@ -1634,7 +1634,7 @@
             "defaultValue": null
           },
           {
-            "name": "encrypt_with_password",
+            "name": "include_voters",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -1644,11 +1644,11 @@
             "defaultValue": null
           },
           {
-            "name": "include_voters",
+            "name": "password",
             "description": null,
             "type": {
               "kind": "SCALAR",
-              "name": "Boolean",
+              "name": "String",
               "ofType": null
             },
             "defaultValue": null

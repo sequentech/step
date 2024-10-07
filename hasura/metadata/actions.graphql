@@ -1,11 +1,11 @@
 type Mutation {
-  check_private_key(
+  check_private_key (
     object: CheckPrivateKeyInput!
   ): CheckPrivateKeyOutput
 }
 
 type Mutation {
-  createScheduledEvent(
+  createScheduledEvent (
     tenant_id: String!
     election_event_id: uuid
     event_processor: String!
@@ -16,26 +16,26 @@ type Mutation {
 }
 
 type Mutation {
-  create_keys_ceremony(
+  create_keys_ceremony (
     object: CreateKeysCeremonyInput!
   ): CreateKeysCeremonyOutput
 }
 
 type Mutation {
-  create_permission(
+  create_permission (
     body: CreatePermissionInput!
   ): KeycloakPermission
 }
 
 type Mutation {
-  create_role(
+  create_role (
     tenant_id: String!
     role: KeycloakRole2!
   ): KeycloakRole!
 }
 
 type Mutation {
-  create_tally_ceremony(
+  create_tally_ceremony (
     election_event_id: uuid!
     election_ids: [uuid!]!
     configuration: jsonb
@@ -43,7 +43,7 @@ type Mutation {
 }
 
 type Mutation {
-  create_transmission_package(
+  create_transmission_package (
     election_event_id: uuid!
     election_id: uuid!
     area_id: uuid!
@@ -53,7 +53,7 @@ type Mutation {
 }
 
 type Mutation {
-  create_user(
+  create_user (
     tenant_id: String!
     election_event_id: String
     user: KeycloakUser2!
@@ -62,7 +62,7 @@ type Mutation {
 }
 
 type Mutation {
-  create_vote_receipt(
+  create_vote_receipt (
     ballot_id: String!
     ballot_tracker_url: String!
     tenant_id: uuid!
@@ -72,27 +72,27 @@ type Mutation {
 }
 
 type Mutation {
-  delete_election_event(
+  delete_election_event (
     election_event_id: String!
   ): DeleteElectionEvent
 }
 
 type Mutation {
-  delete_permission(
+  delete_permission (
     tenant_id: String!
     permission_name: String!
   ): SetRolePermissionOutput
 }
 
 type Mutation {
-  delete_role(
+  delete_role (
     tenant_id: String!
     role_id: String!
   ): SetUserRoleOutput
 }
 
 type Mutation {
-  delete_role_permission(
+  delete_role_permission (
     tenant_id: String!
     role_id: String!
     permission_name: String!
@@ -100,7 +100,7 @@ type Mutation {
 }
 
 type Mutation {
-  delete_user(
+  delete_user (
     tenant_id: String!
     election_event_id: String
     user_id: String!
@@ -108,7 +108,7 @@ type Mutation {
 }
 
 type Mutation {
-  delete_user_role(
+  delete_user_role (
     tenant_id: String!
     user_id: String!
     role_id: String!
@@ -116,7 +116,7 @@ type Mutation {
 }
 
 type Mutation {
-  delete_users(
+  delete_users (
     tenant_id: String!
     election_event_id: String
     users_id: [String!]!
@@ -124,45 +124,45 @@ type Mutation {
 }
 
 type Mutation {
-  edit_user(
+  edit_user (
     body: EditUsersInput!
   ): KeycloakUser!
 }
 
 type Mutation {
-  export_election_event(
+  export_election_event (
     election_event_id: String
     export_configurations: ExportOptions
   ): documentTaskOutput
 }
 
 type Mutation {
-  export_election_event_logs(
+  export_election_event_logs (
     election_event_id: String
   ): ExportLogsOutput
 }
 
 type Mutation {
-  export_election_event_tasks(
+  export_election_event_tasks (
     election_event_id: String
   ): ExportTasksOutput
 }
 
 type Mutation {
-  export_tasks_execution(
+  export_tasks_execution (
     tenant_id: String!
     election_event_id: String!
   ): ExportTasksExecutionOutput
 }
 
 type Mutation {
-  export_tenant_users(
+  export_tenant_users (
     tenant_id: String!
   ): ExportTenantUsersOutput
 }
 
 type Mutation {
-  export_users(
+  export_users (
     tenant_id: String!
     election_event_id: String
     election_id: String
@@ -170,33 +170,33 @@ type Mutation {
 }
 
 type Query {
-  fetchDocument(
+  fetchDocument (
     election_event_id: String
     document_id: String!
   ): FetchDocumentOutput
 }
 
 type Mutation {
-  generate_ballot_publication(
+  generate_ballot_publication (
     election_event_id: uuid!
     election_id: uuid
   ): PublishBallotOutput
 }
 
 type Query {
-  getElectionEventStats(
+  getElectionEventStats (
     object: ElectionEventStatsInput!
   ): ElectionEventStatsOutput
 }
 
 type Query {
-  getElectionStats(
+  getElectionStats (
     object: ElectionStatsInput!
   ): ElectionStatsOutput
 }
 
 type Mutation {
-  get_ballot_publication_changes(
+  get_ballot_publication_changes (
     election_event_id: uuid!
     ballot_publication_id: uuid!
     limit: Int
@@ -204,31 +204,31 @@ type Mutation {
 }
 
 type Mutation {
-  get_manual_verification_pdf(
+  get_manual_verification_pdf (
     body: GetManualVerificationInput!
   ): GetManualVerificationOutput
 }
 
 type Query {
-  get_permissions(
+  get_permissions (
     body: GetPermissionsInput!
   ): GetPermissionsOutput!
 }
 
 type Mutation {
-  get_private_key(
+  get_private_key (
     object: GetPrivateKeyInput!
   ): GetPrivateKeyOutput
 }
 
 type Query {
-  get_roles(
+  get_roles (
     body: GetRolesInput!
   ): GetRolesOutput!
 }
 
 type Mutation {
-  get_upload_url(
+  get_upload_url (
     name: String!
     media_type: String!
     size: Int!
@@ -239,7 +239,7 @@ type Mutation {
 }
 
 type Mutation {
-  get_user(
+  get_user (
     tenant_id: uuid!
     election_event_id: uuid
     user_id: String!
@@ -247,34 +247,34 @@ type Mutation {
 }
 
 type Query {
-  get_user_profile_attributes(
+  get_user_profile_attributes (
     tenant_id: String!
     election_event_id: String
   ): [UserProfileAttribute!]!
 }
 
 type Query {
-  get_users(
+  get_users (
     body: GetUsersInput!
   ): GetUsersOutput!
 }
 
 type Mutation {
-  import_areas(
+  import_areas (
     election_event_id: String!
     document_id: String!
   ): OptionalId
 }
 
 type Mutation {
-  import_candidates(
+  import_candidates (
     election_event_id: String!
     document_id: String!
   ): documentTaskOutput
 }
 
 type Mutation {
-  import_election_event(
+  import_election_event (
     tenant_id: String!
     document_id: String!
     check_only: Boolean
@@ -283,7 +283,7 @@ type Mutation {
 }
 
 type Mutation {
-  import_users(
+  import_users (
     tenant_id: String!
     election_event_id: String
     document_id: String!
@@ -291,19 +291,19 @@ type Mutation {
 }
 
 type Mutation {
-  insertElectionEvent(
+  insertElectionEvent (
     object: CreateElectionEventInput!
   ): CreateElectionEventOutput
 }
 
 type Mutation {
-  insertTenant(
+  insertTenant (
     slug: String!
   ): InsertTenantOutput
 }
 
 type Mutation {
-  insert_cast_vote(
+  insert_cast_vote (
     election_id: uuid!
     ballot_id: String!
     content: String!
@@ -311,13 +311,13 @@ type Mutation {
 }
 
 type Mutation {
-  limit_access_by_countries(
+  limit_access_by_countries (
     countries: [String!]!
   ): LimitAccessByCountriesOutput
 }
 
 type Query {
-  listElectoralLog(
+  listElectoralLog (
     limit: Int
     offset: Int
     election_event_id: String
@@ -327,7 +327,7 @@ type Query {
 }
 
 type Query {
-  listPgaudit(
+  listPgaudit (
     limit: Int
     offset: Int
     filter: PgAuditFilter
@@ -337,7 +337,7 @@ type Query {
 }
 
 type Query {
-  list_user_roles(
+  list_user_roles (
     tenant_id: String!
     user_id: String!
     election_event_id: String
@@ -345,7 +345,7 @@ type Query {
 }
 
 type Query {
-  logEvent(
+  logEvent (
     election_event_id: String!
     message_type: String!
     user_id: String
@@ -354,7 +354,7 @@ type Query {
 }
 
 type Mutation {
-  manage_election_dates(
+  manage_election_dates (
     election_event_id: String!
     election_id: String
     scheduled_date: String
@@ -363,14 +363,14 @@ type Mutation {
 }
 
 type Mutation {
-  publish_ballot(
+  publish_ballot (
     election_event_id: uuid!
     ballot_publication_id: uuid!
   ): PublishBallotOutput
 }
 
 type Mutation {
-  publish_tally_sheet(
+  publish_tally_sheet (
     election_event_id: uuid!
     tally_sheet_id: uuid!
     publish: Boolean
@@ -378,13 +378,13 @@ type Mutation {
 }
 
 type Mutation {
-  restore_private_key(
+  restore_private_key (
     object: RestorePrivateKeyInput!
   ): RestorePrivateKeyOutput
 }
 
 type Mutation {
-  send_transmission_package(
+  send_transmission_package (
     election_id: uuid!
     area_id: uuid!
     tally_session_id: uuid!
@@ -392,7 +392,7 @@ type Mutation {
 }
 
 type Mutation {
-  set_custom_urls(
+  set_custom_urls (
     origin: String!
     redirect_to: String!
     dns_prefix: String!
@@ -402,7 +402,7 @@ type Mutation {
 }
 
 type Mutation {
-  set_role_permission(
+  set_role_permission (
     tenant_id: String!
     role_id: String!
     permission_name: String!
@@ -410,7 +410,7 @@ type Mutation {
 }
 
 type Mutation {
-  set_user_role(
+  set_user_role (
     tenant_id: String!
     user_id: String!
     role_id: String!
@@ -418,7 +418,7 @@ type Mutation {
 }
 
 type Mutation {
-  update_election_voting_status(
+  update_election_voting_status (
     election_event_id: uuid!
     election_id: uuid!
     voting_status: String!
@@ -426,14 +426,14 @@ type Mutation {
 }
 
 type Mutation {
-  update_event_voting_status(
+  update_event_voting_status (
     election_event_id: uuid!
     voting_status: String!
   ): UpdateEventVotingStatusOutput
 }
 
 type Mutation {
-  update_tally_ceremony(
+  update_tally_ceremony (
     election_event_id: uuid!
     tally_session_id: uuid!
     status: String!
@@ -441,7 +441,7 @@ type Mutation {
 }
 
 type Mutation {
-  upload_signature(
+  upload_signature (
     election_id: uuid!
     area_id: uuid!
     tally_session_id: uuid!
@@ -451,7 +451,7 @@ type Mutation {
 }
 
 type Mutation {
-  upsert_areas(
+  upsert_areas (
     election_event_id: String!
     document_id: String!
   ): OptionalId
@@ -468,231 +468,231 @@ enum PgAuditTable {
 }
 
 input TemplateInput {
-  template: String!
-  format: String!
+  template : String!
+  format : String!
 }
 
 input PgAuditFilter {
-  id: String
-  audit_type: String
-  class: String
-  command: String
-  dbname: String
-  session_id: String
-  statement: String
-  user: String
+  id : String
+  audit_type : String
+  class : String
+  command : String
+  dbname : String
+  session_id : String
+  statement : String
+  user : String
 }
 
 input PgAuditOrderBy {
-  id: OrderDirection
-  audit_type: OrderDirection
-  class: OrderDirection
-  command: OrderDirection
-  dbname: OrderDirection
-  server_timestamp: OrderDirection
-  session_id: OrderDirection
-  statement: OrderDirection
-  user: OrderDirection
+  id : OrderDirection
+  audit_type : OrderDirection
+  class : OrderDirection
+  command : OrderDirection
+  dbname : OrderDirection
+  server_timestamp : OrderDirection
+  session_id : OrderDirection
+  statement : OrderDirection
+  user : OrderDirection
 }
 
 input ElectoralLogFilter {
-  id: String
-  statement_kind: String
-  user_id: String
+  id : String
+  statement_kind : String
+  user_id : String
 }
 
 input ElectoralLogOrderBy {
-  id: OrderDirection
-  created: OrderDirection
-  statement_timestamp: OrderDirection
-  statement_kind: OrderDirection
-  user_id: OrderDirection
+  id : OrderDirection
+  created : OrderDirection
+  statement_timestamp : OrderDirection
+  statement_kind : OrderDirection
+  user_id : OrderDirection
 }
 
 input SampleInput {
-  username: String!
-  password: String!
+  username : String!
+  password : String!
 }
 
 input CreateElectionEventInput {
-  id: String
-  created_at: String
-  updated_at: String
-  labels: jsonb
-  annotations: jsonb
-  tenant_id: String!
-  name: String!
-  description: String
-  presentation: jsonb
-  bulletin_board_reference: jsonb
-  is_archived: Boolean
-  voting_channels: jsonb
-  dates: jsonb
-  status: jsonb
-  user_boards: String
-  encryption_protocol: String
-  is_audit: Boolean
-  audit_election_event_id: String
-  public_key: String
+  id : String
+  created_at : String
+  updated_at : String
+  labels : jsonb
+  annotations : jsonb
+  tenant_id : String!
+  name : String!
+  description : String
+  presentation : jsonb
+  bulletin_board_reference : jsonb
+  is_archived : Boolean
+  voting_channels : jsonb
+  dates : jsonb
+  status : jsonb
+  user_boards : String
+  encryption_protocol : String
+  is_audit : Boolean
+  audit_election_event_id : String
+  public_key : String
 }
 
 input GetUsersInput {
-  tenant_id: uuid!
-  election_event_id: uuid
-  election_id: uuid
-  search: String
-  first_name: String
-  last_name: String
-  email: String
-  username: String
-  limit: Int
-  offset: Int
-  show_votes_info: Boolean
-  attributes: jsonb
-  enabled: Boolean
-  email_verified: Boolean
-  sort: jsonb
-  has_voted: Boolean
+  tenant_id : uuid!
+  election_event_id : uuid
+  election_id : uuid
+  search : String
+  first_name : String
+  last_name : String
+  email : String
+  username : String
+  limit : Int
+  offset : Int
+  show_votes_info : Boolean
+  attributes : jsonb
+  enabled : Boolean
+  email_verified : Boolean
+  sort : jsonb
+  has_voted : Boolean
 }
 
 input CreateKeysCeremonyInput {
-  election_event_id: String!
-  threshold: Int!
-  trustee_names: [String!]
+  election_event_id : String!
+  threshold : Int!
+  trustee_names : [String!]
 }
 
 input ElectionEventStatsInput {
-  election_event_id: uuid!
-  start_date: String!
-  end_date: String!
+  election_event_id : uuid!
+  start_date : String!
+  end_date : String!
 }
 
 input ElectionStatsInput {
-  election_event_id: uuid!
-  election_id: uuid!
-  start_date: String!
-  end_date: String!
+  election_event_id : uuid!
+  election_id : uuid!
+  start_date : String!
+  end_date : String!
 }
 
 input GetPrivateKeyInput {
-  election_event_id: String!
-  keys_ceremony_id: String!
+  election_event_id : String!
+  keys_ceremony_id : String!
 }
 
 input CheckPrivateKeyInput {
-  election_event_id: String!
-  keys_ceremony_id: String!
-  private_key_base64: String!
+  election_event_id : String!
+  keys_ceremony_id : String!
+  private_key_base64 : String!
 }
 
 input GetPermissionsInput {
-  tenant_id: String!
-  search: String
-  limit: Int
-  offset: Int
+  tenant_id : String!
+  search : String
+  limit : Int
+  offset : Int
 }
 
 input GetRolesInput {
-  tenant_id: String!
-  search: String
-  limit: Int
-  offset: Int
+  tenant_id : String!
+  search : String
+  limit : Int
+  offset : Int
 }
 
 input EditUsersInput {
-  tenant_id: String!
-  user_id: String!
-  enabled: Boolean
-  election_event_id: String
-  attributes: jsonb
-  email: String
-  first_name: String
-  last_name: String
-  groups: [String!]
-  username: String
-  password: String
-  temporary: Boolean
+  tenant_id : String!
+  user_id : String!
+  enabled : Boolean
+  election_event_id : String
+  attributes : jsonb
+  email : String
+  first_name : String
+  last_name : String
+  groups : [String!]
+  username : String
+  password : String
+  temporary : Boolean
 }
 
 input DeleteUserInput {
-  tenant_id: String!
-  election_event_id: String
-  user_id: String!
+  tenant_id : String!
+  election_event_id : String
+  user_id : String!
 }
 
 input KeycloakUser2 {
-  id: String
-  attributes: jsonb
-  email: String
-  email_verified: Boolean
-  enabled: Boolean
-  first_name: String
-  groups: [String!]
-  last_name: String
-  username: String
+  id : String
+  attributes : jsonb
+  email : String
+  email_verified : Boolean
+  enabled : Boolean
+  first_name : String
+  groups : [String!]
+  last_name : String
+  username : String
 }
 
 input CreateUserInput {
-  tenant_id: String!
-  election_event_id: String
-  user: KeycloakUser2!
+  tenant_id : String!
+  election_event_id : String
+  user : KeycloakUser2!
 }
 
 input KeycloakPermission2 {
-  id: String
-  attributes: jsonb
-  container_id: String
-  description: String
-  name: String
+  id : String
+  attributes : jsonb
+  container_id : String
+  description : String
+  name : String
 }
 
 input CreatePermissionInput {
-  tenant_id: String!
-  permission: KeycloakPermission2!
+  tenant_id : String!
+  permission : KeycloakPermission2!
 }
 
 input GetManualVerificationInput {
-  tenant_id: String!
-  election_event_id: String!
-  voter_id: String!
+  tenant_id : String!
+  election_event_id : String!
+  voter_id : String!
 }
 
 input KeycloakRole2 {
-  id: String
-  name: String
-  permissions: jsonb
-  access: jsonb
-  attributes: jsonb
-  client_roles: jsonb
+  id : String
+  name : String
+  permissions : jsonb
+  access : jsonb
+  attributes : jsonb
+  client_roles : jsonb
 }
 
 input RestorePrivateKeyInput {
-  election_event_id: String!
-  private_key_base64: String!
-  tally_session_id: String!
+  election_event_id : String!
+  private_key_base64 : String!
+  tally_session_id : String!
 }
 
 input UserProfileAttributesInput {
-  tenant_id: String!
-  election_event_id: String
+  tenant_id : String!
+  election_event_id : String
 }
 
 input EventListFilter {
-  election: String
-  event_type: String
-  tenant_id: String
-  schedule: jsonb
+  election : String
+  event_type : String
+  tenant_id : String
+  schedule : jsonb
 }
 
 input EventListOrderBy {
-  id: OrderDirection
-  election: OrderDirection
-  event_type: OrderDirection
-  schedule: OrderDirection
+  id : OrderDirection
+  election : OrderDirection
+  event_type : OrderDirection
+  schedule : OrderDirection
 }
 
 input ExportOptions {
-  encrypt_with_password : Boolean
+  password : String
   include_voters : Boolean
   activity_logs : Boolean
   bulletin_board : Boolean
@@ -701,463 +701,464 @@ input ExportOptions {
 }
 
 type GetManualVerificationOutput {
-  document_id: String
-  status: String
+  document_id : String
+  status : String
 }
 
 type CreateKeysCeremonyOutput {
-  keys_ceremony_id: String!
+  keys_ceremony_id : String!
 }
 
 type GetPrivateKeyOutput {
-  private_key_base64: String!
+  private_key_base64 : String!
 }
 
 type CastVotesPerDay {
-  day: date!
-  day_count: Int!
+  day : date!
+  day_count : Int!
 }
 
 type ElectionEventStatsOutput {
-  total_distinct_voters: Int!
-  total_areas: Int!
-  total_eligible_voters: Int!
-  total_elections: Int!
-  votes_per_day: [CastVotesPerDay]!
+  total_distinct_voters : Int!
+  total_areas : Int!
+  total_eligible_voters : Int!
+  total_elections : Int!
+  votes_per_day : [CastVotesPerDay]!
 }
 
 type ElectionStatsOutput {
-  total_distinct_voters: Int!
-  total_areas: Int!
-  votes_per_day: [CastVotesPerDay]!
+  total_distinct_voters : Int!
+  total_areas : Int!
+  votes_per_day : [CastVotesPerDay]!
 }
 
 type CheckPrivateKeyOutput {
-  is_valid: Boolean!
+  is_valid : Boolean!
 }
 
 type TemplateOutput {
-  id: String!
-  election_event_id: String
-  tenant_id: String
-  name: String
-  size: Int
-  media_type: String
+  id : String!
+  election_event_id : String
+  tenant_id : String
+  name : String
+  size : Int
+  media_type : String
 }
 
 type FetchDocumentOutput {
-  url: String!
+  url : String!
 }
 
 type ScheduledEventOutput {
-  id: String!
-  tenant_id: String
-  election_event_id: String
-  created_at: String
-  stopped_at: String
-  labels: jsonb
-  annotations: jsonb
-  event_processor: String
-  cron_config: String
-  event_payload: jsonb
-  created_by: String
+  id : String!
+  tenant_id : String
+  election_event_id : String
+  created_at : String
+  stopped_at : String
+  labels : jsonb
+  annotations : jsonb
+  event_processor : String
+  cron_config : String
+  event_payload : jsonb
+  created_by : String
 }
 
 type PgAuditRow {
-  id: Int!
-  audit_type: String!
-  class: String!
-  command: String!
-  dbname: String!
-  server_timestamp: Int!
-  session_id: String!
-  statement: String!
-  user: String!
+  id : Int!
+  audit_type : String!
+  class : String!
+  command : String!
+  dbname : String!
+  server_timestamp : Int!
+  session_id : String!
+  statement : String!
+  user : String!
 }
 
 type Aggregate {
-  count: Int!
+  count : Int!
 }
 
 type DataListPgAudit {
-  items: [PgAuditRow]!
-  total: TotalAggregate!
+  items : [PgAuditRow]!
+  total : TotalAggregate!
 }
 
 type TotalAggregate {
-  aggregate: Aggregate!
+  aggregate : Aggregate!
 }
 
 type ElectoralLogRow {
-  id: Int!
-  created: Int!
-  statement_timestamp: Int!
-  statement_kind: String!
-  message: String!
-  user_id: String!
+  id : Int!
+  created : Int!
+  statement_timestamp : Int!
+  statement_kind : String!
+  message : String!
+  user_id : String!
 }
 
 type DataListElectoralLog {
-  items: [ElectoralLogRow]!
-  total: TotalAggregate!
+  items : [ElectoralLogRow]!
+  total : TotalAggregate!
 }
 
 type ScheduledEventOutput2 {
-  tenant_id: String
+  tenant_id : String
 }
 
 type ScheduledEventOutput3 {
-  id: String
+  id : String
 }
 
 type SampleOutput {
-  accessToken: String!
+  accessToken : String!
 }
 
 type CreateElectionEventOutput {
-  id: String!
+  id : String!
 }
 
 type InsertTenantOutput {
-  id: uuid!
-  slug: String!
+  id : uuid!
+  slug : String!
 }
 
 type KeycloakUserArea {
-  id: uuid
-  name: String
+  id : uuid
+  name : String
 }
 
 type VotesInfo {
-  election_id: String!
-  num_votes: Int!
-  last_voted_at: String!
+  election_id : String!
+  num_votes : Int!
+  last_voted_at : String!
 }
 
 type KeycloakUser {
-  id: String
-  attributes: jsonb
-  email: String
-  email_verified: Boolean
-  enabled: Boolean
-  first_name: String
-  groups: [String!]
-  last_name: String
-  username: String
-  area: KeycloakUserArea
-  votes_info: [VotesInfo!]
+  id : String
+  attributes : jsonb
+  email : String
+  email_verified : Boolean
+  enabled : Boolean
+  first_name : String
+  groups : [String!]
+  last_name : String
+  username : String
+  area : KeycloakUserArea
+  votes_info : [VotesInfo!]
 }
 
 type GetUsersOutput {
-  items: [KeycloakUser!]!
-  total: TotalAggregate!
+  items : [KeycloakUser!]!
+  total : TotalAggregate!
 }
 
 type GetPermissionsOutput {
-  items: [KeycloakPermission!]!
-  total: TotalAggregate!
+  items : [KeycloakPermission!]!
+  total : TotalAggregate!
 }
 
 type KeycloakPermission {
-  id: String
-  attributes: jsonb
-  container_id: String
-  description: String
-  name: String
+  id : String
+  attributes : jsonb
+  container_id : String
+  description : String
+  name : String
 }
 
 type GetRolesOutput {
-  items: [KeycloakRole!]!
-  total: TotalAggregate!
+  items : [KeycloakRole!]!
+  total : TotalAggregate!
 }
 
 type KeycloakRole {
-  id: String
-  name: String
-  permissions: jsonb
-  access: jsonb
-  attributes: jsonb
-  client_roles: jsonb
+  id : String
+  name : String
+  permissions : jsonb
+  access : jsonb
+  attributes : jsonb
+  client_roles : jsonb
 }
 
 type GetUploadUrlOutput {
-  url: String!
-  document_id: String!
+  url : String!
+  document_id : String!
 }
 
 type DeleteUserOutput {
-  id: String
+  id : String
 }
 
 type CreateUserOutput {
-  id: String
+  id : String
 }
 
 type SetRolePermissionOutput {
-  id: String
+  id : String
 }
 
 type OptionalId {
-  id: String
+  id : String
 }
 
 type ExportUsersOutput {
-  error_msg: String
-  task_execution: tasks_execution_type
-  document_id: String!
+  error_msg : String
+  task_execution : tasks_execution_type
+  document_id : String!
 }
 
 type SetUserRoleOutput {
-  id: String
+  id : String
 }
 
 type CreateTallyOutput {
-  tally_session_id: uuid!
+  tally_session_id : uuid!
 }
 
 type StartTallyOutput {
-  tally_session_id: uuid!
+  tally_session_id : uuid!
 }
 
 type PublishBallotOutput {
-  ballot_publication_id: uuid!
+  ballot_publication_id : uuid!
 }
 
 type UpdateEventVotingStatusOutput {
-  election_event_id: uuid
+  election_event_id : uuid
 }
 
 type UpdateElectionVotingStatusOutput {
-  election_id: uuid
+  election_id : uuid
 }
 
 type BallotPublicationStyles {
-  ballot_publication_id: String!
-  ballot_styles: jsonb!
+  ballot_publication_id : String!
+  ballot_styles : jsonb!
 }
 
 type GetBallotPublicationChangesOutput {
-  current: BallotPublicationStyles!
-  previous: BallotPublicationStyles
+  current : BallotPublicationStyles!
+  previous : BallotPublicationStyles
 }
 
 type RestorePrivateKeyOutput {
-  is_valid: Boolean!
+  is_valid : Boolean!
 }
 
 type PublishTallyOutput {
-  tally_sheet_id: uuid
+  tally_sheet_id : uuid
 }
 
 type InsertCastVoteOutput {
-  id: uuid!
-  tenant_id: uuid!
-  election_id: uuid!
-  area_id: uuid!
-  created_at: timestamptz
-  last_updated_at: timestamptz
-  labels: jsonb
-  annotations: jsonb
-  content: String
-  cast_ballot_signature: bytea!
-  voter_id_string: String
-  election_event_id: uuid!
-  ballot_id: String
+  id : uuid!
+  tenant_id : uuid!
+  election_id : uuid!
+  area_id : uuid!
+  created_at : timestamptz
+  last_updated_at : timestamptz
+  labels : jsonb
+  annotations : jsonb
+  content : String
+  cast_ballot_signature : bytea!
+  voter_id_string : String
+  election_event_id : uuid!
+  ballot_id : String
 }
 
 type CreateVoteReceiptOutput {
-  id: uuid!
-  ballot_id: String
-  status: String
+  id : uuid!
+  ballot_id : String
+  status : String
 }
 
 type OptionalImportEvent {
-  id: String
-  message: String
-  error: String
-  task_execution: tasks_execution_type
+  id : String
+  message : String
+  error : String
+  task_execution : tasks_execution_type
 }
 
 type ManageElectionDatesOutput {
-  something: String
+  something : String
 }
 
 type ExportLogsOutput {
-  task_id: String!
-  document_id: String!
+  task_id : String!
+  document_id : String!
 }
 
 type ExportAllUsersOutput {
-  task_id: String!
-  document_id: String!
+  task_id : String!
+  document_id : String!
 }
 
 type ExportTenantUsersOutput {
-  error_msg: String
-  document_id: String!
-  task_execution: tasks_execution_type
+  error_msg : String
+  document_id : String!
+  task_execution : tasks_execution_type
 }
 
 type UserProfileAttributes {
-  annotations: jsonb
-  display_name: String
-  group: String
-  multivalued: Boolean
-  name: String
-  read_only: Boolean
-  required: Boolean
-  validators: jsonb
+  annotations : jsonb
+  display_name : String
+  group : String
+  multivalued : Boolean
+  name : String
+  read_only : Boolean
+  required : Boolean
+  validators : jsonb
 }
 
 type UserProfileAttribute {
-  annotations: jsonb
-  display_name: String
-  group: String
-  multivalued: Boolean
-  name: String
-  read_only: Boolean
-  required: jsonb
-  validations: jsonb
-  permissions: jsonb
-  selector: jsonb
+  annotations : jsonb
+  display_name : String
+  group : String
+  multivalued : Boolean
+  name : String
+  read_only : Boolean
+  required : jsonb
+  validations : jsonb
+  permissions : jsonb
+  selector : jsonb
 }
 
 type DeleteUsersOutput {
-  ids: String
+  ids : String
 }
 
 type ExportTasksOutput {
-  task_id: String!
-  document_id: String!
+  task_id : String!
+  document_id : String!
 }
 
 type ExportTaskOutput {
-  task: sequent_backend_tasks_execution_ActionType!
-  document_id: String!
+  task : sequent_backend_tasks_execution_ActionType!
+  document_id : String!
 }
 
 type sequent_backend_tasks_execution_ActionType {
-  annotations: jsonb
-  created_at: timestamptz!
-  election_event_id: uuid!
-  end_at: timestamptz
-  executed_by_user: String!
-  execution_status: String!
-  id: uuid!
-  labels: jsonb
-  logs: json
-  name: String!
-  start_at: timestamptz!
-  tenant_id: uuid!
-  type: String!
+  annotations : jsonb
+  created_at : timestamptz!
+  election_event_id : uuid!
+  end_at : timestamptz
+  executed_by_user : String!
+  execution_status : String!
+  id : uuid!
+  labels : jsonb
+  logs : json
+  name : String!
+  start_at : timestamptz!
+  tenant_id : uuid!
+  type : String!
 }
 
 type TaskOutput {
-  task: tasks_execution_type!
+  task : tasks_execution_type!
 }
 
 type tasks_execution_type {
-  annotations: jsonb
-  created_at: timestamptz!
-  election_event_id: uuid!
-  end_at: timestamptz
-  executed_by_user: String!
-  execution_status: String!
-  id: uuid!
-  labels: jsonb
-  logs: json
-  name: String!
-  start_at: timestamptz!
-  tenant_id: uuid!
-  type: String!
+  annotations : jsonb
+  created_at : timestamptz!
+  election_event_id : uuid!
+  end_at : timestamptz
+  executed_by_user : String!
+  execution_status : String!
+  id : uuid!
+  labels : jsonb
+  logs : json
+  name : String!
+  start_at : timestamptz!
+  tenant_id : uuid!
+  type : String!
 }
 
 type taskOutput {
-  task_execution: tasks_execution_type!
+  task_execution : tasks_execution_type!
 }
 
 type documentTaskOutput {
-  error_msg: String
-  task_execution: tasks_execution_type!
-  document_id: String!
+  error_msg : String
+  task_execution : tasks_execution_type!
+  document_id : String!
 }
 
 type LogEventOutput {
-  electionEventId: String
+  electionEventId : String
 }
 
 type SetCustomUrlOutput {
-  url: String!
+  url : String!
 }
 
 type SetCustomUrlsOutput {
-  success: Boolean!
-  message: String
+  success : Boolean!
+  message : String
 }
 
 type DeleteElectionEvent {
-  id: String
+  id : String
 }
 
 type ExportTasksExecutionOutput {
-  error_msg: String
-  document_id: String!
+  error_msg : String
+  document_id : String!
 }
 
 type createTransmissionPackageOutput {
-  error_msg: String
-  task_execution: tasks_execution_type
+  error_msg : String
+  task_execution : tasks_execution_type
 }
 
 type GetEventListOutput {
-  election: String!
-  schedule: jsonb
-  task_id: String!
-  tenant_id: String!
-  election_event_id: String!
-  event_type: String!
-  receivers: [String]
-  template: jsonb
-  name: String!
+  election : String!
+  schedule : jsonb
+  task_id : String!
+  tenant_id : String!
+  election_event_id : String!
+  event_type : String!
+  receivers : [String]
+  template : jsonb
+  name : String!
 }
 
 type EventListRow {
-  id: String!
-  election: String!
-  schedule: jsonb
-  task_id: String!
-  tenant_id: String!
-  election_event_id: String!
-  event_type: String!
+  id : String!
+  election : String!
+  schedule : jsonb
+  task_id : String!
+  tenant_id : String!
+  election_event_id : String!
+  event_type : String!
 }
 
 type DataEventList {
-  items: [EventListRow]!
-  total: TotalAggregate!
+  items : [EventListRow]!
+  total : TotalAggregate!
 }
 
 type EventOutput {
-  tenant_id: String!
-  election_event_id: uuid
-  event_processor: String!
-  cron_config: String
-  event_payload: jsonb!
-  created_by: String
+  tenant_id : String!
+  election_event_id : uuid
+  event_processor : String!
+  cron_config : String
+  event_payload : jsonb!
+  created_by : String
 }
 
 type CreateEventOutput {
-  tenant_id: String!
-  election_event_id: uuid
-  event_processor: String!
-  cron_config: jsonb
-  event_payload: jsonb!
-  created_by: String
+  tenant_id : String!
+  election_event_id : uuid
+  event_processor : String!
+  cron_config : jsonb
+  event_payload : jsonb!
+  created_by : String
 }
 
 type LimtIpByCountriesOutput {
-  success: Boolean
+  success : Boolean
 }
 
 type LimitAccessByCountriesOutput {
-  success: Boolean
+  success : Boolean
 }
+

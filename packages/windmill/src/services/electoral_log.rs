@@ -452,7 +452,7 @@ impl TryFrom<&Row> for ElectoralLogRow {
         }
         let deserialized_message =
             Message::strand_deserialize(&message).with_context(|| "Error deserializing message")?;
-        let serialized = general_purpose::STANDARD_NO_PAD.encode(message); 
+        let serialized = general_purpose::STANDARD_NO_PAD.encode(message);
         Ok(ElectoralLogRow {
             id,
             created,

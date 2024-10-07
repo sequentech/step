@@ -1,7 +1,3 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
-//
-// SPDX-License-Identifier: AGPL-3.0-only
-
 import React, {useState} from "react"
 import {ExportElectionEventMutation} from "@/gql/graphql"
 import {EXPORT_ELECTION_EVENT} from "@/queries/ExportElectionEvent"
@@ -31,6 +27,16 @@ interface ExportWrapperProps {
     setLoadingExport: (val: boolean) => void
 }
 
+// Helper function to generate a random password
+const generateRandomPassword = (length = 12) => {
+    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()"
+    let password = ""
+    for (let i = 0; i < length; i++) {
+        password += charset.charAt(Math.floor(Math.random() * charset.length))
+    }
+    return password
+}
+
 export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
     electionEventId,
     openExport,
@@ -48,7 +54,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
     const [publications, setPublications] = useState(false)
     const [s3Files, setS3Files] = useState(false)
     const [password, setPassword] = useState<string | null>(null)
-    const [openPasswordDialog, setOpenPasswordDialog] = useState<boolean>(!!password)
+    const [openPasswordDialog, setOpenPasswordDialog] = useState<boolean>(false)
 
     const [exportElectionEvent] = useMutation<ExportElectionEventMutation>(EXPORT_ELECTION_EVENT, {
         context: {
@@ -63,12 +69,15 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
         setOpenExport(false)
         const currWidget: WidgetProps = addWidget(ETasksExecution.EXPORT_ELECTION_EVENT)
         setLoadingExport(true)
+
+        const generatedPassword = encryptWithPassword ? generateRandomPassword() : null
+
         try {
             const {data: exportElectionEventData, errors} = await exportElectionEvent({
                 variables: {
                     electionEventId,
                     exportConfigurations: {
-                        encrypt_with_password: encryptWithPassword,
+                        password: generatedPassword,
                         include_voters: includeVoters,
                         activity_logs: activityLogs,
                         bulletin_board: bulletinBoard,
@@ -79,7 +88,6 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
             })
 
             const documentId = exportElectionEventData?.export_election_event?.document_id
-            const exportPassword = "01234534564" //TODO: exportElectionEventData?.export_election_event?.password
 
             if (errors || !documentId) {
                 updateWidgetFail(currWidget.identifier)
@@ -91,7 +99,10 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
             const task_id = exportElectionEventData?.export_election_event?.task_execution.id
             setWidgetTaskId(currWidget.identifier, task_id)
             setExportDocumentId(documentId)
-            setPassword(exportPassword)
+
+            if (generatedPassword) {
+                setPassword(generatedPassword)
+            }
         } catch (e) {
             updateWidgetFail(currWidget.identifier)
             setLoadingExport(false)
@@ -100,7 +111,9 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
 
     const onDownloadSuccess = () => {
         setLoadingExport(false)
-        setOpenPasswordDialog(true)
+        if (password) {
+            setOpenPasswordDialog(true)
+        }
     }
 
     return (
@@ -207,16 +220,14 @@ const PasswordDialog: React.FC<{password: string; onClose: () => void}> = ({pass
     const {t} = useTranslation()
 
     const handleCopyPassword = () => {
-        if (document.hasFocus()) {
-            navigator.clipboard.writeText(password)
-            alert(t("common.label.copied"))
-        } else {
-            window.focus()
-            requestAnimationFrame(() => {
-                navigator.clipboard.writeText(password)
+        navigator.clipboard
+            .writeText(password)
+            .then(() => {
                 alert(t("common.label.copied"))
             })
-        }
+            .catch((err) => {
+                console.error("Failed to copy text: ", err)
+            })
     }
 
     return (

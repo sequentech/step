@@ -12,10 +12,6 @@ use crate::services::database::get_hasura_pool;
 use crate::services::export_election_event_logs;
 use crate::services::import_election_event::ImportElectionEventSchema;
 use crate::services::s3;
-use crate::services::{
-    password::generate_random_string_with_charset,
-    temp_path::{generate_temp_file, write_into_named_temp_file},
-};
 use crate::tasks::export_election_event::ExportOptions;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -30,10 +26,10 @@ use uuid::Uuid;
 use zip::write::FileOptions;
 
 use super::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
-use super::consolidation::ecies_encrypt::ecies_encrypt_string;
 use super::documents::upload_and_return_document_postgres;
 use super::export_users::export_users_file;
 use super::export_users::ExportBody;
+use super::password;
 
 pub async fn read_export_data(
     transaction: &Transaction<'_>,
@@ -71,15 +67,12 @@ pub async fn read_export_data(
 async fn generate_encrypted_zip(
     temp_path_string: String,
     encrypted_temp_file_string: String,
-) -> Result<(String)> {
-    let charset: String = "0123456789abcdef!@?".into();
-    let random_pass = generate_random_string_with_charset(64, &charset);
-    println!("random_pass: {}", random_pass);
+    password: String,
+) -> Result<()> {
+    encrypt_file_aes_256_cbc(&temp_path_string, &encrypted_temp_file_string, &password)
+        .map_err(|e| anyhow!("Failed encrypting the ZIP file"))?;
 
-    encrypt_file_aes_256_cbc(&temp_path_string, &encrypted_temp_file_string, &random_pass)
-        .map_err(|e| anyhow!("Error encrypting the ZIP file: {e:?}"))?;
-
-    Ok(random_pass)
+    Ok(())
 }
 
 pub async fn write_export_document(data: ImportElectionEventSchema) -> Result<NamedTempFile> {
@@ -195,18 +188,19 @@ pub async fn process_export_zip(
     zip_writer.finish()?;
 
     // Encrypt ZIP file if required
-    let is_include_encryption = export_config.encrypt_with_password;
+    let encryption_password = export_config.password.unwrap_or("".to_string());
     let encrypted_zip_path = zip_path.with_extension("ezip");
-    if is_include_encryption {
+    if encryption_password.len() > 0 {
         generate_encrypted_zip(
             zip_path.to_string_lossy().to_string(),
             encrypted_zip_path.to_string_lossy().to_string(),
+            encryption_password.clone(),
         )
         .await?;
     }
 
     // Use encrypted_zip_path if encryption is enabled, otherwise use zip_path
-    let upload_path = if is_include_encryption && encrypted_zip_path.exists() {
+    let upload_path = if encryption_password.len() > 0 && encrypted_zip_path.exists() {
         &encrypted_zip_path
     } else {
         &zip_path
@@ -230,7 +224,7 @@ pub async fn process_export_zip(
 
     // Clean up the ZIP files (optional)
     std::fs::remove_file(&zip_path)?;
-    if is_include_encryption {
+    if encrypted_zip_path.exists() {
         std::fs::remove_file(&encrypted_zip_path)?;
     }
 

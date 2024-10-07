@@ -14,7 +14,7 @@ use tracing::{event, instrument, Level};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ExportOptions {
-    pub encrypt_with_password: bool,
+    pub password: Option<String>,
     pub include_voters: bool,
     pub activity_logs: bool,
     pub bulletin_board: bool,

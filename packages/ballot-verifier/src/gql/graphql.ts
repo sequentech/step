@@ -225,8 +225,8 @@ export type ExportLogsOutput = {
 export type ExportOptions = {
     activity_logs?: InputMaybe<Scalars["Boolean"]["input"]>
     bulletin_board?: InputMaybe<Scalars["Boolean"]["input"]>
-    encrypt_with_password?: InputMaybe<Scalars["Boolean"]["input"]>
     include_voters?: InputMaybe<Scalars["Boolean"]["input"]>
+    password?: InputMaybe<Scalars["String"]["input"]>
     publications?: InputMaybe<Scalars["Boolean"]["input"]>
     s3_files?: InputMaybe<Scalars["Boolean"]["input"]>
 }
