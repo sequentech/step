@@ -145,8 +145,7 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
     // authorize him to all
     // elections.
     if (attributeValue.isEmpty()
-        || attributeValue == null
-        || (attributeValue.size() == 1 && attributeValue.iterator().next().trim().length() > 0)) {
+        || attributeValue == null) {
       log.infov("Empty: {0}", electionsAliasIds.keySet().stream().collect(Collectors.joining("|")));
       authorizedElectionIds.addAll(electionsAliasIds.keySet());
     } else {
