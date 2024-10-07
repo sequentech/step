@@ -228,39 +228,39 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
         },
     ]
 
-    // Avoid error when coming from filterd list in other tabs
-    const listContext = useListController({
-        resource: "sequent_backend_keys_ceremony",
-        filter: {
-            tenant_id: tenantId || undefined,
-            election_event_id: electionEvent?.id || undefined,
-        },
-    })
+    // // Avoid error when coming from filterd list in other tabs
+    // const listContext = useListController({
+    //     resource: "sequent_backend_keys_ceremony",
+    //     filter: {
+    //         tenant_id: tenantId || undefined,
+    //         election_event_id: electionEvent?.id || undefined,
+    //     },
+    // })
 
-    const navigate = useNavigate()
-    const location = useLocation()
+    // const navigate = useNavigate()
+    // const location = useLocation()
 
-    useEffect(() => {
-        // navigate to self but without search params
-        navigate(
-            {
-                pathname: location.pathname,
-                search: "",
-            },
-            {replace: true}
-        )
+    // useEffect(() => {
+    //     // navigate to self but without search params
+    //     navigate(
+    //         {
+    //             pathname: location.pathname,
+    //             search: "",
+    //         },
+    //         {replace: true}
+    //     )
 
-        // Reset filters when the component mounts
-        if (listContext && listContext.setFilters) {
-            listContext.setFilters(
-                {
-                    tenant_id: tenantId || undefined,
-                    election_event_id: electionEvent?.id || undefined,
-                },
-                {}
-            )
-        }
-    }, [tenantId, electionEvent?.id])
+    //     // Reset filters when the component mounts
+    //     if (listContext && listContext.setFilters) {
+    //         listContext.setFilters(
+    //             {
+    //                 tenant_id: tenantId || undefined,
+    //                 election_event_id: electionEvent?.id || undefined,
+    //             },
+    //             {}
+    //         )
+    //     }
+    // }, [tenantId, electionEvent?.id])
 
     return (
         <>
