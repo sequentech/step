@@ -454,6 +454,7 @@ const englishTranslation = {
                         "Password must contain at least one special character",
                     trustee: "Act as Trustee",
                     permissionLabel: "Permission Label",
+                    'authorized-election-ids': "Elections",
                 },
                 delete: {
                     body: "Are you sure you want to delete this user?",

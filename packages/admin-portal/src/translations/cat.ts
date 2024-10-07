@@ -459,6 +459,7 @@ const catalanTranslation: TranslationType = {
                         "La contrasenya ha de contenir almenys un caràcter especial",
                     trustee: "Actuar com a fideïcomissari",
                     permissionLabel: "Etiqueta de permís",
+                    'authorized-election-ids': "Eleccions",
                 },
                 delete: {
                     body: "Estàs segur que vols esborrar aquest usuari?",

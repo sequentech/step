@@ -68,6 +68,7 @@ pub fn authorize_voter_election(
         return Err((Status::Unauthorized, "Missing area_id".into()));
     };
 
+    // The claim TODO
     if claims.hasura_claims.authorized_election_ids.is_none()
         || !claims
             .hasura_claims

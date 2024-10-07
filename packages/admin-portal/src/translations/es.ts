@@ -458,6 +458,7 @@ const spanishTranslation: TranslationType = {
                         "La contraseña debe contener al menos un carácter especial",
                     trustee: "Actuar como fideicomisario",
                     permissionLabel: "Etiqueta de permiso",
+                    'authorized-election-ids': "Elecciones",
                 },
                 delete: {
                     body: "¿Estás seguro que quieres borrar este usuario?",

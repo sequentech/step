@@ -10,6 +10,7 @@ import {
     useNotify,
     useRefresh,
     AutocompleteArrayInput,
+    ReferenceArrayInput,
 } from "react-admin"
 import {useMutation, useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
@@ -49,6 +50,7 @@ import PhoneInput from "@/components/PhoneInput"
 import SelectArea from "@/components/area/SelectArea"
 import SelectActedTrustee from "./SelectActedTrustee"
 import {AuthContext} from "@/providers/AuthContextProvider"
+import { useAliasRenderer } from "@/hooks/useAliasRenderer"
 
 interface ListUserRolesProps {
     userId?: string
@@ -421,6 +423,15 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         }
     }
 
+    const aliasRenderer = useAliasRenderer()
+
+    const electionFilterToQuery = (searchText: string) => {
+        if (!searchText || searchText.length == 0) {
+            return {name: ""}
+        }
+        return {"name@_ilike,alias@_ilike": searchText.trim()}
+    }
+
     const renderFormField = useCallback(
         (attr: UserProfileAttribute) => {
             if (attr.name) {
@@ -519,6 +530,27 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 }}
                             />
                         </FormControl>
+                    )
+                } else if (attr.name.toLowerCase().includes("authorized-election-ids")) {
+                    return (
+                        <ReferenceArrayInput
+                            reference="sequent_backend_election"
+                            source="attributes.authorized-election-ids"
+                            filter={{
+                                tenant_id: tenantId,
+                                election_event_id: electionEventId,
+                            }}
+                            enableGetChoices={({q}) => q && q.length >= 3}
+                        >
+                            <AutocompleteArrayInput
+                                label={getAttributeLabel(displayName)}
+                                className="elections-selector"
+                                fullWidth={true}
+                                optionText={aliasRenderer}
+                                filterToQuery={electionFilterToQuery}
+                                debounce={100}
+                            />
+                        </ReferenceArrayInput>
                     )
                 } else if (attr.name.toLowerCase().includes("permission_labels")) {
                     return (

@@ -460,6 +460,7 @@ const frenchTranslation: TranslationType = {
                         "Le mot de passe doit contenir au moins un caractère spécial",
                     trustee: "Agir en tant que fiduciaire",
                     permissionLabel: "Libellé d'autorisation",
+                    'authorized-election-ids': "Élections",
                 },
                 delete: {
                     body: "Êtes-vous sûr de vouloir supprimer cet utilisateur ?",

@@ -70,7 +70,8 @@ pub async fn insert_ballot_style(
                     *;
             "#,
         )
-        .await?;
+        .await
+        .map_err(|err| anyhow!("Error preparing insert statement: {}", err))?;
     let rows: Vec<Row> = hasura_transaction
         .query(
             &statement,
@@ -124,11 +125,13 @@ pub async fn get_all_ballot_styles(
                 deleted_at IS NULL;
             "#,
         )
-        .await?;
+        .await
+        .map_err(|err| anyhow!("Error preparing statement: {}", err))?;
 
     let rows: Vec<Row> = hasura_transaction
         .query(&query, &[&tenant_id, &area_id, authorized_election_ids])
-        .await?;
+        .await
+        .map_err(|err| anyhow!("Error executing query: {}", err))?;
 
     let results: Vec<BallotStyle> = rows
         .into_iter()
@@ -136,7 +139,8 @@ pub async fn get_all_ballot_styles(
             row.try_into()
                 .map(|res: BallotStyleWrapper| -> BallotStyle { res.0 })
         })
-        .collect::<Result<Vec<BallotStyle>>>()?;
+        .collect::<Result<Vec<BallotStyle>>>()
+        .map_err(|err| anyhow!("Error collecting ballot styles: {}", err))?;
 
     Ok(results)
 }

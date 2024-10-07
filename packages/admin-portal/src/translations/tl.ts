@@ -459,6 +459,7 @@ const tagalogTranslation: TranslationType = {
                         "Ang password ay dapat maglaman ng hindi bababa sa isang espesyal na karakter",
                     trustee: "Kumilos bilang trustee",
                     permissionLabel: "Label ng pahintulot",
+                    'authorized-election-ids': "Halalan",
                 },
                 delete: {
                     body: "Sigurado ka bang gusto mong tanggalin ang tagagamit na ito?",
