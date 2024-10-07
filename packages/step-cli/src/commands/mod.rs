@@ -22,3 +22,4 @@ pub mod update_election_event_status;
 pub mod update_election_status;
 pub mod update_tally_status;
 pub mod update_voter;
+pub mod render_template;

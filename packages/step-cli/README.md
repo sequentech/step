@@ -169,3 +169,10 @@ Run ```step update-tally --election-event-id <ELECTION_EVENT_ID> --tally-id <TAL
 - Election event id - the election event to be associated with - required*
 - Tally id - the tally ceremony id to confirm the key for - required*
 - Status - the status of the tally - enter <b>IN_PROGRESS</b> for completing the tally ceremony
+## Render Template
+> This can be used to renders a handlerbars file into html
+> Run ```step render-template --template <PATH_TO_TEMPLATE_FILE> --vars <PATH_TO_VARIABLES_FILE> --output  <PATH_TO_OUTPUT_FILE>```
+
+- template = path to template file can be exmpale.hbs
+- vars - path to variables file needs to be a json file containing the vars needed for the handlebars file
+- output - where should the html file be written to

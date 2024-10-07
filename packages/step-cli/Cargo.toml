@@ -15,7 +15,7 @@ strum = "0.25"
 strum_macros = "0.25"
 reqwest = { version = "0.12.5", features = ["blocking", "json"] }
 graphql_client = "0.13.0"
-sequent-core = { path="../sequent-core", features = ["keycloak", "probe"] }
+sequent-core = { path="../sequent-core", features = ["keycloak", "probe", "reports"] }
 
 [[bin]]
 name = "seq"
