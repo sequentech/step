@@ -284,7 +284,7 @@ const spanishTranslation: TranslationType = {
             explicit: {
                 notAllowed:
                     "Voto marcado explícitamente como inválido pero la pregunta no lo permite",
-                    alert: "La selección marcada será considerada voto inválido.",
+                alert: "La selección marcada será considerada voto inválido.",
             },
             page: {
                 oopsWithStatus: "¡Vaya! {{status}}",
