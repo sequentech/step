@@ -69,4 +69,5 @@ export enum IPermissions {
     MIRU_SEND = "miru-send",
     MIRU_SIGN = "miru-sign",
     SCHEDULED_EVENT_WRITE = "scheduled-event-write",
+    CLOUDFLARE_WRITE = "cloudflare-write",
 }

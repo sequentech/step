@@ -143,6 +143,8 @@ pub enum Permissions {
     SERVICE_ACCOUNT,
     #[strum(serialize = "scheduled-event-write")]
     SCHEDULED_EVENT_WRITE,
+    #[strum(serialize = "cloudflare-write")]
+    CLOUDFLARE_WRITE,
 }
 
 #[allow(non_camel_case_types)]

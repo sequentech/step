@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {TextInput, PasswordInput, DateInput} from "react-admin"
+import {TextInput, PasswordInput, DateInput, AutocompleteInput} from "react-admin"
 import {styled as muiStyled} from "@mui/material/styles"
 import {FormControlLabel, Typography, Box, CircularProgress} from "@mui/material"
 import {Accordion, Select, TextField} from "@mui/material"
@@ -64,6 +64,14 @@ export const FormStyles = {
     DateInput: muiStyled(DateInput)`
         input {
             padding: 16.50px 14px;
+        }
+    `,
+    AutocompleteInput: muiStyled(AutocompleteInput)`
+     input {
+            padding: 10.5px 14px !important;
+        }
+            label:not(.MuiInputLabel-shrink) {
+            top: 8px;
         }
     `,
 }
