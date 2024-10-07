@@ -237,30 +237,30 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
     //     },
     // })
 
-    // const navigate = useNavigate()
-    // const location = useLocation()
+    const navigate = useNavigate()
+    const location = useLocation()
 
-    // useEffect(() => {
-    //     // navigate to self but without search params
-    //     navigate(
-    //         {
-    //             pathname: location.pathname,
-    //             search: "",
-    //         },
-    //         {replace: true}
-    //     )
+    useEffect(() => {
+        // navigate to self but without search params
+        navigate(
+            {
+                pathname: location.pathname,
+                search: "",
+            },
+            {replace: true}
+        )
 
-    //     // Reset filters when the component mounts
-    //     if (listContext && listContext.setFilters) {
-    //         listContext.setFilters(
-    //             {
-    //                 tenant_id: tenantId || undefined,
-    //                 election_event_id: electionEvent?.id || undefined,
-    //             },
-    //             {}
-    //         )
-    //     }
-    // }, [tenantId, electionEvent?.id])
+        //     // Reset filters when the component mounts
+        //     if (listContext && listContext.setFilters) {
+        //         listContext.setFilters(
+        //             {
+        //                 tenant_id: tenantId || undefined,
+        //                 election_event_id: electionEvent?.id || undefined,
+        //             },
+        //             {}
+        //         )
+        //     }
+    }, [tenantId, electionEvent?.id])
 
     return (
         <>
