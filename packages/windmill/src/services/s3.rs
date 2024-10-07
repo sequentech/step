@@ -313,7 +313,7 @@ pub async fn get_files_from_s3(s3_bucket: String, prefix: String) -> Result<Vec<
 
     for object in result.contents().iter() {
         let key = object.key().unwrap();
-        
+
         if !key.contains("export") {
             // Get the object from S3
             let s3_object = client

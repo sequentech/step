@@ -21,19 +21,22 @@ use sequent_core::types::hasura::core::AreaContest;
 use sequent_core::types::hasura::core::Document;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
-use zip::read::ZipFile;
 use std::env;
 use std::fs;
 use std::fs::File;
+use std::io::Cursor;
 use std::io::Seek;
 use std::io::{self, Read, Write};
 use tempfile::NamedTempFile;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use zip::read::ZipArchive;
+use zip::read::ZipFile;
 
 use super::consolidation::aes_256_cbc_encrypt::decrypt_file_aes_256_cbc;
 use super::documents;
+use super::election_event_board::get_election_event_board;
+use super::electoral_log::ElectoralLog;
 use crate::hasura::election_event::get_election_event;
 use crate::hasura::election_event::insert_election_event as insert_election_event_hasura;
 use crate::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
@@ -232,28 +235,32 @@ pub fn replace_ids(
 }
 
 #[instrument(err, skip_all)]
-pub async fn get_document( 
+pub async fn get_document(
     hasura_transaction: &Transaction<'_>,
     object: ImportElectionEventBody,
     election_event_id: Option<String>,
 ) -> Result<(NamedTempFile, Document, String)> {
-    let document =
-    postgres::document::get_document(hasura_transaction, &object.tenant_id, None, &object.document_id)
-        .await?
-        .ok_or(anyhow!(
-            "Error trying to get document id {}: not found",
-            &object.document_id
-        ))?;
+    let document = postgres::document::get_document(
+        hasura_transaction,
+        &object.tenant_id,
+        None,
+        &object.document_id,
+    )
+    .await?
+    .ok_or(anyhow!(
+        "Error trying to get document id {}: not found",
+        &object.document_id
+    ))?;
 
     let mut temp_file_path = documents::get_document_as_temp_file(&object.tenant_id, &document)
-    .await
-    .map_err(|err| anyhow!("Error trying to get document as temporary file {err}"))
-    .unwrap();
+        .await
+        .map_err(|err| anyhow!("Error trying to get document as temporary file {err}"))
+        .unwrap();
 
     let document_type = document
-    .clone()
-    .media_type
-    .unwrap_or("application/json".to_string());
+        .clone()
+        .media_type
+        .unwrap_or("application/json".to_string());
 
     temp_file_path = decrypt_document(object.password.clone(), temp_file_path).await?;
 
@@ -441,18 +448,26 @@ pub async fn process_election_event_file(
     Ok(data)
 }
 
-fn process_voters_file(file: &mut ZipFile) -> Result<()> { 
+fn process_voters_file(file: &mut [u8]) -> Result<()> {
     //TODO: implement
     Ok(())
 }
 
-fn process_activity_logs_file(file: &mut ZipFile) -> Result<()> {
-    let mut temp_file = NamedTempFile::new().context("Failed to create a temporary file")?;
-    // Copy the contents of the zip file to the temp file
-    io::copy(file, &mut temp_file).context("Failed to copy contents to temporary file")?;
-    // Seek back to the beginning of the temp file so it can be read again
+async fn process_activity_logs_file(file: &mut [u8], election_event: ElectionEvent) -> Result<()> {
+    let mut temp_file =
+        NamedTempFile::new().context("Failed to create activity logs temporary file")?;
+
+    let mut cursor = Cursor::new(file);
+    io::copy(&mut cursor, &mut temp_file)
+        .context("Failed to copy contents of activity logs to temporary file")?;
     temp_file.as_file_mut().seek(io::SeekFrom::Start(0))?;
-    //TODO: implement
+
+    let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
+        .with_context(|| "Missing bulletin board")?;
+
+    let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
+    electoral_log.import_from_csv(temp_file).await?;
+
     Ok(())
 }
 
@@ -471,21 +486,43 @@ pub async fn process_document(
     .await
     .map_err(|err| anyhow!("Error getting document: {err}"))?;
 
-    let election_event = process_election_event_file(hasura_transaction, &document_type, &temp_file_path, object, election_event_id, tenant_id).await.map_err(|err| anyhow!("Error processing election event file: {err}"))?;
+    let election_event_schema = process_election_event_file(
+        hasura_transaction,
+        &document_type,
+        &temp_file_path,
+        object,
+        election_event_id,
+        tenant_id,
+    )
+    .await
+    .map_err(|err| anyhow!("Error processing election event file: {err}"))?;
 
-    //TODO: iterate over the files in the ZIP
+    // Check if the document is a ZIP file
     if document_type == "application/zip" {
-        let file = File::open(&temp_file_path)?;
-        let mut zip = ZipArchive::new(file)?;
-        for i in 0..zip.len() {
-            let mut file = zip.by_index(i)?;
-            let file_name = file.name().to_string();
-    
+        let zip_entries = tokio::task::spawn_blocking(move || -> Result<Vec<_>> {
+            let file = File::open(&temp_file_path)?;
+            let mut zip = ZipArchive::new(file)?;
+            let mut entries = Vec::new();
+            for i in 0..zip.len() {
+                let mut file = zip.by_index(i)?;
+                let file_name = file.name().to_string();
+                let mut file_contents = Vec::new();
+                file.read_to_end(&mut file_contents)?;
+                entries.push((file_name, file_contents));
+            }
+            Ok(entries)
+        })
+        .await??;
+
+        for (file_name, mut file_contents) in zip_entries {
             if file_name.contains("activity_logs") {
-                process_activity_logs_file(&mut file)?;
+                let mut file = &mut file_contents[..];
+                process_activity_logs_file(&mut file, election_event_schema.election_event.clone())
+                    .await?;
             }
 
             if file_name.contains("voters") {
+                let mut file = &mut file_contents[..];
                 process_voters_file(&mut file)?;
             }
         }

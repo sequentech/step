@@ -115,19 +115,15 @@ pub async fn import_election_event_f(
         },
     )?;
 
-    // TODO: write new function that gets the document and the election event schema inside services
-    let (temp_file_path, document, document_type) = get_document( 
-        &hasura_transaction,
-        input.clone(),
-        None,
-    )
-    .await
-    .map_err(|err| {
-        (
-            Status::InternalServerError,
-            format!("Error getting document: {err}"),
-        )
-    },)?;
+    let (temp_file_path, document, document_type) =
+        get_document(&hasura_transaction, input.clone(), None)
+            .await
+            .map_err(|err| {
+                (
+                    Status::InternalServerError,
+                    format!("Error getting document: {err}"),
+                )
+            })?;
 
     let document_result =
         services::import_election_event::get_election_event_schema(
