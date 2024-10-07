@@ -970,9 +970,9 @@ impl Contest {
         match self
             .presentation
             .as_ref()
-            .map(|presentation| presentation.clone().invalid_vote_policy)
+            .map(|presentation| &presentation.invalid_vote_policy)
         {
-            Some(policy) => policy.unwrap_or_default(),
+            Some(policy) => policy.clone().unwrap_or_default(),
             _ => InvalidVotePolicy::default(),
         }
     }
