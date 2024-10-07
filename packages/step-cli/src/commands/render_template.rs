@@ -55,13 +55,13 @@ fn render_template_with_vars(
     vars: Map<String, Value>,
 ) -> Result<Vec<u8>, String> {
     let base_template_name = "report_base_html";
-    let base_html_template_fild_path =
+    let base_html_template_field_path =
         "/workspaces/step/packages/velvet/src/resources/report_base_html.hbs";
 
-    let base_template_content = fs::read_to_string(&base_html_template_fild_path).map_err(|e| {
+    let base_template_content = fs::read_to_string(&base_html_template_field_path).map_err(|e| {
         format!(
             "Could not read template file {}: {}",
-            base_html_template_fild_path, e
+            base_html_template_field_path, e
         )
     })?;
 
