@@ -55,6 +55,9 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
 
   private static final List<ProviderConfigProperty> configProperties =
       new ArrayList<ProviderConfigProperty>();
+  private static final String ARRAY_ATTRS = "use.array.attrs";
+  private static final String ARRAY_ATTRS_LABEL = "JSON Array";
+  private static final String ARRAY_ATTRS_HELP_TEXT = "Use a JSON array";
 
   static {
     ProviderConfigProperty property;
@@ -66,6 +69,27 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
     configProperties.add(property);
     OIDCAttributeMapperHelper.addAttributeConfig(
         configProperties, HasuraMultivaluedUserAttributeMapper.class);
+
+    property = new ProviderConfigProperty();
+    property.setName(ProtocolMapperUtils.MULTIVALUED);
+    property.setLabel(ProtocolMapperUtils.MULTIVALUED_LABEL);
+    property.setHelpText(ProtocolMapperUtils.MULTIVALUED_HELP_TEXT);
+    property.setType(ProviderConfigProperty.BOOLEAN_TYPE);
+    configProperties.add(property);
+
+    property = new ProviderConfigProperty();
+    property.setName(ProtocolMapperUtils.AGGREGATE_ATTRS);
+    property.setLabel(ProtocolMapperUtils.AGGREGATE_ATTRS_LABEL);
+    property.setHelpText(ProtocolMapperUtils.AGGREGATE_ATTRS_HELP_TEXT);
+    property.setType(ProviderConfigProperty.BOOLEAN_TYPE);
+    configProperties.add(property);
+
+    property = new ProviderConfigProperty();
+    property.setName(ARRAY_ATTRS);
+    property.setLabel(ARRAY_ATTRS_LABEL);
+    property.setHelpText(ARRAY_ATTRS_HELP_TEXT);
+    property.setType(ProviderConfigProperty.BOOLEAN_TYPE);
+    configProperties.add(property);
   }
 
   public static final String PROVIDER_ID = "authorized-elections-oidc-usermodel-attribute-mapper";
@@ -131,18 +155,24 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
       authorizedElectionIds.addAll(attributeValue);
     }
 
-    // Format the collection as a string
-    String result =
-        authorizedElectionIds.stream()
-            .map(
-                electionAlias ->
-                    electionsAliasIds.get(electionAlias)) // Map election alias to election id
-            .map(s -> "\"" + s + "\"") // Add double quotes around each string
-            .collect(
-                Collectors.joining(
-                    ", ", "{", "}")); // Join with commas and wrap with curly brackets
-    log.infov("Result: {0}", result);
-    OIDCAttributeMapperHelper.mapClaim(token, mappingModel, result);
+    String useArray = mappingModel.getConfig().get(ARRAY_ATTRS);
+    if (Boolean.parseBoolean(useArray)) {
+      OIDCAttributeMapperHelper.mapClaim(
+          token,
+          mappingModel,
+          authorizedElectionIds.stream()
+              .map(electionAlias -> electionsAliasIds.get(electionAlias))
+              .collect(Collectors.toList()));
+    } else {
+      // Format the collection as a string
+      String result =
+          authorizedElectionIds.stream()
+              .map(electionAlias -> electionsAliasIds.get(electionAlias))
+              .map(s -> "\"" + s + "\"")
+              .collect(Collectors.joining(", ", "{", "}"));
+      log.infov("Result: {0}", result);
+      OIDCAttributeMapperHelper.mapClaim(token, mappingModel, result);
+    }
   }
 
   public static ProtocolMapperModel createClaimMapper(

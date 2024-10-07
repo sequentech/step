@@ -992,10 +992,13 @@
       "protocolMapper" : "authorized-elections-oidc-usermodel-attribute-mapper",
       "consentRequired" : false,
       "config" : {
+        "use.array.attrs": "false",
+        "aggregate.attrs": "false",
         "introspection.token.claim" : "true",
         "userinfo.token.claim" : "true",
         "user.attribute" : "authorized-election-ids",
         "id.token.claim" : "true",
+        "multivalued": "true",
         "lightweight.claim" : "false",
         "access.token.claim" : "true",
         "claim.name" : "https://hasura\\.io/jwt/claims.x-hasura-authorized-election-ids",
@@ -1029,6 +1032,26 @@
         "claim.name" : "https://hasura\\.io/jwt/claims.x-hasura-area-id",
         "jsonType.label" : "String"
       }
+    },
+    {
+      "config": {
+        "use.array.attrs": "true",
+        "aggregate.attrs": "false",
+        "introspection.token.claim": "true",
+        "user.attribute": "authorized-election-ids",
+        "multivalued": "true",
+        "access.token.claim": "true",
+        "userinfo.token.claim": "true",
+        "jsonType.label": "String",
+        "id.token.claim": "true",
+        "lightweight.claim": "false",
+        "claim.name": "https://hasura\\.io/jwt/claims.authorized-election-ids"
+      },
+      "consentRequired": false,
+      "id": "6993073a-4cec-4b39-96ed-4d38d7f93e61",
+      "name": "authorized-election-ids",
+      "protocol": "openid-connect",
+      "protocolMapper": "authorized-elections-oidc-usermodel-attribute-mapper"
     } ],
     "defaultClientScopes" : [ "web-origins", "acr", "roles", "profile", "email" ],
     "optionalClientScopes" : [ "address", "phone", "offline_access", "microprofile-jwt" ]
