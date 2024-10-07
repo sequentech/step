@@ -23,9 +23,9 @@ import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.representations.IDToken;
 
 /**
- * Mappings UserModel.attribute to an ID Token claim. Token claim name can be a
- * full qualified nested object name, i.e. "address.country". This will create a
- * nested json object within the toke claim.
+ * Mappings UserModel.attribute to an ID Token claim. Token claim name can be a full qualified
+ * nested object name, i.e. "address.country". This will create a nested json object within the toke
+ * claim.
  *
  * @author <a href="mailto:bill@burkecentral.com">Bill Burke</a>
  * @version $Revision: 1 $
