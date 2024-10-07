@@ -27,6 +27,8 @@ pub struct JwtHasuraClaims {
     pub area_id: Option<String>,
     #[serde(rename = "x-hasura-allowed-roles")]
     pub allowed_roles: Vec<String>,
+    #[serde(rename = "x-hasura-permission-label")]
+    pub permission_labels: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

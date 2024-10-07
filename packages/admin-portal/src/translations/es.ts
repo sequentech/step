@@ -347,6 +347,7 @@ const spanishTranslation: TranslationType = {
                 title: "Elección",
                 subtitle: "Configuración de la elección.",
                 fileLoaded: "Archivo cargado",
+                noPermission: "No tienes permiso para acceder a esta elección.",
             },
             edit: {
                 general: "General",
@@ -363,6 +364,7 @@ const spanishTranslation: TranslationType = {
                 reorder: "Reordenar concursos",
                 castVoteConfirm: "Modal de Confirmación de Voto",
                 gracePeriodPolicy: "Política de período de gracia",
+                permissionLabel: "Etiqueta de permiso",
             },
             field: {
                 name: "Nombre",
@@ -455,6 +457,7 @@ const spanishTranslation: TranslationType = {
                     passwordSpecialCharValidate:
                         "La contraseña debe contener al menos un carácter especial",
                     trustee: "Actuar como fideicomisario",
+                    permissionLabel: "Etiqueta de permiso",
                 },
                 delete: {
                     body: "¿Estás seguro que quieres borrar este usuario?",
@@ -597,6 +600,7 @@ const spanishTranslation: TranslationType = {
                 "miru-download": "Miru Download",
                 "miru-send": "Miru Send",
                 "miru-sign": "Miru Sign",
+                "permission-label-write": "Editar la etiqueta de permiso",
                 "scheduled-event-write": "Editar Eventos Programados",
             },
         },

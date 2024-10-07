@@ -349,6 +349,7 @@ const frenchTranslation: TranslationType = {
                 title: "Élection",
                 subtitle: "Configuration de l'élection.",
                 fileLoaded: "Fichier chargé",
+                noPermission: "Vous n'avez pas la permission d'accéder à cette élection.",
             },
             edit: {
                 general: "Général",
@@ -365,6 +366,7 @@ const frenchTranslation: TranslationType = {
                 reorder: "Réorganiser les concours",
                 castVoteConfirm: "Modal de Confirmation de Vote",
                 gracePeriodPolicy: "Politique de période de grâce",
+                permissionLabel: "Étiquette de permission",
             },
             field: {
                 name: "Nom",
@@ -457,6 +459,7 @@ const frenchTranslation: TranslationType = {
                     passwordSpecialCharValidate:
                         "Le mot de passe doit contenir au moins un caractère spécial",
                     trustee: "Agir en tant que fiduciaire",
+                    permissionLabel: "Libellé d'autorisation",
                 },
                 delete: {
                     body: "Êtes-vous sûr de vouloir supprimer cet utilisateur ?",
@@ -600,6 +603,7 @@ const frenchTranslation: TranslationType = {
                 "miru-download": "Miru Download",
                 "miru-send": "Miru Send",
                 "miru-sign": "Miru Sign",
+                "permission-label-write": "Modifier l'étiquette de permission",
                 "scheduled-event-write": "Modifier des Événements Planifiés",
             },
         },
