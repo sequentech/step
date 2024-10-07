@@ -678,15 +678,11 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
                             return Err(Error::String(error_message));
                         }
                     }
-                },
+                }
                 // Forces username to be lowercase. As per Keycloak convention as keycloak does not support case sensitive usernames.
-                column_name if column_name == &*USERNAME_COL_NAME =>{
-                    data.to_lowercase()
-                },
+                column_name if column_name == &*USERNAME_COL_NAME => data.to_lowercase(),
                 // Forces email to be lowercase. As per Keycloak convention as keycloak does not support case sensitive emails.
-                column_name if column_name == &*EMAIL_COL_NAME =>{
-                    data.to_lowercase()
-                },
+                column_name if column_name == &*EMAIL_COL_NAME => data.to_lowercase(),
                 _ => data.to_string(),
             };
             if column_name == &*PASSWORD_COL_NAME {
