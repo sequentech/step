@@ -129,12 +129,24 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
 
         // Reset filters when the component mounts
         if (listContext && listContext.setFilters) {
-            listContext.setFilters({}, {})
+            listContext.setFilters(
+                {
+                    tenant_id: tenantId || undefined,
+                    election_event_id: record?.id || undefined,
+                },
+                {}
+            )
         }
         return () => {
             // Reset filters when the component unmounts
             if (listContext && listContext.setFilters) {
-                listContext.setFilters({}, {})
+                listContext.setFilters(
+                    {
+                        tenant_id: tenantId || undefined,
+                        election_event_id: record?.id || undefined,
+                    },
+                    {}
+                )
             }
         }
     }, [])
