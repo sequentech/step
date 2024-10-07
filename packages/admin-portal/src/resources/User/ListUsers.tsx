@@ -736,7 +736,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                     key={attr.name}
                                     source={`${attr.name}`}
                                     label={getAttributeLabel(attr.display_name ?? "")}
-                                    emptyText=""
+                                    emptyText="-"
                                 />
                             )
                         }}
@@ -779,6 +779,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                             : `attributes['${attr.name}']`
                     }
                     label={getAttributeLabel(attr.display_name ?? "")}
+                    emptyText="-"
                 />
             )
         })
