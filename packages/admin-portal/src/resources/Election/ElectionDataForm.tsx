@@ -68,6 +68,8 @@ import {ITemplateMethod, ITemplateType} from "@/types/templates"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import styled from "@emotion/styled"
 import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {IPermissions} from "@/types/keycloak"
 
 const LangsWrapper = styled(Box)`
     margin-top: 46px;
@@ -95,7 +97,12 @@ export const ElectionDataForm: React.FC = () => {
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
     const notify = useNotify()
     const refresh = useRefresh()
-
+    const authContext = useContext(AuthContext)
+    const canEditPermissionLabel = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.PERMISSION_LABEL_WRITE
+    )
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("election-data-general")
     const [languageSettings, setLanguageSettings] = useState<Array<string>>(["en"])
@@ -162,11 +169,9 @@ export const ElectionDataForm: React.FC = () => {
             if (!data) {
                 return incoming as Sequent_Backend_Election_Extended
             }
-
             const temp: Sequent_Backend_Election_Extended = {
                 ...incoming,
             }
-
             const incomingLangConf = (incoming?.presentation as IElectionPresentation | undefined)
                 ?.language_conf
 
@@ -275,7 +280,6 @@ export const ElectionDataForm: React.FC = () => {
                 temp.presentation.grace_period_policy = EGracePeriodPolicy.NO_GRACE_PERIOD
                 temp.presentation.grace_period_secs = 0
             }
-
             return temp
         },
         [data, tenantData?.voting_channels]
@@ -756,6 +760,12 @@ export const ElectionDataForm: React.FC = () => {
                                     label={t("electionScreen.edit.numAllowedVotes")}
                                     min={0}
                                 />
+                                {canEditPermissionLabel && (
+                                    <TextInput
+                                        label={t("electionScreen.edit.permissionLabel")}
+                                        source="permission_label"
+                                    />
+                                )}
                                 <FileJsonInput
                                     parsedValue={parsedValue}
                                     fileSource="configuration"

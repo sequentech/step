@@ -69,7 +69,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     String updateAttributes = configMap.get(UPDATE_ATTRIBUTES);
     boolean autoLogin = Boolean.parseBoolean(configMap.get(AUTO_LOGIN));
     boolean auto2FA = Boolean.parseBoolean(configMap.get(AUTO_2FA));
-
+    String sessionId = context.getAuthenticationSession().getParentSession().getId();
     // Parse attributes lists
     List<String> searchAttributesList = parseAttributesList(searchAttributes);
     List<String> unsetAttributesList = parseAttributesList(unsetAttributes);
@@ -221,7 +221,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
               AuthenticationFlowError.INTERNAL_ERROR,
               context
                   .form()
-                  .setError("messageNotSent", error.getMessage())
+                  .setError(Utils.ERROR_MESSAGE_NOT_SENT, sessionId)
                   .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
         }
       }

@@ -344,6 +344,7 @@ const englishTranslation = {
                 title: "Election",
                 subtitle: "Election configuration.",
                 fileLoaded: "File loaded",
+                noPermission: "You don't have permission to access this election.",
             },
             edit: {
                 general: "General",
@@ -360,6 +361,7 @@ const englishTranslation = {
                 reorder: "Reorder contests",
                 castVoteConfirm: "Cast Vote Confirmation Modal",
                 gracePeriodPolicy: "Grace Period",
+                permissionLabel: "Permission Label",
             },
             field: {
                 name: "Name",
@@ -451,6 +453,7 @@ const englishTranslation = {
                     passwordSpecialCharValidate:
                         "Password must contain at least one special character",
                     trustee: "Act as Trustee",
+                    permissionLabel: "Permission Label",
                 },
                 delete: {
                     body: "Are you sure you want to delete this user?",
@@ -593,6 +596,7 @@ const englishTranslation = {
                 "miru-download": "Miru Download",
                 "miru-send": "Miru Send",
                 "miru-sign": "Miru Sign",
+                "permission-label-write": "Edit Permission Label",
                 "scheduled-event-write": "Edit Scheduled Events",
             },
         },
