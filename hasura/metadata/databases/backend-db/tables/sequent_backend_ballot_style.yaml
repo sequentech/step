@@ -173,6 +173,8 @@ select_permissions:
               _eq: X-Hasura-Tenant-Id
           - area_id:
               _eq: X-Hasura-Area-Id
+          - election_id:
+              _in: X-Hasura-Authorized-Election-Ids
       allow_aggregations: true
     comment: ""
 update_permissions:

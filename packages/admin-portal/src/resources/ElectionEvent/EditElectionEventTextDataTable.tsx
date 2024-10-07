@@ -75,12 +75,6 @@ const EditElectionEventTextDataTable = () => {
         if (listContext && listContext.setFilters) {
             listContext.setFilters({}, {})
         }
-        return () => {
-            // Reset filters when the component unmounts
-            if (listContext && listContext.setFilters) {
-                listContext.setFilters({}, {})
-            }
-        }
     }, [])
 
     const languageOptions = useMemo(() => {
