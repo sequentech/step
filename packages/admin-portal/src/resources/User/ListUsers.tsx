@@ -360,15 +360,16 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
 
         // Reset filters when the component mounts
         if (listContext && listContext.setFilters) {
-            listContext.setFilters({}, {})
+            listContext.setFilters(
+                {
+                    tenant_id: tenantId,
+                    election_event_id: electionEventId,
+                    election_id: electionId,
+                },
+                {}
+            )
         }
-        return () => {
-            // Reset filters when the component unmounts
-            if (listContext && listContext.setFilters) {
-                listContext.setFilters({}, {})
-            }
-        }
-    }, [])
+    }, [tenantId, electionEventId, electionId])
 
     const handleClose = () => {
         setOpenUsersLogsModal(false)
