@@ -18,6 +18,7 @@ use windmill::hasura::election_event::insert_election_event::sequent_backend_ele
 use windmill::services;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::get_hasura_pool;
+use windmill::services::import_election_event::get_document;
 use windmill::services::tasks_execution::*;
 use windmill::tasks::import_election_event;
 use windmill::tasks::insert_election_event;
@@ -114,12 +115,27 @@ pub async fn import_election_event_f(
         },
     )?;
 
+    // TODO: write new function that gets the document and the election event schema inside services
+    let (temp_file_path, document, document_type) = get_document( 
+        &hasura_transaction,
+        input.clone(),
+        None,
+    )
+    .await
+    .map_err(|err| {
+        (
+            Status::InternalServerError,
+            format!("Error getting document: {err}"),
+        )
+    },)?;
+
     let document_result =
         services::import_election_event::get_election_event_schema(
-            &hasura_transaction,
+            &document_type,
+            &temp_file_path,
             input.clone(),
             None,
-            input.tenant_id.clone(),
+            tenant_id.clone(),
         )
         .await;
 
