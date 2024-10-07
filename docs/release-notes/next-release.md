@@ -9,7 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 A new keycloak user attribute has been added to specify which election is a user authorized.
 
-### Keycloak: Add a new mapper to voting-portal client for Hasura
+### Migration: Add in Keycloaka new mapper to voting-portal client for Hasura
 
 It requires to add to change the configuration a bit:
 1. Go to the Realm of the election event you want to configure
@@ -22,7 +22,7 @@ It requires to add to change the configuration a bit:
     Claim JSON Type: `String`
 5. Click `Save`
    
-### Keycloak: Add a new mapper to voting-portal client for Harvest
+### Migration: Add in Keycloak a new mapper to voting-portal client for Harvest
 
 It requires to add to change the configuration a bit:
 1. Go to the Realm of the election event you want to configure
@@ -35,7 +35,7 @@ It requires to add to change the configuration a bit:
     Claim JSON Type: `String`
 5. Click `Save`
 
-### Keycloak: Add a new User Profile Attribute
+### Migration: Add in Keycloak a new User Profile Attribute
 
 It requires to add to change the configuration a bit:
 1. Go to the realm of the election event you want to configure
