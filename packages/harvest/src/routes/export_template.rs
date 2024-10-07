@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
-use windmill::tasks::export_tasks_execution;
+use windmill::tasks::export_templates;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ExportTemplateBody {
@@ -23,10 +23,9 @@ pub struct ExportTemplateOutput {
     document_id: String,
     error_msg: Option<String>,
 }
-
 #[instrument(skip(claims))]
 #[post("/export-template", format = "json", data = "<input>")]
-pub async fn export_tasks_execution_route(
+pub async fn export_template(
     claims: jwt::JwtClaims,
     input: Json<ExportTemplateBody>,
 ) -> Result<Json<ExportTemplateOutput>, (Status, String)> {
@@ -37,32 +36,29 @@ pub async fn export_tasks_execution_route(
         &claims,
         true,
         Some(body.tenant_id.clone()),
-        vec![Permissions::TASKS_READ],
+        vec![Permissions::USER_READ],
     )?;
-    info!("Exporting template");
 
     let document_id = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
 
-    // let celery_task = celery_app
-    //     .send_task(export_tasks_execution::export_tasks_execution::new(
-    //         tenant_id,
-    //         document_id.clone(),
-    //     ))
-    //     .await
-    //     .map_err(|err| {
-    //         (
-    //             Status::InternalServerError,
-    //             format!("Error sending Export Tasks Execution task: ${err}"),
-    //         )
-    //     })?;
+    let celery_task = celery_app
+        .send_task(export_templates::export_templates::new(
+            tenant_id.clone(),
+            document_id.clone(),
+        ))
+        .await
+        .map_err(|err| {
+            (
+                Status::InternalServerError,
+                format!("Error sending Export Tasks Execution task: ${err}"),
+            )
+        })?;
 
     let output = ExportTemplateOutput {
         document_id,
         error_msg: None,
     };
-
-    info!("Sent EXPORT_USERS task");
 
     Ok(Json(output))
 }

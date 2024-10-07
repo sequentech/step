@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::Template;
 use tokio_postgres::row::Row;
@@ -75,4 +75,48 @@ pub async fn get_template_by_id(
         .collect::<Result<Vec<Template>>>()?;
 
     Ok(elections.get(0).map(|election| election.clone()))
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_templates_by_tenant_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+) -> Result<Vec<Template>> {
+    let tenant_uuid =
+        Uuid::parse_str(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {}", err))?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            SELECT
+                id,
+                tenant_id,
+                template,
+                created_by,
+                labels,
+                annotations,
+                created_at,
+                updated_at,
+                communication_method,
+                type
+            FROM
+                sequent_backend.template
+            WHERE
+                tenant_id = $1;
+            "#,
+        )
+        .await?;
+
+    let rows = hasura_transaction
+        .query(&statement, &[&tenant_uuid])
+        .await
+        .map_err(|err| anyhow!("Error fetching templates: {}", err))?;
+
+    let templates: Vec<Template> = rows
+        .into_iter()
+        .map(|row| row.try_into().map(|wrapper: TemplateWrapper| wrapper.0))
+        .collect::<Result<Vec<_>, _>>()
+        .context("Error converting database rows to Template")?;
+
+    Ok(templates)
 }

@@ -5,7 +5,7 @@ import {gql} from "@apollo/client"
 
 export const EXPORT_TEMPLATE = gql`
     mutation ExportTemplate($tenantId: String!) {
-        export_templates(tenant_id: $tenantId) {
+        export_template(tenant_id: $tenantId) {
             error_msg
             document_id
         }

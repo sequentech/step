@@ -232,6 +232,12 @@ export type ExportTasksOutput = {
   task_id: Scalars['String']['output'];
 };
 
+export type ExportTemplateOutput = {
+  __typename?: 'ExportTemplateOutput';
+  document_id: Scalars['String']['output'];
+  error_msg?: Maybe<Scalars['String']['output']>;
+};
+
 export type ExportTenantUsersOutput = {
   __typename?: 'ExportTenantUsersOutput';
   document_id: Scalars['String']['output'];
@@ -880,6 +886,7 @@ export type Mutation_Root = {
   export_election_event_logs?: Maybe<ExportLogsOutput>;
   export_election_event_tasks?: Maybe<ExportTasksOutput>;
   export_tasks_execution?: Maybe<ExportTasksExecutionOutput>;
+  export_template?: Maybe<ExportTemplateOutput>;
   export_tenant_users?: Maybe<ExportTenantUsersOutput>;
   export_users?: Maybe<ExportUsersOutput>;
   generate_ballot_publication?: Maybe<PublishBallotOutput>;
@@ -1821,6 +1828,14 @@ export type Mutation_RootExport_Election_Event_TasksArgs = {
 /** mutation root */
 export type Mutation_RootExport_Tasks_ExecutionArgs = {
   election_event_id: Scalars['String']['input'];
+  tenant_id: Scalars['String']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootExport_TemplateArgs = {
+  election_event_id?: InputMaybe<Scalars['String']['input']>;
+  election_id?: InputMaybe<Scalars['String']['input']>;
   tenant_id: Scalars['String']['input'];
 };
 
@@ -13481,7 +13496,6 @@ export type Sequent_Backend_Scheduled_Event = {
   created_by?: Maybe<Scalars['String']['output']>;
   cron_config?: Maybe<Scalars['jsonb']['output']>;
   election_event_id?: Maybe<Scalars['uuid']['output']>;
-  election_id?: Maybe<Scalars['uuid']['output']>;
   event_payload?: Maybe<Scalars['jsonb']['output']>;
   event_processor?: Maybe<Scalars['String']['output']>;
   id: Scalars['uuid']['output'];
@@ -13556,7 +13570,6 @@ export type Sequent_Backend_Scheduled_Event_Bool_Exp = {
   created_by?: InputMaybe<String_Comparison_Exp>;
   cron_config?: InputMaybe<Jsonb_Comparison_Exp>;
   election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
-  election_id?: InputMaybe<Uuid_Comparison_Exp>;
   event_payload?: InputMaybe<Jsonb_Comparison_Exp>;
   event_processor?: InputMaybe<String_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
@@ -13604,7 +13617,6 @@ export type Sequent_Backend_Scheduled_Event_Insert_Input = {
   created_by?: InputMaybe<Scalars['String']['input']>;
   cron_config?: InputMaybe<Scalars['jsonb']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
-  election_id?: InputMaybe<Scalars['uuid']['input']>;
   event_payload?: InputMaybe<Scalars['jsonb']['input']>;
   event_processor?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
@@ -13621,7 +13633,6 @@ export type Sequent_Backend_Scheduled_Event_Max_Fields = {
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   created_by?: Maybe<Scalars['String']['output']>;
   election_event_id?: Maybe<Scalars['uuid']['output']>;
-  election_id?: Maybe<Scalars['uuid']['output']>;
   event_processor?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   stopped_at?: Maybe<Scalars['timestamptz']['output']>;
@@ -13636,7 +13647,6 @@ export type Sequent_Backend_Scheduled_Event_Min_Fields = {
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   created_by?: Maybe<Scalars['String']['output']>;
   election_event_id?: Maybe<Scalars['uuid']['output']>;
-  election_id?: Maybe<Scalars['uuid']['output']>;
   event_processor?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   stopped_at?: Maybe<Scalars['timestamptz']['output']>;
@@ -13668,7 +13678,6 @@ export type Sequent_Backend_Scheduled_Event_Order_By = {
   created_by?: InputMaybe<Order_By>;
   cron_config?: InputMaybe<Order_By>;
   election_event_id?: InputMaybe<Order_By>;
-  election_id?: InputMaybe<Order_By>;
   event_payload?: InputMaybe<Order_By>;
   event_processor?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
@@ -13706,8 +13715,6 @@ export enum Sequent_Backend_Scheduled_Event_Select_Column {
   /** column name */
   ElectionEventId = 'election_event_id',
   /** column name */
-  ElectionId = 'election_id',
-  /** column name */
   EventPayload = 'event_payload',
   /** column name */
   EventProcessor = 'event_processor',
@@ -13731,7 +13738,6 @@ export type Sequent_Backend_Scheduled_Event_Set_Input = {
   created_by?: InputMaybe<Scalars['String']['input']>;
   cron_config?: InputMaybe<Scalars['jsonb']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
-  election_id?: InputMaybe<Scalars['uuid']['input']>;
   event_payload?: InputMaybe<Scalars['jsonb']['input']>;
   event_processor?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
@@ -13757,7 +13763,6 @@ export type Sequent_Backend_Scheduled_Event_Stream_Cursor_Value_Input = {
   created_by?: InputMaybe<Scalars['String']['input']>;
   cron_config?: InputMaybe<Scalars['jsonb']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
-  election_id?: InputMaybe<Scalars['uuid']['input']>;
   event_payload?: InputMaybe<Scalars['jsonb']['input']>;
   event_processor?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
@@ -13781,8 +13786,6 @@ export enum Sequent_Backend_Scheduled_Event_Update_Column {
   CronConfig = 'cron_config',
   /** column name */
   ElectionEventId = 'election_event_id',
-  /** column name */
-  ElectionId = 'election_id',
   /** column name */
   EventPayload = 'event_payload',
   /** column name */
@@ -18389,6 +18392,13 @@ export type ExportTasksExecutionMutationVariables = Exact<{
 
 export type ExportTasksExecutionMutation = { __typename?: 'mutation_root', export_tasks_execution?: { __typename?: 'ExportTasksExecutionOutput', error_msg?: string | null, document_id: string } | null };
 
+export type ExportTemplateMutationVariables = Exact<{
+  tenantId: Scalars['String']['input'];
+}>;
+
+
+export type ExportTemplateMutation = { __typename?: 'mutation_root', export_template?: { __typename?: 'ExportTemplateOutput', error_msg?: string | null, document_id: string } | null };
+
 export type ExportTenantUsersMutationVariables = Exact<{
   tenantId: Scalars['String']['input'];
 }>;
@@ -18903,6 +18913,7 @@ export const ExportElectionEventDocument = {"kind":"Document","definitions":[{"k
 export const ExportElectionEventLogsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"ExportElectionEventLogs"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"export_election_event_logs"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"document_id"}},{"kind":"Field","name":{"kind":"Name","value":"task_id"}}]}}]}}]} as unknown as DocumentNode<ExportElectionEventLogsMutation, ExportElectionEventLogsMutationVariables>;
 export const ExportElectionEventTasksDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"ExportElectionEventTasks"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"export_election_event_tasks"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"document_id"}},{"kind":"Field","name":{"kind":"Name","value":"task_id"}}]}}]}}]} as unknown as DocumentNode<ExportElectionEventTasksMutation, ExportElectionEventTasksMutationVariables>;
 export const ExportTasksExecutionDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"ExportTasksExecution"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"export_tasks_execution"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}},{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"error_msg"}},{"kind":"Field","name":{"kind":"Name","value":"document_id"}}]}}]}}]} as unknown as DocumentNode<ExportTasksExecutionMutation, ExportTasksExecutionMutationVariables>;
+export const ExportTemplateDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"ExportTemplate"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"export_template"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"error_msg"}},{"kind":"Field","name":{"kind":"Name","value":"document_id"}}]}}]}}]} as unknown as DocumentNode<ExportTemplateMutation, ExportTemplateMutationVariables>;
 export const ExportTenantUsersDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"ExportTenantUsers"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"export_tenant_users"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"error_msg"}},{"kind":"Field","name":{"kind":"Name","value":"document_id"}},{"kind":"Field","name":{"kind":"Name","value":"task_execution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"execution_status"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"start_at"}},{"kind":"Field","name":{"kind":"Name","value":"end_at"}},{"kind":"Field","name":{"kind":"Name","value":"logs"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"executed_by_user"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"type"}}]}}]}}]}}]} as unknown as DocumentNode<ExportTenantUsersMutation, ExportTenantUsersMutationVariables>;
 export const ExportUsersDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"ExportUsers"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"export_users"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}},{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"election_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"error_msg"}},{"kind":"Field","name":{"kind":"Name","value":"document_id"}},{"kind":"Field","name":{"kind":"Name","value":"task_execution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"execution_status"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"start_at"}},{"kind":"Field","name":{"kind":"Name","value":"end_at"}},{"kind":"Field","name":{"kind":"Name","value":"logs"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"executed_by_user"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"type"}}]}}]}}]}}]} as unknown as DocumentNode<ExportUsersMutation, ExportUsersMutationVariables>;
 export const FetchDocumentDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"FetchDocument"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"documentId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fetchDocument"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"document_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"documentId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"url"}}]}}]}}]} as unknown as DocumentNode<FetchDocumentQuery, FetchDocumentQueryVariables>;

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {ReactElement, useContext} from "react"
+import React, {ReactElement, useContext, useState} from "react"
 
 import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
@@ -35,6 +35,8 @@ import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {TemplateEdit} from "./TemplateEdit"
 import {useMutation} from "@apollo/client"
 import {EXPORT_TEMPLATE} from "@/queries/ExportTemplate"
+import {FormStyles} from "@/components/styles/FormStyles"
+import {DownloadDocument} from "../User/DownloadDocument"
 
 const TemplateEmpty = styled(Box)`
     display: flex;
@@ -66,13 +68,39 @@ export const TemplateList: React.FC = () => {
     const authContext = useContext(AuthContext)
     const [tenantId] = useTenantStore()
     const templateRead = authContext.isAuthorized(true, tenantId, IPermissions.template_READ)
-
+    const [openExport, setOpenExport] = useState(false)
+    const [exporting, setExporting] = useState(false)
+    const [exportDocumentId, setExportDocumentId] = useState<string | undefined>()
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
     const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
     const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
     const [ExportTemplate] = useMutation(EXPORT_TEMPLATE)
     const refresh = useRefresh()
+
+    const handleExport = async () => {
+        // const {data} = await ExportTemplate({variables: {tenantId}})
+        // console.log(data)
+        setExporting(false)
+        setExportDocumentId(undefined)
+        setOpenExport(true)
+    }
+
+    const confirmExportAction = async () => {
+        try {
+            setExporting(true)
+            const {data, errors} = await ExportTemplate({variables: {tenantId}})
+            console.log(errors, "errors")
+            if (errors) {
+                setExporting(false)
+                return
+            }
+            const documentId = data.export_template.document_id
+            setExportDocumentId(documentId)
+        } catch (error) {
+            console.log(error)
+        }
+    }
 
     const handleCloseDrawer = () => {
         setOpenDrawer(false)
@@ -158,7 +186,8 @@ export const TemplateList: React.FC = () => {
                         custom
                         withFilter
                         /* TODO: */
-                        withExport={false}
+                        withExport={true}
+                        doExport={handleExport}
                         withImport={false}
                         open={openDrawer}
                         setOpen={setOpenDrawer}
@@ -209,6 +238,43 @@ export const TemplateList: React.FC = () => {
                 }}
             >
                 {t("common.message.delete")}
+            </Dialog>
+            <Dialog
+                variant="info"
+                open={openExport}
+                ok={t("common.label.export")}
+                okEnabled={() => !exporting}
+                cancel={t("common.label.cancel")}
+                title={t("common.label.export")}
+                handleClose={(result: boolean) => {
+                    console.log(result)
+
+                    if (result) {
+                        confirmExportAction()
+                    } else {
+                        setExportDocumentId(undefined)
+                        setExporting(false)
+                        setOpenExport(false)
+                    }
+                }}
+            >
+                {t("common.export")}
+                <FormStyles.ReservedProgressSpace>
+                    {exporting ? <FormStyles.ShowProgress /> : null}
+                    {exporting && exportDocumentId ? (
+                        <DownloadDocument
+                            documentId={exportDocumentId}
+                            electionEventId={""}
+                            fileName={`users-export.csv`}
+                            onDownload={() => {
+                                console.log("onDownload called")
+                                setExportDocumentId(undefined)
+                                setExporting(false)
+                                setOpenExport(false)
+                            }}
+                        />
+                    ) : null}
+                </FormStyles.ReservedProgressSpace>
             </Dialog>
         </>
     )

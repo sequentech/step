@@ -13,7 +13,7 @@ use sequent_core::services::connection;
 use sequent_core::services::keycloak::get_client_credentials;
 use sequent_core::types::hasura::core::Document;
 use tempfile::NamedTempFile;
-use tracing::instrument;
+use tracing::{info, instrument};
 
 use crate::services::date::ISO8601;
 use crate::services::s3;
@@ -122,6 +122,8 @@ pub async fn upload_and_return_document_postgres(
         document_id,
     )
     .await?;
+
+    info!("Document inserted {:?}", document);
 
     let (document_s3_key, bucket) = match is_public {
         true => {
