@@ -453,7 +453,7 @@ const englishTranslation = {
                     passwordSpecialCharValidate:
                         "Password must contain at least one special character",
                     trustee: "Act as Trustee",
-                    permissionLabel: "Permissio Label",
+                    permissionLabel: "Permission Label",
                 },
                 delete: {
                     body: "Are you sure you want to delete this user?",

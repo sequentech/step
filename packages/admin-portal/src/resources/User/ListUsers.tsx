@@ -75,6 +75,7 @@ import CustomDateField from "./CustomDateField"
 import {ListActionsMenu} from "@/components/ListActionsMenu"
 import EditPassword from "./EditPassword"
 import {styled} from "@mui/material/styles"
+import eStyled from "@emotion/styled"
 import {DELETE_USERS} from "@/queries/DeleteUsers"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
@@ -93,6 +94,16 @@ const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boo
         }
     }
 `
+
+const StyledChip = styled(Chip)`
+    margin: 4px;
+`
+
+const StyledNull = eStyled.div`
+    display: block;
+    padding-left: 18px;
+`
+
 export interface ListUsersProps {
     aside?: ReactElement
     electionEventId?: string
@@ -727,6 +738,33 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                     label={getAttributeLabel(attr.display_name ?? "")}
                                     emptyText=""
                                 />
+                            )
+                        }}
+                    />
+                )
+            } else if (attr.multivalued) {
+                return (
+                    <FunctionField
+                        key={attr.name}
+                        label={getAttributeLabel(attr.display_name ?? "")}
+                        render={(record: IUser, source: string | undefined) => {
+                            let value: any =
+                                attr.name && userBasicInfo.includes(attr.name)
+                                    ? (record as any)[attr.name]
+                                    : attr?.name
+                                    ? (record as any).attributes[attr?.name]
+                                    : "-"
+
+                            return (
+                                <>
+                                    {value ? (
+                                        value.map((item: any, index: number) => (
+                                            <StyledChip key={index} label={item} />
+                                        ))
+                                    ) : (
+                                        <StyledNull>-</StyledNull>
+                                    )}
+                                </>
                             )
                         }}
                     />
