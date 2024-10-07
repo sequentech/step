@@ -16,7 +16,7 @@ use std::{
 };
 use tokio_postgres::row::Row;
 use tokio_postgres::types::ToSql;
-use tracing::{event, instrument, Level};
+use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 
 #[instrument(skip(hasura_transaction), err)]
@@ -277,7 +277,10 @@ pub async fn list_users(
         )
     };
 
-    let statement = keycloak_transaction.prepare(format!(r#"
+    let statement = keycloak_transaction
+        .prepare(
+            format!(
+                r#"
         SELECT
             u.id,
             u.email,
@@ -288,15 +291,25 @@ pub async fn list_users(
             u.realm_id,
             u.username,
             u.created_timestamp,
-            COALESCE(json_object_agg(attr.name, attr.value) FILTER (WHERE attr.name IS NOT NULL), '{{}}'::json) AS attributes,
+            COALESCE(attr_json.attributes, '{{}}'::json) AS attributes,
             COUNT(u.id) OVER() AS total_count
         FROM
             user_entity AS u
         INNER JOIN
             realm AS ra ON ra.id = u.realm_id
         {area_ids_join_clause}
-        LEFT JOIN
-            user_attribute AS attr ON u.id = attr.user_id
+        LEFT JOIN LATERAL (
+            SELECT
+                json_object_agg(attr.name, attr.values_array) AS attributes
+            FROM (
+                SELECT
+                    ua.name,
+                    json_agg(ua.value) AS values_array
+                FROM user_attribute ua
+                WHERE ua.user_id = u.id
+                GROUP BY ua.name
+            ) attr
+        ) attr_json ON true
         WHERE
             ra.name = $1 AND
             ($4::VARCHAR IS NULL OR email ILIKE $4) AND
@@ -308,11 +321,13 @@ pub async fn list_users(
             {enabled_condition}
             {email_verified_condition}
            AND ({dynamic_attr_clause})
-        GROUP BY
-            u.id
         ORDER BY {sort_clause}
         LIMIT $2 OFFSET $3;
-    "#).as_str()).await?;
+    "#
+            )
+            .as_str(),
+        )
+        .await?;
 
     let mut params: Vec<&(dyn ToSql + Sync)> = vec![
         &filter.realm,
@@ -355,7 +370,6 @@ pub async fn list_users(
         .into_iter()
         .map(|row| -> Result<User> { row.try_into() })
         .collect::<Result<Vec<User>>>()?;
-
     if let Some(ref some_election_event_id) = filter.election_event_id {
         let area_ids: Vec<String> = users.iter().filter_map(|user| user.get_area_id()).collect();
         let areas_by_ids = get_areas(

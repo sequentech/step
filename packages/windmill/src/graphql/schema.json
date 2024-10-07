@@ -48313,6 +48313,18 @@
             "deprecationReason": null
           },
           {
+            "name": "permission_label",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "presentation",
             "description": null,
             "args": [
@@ -49403,6 +49415,16 @@
             "type": {
               "kind": "INPUT_OBJECT",
               "name": "Int_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "permission_label",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "String_comparison_exp",
               "ofType": null
             },
             "defaultValue": null
@@ -53045,6 +53067,16 @@
             "defaultValue": null
           },
           {
+            "name": "permission_label",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "presentation",
             "description": null,
             "type": {
@@ -53245,6 +53277,18 @@
             "deprecationReason": null
           },
           {
+            "name": "permission_label",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "tenant_id",
             "description": null,
             "args": [],
@@ -53360,6 +53404,16 @@
           },
           {
             "name": "num_allowed_revotes",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "permission_label",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -53509,6 +53563,18 @@
             "deprecationReason": null
           },
           {
+            "name": "permission_label",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "tenant_id",
             "description": null,
             "args": [],
@@ -53624,6 +53690,16 @@
           },
           {
             "name": "num_allowed_revotes",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "permission_label",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -53903,6 +53979,16 @@
           },
           {
             "name": "num_allowed_revotes",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "permission_label",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -56112,6 +56198,12 @@
             "deprecationReason": null
           },
           {
+            "name": "permission_label",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "presentation",
             "description": "column name",
             "isDeprecated": false,
@@ -56356,6 +56448,16 @@
             "type": {
               "kind": "SCALAR",
               "name": "Int",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "permission_label",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
               "ofType": null
             },
             "defaultValue": null
@@ -56744,6 +56846,16 @@
             "type": {
               "kind": "SCALAR",
               "name": "Int",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "permission_label",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
               "ofType": null
             },
             "defaultValue": null
@@ -58373,6 +58485,12 @@
           },
           {
             "name": "num_allowed_revotes",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "permission_label",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null

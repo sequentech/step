@@ -357,6 +357,7 @@ const catalanTranslation: TranslationType = {
                 title: "Elecció",
                 subtitle: "Configuració de l'elecció.",
                 fileLoaded: "Fitxer carregat",
+                noPermission: "No tens permís per accedir a aquesta elecció.",
             },
             edit: {
                 general: "General",
@@ -373,6 +374,7 @@ const catalanTranslation: TranslationType = {
                 reorder: "Reordenar concursos",
                 castVoteConfirm: "Modal de Confirmació de Vot",
                 gracePeriodPolicy: "Política de període de gràcia",
+                permissionLabel: "Etiqueta de permís",
             },
             field: {
                 name: "Nom",
@@ -465,6 +467,7 @@ const catalanTranslation: TranslationType = {
                     passwordSpecialCharValidate:
                         "La contrasenya ha de contenir almenys un caràcter especial",
                     trustee: "Actuar com a fideïcomissari",
+                    permissionLabel: "Etiqueta de permís",
                 },
                 delete: {
                     body: "Estàs segur que vols esborrar aquest usuari?",
@@ -607,6 +610,7 @@ const catalanTranslation: TranslationType = {
                 "miru-download": "Miru Download",
                 "miru-send": "Miru Send",
                 "miru-sign": "Miru Sign",
+                "permission-label-write": "Edita l'etiqueta de permís",
                 "scheduled-event-write": "Editar Esdeveniments Programats",
             },
         },
