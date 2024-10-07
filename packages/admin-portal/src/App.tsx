@@ -54,7 +54,6 @@ import Notifications from "./resources/Notifications/Notifications"
 import {TemplateEdit} from "./resources/Template/TemplateEdit"
 import {TemplateList} from "./resources/Template/TemplateList"
 import {TemplateCreate} from "./resources/Template/TemplateCreate"
-import ListReports from "./resources/Reports/ListReports"
 
 interface AppProps {}
 
@@ -219,12 +218,6 @@ const App: React.FC<AppProps> = () => {
                     edit={ListScheduledEvents}
                     list={ListScheduledEvents}
                     options={{label: "Scheduled Events"}}
-                />
-
-                <Resource
-                    name="sequent_backend_report"
-                    list={ListReports}
-                    options={{label: "Reports"}}
                 />
 
                 <Resource name="user" edit={EditArea} list={ListUsers} options={{label: "Users"}} />

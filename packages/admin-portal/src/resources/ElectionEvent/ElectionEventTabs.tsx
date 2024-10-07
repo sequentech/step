@@ -54,12 +54,6 @@ const EditNotifications = lazy(() =>
     }))
 )
 
-const Reports = lazy(() =>
-    import("../Reports/EditReports").then((module) => ({
-        default: module.EditReports,
-    }))
-)
-
 export const ElectionEventTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const authContext = useContext(AuthContext)
@@ -116,12 +110,6 @@ export const ElectionEventTabs: React.FC = () => {
         true,
         authContext.tenantId,
         IPermissions.NOTIFICATION_READ
-    )
-
-    const showReports = authContext.isAuthorized(
-        true,
-        authContext.tenantId,
-        IPermissions.REPORTS_READ
     )
 
     const [loadedChildren, setLoadedChildren] = React.useState<number>(0)
@@ -227,12 +215,6 @@ export const ElectionEventTabs: React.FC = () => {
                         <EditNotifications electionEventId={record?.id} />
                     </Suspense>
                 ) : null
-            case 12:
-                return showReports ? (
-                    <Suspense fallback={<div>Loading Reports...</div>}>
-                        <Reports electionEventId={record?.id} />
-                    </Suspense>
-                ) : null
             default:
                 return null
         }
@@ -276,9 +258,6 @@ export const ElectionEventTabs: React.FC = () => {
                     {showLogs ? <Tab label={t("electionEventScreen.tabs.logs")} value={9} /> : null}
                     {showEvents ? (
                         <Tab label={t("electionEventScreen.tabs.events")} value={10} />
-                    ) : null}
-                    {showReports ? (
-                        <Tab label={t("Reports")} value={12} /> //TODO: Add translations
                     ) : null}
                     {/*showNotifications ? (
                         <Tab label={t("electionEventScreen.tabs.notifications")} value={11} />
