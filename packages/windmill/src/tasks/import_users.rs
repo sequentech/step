@@ -45,6 +45,7 @@ lazy_static! {
     static ref HASHED_PASSWORD_COL_NAME: String = String::from("hashed_password");
     static ref PASSWORD_COL_NAME: String = String::from("password");
     static ref USERNAME_COL_NAME: String = String::from("username");
+    static ref EMAIL_COL_NAME: String = String::from("email");
     static ref GROUP_COL_NAME: String = String::from("group_name");
     static ref AREA_NAME_COL_NAME: String = String::from("area_name");
     static ref RESERVED_COL_NAMES: Vec<String> = vec![
@@ -677,7 +678,15 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
                             return Err(Error::String(error_message));
                         }
                     }
-                }
+                },
+                // Forces username to be lowercase. As per Keycloak convention as keycloak does not support case sensitive usernames.
+                column_name if column_name == &*USERNAME_COL_NAME =>{
+                    data.to_lowercase()
+                },
+                // Forces email to be lowercase. As per Keycloak convention as keycloak does not support case sensitive emails.
+                column_name if column_name == &*EMAIL_COL_NAME =>{
+                    data.to_lowercase()
+                },
                 _ => data.to_string(),
             };
             if column_name == &*PASSWORD_COL_NAME {
