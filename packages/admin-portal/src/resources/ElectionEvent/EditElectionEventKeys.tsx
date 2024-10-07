@@ -252,15 +252,15 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
 
         // Reset filters when the component mounts
         if (listContext && listContext.setFilters) {
-            listContext.setFilters({}, {})
+            listContext.setFilters(
+                {
+                    tenant_id: tenantId || undefined,
+                    election_event_id: electionEvent?.id || undefined,
+                },
+                {}
+            )
         }
-        return () => {
-            // Reset filters when the component unmounts
-            if (listContext && listContext.setFilters) {
-                listContext.setFilters({}, {})
-            }
-        }
-    }, [])
+    }, [tenantId, electionEvent?.id])
 
     return (
         <>
