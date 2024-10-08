@@ -446,7 +446,7 @@ VAULT_MANAGER=HashiCorpVault
 
 To configure project to use AWS Secret Manager, setup the `VAULT_MANAGER` environment variable:
 
-```
+```bash
 # .env
 VAULT_MANAGER=AWSSecretManager
 ```
@@ -458,6 +458,7 @@ cd /workspaces/step/packages/sequent-core
 wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest
 wasm-pack -v pack .
 ```
+
 This returns a hash that you need to put in 3 different places in the  yarn.lock 
 of packages/ directory:
 
