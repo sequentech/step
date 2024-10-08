@@ -142,6 +142,7 @@ pub enum StatementType {
     KeyInsertionCeremony,
     TallyOpen,
     TallyClose,
+    SendTemplate,
     SendCommunications,
     KeycloakUserEvent,
 }
