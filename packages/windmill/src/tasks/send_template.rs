@@ -421,6 +421,31 @@ async fn update_stats(
     Ok(())
 }
 
+
+async fn on_success_send_message(
+    election_event: Option<GetElectionEventSequentBackendElectionEvent>,
+    user_id: Option<String>, 
+    message: String,
+) -> Result<()> { 
+
+    if let Some(election_event) = election_event {
+        let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
+            .with_context(|| "missing bulletin board")?;
+
+        let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
+
+        electoral_log
+            .post_send_template(message, election_event.id.clone(), user_id, None)
+            .await
+            .with_context(|| "error posting to the electoral log")?;
+    } else {
+        event!(Level::WARN, "No election event provided for user: {:?}", user_id);
+    }
+
+    Ok(())
+}
+
+
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
@@ -603,6 +628,15 @@ pub async fn send_template(
                         event!(Level::ERROR, "error sending email: {error:?}, continuing..");
                         Err(())
                     } else {
+                        if let Err(e) = 
+                        on_success_send_message(
+                            election_event.clone(), 
+                            user.id.clone(), 
+                            reports::render_template_text(body.email.clone().unwrap().plaintext_body.as_str(), variables.clone())
+                                .map_err(|err| anyhow!("{}", err))?,
+                        ).await {
+                            event!(Level::ERROR, "Error processing success message: {e:?}");
+                        }
                         Ok(())
                     }
                 }
@@ -618,6 +652,16 @@ pub async fn send_template(
                         event!(Level::ERROR, "error sending sms: {error:?}, continuing..");
                         Err(())
                     } else {
+                        if let Err(e) = 
+                        on_success_send_message(
+                            election_event.clone(), 
+                            user.id.clone(), 
+                            reports::render_template_text(body.sms.clone().unwrap().message.as_str(), variables.clone())
+                                .map_err(|err| anyhow!("{}", err))?,
+                        ).await {
+                            event!(Level::ERROR, "Error processing success message: {e:?}");
+                        }
+                        
                         Ok(())
                     }
                 }
@@ -626,6 +670,7 @@ pub async fn send_template(
                     Ok(())
                 }
             };
+            
             update_metrics(
                 &mut metrics,
                 &elections_by_area,
@@ -660,18 +705,6 @@ pub async fn send_template(
         .commit()
         .await
         .with_context(|| "error comitting transaction")?;
-
-    if let Some(election_event) = election_event {
-        let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
-            .with_context(|| "missing bulletin board")?;
-
-        let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
-
-        electoral_log
-            .post_send_template(election_event.id, None)
-            .await
-            .with_context(|| "error posting to the electoral log")?;
-    }
 
     Ok(())
 }
