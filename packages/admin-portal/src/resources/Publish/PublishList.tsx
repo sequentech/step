@@ -86,17 +86,17 @@ export const PublishList: React.FC<TPublishList> = ({
             action: setBallotPublicationId,
         },
     ]
-    // Avoid error when coming from filterd list in other tabs
+    // Avoid error when coming from filtered list in other tabs
     const listContext = useListController({
         resource: "sequent_backend_ballot_publication",
         filter: electionId
             ? {
-                  election_event_id: electionEventId,
-                  election_id: electionId,
-              }
+                election_event_id: electionEventId,
+                election_id: electionId,
+            }
             : {
-                  election_event_id: electionEventId,
-              },
+                election_event_id: electionEventId,
+            },
     })
 
     const navigate = useNavigate()

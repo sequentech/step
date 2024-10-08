@@ -139,7 +139,6 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
 
     const createAction = () => {
         setOpenCreate(true)
-        setOpenCreate(true)
     }
 
     const Empty = () => (
