@@ -82,7 +82,7 @@ const englishTranslation = {
                 sms: "SMS",
                 mail: "Mails",
                 createNew: "Create Election Type",
-                emptyHeader: "No Election Types yet.",
+                emptyHeader: "No trustees",
                 emptyBody: "Do you want to create one?",
                 logoUrl: "Logo URL",
                 css: "Custom CSS",
