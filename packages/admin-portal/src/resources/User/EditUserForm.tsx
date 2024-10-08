@@ -10,6 +10,7 @@ import {
     useNotify,
     useRefresh,
     AutocompleteArrayInput,
+    ReferenceArrayInput,
 } from "react-admin"
 import {useMutation, useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
@@ -49,6 +50,7 @@ import PhoneInput from "@/components/PhoneInput"
 import SelectArea from "@/components/area/SelectArea"
 import SelectActedTrustee from "./SelectActedTrustee"
 import {AuthContext} from "@/providers/AuthContextProvider"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 interface ListUserRolesProps {
     userId?: string
@@ -364,6 +366,18 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         })
     }
 
+    const handleArraySelectChange = (attrName: string) => async (value: string[]) => {
+        setUser((prev) => {
+            return {
+                ...prev,
+                attributes: {
+                    ...prev?.attributes,
+                    [attrName]: value,
+                },
+            }
+        })
+    }
+
     const handlePermissionLabelRemoved = (value: string[]) => {
         if (value?.length < permissionLabels?.length) {
             setUser((prev) => {
@@ -419,6 +433,15 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 }
             })
         }
+    }
+
+    const aliasRenderer = useAliasRenderer()
+
+    const electionFilterToQuery = (searchText: string) => {
+        if (!searchText || searchText.length == 0) {
+            return {name: ""}
+        }
+        return {"name@_ilike,alias@_ilike": searchText.trim()}
     }
 
     const renderFormField = useCallback(
@@ -520,6 +543,28 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             />
                         </FormControl>
                     )
+                } else if (attr.name.toLowerCase().includes("authorized-election-ids")) {
+                    return (
+                        <ReferenceArrayInput
+                            reference="sequent_backend_election"
+                            source="attributes.authorized-election-ids"
+                            filter={{
+                                tenant_id: tenantId,
+                                election_event_id: electionEventId,
+                            }}
+                            enableGetChoices={({q}) => q && q.length >= 3}
+                        >
+                            <FormStyles.AutocompleteArrayInput
+                                label={getAttributeLabel(displayName)}
+                                className="elections-selector"
+                                fullWidth={true}
+                                optionValue="alias"
+                                optionText={aliasRenderer}
+                                filterToQuery={electionFilterToQuery}
+                                onChange={handleArraySelectChange(attr.name)}
+                            />
+                        </ReferenceArrayInput>
+                    )
                 } else if (attr.name.toLowerCase().includes("permission_labels")) {
                     return (
                         <AutocompleteArrayInput
@@ -528,7 +573,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             label={t("usersAndRolesScreen.users.fields.permissionLabel")}
                             defaultValue={permissionLabels}
                             fullWidth
-                            debounce={100}
                             onChange={handlePermissionLabelRemoved}
                             onCreate={(newLabel) => {
                                 if (newLabel) {

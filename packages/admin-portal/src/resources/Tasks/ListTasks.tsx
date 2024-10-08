@@ -125,15 +125,14 @@ export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRe
 
         // Reset filters when the component mounts
         if (listContext && listContext.setFilters) {
-            listContext.setFilters({}, {})
+            listContext.setFilters(
+                {
+                    election_event_id: electionEventRecord?.id || undefined,
+                },
+                {}
+            )
         }
-        return () => {
-            // Reset filters when the component unmounts
-            if (listContext && listContext.setFilters) {
-                listContext.setFilters({}, {})
-            }
-        }
-    }, [])
+    }, [electionEventRecord?.id])
 
     return (
         <>

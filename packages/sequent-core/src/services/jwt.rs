@@ -25,6 +25,8 @@ pub struct JwtHasuraClaims {
     pub user_id: String,
     #[serde(rename = "x-hasura-area-id")]
     pub area_id: Option<String>,
+    #[serde(rename = "authorized-election-ids")]
+    pub authorized_election_ids: Option<Vec<String>>,
     #[serde(rename = "x-hasura-allowed-roles")]
     pub allowed_roles: Vec<String>,
     #[serde(rename = "x-hasura-permission-label")]
@@ -77,6 +79,7 @@ pub fn decode_jwt(token: &str) -> Result<JwtClaims> {
         .map_err(|err| anyhow!("Error decoding string: {:?}", err))?;
     let json = String::from_utf8(bytes)
         .map_err(|err| anyhow!("Error decoding bytes to utf8: {:?}", err))?;
+    info!("json: {:?}", json);
     let claims: JwtClaims = serde_json::from_str(&json).map_err(|err| {
         anyhow!("Error decoding string into formatted json: {:?}", err)
     })?;
