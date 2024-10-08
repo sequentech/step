@@ -826,7 +826,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         })
 
     // check if data array is empty
-    const { data, isLoading } = listContext;
+    const {data, isLoading} = listContext
 
     return (
         <>
@@ -853,7 +853,9 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                     electionEventId={electionEventId}
                                     close={handleClose}
                                     rolesList={rolesList || []}
-                                    userAttributes={userAttributes?.get_user_profile_attributes || []}
+                                    userAttributes={
+                                        userAttributes?.get_user_profile_attributes || []
+                                    }
                                 />
                             }
                             extraActions={[
@@ -885,7 +887,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                             isOpenSideBar={isOpenSidebar}
                             bulkActionButtons={<BulkActions />}
                         >
-                            <TextField source="id" sx={{ display: "block", width: "280px" }} />
+                            <TextField source="id" sx={{display: "block", width: "280px"}} />
                             <BooleanField source="email_verified" />
                             <BooleanField source="enabled" />
                             {renderFields(listFields.basicInfoFields)}

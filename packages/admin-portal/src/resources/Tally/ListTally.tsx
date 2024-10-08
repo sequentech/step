@@ -319,7 +319,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     }, [])
 
     // check if data array is empty
-    const { data, isLoading } = listContext;
+    const {data, isLoading} = listContext
 
     return (
         <>
@@ -357,7 +357,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                         />
                     }
                     empty={<Empty />}
-                    sx={{ flexGrow: 2 }}
+                    sx={{flexGrow: 2}}
                     filter={{
                         tenant_id: tenantId || undefined,
                         election_event_id: electionEventRecord?.id || undefined,
@@ -373,12 +373,16 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
 
                         <FunctionField
                             label={t("electionEventScreen.tally.trustees")}
-                            render={(record: RaRecord<Identifier>) => <TrusteeItems record={record} />}
+                            render={(record: RaRecord<Identifier>) => (
+                                <TrusteeItems record={record} />
+                            )}
                         />
 
                         <FunctionField
                             label={t("electionEventScreen.tally.electionNumber")}
-                            render={(record: RaRecord<Identifier>) => record?.election_ids?.length || 0}
+                            render={(record: RaRecord<Identifier>) =>
+                                record?.election_ids?.length || 0
+                            }
                         />
 
                         <FunctionField
@@ -400,7 +404,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                     </DatagridConfigurable>
                 </List>
             )}
-                    
+
             <Dialog
                 variant="warning"
                 open={openCancelTally}

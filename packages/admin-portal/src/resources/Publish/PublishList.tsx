@@ -154,19 +154,19 @@ export const PublishList: React.FC<TPublishList> = ({
                     filter={
                         electionId
                             ? {
-                                election_event_id: electionEventId,
-                                election_id: electionId,
-                            }
+                                  election_event_id: electionEventId,
+                                  election_id: electionId,
+                              }
                             : {
-                                election_event_id: electionEventId,
-                            }
+                                  election_event_id: electionEventId,
+                              }
                     }
                     sort={{
                         field: "created_at",
                         order: "DESC",
                     }}
                     filters={filters}
-                    sx={{ flexGrow: 2 }}
+                    sx={{flexGrow: 2}}
                     empty={<Empty />}
                 >
                     <HeaderTitle title={"publish.header.history"} subtitle="" />

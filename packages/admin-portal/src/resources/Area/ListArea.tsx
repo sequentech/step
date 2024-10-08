@@ -138,8 +138,6 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
     }, [tenantId, record?.id])
 
     const createAction = () => {
-        console.log("CREATE AREA")
-
         setOpenCreate(true)
         setOpenCreate(true)
     }
@@ -168,18 +166,6 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
             )}
         </ResourceListStyles.EmptyBox>
     )
-
-    // check if data array is empty
-    console.log("AREAS RECORD", record)
-    console.log("AREAS", listContext?.data)
-    const {data, isLoading} = listContext
-    // if (!isLoading && (!data || data.length === 0)) {
-    //     return <Empty />
-    // }
-
-    if (!canView) {
-        return <Empty />
-    }
 
     const handleCloseCreateDrawer = () => {
         setRecordId(undefined)
@@ -259,6 +245,13 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
         {icon: <EditIcon className="edit-area-icon" />, action: editAction},
         {icon: <DeleteIcon className="delete-area-icon" />, action: deleteAction},
     ]
+
+    // check if data array is empty
+    const {data, isLoading} = listContext
+
+    if (!canView) {
+        return <Empty />
+    }
 
     return (
         <>
