@@ -623,6 +623,10 @@ const catalanTranslation: TranslationType = {
                 label: "Tipus",
                 START_VOTING_PERIOD: "Inici del Període de Votació",
                 END_VOTING_PERIOD: "Final del Període de Votació",
+                START_ENROLLMENT_PERIOD: "Start Enrollment Period",
+                END_ENROLLMENT_PERIOD: "End Enrollment Period",
+                START_LOCKDOWN_PERIOD: "Start Lockdown Period",
+                END_LOCKDOWN_PERIOD: "End Lockdown Period",
             },
             election: {
                 label: "Elecció",
