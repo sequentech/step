@@ -74,7 +74,7 @@ impl RenderTemplate {
             TemplateType::ManualVerification => {
                 let system_vars_content = fs::read_to_string(&self.user_vars)
                     .map_err(|e| format!("Could not read system variables file: {e:?}"))?;
-                let system_template_data: manual_verification::UserTemplateData =
+                let system_template_data: manual_verification::UserData =
                     serde_json::from_str(&system_vars_content)
                         .map_err(|e| format!("Could not parse system template variables: {e:?}"))?;
                 system_template_data.to_map()?
@@ -136,7 +136,7 @@ impl RenderTemplate {
                     .ok_or(format!("System vars not provided"))?;
                 let system_vars_content = fs::read_to_string(&vars_path)
                     .map_err(|e| format!("Could not read system variables file: {e:?}"))?;
-                let system_template_data: manual_verification::SystemTemplateData =
+                let system_template_data: manual_verification::SystemData =
                     serde_json::from_str(&system_vars_content)
                         .map_err(|e| format!("Could not parse system template variables: {e:?}"))?;
                 system_template_data
