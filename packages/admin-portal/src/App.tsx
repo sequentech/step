@@ -55,6 +55,8 @@ import {TemplateEdit} from "./resources/Template/TemplateEdit"
 import {TemplateList} from "./resources/Template/TemplateList"
 import {TemplateCreate} from "./resources/Template/TemplateCreate"
 import ListReports from "./resources/Reports/ListReports"
+import {CreateReport} from "./resources/Reports/CreateReport"
+import { EditReport } from "./resources/Reports/EditReport"
 
 interface AppProps {}
 
@@ -224,6 +226,8 @@ const App: React.FC<AppProps> = () => {
                 <Resource
                     name="sequent_backend_report"
                     list={ListReports}
+                    create={CreateReport}
+                    edit={EditReport}
                     options={{label: "Reports"}}
                 />
 

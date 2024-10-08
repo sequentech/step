@@ -274,6 +274,7 @@ const spanishTranslation: TranslationType = {
                 tasks: "Tareas",
                 events: "Eventos Programados",
                 notifications: "Notificaciones",
+                reports: "Informe"
             },
             tally: {
                 emptyHeader: "Ningún Recuento aún.",
@@ -645,6 +646,33 @@ const spanishTranslation: TranslationType = {
                 eventProcessor: "Tipo",
                 stoppedAt: "Detenido En",
                 scheduledDate: "Programado En",
+            },
+        },
+        reportsScreen: {
+            title: "Informes",
+            subtitle: "Generar informes para los eventos electorales",
+            messages: {
+                createSuccess: "Informe creado con éxito",
+                createError: "Error al crear el informe",
+            },
+            empty: {
+                header: "Aún no hay informes.",
+                body: "¿Quieres crear uno?",
+                button: "Crear informe",
+            },
+            create: {
+                title: "Crear informe",
+                subtitle: "Crear una nueva configuración de informe.",
+            },
+            edit: {
+                title: "Editar informe",
+                subtitle: "Editar la configuración del informe.",
+                delete: "¿Estás seguro de que deseas eliminar este informe?",
+            },
+            fields: {
+                electionId: "Elección",
+                template: "Plantilla",
+                reportType: "Tipo de informe",
             },
         },
         common: {

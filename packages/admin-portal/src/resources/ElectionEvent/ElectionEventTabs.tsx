@@ -56,7 +56,7 @@ const EditNotifications = lazy(() =>
 
 const Reports = lazy(() =>
     import("../Reports/EditReports").then((module) => ({
-        default: module.EditReports,
+        default: module.EditReportsTab,
     }))
 )
 
@@ -121,7 +121,7 @@ export const ElectionEventTabs: React.FC = () => {
     const showReports = authContext.isAuthorized(
         true,
         authContext.tenantId,
-        IPermissions.REPORTS_READ
+        IPermissions.REPORT_READ
     )
 
     const [loadedChildren, setLoadedChildren] = React.useState<number>(0)
@@ -278,7 +278,7 @@ export const ElectionEventTabs: React.FC = () => {
                         <Tab label={t("electionEventScreen.tabs.events")} value={10} />
                     ) : null}
                     {showReports ? (
-                        <Tab label={t("Reports")} value={12} /> //TODO: Add translations
+                        <Tab label={t("electionEventScreen.tabs.reports")} value={12} /> 
                     ) : null}
                     {/*showNotifications ? (
                         <Tab label={t("electionEventScreen.tabs.notifications")} value={11} />

@@ -271,6 +271,7 @@ const englishTranslation = {
                 tasks: "Tasks",
                 events: "Scheduled Events",
                 notifications: "Notifications",
+                reports: "Reports",
             },
             tally: {
                 emptyHeader: "No Tally yet.",
@@ -641,6 +642,33 @@ const englishTranslation = {
                 eventProcessor: "Type",
                 stoppedAt: "Stopped At",
                 scheduledDate: "Scheduled At",
+            },
+        },
+        reportsScreen: {
+            title: "Reports",
+            subtitle: "Generate reports for the election events",
+            messages: {
+                createSuccess: "Report created successfully",
+                createError: "Error creating Report",
+            },
+            empty: {
+                header: "No Reports yet.",
+                body: "Do you want to create one?",
+                button: "Create Report",
+            },
+            create: {
+                title: "Create Report",
+                subtitle: "Create a new Report configuration.",
+            },
+            edit: {
+                title: "Edit Report",
+                subtitle: "Edit Report configuration.",
+                delete: "Are you sure you want delete this Report?",
+            },
+            fields: {
+                electionId: "Election",
+                template: "Template",
+                reportType: "Report Type"
             },
         },
         common: {

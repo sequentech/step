@@ -9,10 +9,10 @@ insert_permissions:
         _eq: X-Hasura-Tenant-Id
     columns:
     - report_type
-    - template_alias
     - election_event_id
     - election_id
     - id
+    - template_id
     - tenant_id
   role: admin-user
 - comment: ""
@@ -22,10 +22,10 @@ insert_permissions:
         _eq: X-Hasura-Tenant-Id
     columns:
     - report_type
-    - template_alias
     - election_event_id
     - election_id
     - id
+    - template_id
     - tenant_id
   role: report-write
 select_permissions:
@@ -34,10 +34,10 @@ select_permissions:
     allow_aggregations: true
     columns:
     - report_type
-    - template_alias
     - election_event_id
     - election_id
     - id
+    - template_id
     - tenant_id
     filter:
       tenant_id:
@@ -45,12 +45,13 @@ select_permissions:
   role: admin-user
 - comment: ""
   permission:
+    allow_aggregations: true
     columns:
     - report_type
-    - template_alias
     - election_event_id
     - election_id
     - id
+    - template_id
     - tenant_id
     filter:
       tenant_id:
@@ -61,10 +62,10 @@ select_permissions:
     allow_aggregations: true
     columns:
     - report_type
-    - template_alias
     - election_event_id
     - election_id
     - id
+    - template_id
     - tenant_id
     filter:
       tenant_id:
@@ -73,27 +74,27 @@ select_permissions:
 update_permissions:
 - comment: ""
   permission:
-    check: null
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
     columns:
     - report_type
-    - template_alias
     - election_event_id
     - election_id
     - id
+    - template_id
     - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
+    filter: {}
   role: admin-user
 - comment: ""
   permission:
-    check: null
+    check: {}
     columns:
     - report_type
-    - template_alias
     - election_event_id
     - election_id
     - id
+    - template_id
     - tenant_id
     filter:
       tenant_id:

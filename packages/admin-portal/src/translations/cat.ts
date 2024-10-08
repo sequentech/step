@@ -274,6 +274,7 @@ const catalanTranslation: TranslationType = {
                 tasks: "Tasques",
                 events: "Esdeveniment Programat",
                 notifications: "Notificacions",
+                reports: "Informe"
             },
             tally: {
                 emptyHeader: "Encara no hi ha Recompte.",
@@ -646,6 +647,33 @@ const catalanTranslation: TranslationType = {
                 eventProcessor: "Tipus",
                 stoppedAt: "Aturat A",
                 scheduledDate: "Programat A",
+            },
+        },
+        reportsScreen: {
+            title: "Informes",
+            subtitle: "Genera informes per als esdeveniments electorals",
+            messages: {
+                createSuccess: "Informe creat amb èxit",
+                createError: "Error en crear l'informe",
+            },
+            empty: {
+                header: "Encara no hi ha informes.",
+                body: "Vols crear-ne un?",
+                button: "Crear informe",
+            },
+            create: {
+                title: "Crear informe",
+                subtitle: "Crear una nova configuració d'informe.",
+            },
+            edit: {
+                title: "Edita l'informe",
+                subtitle: "Edita la configuració de l'informe.",
+                delete: "Estàs segur que vols suprimir aquest informe?",
+            },
+            fields: {
+                electionId: "Elecció",
+                template: "Plantilla",
+                reportType: "Tipus d'informe",
             },
         },
         common: {

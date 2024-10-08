@@ -273,6 +273,7 @@ const tagalogTranslation: TranslationType = {
                 tasks: "Mga Gawain",
                 events: "Naka-schedule na Kaganapan",
                 notifications: "Mga Abiso",
+                reports: "Ulat",
             },
             tally: {
                 emptyHeader: "Walang pang Tally.",
@@ -646,6 +647,33 @@ const tagalogTranslation: TranslationType = {
                 eventProcessor: "Uri",
                 stoppedAt: "Huminto Noong",
                 scheduledDate: "Naka-schedule Noong",
+            },
+        },
+        reportsScreen: {
+            title: "Mga Ulat",
+            subtitle: "Gumawa ng mga ulat para sa mga kaganapan ng halalan",
+            messages: {
+                createSuccess: "Matagumpay na nalikha ang ulat",
+                createError: "Error sa paglikha ng ulat",
+            },
+            empty: {
+                header: "Wala pang mga ulat.",
+                body: "Gusto mo bang lumikha ng isa?",
+                button: "Lumikha ng ulat",
+            },
+            create: {
+                title: "Lumikha ng Ulat",
+                subtitle: "Lumikha ng bagong pagsasaayos ng ulat.",
+            },
+            edit: {
+                title: "I-edit ang Ulat",
+                subtitle: "I-edit ang pagsasaayos ng ulat.",
+                delete: "Sigurado ka bang gusto mong tanggalin ang ulat na ito?",
+            },
+            fields: {
+                electionId: "Halalan",
+                template: "Template",
+                reportType: "Uri ng ulat",
             },
         },
         common: {

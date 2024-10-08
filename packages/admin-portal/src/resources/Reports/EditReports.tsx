@@ -10,10 +10,10 @@ import ListReports from "./ListReports"
 interface EditReportsProps {
     electionEventId: string
 }
-export const EditReports: React.FC<EditReportsProps> = ({electionEventId}) => {
+export const EditReportsTab: React.FC<EditReportsProps> = ({electionEventId}) => {
     const authContext = useContext(AuthContext)
     const [tenantId] = useTenantStore()
-    const showReports = authContext.isAuthorized(true, tenantId, IPermissions.REPORTS_READ)
+    const showReports = authContext.isAuthorized(true, tenantId, IPermissions.REPORT_READ)
 
     if (!showReports) {
         return null
