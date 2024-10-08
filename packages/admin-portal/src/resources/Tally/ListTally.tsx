@@ -318,6 +318,9 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         }
     }, [])
 
+    // check if data array is empty
+    const { data, isLoading } = listContext;
+
     return (
         <>
             {canTrusteeCeremony && keysCeremonies?.[0]?.execution_status === "STARTED" ? (
@@ -337,63 +340,67 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                 </Alert>
             ) : null}
 
-            <List
-                resource="sequent_backend_tally_session"
-                actions={
-                    <ListActions
-                        withColumns={canAdminCeremony}
-                        withImport={false}
-                        withExport={false}
-                        withFilter={false}
-                        withAction={canAdminCeremony}
-                        doAction={() => setCreatingFlag(true)}
-                        actionLabel="electionEventScreen.tally.create.createButton"
-                    />
-                }
-                empty={<Empty />}
-                sx={{flexGrow: 2}}
-                filter={{
-                    tenant_id: tenantId || undefined,
-                    election_event_id: electionEventRecord?.id || undefined,
-                }}
-                storeKey={false}
-                filters={Filters}
-            >
-                <ElectionHeader title={"electionEventScreen.tally.title"} subtitle="" />
+            {(!isLoading && (!data || data.length)) === 0 ? (
+                <Empty />
+            ) : (
+                <List
+                    resource="sequent_backend_tally_session"
+                    actions={
+                        <ListActions
+                            withColumns={canAdminCeremony}
+                            withImport={false}
+                            withExport={false}
+                            withFilter={false}
+                            withAction={canAdminCeremony}
+                            doAction={() => setCreatingFlag(true)}
+                            actionLabel="electionEventScreen.tally.create.createButton"
+                        />
+                    }
+                    empty={<Empty />}
+                    sx={{ flexGrow: 2 }}
+                    filter={{
+                        tenant_id: tenantId || undefined,
+                        election_event_id: electionEventRecord?.id || undefined,
+                    }}
+                    storeKey={false}
+                    filters={Filters}
+                >
+                    <ElectionHeader title={"electionEventScreen.tally.title"} subtitle="" />
 
-                <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={false}>
-                    <TextField source="tenant_id" />
-                    <DateField source="created_at" showTime={true} />
+                    <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={false}>
+                        <TextField source="tenant_id" />
+                        <DateField source="created_at" showTime={true} />
 
-                    <FunctionField
-                        label={t("electionEventScreen.tally.trustees")}
-                        render={(record: RaRecord<Identifier>) => <TrusteeItems record={record} />}
-                    />
+                        <FunctionField
+                            label={t("electionEventScreen.tally.trustees")}
+                            render={(record: RaRecord<Identifier>) => <TrusteeItems record={record} />}
+                        />
 
-                    <FunctionField
-                        label={t("electionEventScreen.tally.electionNumber")}
-                        render={(record: RaRecord<Identifier>) => record?.election_ids?.length || 0}
-                    />
+                        <FunctionField
+                            label={t("electionEventScreen.tally.electionNumber")}
+                            render={(record: RaRecord<Identifier>) => record?.election_ids?.length || 0}
+                        />
 
-                    <FunctionField
-                        label={t("electionEventScreen.tally.status")}
-                        render={(record: RaRecord<Identifier>) => (
-                            <StatusChip status={record.execution_status} />
-                        )}
-                    />
+                        <FunctionField
+                            label={t("electionEventScreen.tally.status")}
+                            render={(record: RaRecord<Identifier>) => (
+                                <StatusChip status={record.execution_status} />
+                            )}
+                        />
 
-                    <FunctionField
-                        source="actions"
-                        label="Actions"
-                        render={(record: RaRecord<Identifier>) => (
-                            <ActionsColumn actions={actions(record)} />
-                        )}
-                    >
-                        {/* <ActionsColumn actions={actions} /> */}
-                    </FunctionField>
-                </DatagridConfigurable>
-            </List>
-
+                        <FunctionField
+                            source="actions"
+                            label="Actions"
+                            render={(record: RaRecord<Identifier>) => (
+                                <ActionsColumn actions={actions(record)} />
+                            )}
+                        >
+                            {/* <ActionsColumn actions={actions} /> */}
+                        </FunctionField>
+                    </DatagridConfigurable>
+                </List>
+            )}
+            
             <Dialog
                 variant="warning"
                 open={openCancelTally}

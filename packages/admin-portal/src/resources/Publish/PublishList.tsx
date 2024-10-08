@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {ReactElement} from "react"
+import React, {ReactElement, useEffect} from "react"
 
 import {useTranslation} from "react-i18next"
 import {Visibility} from "@mui/icons-material"
@@ -18,6 +18,7 @@ import {
     BooleanInput,
     BooleanField,
     DatagridConfigurable,
+    useListController,
 } from "react-admin"
 
 import {ElectionEventStatus, PublishStatus} from "./EPublishStatus"
@@ -26,6 +27,7 @@ import {EPublishActionsType} from "./EPublishType"
 import {HeaderTitle} from "@/components/HeaderTitle"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {Action, ActionsColumn} from "@/components/ActionButons"
+import {useNavigate, useLocation} from "react-router-dom"
 
 const OMIT_FIELDS: string[] = []
 
@@ -78,59 +80,107 @@ export const PublishList: React.FC<TPublishList> = ({
         </ResourceListStyles.EmptyBox>
     )
 
-    if (!canRead) {
-        return <Empty />
-    }
-
     const actions: Action[] = [
         {
             icon: <Visibility className="publish-visibility-icon" />,
             action: setBallotPublicationId,
         },
     ]
+    // Avoid error when coming from filterd list in other tabs
+    const listContext = useListController({
+        resource: "sequent_backend_ballot_publication",
+        filter: electionId
+            ? {
+                  election_event_id: electionEventId,
+                  election_id: electionId,
+              }
+            : {
+                  election_event_id: electionEventId,
+              },
+    })
+
+    const navigate = useNavigate()
+    const location = useLocation()
+
+    useEffect(() => {
+        // navigate to self but without search params
+        navigate(
+            {
+                pathname: location.pathname,
+                search: "",
+            },
+            {replace: true}
+        )
+
+        // Reset filters when the component mounts
+        if (listContext && listContext.setFilters) {
+            listContext.setFilters(
+                electionId
+                    ? {
+                          election_event_id: electionEventId,
+                          election_id: electionId,
+                      }
+                    : {
+                          election_event_id: electionEventId,
+                      },
+                {}
+            )
+        }
+    }, [electionEventId, electionId])
+
+    // check if data array is empty
+    const {data, isLoading} = listContext
+
+    if (!canRead) {
+        return <Empty />
+    }
 
     return (
         <Box>
-            <List
-                actions={
-                    <PublishActions
-                        status={status}
-                        changingStatus={changingStatus}
-                        onGenerate={onGenerate}
-                        onChangeStatus={onChangeStatus}
-                        type={EPublishActionsType.List}
-                    />
-                }
-                resource="sequent_backend_ballot_publication"
-                filter={
-                    electionId
-                        ? {
-                              election_event_id: electionEventId,
-                              election_id: electionId,
-                          }
-                        : {
-                              election_event_id: electionEventId,
-                          }
-                }
-                sort={{
-                    field: "created_at",
-                    order: "DESC",
-                }}
-                filters={filters}
-                sx={{flexGrow: 2}}
-                empty={<Empty />}
-            >
-                <HeaderTitle title={"publish.header.history"} subtitle="" />
+            {(!isLoading && (!data || data.length)) === 0 ? (
+                <Empty />
+            ) : (
+                <List
+                    actions={
+                        <PublishActions
+                            status={status}
+                            changingStatus={changingStatus}
+                            onGenerate={onGenerate}
+                            onChangeStatus={onChangeStatus}
+                            type={EPublishActionsType.List}
+                        />
+                    }
+                    resource="sequent_backend_ballot_publication"
+                    filter={
+                        electionId
+                            ? {
+                                election_event_id: electionEventId,
+                                election_id: electionId,
+                            }
+                            : {
+                                election_event_id: electionEventId,
+                            }
+                    }
+                    sort={{
+                        field: "created_at",
+                        order: "DESC",
+                    }}
+                    filters={filters}
+                    sx={{ flexGrow: 2 }}
+                    empty={<Empty />}
+                >
+                    <HeaderTitle title={"publish.header.history"} subtitle="" />
 
-                <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
-                    <TextField source="id" />
-                    <BooleanField source="is_generated" />
-                    <TextField source="published_at" />
-                    <TextField source="created_at" />
+                    <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
+                        <TextField source="id" />
+                        <BooleanField source="is_generated" />
+                        <TextField source="published_at" />
+                        <TextField source="created_at" />
 
-                    <ActionsColumn actions={actions} />
-                </DatagridConfigurable>
-            </List>
+                        <ActionsColumn actions={actions} />
+                    </DatagridConfigurable>
+                </List>
+            )}
         </Box>
     )
 }

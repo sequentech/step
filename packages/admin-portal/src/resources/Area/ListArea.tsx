@@ -8,7 +8,6 @@ import {
     TextField,
     TextInput,
     Identifier,
-    RaRecord,
     useRecordContext,
     useDelete,
     WrapperField,
@@ -139,6 +138,9 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
     }, [tenantId, record?.id])
 
     const createAction = () => {
+        console.log("CREATE AREA")
+
+        setOpenCreate(true)
         setOpenCreate(true)
     }
 
@@ -166,6 +168,14 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
             )}
         </ResourceListStyles.EmptyBox>
     )
+
+    // check if data array is empty
+    console.log("AREAS RECORD", record)
+    console.log("AREAS", listContext?.data)
+    const {data, isLoading} = listContext
+    // if (!isLoading && (!data || data.length === 0)) {
+    //     return <Empty />
+    // }
 
     if (!canView) {
         return <Empty />
@@ -252,46 +262,58 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
 
     return (
         <>
-            {location.search !== "" && (
-                <List
-                    resource="sequent_backend_area"
-                    actions={
-                        <ListActions
-                            withImport
-                            doImport={() => setOpenImportDrawer(true)}
-                            open={openDrawer}
-                            setOpen={setOpenDrawer}
-                            Component={
-                                <CreateArea record={record} close={handleCloseCreateDrawer} />
+            {(!isLoading && (!data || data.length)) === 0 ? (
+                <Empty />
+            ) : (
+                <>
+                    {location.search !== "" && (
+                        <List
+                            resource="sequent_backend_area"
+                            actions={
+                                <ListActions
+                                    withImport
+                                    doImport={() => setOpenImportDrawer(true)}
+                                    open={openDrawer}
+                                    setOpen={setOpenDrawer}
+                                    Component={
+                                        <CreateArea
+                                            record={record}
+                                            close={handleCloseCreateDrawer}
+                                        />
+                                    }
+                                    extraActions={[
+                                        <Button
+                                            onClick={() => setOpenUpsertDrawer(true)}
+                                            key="upsert"
+                                        >
+                                            {t("electionEventScreen.importAreas.upsert")}
+                                        </Button>,
+                                    ]}
+                                />
                             }
-                            extraActions={[
-                                <Button onClick={() => setOpenUpsertDrawer(true)} key="upsert">
-                                    {t("electionEventScreen.importAreas.upsert")}
-                                </Button>,
-                            ]}
-                        />
-                    }
-                    empty={<Empty />}
-                    sx={{flexGrow: 2}}
-                    storeKey={false}
-                    filters={Filters}
-                    filterDefaultValues={{}}
-                >
-                    <DatagridConfigurable omit={OMIT_FIELDS}>
-                        <TextField source="id" />
-                        <TextField source="name" className="area-name" />
-                        <TextField source="description" className="area-description" />
+                            empty={<Empty />}
+                            sx={{flexGrow: 2}}
+                            storeKey={false}
+                            filters={Filters}
+                            filterDefaultValues={{}}
+                        >
+                            <DatagridConfigurable omit={OMIT_FIELDS}>
+                                <TextField source="id" />
+                                <TextField source="name" className="area-name" />
+                                <TextField source="description" className="area-description" />
 
-                        <FunctionField
-                            label={t("areas.sequent_backend_area_contest")}
-                            render={(record: any) => <AreaContestItems record={record} />}
-                        />
+                                <FunctionField
+                                    label={t("areas.sequent_backend_area_contest")}
+                                    render={(record: any) => <AreaContestItems record={record} />}
+                                />
 
-                        <WrapperField source="actions" label="Actions">
-                            <ActionsColumn actions={actions} />
-                        </WrapperField>
-                    </DatagridConfigurable>
-                </List>
+                                <WrapperField source="actions" label="Actions">
+                                    <ActionsColumn actions={actions} />
+                                </WrapperField>
+                            </DatagridConfigurable>
+                        </List>
+                    )}
+                </>
             )}
             <Drawer
                 anchor="right"

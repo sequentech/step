@@ -759,6 +759,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 attributesFields.push(attr)
             }
         })
+        console.log("AAAA", {basicInfoFields, attributesFields, omitFields})
         return {basicInfoFields, attributesFields, omitFields}
     }, [userAttributes?.get_user_profile_attributes])
 
@@ -824,96 +825,103 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             )
         })
 
+    // check if data array is empty
+    const { data, isLoading } = listContext;
+
     return (
         <>
-            <List
-                resource="user"
-                queryOptions={{
-                    refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-                }}
-                empty={<Empty />}
-                actions={
-                    <ListActions
-                        withImport
-                        doImport={handleImport}
-                        withExport
-                        doExport={handleExport}
-                        isExportDisabled={openExport}
-                        open={openDrawer}
-                        setOpen={setOpenDrawer}
-                        Component={
-                            <CreateUser
-                                electionEventId={electionEventId}
-                                close={handleClose}
-                                rolesList={rolesList || []}
-                                userAttributes={userAttributes?.get_user_profile_attributes || []}
-                            />
-                        }
-                        extraActions={[
-                            <Button
-                                key="send-notification"
-                                onClick={() => {
-                                    sendTemplateAction([], AudienceSelection.ALL_USERS)
-                                }}
-                            >
-                                <ResourceListStyles.MailIcon />
-                                {t("sendTemplate.send")}
-                            </Button>,
-                        ]}
-                    />
-                }
-                filter={{
-                    tenant_id: tenantId,
-                    election_event_id: electionEventId,
-                    election_id: electionId,
-                }}
-                storeKey={false}
-                aside={aside}
-                filters={Filters}
-                filterDefaultValues={{}}
-            >
-                {userAttributes?.get_user_profile_attributes && (
-                    <DataGridContainerStyle
-                        omit={listFields.omitFields}
-                        isOpenSideBar={isOpenSidebar}
-                        bulkActionButtons={<BulkActions />}
-                    >
-                        <TextField source="id" sx={{display: "block", width: "280px"}} />
-                        <BooleanField source="email_verified" />
-                        <BooleanField source="enabled" />
-                        {renderFields(listFields.basicInfoFields)}
-                        {electionEventId && (
-                            <FunctionField
-                                label={t("usersAndRolesScreen.users.fields.area")}
-                                render={(record: IUser) =>
-                                    record?.area?.name ? (
-                                        <Chip label={record?.area?.name ?? ""} />
-                                    ) : (
-                                        "-"
-                                    )
-                                }
-                            />
-                        )}
-                        {renderFields(listFields.attributesFields)}
-                        {electionEventId && (
-                            <FunctionField
-                                source="has_voted"
-                                label={t("usersAndRolesScreen.users.fields.has_voted")}
-                                render={(record: IUser, source: string | undefined) => {
-                                    let newRecord = {
-                                        has_voted: (record?.votes_info?.length ?? 0) > 0,
-                                        ...record,
+            {(!isLoading && (!data || data.length)) === 0 ? (
+                <Empty />
+            ) : (
+                <List
+                    resource="user"
+                    queryOptions={{
+                        refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+                    }}
+                    empty={<Empty />}
+                    actions={
+                        <ListActions
+                            withImport
+                            doImport={handleImport}
+                            withExport
+                            doExport={handleExport}
+                            isExportDisabled={openExport}
+                            open={openDrawer}
+                            setOpen={setOpenDrawer}
+                            Component={
+                                <CreateUser
+                                    electionEventId={electionEventId}
+                                    close={handleClose}
+                                    rolesList={rolesList || []}
+                                    userAttributes={userAttributes?.get_user_profile_attributes || []}
+                                />
+                            }
+                            extraActions={[
+                                <Button
+                                    key="send-notification"
+                                    onClick={() => {
+                                        sendTemplateAction([], AudienceSelection.ALL_USERS)
+                                    }}
+                                >
+                                    <ResourceListStyles.MailIcon />
+                                    {t("sendTemplate.send")}
+                                </Button>,
+                            ]}
+                        />
+                    }
+                    filter={{
+                        tenant_id: tenantId,
+                        election_event_id: electionEventId,
+                        election_id: electionId,
+                    }}
+                    storeKey={false}
+                    aside={aside}
+                    filters={Filters}
+                    filterDefaultValues={{}}
+                >
+                    {userAttributes?.get_user_profile_attributes && (
+                        <DataGridContainerStyle
+                            omit={listFields.omitFields}
+                            isOpenSideBar={isOpenSidebar}
+                            bulkActionButtons={<BulkActions />}
+                        >
+                            <TextField source="id" sx={{ display: "block", width: "280px" }} />
+                            <BooleanField source="email_verified" />
+                            <BooleanField source="enabled" />
+                            {renderFields(listFields.basicInfoFields)}
+                            {electionEventId && (
+                                <FunctionField
+                                    label={t("usersAndRolesScreen.users.fields.area")}
+                                    render={(record: IUser) =>
+                                        record?.area?.name ? (
+                                            <Chip label={record?.area?.name ?? ""} />
+                                        ) : (
+                                            "-"
+                                        )
                                     }
-                                    return <BooleanField record={newRecord} source={source} />
-                                }}
-                            />
-                        )}
-                        <WrapperField source="actions" label="Actions">
-                            <ListActionsMenu actions={actions} />
-                        </WrapperField>
-                    </DataGridContainerStyle>
-                )}
-            </List>
+                                />
+                            )}
+                            {renderFields(listFields.attributesFields)}
+                            {electionEventId && (
+                                <FunctionField
+                                    source="has_voted"
+                                    label={t("usersAndRolesScreen.users.fields.has_voted")}
+                                    render={(record: IUser, source: string | undefined) => {
+                                        let newRecord = {
+                                            has_voted: (record?.votes_info?.length ?? 0) > 0,
+                                            ...record,
+                                        }
+                                        return <BooleanField record={newRecord} source={source} />
+                                    }}
+                                />
+                            )}
+                            <WrapperField source="actions" label="Actions">
+                                <ListActionsMenu actions={actions} />
+                            </WrapperField>
+                        </DataGridContainerStyle>
+                    )}
+                </List>
+            )}
             <ResourceListStyles.Drawer anchor="right" open={open} onClose={handleClose}>
                 <EditUser
                     id={recordIds[0] as string}
