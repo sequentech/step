@@ -33,7 +33,7 @@ pub struct RenderTemplate {
 
     /// Path to the system file variables to use in JSON format
     #[arg(short = 'V', long, value_name = "SYSTEM_VARS")]
-    system_vars: String,
+    system_vars: Option<String>,
 
     /// Type of the user template
     #[arg(
@@ -72,7 +72,7 @@ impl RenderTemplate {
                 vars_json
             }
             TemplateType::ManualVerification => {
-                let system_vars_content = fs::read_to_string(&self.system_vars)
+                let system_vars_content = fs::read_to_string(&self.user_vars)
                     .map_err(|e| format!("Could not read system variables file: {e:?}"))?;
                 let system_template_data: manual_verification::UserTemplateData =
                     serde_json::from_str(&system_vars_content)
@@ -130,7 +130,10 @@ impl RenderTemplate {
         let mut system_vars: Map<String, Value> = match self.template_type {
             TemplateType::Custom => Default::default(),
             TemplateType::ManualVerification => {
-                let system_vars_content = fs::read_to_string(&self.system_vars)
+                let vars_path: String = self.system_vars
+                    .clone()
+                    .ok_or(format!("System vars not provided"))?;
+                let system_vars_content = fs::read_to_string(&vars_path)
                     .map_err(|e| format!("Could not read system variables file: {e:?}"))?;
                 let system_template_data: manual_verification::SystemTemplateData =
                     serde_json::from_str(&system_vars_content)
