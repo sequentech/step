@@ -262,8 +262,8 @@ pub async fn insert_election(
         election.validate()?;
 
         let statement = hasura_transaction
-        .prepare(
-            r#"
+            .prepare(
+                r#"
                 INSERT INTO sequent_backend.election
                 (
                     id,
@@ -315,8 +315,8 @@ pub async fn insert_election(
                     $20
                 );
             "#,
-        )
-        .await?;
+            )
+            .await?;
 
         let _rows: Vec<Row> = hasura_transaction
             .query(
