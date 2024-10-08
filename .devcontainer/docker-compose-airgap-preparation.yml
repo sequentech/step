@@ -202,7 +202,7 @@ services:
   keycloak:
     profiles: ["full", "base"]
     container_name: keycloak
-    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/keycloak:v4.0.1-rc.2
+    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/keycloak:STEP_VERSION
     restart: always
     ports:
       - 8090:8090
@@ -262,7 +262,7 @@ services:
 
   admin-portal:
     profiles: ["full"]
-    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/admin-portal:v4.0.1-rc.2
+    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/admin-portal:STEP_VERSION
     container_name: admin-portal
     restart: always
     ports:
@@ -275,7 +275,7 @@ services:
 
   voting-portal:
     profiles: ["full"]
-    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/voting-portal:v4.0.1-rc.2
+    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/voting-portal:STEP_VERSION
     container_name: voting-portal
     depends_on:
       - admin-portal
@@ -287,7 +287,7 @@ services:
   immudb:
     profiles: ["full", "base"]
     container_name: immudb
-    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/immudb:v4.0.1-rc.2
+    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/immudb:STEP_VERSION
     restart: always
     environment:
       - IMMUDB_PGSQL_SERVER=true
@@ -309,7 +309,7 @@ services:
   harvest:
     profiles: ["full", "base"]
     stdin_open: true
-    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/harvest:v4.0.1-rc.2
+    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/harvest:STEP_VERSION
     environment:
       RUST_BACKTRACE: ${RUST_BACKTRACE}
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
@@ -383,7 +383,7 @@ services:
     profiles: ["full"]
     stdin_open: true
     container_name: trustee1
-    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/braid:v4.0.1-rc.2
+    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/braid:STEP_VERSION
     volumes:
       - ./trustees-data/trustee1/trustee1.toml:/opt/braid/trustee1.toml
     environment:
@@ -404,7 +404,7 @@ services:
   trustee2:
     profiles: ["full"]
     stdin_open: true
-    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/braid:v4.0.1-rc.2
+    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/braid:STEP_VERSION
     container_name: trustee2
     volumes:
       - ./trustees-data/trustee2/trustee2.toml:/opt/braid/trustee2.toml
@@ -426,7 +426,7 @@ services:
   # trustee3:
   #   profiles: ["full"]
   #   stdin_open: true
-  #   image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/braid:v4.0.1-rc.2
+  #   image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/braid:STEP_VERSION
   #   container_name: trustee3
   #   volumes:
   #     - ./trustees-data/trustee3/trustee3.toml:/opt/braid/trustee3.toml
@@ -544,7 +544,7 @@ services:
   immudb-init:
     profiles: ["full", "base"]
     stdin_open: true
-    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/immudb-init:v4.0.1-rc.2
+    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/immudb-init:STEP_VERSION
     container_name: immudb-init
     environment:
       IMMUDB_SERVER_URL: ${IMMUDB_SERVER_URL}
@@ -559,7 +559,7 @@ services:
   windmill:
     profiles: ["full", "base"]
     stdin_open: true
-    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/windmill:v4.0.1-rc.2
+    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/windmill:STEP_VERSION
     volumes:
       - ./keycloak/import:/workspaces/step/.devcontainer/keycloak/import
     restart: always
@@ -637,7 +637,7 @@ services:
   beat:
     profiles: ["full"]
     stdin_open: true
-    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/windmill:v4.0.1-rc.2
+    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/windmill:STEP_VERSION
     container_name: beat
     entrypoint: ["./beat"]
     depends_on:

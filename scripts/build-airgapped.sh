@@ -25,8 +25,14 @@ fatal() {
     exit 1
 }
 
+docker-compose-airgap-preparation() {
+    tmpfile=$(mktemp)
+    sed "s/STEP_VERSION/$STEP_VERSION/g" $PROJECT_ROOT/.devcontainer/docker-compose-airgap-preparation.yml > $tmpfile
+    echo $tmpfile
+}
+
 all-images() {
-    yq -r '.services[].image' < $PROJECT_ROOT/.devcontainer/docker-compose-airgap-preparation.yml | grep -vwE 'null|devenv' | sort | uniq | grep -v devenv
+    yq -r '.services[].image' < $(docker-compose-airgap-preparation) | grep -vwE 'null|devenv' | sort | uniq
 }
 
 filesystem-friendly-image-name() {
@@ -42,11 +48,11 @@ archive-image-artifact() {
 }
 
 build-images() {
-    docker-compose -f "$PROJECT_ROOT/.devcontainer/docker-compose-airgap-preparation.yml" --profile full build
+    docker-compose -f <(docker-compose-airgap-preparation) --profile full build
 }
 
 pull-images() {
-    docker-compose -f "$PROJECT_ROOT/.devcontainer/docker-compose-airgap-preparation.yml" --profile full pull --ignore-pull-failures
+    docker-compose -f <(docker-compose-airgap-preparation) --profile full pull --ignore-pull-failures
 }
 
 add-dotenv-to-tarball() {
