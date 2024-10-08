@@ -400,7 +400,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                     </DatagridConfigurable>
                 </List>
             )}
-            
+                    
             <Dialog
                 variant="warning"
                 open={openCancelTally}
