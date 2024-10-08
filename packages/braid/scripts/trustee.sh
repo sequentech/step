@@ -5,10 +5,11 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 set -e
+set -x
 
 # Set default values
 cd /opt/braid
-bb_helper --cache-dir /tmp/cache -s "$IMMUDB_URL" -i "$IMMUDB_INDEX_DB" -b defaultboard -u "$IMMUDB_USER" -p "$IMMUDB_PASSWORD" upsert-init-db -l debug
+#bb_helper --cache-dir /tmp/cache -s "$IMMUDB_URL" -b defaultboard -u "$IMMUDB_USER" -p "$IMMUDB_PASSWORD" upsert-board-db -l debug
 TRUSTEE_CONFIG_PATH=${TRUSTEE_CONFIG:-"/opt/braid/trustee.toml"} # Skipping secretsService if TRUSTEE_CONFIG is set
 SECRETS_BACKEND=${SECRETS_BACKEND:-"awsSecretsManager"} # Default to awsSecretsManager if not set
 if [ -z "$TRUSTEE_NAME" ] && [ ! -f "$TRUSTEE_CONFIG_PATH" ]; then
@@ -95,4 +96,4 @@ handle_trustee_config() {
 handle_trustee_config
 
 # Run trustee with the generated or fetched config
-trustee --b3-url "$IMMUDB_URL" --board-index "$IMMUDB_INDEX_DB" --trustee-config "$TRUSTEE_CONFIG_PATH" --user "$IMMUDB_USER" --password "$IMMUDB_PASSWORD"
+trustee --b3-url "$B3_URL" --trustee-config "$TRUSTEE_CONFIG_PATH"
