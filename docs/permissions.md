@@ -44,3 +44,5 @@ CRUD endpoints for:
 - publish-read|write
 - logs-read
 - keys-read
+- contest-read|write
+- candidate-read|write

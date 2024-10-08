@@ -593,6 +593,8 @@ const catalanTranslation: TranslationType = {
                 "miru-download": "Miru Download",
                 "miru-send": "Miru Send",
                 "miru-sign": "Miru Sign",
+                "contest-write": "Editar Concurs",
+                "contest-read": "Llegir Concurs",
                 "candidate-write": "Editar Candidats",
                 "candidate-read": "Llegir Candidats",
             },

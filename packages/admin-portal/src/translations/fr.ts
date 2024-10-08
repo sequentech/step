@@ -595,6 +595,8 @@ const frenchTranslation: TranslationType = {
                 "miru-download": "Miru Download",
                 "miru-send": "Miru Send",
                 "miru-sign": "Miru Sign",
+                "contest-write": "Éditer Concours",
+                "contest-read": "Lire le Concours",
                 "candidate-write": "Éditer le candidats",
                 "candidate-read": "Lire le candidats",
             },

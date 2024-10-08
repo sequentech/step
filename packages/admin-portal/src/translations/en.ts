@@ -588,6 +588,8 @@ const englishTranslation = {
                 "miru-download": "Miru Download",
                 "miru-send": "Miru Send",
                 "miru-sign": "Miru Sign",
+                "contest-write": "Edit Contest",
+                "contest-read": "Read Contest",
                 "candidate-write": "Edit Candidate",
                 "candidate-read": "Read Candidate",
             },

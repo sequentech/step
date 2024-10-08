@@ -142,6 +142,10 @@ pub enum Permissions {
     #[strum(serialize = "service-account")]
     SERVICE_ACCOUNT,
     #[strum(serialize = "candidate-write")]
+    CONTEST_WRITE,
+    #[strum(serialize = "contest-read")]
+    CONTEST_READ,
+    #[strum(serialize = "contest-write")]
     CANDIDATE_WRITE,
     #[strum(serialize = "candidate-read")]
     CANDIDATE_READ,

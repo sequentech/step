@@ -639,6 +639,24 @@
         "attributes": {}
       },
       {
+        "id": "8cce889d-c86a-48fa-8bfb-49a5aa5af6f9",
+        "name": "contest-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "c2472a9b-6014-46ff-a692-44ef7055894c",
+        "name": "contest-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "871a98b0-0f77-44ec-bc4a-40f9d49cbba2",
         "name": "candidate-write",
         "description": "",
@@ -1079,6 +1097,8 @@
         "document-download",
         "election-type-create",
         "publish-read",
+        "contest-write",
+        "contest-read",
         "candidate-write",
         "candidate-read"
       ],

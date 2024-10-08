@@ -593,6 +593,8 @@ const tagalogTranslation: TranslationType = {
                 "miru-download": "Miru I-download",
                 "miru-send": "Miru Ipadala",
                 "miru-sign": "Miru Lagdaan",
+                "contest-write": "I-edit ang paligsahan",
+                "contest-read": "Basahin ang paligsahan",
                 "candidate-write": "I-edit ang mga kandidato",
                 "candidate-read": "Basahin ang mga kandidato",
             },

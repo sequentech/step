@@ -68,6 +68,8 @@ export enum IPermissions {
     MIRU_DOWNLOAD = "miru-download",
     MIRU_SEND = "miru-send",
     MIRU_SIGN = "miru-sign",
+    CONTEST_WRITE = "contest-write",
+    CONTEST_READ = "contest-read",
     CANDIDATE_WRITE = "candidate-write",
     CANDIDATE_READ = "candidate-read",
 }
