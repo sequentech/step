@@ -164,6 +164,7 @@ services:
     volumes_from:
     - devcontainer
     environment:
+      HASURA_GRAPHQL_CORS_DOMAIN: "*"
       # applies migrations on start
       HASURA_GRAPHQL_MIGRATIONS_SERVER_TIMEOUT: 60
       HASURA_GRAPHQL_MIGRATIONS_DIR: /workspaces/step/hasura/migrations

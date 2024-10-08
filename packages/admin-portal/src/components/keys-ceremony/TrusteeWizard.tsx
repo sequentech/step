@@ -36,6 +36,10 @@ const hasTrusteeCheckedKeys = (
     authContext: AuthContextValues
 ) => {
     const status: IExecutionStatus = ceremony.status
+    
+    status.trustees.find(
+        (trustee) => console.log(trustee)
+    )
     return status.trustees.find(
         (trustee) => trustee.name === authContext.trustee && trustee.status === TStatus.KEY_CHECKED
     )
@@ -108,6 +112,8 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
     }, [])
 
     const checkKeysGenerated = () => {
+        console.log(trusteeCheckedKeys, trusteeParticipating, keysGenerated, '-------')
+        console.log(!trusteeCheckedKeys && trusteeParticipating && !keysGenerated)
         return !trusteeCheckedKeys && trusteeParticipating && !keysGenerated
     }
 
