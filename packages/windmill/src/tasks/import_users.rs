@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::hasura::election_event::get_election_event;
 use crate::postgres::area::get_areas_by_name;
 use crate::postgres::document::get_document;
 use crate::postgres::keycloak_realm;
@@ -24,11 +23,16 @@ use regex::Regex;
 use ring::{digest, pbkdf2};
 use rocket::futures::SinkExt as _;
 use sequent_core::services::connection::AuthHeaders;
-use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
+use sequent_core::services::keycloak::{
+    get_event_realm, get_tenant_realm, MULTIVALUE_USER_ATTRIBUTE_SEPARATOR,
+};
 use sequent_core::services::{keycloak, reports};
 use sequent_core::types::hasura::core::TasksExecution;
-use sequent_core::types::keycloak::{AREA_ID_ATTR_NAME, TENANT_ID_ATTR_NAME};
+use sequent_core::types::keycloak::{
+    AREA_ID_ATTR_NAME, AUTHORIZED_ELECTION_IDS_NAME, TENANT_ID_ATTR_NAME,
+};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::Seek;
 use std::num::NonZeroU32;
@@ -45,6 +49,7 @@ lazy_static! {
     static ref HASHED_PASSWORD_COL_NAME: String = String::from("hashed_password");
     static ref PASSWORD_COL_NAME: String = String::from("password");
     static ref USERNAME_COL_NAME: String = String::from("username");
+    static ref EMAIL_COL_NAME: String = String::from("email");
     static ref GROUP_COL_NAME: String = String::from("group_name");
     static ref AREA_NAME_COL_NAME: String = String::from("area_name");
     static ref RESERVED_COL_NAMES: Vec<String> = vec![
@@ -316,7 +321,7 @@ impl ImportUsersBody {
                             gen_random_uuid(),
                             nu.id,
                             '{attr}',
-                            v.{sanitized_attr}
+                            unnest(string_to_array(v.{sanitized_attr}, '{MULTIVALUE_USER_ATTRIBUTE_SEPARATOR}'))
                         FROM
                             {voters_table} v
                         JOIN
@@ -678,6 +683,10 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
                         }
                     }
                 }
+                // Forces username to be lowercase. As per Keycloak convention as keycloak does not support case sensitive usernames.
+                column_name if column_name == &*USERNAME_COL_NAME => data.to_lowercase(),
+                // Forces email to be lowercase. As per Keycloak convention as keycloak does not support case sensitive emails.
+                column_name if column_name == &*EMAIL_COL_NAME => data.to_lowercase(),
                 _ => data.to_string(),
             };
             if column_name == &*PASSWORD_COL_NAME {

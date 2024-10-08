@@ -4,7 +4,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize_voter;
+use crate::services::authorization::authorize_voter_election;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::Result;
 use rocket::http::Status;
@@ -34,15 +34,21 @@ pub async fn insert_cast_vote(
     user_info: UserLocation,
 ) -> Result<Json<InsertCastVoteOutput>, JsonError> {
     let start = Instant::now();
-    let area_id = authorize_voter(&claims, vec![VoterPermissions::CAST_VOTE])
-        .map_err(|e| {
+    let input: InsertCastVoteInput = body.into_inner();
+    let election_id = input.election_id.to_string();
+
+    let area_id = authorize_voter_election(
+        &claims,
+        vec![VoterPermissions::CAST_VOTE],
+        &election_id,
+    )
+    .map_err(|e| {
         ErrorResponse::new(
             Status::Unauthorized,
             &format!("{:?}", e),
             ErrorCode::Unauthorized,
         )
     })?;
-    let input = body.into_inner();
 
     info!("insert-cast-vote: starting");
 
