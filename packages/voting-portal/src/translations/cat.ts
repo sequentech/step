@@ -283,6 +283,7 @@ const catalanTranslation: TranslationType = {
             },
             explicit: {
                 notAllowed: "Vot marcat explícitament com a invàlid però la pregunta no ho permet",
+                alert: "La selecció marcada es considerarà vot invàlid.",
             },
             page: {
                 oopsWithStatus: "Vaja! {{status}}",
