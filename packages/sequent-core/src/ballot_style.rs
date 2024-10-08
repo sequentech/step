@@ -3,11 +3,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::ballot::{
-    self, CandidatePresentation, ContestPresentation, ElectionDates,
+    self, CandidatePresentation, ContestPresentation,
     ElectionEventPresentation, ElectionPresentation, I18nContent,
+    VotingPeriodDates,
 };
 use crate::serialization::deserialize_with_path::deserialize_value;
 use crate::types::hasura::core as hasura_types;
+use crate::types::scheduled_event::{
+    generate_voting_period_dates, ScheduledEvent,
+};
 use anyhow::{anyhow, Context, Result};
 use std::env;
 
@@ -36,6 +40,7 @@ pub fn create_ballot_style(
     election: hasura_types::Election,            // Election
     contests: Vec<hasura_types::Contest>,        // Contest
     candidates: Vec<hasura_types::Candidate>,    // Candidate
+    scheduled_events: Vec<ScheduledEvent>,       // Scheduled Events
 ) -> Result<ballot::BallotStyle> {
     let mut sorted_contests = contests
         .clone()
@@ -55,13 +60,13 @@ pub fn create_ballot_style(
         })?
         .unwrap_or(Default::default());
 
-    let election_dates: ElectionDates = election
-        .dates
-        .clone()
-        .map(|dates| serde_json::from_value(dates))
-        .transpose()
-        .map_err(|err| anyhow!("Error parsing election dates {:?}", err))?
-        .unwrap_or(Default::default());
+    let election_dates: VotingPeriodDates = generate_voting_period_dates(
+        scheduled_events.clone(),
+        &election.tenant_id,
+        &election.election_event_id,
+        Some(&election.id),
+    )
+    .unwrap_or(Default::default());
 
     let mut election_presentation: ElectionPresentation = election
         .presentation

@@ -12,9 +12,9 @@ use crate::hasura::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
 use crate::postgres::area::get_event_areas;
-use crate::postgres::communication_template::get_communication_template_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::tally_sheet::get_published_tally_sheets_by_event;
+use crate::postgres::template::get_template_by_id;
 use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
 use crate::services::ceremonies::insert_ballots::{
     count_auditable_ballots, get_elections_end_dates, insert_ballots_messages,
@@ -64,11 +64,11 @@ use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::ceremonies::TallyCeremonyStatus;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::ceremonies::TallyTrusteeStatus;
-use sequent_core::types::communications::SendCommunicationBody;
 use sequent_core::types::hasura::core::Area;
 use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::hasura::core::TallySessionConfiguration;
 use sequent_core::types::hasura::core::TallySheet;
+use sequent_core::types::templates::SendTemplateBody;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::str::FromStr;
@@ -875,23 +875,21 @@ pub async fn execute_tally_session_wrapped(
     let report_content_template_id: Option<String> = configuration
         .map(|value| value.report_content_template_id)
         .flatten();
-    let report_content_template: Option<String> = if let Some(template_id) =
-        report_content_template_id
-    {
-        let template =
-            get_communication_template_by_id(hasura_transaction, &tenant_id, &template_id).await?;
-        let document: Option<String> = template
-            .map(|value| {
-                let body: std::result::Result<SendCommunicationBody, _> =
-                    deserialize_value(value.template);
-                body.map(|res| res.document)
-            })
-            .transpose()?
-            .flatten();
-        document
-    } else {
-        None
-    };
+    let report_content_template: Option<String> =
+        if let Some(template_id) = report_content_template_id {
+            let template = get_template_by_id(hasura_transaction, &tenant_id, &template_id).await?;
+            let document: Option<String> = template
+                .map(|value| {
+                    let body: std::result::Result<SendTemplateBody, _> =
+                        deserialize_value(value.template);
+                    body.map(|res| res.document)
+                })
+                .transpose()?
+                .flatten();
+            document
+        } else {
+            None
+        };
 
     let status = get_tally_ceremony_status(tally_session_execution.status.clone())?;
 

@@ -46,9 +46,10 @@ pub fn authorize(
 
 // returns area_id
 #[instrument(skip(claims))]
-pub fn authorize_voter(
+pub fn authorize_voter_election(
     claims: &JwtClaims,
     permissions: Vec<VoterPermissions>,
+    election_id: &String,
 ) -> Result<String, (Status, String)> {
     let perms_str: Vec<String> = permissions
         .into_iter()
@@ -66,6 +67,21 @@ pub fn authorize_voter(
     let Some(area_id) = claims.hasura_claims.area_id.clone() else {
         return Err((Status::Unauthorized, "Missing area_id".into()));
     };
+
+    // The claim TODO
+    if claims.hasura_claims.authorized_election_ids.is_none()
+        || !claims
+            .hasura_claims
+            .authorized_election_ids
+            .as_ref()
+            .unwrap_or(&Vec::new())
+            .contains(election_id)
+    {
+        return Err((
+            Status::Unauthorized,
+            "Not authorized to election".into(),
+        ));
+    }
 
     Ok(area_id)
 }

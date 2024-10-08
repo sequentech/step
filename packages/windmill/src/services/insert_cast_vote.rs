@@ -5,7 +5,10 @@
 use crate::hasura;
 use crate::postgres;
 use crate::postgres::area::get_area_by_id;
+use crate::postgres::election::get_election_by_id;
 use crate::postgres::election::get_election_max_revotes;
+use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::CastVote;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
@@ -25,6 +28,7 @@ use sequent_core::ballot::EGracePeriodPolicy;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::ElectionPresentation;
 use sequent_core::ballot::ElectionStatus;
+use sequent_core::ballot::VotingPeriodDates;
 use sequent_core::ballot::VotingStatus;
 use sequent_core::ballot::{HashableBallot, HashableBallotContest};
 use sequent_core::encrypt::hash_ballot_sha512;
@@ -32,6 +36,8 @@ use sequent_core::encrypt::DEFAULT_PLAINTEXT_LABEL;
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::keycloak;
+use sequent_core::types::hasura::core::ElectionEvent;
+use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
 use strand::backend::ristretto::RistrettoCtx;
 use strand::hash::{hash_to_array, Hash, HashWrapper};
@@ -39,6 +45,7 @@ use strand::serialization::StrandSerialize;
 use strand::signature::StrandSignatureSk;
 use strand::util::StrandError;
 use strand::zkp::Zkp;
+use tracing::info;
 use tracing::{error, event, instrument, Level};
 use uuid::Uuid;
 
@@ -171,10 +178,6 @@ pub async fn try_insert_cast_vote(
         .collect::<Result<Vec<()>>>()
         .map_err(|e| CastVoteError::PokValidationFailed(e.to_string()))?;
 
-    let auth_headers = keycloak::get_client_credentials()
-        .await
-        .map_err(|e| CastVoteError::GetClientCredentialsFailed(e.to_string()))?;
-
     let area = if let Some(area) = area_opt {
         area
     } else {
@@ -182,8 +185,8 @@ pub async fn try_insert_cast_vote(
     };
     let election_event_id: &str = area.election_event_id.as_str();
 
-    let election_event: GetElectionEventSequentBackendElectionEvent =
-        get_election_event(&auth_headers, tenant_id, election_event_id)
+    let election_event =
+        get_election_event_by_id(&hasura_transaction, tenant_id, election_event_id)
             .await
             .map_err(|e| CastVoteError::ElectionEventNotFound(e.to_string()))?;
 
@@ -206,7 +209,6 @@ pub async fn try_insert_cast_vote(
         hasura_transaction,
         election_event,
         ids,
-        auth_headers,
         signing_key,
         auth_time,
         voter_ip,
@@ -259,16 +261,12 @@ pub async fn try_insert_cast_vote(
     }
 }
 
-#[instrument(
-    skip(input, hasura_transaction, election_event, auth_headers, signing_key),
-    err
-)]
+#[instrument(skip(input, hasura_transaction, election_event, signing_key), err)]
 pub async fn insert_cast_vote_and_commit<'a>(
     input: InsertCastVoteInput,
     hasura_transaction: Transaction<'_>,
-    election_event: GetElectionEventSequentBackendElectionEvent,
+    election_event: ElectionEvent,
     ids: CastVoteIds<'a>,
-    auth_headers: AuthHeaders,
     signing_key: StrandSignatureSk,
     auth_time: &Option<i64>,
     voter_ip: &Option<String>,
@@ -281,7 +279,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
         ids.tenant_id,
         ids.election_event_id,
         election_id,
-        auth_headers,
+        &hasura_transaction,
         &election_event,
         auth_time,
     );
@@ -348,7 +346,7 @@ fn hash_voter_id(voter_id: &str) -> Result<Hash, StrandError> {
 
 #[instrument(skip_all, err)]
 async fn get_electoral_log(
-    election_event: &GetElectionEventSequentBackendElectionEvent,
+    election_event: &ElectionEvent,
 ) -> anyhow::Result<(ElectoralLog, StrandSignatureSk)> {
     let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
         .with_context(|| "missing bulletin board")?;
@@ -389,8 +387,8 @@ async fn check_status(
     tenant_id: &str,
     election_event_id: &str,
     election_id: &str,
-    auth_headers: AuthHeaders,
-    election_event: &GetElectionEventSequentBackendElectionEvent,
+    hasura_transaction: &Transaction<'_>,
+    election_event: &ElectionEvent,
     auth_time: &Option<i64>,
 ) -> Result<(), CastVoteError> {
     if election_event.is_archived {
@@ -413,20 +411,18 @@ async fn check_status(
         ));
     };
 
-    let hasura_response = hasura::election::get_election(
-        auth_headers.clone(),
-        tenant_id.to_string(),
-        election_event_id.to_string(),
-        election_id.to_string(),
+    let election_opt = get_election_by_id(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+        election_id,
     )
     .await
     .context("Cannot retrieve election data")
     .map_err(|e| CastVoteError::CheckStatusInternalFailed(e.to_string()))?;
-
-    let election = &hasura_response
-        .data
-        .expect("expected data".into())
-        .sequent_backend_election[0];
+    let election = election_opt.ok_or(CastVoteError::CheckStatusInternalFailed(
+        "Election not found".into(),
+    ))?;
 
     let election_presentation: ElectionPresentation = election
         .presentation
@@ -435,24 +431,31 @@ async fn check_status(
         .flatten()
         .unwrap_or(Default::default());
 
-    let close_date_opt: Option<DateTime<Local>> = if let Some(dates) = &election.dates {
-        if let Some(end_date_str) = dates.get("end_date") {
-            if let Some(end_date_str) = end_date_str.as_str() {
-                match ISO8601::to_date(end_date_str) {
-                    Ok(close_date) => {
-                        println!("Parsed end_date: {}", close_date);
-                        Some(close_date)
-                    }
-                    Err(err) => {
-                        println!("Failed to parse end_date: {}", err);
-                        None
-                    }
-                }
-            } else {
+    let scheduled_events = find_scheduled_event_by_election_event_id(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+    )
+    .await
+    .map_err(|e| CastVoteError::CheckStatusInternalFailed(e.to_string()))?;
+    let dates: VotingPeriodDates = generate_voting_period_dates(
+        scheduled_events.clone(),
+        &tenant_id,
+        &election_event_id,
+        Some(election_id),
+    )
+    .unwrap_or(Default::default());
+
+    let close_date_opt: Option<DateTime<Local>> = if let Some(end_date_str) = dates.end_date {
+        match ISO8601::to_date(&end_date_str) {
+            Ok(close_date) => {
+                info!("Parsed end_date: {}", close_date);
+                Some(close_date)
+            }
+            Err(err) => {
+                info!("Failed to parse end_date: {}", err);
                 None
             }
-        } else {
-            None
         }
     } else {
         None

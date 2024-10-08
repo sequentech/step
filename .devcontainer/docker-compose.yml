@@ -106,6 +106,7 @@ services:
       - "9002:9002"
     volumes:
       - ./minio/nginx:/etc/nginx/conf.d
+    #image: minio/mc
     depends_on:
       - minio
   
@@ -115,7 +116,6 @@ services:
     build:
       context: ./minio
       dockerfile: Dockerfile
-    #image: minio/mc
     depends_on:
       - minio
     environment:
@@ -271,6 +271,7 @@ services:
       APP_HASH: ${APP_HASH}
       KC_OTP_RESEND_INTERVAL: ${KC_OTP_RESEND_INTERVAL}
       HARVEST_DOMAIN: ${HARVEST_DOMAIN}
+      HASURA_ENDPOINT: ${HASURA_ENDPOINT}
     volumes:
       # https://www.keycloak.org/server/containers#_importing_a_realm_on_startup
       - ./keycloak/import:/opt/keycloak/data/import:z
@@ -391,6 +392,7 @@ services:
       "run"
     ]
     environment:
+      RUST_BACKTRACE: ${RUST_BACKTRACE}
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
       LOG_LEVEL: ${LOG_LEVEL}
       ROCKET_ADDRESS: ${ROCKET_ADDRESS}
@@ -778,14 +780,6 @@ services:
       WINDMILL_PROBE_READY_PATH: ${WINDMILL_PROBE_READY_PATH}
 
       PUBLIC_ASSETS_PATH: ${PUBLIC_ASSETS_PATH}
-      PUBLIC_ASSETS_LOGO_IMG: ${PUBLIC_ASSETS_LOGO_IMG}
-      PUBLIC_ASSETS_QRCODE_LIB: ${PUBLIC_ASSETS_QRCODE_LIB}
-      PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE: ${PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE}
-      PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE_CONTENT: ${PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE_CONTENT}
-      PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE: ${PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE}
-      PUBLIC_ASSETS_EML_BASE_TEMPLATE: ${PUBLIC_ASSETS_EML_BASE_TEMPLATE}
-      VOTE_RECEIPT_TEMPLATE_TITLE: ${VOTE_RECEIPT_TEMPLATE_TITLE}
-      VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE: ${VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE}
        #Demo key
       DEMO_PUBLIC_KEY: ${DEMO_PUBLIC_KEY}
 

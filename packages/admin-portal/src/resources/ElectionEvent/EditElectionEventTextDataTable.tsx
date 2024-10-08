@@ -4,7 +4,7 @@
 
 import {Dialog} from "@sequentech/ui-essentials"
 import {isString} from "@sequentech/ui-core"
-import React, {useMemo, useState} from "react"
+import React, {useEffect, useMemo, useState} from "react"
 import {
     Button,
     Datagrid,
@@ -15,6 +15,7 @@ import {
     TextField,
     TextInput,
     WrapperField,
+    useListController,
     useNotify,
     useRecordContext,
     useUpdate,
@@ -37,6 +38,7 @@ import {
 import {useTranslation} from "react-i18next"
 import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
 import {ListActions} from "@/components/ListActions"
+import {useNavigate, useLocation} from "react-router-dom"
 
 const EditElectionEventTextDataTable = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event_Extended>()
@@ -53,6 +55,27 @@ const EditElectionEventTextDataTable = () => {
     const [openDeleteModal, setOpenDeleteModal] = useState(false)
     const [deleteId, setDeleteId] = useState<Identifier | null>(null)
     const [recordId, setRecordId] = useState<Identifier | null>(null)
+
+    // Avoid error when coming from filterd list in other tabs
+    const listContext = useListController()
+
+    const navigate = useNavigate()
+    const location = useLocation()
+
+    useEffect(() => {
+        // Navigate to the current pathname but reset the query params
+        navigate(
+            {
+                pathname: location.pathname,
+                search: "",
+            },
+            {replace: true}
+        )
+        // Reset filters when the component mounts
+        if (listContext && listContext.setFilters) {
+            listContext.setFilters({}, {})
+        }
+    }, [])
 
     const languageOptions = useMemo(() => {
         return (record?.presentation?.language_conf?.enabled_language_codes ?? []) as string[]

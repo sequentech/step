@@ -246,7 +246,7 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(self))]
-    pub(crate) async fn post_send_communication(
+    pub(crate) async fn post_send_template(
         &self,
         event_id: String,
         election_id: Option<String>,
@@ -254,7 +254,7 @@ impl ElectoralLog {
         let event = EventIdString(event_id);
         let election = ElectionIdString(election_id);
 
-        let message = Message::send_communication(event, election, &self.sd)?;
+        let message = Message::send_template(event, election, &self.sd)?;
 
         self.post(message).await
     }

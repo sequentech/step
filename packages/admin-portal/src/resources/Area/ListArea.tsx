@@ -15,6 +15,7 @@ import {
     FunctionField,
     useRefresh,
     useNotify,
+    useListController,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {Box, Button, Drawer, Typography} from "@mui/material"
@@ -38,6 +39,7 @@ import {useMutation} from "@apollo/client"
 import {IMPORT_AREAS} from "@/queries/ImportAreas"
 import styled from "@emotion/styled"
 import {UPSERT_AREAS} from "@/queries/UpsertAreas"
+import {useNavigate, useLocation} from "react-router-dom"
 
 const ActionsBox = styled(Box)`
     display: flex;
@@ -52,7 +54,6 @@ const Filters: Array<ReactElement> = [
     <TextInput label="Description" source="description" key={1} />,
     <TextInput label="ID" source="id" key={2} />,
     <TextInput label="Type" source="type" key={3} />,
-    <TextInput source="election_event_id" key={3} />,
 ]
 
 export interface ListAreaProps {
@@ -102,6 +103,40 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
             setOpen(true)
         }
     }, [recordId])
+
+    // Avoid error when coming from filtered list in other tabs
+    const listContext = useListController({
+        resource: "sequent_backend_area",
+        filter: {
+            tenant_id: tenantId || undefined,
+            election_event_id: record?.id || undefined,
+        },
+    })
+
+    const navigate = useNavigate()
+    const location = useLocation()
+
+    useEffect(() => {
+        // navigate to self but without search params
+        navigate(
+            {
+                pathname: location.pathname,
+                search: "",
+            },
+            {replace: true}
+        )
+
+        // Reset filters when the component mounts
+        if (listContext && listContext.setFilters) {
+            listContext.setFilters(
+                {
+                    tenant_id: tenantId || undefined,
+                    election_event_id: record?.id || undefined,
+                },
+                {}
+            )
+        }
+    }, [tenantId, record?.id])
 
     const createAction = () => {
         setOpenCreate(true)
@@ -217,46 +252,47 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
 
     return (
         <>
-            <List
-                resource="sequent_backend_area"
-                actions={
-                    <ListActions
-                        withImport
-                        doImport={() => setOpenImportDrawer(true)}
-                        open={openDrawer}
-                        setOpen={setOpenDrawer}
-                        Component={<CreateArea record={record} close={handleCloseCreateDrawer} />}
-                        extraActions={[
-                            <Button onClick={() => setOpenUpsertDrawer(true)} key="upsert">
-                                {t("electionEventScreen.importAreas.upsert")}
-                            </Button>,
-                        ]}
-                    />
-                }
-                empty={<Empty />}
-                sx={{flexGrow: 2}}
-                filter={{
-                    tenant_id: tenantId || undefined,
-                    election_event_id: record?.id || undefined,
-                }}
-                storeKey={false}
-                filters={Filters}
-            >
-                <DatagridConfigurable omit={OMIT_FIELDS}>
-                    <TextField source="id" />
-                    <TextField source="name" className="area-name" />
-                    <TextField source="description" className="area-description" />
+            {location.search !== "" && (
+                <List
+                    resource="sequent_backend_area"
+                    actions={
+                        <ListActions
+                            withImport
+                            doImport={() => setOpenImportDrawer(true)}
+                            open={openDrawer}
+                            setOpen={setOpenDrawer}
+                            Component={
+                                <CreateArea record={record} close={handleCloseCreateDrawer} />
+                            }
+                            extraActions={[
+                                <Button onClick={() => setOpenUpsertDrawer(true)} key="upsert">
+                                    {t("electionEventScreen.importAreas.upsert")}
+                                </Button>,
+                            ]}
+                        />
+                    }
+                    empty={<Empty />}
+                    sx={{flexGrow: 2}}
+                    storeKey={false}
+                    filters={Filters}
+                    filterDefaultValues={{}}
+                >
+                    <DatagridConfigurable omit={OMIT_FIELDS}>
+                        <TextField source="id" />
+                        <TextField source="name" className="area-name" />
+                        <TextField source="description" className="area-description" />
 
-                    <FunctionField
-                        label={t("areas.sequent_backend_area_contest")}
-                        render={(record: any) => <AreaContestItems record={record} />}
-                    />
+                        <FunctionField
+                            label={t("areas.sequent_backend_area_contest")}
+                            render={(record: any) => <AreaContestItems record={record} />}
+                        />
 
-                    <WrapperField source="actions" label="Actions">
-                        <ActionsColumn actions={actions} />
-                    </WrapperField>
-                </DatagridConfigurable>
-            </List>
+                        <WrapperField source="actions" label="Actions">
+                            <ActionsColumn actions={actions} />
+                        </WrapperField>
+                    </DatagridConfigurable>
+                </List>
+            )}
             <Drawer
                 anchor="right"
                 open={open}
