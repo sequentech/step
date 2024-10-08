@@ -10,9 +10,7 @@ use sequent_core::ballot::ElectionEventStatistics;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::ElectionStatistics;
 use sequent_core::ballot::ElectionStatus;
-use sequent_core::ballot::VotingPeriodDates;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
-use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::connection;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClient};
@@ -31,7 +29,6 @@ use tempfile::NamedTempFile;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use zip::read::ZipArchive;
-use zip::read::ZipFile;
 
 use super::consolidation::aes_256_cbc_encrypt::decrypt_file_aes_256_cbc;
 use super::documents;
@@ -448,20 +445,15 @@ pub async fn process_election_event_file(
     Ok(data)
 }
 
-fn process_voters_file(file: &mut [u8]) -> Result<()> {
-    //TODO: implement
+fn process_voters_file(temp_file: &NamedTempFile) -> Result<()> {
+    //TODO: implement processing of voters file
     Ok(())
 }
 
-async fn process_activity_logs_file(file: &mut [u8], election_event: ElectionEvent) -> Result<()> {
-    let mut temp_file =
-        NamedTempFile::new().context("Failed to create activity logs temporary file")?;
-
-    let mut cursor = Cursor::new(file);
-    io::copy(&mut cursor, &mut temp_file)
-        .context("Failed to copy contents of activity logs to temporary file")?;
-    temp_file.as_file_mut().seek(io::SeekFrom::Start(0))?;
-
+async fn process_activity_logs_file(
+    temp_file: &NamedTempFile,
+    election_event: ElectionEvent,
+) -> Result<()> {
     let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
         .with_context(|| "Missing bulletin board")?;
 
@@ -497,7 +489,7 @@ pub async fn process_document(
     .await
     .map_err(|err| anyhow!("Error processing election event file: {err}"))?;
 
-    // Check if the document is a ZIP file
+    // Zip file processing
     if document_type == "application/zip" {
         let zip_entries = tokio::task::spawn_blocking(move || -> Result<Vec<_>> {
             let file = File::open(&temp_file_path)?;
@@ -515,15 +507,25 @@ pub async fn process_document(
         .await??;
 
         for (file_name, mut file_contents) in zip_entries {
+            let file = &mut file_contents[..];
+            let mut cursor = Cursor::new(file);
+            let mut temp_file =
+                NamedTempFile::new().context("Failed to create activity logs temporary file")?;
+
+            io::copy(&mut cursor, &mut temp_file)
+                .context("Failed to copy contents of activity logs to temporary file")?;
+            temp_file.as_file_mut().rewind()?;
+
             if file_name.contains("activity_logs") {
-                let mut file = &mut file_contents[..];
-                process_activity_logs_file(&mut file, election_event_schema.election_event.clone())
-                    .await?;
+                process_activity_logs_file(
+                    &temp_file,
+                    election_event_schema.election_event.clone(),
+                )
+                .await?;
             }
 
             if file_name.contains("voters") {
-                let mut file = &mut file_contents[..];
-                process_voters_file(&mut file)?;
+                process_voters_file(&temp_file)?;
             }
         }
     };

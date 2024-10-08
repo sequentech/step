@@ -7282,6 +7282,7 @@ export type Sequent_Backend_Election = {
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
     name: Scalars["String"]["output"]
     num_allowed_revotes?: Maybe<Scalars["Int"]["output"]>
+    permission_label?: Maybe<Scalars["String"]["output"]>
     presentation?: Maybe<Scalars["jsonb"]["output"]>
     receipts?: Maybe<Scalars["jsonb"]["output"]>
     spoil_ballot_option?: Maybe<Scalars["Boolean"]["output"]>
@@ -7465,6 +7466,7 @@ export type Sequent_Backend_Election_Bool_Exp = {
     last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>
     name?: InputMaybe<String_Comparison_Exp>
     num_allowed_revotes?: InputMaybe<Int_Comparison_Exp>
+    permission_label?: InputMaybe<String_Comparison_Exp>
     presentation?: InputMaybe<Jsonb_Comparison_Exp>
     receipts?: InputMaybe<Jsonb_Comparison_Exp>
     spoil_ballot_option?: InputMaybe<Boolean_Comparison_Exp>
@@ -7992,6 +7994,7 @@ export type Sequent_Backend_Election_Insert_Input = {
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     name?: InputMaybe<Scalars["String"]["input"]>
     num_allowed_revotes?: InputMaybe<Scalars["Int"]["input"]>
+    permission_label?: InputMaybe<Scalars["String"]["input"]>
     presentation?: InputMaybe<Scalars["jsonb"]["input"]>
     receipts?: InputMaybe<Scalars["jsonb"]["input"]>
     spoil_ballot_option?: InputMaybe<Scalars["Boolean"]["input"]>
@@ -8014,6 +8017,7 @@ export type Sequent_Backend_Election_Max_Fields = {
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
     name?: Maybe<Scalars["String"]["output"]>
     num_allowed_revotes?: Maybe<Scalars["Int"]["output"]>
+    permission_label?: Maybe<Scalars["String"]["output"]>
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
 }
 
@@ -8029,6 +8033,7 @@ export type Sequent_Backend_Election_Max_Order_By = {
     last_updated_at?: InputMaybe<Order_By>
     name?: InputMaybe<Order_By>
     num_allowed_revotes?: InputMaybe<Order_By>
+    permission_label?: InputMaybe<Order_By>
     tenant_id?: InputMaybe<Order_By>
 }
 
@@ -8045,6 +8050,7 @@ export type Sequent_Backend_Election_Min_Fields = {
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
     name?: Maybe<Scalars["String"]["output"]>
     num_allowed_revotes?: Maybe<Scalars["Int"]["output"]>
+    permission_label?: Maybe<Scalars["String"]["output"]>
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
 }
 
@@ -8060,6 +8066,7 @@ export type Sequent_Backend_Election_Min_Order_By = {
     last_updated_at?: InputMaybe<Order_By>
     name?: InputMaybe<Order_By>
     num_allowed_revotes?: InputMaybe<Order_By>
+    permission_label?: InputMaybe<Order_By>
     tenant_id?: InputMaybe<Order_By>
 }
 
@@ -8096,6 +8103,7 @@ export type Sequent_Backend_Election_Order_By = {
     last_updated_at?: InputMaybe<Order_By>
     name?: InputMaybe<Order_By>
     num_allowed_revotes?: InputMaybe<Order_By>
+    permission_label?: InputMaybe<Order_By>
     presentation?: InputMaybe<Order_By>
     receipts?: InputMaybe<Order_By>
     spoil_ballot_option?: InputMaybe<Order_By>
@@ -8459,6 +8467,8 @@ export enum Sequent_Backend_Election_Select_Column {
     /** column name */
     NumAllowedRevotes = "num_allowed_revotes",
     /** column name */
+    PermissionLabel = "permission_label",
+    /** column name */
     Presentation = "presentation",
     /** column name */
     Receipts = "receipts",
@@ -8510,6 +8520,7 @@ export type Sequent_Backend_Election_Set_Input = {
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     name?: InputMaybe<Scalars["String"]["input"]>
     num_allowed_revotes?: InputMaybe<Scalars["Int"]["input"]>
+    permission_label?: InputMaybe<Scalars["String"]["input"]>
     presentation?: InputMaybe<Scalars["jsonb"]["input"]>
     receipts?: InputMaybe<Scalars["jsonb"]["input"]>
     spoil_ballot_option?: InputMaybe<Scalars["Boolean"]["input"]>
@@ -8576,6 +8587,7 @@ export type Sequent_Backend_Election_Stream_Cursor_Value_Input = {
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     name?: InputMaybe<Scalars["String"]["input"]>
     num_allowed_revotes?: InputMaybe<Scalars["Int"]["input"]>
+    permission_label?: InputMaybe<Scalars["String"]["input"]>
     presentation?: InputMaybe<Scalars["jsonb"]["input"]>
     receipts?: InputMaybe<Scalars["jsonb"]["input"]>
     spoil_ballot_option?: InputMaybe<Scalars["Boolean"]["input"]>
@@ -8866,6 +8878,8 @@ export enum Sequent_Backend_Election_Update_Column {
     Name = "name",
     /** column name */
     NumAllowedRevotes = "num_allowed_revotes",
+    /** column name */
+    PermissionLabel = "permission_label",
     /** column name */
     Presentation = "presentation",
     /** column name */

@@ -31,6 +31,7 @@ pub mod export_tasks_execution;
 pub mod export_users;
 pub mod folders;
 pub mod import_election_event;
+pub mod import_users;
 pub mod insert_cast_vote;
 pub mod jwks;
 pub mod limit_access_by_countries;

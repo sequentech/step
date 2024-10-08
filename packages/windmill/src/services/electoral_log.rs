@@ -274,7 +274,7 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(self))]
-    pub async fn import_from_csv(&self, logs_file: NamedTempFile) -> Result<()> {
+    pub async fn import_from_csv(&self, logs_file: &NamedTempFile) -> Result<()> {
         let mut client = get_board_client().await?;
         let mut rows = Vec::new();
 
