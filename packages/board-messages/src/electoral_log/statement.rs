@@ -25,39 +25,104 @@ pub struct StatementHead {
     pub event: EventIdString,
     pub kind: StatementType,
     pub timestamp: Timestamp,
+    pub event_type: StatementEventType,
+    pub log_type: StatementLogType,
+    pub description: String,
 }
 impl StatementHead {
     pub fn from_body(event: EventIdString, body: &StatementBody) -> Self {
-        let kind = match body {
-            StatementBody::CastVote(_, _, _, _, _) => StatementType::CastVote,
-            StatementBody::CastVoteError(_, _, _, _, _) => StatementType::CastVoteError,
-            StatementBody::ElectionPublish(_, _) => StatementType::ElectionPublish,
-            StatementBody::ElectionVotingPeriodOpen(_) => StatementType::ElectionVotingPeriodOpen,
-            StatementBody::ElectionVotingPeriodPause(_) => StatementType::ElectionVotingPeriodPause,
-            StatementBody::ElectionVotingPeriodClose(_) => StatementType::ElectionVotingPeriodClose,
-            StatementBody::ElectionEventVotingPeriodOpen(_, _) => {
-                StatementType::ElectionEventVotingPeriodOpen
-            }
-            StatementBody::ElectionEventVotingPeriodPause(_) => {
-                StatementType::ElectionEventVotingPeriodPause
-            }
-            StatementBody::ElectionEventVotingPeriodClose(_, _) => {
-                StatementType::ElectionEventVotingPeriodClose
-            }
-            StatementBody::KeyGeneration => StatementType::KeyGeneration,
-            StatementBody::KeyInsertionStart => StatementType::KeyInsertionStart,
-            StatementBody::KeyInsertionCeremony(_) => StatementType::KeyInsertionCeremony,
-            StatementBody::TallyOpen(_) => StatementType::TallyOpen,
-            StatementBody::TallyClose(_) => StatementType::TallyClose,
-            StatementBody::SendTemplate => StatementType::SendTemplate,
-            StatementBody::KeycloakUserEvent(_, _) => StatementType::KeycloakUserEvent,
-        };
         let timestamp = crate::timestamp();
-
-        StatementHead {
+        let default_head = StatementHead {
             event,
-            kind,
+            kind: StatementType::Unknown,
             timestamp,
+            event_type: StatementEventType::USER,
+            log_type: StatementLogType::INFO,
+            description: "".to_string(),
+        };
+
+        match body {
+            StatementBody::CastVote(_, _, _, _, _) => StatementHead {
+                kind: StatementType::CastVote,
+                description: "Cast vote INFO event".to_string(),
+                ..default_head
+            },
+            StatementBody::CastVoteError(_, _, _, _, _) => StatementHead {
+                kind: StatementType::CastVoteError,
+                log_type: StatementLogType::ERROR,
+                description: "Cast vote ERROR event".to_string(),
+                ..default_head
+            },
+            StatementBody::ElectionPublish(_, _) => StatementHead {
+                kind: StatementType::ElectionPublish,
+                description: "Election publish INFO event".to_string(),
+                ..default_head
+            },
+            StatementBody::ElectionVotingPeriodOpen(_) => StatementHead {
+                kind: StatementType::ElectionVotingPeriodOpen,
+                description: "Election voting period open INFO event".to_string(),
+                ..default_head
+            },
+            StatementBody::ElectionVotingPeriodPause(_) => StatementHead {
+                kind: StatementType::ElectionVotingPeriodPause,
+                description: "Election voting period pause INFO event".to_string(),
+                ..default_head
+            },
+            StatementBody::ElectionVotingPeriodClose(_) => StatementHead {
+                kind: StatementType::ElectionVotingPeriodClose,
+                description: "Election voting period close INFO event".to_string(),
+                ..default_head
+            },
+            StatementBody::ElectionEventVotingPeriodOpen(_, _) => StatementHead {
+                kind: StatementType::ElectionEventVotingPeriodOpen,
+                description: "Election event voting period open INFO event".to_string(),
+                ..default_head
+            },
+            StatementBody::ElectionEventVotingPeriodPause(_) => StatementHead {
+                kind: StatementType::ElectionEventVotingPeriodPause,
+                description: "Election event voting period pause INFO event".to_string(),
+                ..default_head
+            },
+            StatementBody::ElectionEventVotingPeriodClose(_, _) => StatementHead {
+                kind: StatementType::ElectionEventVotingPeriodClose,
+                description: "Election event voting period close INFO event".to_string(),
+                ..default_head
+            },
+            StatementBody::KeyGeneration => StatementHead {
+                kind: StatementType::KeyGeneration,
+                description: "Key generation INFO event".to_string(),
+                ..default_head
+            },
+            StatementBody::KeyInsertionStart => StatementHead {
+                kind: StatementType::KeyInsertionStart,
+                description: "Key insertion start INFO event".to_string(),
+                ..default_head
+            },
+            StatementBody::KeyInsertionCeremony(_) => StatementHead {
+                kind: StatementType::KeyInsertionCeremony,
+                description: "Key insertion ceremony INFO event".to_string(),
+                ..default_head
+            },
+            StatementBody::TallyOpen(_) => StatementHead {
+                kind: StatementType::TallyOpen,
+                description: "Tally open INFO event".to_string(),
+                ..default_head
+            },
+            StatementBody::TallyClose(_) => StatementHead {
+                kind: StatementType::TallyClose,
+                description: "Tally close INFO event".to_string(),
+                ..default_head
+            },
+            StatementBody::SendTemplate => StatementHead {
+                kind: StatementType::SendTemplate,
+                description: "Send template INFO event".to_string(),
+                ..default_head
+            },
+            StatementBody::KeycloakUserEvent(_, _) => StatementHead {
+                kind: StatementType::KeycloakUserEvent,
+                description: "Keycloak user INFO event".to_string(),
+                ..default_head
+            },
         }
     }
 }
@@ -126,6 +191,7 @@ pub enum StatementBody {
 
 #[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug)]
 pub enum StatementType {
+    Unknown,
     CastVote,
     CastVoteError,
     ElectionPublish,
@@ -142,4 +208,16 @@ pub enum StatementType {
     TallyClose,
     SendTemplate,
     KeycloakUserEvent,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug)]
+pub enum StatementEventType {
+    USER,
+    SYSTEM,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug)]
+pub enum StatementLogType {
+    INFO,
+    ERROR,
 }
