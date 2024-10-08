@@ -14,6 +14,8 @@ use std::convert::From;
 use tokio_postgres::row::Row;
 use tracing::{info, instrument};
 
+pub const MULTIVALUE_USER_ATTRIBUTE_SEPARATOR: &str = "|";
+
 impl User {
     pub fn get_mobile_phone(&self) -> Option<String> {
         Some(
@@ -33,6 +35,32 @@ impl User {
                 .get(0)?
                 .to_string(),
         )
+    }
+
+    pub fn get_attribute_multival(
+        &self,
+        attribute_name: &String,
+    ) -> Option<String> {
+        Some(
+            self.attributes
+                .as_ref()?
+                .get(attribute_name)?
+                .join(MULTIVALUE_USER_ATTRIBUTE_SEPARATOR)
+                .to_string(),
+        )
+    }
+
+    pub fn get_authorized_election_ids(&self) -> Option<Vec<String>> {
+        let result = self
+            .attributes
+            .as_ref()?
+            .get(AUTHORIZED_ELECTION_IDS_NAME)
+            .cloned();
+
+        info!("get_authorized_election_ids: {:?}", result);
+        info!("attributes: {:?}", self.attributes);
+
+        result
     }
 
     pub fn get_area_id(&self) -> Option<String> {

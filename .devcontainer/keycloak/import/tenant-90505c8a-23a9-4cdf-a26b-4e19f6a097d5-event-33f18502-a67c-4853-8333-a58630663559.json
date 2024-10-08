@@ -459,7 +459,7 @@
     "requiredActions" : [ ],
     "realmRoles" : [ "default-roles-tenant90505c8a23a94cdfa26b4e19f6a097d5event33f18502a67c48538333a58630663559" ],
     "notBefore" : 0,
-    "groups" : [ ]
+    "groups" : [ "/voter" ]
   } ],
   "scopeMappings" : [ {
     "clientScope" : "offline_access",
@@ -943,6 +943,25 @@
         "access.tokenResponse.claim" : "false"
       }
     }, {
+      "id" : "13baba0f-f4cd-4902-8195-c8eba633f272",
+      "name" : "x-hasura-authorized-election-ids",
+      "protocol" : "openid-connect",
+      "protocolMapper" : "authorized-elections-oidc-usermodel-attribute-mapper",
+      "consentRequired" : false,
+      "config" : {
+        "use.array.attrs": "false",
+        "aggregate.attrs": "false",
+        "introspection.token.claim" : "true",
+        "userinfo.token.claim" : "true",
+        "user.attribute" : "authorized-election-ids",
+        "id.token.claim" : "true",
+        "multivalued": "true",
+        "lightweight.claim" : "false",
+        "access.token.claim" : "true",
+        "claim.name" : "https://hasura\\.io/jwt/claims.x-hasura-authorized-election-ids",
+        "jsonType.label" : "String"
+      }
+    }, {
       "id" : "4e72be54-f951-4863-9222-a507ca5fdc25",
       "name" : "x-hasura-tenant-id",
       "protocol" : "openid-connect",
@@ -970,6 +989,26 @@
         "claim.name" : "https://hasura\\.io/jwt/claims.x-hasura-area-id",
         "jsonType.label" : "String"
       }
+    },
+    {
+      "config": {
+        "use.array.attrs": "true",
+        "aggregate.attrs": "false",
+        "introspection.token.claim": "true",
+        "user.attribute": "authorized-election-ids",
+        "multivalued": "true",
+        "access.token.claim": "true",
+        "userinfo.token.claim": "true",
+        "jsonType.label": "String",
+        "id.token.claim": "true",
+        "lightweight.claim": "false",
+        "claim.name": "https://hasura\\.io/jwt/claims.authorized-election-ids"
+      },
+      "consentRequired": false,
+      "id": "6993073a-4cec-4b39-96ed-4d38d7f93e61",
+      "name": "authorized-election-ids",
+      "protocol": "openid-connect",
+      "protocolMapper": "authorized-elections-oidc-usermodel-attribute-mapper"
     } ],
     "defaultClientScopes" : [ "web-origins", "acr", "roles", "profile", "email" ],
     "optionalClientScopes" : [ "address", "phone", "offline_access", "microprofile-jwt" ]
@@ -1585,7 +1624,7 @@
       "providerId" : "declarative-user-profile",
       "subComponents" : { },
       "config" : {
-        "kc.user.profile.config" : [ "{\"attributes\":[{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"annotations\":{\"html-attribute:autocomplete\":\"given-name\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}},\"annotations\":{\"hidden\":\"true\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"emailAndOrMobile\",\"displayName\":\"Register via\",\"validations\":{\"options\":{\"options\":[\"sequent.read-only.mobile-number\",\"email\"]},\"multivalued\":{\"min\":\"0\",\"max\":\"2\"}},\"annotations\":{\"inputType\":\"multiselect-checkboxes\",\"default\":[\"email\"],\"inputOptionLabels\":{\"sequent.read-only.mobile-number\":\"Phone Number\",\"email\":\"${email}\"},\"disableAttribute\":\"true\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.mobile-number\",\"displayName\":\"Phone Number\",\"validations\":{},\"annotations\":{\"inputType\":\"html5-tel\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"dateOfBirth\",\"displayName\":\"Date of birth\",\"validations\":{},\"annotations\":{\"inputType\":\"html5-date\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"area-id\",\"displayName\":\"Area Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.otp-method\",\"displayName\":\"OTP Method\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"embassy\",\"displayName\":\"Post/Embassy\",\"validations\":{\"options\":{\"options\":[\"Algiers\",\"Cairo\",\"Nairobi\"]}},\"annotations\":{\"inputType\":\"select\",\"filterSelectAttribute\":\"country\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"country\",\"displayName\":\"Country\",\"validations\":{\"options\":{\"options\":[\"Algiers/Algeria\",\"Cairo/Djibouti\",\"Cairo/Eritrea\",\"Cairo/Sudan\",\"Nairobi/Burundi\",\"Nairobi/Comoros\",\"Nairobi/Congo\",\"Nairobi/Democratic Republic of Congo\",\"Nairobi/Malawi\",\"Nairobi/Rwanda\",\"Nairobi/Seychelles\",\"Nairobi/Tanzania\",\"Nairobi/Uganda\"]}},\"annotations\":{\"inputType\":\"select\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.id-card-type\",\"displayName\":\"ID Card Type\",\"validations\":{\"options\":{\"options\":[\"Philippine Passport\",\"Seaman Book\",\"PhilSys ID\"]}},\"annotations\":{\"inputType\":\"select\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.id-card-number\",\"displayName\":\"ID Card No\",\"validations\":{},\"annotations\":{\"html-attribute:autocomplete\":\"off\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.id-card-number-validated\",\"displayName\":\"ID Validated?\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false}],\"groups\":[]}" ]
+        "kc.user.profile.config" : [ "{\"attributes\":[{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"annotations\":{\"html-attribute:autocomplete\":\"given-name\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}},\"annotations\":{\"hidden\":\"true\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"emailAndOrMobile\",\"displayName\":\"Register via\",\"validations\":{\"options\":{\"options\":[\"sequent.read-only.mobile-number\",\"email\"]},\"multivalued\":{\"min\":\"0\",\"max\":\"2\"}},\"annotations\":{\"inputType\":\"multiselect-checkboxes\",\"default\":[\"email\"],\"inputOptionLabels\":{\"sequent.read-only.mobile-number\":\"Phone Number\",\"email\":\"${email}\"},\"disableAttribute\":\"true\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.mobile-number\",\"displayName\":\"Phone Number\",\"validations\":{},\"annotations\":{\"inputType\":\"html5-tel\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"dateOfBirth\",\"displayName\":\"Date of birth\",\"validations\":{},\"annotations\":{\"inputType\":\"html5-date\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"area-id\",\"displayName\":\"Area Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.otp-method\",\"displayName\":\"OTP Method\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"embassy\",\"displayName\":\"Post/Embassy\",\"validations\":{\"options\":{\"options\":[\"Algiers\",\"Cairo\",\"Nairobi\"]}},\"annotations\":{\"inputType\":\"select\",\"filterSelectAttribute\":\"country\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"country\",\"displayName\":\"Country\",\"validations\":{\"options\":{\"options\":[\"Algiers/Algeria\",\"Cairo/Djibouti\",\"Cairo/Eritrea\",\"Cairo/Sudan\",\"Nairobi/Burundi\",\"Nairobi/Comoros\",\"Nairobi/Congo\",\"Nairobi/Democratic Republic of Congo\",\"Nairobi/Malawi\",\"Nairobi/Rwanda\",\"Nairobi/Seychelles\",\"Nairobi/Tanzania\",\"Nairobi/Uganda\"]}},\"annotations\":{\"inputType\":\"select\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.id-card-type\",\"displayName\":\"ID Card Type\",\"validations\":{\"options\":{\"options\":[\"Philippine Passport\",\"Seaman Book\",\"PhilSys ID\"]}},\"annotations\":{\"inputType\":\"select\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.id-card-number\",\"displayName\":\"ID Card No\",\"validations\":{},\"annotations\":{\"html-attribute:autocomplete\":\"off\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.id-card-number-validated\",\"displayName\":\"ID Validated?\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"authorized-election-ids\",\"displayName\":\"Authorized Elections\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":true}],\"groups\":[]}" ]
       }
     } ],
     "org.keycloak.keys.KeyProvider" : [ {

@@ -47,6 +47,7 @@ enum StepCommands {
     StartTally(commands::start_tally::StartTallyCeremony),
     UpdateTally(commands::update_tally_status::UpdateTallyStatus),
     ConfirmKeyTally(commands::confirm_tally_ceremoney_key::ConfirmKeyForTally),
+    RenderTemplate(commands::render_template::RenderTemplate),
 }
 
 fn main() {
@@ -73,6 +74,7 @@ fn main() {
             StepCommands::StartTally(start) => start.run(),
             StepCommands::UpdateTally(update) => update.run(),
             StepCommands::ConfirmKeyTally(confirm) => confirm.run(),
+            StepCommands::RenderTemplate(render) => render.run(),
         },
     }
 }
