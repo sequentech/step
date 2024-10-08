@@ -264,7 +264,7 @@ export const TemplateList: React.FC = () => {
                     {exporting && exportDocumentId ? (
                         <DownloadDocument
                             documentId={exportDocumentId}
-                            electionEventId={"33f18502-a67c-4853-8333-a58630663559"}
+                            electionEventId={""}
                             fileName={`template-export.csv`}
                             onDownload={() => {
                                 console.log("onDownload called")
