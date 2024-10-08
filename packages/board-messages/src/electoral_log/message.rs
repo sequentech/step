@@ -182,7 +182,7 @@ impl Message {
         user_id: Option<String>,
         message: Option<String>,
     ) -> Result<Self> {
-        let body = StatementBody::SendTemplate;
+        let body = StatementBody::SendCommunications;
         Self::from_body(event, body, sd, user_id, message)
     }
 
