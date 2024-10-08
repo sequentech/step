@@ -45,6 +45,10 @@ interface CreateEventProps {
 export enum EventProcessors {
     START_VOTING_PERIOD = "START_VOTING_PERIOD",
     END_VOTING_PERIOD = "END_VOTING_PERIOD",
+    START_ENROLLMENT_PERIOD = "START_ENROLLMENT_PERIOD",
+    END_ENROLLMENT_PERIOD = "END_ENROLLMENT_PERIOD",
+    START_LOCKDOWN_PERIOD = "START_LOCKDOWN_PERIOD",
+    END_LOCKDOWN_PERIOD = "END_LOCKDOWN_PERIOD",
 }
 
 const CreateEvent: FC<CreateEventProps> = ({
@@ -145,6 +149,18 @@ const CreateEvent: FC<CreateEventProps> = ({
                         </MenuItem>
                         <MenuItem value={EventProcessors.END_VOTING_PERIOD}>
                             {t("eventsScreen.eventType.END_VOTING_PERIOD")}
+                        </MenuItem>
+                        <MenuItem value={EventProcessors.START_ENROLLMENT_PERIOD}>
+                            {t("eventsScreen.eventType.START_ENROLLMENT_PERIOD")}
+                        </MenuItem>
+                        <MenuItem value={EventProcessors.END_ENROLLMENT_PERIOD}>
+                            {t("eventsScreen.eventType.END_ENROLLMENT_PERIOD")}
+                        </MenuItem>
+                        <MenuItem value={EventProcessors.START_LOCKDOWN_PERIOD}>
+                            {t("eventsScreen.eventType.START_LOCKDOWN_PERIOD")}
+                        </MenuItem>
+                        <MenuItem value={EventProcessors.END_LOCKDOWN_PERIOD}>
+                            {t("eventsScreen.eventType.END_LOCKDOWN_PERIOD")}
                         </MenuItem>
                     </Select>
                 </FormControl>

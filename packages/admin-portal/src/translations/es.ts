@@ -640,6 +640,10 @@ const spanishTranslation: TranslationType = {
                 label: "Tipo",
                 START_VOTING_PERIOD: "Inicio del Período de Votación",
                 END_VOTING_PERIOD: "Fin del Período de Votación",
+                START_ENROLLMENT_PERIOD: "Start Enrollment Period",
+                END_ENROLLMENT_PERIOD: "End Enrollment Period",
+                START_LOCKDOWN_PERIOD: "Start Lockdown Period",
+                END_LOCKDOWN_PERIOD: "End Lockdown Period",
             },
             election: {
                 label: "Elección",
