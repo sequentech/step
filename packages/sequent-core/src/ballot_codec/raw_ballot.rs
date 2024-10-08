@@ -437,7 +437,7 @@ impl RawBallotCodec for Contest {
 
             // handle blank vote policy
             if let Some(blank_vote_policy) = presentation.blank_vote_policy {
-                if num_selected_candidates == 0 {
+                if num_selected_candidates == 0 && !is_explicit_invalid {
                     (match blank_vote_policy {
                         EBlankVotePolicy::NOT_ALLOWED => {
                             &mut decoded_contest.invalid_errors
