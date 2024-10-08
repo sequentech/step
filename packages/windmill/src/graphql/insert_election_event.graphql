@@ -4,7 +4,6 @@ mutation InsertElectionEvent($object: sequent_backend_election_event_insert_inpu
     audit_election_event_id
     bulletin_board_reference
     created_at
-    dates
     description
     encryption_protocol
     id

@@ -201,11 +201,23 @@ impl ElectoralLog {
         election_id: Option<String>,
         pseudonym_h: PseudonymHash,
         vote_h: CastVoteHash,
+        voter_ip: String,
+        voter_country: String,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = ElectionIdString(election_id);
+        let ip = VoterIpString(voter_ip);
+        let country = VoterCountryString(voter_country);
 
-        let message = Message::cast_vote_message(event, election, pseudonym_h, vote_h, &self.sd)?;
+        let message = Message::cast_vote_message(
+            event,
+            election,
+            pseudonym_h,
+            vote_h,
+            &self.sd,
+            ip,
+            country,
+        )?;
 
         self.post(&message).await
     }
@@ -217,13 +229,24 @@ impl ElectoralLog {
         election_id: Option<String>,
         pseudonym_h: PseudonymHash,
         error: String,
+        voter_ip: String,
+        voter_country: String,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = ElectionIdString(election_id);
         let error = CastVoteErrorString(error);
+        let ip = VoterIpString(voter_ip);
+        let country = VoterCountryString(voter_country);
 
-        let message =
-            Message::cast_vote_error_message(event, election, pseudonym_h, error, &self.sd)?;
+        let message = Message::cast_vote_error_message(
+            event,
+            election,
+            pseudonym_h,
+            error,
+            &self.sd,
+            ip,
+            country,
+        )?;
 
         self.post(&message).await
     }
@@ -361,7 +384,7 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(self))]
-    pub(crate) async fn post_send_communication(
+    pub(crate) async fn post_send_template(
         &self,
         event_id: String,
         election_id: Option<String>,
@@ -369,7 +392,7 @@ impl ElectoralLog {
         let event = EventIdString(event_id);
         let election = ElectionIdString(election_id);
 
-        let message = Message::send_communication(event, election, &self.sd)?;
+        let message = Message::send_template(event, election, &self.sd)?;
 
         self.post(&message).await
     }

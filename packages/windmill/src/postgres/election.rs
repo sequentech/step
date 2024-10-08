@@ -30,7 +30,6 @@ impl TryFrom<Row> for ElectionWrapper {
             name: item.try_get("name")?,
             description: item.try_get("description")?,
             presentation: item.try_get("presentation")?,
-            dates: item.try_get("dates")?,
             status: item.try_get("status")?,
             eml: item.try_get("eml")?,
             num_allowed_revotes: num_allowed_revotes.map(|val| val as i64),
@@ -42,6 +41,7 @@ impl TryFrom<Row> for ElectionWrapper {
             image_document_id: item.try_get("image_document_id")?,
             statistics: item.try_get("statistics")?,
             receipts: item.try_get("receipts")?,
+            permission_label: item.try_get("permission_label")?,
         }))
     }
 }
@@ -122,7 +122,6 @@ pub async fn get_election_by_id(
                 name,
                 description,
                 presentation,
-                dates,
                 status,
                 eml,
                 num_allowed_revotes,
@@ -133,7 +132,8 @@ pub async fn get_election_by_id(
                 is_kiosk,
                 image_document_id,
                 statistics,
-                receipts
+                receipts,
+                permission_label
             FROM
                 sequent_backend.election
             WHERE
@@ -262,17 +262,61 @@ pub async fn insert_election(
         election.validate()?;
 
         let statement = hasura_transaction
-        .prepare(
-            r#"
+            .prepare(
+                r#"
                 INSERT INTO sequent_backend.election
-                (id, tenant_id, election_event_id, created_at, last_updated_at, labels, annotations, name, description, presentation, dates, status, eml, num_allowed_revotes, is_consolidated_ballot_encoding, spoil_ballot_option, alias, voting_channels, is_kiosk, image_document_id, statistics, receipts)
+                (
+                    id,
+                    tenant_id,
+                    election_event_id,
+                    created_at,
+                    last_updated_at,
+                    labels,
+                    annotations,
+                    name,
+                    description,
+                    presentation,
+                    status,
+                    eml,
+                    num_allowed_revotes,
+                    is_consolidated_ballot_encoding,
+                    spoil_ballot_option,
+                    alias,
+                    voting_channels,
+                    is_kiosk,
+                    image_document_id,
+                    statistics,
+                    receipts,
+                    permission_label
+                )
                 VALUES
-                ($1, $2, $3, NOW(), NOW(), $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20);    
+                (
+                    $1,
+                    $2,
+                    $3,
+                    NOW(),
+                    NOW(),
+                    $4,
+                    $5,
+                    $6,
+                    $7,
+                    $8,
+                    $9,
+                    $10,
+                    $11,
+                    $12,
+                    $13,
+                    $14,
+                    $15,
+                    $16,
+                    $17,
+                    $18,
+                    $19,
+                    $20
+                );
             "#,
-        )
-        .await?;
-
-        info!("dates: {:?}", election.dates);
+            )
+            .await?;
 
         let _rows: Vec<Row> = hasura_transaction
             .query(
@@ -286,7 +330,6 @@ pub async fn insert_election(
                     &election.name,
                     &election.description,
                     &election.presentation,
-                    &election.dates,
                     &election.status,
                     &election.eml,
                     &election
@@ -300,6 +343,7 @@ pub async fn insert_election(
                     &election.image_document_id,
                     &election.statistics,
                     &election.receipts,
+                    &election.permission_label,
                 ],
             )
             .await
@@ -319,7 +363,28 @@ pub async fn export_elections(
         .prepare(
             r#"
                 SELECT
-                    id, tenant_id, election_event_id, created_at, last_updated_at, labels, annotations, name, description, presentation, dates, status, eml, num_allowed_revotes, is_consolidated_ballot_encoding, spoil_ballot_option, alias, voting_channels, is_kiosk, image_document_id, statistics, receipts
+                    id,
+                    tenant_id,
+                    election_event_id,
+                    created_at,
+                    last_updated_at,
+                    labels,
+                    annotations,
+                    name,
+                    description,
+                    presentation,
+                    status,
+                    eml,
+                    num_allowed_revotes,
+                    is_consolidated_ballot_encoding,
+                    spoil_ballot_option,
+                    alias,
+                    voting_channels,
+                    is_kiosk,
+                    image_document_id,
+                    statistics,
+                    receipts,
+                    permission_label
                 FROM
                     sequent_backend.election
                 WHERE
@@ -348,38 +413,4 @@ pub async fn export_elections(
         .collect::<Result<Vec<Election>>>()?;
 
     Ok(election_events)
-}
-
-#[instrument(skip(hasura_transaction), err)]
-pub async fn update_election_dates(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: &str,
-    election_event_id: &str,
-    election_id: &str,
-    dates: Value,
-) -> Result<()> {
-    let tenant_uuid: uuid::Uuid =
-        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
-    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
-        .with_context(|| "Error parsing election_event_id as UUID")?;
-    let election_uuid: uuid::Uuid =
-        Uuid::parse_str(election_id).with_context(|| "Error parsing election_id as UUID")?;
-    let statement = hasura_transaction
-        .prepare(
-            r#"
-                UPDATE sequent_backend.election
-                SET dates = $1
-                WHERE tenant_id = $2 AND election_event_id = $3 AND id = $4;
-            "#,
-        )
-        .await?;
-    let _row: Vec<Row> = hasura_transaction
-        .query(
-            &statement,
-            &[&dates, &tenant_uuid, &election_event_uuid, &election_uuid],
-        )
-        .await
-        .map_err(|err| anyhow!("Error running the update_election_dates query: {err}"))?;
-
-    Ok(())
 }

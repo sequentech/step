@@ -41,8 +41,10 @@ impl Message {
         pseudonym_h: PseudonymHash,
         vote_h: CastVoteHash,
         sd: &SigningData,
+        ip: VoterIpString,
+        country: VoterCountryString,
     ) -> Result<Self> {
-        let body = StatementBody::CastVote(election, pseudonym_h, vote_h);
+        let body = StatementBody::CastVote(election, pseudonym_h, vote_h, ip, country);
         Self::from_body(event, body, sd, None)
     }
 
@@ -52,8 +54,10 @@ impl Message {
         pseudonym_h: PseudonymHash,
         error: CastVoteErrorString,
         sd: &SigningData,
+        ip: VoterIpString,
+        country: VoterCountryString,
     ) -> Result<Self> {
-        let body = StatementBody::CastVoteError(election, pseudonym_h, error);
+        let body = StatementBody::CastVoteError(election, pseudonym_h, error, ip, country);
         Self::from_body(event, body, sd, None)
     }
 
@@ -174,12 +178,12 @@ impl Message {
         Self::from_body(event, body, sd, None)
     }
 
-    pub fn send_communication(
+    pub fn send_template(
         event: EventIdString,
         _election: ElectionIdString,
         sd: &SigningData,
     ) -> Result<Self> {
-        let body = StatementBody::SendCommunication;
+        let body = StatementBody::SendTemplate;
         Self::from_body(event, body, sd, None)
     }
 

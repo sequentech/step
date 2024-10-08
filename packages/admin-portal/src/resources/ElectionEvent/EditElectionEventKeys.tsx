@@ -19,6 +19,7 @@ import {
     SingleFieldList,
     ChipField,
     FunctionField,
+    useListController,
 } from "react-admin"
 import {Button, Typography, Chip, Alert} from "@mui/material"
 import {theme, IconButton} from "@sequentech/ui-essentials"
@@ -37,6 +38,7 @@ import KeyIcon from "@mui/icons-material/Key"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {ListActions} from "../../components/ListActions"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {useLocation, useNavigate} from "react-router"
 
 const NotificationLink = styled.span`
     text-decoration: underline;
@@ -225,6 +227,40 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
             showAction: (id: Identifier) => canTrusteeCeremony && !!getCeremony(id),
         },
     ]
+
+    // // Avoid error when coming from filterd list in other tabs
+    // const listContext = useListController({
+    //     resource: "sequent_backend_keys_ceremony",
+    //     filter: {
+    //         tenant_id: tenantId || undefined,
+    //         election_event_id: electionEvent?.id || undefined,
+    //     },
+    // })
+
+    const navigate = useNavigate()
+    const location = useLocation()
+
+    useEffect(() => {
+        // navigate to self but without search params
+        navigate(
+            {
+                pathname: location.pathname,
+                search: "",
+            },
+            {replace: true}
+        )
+
+        //     // Reset filters when the component mounts
+        //     if (listContext && listContext.setFilters) {
+        //         listContext.setFilters(
+        //             {
+        //                 tenant_id: tenantId || undefined,
+        //                 election_event_id: electionEvent?.id || undefined,
+        //             },
+        //             {}
+        //         )
+        //     }
+    }, [tenantId, electionEvent?.id])
 
     return (
         <>

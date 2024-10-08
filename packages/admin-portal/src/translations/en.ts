@@ -96,7 +96,7 @@ const englishTranslation = {
             tabs: {
                 votingChannels: "VOTING CHANELS",
                 electionTypes: "ELECTION TYPES",
-                communications: "COMMUNICATION",
+                templates: "TEMPLATES",
                 languages: "LANGUAGES",
                 lookAndFeel: "Look & Feel",
                 schedules: "SCHEDULED EVENTS",
@@ -160,6 +160,7 @@ const englishTranslation = {
                 allowed: "Voting Channels Allowed",
                 materials: "Support Materials",
                 ballotDesign: "Ballot Design",
+                templates: "Templates",
                 reorder: "Reorder elections",
                 advancedConfigurations: "Advanced Configurations",
                 importCandidates: "Import Candidates",
@@ -196,6 +197,8 @@ const englishTranslation = {
                 materialTitle: "Title",
                 materialSubTitle: "Subtitle",
                 logoUrl: "Logo URL",
+                userVerification:
+                    "You can introduce a custom template that will be used to manually verify the voters",
                 redirectFinishUrl: "Redirect Finish URL",
                 css: "Custom CSS",
                 skipElectionList: "Skip Election List Screen",
@@ -266,6 +269,8 @@ const englishTranslation = {
                 publish: "Publish",
                 logs: "Logs",
                 tasks: "Tasks",
+                events: "Scheduled Events",
+                notifications: "Notifications",
             },
             tally: {
                 emptyHeader: "No Tally yet.",
@@ -339,6 +344,7 @@ const englishTranslation = {
                 title: "Election",
                 subtitle: "Election configuration.",
                 fileLoaded: "File loaded",
+                noPermission: "You don't have permission to access this election.",
             },
             edit: {
                 general: "General",
@@ -355,6 +361,7 @@ const englishTranslation = {
                 reorder: "Reorder contests",
                 castVoteConfirm: "Cast Vote Confirmation Modal",
                 gracePeriodPolicy: "Grace Period",
+                permissionLabel: "Permission Label",
             },
             field: {
                 name: "Name",
@@ -424,28 +431,30 @@ const englishTranslation = {
                     subtitle: "Create user",
                 },
                 fields: {
-                    has_voted: "Voted",
-                    username: "Username",
-                    first_name: "First Name",
-                    last_name: "Last Name",
-                    email: "Email",
-                    enabled: "Enabled",
-                    emailVerified: "Email Verified",
-                    groups: "Groups",
-                    attributes: "Attributes",
-                    area: "Area",
-                    password: "Password",
-                    repeatPassword: "Repeat Password",
-                    passwordMismatch: "Passwords must match",
-                    passwordLengthValidate: "Password must be at least 8 characters long",
-                    passwordUppercaseValidate:
+                    "has_voted": "Voted",
+                    "username": "Username",
+                    "first_name": "First Name",
+                    "last_name": "Last Name",
+                    "email": "Email",
+                    "enabled": "Enabled",
+                    "emailVerified": "Email Verified",
+                    "groups": "Groups",
+                    "attributes": "Attributes",
+                    "area": "Area",
+                    "password": "Password",
+                    "repeatPassword": "Repeat Password",
+                    "passwordMismatch": "Passwords must match",
+                    "passwordLengthValidate": "Password must be at least 8 characters long",
+                    "passwordUppercaseValidate":
                         "Password must contain at least one uppercase letter",
-                    passwordLowercaseValidate:
+                    "passwordLowercaseValidate":
                         "Password must contain at least one lowercase letter",
-                    passwordDigitValidate: "Password must contain at least one digit",
-                    passwordSpecialCharValidate:
+                    "passwordDigitValidate": "Password must contain at least one digit",
+                    "passwordSpecialCharValidate":
                         "Password must contain at least one special character",
-                    trustee: "Act as Trustee",
+                    "trustee": "Act as Trustee",
+                    "permissionLabel": "Permission Label",
+                    "authorized-election-ids": "Elections",
                 },
                 delete: {
                     body: "Are you sure you want to delete this user?",
@@ -588,10 +597,51 @@ const englishTranslation = {
                 "miru-download": "Miru Download",
                 "miru-send": "Miru Send",
                 "miru-sign": "Miru Sign",
+                "permission-label-write": "Edit Permission Label",
+                "scheduled-event-write": "Edit Scheduled Events",
             },
         },
         generalSettingsScreen: {
             body: "Enable languages in the system. Only languages enabled here will be available for election events.",
+        },
+        eventsScreen: {
+            title: "Scheduled Events",
+            subtitle:
+                "Manages the configuration of the automatic execution of events like the start or end of the voting period.",
+            messages: {
+                createSuccess: "Scheduled Event created successfully",
+                createError: "Error creating Scheduled Event",
+                editSuccess: "Scheduled Event edited successfully",
+                editError: "Error editing Scheduled Event",
+            },
+            eventType: {
+                label: "Type",
+                START_VOTING_PERIOD: "Start Voting Period",
+                END_VOTING_PERIOD: "End Voting Period",
+            },
+            election: {
+                label: "Election",
+            },
+            empty: {
+                header: "No Scheduled Events yet.",
+                body: "Do you want to create one?",
+                button: "Create Scheduled Event",
+            },
+            create: {
+                title: "Create Scheduled Event",
+                subtitle: "Create a new Scheduled Event configuration.",
+            },
+            edit: {
+                title: "Edit Scheduled Event",
+                subtitle: "Edit Scheduled Event configuration.",
+                delete: "Are you sure you want delete this Scheduled Event?",
+            },
+            fields: {
+                electionId: "Election",
+                eventProcessor: "Type",
+                stoppedAt: "Stopped At",
+                scheduledDate: "Scheduled At",
+            },
         },
         common: {
             export: "Export can be a long operation. Are you sure you want to export records?",
@@ -657,7 +707,7 @@ const englishTranslation = {
             usersAndRoles: "Users and Roles",
             logs: "Logs",
             settings: "Settings",
-            communicationTemplates: "Communication Templates",
+            templates: "Templates",
             active: "Active",
             archived: "Archived",
             addResource: {
@@ -1130,7 +1180,7 @@ const englishTranslation = {
                 richtext: "Rich Text Body",
             },
         },
-        sendCommunication: {
+        sendTemplate: {
             send: "Send",
             title: "Send Notification",
             subtitle: "Send a notification to voters.",
@@ -1144,7 +1194,7 @@ const englishTranslation = {
             smsMessage: "SMS Message",
             errorSending: "Error sending the notification: {{error}}",
             successSending: "Notification programmed/sent successfully",
-            method: "Communication Method",
+            method: "Template Method",
             type: "Communication Type",
             alias: "Template Alias",
             votersSelection: {
@@ -1158,11 +1208,11 @@ const englishTranslation = {
                 voters: "voters",
             },
             methodTitle: "Communication Template",
-            communicationMethod: {
+            templateMethod: {
                 EMAIL: "Email",
                 SMS: "SMS",
             },
-            communicationType: {
+            templateType: {
                 CREDENTIALS: "Credentials",
                 BALLOT_RECEIPT: "Ballot Receipt",
                 PARTICIPATION_REPORT: "Participation Report",
@@ -1245,36 +1295,38 @@ const englishTranslation = {
                 publishSuccess: "Tally sheet published",
             },
         },
-        communicationTemplate: {
-            noPermissions: "You don't have permission to access communication templates.",
-            title: "Communication Templates",
-            subtitle: "List of communication templates",
+        template: {
+            noPermissions: "You don't have permission to access templates.",
+            title: "Templates",
+            subtitle: "List of templates",
+            chooseMethods: "Choose Methods",
+            default: "Use default template",
             empty: {
-                title: "No Communication Template Yet",
+                title: "No Template Yet",
                 subtitle: "Do you want to create one?",
             },
             action: {
-                createOne: "Create Communication Template",
+                createOne: "Create Template",
             },
             create: {
-                title: "Create a Communication Template",
-                success: "Communication Template created",
-                error: "Error creating Communication Template",
+                title: "Create a Template",
+                success: "Template created",
+                error: "Error creating Template",
             },
             update: {
-                success: "Communication Template updated",
-                error: "Error updating Communication Template",
+                success: "Template updated",
+                error: "Error updating Template",
             },
             edit: {
-                title: "Edit a Communication Template",
+                title: "Edit a Template",
             },
             form: {
                 smsMessage: "SMS Message",
                 document: "Document",
                 name: "Template Name",
                 alias: "Template Alias",
-                communicationType: "Communication Type",
-                communicationMethod: "Communication Method",
+                type: "Type",
+                communicationMethod: "Method",
             },
             type: {
                 credentials: "Credentials",
@@ -1283,6 +1335,7 @@ const englishTranslation = {
                 electoral_results: "Electoral Results",
                 otp: "OTP",
                 tally_report: "Tally Report",
+                manually_verify_voter: "Manually verify voter",
             },
             method: {
                 email: "Email",
@@ -1310,6 +1363,15 @@ const englishTranslation = {
         },
         widget: {
             logs: "Logs",
+        },
+        settings: {
+            countries: {
+                title: "Country Blocking",
+                description: "Choose below the countries you want to block voting/enrollment from.",
+                error: {
+                    errorSaving: "Error saving the country list",
+                },
+            },
         },
     },
 }

@@ -23,8 +23,6 @@ use crate::services::election_event_board::BoardSerializable;
 use crate::services::import_election_event::insert_election_event_db;
 use crate::services::import_election_event::upsert_b3_and_elog;
 use crate::services::import_election_event::upsert_keycloak_realm;
-use crate::services::jwks::upsert_realm_jwks;
-use crate::services::protocol_manager::create_protocol_manager_keys;
 use crate::types::error::Result;
 
 #[instrument(err)]

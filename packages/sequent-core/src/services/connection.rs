@@ -5,6 +5,7 @@ use crate::services::jwt::*;
 use rocket::http::Status;
 use rocket::request::{FromRequest, Outcome, Request};
 use serde::{Deserialize, Serialize};
+use std::net::IpAddr;
 use tracing::{event, instrument, Level};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -63,5 +64,33 @@ impl<'r> FromRequest<'r> for JwtClaims {
             }
             None => Outcome::Error((Status::Unauthorized, ())),
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct UserLocation {
+    pub ip: Option<IpAddr>,
+    pub country_code: Option<String>,
+}
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for UserLocation {
+    type Error = ();
+
+    async fn from_request(
+        request: &'r Request<'_>,
+    ) -> Outcome<Self, Self::Error> {
+        let ip = request
+            .headers()
+            .get_one("CF-Connecting-IP")
+            .or_else(|| request.headers().get_one("X-Forwarded-For"))
+            .and_then(|ip_str| ip_str.parse().ok());
+
+        let country_code = request
+            .headers()
+            .get_one("CF-IPCountry")
+            .map(|s| s.to_string());
+
+        Outcome::Success(UserLocation { ip, country_code })
     }
 }
