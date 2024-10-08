@@ -41,7 +41,6 @@ pub async fn export_template(
 
     let document_id = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
-
     let celery_task = celery_app
         .send_task(export_templates::export_templates::new(
             tenant_id.clone(),

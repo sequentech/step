@@ -11,9 +11,7 @@ use tracing::{event, info, instrument, Level};
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 0)]
 pub async fn export_templates(tenant_id: String, document_id: String) -> Result<()> {
-    info!("Exporting templates task");
-    println!("Exporting templates task");
-    let data = process_export(&tenant_id, None, &document_id).await?;
+    let data = process_export(&tenant_id, &document_id).await?;
 
     Ok(())
 }

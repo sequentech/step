@@ -82,6 +82,11 @@ pub async fn get_templates_by_tenant_id(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
 ) -> Result<Vec<Template>> {
+    // Check if tenant_id is a valid UUID string
+    if tenant_id.is_empty() {
+        return Err(anyhow!("Tenant ID is empty"));
+    }
+
     let tenant_uuid =
         Uuid::parse_str(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {}", err))?;
 

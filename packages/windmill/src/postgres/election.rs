@@ -265,15 +265,9 @@ pub async fn insert_election(
         .prepare(
             r#"
                 INSERT INTO sequent_backend.election
-<<<<<<< HEAD
                 (id, tenant_id, election_event_id, created_at, last_updated_at, labels, annotations, name, description, presentation, dates, status, eml, num_allowed_revotes, is_consolidated_ballot_encoding, spoil_ballot_option, alias, voting_channels, is_kiosk, image_document_id, statistics, receipts, permission_label)
                 VALUES
                 ($1, $2, $3, NOW(), NOW(), $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21);    
-=======
-                (id, tenant_id, election_event_id, created_at, last_updated_at, labels, annotations, name, description, presentation, status, eml, num_allowed_revotes, is_consolidated_ballot_encoding, spoil_ballot_option, alias, voting_channels, is_kiosk, image_document_id, statistics, receipts)
-                VALUES
-                ($1, $2, $3, NOW(), NOW(), $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19);    
->>>>>>> main
             "#,
         )
         .await?;

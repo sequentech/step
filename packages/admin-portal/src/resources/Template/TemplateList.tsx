@@ -20,6 +20,7 @@ import {
     DatagridConfigurable,
     useRefresh,
     WrapperField,
+    useRecordContext,
 } from "react-admin"
 
 import {IPermissions} from "@/types/keycloak"
@@ -37,6 +38,7 @@ import {useMutation} from "@apollo/client"
 import {EXPORT_TEMPLATE} from "@/queries/ExportTemplate"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {DownloadDocument} from "../User/DownloadDocument"
+import {ExportTemplateMutation} from "@/gql/graphql"
 
 const TemplateEmpty = styled(Box)`
     display: flex;
@@ -75,12 +77,10 @@ export const TemplateList: React.FC = () => {
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
     const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
     const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
-    const [ExportTemplate] = useMutation(EXPORT_TEMPLATE)
+    const [ExportTemplate] = useMutation<ExportTemplateMutation>(EXPORT_TEMPLATE)
     const refresh = useRefresh()
 
     const handleExport = async () => {
-        // const {data} = await ExportTemplate({variables: {tenantId}})
-        // console.log(data)
         setExporting(false)
         setExportDocumentId(undefined)
         setOpenExport(true)
@@ -95,7 +95,7 @@ export const TemplateList: React.FC = () => {
                 setExporting(false)
                 return
             }
-            const documentId = data.export_template.document_id
+            const documentId = data?.export_template?.document_id
             setExportDocumentId(documentId)
         } catch (error) {
             console.log(error)
@@ -188,7 +188,7 @@ export const TemplateList: React.FC = () => {
                         /* TODO: */
                         withExport={true}
                         doExport={handleExport}
-                        withImport={false}
+                        withImport={true}
                         open={openDrawer}
                         setOpen={setOpenDrawer}
                         Component={<TemplateCreate close={handleCloseDrawer} />}
@@ -264,8 +264,8 @@ export const TemplateList: React.FC = () => {
                     {exporting && exportDocumentId ? (
                         <DownloadDocument
                             documentId={exportDocumentId}
-                            electionEventId={""}
-                            fileName={`users-export.csv`}
+                            electionEventId={"33f18502-a67c-4853-8333-a58630663559"}
+                            fileName={`template-export.csv`}
                             onDownload={() => {
                                 console.log("onDownload called")
                                 setExportDocumentId(undefined)
