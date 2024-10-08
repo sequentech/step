@@ -50,7 +50,7 @@ impl StatementHead {
             StatementBody::TallyOpen(_) => StatementType::TallyOpen,
             StatementBody::TallyClose(_) => StatementType::TallyClose,
             StatementBody::SendTemplate => StatementType::SendTemplate,
-            StatementBody::SendCommunications => StatementType::SendCommunications,
+            StatementBody::SendCommunications(_) => StatementType::SendCommunications,
             StatementBody::KeycloakUserEvent(_, _) => StatementType::KeycloakUserEvent,
         };
         let timestamp = crate::timestamp();
@@ -122,7 +122,7 @@ pub enum StatementBody {
     TallyClose(ElectionIdString),
 
     SendTemplate,
-    SendCommunications,
+    SendCommunications(Option<String>),
     KeycloakUserEvent(ErrorMessageString, KeycloakEventTypeString),
 }
 
