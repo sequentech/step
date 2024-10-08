@@ -964,16 +964,17 @@ impl Contest {
             .unwrap_or(true)
     }
 
-    pub fn allow_explicit_invalid(&self) -> bool {
-        let invalid_vote_policy = self
+    /// Get the invalid vote policy configuration value from the presentation.
+    /// If the value or the parent object is not set, return the default value.
+    pub fn get_invalid_vote_policy(&self) -> InvalidVotePolicy {
+        match self
             .presentation
-            .clone()
-            .unwrap_or(ContestPresentation::new())
-            .invalid_vote_policy
-            .unwrap_or(InvalidVotePolicy::default());
-
-        [InvalidVotePolicy::ALLOWED, InvalidVotePolicy::WARN]
-            .contains(&invalid_vote_policy)
+            .as_ref()
+            .map(|presentation| &presentation.invalid_vote_policy)
+        {
+            Some(policy) => policy.clone().unwrap_or_default(),
+            _ => InvalidVotePolicy::default(),
+        }
     }
 
     pub fn cumulative_number_of_checkboxes(&self) -> u64 {
