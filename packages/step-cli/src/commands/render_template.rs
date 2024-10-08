@@ -2,11 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use clap::Args;
 use sequent_core::services::reports::render_template_text;
 use serde_json::{Map, Value};
-use std::{collections::HashMap, fs};
+use std::fs;
 use windmill::services::reports::{manual_verification, utils::ToMap};
 
 #[derive(clap::ValueEnum, Clone)]
@@ -130,7 +130,8 @@ impl RenderTemplate {
         let mut system_vars: Map<String, Value> = match self.template_type {
             TemplateType::Custom => Default::default(),
             TemplateType::ManualVerification => {
-                let vars_path: String = self.system_vars
+                let vars_path: String = self
+                    .system_vars
                     .clone()
                     .ok_or(format!("System vars not provided"))?;
                 let system_vars_content = fs::read_to_string(&vars_path)
