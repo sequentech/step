@@ -2,12 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::documents::upload_and_return_document;
-use crate::services::temp_path::write_into_named_temp_file;
+use super::utils::{get_public_asset_template, ToMap};
 use crate::postgres::{election_event, template};
 use crate::services::database::get_hasura_pool;
-use super::utils::{get_public_asset_template, ToMap};
+use crate::services::documents::upload_and_return_document;
 use crate::services::s3::get_minio_url;
+use crate::services::temp_path::write_into_named_temp_file;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Client as DbClient;
