@@ -4,7 +4,7 @@
 
 use anyhow::{anyhow, Result};
 use clap::Args;
-use sequent_core::services::reports::render_template;
+use sequent_core::services::reports::render_template_text;
 use serde_json::{Map, Value};
 use std::{collections::HashMap, fs};
 use windmill::services::reports::{manual_verification, utils::ToMap};
@@ -58,31 +58,32 @@ impl RenderTemplate {
         }
     }
 
-    /// Generate the report by reading templates, parsing variables, and rendering the output
+    /// Generate the report by reading templates, parsing variables, and
+    /// rendering the output
     fn generate_report(&self) -> Result<(), Box<dyn std::error::Error>> {
         let user_vars_content = fs::read_to_string(&self.user_vars)
             .map_err(|e| format!("Could not read user variables file: {e:?}"))?;
 
         // Parse the user or system template variables based on the template type
-        let vars_json: Map<String, Value> = match self.template_type {
+        let user_vars: Map<String, Value> = match self.template_type {
             TemplateType::Custom => {
-                let user_template_data: manual_verification::UserTemplateData =
-                    serde_json::from_str(&user_vars_content)
-                        .map_err(|e| format!("Could not parse user template variables: {e:?}"))?;
-                user_template_data.to_map()?
+                let vars_json: Map<String, Value> = serde_json::from_str(&user_vars_content)
+                    .map_err(|e| format!("Could not parse user template variables: {e:?}"))?;
+                vars_json
             }
             TemplateType::ManualVerification => {
                 let system_vars_content = fs::read_to_string(&self.system_vars)
                     .map_err(|e| format!("Could not read system variables file: {e:?}"))?;
-                let system_template_data: manual_verification::SystemTemplateData =
+                let system_template_data: manual_verification::UserTemplateData =
                     serde_json::from_str(&system_vars_content)
                         .map_err(|e| format!("Could not parse system template variables: {e:?}"))?;
                 system_template_data.to_map()?
             }
         };
 
-        // Load the appropriate user or manual verification template based on the template type
-        let template_content = match self.template_type {
+        // Load the appropriate user or manual verification template based on
+        // the template type
+        let user_template = match self.template_type {
             TemplateType::Custom => fs::read_to_string(&self.user_template)
                 .map_err(|e| format!("Could not read user template file: {e:?}"))?,
             TemplateType::ManualVerification => {
@@ -93,7 +94,7 @@ impl RenderTemplate {
             }
         };
 
-        let rendered_output = self.render_template_with_vars(template_content, vars_json)?;
+        let rendered_output = self.render_template_with_vars(user_template, user_vars)?;
 
         fs::write(&self.output, rendered_output)
             .map_err(|e| format!("Failed to write the output file: {e:?}"))?;
@@ -104,20 +105,15 @@ impl RenderTemplate {
     /// Render the template with the provided variables and base template
     fn render_template_with_vars(
         &self,
-        template_content: String,
-        vars: Map<String, Value>,
-    ) -> Result<Vec<u8>, String> {
+        user_template: String,
+        user_vars: Map<String, Value>,
+    ) -> Result<String, String> {
+        let rendered_user_template: String = render_template_text(&user_template, user_vars)
+            .map_err(|e| format!("User template rendering error: {e:?}"))?;
+
         // Determine the system template content based on the template type
-        let system_template_content = match &self.template_type {
-            TemplateType::Custom => {
-                if let Some(system_template) = &self.system_template {
-                    fs::read_to_string(system_template).map_err(|e| {
-                        format!("Could not read system template file {system_template:?}: {e:?}",)
-                    })?
-                } else {
-                    include_str!("../../../velvet/src/resources/report_base_html.hbs").to_string()
-                }
-            }
+        let system_template = match &self.template_type {
+            TemplateType::Custom => "{{rendered_user_template}}".to_string(),
             TemplateType::ManualVerification => {
                 if let Some(system_template) = &self.system_template {
                     fs::read_to_string(system_template).map_err(|e| {
@@ -131,12 +127,25 @@ impl RenderTemplate {
             }
         };
 
-        let mut template_map = HashMap::new();
-        template_map.insert("report_content".to_string(), template_content);
-        template_map.insert("report_base_html".to_string(), system_template_content);
+        let mut system_vars: Map<String, Value> = match self.template_type {
+            TemplateType::Custom => Default::default(),
+            TemplateType::ManualVerification => {
+                let system_vars_content = fs::read_to_string(&self.system_vars)
+                    .map_err(|e| format!("Could not read system variables file: {e:?}"))?;
+                let system_template_data: manual_verification::SystemTemplateData =
+                    serde_json::from_str(&system_vars_content)
+                        .map_err(|e| format!("Could not parse system template variables: {e:?}"))?;
+                system_template_data
+                    .to_map()
+                    .map_err(|e| format!("Error converting into map: {e:?}"))?
+            }
+        };
+        system_vars.insert(
+            "rendered_user_template".to_string(),
+            Value::String(rendered_user_template),
+        );
 
-        render_template("report_base_html", template_map, vars)
-            .map(|rendered| rendered.into_bytes())
-            .map_err(|e| format!("Template rendering error: {e:?}"))
+        render_template_text(&system_template, system_vars)
+            .map_err(|e| format!("System template rendering error: {e:?}"))
     }
 }
