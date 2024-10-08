@@ -283,7 +283,6 @@ async fn send_template_sms(
             .map_err(|err| anyhow!("{}", err))?;
 
         sender.send(receiver.into(), message.clone()).await?;
-        
         return Ok(Some(message));
     } else {
         event!(Level::INFO, "Receiver empty, ignoring..");
@@ -308,7 +307,12 @@ async fn send_template_email(
             .map_err(|err| anyhow!("{}", err))?;
 
         sender
-            .send(receiver.to_string(), subject, plaintext_body.clone(), html_body)
+            .send(
+                receiver.to_string(),
+                subject,
+                plaintext_body.clone(),
+                html_body,
+            )
             .await?;
 
         return Ok(Some(plaintext_body));
@@ -425,13 +429,11 @@ async fn update_stats(
     Ok(())
 }
 
-
 async fn on_success_send_message(
     election_event: Option<GetElectionEventSequentBackendElectionEvent>,
-    user_id: Option<String>, 
+    user_id: Option<String>,
     message: Option<String>,
-) -> Result<()> { 
-
+) -> Result<()> {
     if let Some(election_event) = election_event {
         let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
             .with_context(|| "missing bulletin board")?;
@@ -443,12 +445,15 @@ async fn on_success_send_message(
             .await
             .with_context(|| "error posting to the electoral log")?;
     } else {
-        event!(Level::WARN, "No election event provided for user: {:?}", user_id);
+        event!(
+            Level::WARN,
+            "No election event provided for user: {:?}",
+            user_id,
+        );
     }
 
     Ok(())
 }
-
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
@@ -634,7 +639,9 @@ pub async fn send_template(
                                 election_event.clone(),
                                 user.id.clone(),
                                 Some(plaintext_body),
-                            ).await {
+                            )
+                            .await
+                            {
                                 event!(Level::ERROR, "Error processing success message: {e:?}");
                             }
                             Ok(())
@@ -657,33 +664,35 @@ pub async fn send_template(
                         /* sender */ &sms_sender,
                     )
                     .await;
-                match sending_result {
-                    Ok(Some(message)) => {
-                        if let Err(e) = on_success_send_message(
-                            election_event.clone(),
-                            user.id.clone(),
-                            Some(message),
-                        ).await {
-                            event!(Level::ERROR, "Error processing success message: {e:?}");
+                    match sending_result {
+                        Ok(Some(message)) => {
+                            if let Err(e) = on_success_send_message(
+                                election_event.clone(),
+                                user.id.clone(),
+                                Some(message),
+                            )
+                            .await
+                            {
+                                event!(Level::ERROR, "Error processing success message: {e:?}");
+                            }
+                            Ok(())
                         }
-                        Ok(())
+                        Ok(None) => {
+                            event!(Level::WARN, "No sms was sent.");
+                            Ok(())
+                        }
+                        Err(error) => {
+                            event!(Level::ERROR, "error sending sms: {error:?}, continuing..");
+                            Err(())
+                        }
                     }
-                    Ok(None) => {
-                        event!(Level::WARN, "No sms was sent.");
-                        Ok(())
-                    }
-                    Err(error) => {
-                        event!(Level::ERROR, "error sending sms: {error:?}, continuing..");
-                        Err(())
-                    }
-                }
                 }
                 TemplateMethod::DOCUMENT => {
                     //nothing to do
                     Ok(())
                 }
             };
-            
+
             update_metrics(
                 &mut metrics,
                 &elections_by_area,

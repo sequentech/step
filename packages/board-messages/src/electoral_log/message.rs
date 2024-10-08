@@ -203,7 +203,7 @@ impl Message {
             &sd.sender_name,
             &sd.system_sk,
             user_id,
-            message
+            message,
         )
     }
 
@@ -214,7 +214,7 @@ impl Message {
         sender_name: &str,
         system_sk: &StrandSignatureSk,
         user_id: Option<String>,
-        message: Option<String>
+        message: Option<String>,
     ) -> Result<Message> {
         let bytes = statement.strand_serialize()?;
         let sender_signature: StrandSignature = sender_sk.sign(&bytes)?;
@@ -229,7 +229,7 @@ impl Message {
             statement,
             artifact,
             user_id,
-            message
+            message,
         })
     }
 
