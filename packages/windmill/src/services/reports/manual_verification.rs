@@ -3,9 +3,10 @@
 // SPDX-FileCopyrightText: 2024 Kevin Nguyen <kevin@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::s3::get_minio_url;
+use super::utils::ToMap;
 use crate::postgres::{election_event, template};
 use crate::services::database::get_hasura_pool;
+use crate::services::s3::get_minio_url;
 use crate::services::{documents::upload_and_return_document, temp_path::*};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
@@ -35,28 +36,6 @@ pub struct UserTemplateData {
     pub manual_verification_url: String,
     pub qrcode: String,
     pub logo: String,
-}
-
-trait ToMap {
-    fn to_map(&self) -> Result<Map<String, Value>>;
-}
-
-impl ToMap for SystemTemplateData {
-    fn to_map(&self) -> Result<Map<String, Value>> {
-        let Value::Object(map) = serde_json::to_value(self.clone())? else {
-            return Err(anyhow!("Can't convert SystemTemplateData to Map"));
-        };
-        Ok(map)
-    }
-}
-
-impl ToMap for UserTemplateData {
-    fn to_map(&self) -> Result<Map<String, Value>> {
-        let Value::Object(map) = serde_json::to_value(self.clone())? else {
-            return Err(anyhow!("Can't convert UserTemplateData to Map"));
-        };
-        Ok(map)
-    }
 }
 
 #[derive(Debug)]
