@@ -248,13 +248,15 @@ impl ElectoralLog {
     #[instrument(skip(self))]
     pub(crate) async fn post_send_template(
         &self,
+        message: Option<String>,
         event_id: String,
+        user_id: Option<String>,
         election_id: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = ElectionIdString(election_id);
 
-        let message = Message::send_template(event, election, &self.sd)?;
+        let message = Message::send_template(event, election, &self.sd, user_id, message)?;
 
         self.post(message).await
     }
