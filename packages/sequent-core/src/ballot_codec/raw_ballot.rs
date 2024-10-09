@@ -19,6 +19,10 @@ pub trait RawBallotCodec {
         &self,
         plaintext: &DecodedVoteContest,
     ) -> Result<RawBallotContest, String>;
+    fn compact_encode_to_raw_ballot(
+        contests: &Vec<Contest>,
+        plaintext: &Vec<DecodedVoteContest>,
+    ) -> Result<RawBallotContest, String>;
     fn decode_from_raw_ballot(
         &self,
         raw_ballot: &RawBallotContest,
@@ -53,7 +57,7 @@ impl RawBallotCodec for Contest {
             Ok(remaining_bits.div_floor(base_bits))
         }
     }
-
+    
     fn encode_to_raw_ballot(
         &self,
         plaintext: &DecodedVoteContest,
@@ -145,6 +149,13 @@ impl RawBallotCodec for Contest {
         }
 
         Ok(RawBallotContest { bases, choices })
+    }
+
+    fn compact_encode_to_raw_ballot(
+        contests: &Vec<Contest>,
+        plaintexts: &Vec<DecodedVoteContest>,
+    ) -> Result<RawBallotContest, String> {
+        panic!("Not implemented");
     }
 
     /**
