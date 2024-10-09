@@ -277,8 +277,6 @@ export const TemplateList: React.FC = () => {
                 cancel={t("common.label.cancel")}
                 title={t("common.label.export")}
                 handleClose={(result: boolean) => {
-                    console.log(result)
-
                     if (result) {
                         confirmExportAction()
                     } else {
