@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 #![allow(non_snake_case)]
 #![allow(dead_code)]
+use crate::ballot_codec::PlaintextCodec;
 use crate::error::BallotError;
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -120,19 +121,6 @@ pub struct RawHashableBallot<C: Ctx> {
     pub contests: Vec<HashableBallotContest<C>>,
 }
 
-impl<C: Ctx> TryFrom<&HashableBallot> for RawHashableBallot<C> {
-    type Error = BallotError;
-
-    fn try_from(value: &HashableBallot) -> Result<Self, Self::Error> {
-        let contests = value.deserialize_contests::<C>()?;
-        Ok(RawHashableBallot {
-            version: value.version,
-            issue_date: value.issue_date.clone(),
-            contests: contests,
-        })
-    }
-}
-
 impl HashableBallot {
     pub fn deserialize_contests<C: Ctx>(
         &self,
@@ -161,6 +149,19 @@ impl HashableBallot {
             .collect::<Vec<Result<String, BallotError>>>()
             .into_iter()
             .collect()
+    }
+}
+
+impl<C: Ctx> TryFrom<&HashableBallot> for RawHashableBallot<C> {
+    type Error = BallotError;
+
+    fn try_from(value: &HashableBallot) -> Result<Self, Self::Error> {
+        let contests = value.deserialize_contests::<C>()?;
+        Ok(RawHashableBallot {
+            version: value.version,
+            issue_date: value.issue_date.clone(),
+            contests: contests,
+        })
     }
 }
 
@@ -207,6 +208,143 @@ impl TryFrom<&AuditableBallot> for HashableBallot {
             )?,
             config: value.config.clone(),
         })
+    }
+}
+
+////////////////////////////////////////////////////////////////
+/// Compact ballots
+////////////////////////////////////////////////////////////////
+
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
+pub struct CompactAuditableBallot {
+    pub version: u32,
+    pub issue_date: String,
+    pub config: BallotStyle,
+    // CompactAuditableBallotContests,
+    pub contests: String, 
+    pub ballot_hash: String,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
+pub struct CompactAuditableBallotContests<C: Ctx> {
+    pub contest_ids: Vec<String>,
+    pub choice: ReplicationChoice<C>,
+    pub proof: Schnorr<C>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct CompactHashableBallot {
+    pub version: u32,
+    pub issue_date: String,
+    // CompactHashableBallotContests<C>,
+    pub contests: String, 
+    pub config: BallotStyle,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
+pub struct CompactHashableBallotContests<C: Ctx> {
+    pub contest_ids: Vec<String>,
+    pub ciphertext: Ciphertext<C>,
+    pub proof: Schnorr<C>,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
+pub struct CompactRawHashableBallot<C: Ctx> {
+    pub version: u32,
+    pub issue_date: String,
+    pub contests: CompactHashableBallotContests<C>,
+}
+
+impl CompactAuditableBallot {
+    pub fn deserialize_contests<C: Ctx>(
+        &self,
+    ) -> Result<CompactAuditableBallotContests<C>, BallotError> {
+        
+        let ret = Base64Deserialize::deserialize(
+            self.contests.clone(),
+        )
+        .map_err(|err| BallotError::Serialization(err.to_string()));
+
+        ret
+    }
+
+    pub fn serialize_contests<C: Ctx>(
+        contest: &CompactAuditableBallotContests<C>,
+    ) -> Result<String, BallotError> {
+        
+        Base64Serialize::serialize(&contest)
+    }
+}
+
+impl CompactHashableBallot {
+    pub fn deserialize_contests<C: Ctx>(
+        &self,
+    ) -> Result<CompactHashableBallotContests<C>, BallotError> {
+        
+        let ret = Base64Deserialize::deserialize(
+            self.contests.clone(),
+        )
+        .map_err(|err| BallotError::Serialization(err.to_string()));
+
+        ret
+    }
+
+    pub fn serialize_contests<C: Ctx>(
+        contest: &CompactHashableBallotContests<C>,
+    ) -> Result<String, BallotError> {
+        
+        Base64Serialize::serialize(&contest)
+    }
+}
+
+impl TryFrom<&CompactAuditableBallot> for CompactHashableBallot {
+    type Error = BallotError;
+
+    fn try_from(value: &CompactAuditableBallot) -> Result<Self, Self::Error> {
+        if TYPES_VERSION != value.version {
+            return Err(BallotError::Serialization(format!(
+                "Unexpected version {}, expected {}",
+                value.version.to_string(),
+                TYPES_VERSION
+            )));
+        }
+
+        let contests = value.deserialize_contests::<RistrettoCtx>()?;
+        let hashable_ballot_contests = CompactHashableBallotContests::<RistrettoCtx>::from(
+            &contests,
+        );
+
+        Ok(CompactHashableBallot {
+            version: TYPES_VERSION,
+            issue_date: value.issue_date.clone(),
+            contests: CompactHashableBallot::serialize_contests::<RistrettoCtx>(
+                &hashable_ballot_contests,
+            )?,
+            config: value.config.clone(),
+        })
+    }
+}
+
+impl<C: Ctx> TryFrom<&CompactHashableBallot> for CompactRawHashableBallot<C> {
+    type Error = BallotError;
+
+    fn try_from(value: &CompactHashableBallot) -> Result<Self, Self::Error> {
+        let contests = value.deserialize_contests::<C>()?;
+        Ok(CompactRawHashableBallot {
+            version: value.version,
+            issue_date: value.issue_date.clone(),
+            contests: contests,
+        })
+    }
+}
+
+impl<C: Ctx> From<&CompactAuditableBallotContests<C>> for CompactHashableBallotContests<C> {
+    fn from(value: &CompactAuditableBallotContests<C>) -> CompactHashableBallotContests<C> {
+        CompactHashableBallotContests {
+            contest_ids: value.contest_ids.clone(),
+            ciphertext: value.choice.ciphertext.clone(),
+            proof: value.proof.clone(),
+        }
     }
 }
 

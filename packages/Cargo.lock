@@ -1144,7 +1144,7 @@ name = "b3"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "base64 0.21.7",
+ "base64 0.22.1",
  "bb8-postgres",
  "borsh",
  "cfg-if",
@@ -1157,7 +1157,7 @@ dependencies = [
  "serde",
  "serial_test",
  "strand",
- "strum 0.24.1",
+ "strum 0.26.3",
  "tokio",
  "tokio-postgres",
  "toml 0.6.0",
@@ -1371,11 +1371,10 @@ dependencies = [
  "ascii_table",
  "async-trait",
  "b3",
- "base64 0.21.7",
+ "base64 0.22.1",
  "cfg-if",
  "clap 4.5.18",
  "colored",
- "config",
  "crepe",
  "criterion 0.4.0",
  "getrandom 0.2.15",
@@ -1390,7 +1389,7 @@ dependencies = [
  "serde_json",
  "serial_test",
  "strand",
- "strum 0.24.1",
+ "strum 0.26.3",
  "thiserror",
  "tikv-jemalloc-ctl",
  "tikv-jemallocator",
@@ -1403,7 +1402,6 @@ dependencies = [
  "tracing-subscriber",
  "tracing-tree",
  "tracing-wasm",
- "uuid",
  "wasm-bindgen",
  "wasm-bindgen-rayon",
 ]
@@ -7067,7 +7065,7 @@ dependencies = [
 name = "strand"
 version = "0.4.0"
 dependencies = [
- "base64 0.21.7",
+ "base64 0.22.1",
  "borsh",
  "cfg-if",
  "chacha20poly1305",
@@ -7187,15 +7185,6 @@ dependencies = [
 
 [[package]]
 name = "strum"
-version = "0.24.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "063e6045c0e62079840579a7e47a355ae92f60eb74daaf156fb1e84ba164e63f"
-dependencies = [
- "strum_macros 0.24.3",
-]
-
-[[package]]
-name = "strum"
 version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "290d54ea6f91c969195bdbcd7442c8c2a2ba87da8bf60a7ee86a235d4bc1e125"
@@ -7208,18 +7197,8 @@ name = "strum"
 version = "0.26.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8fec0f0aef304996cf250b31b5a10dee7980c85da9d759361292b8bca5a18f06"
-
-[[package]]
-name = "strum_macros"
-version = "0.24.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e385be0d24f186b4ce2f9982191e7101bb737312ad61c1f2f984f34bcf85d59"
 dependencies = [
- "heck 0.4.1",
- "proc-macro2",
- "quote",
- "rustversion",
- "syn 1.0.109",
+ "strum_macros 0.26.4",
 ]
 
 [[package]]
