@@ -50,6 +50,7 @@ pub async fn create_protocol_manager_keys(board_name: &str) -> Result<()> {
     Ok(())
 }
 
+#[instrument]
 pub fn gen_protocol_manager<C: Ctx>() -> ProtocolManager<C> {
     let pmkey: StrandSignatureSk = StrandSignatureSk::gen().unwrap();
     let pm: ProtocolManager<C> = ProtocolManager {
@@ -60,11 +61,13 @@ pub fn gen_protocol_manager<C: Ctx>() -> ProtocolManager<C> {
     pm
 }
 
+#[instrument]
 pub fn serialize_protocol_manager<C: Ctx>(pm: &ProtocolManager<C>) -> String {
     let pmc = ProtocolManagerConfig::from(&pm);
     toml::to_string(&pmc).unwrap()
 }
 
+#[instrument]
 pub fn deserialize_protocol_manager<C: Ctx>(contents: String) -> ProtocolManager<C> {
     let pmc: ProtocolManagerConfig = toml::from_str(&contents).unwrap();
     let pmkey = pmc.get_signing_key().unwrap();
@@ -234,6 +237,7 @@ pub async fn get_trustee_encrypted_private_key<C: Ctx>(
     // Ok(channel.encrypted_channel_sk)
 }
 
+#[instrument(skip_all, err)]
 pub fn get_configuration<C: Ctx>(messages: &Vec<Message>) -> Result<Configuration<C>> {
     let configuration_msg = messages
         .iter()
@@ -247,6 +251,7 @@ pub fn get_configuration<C: Ctx>(messages: &Vec<Message>) -> Result<Configuratio
     )?)
 }
 
+#[instrument(skip_all, err)]
 pub fn get_public_key_hash<C: Ctx>(messages: &Vec<Message>) -> Result<PublicKeyHash> {
     let public_key_message = messages
         .iter()
@@ -261,6 +266,7 @@ pub fn get_public_key_hash<C: Ctx>(messages: &Vec<Message>) -> Result<PublicKeyH
     Ok(PublicKeyHash(strand::util::to_u8_array(&pk_h).unwrap()))
 }
 
+#[instrument(skip_all)]
 pub fn generate_trustee_set<C: Ctx>(
     configuration: &Configuration<C>,
     trustee_pks: Vec<StrandSignaturePk>,
@@ -287,6 +293,7 @@ pub fn generate_trustee_set<C: Ctx>(
     selected_trustees
 }
 
+#[instrument(skip_all, err)]
 pub fn convert_b3(b3: &Vec<B3MessageRow>) -> Result<Vec<Message>> {
     let messages: Vec<Message> = b3
         .iter()
@@ -303,12 +310,11 @@ pub async fn get_protocol_manager<C: Ctx>(board_name: &str) -> Result<ProtocolMa
     Ok(deserialize_protocol_manager::<C>(protocol_manager_data))
 }
 
+#[instrument(skip(b3_client), err)]
 pub async fn get_b3<C: Ctx>(
     board_name: &str,
     b3_client: &mut PgsqlB3Client,
 ) -> Result<Vec<Message>> {
-    let pm = get_protocol_manager::<C>(board_name).await?;
-
     let b3 = b3_client.get_messages(board_name, -1).await?;
     let messages: Vec<Message> = convert_b3(&b3)?;
     Ok(messages)
