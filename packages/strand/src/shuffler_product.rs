@@ -21,13 +21,12 @@
 //! let hs = ctx.generators(es.len() + 1, &seed).unwrap();
 //! let shuffler = Shuffler::new(
 //!    &pk,
-//!    &hs,
 //!    &ctx,
 //! );
 //! let (e_primes, rs, perm) = shuffler.gen_shuffle(&es);
 //! let proof =
-//!    shuffler.gen_proof(&es, &e_primes, rs, &perm, &[]).unwrap();
-//! let ok = shuffler.check_proof(&proof, &es, &e_primes, &[]).unwrap();
+//!    shuffler.gen_proof(es.clone(), &e_primes, rs, hs.clone(), perm, &[]).unwrap();
+//! let ok = shuffler.check_proof(&proof, es, e_primes, hs, &[]).unwrap();
 //!
 //! assert!(ok);
 //! ```
