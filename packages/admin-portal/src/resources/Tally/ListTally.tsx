@@ -49,6 +49,7 @@ import {useMutation} from "@apollo/client"
 import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
 import {IPermissions} from "@/types/keycloak"
 import {useLocation, useNavigate} from "react-router"
+import {ResetFilters} from "@/components/ResetFilters"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -290,40 +291,6 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     }
     let activeCeremony = getActiveCeremony(keysCeremonies, authContext)
 
-    // Avoid error when coming from filterd list in other tabs
-    const listContext = useListController({
-        resource: "sequent_backend_tally_session",
-        filter: {
-            tenant_id: tenantId || undefined,
-            election_event_id: electionEventRecord?.id || undefined,
-        },
-    })
-
-    const navigate = useNavigate()
-    const location = useLocation()
-
-    useEffect(() => {
-        // navigate to self but without search params
-        navigate(
-            {
-                pathname: location.pathname,
-                search: "",
-            },
-            {replace: true}
-        )
-
-        // Reset filters when the component mounts
-        if (listContext && listContext.setFilters) {
-            listContext.setFilters({}, {})
-        }
-        return () => {
-            // Reset filters when the component unmounts
-            if (listContext && listContext.setFilters) {
-                listContext.setFilters({}, {})
-            }
-        }
-    }, [])
-
     return (
         <>
             {canTrusteeCeremony && keysCeremonies?.[0]?.execution_status === "STARTED" ? (
@@ -343,62 +310,69 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                 </Alert>
             ) : null}
 
-            <List
-                resource="sequent_backend_tally_session"
-                actions={
-                    <ListActions
-                        withColumns={canAdminCeremony}
-                        withImport={false}
-                        withExport={false}
-                        withFilter={false}
-                        withAction={canAdminCeremony}
-                        doAction={() => setCreatingFlag(true)}
-                        actionLabel="electionEventScreen.tally.create.createButton"
-                    />
-                }
-                empty={<Empty />}
-                sx={{flexGrow: 2}}
-                filter={{
-                    tenant_id: tenantId || undefined,
-                    election_event_id: electionEventRecord?.id || undefined,
-                }}
-                storeKey={false}
-                filters={Filters}
-            >
-                <ElectionHeader title={"electionEventScreen.tally.title"} subtitle="" />
+            {
+                <List
+                    resource="sequent_backend_tally_session"
+                    actions={
+                        <ListActions
+                            withColumns={canAdminCeremony}
+                            withImport={false}
+                            withExport={false}
+                            withFilter={false}
+                            withAction={canAdminCeremony}
+                            doAction={() => setCreatingFlag(true)}
+                            actionLabel="electionEventScreen.tally.create.createButton"
+                        />
+                    }
+                    empty={<Empty />}
+                    sx={{flexGrow: 2}}
+                    filter={{
+                        tenant_id: tenantId || undefined,
+                        election_event_id: electionEventRecord?.id || undefined,
+                    }}
+                    storeKey={false}
+                    filters={Filters}
+                >
+                    <ResetFilters />
+                    <ElectionHeader title={"electionEventScreen.tally.title"} subtitle="" />
 
-                <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={false}>
-                    <TextField source="tenant_id" />
-                    <DateField source="created_at" showTime={true} />
+                    <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={false}>
+                        <TextField source="tenant_id" />
+                        <DateField source="created_at" showTime={true} />
 
-                    <FunctionField
-                        label={t("electionEventScreen.tally.trustees")}
-                        render={(record: RaRecord<Identifier>) => <TrusteeItems record={record} />}
-                    />
+                        <FunctionField
+                            label={t("electionEventScreen.tally.trustees")}
+                            render={(record: RaRecord<Identifier>) => (
+                                <TrusteeItems record={record} />
+                            )}
+                        />
 
-                    <FunctionField
-                        label={t("electionEventScreen.tally.electionNumber")}
-                        render={(record: RaRecord<Identifier>) => record?.election_ids?.length || 0}
-                    />
+                        <FunctionField
+                            label={t("electionEventScreen.tally.electionNumber")}
+                            render={(record: RaRecord<Identifier>) =>
+                                record?.election_ids?.length || 0
+                            }
+                        />
 
-                    <FunctionField
-                        label={t("electionEventScreen.tally.status")}
-                        render={(record: RaRecord<Identifier>) => (
-                            <StatusChip status={record.execution_status} />
-                        )}
-                    />
+                        <FunctionField
+                            label={t("electionEventScreen.tally.status")}
+                            render={(record: RaRecord<Identifier>) => (
+                                <StatusChip status={record.execution_status} />
+                            )}
+                        />
 
-                    <FunctionField
-                        source="actions"
-                        label="Actions"
-                        render={(record: RaRecord<Identifier>) => (
-                            <ActionsColumn actions={actions(record)} />
-                        )}
-                    >
-                        {/* <ActionsColumn actions={actions} /> */}
-                    </FunctionField>
-                </DatagridConfigurable>
-            </List>
+                        <FunctionField
+                            source="actions"
+                            label="Actions"
+                            render={(record: RaRecord<Identifier>) => (
+                                <ActionsColumn actions={actions(record)} />
+                            )}
+                        >
+                            {/* <ActionsColumn actions={actions} /> */}
+                        </FunctionField>
+                    </DatagridConfigurable>
+                </List>
+            }
 
             <Dialog
                 variant="warning"

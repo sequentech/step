@@ -144,6 +144,15 @@ const englishTranslation = {
             votersByChannels: "Voters by channel",
             voterLoginURL: "Voter Login URL",
             voterEnrollURL: "Voter Enroll URL",
+            ipAddress: {
+                emptyState: "No votes yet.",
+                title: "IP Addresses",
+                ip: "IP",
+                country: "Country",
+                VoteCount: "Vote Count",
+                ElectionName: "Election Name",
+                VotersId: "Voters Id",
+            },
         },
         electionEventScreen: {
             common: {
@@ -431,29 +440,30 @@ const englishTranslation = {
                     subtitle: "Create user",
                 },
                 fields: {
-                    has_voted: "Voted",
-                    username: "Username",
-                    first_name: "First Name",
-                    last_name: "Last Name",
-                    email: "Email",
-                    enabled: "Enabled",
-                    emailVerified: "Email Verified",
-                    groups: "Groups",
-                    attributes: "Attributes",
-                    area: "Area",
-                    password: "Password",
-                    repeatPassword: "Repeat Password",
-                    passwordMismatch: "Passwords must match",
-                    passwordLengthValidate: "Password must be at least 8 characters long",
-                    passwordUppercaseValidate:
+                    "has_voted": "Voted",
+                    "username": "Username",
+                    "first_name": "First Name",
+                    "last_name": "Last Name",
+                    "email": "Email",
+                    "enabled": "Enabled",
+                    "emailVerified": "Email Verified",
+                    "groups": "Groups",
+                    "attributes": "Attributes",
+                    "area": "Area",
+                    "password": "Password",
+                    "repeatPassword": "Repeat Password",
+                    "passwordMismatch": "Passwords must match",
+                    "passwordLengthValidate": "Password must be at least 8 characters long",
+                    "passwordUppercaseValidate":
                         "Password must contain at least one uppercase letter",
-                    passwordLowercaseValidate:
+                    "passwordLowercaseValidate":
                         "Password must contain at least one lowercase letter",
-                    passwordDigitValidate: "Password must contain at least one digit",
-                    passwordSpecialCharValidate:
+                    "passwordDigitValidate": "Password must contain at least one digit",
+                    "passwordSpecialCharValidate":
                         "Password must contain at least one special character",
-                    trustee: "Act as Trustee",
-                    permissionLabel: "Permission Label",
+                    "trustee": "Act as Trustee",
+                    "permissionLabel": "Permission Label",
+                    "authorized-election-ids": "Elections",
                 },
                 delete: {
                     body: "Are you sure you want to delete this user?",

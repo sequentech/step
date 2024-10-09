@@ -11,7 +11,6 @@ import {
     DatagridConfigurable,
     useNotify,
     Identifier,
-    useListController,
 } from "react-admin"
 import {useTranslation} from "react-i18next"
 import {ExportTasksExecutionMutation, Sequent_Backend_Election_Event} from "@/gql/graphql"
@@ -25,7 +24,7 @@ import {FormStyles} from "@/components/styles/FormStyles"
 import {DownloadDocument} from "../User/DownloadDocument"
 import {Dialog} from "@sequentech/ui-essentials"
 import {IPermissions} from "@/types/keycloak"
-import {useLocation, useNavigate} from "react-router"
+import {ResetFilters} from "@/components/ResetFilters"
 
 export interface ListTasksProps {
     onViewTask: (id: Identifier) => void
@@ -104,37 +103,6 @@ export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRe
         }
     }
 
-    // Avoid error when coming from filterd list in other tabs
-    const listContext = useListController({
-        resource: "sequent_backend_tasks_execution",
-        filter: {election_event_id: electionEventRecord?.id || undefined},
-    })
-
-    const navigate = useNavigate()
-    const location = useLocation()
-
-    useEffect(() => {
-        // navigate to self but without search params
-        navigate(
-            {
-                pathname: location.pathname,
-                search: "",
-            },
-            {replace: true}
-        )
-
-        // Reset filters when the component mounts
-        if (listContext && listContext.setFilters) {
-            listContext.setFilters({}, {})
-        }
-        return () => {
-            // Reset filters when the component unmounts
-            if (listContext && listContext.setFilters) {
-                listContext.setFilters({}, {})
-            }
-        }
-    }, [])
-
     return (
         <>
             <List
@@ -146,6 +114,7 @@ export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRe
                 sort={{field: "start_at", order: "DESC"}}
                 perPage={10}
             >
+                <ResetFilters />
                 <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
                     <TextField source="id" />
                     <TextField source="name" />

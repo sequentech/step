@@ -145,6 +145,15 @@ const spanishTranslation: TranslationType = {
             votersByChannels: "Votantes por canales",
             voterLoginURL: "URL de inicio de sesión de votantes",
             voterEnrollURL: "URL de inscripción de votantes",
+            ipAddress: {
+                emptyState: "Aún no hay votos.",
+                title: "IP Addresses",
+                ip: "IP",
+                country: "País",
+                VoteCount: "Número de votos",
+                ElectionName: "Nombre de la elección",
+                VotersId: "Identificadores de votantes",
+            },
         },
         electionEventScreen: {
             common: {
@@ -435,29 +444,30 @@ const spanishTranslation: TranslationType = {
                     subtitle: "Crear usuario",
                 },
                 fields: {
-                    has_voted: "Voted",
-                    username: "Nombre de Usuario",
-                    first_name: "Nombre",
-                    last_name: "Apellido",
-                    email: "Email",
-                    enabled: "Habilitado",
-                    emailVerified: "Email Verificado",
-                    groups: "Grupos",
-                    attributes: "Atributos",
-                    area: "Área",
-                    password: "Contraseña",
-                    repeatPassword: "Repetir Contraseña",
-                    passwordMismatch: "Las contraseñas deben de coincidir",
-                    passwordLengthValidate: "La contraseña debe tener al menos 8 caracteres",
-                    passwordUppercaseValidate:
+                    "has_voted": "Voted",
+                    "username": "Nombre de Usuario",
+                    "first_name": "Nombre",
+                    "last_name": "Apellido",
+                    "email": "Email",
+                    "enabled": "Habilitado",
+                    "emailVerified": "Email Verificado",
+                    "groups": "Grupos",
+                    "attributes": "Atributos",
+                    "area": "Área",
+                    "password": "Contraseña",
+                    "repeatPassword": "Repetir Contraseña",
+                    "passwordMismatch": "Las contraseñas deben de coincidir",
+                    "passwordLengthValidate": "La contraseña debe tener al menos 8 caracteres",
+                    "passwordUppercaseValidate":
                         "La contraseña debe contener al menos una letra mayúscula",
-                    passwordLowercaseValidate:
+                    "passwordLowercaseValidate":
                         "La contraseña debe contener al menos una letra minúscula",
-                    passwordDigitValidate: "La contraseña debe contener al menos un dígito",
-                    passwordSpecialCharValidate:
+                    "passwordDigitValidate": "La contraseña debe contener al menos un dígito",
+                    "passwordSpecialCharValidate":
                         "La contraseña debe contener al menos un carácter especial",
-                    trustee: "Actuar como fideicomisario",
-                    permissionLabel: "Etiqueta de permiso",
+                    "trustee": "Actuar como fideicomisario",
+                    "permissionLabel": "Etiqueta de permiso",
+                    "authorized-election-ids": "Elecciones",
                 },
                 delete: {
                     body: "¿Estás seguro que quieres borrar este usuario?",
