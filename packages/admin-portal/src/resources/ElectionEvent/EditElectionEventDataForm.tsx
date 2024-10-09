@@ -1165,6 +1165,14 @@ export const EditElectionEventDataForm: React.FC = () => {
                                             }
                                         />
                                     </Box>
+                                    <Box>
+                                        <BooleanInput
+                                            disabled={false}
+                                            key="allow-publish-only-when-key-ceremony-succeeded"
+                                            source={"presentation.allow_publish_only_when_key_ceremony_succeeded"}
+                                            label="Only allow Publishing when the Keys Ceremony has succeeded"
+                                        />
+                                    </Box>
                                 </AccordionDetails>
                             </Accordion>
                         </SimpleForm>
