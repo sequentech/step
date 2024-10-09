@@ -48,11 +48,11 @@ archive-image-artifact() {
 }
 
 build-images() {
-    docker-compose -f <(docker-compose-airgap-preparation) --profile full build
+    docker-compose -f $(docker-compose-airgap-preparation) --profile full build
 }
 
 pull-images() {
-    docker-compose -f <(docker-compose-airgap-preparation) --profile full pull --ignore-pull-failures
+    docker-compose -f $(docker-compose-airgap-preparation) --profile full pull --ignore-pull-failures
 }
 
 add-dotenv-to-tarball() {
