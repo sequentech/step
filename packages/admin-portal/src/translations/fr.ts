@@ -169,6 +169,8 @@ const frenchTranslation: TranslationType = {
                 subtitle: "Configuration de l'Événement Électoral.",
                 showMore: "Afficher plus",
                 showLess: "Afficher moins",
+                adminPortal: "Admin Portal",
+                onlyAllowPublishOnlyWhenKeysCeremonySucceeded: "Only allow election event publishing when Keys Ceremony has succeeded",
             },
             edit: {
                 general: "Général",

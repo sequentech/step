@@ -1113,6 +1113,27 @@ export const EditElectionEventDataForm: React.FC = () => {
                                         }}
                                     >
                                         {t(
+                                            "electionEventScreen.common.adminPortal"
+                                        )}
+                                    </Typography>
+                                    <Box>
+                                        <BooleanInput
+                                            source={"presentation.allow_publishing_only_when_key_ceremony_has_succeeded"}
+                                            label={t(
+                                                "electionEventScreen.common.onlyAllowPublishOnlyWhenKeysCeremonySucceeded"
+                                            )}
+                                        />
+                                    </Box>
+                                    <Typography
+                                        variant="body1"
+                                        component="span"
+                                        sx={{
+                                            fontWeight: "bold",
+                                            margin: 0,
+                                            display: {xs: "none", sm: "block"},
+                                        }}
+                                    >
+                                        {t(
                                             "electionEventScreen.field.countDownPolicyOptions.sectionTitle"
                                         )}
                                     </Typography>
@@ -1163,14 +1184,6 @@ export const EditElectionEventDataForm: React.FC = () => {
                                                 selectedPolicy !==
                                                 EVotingPortalCountdownPolicy.COUNTDOWN_WITH_ALERT
                                             }
-                                        />
-                                    </Box>
-                                    <Box>
-                                        <BooleanInput
-                                            disabled={false}
-                                            key="allow-publish-only-when-key-ceremony-succeeded"
-                                            source={"presentation.allow_publish_only_when_key_ceremony_succeeded"}
-                                            label="Only allow Publishing when the Keys Ceremony has succeeded"
                                         />
                                     </Box>
                                 </AccordionDetails>

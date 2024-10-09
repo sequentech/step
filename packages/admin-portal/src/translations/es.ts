@@ -169,6 +169,8 @@ const spanishTranslation: TranslationType = {
                 subtitle: "Configuración del Evento Electoral.",
                 showMore: "Mostrar más",
                 showLess: "Mostrar menos",
+                adminPortal: "Admin Portal",
+                onlyAllowPublishOnlyWhenKeysCeremonySucceeded: "Only allow election event publishing when Keys Ceremony has succeeded",
             },
             edit: {
                 general: "General",

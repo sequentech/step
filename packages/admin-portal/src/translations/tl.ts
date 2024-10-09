@@ -170,6 +170,8 @@ const tagalogTranslation: TranslationType = {
                 subtitle: "Pag-configure ng kaganapan ng halalan.",
                 showMore: "Lakihan ang nakikita",
                 showLess: "Bawasan ang nakikita",
+                adminPortal: "Admin Portal",
+                onlyAllowPublishOnlyWhenKeysCeremonySucceeded: "Only allow election event publishing when Keys Ceremony has succeeded",
             },
             edit: {
                 general: "Pangkalahatan",

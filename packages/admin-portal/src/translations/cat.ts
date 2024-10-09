@@ -169,6 +169,8 @@ const catalanTranslation: TranslationType = {
                 subtitle: "Configuració de l'Esdeveniment Electoral.",
                 showMore: "Mostra'n més",
                 showLess: "Mostra'n menys",
+                adminPortal: "Admin Portal",
+                onlyAllowPublishOnlyWhenKeysCeremonySucceeded: "Only allow election event publishing when Keys Ceremony has succeeded",
             },
             edit: {
                 general: "General",

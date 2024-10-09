@@ -168,6 +168,8 @@ const englishTranslation = {
                 subtitle: "Election event configuration.",
                 showMore: "Show More",
                 showLess: "Show Less",
+                adminPortal: "Admin Portal",
+                onlyAllowPublishOnlyWhenKeysCeremonySucceeded: "Only allow election event publishing when Keys Ceremony has succeeded",
             },
             edit: {
                 general: "General",
