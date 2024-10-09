@@ -418,14 +418,12 @@ public class Utils {
   protected void sendErrorEmailToUser(KeycloakSession session, String realmId, String email, Event event)
       throws EmailException {
     try {
-      // Get the realm and user model
       RealmModel realm = session.realms().getRealm(realmId);
 
       String errorCode = event.getDetails().get("code_id");
       Map<String, Object> emailAttributes = Maps.newHashMap();
       emailAttributes.put("error", errorCode);
 
-      // TODO: check this
       List<Object> subjectAttributes = ImmutableList.of();
 
       UserModel user = session.users().getUserByEmail(realm, email);
@@ -433,7 +431,6 @@ public class Utils {
         throw new EmailException("User with email " + email + " not found");
       }
 
-      // Send the email using the EmailTemplateProvider
       EmailTemplateProvider emailTemplateProvider = session.getProvider(EmailTemplateProvider.class);
       emailTemplateProvider
           .setRealm(realm)
