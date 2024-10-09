@@ -19,14 +19,23 @@ export interface ParamsSort {
 export const customBuildQuery =
     (introspectionResults: any) => (raFetchType: any, resourceName: any, params: any) => {
         let sort: ParamsSort | undefined | null = params.sort
-        if (
-            isString(resourceName) &&
-            raFetchType === "GET_LIST" &&
-            sort?.field &&
-            COLUMNS_MAP[resourceName] &&
-            !COLUMNS_MAP[resourceName].includes(sort.field)
-        ) {
-            params.sort = undefined
+        if (isString(resourceName) && raFetchType === "GET_LIST") {
+            if (
+                sort?.field &&
+                COLUMNS_MAP[resourceName] &&
+                !COLUMNS_MAP[resourceName].includes(sort.field)
+            ) {
+                params.sort = undefined
+            }
+
+            let validFilters = COLUMNS_MAP[resourceName]
+            if (validFilters) {
+                Object.keys(params.filter).forEach((f) => {
+                    if (!validFilters.includes(f)) {
+                        delete params.filter[f]
+                    }
+                })
+            }
         }
 
         if (resourceName.startsWith("pgaudit") && raFetchType === "GET_LIST") {
