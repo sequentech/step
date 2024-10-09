@@ -18,6 +18,7 @@ import org.keycloak.events.EventType;
 import org.keycloak.events.admin.AdminEvent;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.util.JsonSerialization;
+import static sequent.keycloak.authenticator.Utils.sendErrorNotificationToUser;
 
 @JBossLog
 public class CustomEventListenerProvider implements EventListenerProvider {
@@ -43,29 +44,19 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     if (this.access_token == null) {
       authenticate();
     }
+
+    if (event.getType() == EventType.REGISTER_ERROR && "userNotFound".equals(event.getError())) {
+      try {
+        sendErrorNotificationToUser(session, event.getRealmId(), event);
+      } catch (Exception e) {
+        log.error("Failed to send error notification", e);
+      }
+    }
     logEvent(
         getElectionEventId(event.getRealmId()),
         event.getType(),
         event.getError(),
         event.getUserId());
-
-    System.out.println("Event received: " + event.getType());
-    System.out.println("Event error: " + event.getError());
-    System.out.println("Event userId: " + event.getUserId());
-    System.out.println("Event getError: " + event.getError());
-
-    System.out.println("==================");
-    if (event.getType() == EventType.REGISTER_ERROR && event.getError() == "userNotFound") {
-      System.out.println("Inside REGISTER_ERROR and user_not_found condition");
-      System.out.println("Event!: " + event);
-
-      logEvent(
-          getElectionEventId(event.getRealmId()),
-          event.getType(),
-          event.getError(),
-          event.getUserId());
-    }
-    System.out.println("================== End of Event Processing ================");
 
   }
 

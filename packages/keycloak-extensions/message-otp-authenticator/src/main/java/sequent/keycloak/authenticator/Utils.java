@@ -76,12 +76,12 @@ public class Utils {
   public final String SEND_LINK_EMAIL_SUBJECT = "messageOtp.sendLink.email.subject";
   public final String SEND_LINK_EMAIL_FTL = "send-link-email.ftl";
 
-  public static final String ERROR_MESSAGE_NOT_SENT = "messageNotSent";
   public static final String SEND_SUCCESS_SMS_I18N_KEY = "messageSuccessSms";
   public static final String SEND_SUCCESS_EMAIL_SUBJECT = "messageSuccessEmailSubject";
   public static final String SEND_SUCCESS_EMAIL_FTL = "success-email.ftl";
-  public static final String SEND_REGISTER_FAILED_EMAIL_FTL = "register-error-user-not-found.ftl";
-  public static final String SEND_REGISTER_FAILED_EMAIL_SUBJECT = "registerErrorUserNotFoundSubject";
+  public static final String ERROR_MESSAGE_NOT_SENT = "messageNotSent";
+
+  public static final String SEND_REGISTER_FAILED_SMS_I18N_KEY = "messageFailedSMS";
 
   public static final String ID_NUMBER_ATTRIBUTE = "sequent.read-only.id-card-number";
   public static final String PHONE_NUMBER_ATTRIBUTE = "sequent.read-only.id-mobile-number";
@@ -415,31 +415,143 @@ public class Utils {
     }
   }
 
-  protected void sendErrorEmailToUser(KeycloakSession session, String realmId, String email, Event event)
+  // Sending Email Or SMS based on the enrollment
+  public static void sendErrorNotificationToUser(KeycloakSession session, String realmId, Event event)
+      throws EmailException, IOException {
+
+    String email = event.getDetails().get("email");
+    String mobileNumber = event.getDetails().get("sequent.read-only.mobile-number");
+
+    boolean sendEmail = email != null && !email.isEmpty();
+    boolean sendSms = !sendEmail && mobileNumber != null && !mobileNumber.isEmpty();
+
+    if (sendEmail) {
+      // Send email to the user
+      sendErrorEmailToUser(session, realmId, email, event);
+    }
+
+    if (sendSms) {
+      // Send SMS to the user
+      sendErrorSmsToUser(session, realmId, mobileNumber, event);
+    }
+    // Send email to support
+    sendSupportNotificationEmail(session, realmId, event);
+
+  }
+
+  // Sends an email to the user based on the event
+  protected static void sendErrorEmailToUser(KeycloakSession session, String realmId, String email, Event event)
+      throws EmailException {
+    try {
+      RealmModel realm = session.realms().getRealm(realmId);
+      String errorCode = event.getDetails().get("code_id");
+
+      // Define the email subject
+      String subject = "Registration Error";
+
+      // Define the text body
+      String textBody = "Dear User,\n\n"
+          + "We encountered an error during your registration process.\n"
+          + "Error code: " + errorCode + "\n\n"
+          + "Please contact support for assistance.\n"
+          + "Best regards,\n"
+          + "The Team";
+
+      // Define the HTML body
+      String htmlBody = "<html><body>"
+          + "<p>Dear User,</p>"
+          + "<p>We encountered an error during your registration process.</p>"
+          + "<p>Error code: <strong>" + errorCode + "</strong></p>"
+          + "<p>Please contact support for assistance.</p>"
+          + "<p>Best regards,<br/>The Team</p>"
+          + "</body></html>";
+
+      // Send email via SMTP
+      EmailSenderProvider emailSenderProvider = session.getProvider(EmailSenderProvider.class);
+      emailSenderProvider.send(
+          realm.getSmtpConfig(),
+          email,
+          subject,
+          textBody,
+          htmlBody);
+
+      log.info("Error email sent to: " + email);
+    } catch (EmailException error) {
+      log.error("sendErrorEmailToUser(): Exception sending email", error);
+      throw error;
+    }
+  }
+
+  // Sending SMS to the user based on the event
+  protected static void sendErrorSmsToUser(KeycloakSession session, String realmId, String mobileNumber, Event event)
+      throws IOException {
+    try {
+      RealmModel realm = session.realms().getRealm(realmId);
+      String errorCode = event.getDetails().get("code_id");
+
+      SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
+      List<String> smsAttributes = ImmutableList.of(errorCode);
+
+      smsSenderProvider.send(
+          mobileNumber.trim(), SEND_REGISTER_FAILED_SMS_I18N_KEY, smsAttributes, realm, null, session);
+
+      log.info("Error SMS sent to: " + mobileNumber);
+    } catch (IOException e) {
+      log.error("sendErrorSmsToUser(): Exception sending SMS", e);
+      throw e;
+    }
+  }
+
+  // Sending support email with event details
+  protected static void sendSupportNotificationEmail(KeycloakSession session, String realmId, Event event)
       throws EmailException {
     try {
       RealmModel realm = session.realms().getRealm(realmId);
 
-      String errorCode = event.getDetails().get("code_id");
-      Map<String, Object> emailAttributes = Maps.newHashMap();
-      emailAttributes.put("error", errorCode);
+      String supportEmail = "no-reply@sequentech.io";
+      String subject = "User Registration Error Notification";
 
-      List<Object> subjectAttributes = ImmutableList.of();
+      StringBuilder textBodyBuilder = new StringBuilder();
+      textBodyBuilder.append("A user encountered an error during registration.\n\n");
+      textBodyBuilder.append("Event details:\n");
+      textBodyBuilder.append("Type: ").append(event.getType()).append("\n");
+      textBodyBuilder.append("Realm ID: ").append(event.getRealmId()).append("\n");
+      textBodyBuilder.append("Client ID: ").append(event.getClientId()).append("\n");
+      textBodyBuilder.append("User ID: ").append(event.getUserId()).append("\n");
+      textBodyBuilder.append("IP Address: ").append(event.getIpAddress()).append("\n");
+      textBodyBuilder.append("Error: ").append(event.getError()).append("\n");
+      textBodyBuilder.append("Event Details: ").append(event.getDetails()).append("\n");
 
-      UserModel user = session.users().getUserByEmail(realm, email);
-      if (user == null) {
-        throw new EmailException("User with email " + email + " not found");
-      }
+      String textBody = textBodyBuilder.toString();
 
-      EmailTemplateProvider emailTemplateProvider = session.getProvider(EmailTemplateProvider.class);
-      emailTemplateProvider
-          .setRealm(realm)
-          .setUser(user)
-          .send(SEND_REGISTER_FAILED_EMAIL_SUBJECT, subjectAttributes, SEND_REGISTER_FAILED_EMAIL_FTL, emailAttributes);
+      StringBuilder htmlBodyBuilder = new StringBuilder();
+      htmlBodyBuilder.append("<html><body>");
+      htmlBodyBuilder.append("<p>A user encountered an error during registration.</p>");
+      htmlBodyBuilder.append("<p><strong>Event details:</strong></p>");
+      htmlBodyBuilder.append("<ul>");
+      htmlBodyBuilder.append("<li>Type: ").append(event.getType()).append("</li>");
+      htmlBodyBuilder.append("<li>Realm ID: ").append(event.getRealmId()).append("</li>");
+      htmlBodyBuilder.append("<li>Client ID: ").append(event.getClientId()).append("</li>");
+      htmlBodyBuilder.append("<li>User ID: ").append(event.getUserId()).append("</li>");
+      htmlBodyBuilder.append("<li>IP Address: ").append(event.getIpAddress()).append("</li>");
+      htmlBodyBuilder.append("<li>Error: ").append(event.getError()).append("</li>");
+      htmlBodyBuilder.append("<li>Event Details: ").append(event.getDetails()).append("</li>");
+      htmlBodyBuilder.append("</ul>");
+      htmlBodyBuilder.append("</body></html>");
 
-      log.info("Error email sent to: " + email);
+      String htmlBody = htmlBodyBuilder.toString();
+
+      EmailSenderProvider emailSenderProvider = session.getProvider(EmailSenderProvider.class);
+      emailSenderProvider.send(
+          realm.getSmtpConfig(),
+          supportEmail,
+          subject,
+          textBody,
+          htmlBody);
+
+      log.info("Support notification email sent to: " + supportEmail);
     } catch (EmailException error) {
-      log.debug("sendErrorEmailToUser(): Exception sending email", error);
+      log.error("sendSupportNotificationEmail(): Exception sending email", error);
       throw error;
     }
   }
