@@ -146,6 +146,15 @@ const tagalogTranslation: TranslationType = {
             votersByChannels: "Mga botante ayon sa channel",
             voterLoginURL: "URL para sa Pag-login ng Botante",
             voterEnrollURL: "URL para sa Pag-enroll ng Botante",
+            ipAddress: {
+                emptyState: "Wala pang mga boto.",
+                title: "Mga IP Address",
+                ip: "IP",
+                country: "Bansa",
+                VoteCount: "Bilang ng boto",
+                ElectionName: "Pangalan ng halalan",
+                VotersId: "Mga Id ng mga botante",
+            },
         },
         electionEventScreen: {
             common: {
