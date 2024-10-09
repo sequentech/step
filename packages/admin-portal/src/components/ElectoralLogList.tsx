@@ -229,15 +229,15 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                     <TextField source="statement_kind" />
                     <FunctionField
                         label="Event Type"
-                        render={(record: any) => getHeadField(record, 'event_type')}
+                        render={(record: any) => getHeadField(record, "event_type")}
                     />
                     <FunctionField
                         label="Log Type"
-                        render={(record: any) => getHeadField(record, 'log_type')}
+                        render={(record: any) => getHeadField(record, "log_type")}
                     />
                     <FunctionField
                         label="Description"
-                        render={(record: any) => getHeadField(record, 'description')}
+                        render={(record: any) => getHeadField(record, "description")}
                     />
                     <TextField source="message" sx={{wordBreak: "break-word"}} />
                 </DatagridConfigurable>
