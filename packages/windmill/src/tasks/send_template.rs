@@ -297,16 +297,18 @@ pub async fn send_template_email(
     sender: &EmailSender,
 ) -> Result<()> {
     if let (Some(receiver), Some(config)) = (receiver, template) {
-
         let subject = reports::render_template_text(config.subject.as_str(), variables.clone())
             .map_err(|err| anyhow!("{}", err))?;
-        
-        let plaintext_body = reports::render_template_text(config.plaintext_body.as_str(), variables.clone())
-            .map_err(|err| anyhow!("{}", err))?;
-        
-        let html_body = config.html_body.as_ref()
+
+        let plaintext_body =
+            reports::render_template_text(config.plaintext_body.as_str(), variables.clone())
+                .map_err(|err| anyhow!("{}", err))?;
+
+        let html_body = config
+            .html_body
+            .as_ref()
             .ok_or_else(|| anyhow!("html_body missing"))?; // Error if html_body is None
-        
+
         let html_body = reports::render_template_text(&html_body, variables.clone())
             .map_err(|err| anyhow!("{}", err))?;
 
@@ -315,7 +317,10 @@ pub async fn send_template_email(
             .await?;
     } else {
         // Log the event if the receiver or template is missing
-        event!(Level::INFO, "Receiver or template is empty, email not sent.");
+        event!(
+            Level::INFO,
+            "Receiver or template is empty, email not sent."
+        );
     }
 
     Ok(())

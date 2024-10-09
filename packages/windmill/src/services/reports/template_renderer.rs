@@ -21,7 +21,7 @@ use std::fmt::Debug;
 use tracing::{info, instrument, warn};
 
 pub enum ReportType {
-    MANUAL_VERIFICATION, 
+    MANUAL_VERIFICATION,
     BALLOT_RECEIPT,
     ELECTORAL_RESULTS,
 }
@@ -217,7 +217,7 @@ pub trait TemplateRenderer: Debug {
         )
         .await
         .map_err(|err| anyhow!("Error uploading document: {err}"))?;
-      
+
         if self.should_send_email(is_scheduled_task) {
             let email_config = Self::get_email_config().clone();
             let email_receiever = self
@@ -225,9 +225,15 @@ pub trait TemplateRenderer: Debug {
                 .await
                 .map_err(|err| anyhow!("Error getting email receiver: {err}"))?;
             let email_sender = EmailSender::new().await?;
-            email_sender.send(email_receiever, email_config.subject, email_config.plaintext_body, rendered_system_template.clone())
-            .await
-            .map_err(|err| anyhow!("Error sending email: {err}"))?;
+            email_sender
+                .send(
+                    email_receiever,
+                    email_config.subject,
+                    email_config.plaintext_body,
+                    rendered_system_template.clone(),
+                )
+                .await
+                .map_err(|err| anyhow!("Error sending email: {err}"))?;
         }
 
         Ok(())
@@ -253,7 +259,9 @@ pub trait TemplateRenderer: Debug {
 
                 let realm = get_event_realm(tenant_id, election_event_id);
                 let voter = client.get_user(&realm, &voter_id).await?;
-                voter.email.ok_or_else(|| anyhow!("Error sending email: no email provided"))
+                voter
+                    .email
+                    .ok_or_else(|| anyhow!("Error sending email: no email provided"))
             }
         }
     }
