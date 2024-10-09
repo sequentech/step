@@ -17,8 +17,8 @@
 //! let pk = sk.get_pk();
 //!
 //! let es = util::random_ciphertexts(10, &ctx);
-//! let hs = ctx.generators(es.len() + 1, &seed).unwrap();
 //! let seed = vec![];
+//! let hs = ctx.generators(es.len() + 1, &seed).unwrap();
 //! let shuffler = Shuffler::new(
 //!    &pk,
 //!    &ctx,
