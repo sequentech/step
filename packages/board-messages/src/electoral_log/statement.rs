@@ -80,7 +80,7 @@ impl StatementHead {
             },
             StatementBody::ElectionEventVotingPeriodPause(_) => StatementHead {
                 kind: StatementType::ElectionEventVotingPeriodPause,
-                description: "Election-event voting period pausedt".to_string(),
+                description: "Election-event voting period paused".to_string(),
                 ..default_head
             },
             StatementBody::ElectionEventVotingPeriodClose(_, _) => StatementHead {
