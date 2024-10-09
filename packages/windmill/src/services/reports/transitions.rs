@@ -14,17 +14,23 @@ use tracing::{info, instrument};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 
-
-/// Struct for User Data
+/// Struct for Transition Report Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
+    pub num_of_registered_voters: u32,
+    pub num_of_ballots_counted: u32,
+    pub voter_turnout: f32,
+    pub server_code: String,
+    pub transmitted: bool,
+    pub transmitted_datetime: Option<String>,
+    pub received: bool,
+    pub received_datetime: Option<String>,
     pub election_start_date: String,
     pub election_title: String,
     pub geograpic_region: String,
     pub area: String,
     pub country: String,
     pub voting_center: String,
-    pub num_of_registered_voters: u32,
 }
 
 /// Struct for System Data
@@ -40,15 +46,13 @@ pub struct SystemData {
 }
 
 #[derive(Debug)]
-pub struct OVCSInformaitionTemplate {
+pub struct TransitionsReport {
     tenant_id: String,
     election_event_id: String,
-    voter_id: String,
 }
 
-
 #[async_trait]
-impl TemplateRenderer for OVCSInformaitionTemplate {
+impl TemplateRenderer for TransitionsReport {
     type UserData = UserData;
     type SystemData = SystemData;
 
@@ -61,32 +65,34 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
     }
 
     fn base_name() -> String {
-        "ovcs_information".to_string()
+        "transitions_report".to_string()
     }
 
     fn prefix(&self) -> String {
-        format!("ovcs_information_{}", self.voter_id)
+        format!("transitions_report_{}", self.election_event_id)
     }
 
+    /// Prepare user data by fetching the relevant details
     async fn prepare_user_data(&self) -> Result<Self::UserData> {
-        // Fetch the Hasura database client from the pool
         let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .with_context(|| "Error getting hasura db pool")?;
+            .await
+            .get()
+            .await
+            .with_context(|| "Error getting hasura db pool")?;
 
         let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .with_context(|| "Error starting hasura transaction")?;
-
-         // Fetch election event data
-        let election_event =
-        get_election_event_by_id(&hasura_transaction, &self.tenant_id,  &self.election_event_id)
+            .transaction()
             .await
-            .with_context(|| "Error obtaining election event")?;
+            .with_context(|| "Error starting hasura transaction")?;
 
+        // Fetch election event data
+        let election_event = get_election_event_by_id(
+            &hasura_transaction,
+            &self.tenant_id,
+            &self.election_event_id,
+        )
+        .await
+        .with_context(|| "Error obtaining election event")?;
 
         // Fetch election event data
         let start_election_event = find_scheduled_event_by_election_event_id_and_event_processor(
@@ -105,23 +111,41 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
         //     if let Some(scheduled_date) = cron_config.scheduled_date {
         //         election_start_date = scheduled_date;
         //     } 
-            
+
         // }
-        
+
+        // Placeholder values for fetching external data (e.g., total ballots)
+        let total_registered_voters = 1000; // Replace with actual query
+        let total_ballots_counted = 800; // Replace with actual query
+
+        // Calculate voter turnout
+        let voter_turnout = (total_ballots_counted as f32 / total_registered_voters as f32) * 100.0;
+
+        // Placeholder values for server data
+        let server_code = "123456".to_string();
+        let transmitted = true;
+        let transmitted_datetime = Some("2024-10-09T12:00:00Z".to_string());
+        let received = true;
+        let received_datetime = Some("2024-10-09T12:05:00Z".to_string());
 
         let temp_val: &str = "test";
-        Ok(UserData{
+        Ok(UserData {
+            num_of_registered_voters: total_registered_voters,
+            num_of_ballots_counted: total_ballots_counted,
+            voter_turnout,
+            server_code,
+            transmitted,
+            transmitted_datetime,
+            received,
+            received_datetime,
             election_start_date: temp_val.to_string(),
             election_title: election_event.name.clone(),
             geograpic_region: temp_val.to_string(),
             area: temp_val.to_string(),
             country: temp_val.to_string(),
             voting_center: temp_val.to_string(),
-            num_of_registered_voters: 0,
         })
     }
-
-
 
     async fn prepare_system_data(
         &self,

@@ -24,7 +24,9 @@ pub struct UserData {
     pub area: String,
     pub country: String,
     pub voting_center: String,
-    pub num_of_registered_voters: u32,
+    pub chairperson_name: String,
+    pub poll_clerk_name: String,
+    pub third_member_name: String,
 }
 
 /// Struct for System Data
@@ -40,7 +42,7 @@ pub struct SystemData {
 }
 
 #[derive(Debug)]
-pub struct OVCSInformaitionTemplate {
+pub struct SBEITemplate {
     tenant_id: String,
     election_event_id: String,
     voter_id: String,
@@ -48,7 +50,7 @@ pub struct OVCSInformaitionTemplate {
 
 
 #[async_trait]
-impl TemplateRenderer for OVCSInformaitionTemplate {
+impl TemplateRenderer for SBEITemplate {
     type UserData = UserData;
     type SystemData = SystemData;
 
@@ -117,7 +119,9 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
             area: temp_val.to_string(),
             country: temp_val.to_string(),
             voting_center: temp_val.to_string(),
-            num_of_registered_voters: 0,
+            chairperson_name: temp_val.to_string(),
+            poll_clerk_name: temp_val.to_string(),
+            third_member_name: temp_val.to_string(),
         })
     }
 
