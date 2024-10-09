@@ -169,6 +169,11 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
         }
     }, [record?.id])
 
+    const getHeadField = (record: any, field: string) => {
+        const message = JSON.parse(record?.message)
+        return message.statement.head[field]
+    }
+
     const [openExport, setOpenExport] = React.useState(false)
 
     const handleExport = () => {
@@ -222,6 +227,18 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                         }
                     />
                     <TextField source="statement_kind" />
+                    <FunctionField
+                        label="Event Type"
+                        render={(record: any) => getHeadField(record, 'event_type')}
+                    />
+                    <FunctionField
+                        label="Log Type"
+                        render={(record: any) => getHeadField(record, 'log_type')}
+                    />
+                    <FunctionField
+                        label="Description"
+                        render={(record: any) => getHeadField(record, 'description')}
+                    />
                     <TextField source="message" sx={{wordBreak: "break-word"}} />
                 </DatagridConfigurable>
             </List>
