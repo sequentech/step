@@ -16,5 +16,6 @@ pub mod pre_enrolled_users;
 pub mod pre_enrolled_ov_subject_to_manual_validation;
 pub mod pre_enrolled_ov_but_disapproved;
 pub mod ov_users_who_voted;
+pub mod ov_users;
 pub mod template_renderer;
 pub mod utils;
