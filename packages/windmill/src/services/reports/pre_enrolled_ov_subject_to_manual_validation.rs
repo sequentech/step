@@ -20,7 +20,7 @@ pub struct PreEnrolledUserData {
     pub date_pre_enrolled: String, // Philippines time, formatted as string
 }
 
-/// Struct for OV Count Data
+/// Struct for User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
     pub election_start_date: String,
