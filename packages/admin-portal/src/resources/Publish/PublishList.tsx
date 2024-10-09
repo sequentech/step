@@ -91,12 +91,12 @@ export const PublishList: React.FC<TPublishList> = ({
         resource: "sequent_backend_ballot_publication",
         filter: electionId
             ? {
-                election_event_id: electionEventId,
-                election_id: electionId,
-            }
+                  election_event_id: electionEventId,
+                  election_id: electionId,
+              }
             : {
-                election_event_id: electionEventId,
-            },
+                  election_event_id: electionEventId,
+              },
     })
 
     const navigate = useNavigate()
