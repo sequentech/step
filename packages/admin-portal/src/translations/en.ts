@@ -169,7 +169,8 @@ const englishTranslation = {
                 showMore: "Show More",
                 showLess: "Show Less",
                 adminPortal: "Admin Portal",
-                onlyAllowPublishOnlyWhenKeysCeremonySucceeded: "Only allow election event publishing when Keys Ceremony has succeeded",
+                onlyAllowPublishOnlyWhenKeysCeremonySucceeded:
+                    "Only allow election event publishing when Keys Ceremony has succeeded",
             },
             edit: {
                 general: "General",
@@ -1177,6 +1178,9 @@ const englishTranslation = {
             empty: {
                 header: "No Publication Yet.",
                 action: "Generate Publication",
+            },
+            forbidden: {
+                header: "Cannot Publish until the Keys Ceremony is completed.",
             },
             dialog: {
                 title: "Confirm Action",

@@ -74,6 +74,9 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         const record = useRecordContext<Sequent_Backend_Election_Event | Sequent_Backend_Election>()
         const refresh = useRefresh()
 
+        const canPublish =
+            !record.presentation?.allow_publishing_only_when_key_ceremony_has_succeeded
+
         const [generateData, setGenerateData] = useState<GetBallotPublicationChangesOutput | null>(
             null
         )
@@ -344,6 +347,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                 {viewMode === ViewMode.List && (
                     <PublishList
                         status={publishStatus}
+                        canPublish={canPublish}
                         canRead={canRead}
                         canWrite={canWrite}
                         changingStatus={changingStatus}

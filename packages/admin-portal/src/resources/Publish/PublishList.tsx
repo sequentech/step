@@ -39,6 +39,7 @@ type TPublishList = {
     status: PublishStatus
     electionId?: number | string
     electionEventId: number | string | undefined
+    canPublish: boolean
     canRead: boolean
     canWrite: boolean
     changingStatus: boolean
@@ -51,6 +52,7 @@ export const PublishList: React.FC<TPublishList> = ({
     status,
     electionId,
     electionEventId,
+    canPublish,
     canRead,
     canWrite,
     changingStatus,
@@ -59,6 +61,14 @@ export const PublishList: React.FC<TPublishList> = ({
     setBallotPublicationId = () => null,
 }) => {
     const {t} = useTranslation()
+
+    const Forbidden = () => (
+        <ResourceListStyles.EmptyBox>
+            <Typography variant="h4" paragraph>
+                {t("publish.forbidden.header")}
+            </Typography>
+        </ResourceListStyles.EmptyBox>
+    )
 
     const Empty = () => (
         <ResourceListStyles.EmptyBox>
@@ -85,6 +95,10 @@ export const PublishList: React.FC<TPublishList> = ({
             action: setBallotPublicationId,
         },
     ]
+
+    if (!canPublish) {
+        return <Forbidden />
+    }
 
     if (!canRead) {
         return <Empty />

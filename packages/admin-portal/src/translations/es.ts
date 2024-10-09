@@ -170,7 +170,8 @@ const spanishTranslation: TranslationType = {
                 showMore: "Mostrar más",
                 showLess: "Mostrar menos",
                 adminPortal: "Admin Portal",
-                onlyAllowPublishOnlyWhenKeysCeremonySucceeded: "Only allow election event publishing when Keys Ceremony has succeeded",
+                onlyAllowPublishOnlyWhenKeysCeremonySucceeded:
+                    "Only allow election event publishing when Keys Ceremony has succeeded",
             },
             edit: {
                 general: "General",
@@ -1177,6 +1178,9 @@ const spanishTranslation: TranslationType = {
             empty: {
                 header: "Ninguna Publicación aún.",
                 action: "Generar Publicación",
+            },
+            forbidden: {
+                header: "Cannot Publish until the Keys Ceremony is completed.",
             },
             dialog: {
                 title: "Confirmar Acción",

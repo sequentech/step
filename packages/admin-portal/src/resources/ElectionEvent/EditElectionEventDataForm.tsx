@@ -1112,13 +1112,13 @@ export const EditElectionEventDataForm: React.FC = () => {
                                             display: {xs: "none", sm: "block"},
                                         }}
                                     >
-                                        {t(
-                                            "electionEventScreen.common.adminPortal"
-                                        )}
+                                        {t("electionEventScreen.common.adminPortal")}
                                     </Typography>
                                     <Box>
                                         <BooleanInput
-                                            source={"presentation.allow_publishing_only_when_key_ceremony_has_succeeded"}
+                                            source={
+                                                "presentation.allow_publishing_only_when_key_ceremony_has_succeeded"
+                                            }
                                             label={t(
                                                 "electionEventScreen.common.onlyAllowPublishOnlyWhenKeysCeremonySucceeded"
                                             )}

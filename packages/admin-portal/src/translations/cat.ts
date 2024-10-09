@@ -170,7 +170,8 @@ const catalanTranslation: TranslationType = {
                 showMore: "Mostra'n més",
                 showLess: "Mostra'n menys",
                 adminPortal: "Admin Portal",
-                onlyAllowPublishOnlyWhenKeysCeremonySucceeded: "Only allow election event publishing when Keys Ceremony has succeeded",
+                onlyAllowPublishOnlyWhenKeysCeremonySucceeded:
+                    "Only allow election event publishing when Keys Ceremony has succeeded",
             },
             edit: {
                 general: "General",
@@ -1178,6 +1179,9 @@ const catalanTranslation: TranslationType = {
             empty: {
                 header: "Encara no hi ha Publicació.",
                 action: "Generar Publicació",
+            },
+            forbidden: {
+                header: "Cannot Publish until the Keys Ceremony is completed.",
             },
             dialog: {
                 title: "Confirmar Acció",

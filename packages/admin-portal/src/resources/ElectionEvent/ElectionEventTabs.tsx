@@ -95,8 +95,6 @@ export const ElectionEventTabs: React.FC = () => {
         authContext.tenantId,
         IPermissions.PUBLISH_READ
     )
-    // FIXME: identify when the Key ceremony has succeeded
-    const disablePublish = record.presentation?.allow_publishing_only_when_key_ceremony_has_succeeded
     const showLogs = authContext.isAuthorized(true, authContext.tenantId, IPermissions.LOGS_READ)
     const showTasksExecution = authContext.isAuthorized(
         true,
@@ -252,7 +250,7 @@ export const ElectionEventTabs: React.FC = () => {
                         <Tab label={t("electionEventScreen.tabs.tally")} value={6} />
                     ) : null}
                     {showPublish ? (
-                        <Tab label={t("electionEventScreen.tabs.publish")} disabled={disablePublish} value={7} />
+                        <Tab label={t("electionEventScreen.tabs.publish")} value={7} />
                     ) : null}
                     {showTasksExecution ? (
                         <Tab label={t("electionEventScreen.tabs.tasks")} value={8} />

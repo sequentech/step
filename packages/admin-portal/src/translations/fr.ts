@@ -170,7 +170,8 @@ const frenchTranslation: TranslationType = {
                 showMore: "Afficher plus",
                 showLess: "Afficher moins",
                 adminPortal: "Admin Portal",
-                onlyAllowPublishOnlyWhenKeysCeremonySucceeded: "Only allow election event publishing when Keys Ceremony has succeeded",
+                onlyAllowPublishOnlyWhenKeysCeremonySucceeded:
+                    "Only allow election event publishing when Keys Ceremony has succeeded",
             },
             edit: {
                 general: "Général",
@@ -1184,6 +1185,9 @@ const frenchTranslation: TranslationType = {
             empty: {
                 header: "Aucune Publication pour l'instant.",
                 action: "Générer Publication",
+            },
+            forbidden: {
+                header: "Cannot Publish until the Keys Ceremony is completed.",
             },
             dialog: {
                 title: "Confirmer Action",

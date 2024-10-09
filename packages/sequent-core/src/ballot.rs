@@ -602,7 +602,7 @@ pub struct ElectionEventPresentation {
     pub voting_portal_countdown_policy: Option<VotingPortalCountdownPolicy>,
     pub custom_urls: Option<CustomUrls>,
     pub active_template_ids: Option<ActiveTemplateIds>,
-    pub allow_publishing_only_when_key_ceremony_has_succeeded: Option<bool>, // default is false
+    pub allow_publishing_only_when_key_ceremony_has_succeeded: Option<bool>, /* default is false */
 }
 
 #[allow(non_camel_case_types)]

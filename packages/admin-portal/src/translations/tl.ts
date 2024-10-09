@@ -171,7 +171,8 @@ const tagalogTranslation: TranslationType = {
                 showMore: "Lakihan ang nakikita",
                 showLess: "Bawasan ang nakikita",
                 adminPortal: "Admin Portal",
-                onlyAllowPublishOnlyWhenKeysCeremonySucceeded: "Only allow election event publishing when Keys Ceremony has succeeded",
+                onlyAllowPublishOnlyWhenKeysCeremonySucceeded:
+                    "Only allow election event publishing when Keys Ceremony has succeeded",
             },
             edit: {
                 general: "Pangkalahatan",
@@ -1185,6 +1186,9 @@ const tagalogTranslation: TranslationType = {
             empty: {
                 header: "Walang Paglalathala Pa.",
                 action: "Lumikha ng Paglalathala",
+            },
+            forbidden: {
+                header: "Cannot Publish until the Keys Ceremony is completed.",
             },
             dialog: {
                 title: "Kumpirmahin ang Aksyon",
