@@ -20,6 +20,7 @@ use crate::ballot::VotingPeriodDates;
 pub enum EventProcessors {
     CREATE_REPORT,
     SEND_TEMPLATE,
+    START_INITIALIZATION_REPORT_PERIOD,
     START_VOTING_PERIOD,
     END_VOTING_PERIOD,
     START_ENROLLMENT_PERIOD,
