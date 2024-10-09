@@ -25,6 +25,7 @@ use std::fs::File;
 use std::io::Cursor;
 use std::io::Seek;
 use std::io::{self, Read, Write};
+use std::path::Path;
 use tempfile::NamedTempFile;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
@@ -32,8 +33,11 @@ use zip::read::ZipArchive;
 
 use super::consolidation::aes_256_cbc_encrypt::decrypt_file_aes_256_cbc;
 use super::documents;
+use super::documents::upload_and_return_document;
 use super::election_event_board::get_election_event_board;
 use super::electoral_log::ElectoralLog;
+use super::import_users::import_users_file;
+use super::temp_path::get_file_size;
 use crate::hasura::election_event::get_election_event;
 use crate::hasura::election_event::insert_election_event as insert_election_event_hasura;
 use crate::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
@@ -445,8 +449,29 @@ pub async fn process_election_event_file(
     Ok(data)
 }
 
-fn process_voters_file(temp_file: &NamedTempFile) -> Result<()> {
-    //TODO: implement processing of voters file
+async fn process_voters_file(
+    hasura_transaction: &Transaction<'_>,
+    temp_file: &NamedTempFile,
+    file_name: &String,
+    election_event_id: Option<String>,
+    tenant_id: String,
+) -> Result<()> {
+    let separator = if file_name.ends_with(".tsv") {
+        b'\t'
+    } else {
+        b','
+    };
+
+    import_users_file(
+        hasura_transaction,
+        temp_file,
+        separator,
+        election_event_id,
+        tenant_id,
+    )
+    .await
+    .map_err(|err| anyhow!("Error importing users file: {err}"))?;
+
     Ok(())
 }
 
@@ -459,6 +484,52 @@ async fn process_activity_logs_file(
 
     let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
     electoral_log.import_from_csv(temp_file).await?;
+
+    Ok(())
+}
+
+pub async fn process_s3_files(
+    temp_dir_path: &Path,
+    election_event_id: String,
+    tenant_id: String,
+) -> Result<()> {
+    let auth_headers = get_client_credentials().await?;
+
+    // Ensure that the path is a directory
+    if !temp_dir_path.is_dir() {
+        return Err(anyhow!("Expected a directory but found something else"));
+    }
+
+    // Iterate over all files in the temp directory
+    for entry in fs::read_dir(temp_dir_path)? {
+        let entry = entry?;
+        let path = entry.path();
+
+        // Process each file in the directory
+        if path.is_file() {
+            let temp_path_string = path.to_str().unwrap().to_string();  // Use the path for the current file
+            let file_size = get_file_size(temp_path_string.as_str())
+                .with_context(|| format!("Error obtaining file size for {}", temp_path_string))?;
+
+            let file_name = path.file_name()
+                .ok_or(anyhow!("Error getting file name"))?
+                .to_string_lossy()
+                .to_string();  // Convert OsStr to String
+
+            // Upload the file and return the document
+            let _document = upload_and_return_document(
+                temp_path_string,  
+                file_size,  
+                "application/pdf".to_string(), // TODO: fix media type
+                auth_headers.clone(),    
+                tenant_id.to_string(),   
+                election_event_id.to_string(),      
+                format!("vote-receipt-{}.pdf", file_name),   // TODO: fix name
+                None,  
+                false,                              
+            ).await?;
+        }
+    }
 
     Ok(())
 }
@@ -507,6 +578,27 @@ pub async fn process_document(
         .await??;
 
         for (file_name, mut file_contents) in zip_entries {
+            if file_name.contains("s3") {
+                // Create a temporary directory to store the extracted files
+                let temp_dir = tempfile::tempdir().context("Failed to create temporary directory")?;
+                let temp_dir_path = temp_dir.path().to_path_buf();
+        
+                // Write the file contents to a new file within this directory
+                let file_path = temp_dir_path.join(file_name.clone());
+                let mut file = std::fs::File::create(&file_path)
+                    .context(format!("Failed to create file: {:?}", file_path))?;
+        
+                io::copy(&mut &file_contents[..], &mut file)
+                    .context("Failed to copy S3 contents to temporary file")?;
+        
+                // process the directory instead of a single file
+                process_s3_files(
+                    &file_path,
+                    election_event_schema.election_event.id.clone(),
+                    election_event_schema.tenant_id.to_string(),
+                ).await?;
+            }
+            
             let file = &mut file_contents[..];
             let mut cursor = Cursor::new(file);
             let mut temp_file =
@@ -525,7 +617,13 @@ pub async fn process_document(
             }
 
             if file_name.contains("voters") {
-                process_voters_file(&temp_file)?;
+                process_voters_file(
+                    &hasura_transaction,
+                    &temp_file,
+                    &file_name,
+                    Some(election_event_schema.election_event.id.clone()),
+                    election_event_schema.tenant_id.to_string(),
+                ).await?;
             }
         }
     };

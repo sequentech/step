@@ -141,7 +141,7 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
 
     match import_users_file(
         &hasura_transaction,
-        voters_file,
+        &voters_file,
         separator,
         body.election_event_id,
         body.tenant_id,
