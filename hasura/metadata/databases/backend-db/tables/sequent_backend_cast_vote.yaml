@@ -35,6 +35,8 @@ insert_permissions:
               _eq: X-Hasura-Area-Id
           - tenant_id:
               _eq: X-Hasura-Tenant-Id
+          - election_id:
+              _in: X-Hasura-Authorized-Election-Ids
       set:
         voter_id_string: x-hasura-User-Id
       columns:
@@ -138,6 +140,8 @@ select_permissions:
               _eq: X-Hasura-Tenant-Id
           - voter_id_string:
               _eq: X-Hasura-User-Id
+          - election_id:
+              _in: X-Hasura-Authorized-Election-Ids
       allow_aggregations: true
     comment: ""
 update_permissions:

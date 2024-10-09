@@ -16,8 +16,8 @@ use crate::util::aws::get_max_upload_size;
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction as _};
-use sequent_core::services::keycloak;
 use sequent_core::services::keycloak::KeycloakAdminClient;
+use sequent_core::services::keycloak::{self, MULTIVALUE_USER_ATTRIBUTE_SEPARATOR};
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::keycloak::{User, UserProfileAttribute};
@@ -138,8 +138,12 @@ fn get_user_record(
     for attr in user_attributes {
         match &attr.name {
             Some(name) => {
-                if (!USER_FIELDS.contains(&name.as_str())) {
-                    user_info.push(user.get_attribute_val(name).unwrap_or("-".to_string()))
+                if !USER_FIELDS.contains(&name.as_str()) {
+                    if let Some(true) = &attr.multivalued {
+                        user_info.push(user.get_attribute_multival(name).unwrap_or("-".to_string()))
+                    } else {
+                        user_info.push(user.get_attribute_val(name).unwrap_or("-".to_string()))
+                    }
                 }
             }
             _ => (),

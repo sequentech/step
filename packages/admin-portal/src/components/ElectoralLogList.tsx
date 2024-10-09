@@ -160,15 +160,15 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
 
         // Reset filters when the component mounts
         if (listContext && listContext.setFilters) {
-            listContext.setFilters({}, {})
+            listContext.setFilters(
+                {
+                    election_event_id: record?.id || undefined,
+                },
+                {}
+            )
         }
-        return () => {
-            // Reset filters when the component unmounts
-            if (listContext && listContext.setFilters) {
-                listContext.setFilters({}, {})
-            }
-        }
-    }, [])
+    }, [record?.id])
+
     const [openExport, setOpenExport] = React.useState(false)
 
     const handleExport = () => {
