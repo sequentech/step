@@ -106,10 +106,10 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
     // Avoid error when coming from filtered list in other tabs
     const listContext = useListController({
         resource: "sequent_backend_area",
-        filter: {
-            tenant_id: tenantId || undefined,
-            election_event_id: record?.id || undefined,
-        },
+        // filter: {
+        //     tenant_id: tenantId || undefined,
+        //     election_event_id: record?.id || undefined,
+        // },
     })
 
     const navigate = useNavigate()
@@ -247,7 +247,8 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
     ]
 
     // check if data array is empty
-    const {data, isLoading} = listContext
+    const {data, isLoading, displayedFilters} = listContext
+    console.log("LC", listContext)
 
     if (!canView) {
         return <Empty />
@@ -255,7 +256,8 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
 
     return (
         <>
-            {(!isLoading && (!data || data.length)) === 0 ? (
+            {(!isLoading && (!data || data.length)) === 0 &&
+            Object.keys(displayedFilters).length === 0 ? (
                 <Empty />
             ) : (
                 <>
