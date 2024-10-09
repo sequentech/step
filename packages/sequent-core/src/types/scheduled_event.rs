@@ -22,6 +22,10 @@ pub enum EventProcessors {
     SEND_TEMPLATE,
     START_VOTING_PERIOD,
     END_VOTING_PERIOD,
+    START_ENROLLMENT_PERIOD,
+    END_ENROLLMENT_PERIOD,
+    START_LOCKDOWN_PERIOD,
+    END_LOCKDOWN_PERIOD,
 }
 
 #[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Clone)]

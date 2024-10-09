@@ -52,6 +52,10 @@ pub async fn process_scheduled_event(
         }
         EventProcessors::START_VOTING_PERIOD => {}
         EventProcessors::END_VOTING_PERIOD => {}
+        EventProcessors::START_ENROLLMENT_PERIOD => {}
+        EventProcessors::END_ENROLLMENT_PERIOD => {}
+        EventProcessors::START_LOCKDOWN_PERIOD => {}
+        EventProcessors::END_LOCKDOWN_PERIOD => {}
     }
     Ok(element_id)
 }

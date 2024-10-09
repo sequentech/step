@@ -43,13 +43,13 @@ interface CreateEventProps {
 }
 
 export enum EventProcessors {
+    START_INITIALIZATION_REPORT_PERIOD = "START_INITIALIZATION_REPORT_PERIOD",
     START_VOTING_PERIOD = "START_VOTING_PERIOD",
     END_VOTING_PERIOD = "END_VOTING_PERIOD",
     START_ENROLLMENT_PERIOD = "START_ENROLLMENT_PERIOD",
     END_ENROLLMENT_PERIOD = "END_ENROLLMENT_PERIOD",
     START_LOCKDOWN_PERIOD = "START_LOCKDOWN_PERIOD",
     END_LOCKDOWN_PERIOD = "END_LOCKDOWN_PERIOD",
-    START_ALLOW_TALLY = "START_ALLOW_TALLY",
 }
 
 const CreateEvent: FC<CreateEventProps> = ({
@@ -94,7 +94,6 @@ const CreateEvent: FC<CreateEventProps> = ({
         switch (event_processor) {
             case EventProcessors.START_VOTING_PERIOD:
             case EventProcessors.END_VOTING_PERIOD:
-            case EventProcessors.START_ALLOW_TALLY:
                 return false
             case EventProcessors.START_ENROLLMENT_PERIOD:
             case EventProcessors.END_ENROLLMENT_PERIOD:
@@ -192,7 +191,7 @@ const CreateEvent: FC<CreateEventProps> = ({
                             label={t("eventsScreen.election.label")}
                             onSelectElection={(electionId) => setElectionId(electionId)}
                             source="event_payload.election_id"
-                            disabled={!targetsElectionEvent(eventType as EventProcessors) || isEditEvent || isLoading}
+                            disabled={targetsElectionEvent(eventType as EventProcessors) || isEditEvent || isLoading}
                             value={electionId}
                         />
                     )}

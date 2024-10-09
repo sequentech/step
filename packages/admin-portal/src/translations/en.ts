@@ -622,6 +622,7 @@ const englishTranslation = {
                 END_ENROLLMENT_PERIOD: "End Enrollment Period",
                 START_LOCKDOWN_PERIOD: "Start Lockdown Period",
                 END_LOCKDOWN_PERIOD: "End Lockdown Period",
+                START_ALLOW_TALLY_PERIOD: "Start Allow Tally Period",
             },
             election: {
                 label: "Election",
