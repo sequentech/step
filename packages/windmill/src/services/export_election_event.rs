@@ -8,6 +8,7 @@ use crate::postgres::contest::export_contests;
 use crate::postgres::election::export_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
+use crate::postgres::template::get_templates_by_tenant_id;
 use crate::services::database::get_hasura_pool;
 use crate::services::import_election_event::ImportElectionEventSchema;
 use anyhow::{anyhow, Result};
@@ -32,7 +33,7 @@ pub async fn read_export_data(
     let other_client = KeycloakAdminClient::pub_new().await?;
     let board_name = get_event_realm(tenant_id, election_event_id);
     let realm = client.get_realm(&other_client, &board_name).await?;
-    let (election_event, elections, contests, candidates, areas, area_contests, scheduled_events) =
+    let (election_event, elections, contests, candidates, areas, area_contests, scheduled_events, templates) =
         try_join!(
             get_election_event_by_id(&transaction, tenant_id, election_event_id),
             export_elections(&transaction, tenant_id, election_event_id),
@@ -41,6 +42,7 @@ pub async fn read_export_data(
             get_event_areas(&transaction, tenant_id, election_event_id),
             export_area_contests(&transaction, tenant_id, election_event_id),
             find_scheduled_event_by_election_event_id(&transaction, tenant_id, election_event_id),
+            get_templates_by_tenant_id(&transaction, tenant_id)
         )?;
 
     Ok(ImportElectionEventSchema {
@@ -53,6 +55,7 @@ pub async fn read_export_data(
         areas: areas,
         area_contests: area_contests,
         scheduled_events: scheduled_events,
+        templates: templates,
     })
 }
 

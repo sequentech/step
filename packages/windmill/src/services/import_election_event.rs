@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::postgres::template::insert_templates;
 use crate::services::tasks_execution::update_fail;
 use ::keycloak::types::RealmRepresentation;
 use anyhow::{anyhow, Context, Result};
@@ -20,6 +21,7 @@ use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClie
 use sequent_core::services::replace_uuids::replace_uuids;
 use sequent_core::types::hasura::core::AreaContest;
 use sequent_core::types::hasura::core::TasksExecution;
+use sequent_core::types::hasura::core::Template;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use std::env;
@@ -62,6 +64,7 @@ pub struct ImportElectionEventSchema {
     pub areas: Vec<Area>,
     pub area_contests: Vec<AreaContest>,
     pub scheduled_events: Vec<ScheduledEvent>,
+    pub templates: Vec<Template>,
 }
 
 #[instrument(err)]
@@ -347,6 +350,10 @@ pub async fn process(
     )
     .await
     .with_context(|| "Error inserting area contests")?;
+
+    insert_templates(hasura_transaction, &data.templates)
+        .await
+        .with_context(|| "Error inserting templates")?;
 
     Ok(())
 }
