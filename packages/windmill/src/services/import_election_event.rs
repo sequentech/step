@@ -12,11 +12,13 @@ use sequent_core::ballot::ElectionStatistics;
 use sequent_core::ballot::ElectionStatus;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::connection;
+use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClient};
 use sequent_core::services::replace_uuids::replace_uuids;
 use sequent_core::types::hasura::core::AreaContest;
 use sequent_core::types::hasura::core::Document;
+use sequent_core::util::mime::get_mime_type;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use std::env;
@@ -28,7 +30,7 @@ use std::io::Seek;
 use std::io::{self, Read, Write};
 use std::path::Path;
 use tempfile::NamedTempFile;
-use tracing::{event, instrument, Level};
+use tracing::{event, instrument, info, Level};
 use uuid::Uuid;
 use zip::read::ZipArchive;
 
@@ -39,7 +41,6 @@ use super::election_event_board::get_election_event_board;
 use super::electoral_log::ElectoralLog;
 use super::import_users::import_users_file;
 use super::temp_path::get_file_size;
-use super::temp_path::write_into_named_temp_file;
 use crate::hasura::election_event::get_election_event;
 use crate::hasura::election_event::insert_election_event as insert_election_event_hasura;
 use crate::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
@@ -54,6 +55,7 @@ use crate::postgres::scheduled_event::insert_scheduled_event;
 use crate::services::election_event_board::BoardSerializable;
 use crate::services::jwks::upsert_realm_jwks;
 use crate::services::protocol_manager::{create_protocol_manager_keys, get_board_client};
+use crate::services::temp_path::generate_temp_file;
 use crate::tasks::import_election_event::ImportElectionEventBody;
 use sequent_core::types::hasura::core::{Area, Candidate, Contest, Election, ElectionEvent};
 use sequent_core::types::scheduled_event::*;
@@ -491,47 +493,34 @@ async fn process_activity_logs_file(
 }
 
 pub async fn process_s3_files(
-    temp_dir_path: &Path,
+    temp_file_path: &NamedTempFile,
     election_event_id: String,
     tenant_id: String,
+    auth_headers: AuthHeaders,
 ) -> Result<()> {
-    let auth_headers = get_client_credentials().await?;
+    // Process each file in the directory
+    let file_path_string = temp_file_path.path().to_string_lossy().to_string();
 
-    // Ensure that the path is a directory
-    if !temp_dir_path.is_dir() {
-        return Err(anyhow!("Expected a directory but found something else"));
-    }
+    println!(" --------- file_path_string: {:?}", file_path_string);
+    let file_size = get_file_size(file_path_string.as_str())
+        .with_context(|| format!("Error obtaining file size for {}", file_path_string))?;
 
-    // Iterate over all files in the temp directory
-    for entry in fs::read_dir(temp_dir_path)? {
-        let entry = entry?;
-        let path = entry.path();
+    let file_suffix = Path::new(&file_path_string).extension().unwrap().to_str().unwrap();
+    let document_type = get_mime_type(file_suffix);
 
-        // Process each file in the directory
-        if path.is_file() {
-            let temp_path_string = path.to_str().unwrap().to_string();  // Use the path for the current file
-            let file_size = get_file_size(temp_path_string.as_str())
-                .with_context(|| format!("Error obtaining file size for {}", temp_path_string))?;
-
-            let file_name = path.file_name()
-                .ok_or(anyhow!("Error getting file name"))?
-                .to_string_lossy()
-                .to_string();  // Convert OsStr to String
-
-            // Upload the file and return the document
-            let _document = upload_and_return_document(
-                temp_path_string,  
-                file_size,  
-                "application/pdf".to_string(), // TODO: fix media type
-                auth_headers.clone(),    
-                tenant_id.to_string(),   
-                election_event_id.to_string(),      
-                format!("vote-receipt-{}.pdf", file_name),   // TODO: fix name
-                None,  
-                false,                              
-            ).await?;
-        }
-    }
+    // Upload the file and return the document
+    let _document = upload_and_return_document(
+        file_path_string.clone(),
+        file_size,
+        document_type.to_string(),
+        auth_headers.clone(),
+        tenant_id.to_string(),
+        election_event_id.to_string(),
+        file_path_string, // TODO: fix name
+        None,
+        false,
+    )
+    .await?;
 
     Ok(())
 }
@@ -579,32 +568,16 @@ pub async fn process_document(
         })
         .await??;
 
+        let auth_headers = get_client_credentials().await?;
+
         for (file_name, mut file_contents) in zip_entries {
-            if file_name.contains("s3") {
-                // Create a temporary directory to store the extracted files
-                let temp_dir = tempfile::tempdir().context("Failed to create temporary directory")?;
-                let temp_dir_path = temp_dir.path().to_path_buf();
-        
-                // Write the file contents to a new file within this directory
-                let file_path = temp_dir_path.join(file_name.clone());
-                let mut file = std::fs::File::create(&file_path)
-                    .context(format!("Failed to create file: {:?}", file_path))?;
-        
-                io::copy(&mut &file_contents[..], &mut file)
-                    .context("Failed to copy S3 contents to temporary file")?;
-        
-                // process the directory instead of a single file
-                process_s3_files(
-                    &file_path,
-                    election_event_schema.election_event.id.clone(),
-                    election_event_schema.tenant_id.to_string(),
-                ).await?;
-            }
+            info!("Importing file: {:?}", file_name);
 
             let mut cursor = Cursor::new(&mut file_contents[..]);
 
             if file_name.contains("activity_logs") {
-                let mut temp_file = NamedTempFile::new().context("Failed to create activity logs temporary file")?;
+                let mut temp_file = NamedTempFile::new()
+                    .context("Failed to create activity logs temporary file")?;
 
                 io::copy(&mut cursor, &mut temp_file)
                     .context("Failed to copy contents of activity logs to temporary file")?;
@@ -617,35 +590,25 @@ pub async fn process_document(
                 .await?;
             }
 
-            println!("------------ file_name: {:?}", file_name);
             if file_name.contains("/voters.csv") {
-                // let mut file = File::create("/tmp/voters.csv")?;
                 let mut file = OpenOptions::new()
-                    .read(true) 
+                    .read(true)
                     .write(true)
-                    .create(true)    // Create the file if it doesn't exist
-                    .truncate(true)  // Truncate the file to 0 length if it exists
+                    .create(true) 
+                    .truncate(true) 
                     .open("/tmp/voters.csv")?;
-                let mut buffer = [0u8; 1024];           
-                println!("------------  11111");
-                while let Ok(size) = cursor.read(&mut buffer) {
+                let mut buffer = [0u8; 1024];
+
+                while let Ok(size) = cursor.read(&mut buffer) { //TODO: maybe not needed
                     if size == 0 {
                         break; // End of file
                     }
-                    file
-                        .write_all(&buffer[..size])
+                    file.write_all(&buffer[..size])
                         .with_context(|| "Error writting to the text file")?;
                 }
-                println!("------------  122222");
 
-                file.sync_all().with_context(|| "Error flushing the file to disk")?;
-    
-                file.seek(std::io::SeekFrom::Start(0))?;
-                println!("------------ file_contents: {:?}", std::str::from_utf8(file_contents.as_slice()));
-
-                file.seek(std::io::SeekFrom::Start(0))?;
-                let file_contents2 = std::fs::read("/tmp/voters.csv")?;
-                println!("------------ file_contents2: {:?}", file_contents2);
+                file.sync_all()
+                    .with_context(|| "Error flushing the file to disk")?;
 
                 file.seek(std::io::SeekFrom::Start(0))?;
                 process_voters_file(
@@ -654,7 +617,39 @@ pub async fn process_document(
                     &file_name,
                     Some(election_event_schema.election_event.id.clone()),
                     election_event_schema.tenant_id.to_string(),
-                ).await?;
+                )
+                .await?;
+            }
+
+            if file_name.contains("/s3-files/") {
+                let folder_path: Vec<_> = file_name.split("/").collect();
+                // Skips the OS created files
+                if (folder_path[1] == "s3-files") {
+                    continue;
+                }
+
+                // Write the file contents to a new file within this directory
+                let mut temp_file =
+                    generate_temp_file(&folder_path[1], &folder_path[folder_path.len() - 1])
+                        .context("Error generating temp file")?;
+
+                // let mut file = std::fs::File::create(&file_path)
+                //     .context(format!("Failed to create file: {:?}", file_path))?;
+
+                // io::copy(&mut &file_contents[..], &mut file)
+                //     .context("Failed to copy S3 contents to temporary file")?;
+                io::copy(&mut cursor, &mut temp_file)
+                    .context("Failed to copy S3 contents to temporary file")?;
+                temp_file.as_file_mut().rewind()?;
+
+                // process the directory instead of a single file
+                process_s3_files(
+                    &temp_file,
+                    election_event_schema.election_event.id.clone(),
+                    election_event_schema.tenant_id.to_string(),
+                    auth_headers.clone(),
+                )
+                .await?;
             }
         }
     };

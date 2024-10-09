@@ -449,23 +449,6 @@ pub async fn import_users_file(
         .delimiter(separator)
         .from_reader(voters_file);
 
-    println!("rdr = {:?},", rdr);
-    /*
-    good rdr:
-    rdr = Reader { core: Reader { dfa: Dfa(N/A), dfa_state: DfaState(0), nfa_state: StartRecord, delimiter: 44, term: CRLF, quote: 34, escape: None, double_quote: true, comment: None, quoting: true, use_nfa: false, line: 1, has_read: false, output_pos: 0 }, 
-    rdr: BufReader { reader: File { fd: 15, path: "/tmp/voters.csvL6ATXSaA1DmU.tmp (deleted)", read: true, write: true }, buffer: 0/8192 }, 
-    state: ReaderState { headers: None, has_headers: true, flexible: false, trim: None, first_field_count: None, cur_pos: Position { byte: 0, line: 1, record: 0 }, first: false, seeked: false, eof: NotEof } },
-    bad rdr:
-    rdr = Reader { core: Reader { dfa: Dfa(N/A), dfa_state: DfaState(0), nfa_state: StartRecord, delimiter: 44, term: CRLF, quote: 34, escape: None, double_quote: true, comment: None, quoting: true, use_nfa: false, line: 1, has_read: false, output_pos: 0 }, 
-    rdr: BufReader { reader: File { fd: 12, path: "/tmp/voters.csv", read: true, write: true }, buffer: 0/8192 }, 
-    state: ReaderState { headers: None, has_headers: true, flexible: false, trim: None, first_field_count: None, cur_pos: Position { byte: 0, line: 1, record: 0 }, first: false, seeked: false, eof: NotEof } },
-
-
-
-    rdr = Reader { core: Reader { dfa: Dfa(N/A), dfa_state: DfaState(0), nfa_state: StartRecord, delimiter: 44, term: CRLF, quote: 34, escape: None, double_quote: true, comment: None, quoting: true, use_nfa: false, line: 1, has_read: false, output_pos: 0 }, 
-    rdr: BufReader { reader: File { fd: 14, path: "/tmp/voters.csv", read: false, write: true }, buffer: 0/8192 }, 
-    state: ReaderState { headers: None, has_headers: true, flexible: false, trim: None, first_field_count: None, cur_pos: Position { byte: 0, line: 1, record: 0 }, first: false, seeked: false, eof: NotEof } },
-     */
     let headers = match rdr.headers() {
         Ok(headers) => headers.clone(),
         Err(err) => {
@@ -474,8 +457,6 @@ pub async fn import_users_file(
             )));
         }
     };
-    
-    //headers: StringRecord(["email", "email_verified", "enabled", "first_name", "last_name", "username", "area_name", "middleName", "suffix", "birthDate"])
 
     // Validate headers
     info!("headers: {headers:?}");
@@ -503,18 +484,6 @@ pub async fn import_users_file(
             )));
         }
     };
-    println!(
-        "------------ voters_table_input_columns_names = {:?},",
-        voters_table_input_columns_names
-    );
-    println!(
-        "------------ voters_table_processed_columns_names = {:?},",
-        voters_table_processed_columns_names
-    );
-    println!(
-        "------------ voters_table_processed_columns_types = {:?},",
-        voters_table_processed_columns_types
-    );
 
     let realm_name = match election_event_id {
         Some(ref event_id) => get_event_realm(tenant_id.as_str(), event_id.as_str()),

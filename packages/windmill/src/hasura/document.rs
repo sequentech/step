@@ -44,6 +44,7 @@ pub async fn insert_document(
         size,
         is_public,
     };
+
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
     let request_body = InsertDocument::build_query(variables);
