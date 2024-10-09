@@ -90,16 +90,16 @@ const CreateEvent: FC<CreateEventProps> = ({
                   EventProcessors.START_VOTING_PERIOD
             : EventProcessors.START_VOTING_PERIOD
     )
-    const targetsElectionEvent = (event_processor: EventProcessors) => {
+    const targetsElection = (event_processor: EventProcessors) => {
         switch (event_processor) {
             case EventProcessors.START_VOTING_PERIOD:
             case EventProcessors.END_VOTING_PERIOD:
-                return false
+                return true
             case EventProcessors.START_ENROLLMENT_PERIOD:
             case EventProcessors.END_ENROLLMENT_PERIOD:
             case EventProcessors.START_LOCKDOWN_PERIOD:
             case EventProcessors.END_LOCKDOWN_PERIOD:
-                return true
+                return false
         }
     }
 
@@ -109,7 +109,7 @@ const CreateEvent: FC<CreateEventProps> = ({
             let variables: ManageElectionDatesMutationVariables = {
                 electionEventId: electionEventId,
                 electionId:
-                    !targetsElectionEvent(eventType as EventProcessors) &&
+                    targetsElection(eventType as EventProcessors) &&
                     electionId &&
                     electionId.length > 0
                         ? electionId
@@ -192,19 +192,17 @@ const CreateEvent: FC<CreateEventProps> = ({
                             value={selectedEvent ? getElectionName(selectedEvent) : "-"}
                         />
                     ) : (
-                        <SelectElection
-                            tenantId={tenantId}
-                            electionEventId={electionEventId}
-                            label={t("eventsScreen.election.label")}
-                            onSelectElection={(electionId) => setElectionId(electionId)}
-                            source="event_payload.election_id"
-                            disabled={
-                                targetsElectionEvent(eventType as EventProcessors) ||
-                                isEditEvent ||
-                                isLoading
-                            }
-                            value={electionId}
-                        />
+                        targetsElection(eventType as EventProcessors) && (
+                            <SelectElection
+                                tenantId={tenantId}
+                                electionEventId={electionEventId}
+                                label={t("eventsScreen.election.label")}
+                                onSelectElection={(electionId) => setElectionId(electionId)}
+                                source="event_payload.election_id"
+                                disabled={isEditEvent || isLoading}
+                                value={electionId}
+                            />
+                        )
                     )}
                 </FormControl>
                 <DateTimeInput
