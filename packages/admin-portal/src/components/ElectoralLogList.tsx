@@ -171,7 +171,12 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
 
     const getHeadField = (record: any, field: string) => {
         const message = JSON.parse(record?.message)
-        if (!message || !message.statement || !message.statement.head || !message.statement.head[field]) {
+        if (
+            !message ||
+            !message.statement ||
+            !message.statement.head ||
+            !message.statement.head[field]
+        ) {
             return <span>-</span>
         }
         return message.statement.head[field]
