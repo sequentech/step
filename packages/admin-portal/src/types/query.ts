@@ -31,6 +31,7 @@ import {
     Sequent_Backend_Tally_Sheet,
     Sequent_Backend_Tenant,
     Sequent_Backend_Trustee,
+    Sequent_Backend_Tasks_Execution,
 } from "@/gql/graphql"
 
 export const sequent_backend_trustee: Sequent_Backend_Trustee = {
@@ -538,6 +539,25 @@ export const sequent_backend_scheduled_event: Sequent_Backend_Scheduled_Event = 
     tenant_id: undefined,
 }
 
+export const sequent_backend_tasks_execution: Sequent_Backend_Tasks_Execution = {
+    __typename: undefined,
+    annotations: undefined,
+    created_at: undefined,
+    election_event_id: undefined,
+    end_at: undefined,
+    executed_by_user: "",
+    execution_status: "",
+    id: undefined,
+    labels: undefined,
+    logs: undefined,
+    name: "",
+    start_at: undefined,
+    /** An object relationship */
+    tenant: {} as any,
+    tenant_id: undefined,
+    type: "",
+}
+
 export const COLUMNS_MAP: {[key: string]: Array<string>} = {
     sequent_backend_area: Object.keys(sequent_backend_area),
     sequent_backend_trustee: Object.keys(sequent_backend_trustee),
@@ -571,4 +591,5 @@ export const COLUMNS_MAP: {[key: string]: Array<string>} = {
     ),
     sequent_backend_results_election: Object.keys(sequent_backend_results_election),
     sequent_backend_scheduled_event: Object.keys(sequent_backend_scheduled_event),
+    sequent_backend_tasks_execution: Object.keys(sequent_backend_tasks_execution),
 }
