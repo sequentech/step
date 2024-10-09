@@ -20,7 +20,7 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.util.JsonSerialization;
 
 @JBossLog
-public class CustomEventListereProvider implements EventListenerProvider {
+public class CustomEventListenerProvider implements EventListenerProvider {
 
   private final KeycloakSession session;
   private String keycloakUrl = System.getenv("KEYCLOAK_URL");
@@ -30,12 +30,13 @@ public class CustomEventListereProvider implements EventListenerProvider {
   private String harvestUrl = System.getenv("HARVEST_DOMAIN");
   private String access_token;
 
-  public CustomEventListereProvider(KeycloakSession session) {
+  public CustomEventListenerProvider(KeycloakSession session) {
     this.session = session;
   }
 
   @Override
-  public void close() {}
+  public void close() {
+  }
 
   @Override
   public void onEvent(Event event) {
@@ -47,33 +48,49 @@ public class CustomEventListereProvider implements EventListenerProvider {
         event.getType(),
         event.getError(),
         event.getUserId());
+
+    System.out.println("Event received: " + event.getType());
+    System.out.println("Event error: " + event.getError());
+    System.out.println("Event userId: " + event.getUserId());
+    System.out.println("Event getError: " + event.getError());
+
+    System.out.println("==================");
+    if (event.getType() == EventType.REGISTER_ERROR && event.getError() == "userNotFound") {
+      System.out.println("Inside REGISTER_ERROR and user_not_found condition");
+      System.out.println("Event!: " + event);
+
+      logEvent(
+          getElectionEventId(event.getRealmId()),
+          event.getType(),
+          event.getError(),
+          event.getUserId());
+    }
+    System.out.println("================== End of Event Processing ================");
+
   }
 
   public void authenticate() {
     HttpClient client = HttpClient.newHttpClient();
-    String url =
-        this.keycloakUrl
-            + "/realms/"
-            + getTenantRealmName(this.tenantId)
-            + "/protocol/openid-connect/token";
+    String url = this.keycloakUrl
+        + "/realms/"
+        + getTenantRealmName(this.tenantId)
+        + "/protocol/openid-connect/token";
     Map<Object, Object> data = new HashMap<>();
     data.put("client_id", this.clientId);
     data.put("scope", "openid");
     data.put("client_secret", this.clientSecret);
     data.put("grant_type", "client_credentials");
 
-    String form =
-        data.entrySet().stream()
-            .map(entry -> entry.getKey() + "=" + entry.getValue())
-            .reduce((entry1, entry2) -> entry1 + "&" + entry2)
-            .orElse("");
+    String form = data.entrySet().stream()
+        .map(entry -> entry.getKey() + "=" + entry.getValue())
+        .reduce((entry1, entry2) -> entry1 + "&" + entry2)
+        .orElse("");
     log.info(form);
-    HttpRequest request =
-        HttpRequest.newBuilder()
-            .uri(URI.create(url))
-            .header("Content-Type", "application/x-www-form-urlencoded")
-            .POST(HttpRequest.BodyPublishers.ofString(form))
-            .build();
+    HttpRequest request = HttpRequest.newBuilder()
+        .uri(URI.create(url))
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .POST(HttpRequest.BodyPublishers.ofString(form))
+        .build();
 
     CompletableFuture<HttpResponse<String>> responseFuture;
     responseFuture = client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
@@ -110,19 +127,16 @@ public class CustomEventListereProvider implements EventListenerProvider {
   private void logEvent(String electionEventId, EventType eventType, String body, String userId) {
     HttpClient client = HttpClient.newHttpClient();
     String url = "http://" + this.harvestUrl + "/immudb/log-event";
-    String requestBody =
-        String.format(
-            "{\"election_event_id\": \"%s\", \"message_type\": \"%s\", \"body\" : \"%s\", \"user_id\": \"%s\"}",
-            electionEventId, eventType, body, userId);
-    HttpRequest request =
-        HttpRequest.newBuilder()
-            .uri(URI.create(url))
-            .header("Content-Type", "application/json")
-            .header("Authorization", "Bearer " + this.access_token)
-            .POST(HttpRequest.BodyPublishers.ofString(requestBody))
-            .build();
-    CompletableFuture<HttpResponse<String>> response =
-        client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+    String requestBody = String.format(
+        "{\"election_event_id\": \"%s\", \"message_type\": \"%s\", \"body\" : \"%s\", \"user_id\": \"%s\"}",
+        electionEventId, eventType, body, userId);
+    HttpRequest request = HttpRequest.newBuilder()
+        .uri(URI.create(url))
+        .header("Content-Type", "application/json")
+        .header("Authorization", "Bearer " + this.access_token)
+        .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+        .build();
+    CompletableFuture<HttpResponse<String>> response = client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
     response
         .thenAccept(
             res -> {
