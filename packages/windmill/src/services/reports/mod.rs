@@ -11,5 +11,8 @@ pub mod status;
 pub mod election_returns_for_national_positions;
 pub mod overseas_voters;
 pub mod ovcs_events;
+pub mod ovcs_statistics;
+pub mod pre_enrolled_users;
+pub mod pre_enrolled_ov_subject_to_manual_validation;
 pub mod template_renderer;
 pub mod utils;
