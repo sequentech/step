@@ -7634,10 +7634,6 @@ export type Sequent_Backend_Document_Variance_Fields = {
 export type Sequent_Backend_Election = {
   __typename?: 'sequent_backend_election';
   alias?: Maybe<Scalars['String']['output']>;
-  allow_key_ceremony_at?: Maybe<Scalars['timestamptz']['output']>;
-  allow_tally_at?: Maybe<Scalars['timestamptz']['output']>;
-  allow_voting_period_end_at?: Maybe<Scalars['timestamptz']['output']>;
-  allow_voting_period_start_at?: Maybe<Scalars['timestamptz']['output']>;
   annotations?: Maybe<Scalars['jsonb']['output']>;
   /** An array relationship */
   contests: Array<Sequent_Backend_Contest>;
@@ -7834,10 +7830,6 @@ export type Sequent_Backend_Election_Bool_Exp = {
   _not?: InputMaybe<Sequent_Backend_Election_Bool_Exp>;
   _or?: InputMaybe<Array<Sequent_Backend_Election_Bool_Exp>>;
   alias?: InputMaybe<String_Comparison_Exp>;
-  allow_key_ceremony_at?: InputMaybe<Timestamptz_Comparison_Exp>;
-  allow_tally_at?: InputMaybe<Timestamptz_Comparison_Exp>;
-  allow_voting_period_end_at?: InputMaybe<Timestamptz_Comparison_Exp>;
-  allow_voting_period_start_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   annotations?: InputMaybe<Jsonb_Comparison_Exp>;
   contests?: InputMaybe<Sequent_Backend_Contest_Bool_Exp>;
   contests_aggregate?: InputMaybe<Sequent_Backend_Contest_Aggregate_Bool_Exp>;
@@ -7916,14 +7908,10 @@ export type Sequent_Backend_Election_Event = {
   /** An aggregate relationship */
   elections_aggregate: Sequent_Backend_Election_Aggregate;
   encryption_protocol: Scalars['String']['output'];
-  enrollment_end_at?: Maybe<Scalars['timestamptz']['output']>;
-  enrollment_start_at?: Maybe<Scalars['timestamptz']['output']>;
   id: Scalars['uuid']['output'];
   is_archived: Scalars['Boolean']['output'];
   is_audit?: Maybe<Scalars['Boolean']['output']>;
   labels?: Maybe<Scalars['jsonb']['output']>;
-  lockdown_end_at?: Maybe<Scalars['timestamptz']['output']>;
-  lockdown_start_at?: Maybe<Scalars['timestamptz']['output']>;
   name: Scalars['String']['output'];
   presentation?: Maybe<Scalars['jsonb']['output']>;
   public_key?: Maybe<Scalars['String']['output']>;
@@ -8044,14 +8032,10 @@ export type Sequent_Backend_Election_Event_Bool_Exp = {
   elections?: InputMaybe<Sequent_Backend_Election_Bool_Exp>;
   elections_aggregate?: InputMaybe<Sequent_Backend_Election_Aggregate_Bool_Exp>;
   encryption_protocol?: InputMaybe<String_Comparison_Exp>;
-  enrollment_end_at?: InputMaybe<Timestamptz_Comparison_Exp>;
-  enrollment_start_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
   is_archived?: InputMaybe<Boolean_Comparison_Exp>;
   is_audit?: InputMaybe<Boolean_Comparison_Exp>;
   labels?: InputMaybe<Jsonb_Comparison_Exp>;
-  lockdown_end_at?: InputMaybe<Timestamptz_Comparison_Exp>;
-  lockdown_start_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   name?: InputMaybe<String_Comparison_Exp>;
   presentation?: InputMaybe<Jsonb_Comparison_Exp>;
   public_key?: InputMaybe<String_Comparison_Exp>;
@@ -8112,14 +8096,10 @@ export type Sequent_Backend_Election_Event_Insert_Input = {
   description?: InputMaybe<Scalars['String']['input']>;
   elections?: InputMaybe<Sequent_Backend_Election_Arr_Rel_Insert_Input>;
   encryption_protocol?: InputMaybe<Scalars['String']['input']>;
-  enrollment_end_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  enrollment_start_at?: InputMaybe<Scalars['timestamptz']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   is_archived?: InputMaybe<Scalars['Boolean']['input']>;
   is_audit?: InputMaybe<Scalars['Boolean']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
-  lockdown_end_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  lockdown_start_at?: InputMaybe<Scalars['timestamptz']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
   public_key?: InputMaybe<Scalars['String']['input']>;
@@ -8139,11 +8119,7 @@ export type Sequent_Backend_Election_Event_Max_Fields = {
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   description?: Maybe<Scalars['String']['output']>;
   encryption_protocol?: Maybe<Scalars['String']['output']>;
-  enrollment_end_at?: Maybe<Scalars['timestamptz']['output']>;
-  enrollment_start_at?: Maybe<Scalars['timestamptz']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
-  lockdown_end_at?: Maybe<Scalars['timestamptz']['output']>;
-  lockdown_start_at?: Maybe<Scalars['timestamptz']['output']>;
   name?: Maybe<Scalars['String']['output']>;
   public_key?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
@@ -8159,11 +8135,7 @@ export type Sequent_Backend_Election_Event_Min_Fields = {
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   description?: Maybe<Scalars['String']['output']>;
   encryption_protocol?: Maybe<Scalars['String']['output']>;
-  enrollment_end_at?: Maybe<Scalars['timestamptz']['output']>;
-  enrollment_start_at?: Maybe<Scalars['timestamptz']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
-  lockdown_end_at?: Maybe<Scalars['timestamptz']['output']>;
-  lockdown_start_at?: Maybe<Scalars['timestamptz']['output']>;
   name?: Maybe<Scalars['String']['output']>;
   public_key?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
@@ -8197,14 +8169,10 @@ export type Sequent_Backend_Election_Event_Order_By = {
   description?: InputMaybe<Order_By>;
   elections_aggregate?: InputMaybe<Sequent_Backend_Election_Aggregate_Order_By>;
   encryption_protocol?: InputMaybe<Order_By>;
-  enrollment_end_at?: InputMaybe<Order_By>;
-  enrollment_start_at?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   is_archived?: InputMaybe<Order_By>;
   is_audit?: InputMaybe<Order_By>;
   labels?: InputMaybe<Order_By>;
-  lockdown_end_at?: InputMaybe<Order_By>;
-  lockdown_start_at?: InputMaybe<Order_By>;
   name?: InputMaybe<Order_By>;
   presentation?: InputMaybe<Order_By>;
   public_key?: InputMaybe<Order_By>;
@@ -8249,10 +8217,6 @@ export enum Sequent_Backend_Election_Event_Select_Column {
   /** column name */
   EncryptionProtocol = 'encryption_protocol',
   /** column name */
-  EnrollmentEndAt = 'enrollment_end_at',
-  /** column name */
-  EnrollmentStartAt = 'enrollment_start_at',
-  /** column name */
   Id = 'id',
   /** column name */
   IsArchived = 'is_archived',
@@ -8260,10 +8224,6 @@ export enum Sequent_Backend_Election_Event_Select_Column {
   IsAudit = 'is_audit',
   /** column name */
   Labels = 'labels',
-  /** column name */
-  LockdownEndAt = 'lockdown_end_at',
-  /** column name */
-  LockdownStartAt = 'lockdown_start_at',
   /** column name */
   Name = 'name',
   /** column name */
@@ -8293,14 +8253,10 @@ export type Sequent_Backend_Election_Event_Set_Input = {
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
   encryption_protocol?: InputMaybe<Scalars['String']['input']>;
-  enrollment_end_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  enrollment_start_at?: InputMaybe<Scalars['timestamptz']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   is_archived?: InputMaybe<Scalars['Boolean']['input']>;
   is_audit?: InputMaybe<Scalars['Boolean']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
-  lockdown_end_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  lockdown_start_at?: InputMaybe<Scalars['timestamptz']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
   public_key?: InputMaybe<Scalars['String']['input']>;
@@ -8329,14 +8285,10 @@ export type Sequent_Backend_Election_Event_Stream_Cursor_Value_Input = {
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
   encryption_protocol?: InputMaybe<Scalars['String']['input']>;
-  enrollment_end_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  enrollment_start_at?: InputMaybe<Scalars['timestamptz']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   is_archived?: InputMaybe<Scalars['Boolean']['input']>;
   is_audit?: InputMaybe<Scalars['Boolean']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
-  lockdown_end_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  lockdown_start_at?: InputMaybe<Scalars['timestamptz']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
   public_key?: InputMaybe<Scalars['String']['input']>;
@@ -8365,10 +8317,6 @@ export enum Sequent_Backend_Election_Event_Update_Column {
   /** column name */
   EncryptionProtocol = 'encryption_protocol',
   /** column name */
-  EnrollmentEndAt = 'enrollment_end_at',
-  /** column name */
-  EnrollmentStartAt = 'enrollment_start_at',
-  /** column name */
   Id = 'id',
   /** column name */
   IsArchived = 'is_archived',
@@ -8376,10 +8324,6 @@ export enum Sequent_Backend_Election_Event_Update_Column {
   IsAudit = 'is_audit',
   /** column name */
   Labels = 'labels',
-  /** column name */
-  LockdownEndAt = 'lockdown_end_at',
-  /** column name */
-  LockdownStartAt = 'lockdown_start_at',
   /** column name */
   Name = 'name',
   /** column name */
@@ -8425,10 +8369,6 @@ export type Sequent_Backend_Election_Inc_Input = {
 /** input type for inserting data into table "sequent_backend.election" */
 export type Sequent_Backend_Election_Insert_Input = {
   alias?: InputMaybe<Scalars['String']['input']>;
-  allow_key_ceremony_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  allow_tally_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  allow_voting_period_end_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  allow_voting_period_start_at?: InputMaybe<Scalars['timestamptz']['input']>;
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   contests?: InputMaybe<Sequent_Backend_Contest_Arr_Rel_Insert_Input>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
@@ -8457,10 +8397,6 @@ export type Sequent_Backend_Election_Insert_Input = {
 export type Sequent_Backend_Election_Max_Fields = {
   __typename?: 'sequent_backend_election_max_fields';
   alias?: Maybe<Scalars['String']['output']>;
-  allow_key_ceremony_at?: Maybe<Scalars['timestamptz']['output']>;
-  allow_tally_at?: Maybe<Scalars['timestamptz']['output']>;
-  allow_voting_period_end_at?: Maybe<Scalars['timestamptz']['output']>;
-  allow_voting_period_start_at?: Maybe<Scalars['timestamptz']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   description?: Maybe<Scalars['String']['output']>;
   election_event_id?: Maybe<Scalars['uuid']['output']>;
@@ -8477,10 +8413,6 @@ export type Sequent_Backend_Election_Max_Fields = {
 /** order by max() on columns of table "sequent_backend.election" */
 export type Sequent_Backend_Election_Max_Order_By = {
   alias?: InputMaybe<Order_By>;
-  allow_key_ceremony_at?: InputMaybe<Order_By>;
-  allow_tally_at?: InputMaybe<Order_By>;
-  allow_voting_period_end_at?: InputMaybe<Order_By>;
-  allow_voting_period_start_at?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
   description?: InputMaybe<Order_By>;
   election_event_id?: InputMaybe<Order_By>;
@@ -8498,10 +8430,6 @@ export type Sequent_Backend_Election_Max_Order_By = {
 export type Sequent_Backend_Election_Min_Fields = {
   __typename?: 'sequent_backend_election_min_fields';
   alias?: Maybe<Scalars['String']['output']>;
-  allow_key_ceremony_at?: Maybe<Scalars['timestamptz']['output']>;
-  allow_tally_at?: Maybe<Scalars['timestamptz']['output']>;
-  allow_voting_period_end_at?: Maybe<Scalars['timestamptz']['output']>;
-  allow_voting_period_start_at?: Maybe<Scalars['timestamptz']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   description?: Maybe<Scalars['String']['output']>;
   election_event_id?: Maybe<Scalars['uuid']['output']>;
@@ -8518,10 +8446,6 @@ export type Sequent_Backend_Election_Min_Fields = {
 /** order by min() on columns of table "sequent_backend.election" */
 export type Sequent_Backend_Election_Min_Order_By = {
   alias?: InputMaybe<Order_By>;
-  allow_key_ceremony_at?: InputMaybe<Order_By>;
-  allow_tally_at?: InputMaybe<Order_By>;
-  allow_voting_period_end_at?: InputMaybe<Order_By>;
-  allow_voting_period_start_at?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
   description?: InputMaybe<Order_By>;
   election_event_id?: InputMaybe<Order_By>;
@@ -8554,10 +8478,6 @@ export type Sequent_Backend_Election_On_Conflict = {
 /** Ordering options when selecting data from "sequent_backend.election". */
 export type Sequent_Backend_Election_Order_By = {
   alias?: InputMaybe<Order_By>;
-  allow_key_ceremony_at?: InputMaybe<Order_By>;
-  allow_tally_at?: InputMaybe<Order_By>;
-  allow_voting_period_end_at?: InputMaybe<Order_By>;
-  allow_voting_period_start_at?: InputMaybe<Order_By>;
   annotations?: InputMaybe<Order_By>;
   contests_aggregate?: InputMaybe<Sequent_Backend_Contest_Aggregate_Order_By>;
   created_at?: InputMaybe<Order_By>;
@@ -8914,14 +8834,6 @@ export enum Sequent_Backend_Election_Select_Column {
   /** column name */
   Alias = 'alias',
   /** column name */
-  AllowKeyCeremonyAt = 'allow_key_ceremony_at',
-  /** column name */
-  AllowTallyAt = 'allow_tally_at',
-  /** column name */
-  AllowVotingPeriodEndAt = 'allow_voting_period_end_at',
-  /** column name */
-  AllowVotingPeriodStartAt = 'allow_voting_period_start_at',
-  /** column name */
   Annotations = 'annotations',
   /** column name */
   CreatedAt = 'created_at',
@@ -8988,10 +8900,6 @@ export enum Sequent_Backend_Election_Select_Column_Sequent_Backend_Election_Aggr
 /** input type for updating data in table "sequent_backend.election" */
 export type Sequent_Backend_Election_Set_Input = {
   alias?: InputMaybe<Scalars['String']['input']>;
-  allow_key_ceremony_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  allow_tally_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  allow_voting_period_end_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  allow_voting_period_start_at?: InputMaybe<Scalars['timestamptz']['input']>;
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
@@ -9059,10 +8967,6 @@ export type Sequent_Backend_Election_Stream_Cursor_Input = {
 /** Initial value of the column from where the streaming should start */
 export type Sequent_Backend_Election_Stream_Cursor_Value_Input = {
   alias?: InputMaybe<Scalars['String']['input']>;
-  allow_key_ceremony_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  allow_tally_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  allow_voting_period_end_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  allow_voting_period_start_at?: InputMaybe<Scalars['timestamptz']['input']>;
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
@@ -9344,14 +9248,6 @@ export type Sequent_Backend_Election_Type_Updates = {
 export enum Sequent_Backend_Election_Update_Column {
   /** column name */
   Alias = 'alias',
-  /** column name */
-  AllowKeyCeremonyAt = 'allow_key_ceremony_at',
-  /** column name */
-  AllowTallyAt = 'allow_tally_at',
-  /** column name */
-  AllowVotingPeriodEndAt = 'allow_voting_period_end_at',
-  /** column name */
-  AllowVotingPeriodStartAt = 'allow_voting_period_start_at',
   /** column name */
   Annotations = 'annotations',
   /** column name */
@@ -13631,6 +13527,7 @@ export type Sequent_Backend_Scheduled_Event = {
   created_by?: Maybe<Scalars['String']['output']>;
   cron_config?: Maybe<Scalars['jsonb']['output']>;
   election_event_id?: Maybe<Scalars['uuid']['output']>;
+  election_id?: Maybe<Scalars['uuid']['output']>;
   event_payload?: Maybe<Scalars['jsonb']['output']>;
   event_processor?: Maybe<Scalars['String']['output']>;
   id: Scalars['uuid']['output'];
@@ -13705,6 +13602,7 @@ export type Sequent_Backend_Scheduled_Event_Bool_Exp = {
   created_by?: InputMaybe<String_Comparison_Exp>;
   cron_config?: InputMaybe<Jsonb_Comparison_Exp>;
   election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
+  election_id?: InputMaybe<Uuid_Comparison_Exp>;
   event_payload?: InputMaybe<Jsonb_Comparison_Exp>;
   event_processor?: InputMaybe<String_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
@@ -13752,6 +13650,7 @@ export type Sequent_Backend_Scheduled_Event_Insert_Input = {
   created_by?: InputMaybe<Scalars['String']['input']>;
   cron_config?: InputMaybe<Scalars['jsonb']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
   event_payload?: InputMaybe<Scalars['jsonb']['input']>;
   event_processor?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
@@ -13768,6 +13667,7 @@ export type Sequent_Backend_Scheduled_Event_Max_Fields = {
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   created_by?: Maybe<Scalars['String']['output']>;
   election_event_id?: Maybe<Scalars['uuid']['output']>;
+  election_id?: Maybe<Scalars['uuid']['output']>;
   event_processor?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   stopped_at?: Maybe<Scalars['timestamptz']['output']>;
@@ -13782,6 +13682,7 @@ export type Sequent_Backend_Scheduled_Event_Min_Fields = {
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   created_by?: Maybe<Scalars['String']['output']>;
   election_event_id?: Maybe<Scalars['uuid']['output']>;
+  election_id?: Maybe<Scalars['uuid']['output']>;
   event_processor?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   stopped_at?: Maybe<Scalars['timestamptz']['output']>;
@@ -13813,6 +13714,7 @@ export type Sequent_Backend_Scheduled_Event_Order_By = {
   created_by?: InputMaybe<Order_By>;
   cron_config?: InputMaybe<Order_By>;
   election_event_id?: InputMaybe<Order_By>;
+  election_id?: InputMaybe<Order_By>;
   event_payload?: InputMaybe<Order_By>;
   event_processor?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
@@ -13850,6 +13752,8 @@ export enum Sequent_Backend_Scheduled_Event_Select_Column {
   /** column name */
   ElectionEventId = 'election_event_id',
   /** column name */
+  ElectionId = 'election_id',
+  /** column name */
   EventPayload = 'event_payload',
   /** column name */
   EventProcessor = 'event_processor',
@@ -13873,6 +13777,7 @@ export type Sequent_Backend_Scheduled_Event_Set_Input = {
   created_by?: InputMaybe<Scalars['String']['input']>;
   cron_config?: InputMaybe<Scalars['jsonb']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
   event_payload?: InputMaybe<Scalars['jsonb']['input']>;
   event_processor?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
@@ -13898,6 +13803,7 @@ export type Sequent_Backend_Scheduled_Event_Stream_Cursor_Value_Input = {
   created_by?: InputMaybe<Scalars['String']['input']>;
   cron_config?: InputMaybe<Scalars['jsonb']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
   event_payload?: InputMaybe<Scalars['jsonb']['input']>;
   event_processor?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
@@ -13921,6 +13827,8 @@ export enum Sequent_Backend_Scheduled_Event_Update_Column {
   CronConfig = 'cron_config',
   /** column name */
   ElectionEventId = 'election_event_id',
+  /** column name */
+  ElectionId = 'election_id',
   /** column name */
   EventPayload = 'event_payload',
   /** column name */
