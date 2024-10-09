@@ -317,7 +317,7 @@ pub async fn export_elections(
         .prepare(
             r#"
                 SELECT
-                    id, tenant_id, election_event_id, created_at, last_updated_at, labels, annotations, name, description, presentation, status, eml, num_allowed_revotes, is_consolidated_ballot_encoding, spoil_ballot_option, alias, voting_channels, is_kiosk, image_document_id, statistics, receipts
+                    id, tenant_id, election_event_id, created_at, last_updated_at, labels, annotations, name, description, presentation, status, eml, num_allowed_revotes, is_consolidated_ballot_encoding, spoil_ballot_option, alias, voting_channels, is_kiosk, image_document_id, statistics, receipts, permission_label
                 FROM
                     sequent_backend.election
                 WHERE

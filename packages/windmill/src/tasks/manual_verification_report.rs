@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::manual_verification;
+use crate::services::reports::manual_verification;
 use crate::types::error::Error;
 use crate::types::error::Result;
 use anyhow::{anyhow, Context};
@@ -12,7 +12,7 @@ use tracing::instrument;
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
-pub async fn get_manual_verification_pdf(
+pub async fn generate_manual_verification_report(
     document_id: String,
     tenant_id: String,
     election_event_id: String,
@@ -22,7 +22,7 @@ pub async fn get_manual_verification_pdf(
     let handle = tokio::task::spawn_blocking({
         move || {
             tokio::runtime::Handle::current().block_on(async move {
-                manual_verification::get_manual_verification_pdf(
+                manual_verification::generate_manual_verification_report(
                     &document_id,
                     &tenant_id,
                     &election_event_id,
