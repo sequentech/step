@@ -274,7 +274,7 @@ const frenchTranslation: TranslationType = {
                 tasks: "Tâches",
                 events: "Événement Planifié",
                 notifications: "Notifications",
-                reports: "Rapport"
+                reports: "Rapport",
             },
             tally: {
                 emptyHeader: "Aucun Comptage pour l'instant.",
@@ -674,8 +674,8 @@ const frenchTranslation: TranslationType = {
             },
             fields: {
                 electionId: "Élection",
-    template: "Modèle",
-    reportType: "Type de rapport"
+                template: "Modèle",
+                reportType: "Type de rapport",
             },
         },
         common: {

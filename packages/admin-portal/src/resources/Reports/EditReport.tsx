@@ -1,4 +1,3 @@
-
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import React from "react"
 import {EditBase, Identifier} from "react-admin"
@@ -14,7 +13,13 @@ export const EditReport: React.FC<CreateReportProps> = ({close, electionEventId,
     const [tenantId] = useTenantStore()
     return (
         <EditBase>
-            <EditReportForm close={close} electionEventId={electionEventId} tenantId={tenantId} isEditReport={true} reportId={reportId}/>
+            <EditReportForm
+                close={close}
+                electionEventId={electionEventId}
+                tenantId={tenantId}
+                isEditReport={true}
+                reportId={reportId}
+            />
         </EditBase>
     )
 }

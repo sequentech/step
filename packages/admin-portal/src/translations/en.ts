@@ -668,7 +668,7 @@ const englishTranslation = {
             fields: {
                 electionId: "Election",
                 template: "Template",
-                reportType: "Report Type"
+                reportType: "Report Type",
             },
         },
         common: {

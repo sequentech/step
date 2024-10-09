@@ -274,7 +274,7 @@ const spanishTranslation: TranslationType = {
                 tasks: "Tareas",
                 events: "Eventos Programados",
                 notifications: "Notificaciones",
-                reports: "Informe"
+                reports: "Informe",
             },
             tally: {
                 emptyHeader: "Ningún Recuento aún.",

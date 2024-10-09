@@ -5,7 +5,16 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Box, styled, Typography, Button, Drawer} from "@mui/material"
 import React, {ReactElement, useContext, useState} from "react"
-import {DatagridConfigurable, FunctionField, Identifier, List, TextField, useGetList, useSidebarState, WrapperField} from "react-admin"
+import {
+    DatagridConfigurable,
+    FunctionField,
+    Identifier,
+    List,
+    TextField,
+    useGetList,
+    useSidebarState,
+    WrapperField,
+} from "react-admin"
 import {useTranslation} from "react-i18next"
 import {CreateReport} from "./CreateReport"
 import {AuthContext} from "@/providers/AuthContextProvider"
@@ -13,8 +22,12 @@ import {IPermissions} from "@/types/keycloak"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {IconButton} from "@sequentech/ui-essentials"
 import {CustomApolloContextProvider} from "@/providers/ApolloContextProvider"
-import { EditReport } from "./EditReport"
-import { Sequent_Backend_Election, Sequent_Backend_Report, Sequent_Backend_Template } from "@/gql/graphql"
+import {EditReport} from "./EditReport"
+import {
+    Sequent_Backend_Election,
+    Sequent_Backend_Report,
+    Sequent_Backend_Template,
+} from "@/gql/graphql"
 import EditIcon from "@mui/icons-material/Edit"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
@@ -104,9 +117,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
 
     const Filters: Array<ReactElement> = []
 
-    const actions: Action[] = [
-        {icon: <EditIcon />, action: handleEditDrawer},
-    ]
+    const actions: Action[] = [{icon: <EditIcon />, action: handleEditDrawer}]
 
     const handleCreateDrawer = () => {
         setSelectedReportId(null)
@@ -139,19 +150,22 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const getTemplateName = (report: Sequent_Backend_Report) => {
         let templateId = report.template_id
         const template = templates?.find((template) => template.id === templateId)
-        return template?.template.alias;
+        return template?.template.alias
     }
 
     const getElectionName = (report: Sequent_Backend_Report) => {
         let electionId = report.election_id
-        if(!electionId) return "-"
+        if (!electionId) return "-"
         const election = elections?.find((election) => election.id === electionId)
-        return election?.name;
+        return election?.name
     }
 
     return (
         <>
-            <ElectionHeader title={t("reportsScreen.title")} subtitle={t("reportsScreen.subtitle")} />
+            <ElectionHeader
+                title={t("reportsScreen.title")}
+                subtitle={t("reportsScreen.subtitle")}
+            />
             <List
                 resource="sequent_backend_report"
                 filter={{
@@ -178,7 +192,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                 }
             >
                 <DataGridContainerStyle isOpenSideBar={isOpenSidebar} omit={OMIT_FIELDS}>
-                    <TextField source="report_type" label = {t("reportsScreen.fields.reportType")}/>
+                    <TextField source="report_type" label={t("reportsScreen.fields.reportType")} />
                     <FunctionField
                         label={t("reportsScreen.fields.template")}
                         source="template_id"
@@ -205,9 +219,13 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                     sx: {width: "40%"},
                 }}
             >
-                    <CustomApolloContextProvider role={IPermissions.template_WRITE}>
-                         <EditReport close={handleClose} electionEventId={electionEventId} reportId={selectedReportId} />
-                     </CustomApolloContextProvider>
+                <CustomApolloContextProvider role={IPermissions.template_WRITE}>
+                    <EditReport
+                        close={handleClose}
+                        electionEventId={electionEventId}
+                        reportId={selectedReportId}
+                    />
+                </CustomApolloContextProvider>
             </Drawer>
         </>
     )

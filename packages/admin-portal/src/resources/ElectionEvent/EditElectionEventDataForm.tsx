@@ -248,14 +248,11 @@ export const EditElectionEventDataForm: React.FC = () => {
             return []
         }
         const template_names = (verifyVoterTemplates as Sequent_Backend_Template[]).map((entry) => {
-            console.log("id: ", entry.id)
-            console.log("name: ", entry.template?.name)
             return {
                 id: entry.id,
                 name: entry.template?.name,
             }
         })
-        console.log("template_names: ", template_names)
         return template_names
     }
 

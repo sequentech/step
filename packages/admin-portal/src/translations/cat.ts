@@ -274,7 +274,7 @@ const catalanTranslation: TranslationType = {
                 tasks: "Tasques",
                 events: "Esdeveniment Programat",
                 notifications: "Notificacions",
-                reports: "Informe"
+                reports: "Informe",
             },
             tally: {
                 emptyHeader: "Encara no hi ha Recompte.",

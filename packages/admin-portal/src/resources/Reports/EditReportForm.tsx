@@ -1,25 +1,19 @@
 import SelectElection from "@/components/election/SelectElection"
 import {EReportTypes} from "@/types/reports"
 import {Typography} from "@mui/material"
-import {t} from "i18next"
-import React, {useEffect, useState} from "react"
+import React, {useState} from "react"
 import {
-    CreateBase,
     Identifier,
-    RaRecord,
-    RecordContext,
     SaveButton,
     SelectInput,
     SimpleForm,
     Toolbar,
     useDataProvider,
     useGetOne,
-    useListContext,
     useNotify,
 } from "react-admin"
 import SelectTemplate from "../Template/SelectTemplate"
-import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
-import { useTranslation } from "react-i18next"
+import {useTranslation} from "react-i18next"
 
 interface CreateReportProps {
     close?: () => void
@@ -43,14 +37,14 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
     const handleReportTypeChange = (event: any) => {
         setReportType(event.target.value)
     }
-    const {t} = useTranslation();
+    const {t} = useTranslation()
     const notify = useNotify()
 
-    const { data: report, isLoading, error } = useGetOne(
-        "sequent_backend_report",
-        { id: reportId },
-        { enabled: isEditReport }
-    );
+    const {
+        data: report,
+        isLoading,
+        error,
+    } = useGetOne("sequent_backend_report", {id: reportId}, {enabled: isEditReport})
     const reportTypeChoices = Object.values(EReportTypes).map((reportType) => ({
         id: reportType,
         name: reportType,
@@ -68,26 +62,26 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                 await dataProvider.update("sequent_backend_report", {
                     id: reportId,
                     data: formData,
-                    previousData: undefined
-                });
-                notify('Report updated successfully', { type: 'success' });
+                    previousData: undefined,
+                })
+                notify("Report updated successfully", {type: "success"})
             } else {
-                await dataProvider.create("sequent_backend_report", { data: formData });
-                notify('Report created successfully', { type: 'success' });
+                await dataProvider.create("sequent_backend_report", {data: formData})
+                notify("Report created successfully", {type: "success"})
             }
 
             if (close) {
-                close();
+                close()
             }
         } catch (error) {
-            notify('Error submitting report', { type: 'error' });
+            notify("Error submitting report", {type: "error"})
         }
-    };
+    }
 
     return (
         <>
             <SimpleForm
-            record={isEditReport ? report : undefined}
+                record={isEditReport ? report : undefined}
                 onSubmit={handleSubmit}
                 toolbar={
                     <Toolbar>
@@ -95,12 +89,17 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                     </Toolbar>
                 }
             >
-                <Typography variant="h4">{
-                    isEditReport ? t("reportsScreen.edit.header") : t("reportsScreen.create.header")
-                    }</Typography>
-                <Typography variant="body2"> {
-                    isEditReport ? t("reportsScreen.edit.subtitle") : t("reportsScreen.create.subtitle")
-                    }</Typography>
+                <Typography variant="h4">
+                    {isEditReport
+                        ? t("reportsScreen.edit.header")
+                        : t("reportsScreen.create.header")}
+                </Typography>
+                <Typography variant="body2">
+                    {" "}
+                    {isEditReport
+                        ? t("reportsScreen.edit.subtitle")
+                        : t("reportsScreen.create.subtitle")}
+                </Typography>
 
                 <SelectInput
                     source="report_type"
@@ -122,7 +121,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                     tenantId={tenantId}
                     templateType={reportType}
                     source={"template_id"}
-                    label={t("reportsScreen.fields.template")} 
+                    label={t("reportsScreen.fields.template")}
                     onSelectTemplate={(templateId) => setTemplateId(templateId)}
                     value={templateId}
                 />
@@ -130,4 +129,3 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
         </>
     )
 }
-

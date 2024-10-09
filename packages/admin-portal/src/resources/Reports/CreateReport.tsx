@@ -16,7 +16,12 @@ export const CreateReport: React.FC<CreateReportProps> = ({close, electionEventI
     console.log("im in the create report also")
     return (
         <CreateBase>
-            <EditReportForm close={close} electionEventId={electionEventId} tenantId={tenantId} isEditReport={false} />
+            <EditReportForm
+                close={close}
+                electionEventId={electionEventId}
+                tenantId={tenantId}
+                isEditReport={false}
+            />
         </CreateBase>
     )
 }
