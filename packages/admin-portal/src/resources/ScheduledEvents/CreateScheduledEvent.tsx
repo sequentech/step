@@ -49,6 +49,7 @@ export enum EventProcessors {
     END_ENROLLMENT_PERIOD = "END_ENROLLMENT_PERIOD",
     START_LOCKDOWN_PERIOD = "START_LOCKDOWN_PERIOD",
     END_LOCKDOWN_PERIOD = "END_LOCKDOWN_PERIOD",
+    START_ALLOW_TALLY = "START_ALLOW_TALLY",
 }
 
 const CreateEvent: FC<CreateEventProps> = ({
@@ -89,6 +90,19 @@ const CreateEvent: FC<CreateEventProps> = ({
                   EventProcessors.START_VOTING_PERIOD
             : EventProcessors.START_VOTING_PERIOD
     )
+    const targetsElectionEvent = (event_processor: EventProcessors) => {
+        switch (event_processor) {
+            case EventProcessors.START_VOTING_PERIOD:
+            case EventProcessors.END_VOTING_PERIOD:
+            case EventProcessors.START_ALLOW_TALLY:
+                return false
+            case EventProcessors.START_ENROLLMENT_PERIOD:
+            case EventProcessors.END_ENROLLMENT_PERIOD:
+            case EventProcessors.START_LOCKDOWN_PERIOD:
+            case EventProcessors.END_LOCKDOWN_PERIOD:
+                return true
+        }
+    }
 
     const onSubmit = async () => {
         setIsLoading(true)
@@ -178,7 +192,7 @@ const CreateEvent: FC<CreateEventProps> = ({
                             label={t("eventsScreen.election.label")}
                             onSelectElection={(electionId) => setElectionId(electionId)}
                             source="event_payload.election_id"
-                            disabled={isEditEvent || isLoading}
+                            disabled={!targetsElectionEvent(eventType as EventProcessors) || isEditEvent || isLoading}
                             value={electionId}
                         />
                     )}
