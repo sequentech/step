@@ -38,7 +38,9 @@ import {useMutation} from "@apollo/client"
 import {EXPORT_TEMPLATE} from "@/queries/ExportTemplate"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {DownloadDocument} from "../User/DownloadDocument"
-import {ExportTemplateMutation} from "@/gql/graphql"
+import {ExportTemplateMutation, ImportTemplatesMutation} from "@/gql/graphql"
+import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
+import {IMPORT_TEMPLATES} from "@/queries/ImportTemplate"
 
 const TemplateEmpty = styled(Box)`
     display: flex;
@@ -73,11 +75,13 @@ export const TemplateList: React.FC = () => {
     const [openExport, setOpenExport] = useState(false)
     const [exporting, setExporting] = useState(false)
     const [exportDocumentId, setExportDocumentId] = useState<string | undefined>()
+    const [openImportDrawer, setOpenImportDrawer] = useState<boolean>(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
     const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
     const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
     const [ExportTemplate] = useMutation<ExportTemplateMutation>(EXPORT_TEMPLATE)
+    const [ImportTemplate] = useMutation<ImportTemplatesMutation>(IMPORT_TEMPLATES)
     const refresh = useRefresh()
 
     const handleExport = async () => {
@@ -111,6 +115,10 @@ export const TemplateList: React.FC = () => {
         }, 400)
     }
 
+    const handleImport = () => {
+        setOpenImportDrawer(true)
+    }
+
     const handleCreateDrawer = () => {
         setRecordId(undefined)
         setOpenDrawer(true)
@@ -142,6 +150,35 @@ export const TemplateList: React.FC = () => {
             {t("template.action.createOne")}
         </Button>
     )
+
+    const handleImportTemplates = async (documentId: string, sha256: string) => {
+        setOpenImportDrawer(false)
+        try {
+            const {data, errors} = await ImportTemplate({
+                variables: {
+                    tenantId,
+                    documentId,
+                },
+            })
+            refresh()
+            // let {data, errors} = await importUsers({
+            //     variables: {
+            //         tenantId,
+            //         documentId,
+            //         electionEventId: electionEvent.id,
+            //     },
+            // })
+            // const task_id = data?.import_users?.task_execution.id
+            // setWidgetTaskId(currWidget.identifier, task_id)
+            // refresh()
+            // if (errors) {
+            //     updateWidgetFail(currWidget.identifier)
+            //     notify(t("electionEventScreen.import.importVotersError"), {type: "error"})
+            // }
+        } catch (err) {
+            // updateWidgetFail(currWidget.identifier)
+        }
+    }
 
     const Empty = () => (
         <TemplateEmpty m={1}>
@@ -186,6 +223,7 @@ export const TemplateList: React.FC = () => {
                         custom
                         withFilter
                         /* TODO: */
+                        doImport={handleImport}
                         withExport={true}
                         doExport={handleExport}
                         withImport={true}
@@ -264,7 +302,7 @@ export const TemplateList: React.FC = () => {
                     {exporting && exportDocumentId ? (
                         <DownloadDocument
                             documentId={exportDocumentId}
-                            electionEventId={""}
+                            electionEventId={"33f18502-a67c-4853-8333-a58630663559"}
                             fileName={`template-export.csv`}
                             onDownload={() => {
                                 console.log("onDownload called")
@@ -276,6 +314,16 @@ export const TemplateList: React.FC = () => {
                     ) : null}
                 </FormStyles.ReservedProgressSpace>
             </Dialog>
+
+            <ImportDataDrawer
+                open={openImportDrawer}
+                closeDrawer={() => setOpenImportDrawer(false)}
+                title="electionEventScreen.import.title"
+                subtitle="electionEventScreen.import.subtitle"
+                paragraph="electionEventScreen.import.votersParagraph"
+                doImport={handleImportTemplates}
+                errors={null}
+            />
         </>
     )
 }

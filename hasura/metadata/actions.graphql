@@ -254,6 +254,10 @@ type Mutation {
 }
 
 type Mutation {
+  import_templates(tenant_id: String!, document_id: String!): templateOutput
+}
+
+type Mutation {
   import_users(
     tenant_id: String!
     election_event_id: String
@@ -1116,6 +1120,11 @@ type LimitAccessByCountriesOutput {
 }
 
 type ExportTemplateOutput {
+  error_msg: String
+  document_id: String!
+}
+
+type templateOutput {
   error_msg: String
   document_id: String!
 }

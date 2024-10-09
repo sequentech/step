@@ -8,12 +8,14 @@ use crate::postgres::tasks_execution::get_tasks_by_election_event_id;
 use crate::postgres::template::get_templates_by_tenant_id;
 use crate::services::database::get_hasura_pool;
 use anyhow::{anyhow, Result};
+use csv::Writer;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::types::hasura::core::{TasksExecution, Template};
 use sequent_core::{services::keycloak::get_event_realm, types::hasura::core::Document};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
+use std::io::Write;
 use tracing::info;
 
 pub async fn read_export_data(
@@ -22,7 +24,23 @@ pub async fn read_export_data(
 ) -> Result<Vec<Template>> {
     let templates = get_templates_by_tenant_id(transaction, tenant_id).await?;
 
-    Ok(templates)
+    let transformed_templates: Vec<Template> = templates
+        .into_iter()
+        .map(|template| Template {
+            id: template.id.to_string(),
+            tenant_id: template.tenant_id.to_string(),
+            template: template.template,
+            created_by: template.created_by,
+            labels: Some(template.labels.unwrap_or_default()),
+            annotations: Some(template.annotations.unwrap_or_default()),
+            created_at: template.created_at,
+            updated_at: template.updated_at,
+            communication_method: template.communication_method,
+            r#type: template.r#type,
+        })
+        .collect();
+
+    Ok(transformed_templates)
 }
 
 pub async fn write_export_document(
@@ -30,22 +48,51 @@ pub async fn write_export_document(
     data: Vec<Template>,
     document_id: &str,
 ) -> Result<Document> {
-    let data_str = serde_json::to_string(&data)?;
-    let data_bytes = data_str.into_bytes();
+    // Define the headers
+    let headers = vec![
+        "id",
+        "tenant_id",
+        "template",
+        "created_by",
+        "labels",
+        "annotations",
+        "created_at",
+        "updated_at",
+        "communication_method",
+        "type",
+    ];
 
     let name = format!("template-{}", document_id);
 
-    let (temp_path, temp_path_string, file_size) =
-        write_into_named_temp_file(&data_bytes, &name, ".json")?;
+    let mut wtr = Writer::from_writer(vec![]);
+    wtr.write_record(&headers)?;
 
-    // Using the first task to get the tenant_id and election_event_id
-    if let Some(first_task) = data.first() {
+    for template in data.clone() {
+        wtr.write_record(&[
+            template.id,
+            template.tenant_id,
+            template.template.to_string(),
+            template.created_by,
+            template.labels.unwrap_or_default().to_string(),
+            template.annotations.unwrap_or_default().to_string(),
+            template.created_at.expect("REASON").to_string(),
+            template.updated_at.expect("REASON").to_string(),
+            template.communication_method,
+            template.r#type,
+        ])?;
+    }
+
+    let data_bytes = wtr.into_inner()?;
+    let (temp_path, temp_path_string, file_size) =
+        write_into_named_temp_file(&data_bytes, &name, ".csv")?;
+
+    if let Some(first_template) = data.first() {
         upload_and_return_document_postgres(
             transaction,
             &temp_path_string,
             file_size,
-            "application/json",
-            &first_task.tenant_id.to_string(),
+            "text/csv",
+            &first_template.tenant_id.to_string(),
             "33f18502-a67c-4853-8333-a58630663559",
             &name,
             Some(document_id.to_string()),
@@ -53,7 +100,7 @@ pub async fn write_export_document(
         )
         .await
     } else {
-        Err(anyhow::anyhow!("No tasks available to write"))
+        Err(anyhow::anyhow!("No templates available to write"))
     }
 }
 

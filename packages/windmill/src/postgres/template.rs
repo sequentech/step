@@ -125,3 +125,41 @@ pub async fn get_templates_by_tenant_id(
 
     Ok(templates)
 }
+
+#[instrument(err, skip_all)]
+pub async fn insert_templates(
+    hasura_transaction: &Transaction<'_>,
+    templates: &Vec<Template>,
+) -> Result<()> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            INSERT INTO sequent_backend.template
+            (id, tenant_id, template, created_by, labels, annotations, created_at, updated_at, communication_method, type)
+            VALUES
+            ($1, $2, $3, $4, $5, $6, NOW(), NOW(), $7, $8);
+            "#,
+        )
+        .await?;
+
+    for template in templates {
+        hasura_transaction
+            .execute(
+                &statement,
+                &[
+                    &Uuid::parse_str(&template.id)?,
+                    &Uuid::parse_str(&template.tenant_id)?,
+                    &template.template,
+                    &template.created_by,
+                    &template.labels,
+                    &template.annotations,
+                    &template.communication_method,
+                    &template.r#type,
+                ],
+            )
+            .await
+            .map_err(|err| anyhow!("Error inserting template: {err}"))?;
+    }
+
+    Ok(())
+}

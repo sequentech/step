@@ -20,6 +20,7 @@ pub mod export_template;
 pub mod immudb_log_audit;
 pub mod import_areas;
 pub mod import_candidates;
+pub mod import_templates;
 pub mod insert_cast_vote;
 pub mod insert_election_event;
 pub mod insert_tenant;

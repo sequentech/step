@@ -900,6 +900,7 @@ export type Mutation_Root = {
   import_candidates?: Maybe<DocumentTaskOutput>;
   /** import_election_event */
   import_election_event?: Maybe<OptionalImportEvent>;
+  import_templates?: Maybe<TemplateOutput>;
   import_users?: Maybe<TaskOutput>;
   insertElectionEvent?: Maybe<CreateElectionEventOutput>;
   /** insertTenant */
@@ -1917,6 +1918,13 @@ export type Mutation_RootImport_CandidatesArgs = {
 /** mutation root */
 export type Mutation_RootImport_Election_EventArgs = {
   check_only?: InputMaybe<Scalars['Boolean']['input']>;
+  document_id: Scalars['String']['input'];
+  tenant_id: Scalars['String']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootImport_TemplatesArgs = {
   document_id: Scalars['String']['input'];
   tenant_id: Scalars['String']['input'];
 };
@@ -18199,6 +18207,12 @@ export type Tasks_Execution_Type = {
   start_at: Scalars['timestamptz']['output'];
   tenant_id: Scalars['uuid']['output'];
   type: Scalars['String']['output'];
+};
+
+export type TemplateOutput = {
+  __typename?: 'templateOutput';
+  document_id: Scalars['String']['output'];
+  error_msg?: Maybe<Scalars['String']['output']>;
 };
 
 /** Boolean expression to compare columns of type "timestamptz". All fields are combined with logical 'AND'. */
