@@ -33,17 +33,25 @@ pub async fn read_export_data(
     let other_client = KeycloakAdminClient::pub_new().await?;
     let board_name = get_event_realm(tenant_id, election_event_id);
     let realm = client.get_realm(&other_client, &board_name).await?;
-    let (election_event, elections, contests, candidates, areas, area_contests, scheduled_events, templates) =
-        try_join!(
-            get_election_event_by_id(&transaction, tenant_id, election_event_id),
-            export_elections(&transaction, tenant_id, election_event_id),
-            export_contests(&transaction, tenant_id, election_event_id),
-            export_candidates(&transaction, tenant_id, election_event_id),
-            get_event_areas(&transaction, tenant_id, election_event_id),
-            export_area_contests(&transaction, tenant_id, election_event_id),
-            find_scheduled_event_by_election_event_id(&transaction, tenant_id, election_event_id),
-            get_templates_by_tenant_id(&transaction, tenant_id)
-        )?;
+    let (
+        election_event,
+        elections,
+        contests,
+        candidates,
+        areas,
+        area_contests,
+        scheduled_events,
+        templates,
+    ) = try_join!(
+        get_election_event_by_id(&transaction, tenant_id, election_event_id),
+        export_elections(&transaction, tenant_id, election_event_id),
+        export_contests(&transaction, tenant_id, election_event_id),
+        export_candidates(&transaction, tenant_id, election_event_id),
+        get_event_areas(&transaction, tenant_id, election_event_id),
+        export_area_contests(&transaction, tenant_id, election_event_id),
+        find_scheduled_event_by_election_event_id(&transaction, tenant_id, election_event_id),
+        get_templates_by_tenant_id(&transaction, tenant_id)
+    )?;
 
     Ok(ImportElectionEventSchema {
         tenant_id: Uuid::parse_str(&tenant_id)?,

@@ -4,18 +4,15 @@
 use super::{
     documents::upload_and_return_document_postgres, temp_path::write_into_named_temp_file,
 };
-use crate::postgres::tasks_execution::get_tasks_by_election_event_id;
 use crate::postgres::template::get_templates_by_tenant_id;
 use crate::services::database::get_hasura_pool;
 use anyhow::{anyhow, Result};
 use csv::Writer;
 use deadpool_postgres::{Client as DbClient, Transaction};
-use sequent_core::services::keycloak::KeycloakAdminClient;
-use sequent_core::types::hasura::core::{TasksExecution, Template};
+use sequent_core::types::hasura::core::Template;
 use sequent_core::{services::keycloak::get_event_realm, types::hasura::core::Document};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
-use std::io::Write;
 use tracing::info;
 
 pub async fn read_export_data(

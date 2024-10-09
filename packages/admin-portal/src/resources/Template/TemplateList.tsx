@@ -21,6 +21,7 @@ import {
     useRefresh,
     WrapperField,
     useRecordContext,
+    useNotify,
 } from "react-admin"
 
 import {IPermissions} from "@/types/keycloak"
@@ -83,6 +84,7 @@ export const TemplateList: React.FC = () => {
     const [ExportTemplate] = useMutation<ExportTemplateMutation>(EXPORT_TEMPLATE)
     const [ImportTemplate] = useMutation<ImportTemplatesMutation>(IMPORT_TEMPLATES)
     const refresh = useRefresh()
+    const notify = useNotify()
 
     const handleExport = async () => {
         setExporting(false)
@@ -94,15 +96,17 @@ export const TemplateList: React.FC = () => {
         try {
             setExporting(true)
             const {data, errors} = await ExportTemplate({variables: {tenantId}})
-            console.log(errors, "errors")
+            notify("Templates exported successfully", {type: "success"})
             if (errors) {
                 setExporting(false)
+                notify("Error exporting templates", {type: "error"})
                 return
             }
             const documentId = data?.export_template?.document_id
             setExportDocumentId(documentId)
         } catch (error) {
             console.log(error)
+            notify("Error exporting templates", {type: "error"})
         }
     }
 
@@ -160,23 +164,11 @@ export const TemplateList: React.FC = () => {
                     documentId,
                 },
             })
+            notify("Templates imported successfully", {type: "success"})
             refresh()
-            // let {data, errors} = await importUsers({
-            //     variables: {
-            //         tenantId,
-            //         documentId,
-            //         electionEventId: electionEvent.id,
-            //     },
-            // })
-            // const task_id = data?.import_users?.task_execution.id
-            // setWidgetTaskId(currWidget.identifier, task_id)
-            // refresh()
-            // if (errors) {
-            //     updateWidgetFail(currWidget.identifier)
-            //     notify(t("electionEventScreen.import.importVotersError"), {type: "error"})
-            // }
         } catch (err) {
-            // updateWidgetFail(currWidget.identifier)
+            console.log(err)
+            notify("Error importing templates", {type: "error"})
         }
     }
 
