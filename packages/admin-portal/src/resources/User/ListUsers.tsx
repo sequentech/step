@@ -720,7 +720,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 attributesFields.push(attr)
             }
         })
-        console.log("AAAA", {basicInfoFields, attributesFields, omitFields})
         return {basicInfoFields, attributesFields, omitFields}
     }, [userAttributes?.get_user_profile_attributes])
 
