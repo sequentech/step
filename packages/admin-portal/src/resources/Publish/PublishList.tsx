@@ -18,7 +18,6 @@ import {
     BooleanInput,
     BooleanField,
     DatagridConfigurable,
-    useListController,
 } from "react-admin"
 
 import {ElectionEventStatus, PublishStatus} from "./EPublishStatus"
@@ -27,7 +26,7 @@ import {EPublishActionsType} from "./EPublishType"
 import {HeaderTitle} from "@/components/HeaderTitle"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {Action, ActionsColumn} from "@/components/ActionButons"
-import {useNavigate, useLocation} from "react-router-dom"
+import {ResetFilters} from "@/components/ResetFilters"
 
 const OMIT_FIELDS: string[] = []
 
@@ -86,50 +85,6 @@ export const PublishList: React.FC<TPublishList> = ({
             action: setBallotPublicationId,
         },
     ]
-    // Avoid error when coming from filtered list in other tabs
-    const listContext = useListController({
-        resource: "sequent_backend_ballot_publication",
-        filter: electionId
-            ? {
-                  election_event_id: electionEventId,
-                  election_id: electionId,
-              }
-            : {
-                  election_event_id: electionEventId,
-              },
-    })
-
-    const navigate = useNavigate()
-    const location = useLocation()
-
-    useEffect(() => {
-        // navigate to self but without search params
-        navigate(
-            {
-                pathname: location.pathname,
-                search: "",
-            },
-            {replace: true}
-        )
-
-        // Reset filters when the component mounts
-        if (listContext && listContext.setFilters) {
-            listContext.setFilters(
-                electionId
-                    ? {
-                          election_event_id: electionEventId,
-                          election_id: electionId,
-                      }
-                    : {
-                          election_event_id: electionEventId,
-                      },
-                {}
-            )
-        }
-    }, [electionEventId, electionId])
-
-    // check if data array is empty
-    const {data, isLoading} = listContext
 
     if (!canRead) {
         return <Empty />
@@ -137,9 +92,7 @@ export const PublishList: React.FC<TPublishList> = ({
 
     return (
         <Box>
-            {(!isLoading && (!data || data.length)) === 0 ? (
-                <Empty />
-            ) : (
+            {
                 <List
                     actions={
                         <PublishActions
@@ -169,6 +122,7 @@ export const PublishList: React.FC<TPublishList> = ({
                     sx={{flexGrow: 2}}
                     empty={<Empty />}
                 >
+                    <ResetFilters />
                     <HeaderTitle title={"publish.header.history"} subtitle="" />
 
                     <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
@@ -180,7 +134,7 @@ export const PublishList: React.FC<TPublishList> = ({
                         <ActionsColumn actions={actions} />
                     </DatagridConfigurable>
                 </List>
-            )}
+            }
         </Box>
     )
 }

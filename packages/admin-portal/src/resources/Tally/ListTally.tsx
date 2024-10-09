@@ -49,6 +49,7 @@ import {useMutation} from "@apollo/client"
 import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
 import {IPermissions} from "@/types/keycloak"
 import {useLocation, useNavigate} from "react-router"
+import {ResetFilters} from "@/components/ResetFilters"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -290,37 +291,6 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     }
     let activeCeremony = getActiveCeremony(keysCeremonies, authContext)
 
-    // Avoid error when coming from filterd list in other tabs
-    const listContext = useListController({
-        resource: "sequent_backend_tally_session",
-        filter: {
-            tenant_id: tenantId || undefined,
-            election_event_id: electionEventRecord?.id || undefined,
-        },
-    })
-
-    const navigate = useNavigate()
-    const location = useLocation()
-
-    useEffect(() => {
-        // navigate to self but without search params
-        navigate(
-            {
-                pathname: location.pathname,
-                search: "",
-            },
-            {replace: true}
-        )
-
-        // Reset filters when the component mounts
-        if (listContext && listContext.setFilters) {
-            listContext.setFilters({}, {})
-        }
-    }, [])
-
-    // check if data array is empty
-    const {data, isLoading} = listContext
-
     return (
         <>
             {canTrusteeCeremony && keysCeremonies?.[0]?.execution_status === "STARTED" ? (
@@ -340,9 +310,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                 </Alert>
             ) : null}
 
-            {(!isLoading && (!data || data.length)) === 0 ? (
-                <Empty />
-            ) : (
+            {
                 <List
                     resource="sequent_backend_tally_session"
                     actions={
@@ -365,6 +333,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                     storeKey={false}
                     filters={Filters}
                 >
+                    <ResetFilters />
                     <ElectionHeader title={"electionEventScreen.tally.title"} subtitle="" />
 
                     <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={false}>
@@ -403,7 +372,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                         </FunctionField>
                     </DatagridConfigurable>
                 </List>
-            )}
+            }
 
             <Dialog
                 variant="warning"
