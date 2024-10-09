@@ -22,6 +22,7 @@ use serde_json::{json, Map, Value};
 use std::env;
 use std::fs;
 use std::fs::File;
+use std::fs::OpenOptions;
 use std::io::Cursor;
 use std::io::Seek;
 use std::io::{self, Read, Write};
@@ -38,6 +39,7 @@ use super::election_event_board::get_election_event_board;
 use super::electoral_log::ElectoralLog;
 use super::import_users::import_users_file;
 use super::temp_path::get_file_size;
+use super::temp_path::write_into_named_temp_file;
 use crate::hasura::election_event::get_election_event;
 use crate::hasura::election_event::insert_election_event as insert_election_event_hasura;
 use crate::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
@@ -451,7 +453,7 @@ pub async fn process_election_event_file(
 
 async fn process_voters_file(
     hasura_transaction: &Transaction<'_>,
-    temp_file: &NamedTempFile,
+    temp_file: &File,
     file_name: &String,
     election_event_id: Option<String>,
     tenant_id: String,
@@ -598,17 +600,16 @@ pub async fn process_document(
                     election_event_schema.tenant_id.to_string(),
                 ).await?;
             }
-            
-            let file = &mut file_contents[..];
-            let mut cursor = Cursor::new(file);
-            let mut temp_file =
-                NamedTempFile::new().context("Failed to create activity logs temporary file")?;
 
-            io::copy(&mut cursor, &mut temp_file)
-                .context("Failed to copy contents of activity logs to temporary file")?;
-            temp_file.as_file_mut().rewind()?;
+            let mut cursor = Cursor::new(&mut file_contents[..]);
 
             if file_name.contains("activity_logs") {
+                let mut temp_file = NamedTempFile::new().context("Failed to create activity logs temporary file")?;
+
+                io::copy(&mut cursor, &mut temp_file)
+                    .context("Failed to copy contents of activity logs to temporary file")?;
+                temp_file.as_file_mut().rewind()?;
+
                 process_activity_logs_file(
                     &temp_file,
                     election_event_schema.election_event.clone(),
@@ -616,10 +617,40 @@ pub async fn process_document(
                 .await?;
             }
 
-            if file_name.contains("voters") {
+            println!("------------ file_name: {:?}", file_name);
+            if file_name.contains("/voters.csv") {
+                // let mut file = File::create("/tmp/voters.csv")?;
+                let mut file = OpenOptions::new()
+                    .read(true) 
+                    .write(true)
+                    .create(true)    // Create the file if it doesn't exist
+                    .truncate(true)  // Truncate the file to 0 length if it exists
+                    .open("/tmp/voters.csv")?;
+                let mut buffer = [0u8; 1024];           
+                println!("------------  11111");
+                while let Ok(size) = cursor.read(&mut buffer) {
+                    if size == 0 {
+                        break; // End of file
+                    }
+                    file
+                        .write_all(&buffer[..size])
+                        .with_context(|| "Error writting to the text file")?;
+                }
+                println!("------------  122222");
+
+                file.sync_all().with_context(|| "Error flushing the file to disk")?;
+    
+                file.seek(std::io::SeekFrom::Start(0))?;
+                println!("------------ file_contents: {:?}", std::str::from_utf8(file_contents.as_slice()));
+
+                file.seek(std::io::SeekFrom::Start(0))?;
+                let file_contents2 = std::fs::read("/tmp/voters.csv")?;
+                println!("------------ file_contents2: {:?}", file_contents2);
+
+                file.seek(std::io::SeekFrom::Start(0))?;
                 process_voters_file(
                     &hasura_transaction,
-                    &temp_file,
+                    &file,
                     &file_name,
                     Some(election_event_schema.election_event.id.clone()),
                     election_event_schema.tenant_id.to_string(),
