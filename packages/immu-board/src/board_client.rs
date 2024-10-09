@@ -425,7 +425,7 @@ impl BoardClient {
         )
         .await
     }*/
-/*
+    /*
     pub async fn get_electoral_log_messages_filtered(
         &mut self,
         board_db: &str,
@@ -871,8 +871,8 @@ impl BoardClient {
         self.client.use_database(index_db).await?;
 
         let message_sql = r#"
-            DELETE from bulletin_boards where 
-            database_name = @database_name 
+            DELETE from bulletin_boards where
+            database_name = @database_name
             AND
             is_archived = @is_archived;
         "#;

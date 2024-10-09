@@ -128,7 +128,6 @@ impl BBHelper {
         })
     }
 
-
     async fn upsert_board_db(&mut self) -> Result<()> {
         self.client
             .upsert_electoral_log_db(self.board_dbname.clone().as_str())
