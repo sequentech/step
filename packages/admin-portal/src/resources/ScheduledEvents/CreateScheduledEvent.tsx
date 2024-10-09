@@ -108,7 +108,7 @@ const CreateEvent: FC<CreateEventProps> = ({
         try {
             let variables: ManageElectionDatesMutationVariables = {
                 electionEventId: electionEventId,
-                electionId: electionId && electionId.length > 0 ? electionId : null,
+                electionId: (!targetsElectionEvent(eventType as EventProcessors) && electionId && electionId.length > 0) ? electionId : null,
                 scheduledDate: scheduleDate,
                 eventProcessor: eventType,
             }
