@@ -1121,14 +1121,30 @@ impl Default for ElectionStatistics {
     Debug,
     Clone,
 )]
+pub enum AllowTallyPolicy {
+    ALLOW,
+    DISALLOW,
+}
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+)]
 pub struct ElectionStatus {
     pub voting_status: VotingStatus,
+    pub allow_tally: AllowTallyPolicy,
 }
 
 impl Default for ElectionStatus {
     fn default() -> Self {
         ElectionStatus {
             voting_status: VotingStatus::NOT_STARTED,
+            allow_tally: AllowTallyPolicy::ALLOW,
         }
     }
 }
