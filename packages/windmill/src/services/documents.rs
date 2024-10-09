@@ -10,7 +10,6 @@ use deadpool_postgres::Transaction;
 use deadpool_postgres::{Client as DbClient, Transaction as _};
 
 use sequent_core::services::connection;
-use sequent_core::services::keycloak::get_client_credentials;
 use sequent_core::types::hasura::core::Document;
 use tempfile::NamedTempFile;
 use tracing::instrument;
@@ -148,7 +147,7 @@ pub async fn upload_and_return_document_postgres(
         /* cache_control_policy */ None,
     )
     .await
-    .with_context(|| "Error uploading file to s3")?;
+    .with_context(|| "Failed uploading file to s3")?;
 
     Ok(document)
 }

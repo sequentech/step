@@ -12,7 +12,6 @@ use sequent_core::ballot::ElectionStatistics;
 use sequent_core::ballot::ElectionStatus;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::connection;
-use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClient};
 use sequent_core::services::replace_uuids::replace_uuids;
@@ -36,7 +35,7 @@ use zip::read::ZipArchive;
 
 use super::consolidation::aes_256_cbc_encrypt::decrypt_file_aes_256_cbc;
 use super::documents;
-use super::documents::upload_and_return_document;
+use super::documents::upload_and_return_document_postgres;
 use super::election_event_board::get_election_event_board;
 use super::electoral_log::ElectoralLog;
 use super::import_users::import_users_file;
@@ -71,7 +70,6 @@ pub struct ImportElectionEventSchema {
     pub areas: Vec<Area>,
     pub area_contests: Vec<AreaContest>,
     pub scheduled_events: Vec<ScheduledEvent>,
-    // pub voters: Option<Vec<Users>>,
 }
 
 #[instrument(err)]
@@ -493,15 +491,14 @@ async fn process_activity_logs_file(
 }
 
 pub async fn process_s3_files(
+    hasura_transaction: &Transaction<'_>,
     temp_file_path: &NamedTempFile,
+    file_name: &str,
     election_event_id: String,
     tenant_id: String,
-    auth_headers: AuthHeaders,
 ) -> Result<()> {
-    // Process each file in the directory
     let file_path_string = temp_file_path.path().to_string_lossy().to_string();
 
-    println!(" --------- file_path_string: {:?}", file_path_string);
     let file_size = get_file_size(file_path_string.as_str())
         .with_context(|| format!("Error obtaining file size for {}", file_path_string))?;
 
@@ -509,14 +506,14 @@ pub async fn process_s3_files(
     let document_type = get_mime_type(file_suffix);
 
     // Upload the file and return the document
-    let _document = upload_and_return_document(
-        file_path_string.clone(),
+    let _document = upload_and_return_document_postgres(
+        hasura_transaction,
+        &file_path_string.clone(),
         file_size,
-        document_type.to_string(),
-        auth_headers.clone(),
-        tenant_id.to_string(),
-        election_event_id.to_string(),
-        file_path_string, // TODO: fix name
+        &document_type,
+        &tenant_id,
+        &election_event_id,
+        file_name,
         None,
         false,
     )
@@ -567,8 +564,6 @@ pub async fn process_document(
             Ok(entries)
         })
         .await??;
-
-        let auth_headers = get_client_credentials().await?;
 
         for (file_name, mut file_contents) in zip_entries {
             info!("Importing file: {:?}", file_name);
@@ -633,21 +628,17 @@ pub async fn process_document(
                     generate_temp_file(&folder_path[1], &folder_path[folder_path.len() - 1])
                         .context("Error generating temp file")?;
 
-                // let mut file = std::fs::File::create(&file_path)
-                //     .context(format!("Failed to create file: {:?}", file_path))?;
-
-                // io::copy(&mut &file_contents[..], &mut file)
-                //     .context("Failed to copy S3 contents to temporary file")?;
                 io::copy(&mut cursor, &mut temp_file)
                     .context("Failed to copy S3 contents to temporary file")?;
                 temp_file.as_file_mut().rewind()?;
 
                 // process the directory instead of a single file
                 process_s3_files(
+                    &hasura_transaction,
                     &temp_file,
+                    &file_name,
                     election_event_schema.election_event.id.clone(),
                     election_event_schema.tenant_id.to_string(),
-                    auth_headers.clone(),
                 )
                 .await?;
             }
