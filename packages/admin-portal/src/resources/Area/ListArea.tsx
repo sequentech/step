@@ -37,6 +37,7 @@ import {useMutation} from "@apollo/client"
 import {IMPORT_AREAS} from "@/queries/ImportAreas"
 import styled from "@emotion/styled"
 import {UPSERT_AREAS} from "@/queries/UpsertAreas"
+import {ResetFilters} from "@/components/ResetFilters"
 
 const ActionsBox = styled(Box)`
     display: flex;
@@ -255,6 +256,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                             }}
                             filterDefaultValues={{}}
                         >
+                            <ResetFilters />
                             <DatagridConfigurable omit={OMIT_FIELDS}>
                                 <TextField source="id" />
                                 <TextField source="name" className="area-name" />

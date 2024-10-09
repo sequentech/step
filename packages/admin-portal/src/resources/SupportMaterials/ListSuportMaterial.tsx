@@ -36,6 +36,7 @@ import AudioFileIcon from "@mui/icons-material/AudioFile"
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf"
 import ImageIcon from "@mui/icons-material/Image"
 import {useNavigate, useLocation} from "react-router-dom"
+import {ResetFilters} from "@/components/ResetFilters"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -114,33 +115,6 @@ export const ListSupportMaterials: React.FC<ListAreaProps> = (props) => {
         {icon: <DeleteIcon />, action: deleteAction},
     ]
 
-    const listContext = useListController({
-        resource: "sequent_backend_support_material",
-        filter: {
-            tenant_id: tenantId || undefined,
-            election_event_id: record?.id || undefined,
-        },
-    })
-
-    const navigate = useNavigate()
-    const location = useLocation()
-
-    useEffect(() => {
-        // navigate to self but without search params
-        navigate(
-            {
-                pathname: location.pathname,
-                search: "",
-            },
-            {replace: true}
-        )
-
-        // Reset filters when the component mounts
-        if (listContext && listContext.setFilters) {
-            listContext.setFilters({}, {})
-        }
-    }, [])
-
     return (
         <>
             <List
@@ -169,6 +143,7 @@ export const ListSupportMaterials: React.FC<ListAreaProps> = (props) => {
                 }}
                 filters={Filters}
             >
+                <ResetFilters />
                 <DatagridConfigurable omit={OMIT_FIELDS}>
                     <TextField source="id" />
                     <BooleanField

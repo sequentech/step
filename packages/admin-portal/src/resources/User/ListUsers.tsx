@@ -24,8 +24,6 @@ import {
     useUnselectAll,
     RaRecord,
     useListContext,
-    useListController,
-    useListFilterContext,
 } from "react-admin"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -84,7 +82,7 @@ import {ETasksExecution} from "@/types/tasksExecution"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import SelectArea from "@/components/area/SelectArea"
 import {WidgetProps} from "@/components/Widget"
-import {useNavigate, useLocation} from "react-router-dom"
+import {ResetFilters} from "@/components/ResetFilters"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -334,42 +332,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             }
         }
     }, [polling])
-
-    const navigate = useNavigate()
-    const location = useLocation()
-
-    // Avoid error when coming from filterd list in other tabs
-    const listContext = useListController({
-        resource: "user",
-        filter: {
-            tenant_id: tenantId,
-            election_event_id: electionEventId,
-            election_id: electionId,
-        },
-    })
-
-    useEffect(() => {
-        // navigate to self but without search params
-        navigate(
-            {
-                pathname: location.pathname,
-                search: "",
-            },
-            {replace: true}
-        )
-
-        // Reset filters when the component mounts
-        if (listContext && listContext.setFilters) {
-            listContext.setFilters(
-                {
-                    tenant_id: tenantId,
-                    election_event_id: electionEventId,
-                    election_id: electionId,
-                },
-                {}
-            )
-        }
-    }, [tenantId, electionEventId, electionId])
 
     const handleClose = () => {
         setOpenUsersLogsModal(false)
@@ -825,14 +787,9 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             )
         })
 
-    // check if data array is empty
-    const {data, isLoading} = listContext
-
     return (
         <>
-            {(!isLoading && (!data || data.length)) === 0 ? (
-                <Empty />
-            ) : (
+            {
                 <List
                     resource="user"
                     queryOptions={{
@@ -881,6 +838,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     filters={Filters}
                     filterDefaultValues={{}}
                 >
+                    <ResetFilters />
                     {userAttributes?.get_user_profile_attributes && (
                         <DataGridContainerStyle
                             omit={listFields.omitFields}
@@ -923,7 +881,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         </DataGridContainerStyle>
                     )}
                 </List>
-            )}
+            }
             <ResourceListStyles.Drawer anchor="right" open={open} onClose={handleClose}>
                 <EditUser
                     id={recordIds[0] as string}
