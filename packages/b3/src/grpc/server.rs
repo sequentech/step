@@ -11,9 +11,9 @@ use tonic::{Request, Response, Status};
 use tracing::{error, info, warn};
 
 use crate::grpc::{
-    GetBoardsReply, GetBoardsRequest, GetMessagesMultiReply, GetMessagesMultiRequest,
-    GetMessagesReply, GetMessagesRequest, GrpcB3Message, BoardMessages, PutMessagesMultiReply,
-    PutMessagesMultiRequest, MESSAGE_CHUNK_SIZE,
+    BoardMessages, GetBoardsReply, GetBoardsRequest, GetMessagesMultiReply,
+    GetMessagesMultiRequest, GetMessagesReply, GetMessagesRequest, GrpcB3Message,
+    PutMessagesMultiReply, PutMessagesMultiRequest, MESSAGE_CHUNK_SIZE,
 };
 use crate::grpc::{PutMessagesReply, PutMessagesRequest};
 use crate::messages::statement::StatementType;

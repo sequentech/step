@@ -269,10 +269,14 @@ pub async fn try_insert_cast_vote(
 
     match result {
         Ok(inserted_cast_vote) => {
-            let electoral_log =
-                ElectoralLog::for_voter(election_event_id, tenant_id, election_event_id, voter_id)
-                    .await
-                    .map_err(|e| CastVoteError::ElectoralLogNotFound(e.to_string()))?;
+            let electoral_log = ElectoralLog::for_voter(
+                &electoral_log.elog_database,
+                tenant_id,
+                election_event_id,
+                voter_id,
+            )
+            .await
+            .map_err(|e| CastVoteError::ElectoralLogNotFound(e.to_string()))?;
 
             let log_result = electoral_log
                 .post_cast_vote(
@@ -351,9 +355,12 @@ pub async fn insert_cast_vote_and_commit<'a>(
     let ballot_signature = signing_key
         .sign(&ballot_bytes)
         .map_err(|e| CastVoteError::BallotSignFailed(e.to_string()))?;
+    let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
+        .with_context(|| "missing bulletin board")
+        .map_err(|e| CastVoteError::BallotVoterSignatureFailed(e.to_string()))?;
 
     let voter_signing_key = vault::get_voter_signing_key(
-        ids.election_event_id,
+        &board_name,
         ids.tenant_id,
         ids.election_event_id,
         ids.voter_id,

@@ -65,7 +65,7 @@ pub trait BoardMulti: Sized {
     type Factory: BoardFactoryMulti<Self>;
 
     /// Returns a list of BoardMessages for the given requests.
-    /// 
+    ///
     /// BoardMessages are a list of messages for one board,
     fn get_messages_multi(
         &self,

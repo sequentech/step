@@ -12,7 +12,7 @@ use crate::protocol::trustee2::Trustee;
 use crate::util::ProtocolError;
 
 /// A protocol session.
-/// 
+///
 /// A protocol session handles one board in the
 /// bulletin board.
 pub struct Session<C: Ctx + 'static, B: Board + 'static> {
@@ -22,7 +22,7 @@ pub struct Session<C: Ctx + 'static, B: Board + 'static> {
 }
 impl<C: Ctx, B: Board> Session<C, B> {
     /// Constructs a new SessionM to handle the requested board.
-    /// 
+    ///
     /// The board_factory parameter is used at each step to perform
     /// messaging to/from the remote bulletin board.
     pub fn new(board_name: &str, trustee: Trustee<C>, board_factory: B::Factory) -> Session<C, B> {
@@ -34,13 +34,13 @@ impl<C: Ctx, B: Board> Session<C, B> {
     }
 
     /// Performs one step of the protocol for this session.
-    /// 
+    ///
     /// A step performs the following operations
-    /// 
-    /// 1) Retrieve new messages from the remote board (as per 
+    ///
+    /// 1) Retrieve new messages from the remote board (as per
     /// trustee::get_last_external_id)
     /// 2) Run the trustee step
-    /// 3) Post the messages returned by the trustee 
+    /// 3) Post the messages returned by the trustee
     /// to the remote board
     pub async fn step(&mut self) -> Result<(), ProtocolError> {
         let mut board = self.board_factory.get_board();

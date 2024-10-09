@@ -36,7 +36,7 @@ pub struct ElectoralLog {
 }
 
 impl ElectoralLog {
-    #[instrument]
+    #[instrument(err)]
     pub async fn new(elog_database: &str) -> Result<Self> {
         let protocol_manager = get_protocol_manager::<RistrettoCtx>(elog_database).await?;
 
@@ -50,6 +50,7 @@ impl ElectoralLog {
         })
     }
 
+    #[instrument(skip(sender_sk), err)]
     pub async fn new_from_sk(elog_database: &str, sender_sk: &StrandSignatureSk) -> Result<Self> {
         let protocol_manager = get_protocol_manager::<RistrettoCtx>(elog_database).await?;
         let system_sk = protocol_manager.get_signing_key().clone();
@@ -68,6 +69,7 @@ impl ElectoralLog {
     /// We need to pass in the log database because the vault
     /// will post a public key message if it needs to generates
     /// a signing key.
+    #[instrument(err)]
     pub async fn for_voter(
         elog_database: &str,
         tenant_id: &str,
@@ -93,6 +95,7 @@ impl ElectoralLog {
     /// We need to pass in the log database because the vault
     /// will post a public key message if it needs to generates
     /// a signing key.
+    #[instrument(err)]
     pub async fn for_admin_user(
         elog_database: &str,
         tenant_id: &str,
@@ -110,6 +113,7 @@ impl ElectoralLog {
     }
 
     /// Posts a voter's public key
+    #[instrument(err)]
     pub async fn post_voter_pk(
         elog_database: &str,
         tenant_id: &str,

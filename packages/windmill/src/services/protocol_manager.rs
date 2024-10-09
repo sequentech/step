@@ -302,6 +302,7 @@ pub fn convert_b3(b3: &Vec<B3MessageRow>) -> Result<Vec<Message>> {
     Ok(messages)
 }
 
+#[instrument(err)]
 pub async fn get_protocol_manager<C: Ctx>(board_name: &str) -> Result<ProtocolManager<C>> {
     let protocol_manager_key = get_protocol_manager_secret_path(board_name);
     let protocol_manager_data = vault::read_secret(protocol_manager_key)
