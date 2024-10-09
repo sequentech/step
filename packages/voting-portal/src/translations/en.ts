@@ -277,6 +277,7 @@ const englishTranslation = {
             },
             explicit: {
                 notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",
+                alert: "Selection marked will be considered invalid vote.",
             },
             page: {
                 oopsWithStatus: "Oops! {{status}}",

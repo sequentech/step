@@ -10,6 +10,7 @@ import {getPermissions} from "./GetPermissions"
 import {getRoles} from "./GetRoles"
 import {isString} from "lodash"
 import {COLUMNS_MAP} from "@/types/query"
+import {GetCastVotesByIp} from "./GetCastVotesByIp"
 
 export interface ParamsSort {
     field: string
@@ -200,6 +201,31 @@ export const customBuildQuery =
                 ),
                 parseResponse: (res: any) => {
                     const response = res.data.get_permissions
+                    let output = {
+                        data: response.items,
+                        total: response.total.aggregate.count,
+                    }
+                    return output
+                },
+            }
+        } else if (resourceName === "ip_address" && raFetchType === "GET_LIST") {
+            const resource: any = {
+                type: {
+                    fields: [],
+                    name: "ip_address",
+                },
+            }
+
+            return {
+                query: GetCastVotesByIp(params),
+                variables: buildVariables(introspectionResults)(
+                    resource,
+                    raFetchType,
+                    params,
+                    null
+                ),
+                parseResponse: (res: any) => {
+                    const response = res.data.get_top_votes_by_ip
                     let output = {
                         data: response.items,
                         total: response.total.aggregate.count,
