@@ -191,7 +191,11 @@ const CreateEvent: FC<CreateEventProps> = ({
                             label={t("eventsScreen.election.label")}
                             onSelectElection={(electionId) => setElectionId(electionId)}
                             source="event_payload.election_id"
-                            disabled={targetsElectionEvent(eventType as EventProcessors) || isEditEvent || isLoading}
+                            disabled={
+                                targetsElectionEvent(eventType as EventProcessors) ||
+                                isEditEvent ||
+                                isLoading
+                            }
                             value={electionId}
                         />
                     )}
