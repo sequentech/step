@@ -170,14 +170,14 @@ enum EmailTransport {
     Console,
 }
 
-struct EmailSender {
+pub struct EmailSender {
     transport: EmailTransport,
     email_from: String,
 }
 
 impl EmailSender {
     #[instrument(err)]
-    async fn new() -> Result<Self> {
+    pub async fn new() -> Result<Self> {
         let email_from =
             std::env::var("EMAIL_FROM").map_err(|err| anyhow!("EMAIL_FROM env var missing"))?;
         let email_transport_name = std::env::var("EMAIL_TRANSPORT_NAME")
@@ -201,7 +201,7 @@ impl EmailSender {
     }
 
     #[instrument(skip(self), err)]
-    async fn send(
+    pub async fn send(
         &self,
         receiver: String,
         subject: String,
@@ -290,27 +290,34 @@ async fn send_template_sms(
 }
 
 #[instrument(skip(sender), err)]
-async fn send_template_email(
+pub async fn send_template_email(
     receiver: &Option<String>,
     template: &Option<EmailConfig>,
     variables: &Map<String, Value>,
     sender: &EmailSender,
 ) -> Result<()> {
     if let (Some(receiver), Some(config)) = (receiver, template) {
+
         let subject = reports::render_template_text(config.subject.as_str(), variables.clone())
             .map_err(|err| anyhow!("{}", err))?;
-        let plaintext_body =
-            reports::render_template_text(config.plaintext_body.as_str(), variables.clone())
-                .map_err(|err| anyhow!("{}", err))?;
-        let html_body = reports::render_template_text(config.html_body.as_str(), variables.clone())
+        
+        let plaintext_body = reports::render_template_text(config.plaintext_body.as_str(), variables.clone())
+            .map_err(|err| anyhow!("{}", err))?;
+        
+        let html_body = config.html_body.as_ref()
+            .ok_or_else(|| anyhow!("html_body missing"))?; // Error if html_body is None
+        
+        let html_body = reports::render_template_text(&html_body, variables.clone())
             .map_err(|err| anyhow!("{}", err))?;
 
         sender
             .send(receiver.to_string(), subject, plaintext_body, html_body)
             .await?;
     } else {
-        event!(Level::INFO, "Receiver empty, ignoring..");
+        // Log the event if the receiver or template is missing
+        event!(Level::INFO, "Receiver or template is empty, email not sent.");
     }
+
     Ok(())
 }
 
