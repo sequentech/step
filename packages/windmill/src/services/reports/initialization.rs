@@ -1,36 +1,35 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
-//
-// SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
 use crate::services::database::get_hasura_pool;
 use crate::{postgres::election_event::get_election_event_by_id, services::s3::get_minio_url};
 use crate::{postgres::scheduled_event::find_scheduled_event_by_election_event_id_and_event_processor};
 use crate::services::temp_path::*;
-use anyhow::{anyhow, Context, Ok, Result};
+use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use std::env;
-use tracing::{info, instrument};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 
-/// Struct for Transition Report Data
+/// Struct for the initialization report
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
-    pub num_of_registered_voters: u32,
-    pub num_of_ballots_counted: u32,
-    pub voter_turnout: f32,
-    pub server_code: String,
-    pub transmitted: bool,
-    pub transmitted_datetime: Option<String>,
-    pub received: bool,
-    pub received_datetime: Option<String>,
     pub election_start_date: String,
     pub election_title: String,
     pub geograpic_region: String,
     pub area: String,
     pub country: String,
     pub voting_center: String,
+    pub total_registered_voters: u32,
+    pub total_ballots_counted: u32,
+    pub elective_position_name: String,
+    pub candidate_data: Vec<CandidateData>,
+}
+
+/// Struct for each candidate's data
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct CandidateData {
+    pub name_appearing_on_ballot: String,
+    pub acronym: String,
+    pub votes_garnered: u32,
 }
 
 /// Struct for System Data
@@ -46,13 +45,13 @@ pub struct SystemData {
 }
 
 #[derive(Debug)]
-pub struct TransitionsReport {
+pub struct InitializationTemplate {
     tenant_id: String,
     election_event_id: String,
 }
 
 #[async_trait]
-impl TemplateRenderer for TransitionsReport {
+impl TemplateRenderer for InitializationTemplate {
     type UserData = UserData;
     type SystemData = SystemData;
 
@@ -65,15 +64,15 @@ impl TemplateRenderer for TransitionsReport {
     }
 
     fn base_name() -> String {
-        "transitions_report".to_string()
+        "initialization_report".to_string()
     }
 
     fn prefix(&self) -> String {
-        format!("transitions_report_{}", self.election_event_id)
+        format!("initialization_report_{}", self.election_event_id)
     }
 
-    /// Prepare user data by fetching the relevant details
     async fn prepare_user_data(&self) -> Result<Self::UserData> {
+        // Fetch the Hasura database client from the pool
         let mut hasura_db_client: DbClient = get_hasura_pool()
             .await
             .get()
@@ -87,57 +86,40 @@ impl TemplateRenderer for TransitionsReport {
 
         // Fetch election event data
         let election_event = get_election_event_by_id(
-            &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &hasura_transaction, 
+            &self.tenant_id, 
+            &self.election_event_id
         )
         .await
         .with_context(|| "Error obtaining election event")?;
 
-        // Fetch election event data
-        let start_election_event = find_scheduled_event_by_election_event_id_and_event_processor(
-            &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
-            "START_VOTING_PERIOD"
-        )
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)));
-
+        // Split elective position name before the '/'
+        let elective_position_name = election_event.name.split('/').next()
+            .unwrap_or("Unknown Position")
+            .to_string();
+        
         // TODO: replace mock data with actual data
-        let mut election_start_date: String;
-        // if let Some(cron_config) = start_election_event.get(0).and_then(|event| event.cron_config.clone()) {
-        //     // Now cron_config is a CronConfig, not an Option
-        //     if let Some(scheduled_date) = cron_config.scheduled_date {
-        //         election_start_date = scheduled_date;
-        //     } 
+        // Extract candidate names and acronyms
+        let candidates: Vec<CandidateData> = Vec::new(); // Assuming the structure has candidates array
+        let mut candidate_data: Vec<CandidateData> = Vec::new();
+        for candidate in candidates {
+            candidate_data.push(CandidateData {
+                name_appearing_on_ballot: candidate.name_appearing_on_ballot.clone(),
+                acronym: candidate.acronym.clone(), // Assuming acronym is part of the candidate structure
+                votes_garnered: 0, // Default value since no votes have been cast yet
+            });
+        }
 
-        // }
-
-        // Placeholder values for fetching external data (e.g., total ballots)
-        let total_registered_voters = 1000; // Replace with actual query
-        let total_ballots_counted = 800; // Replace with actual query
-
-        // Calculate voter turnout
-        let voter_turnout = (total_ballots_counted as f32 / total_registered_voters as f32) * 100.0;
-
-        // Placeholder values for server data
-        let server_code = "123456".to_string();
-        let transmitted = true;
-        let transmitted_datetime = Some("2024-10-09T12:00:00Z".to_string());
-        let received = true;
-        let received_datetime = Some("2024-10-09T12:05:00Z".to_string());
+        // Retrieve total registered voters and total ballots counted (Placeholder for now)
+        let total_registered_voters = 0; // Replace with the correct value fetched from Felix
+        let total_ballots_counted = 0; // Replace with the correct value fetched from Felix
 
         let temp_val: &str = "test";
         Ok(UserData {
-            num_of_registered_voters: total_registered_voters,
-            num_of_ballots_counted: total_ballots_counted,
-            voter_turnout,
-            server_code,
-            transmitted,
-            transmitted_datetime,
-            received,
-            received_datetime,
+            total_registered_voters,
+            total_ballots_counted,
+            elective_position_name,
+            candidate_data,
             election_start_date: temp_val.to_string(),
             election_title: election_event.name.clone(),
             geograpic_region: temp_val.to_string(),

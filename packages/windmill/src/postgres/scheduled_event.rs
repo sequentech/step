@@ -502,6 +502,8 @@ pub async fn insert_new_scheduled_event(
         .event_processor
         .map(|processor| processor.to_string());
 
+    info!("event_processor_daniel: {:?}", &event_processor_s);
+
     let statement = hasura_transaction
         .prepare(
             r#"

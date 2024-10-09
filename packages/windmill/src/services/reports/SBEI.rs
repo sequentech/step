@@ -95,7 +95,7 @@ impl TemplateRenderer for SBEITemplate {
             &hasura_transaction,
             &self.tenant_id,
             &self.election_event_id,
-            "START_ELECTION"
+            "START_VOTING_PERIOD"
         )
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)));
