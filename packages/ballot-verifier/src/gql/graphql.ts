@@ -49,6 +49,17 @@ export type Boolean_Comparison_Exp = {
     _nin?: InputMaybe<Array<Scalars["Boolean"]["input"]>>
 }
 
+export type CastVotesByIp = {
+    __typename?: "CastVotesByIp"
+    country?: Maybe<Scalars["String"]["output"]>
+    election_id?: Maybe<Scalars["String"]["output"]>
+    election_name?: Maybe<Scalars["String"]["output"]>
+    id?: Maybe<Scalars["String"]["output"]>
+    ip?: Maybe<Scalars["String"]["output"]>
+    vote_count?: Maybe<Scalars["Int"]["output"]>
+    voters_id?: Maybe<Array<Maybe<Scalars["String"]["output"]>>>
+}
+
 export type CastVotesPerDay = {
     __typename?: "CastVotesPerDay"
     day: Scalars["date"]["output"]
@@ -310,6 +321,21 @@ export type GetRolesInput = {
 export type GetRolesOutput = {
     __typename?: "GetRolesOutput"
     items: Array<KeycloakRole>
+    total: TotalAggregate
+}
+
+export type GetTopCastVotesByIpInput = {
+    country?: InputMaybe<Scalars["String"]["input"]>
+    election_event_id: Scalars["uuid"]["input"]
+    election_id?: InputMaybe<Scalars["String"]["input"]>
+    ip?: InputMaybe<Scalars["String"]["input"]>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+}
+
+export type GetTopCastVotesByIpOutput = {
+    __typename?: "GetTopCastVotesByIpOutput"
+    items: Array<CastVotesByIp>
     total: TotalAggregate
 }
 
@@ -3317,6 +3343,7 @@ export type Query_Root = {
     /** list permissions */
     get_permissions: GetPermissionsOutput
     get_roles: GetRolesOutput
+    get_top_votes_by_ip?: Maybe<GetTopCastVotesByIpOutput>
     get_user_profile_attributes: Array<UserProfileAttribute>
     get_users: GetUsersOutput
     /** List Electoral Log */
@@ -3539,6 +3566,10 @@ export type Query_RootGet_PermissionsArgs = {
 
 export type Query_RootGet_RolesArgs = {
     body: GetRolesInput
+}
+
+export type Query_RootGet_Top_Votes_By_IpArgs = {
+    body: GetTopCastVotesByIpInput
 }
 
 export type Query_RootGet_User_Profile_AttributesArgs = {
