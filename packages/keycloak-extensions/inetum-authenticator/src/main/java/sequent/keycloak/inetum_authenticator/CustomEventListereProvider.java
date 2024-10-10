@@ -46,32 +46,23 @@ public class CustomEventListereProvider implements EventListenerProvider {
 
     String eventType = event.getDetails().get("type");
     if (Utils.EVENT_TYPE_COMMUNICATIONS.equals(eventType)) {
-        handleCommunicationsEvent(event);
+      handleCommunicationsEvent(event);
     } else {
-        logEvent(
-            getElectionEventId(event.getRealmId()),
-            event.getType(),
-            event.getError(),
-            event.getUserId()
-        );
+      logEvent(
+          getElectionEventId(event.getRealmId()),
+          event.getType(),
+          event.getError(),
+          event.getUserId());
     }
   }
 
   private void handleCommunicationsEvent(Event event) {
-    String msgBody = Optional
-      .ofNullable(event.getDetails().get("msgBody"))
-      .orElse("");
-    
-    String body = String
-      .format("%s %s", Utils.EVENT_TYPE_COMMUNICATIONS, msgBody)
-      .replace("\n", " ");
-    
-    logEvent(
-        getElectionEventId(event.getRealmId()),
-        event.getType(),
-        body,
-        event.getUserId()
-    );
+    String msgBody = Optional.ofNullable(event.getDetails().get("msgBody")).orElse("");
+
+    String body =
+        String.format("%s %s", Utils.EVENT_TYPE_COMMUNICATIONS, msgBody).replace("\n", " ");
+
+    logEvent(getElectionEventId(event.getRealmId()), event.getType(), body, event.getUserId());
   }
 
   public void authenticate() {

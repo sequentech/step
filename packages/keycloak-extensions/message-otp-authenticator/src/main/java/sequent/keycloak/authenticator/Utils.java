@@ -177,8 +177,9 @@ public class Utils {
           ImmutableList.of(realmName, code, String.valueOf(Math.floorDiv(ttl, 60)));
 
       String smsTemplateKey = (isOtl) ? Utils.SEND_LINK_SMS_I18N_KEY : Utils.SEND_CODE_SMS_I18N_KEY;
-      String formattedMessage = smsSenderProvider.send(
-          mobileNumber.trim(), smsTemplateKey, smsAttributes, realm, user, session);
+      String formattedMessage =
+          smsSenderProvider.send(
+              mobileNumber.trim(), smsTemplateKey, smsAttributes, realm, user, session);
       communicationsLog(context, formattedMessage);
     } else {
       log.infov("sendCode(): NOT Sending SMS to=`{0}`", mobileNumber);
@@ -205,15 +206,16 @@ public class Utils {
         String ftlKey = (isOtl) ? Utils.SEND_LINK_EMAIL_FTL : Utils.SEND_CODE_EMAIL_FTL;
         String textBody;
         if (deferredUser) {
-          textBody = sendEmail(
-              session,
-              realm,
-              user,
-              subjectKey,
-              subjAttr,
-              ftlKey,
-              messageAttributes,
-              emailAddress.trim());
+          textBody =
+              sendEmail(
+                  session,
+                  realm,
+                  user,
+                  subjectKey,
+                  subjAttr,
+                  ftlKey,
+                  messageAttributes,
+                  emailAddress.trim());
           communicationsLog(context, textBody);
         } else {
           emailTemplateProvider
@@ -233,12 +235,12 @@ public class Utils {
 
   void communicationsLog(Object context, String body) {
     if (context instanceof AuthenticationFlowContext) {
-        AuthenticationFlowContext flowContext = (AuthenticationFlowContext) context;
-        flowContext
-            .getEvent()
-            .detail("type", EVENT_TYPE_COMMUNICATIONS)
-            .detail("msgBody", body)
-            .success();
+      AuthenticationFlowContext flowContext = (AuthenticationFlowContext) context;
+      flowContext
+          .getEvent()
+          .detail("type", EVENT_TYPE_COMMUNICATIONS)
+          .detail("msgBody", body)
+          .success();
     }
   }
 
