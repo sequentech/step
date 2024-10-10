@@ -35,7 +35,10 @@ pub struct UserData {
     pub total_not_enrolled: u32,
     pub total_eb_with_privilege: u32,
     pub total_ov: u32,
-    pub ov_users_who_voted: Vec<OVUserData>
+    pub ov_users_who_voted: Vec<OVUserData>,
+    pub chairperson_name: String,
+    pub poll_clerk_name: String,
+    pub third_member_name: String,
 }
 
 /// Struct for System Data
@@ -136,6 +139,7 @@ impl TemplateRenderer for OVUserTemplate {
         let total_ov = ov_users.len() as u32;
 
         // Mock UserData
+        let temp_val: &str = "test";
         let user_data = UserData {
             election_start_date: "2024-10-01".to_string(),
             election_title: "National Elections 2024".to_string(),
@@ -149,6 +153,9 @@ impl TemplateRenderer for OVUserTemplate {
             total_eb_with_privilege,
             total_ov,
             ov_users_who_voted: ov_users.into_iter().filter(|ov| ov.status == "Voted").collect(),
+            chairperson_name: temp_val.to_string(),
+            poll_clerk_name: temp_val.to_string(),
+            third_member_name: temp_val.to_string(),
         };
 
         Ok(user_data)

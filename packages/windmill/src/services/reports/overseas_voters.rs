@@ -38,6 +38,9 @@ pub struct UserData {
     pub total_eb_voted: u32,
     pub total_ov: u32,
     pub voters_list: Vec<VoterData>,
+    pub chairperson_name: String,
+    pub poll_clerk_name: String,
+    pub third_member_name: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -143,6 +146,9 @@ impl TemplateRenderer for OverseasVotersReport {
             total_eb_voted,
             total_ov,
             voters_list,
+            chairperson_name: temp_val.to_string(),
+            poll_clerk_name: temp_val.to_string(),
+            third_member_name: temp_val.to_string(),
         };
 
         Ok(user_data)

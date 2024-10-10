@@ -26,6 +26,9 @@ pub struct UserData {
     pub voted: u32,
     pub num_password_resets: u32,
     pub remarks: String,
+    pub chairperson_name: String,
+    pub poll_clerk_name: String,
+    pub third_member_name: String,
 }
 
 // Struct to hold system data
@@ -110,6 +113,9 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
             voted: 400,
             num_password_resets: 50,
             remarks: "Smooth voting process".to_string(),
+            chairperson_name: temp_val.to_string(),
+            third_member_name: temp_val.to_string(),
+            poll_clerk_name: temp_val.to_string(),
         };
 
         Ok(user_data)

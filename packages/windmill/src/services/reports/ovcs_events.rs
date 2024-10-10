@@ -27,6 +27,9 @@ pub struct UserData {
     pub date_time_transmission_results: String,
     pub transmission_status: String,
     pub remarks: Option<String>,  // Free text input, so it can be optional
+    pub chairperson_name: String,
+    pub poll_clerk_name: String,
+    pub third_member_name: String,
 }
 
 
@@ -118,7 +121,10 @@ impl TemplateRenderer for OVCSEventsTemplate {
             date_time_transmission_results: "2024-10-09 18:00".to_string(),
             transmission_status: "Success".to_string(),
             remarks: Some("No issues reported".to_string()),
-        })
+            chairperson_name: temp_val.to_string(),
+            third_member_name: temp_val.to_string(),
+            poll_clerk_name: temp_val.to_string(),
+})
     }
 
     /// Prepare system metadata for the report

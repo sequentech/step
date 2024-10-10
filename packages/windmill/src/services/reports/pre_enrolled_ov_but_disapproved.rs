@@ -32,7 +32,10 @@ pub struct UserData {
     pub area: String,
     pub country: String,
     pub voting_center: String,
-    pub pre_enrolled_users: Vec<DisapprovedOVData>
+    pub pre_enrolled_users: Vec<DisapprovedOVData>,
+    pub chairperson_name: String,
+    pub poll_clerk_name: String,
+    pub third_member_name: String,
 }
 
 
@@ -111,7 +114,7 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
                 reason: "Not eligible".to_string(),
             },
         ];
-
+        let temp_val: &str = "test";
         Ok(UserData {
             election_start_date: "2024-09-30".to_string(),
             election_title: "2024 National Elections".to_string(),
@@ -120,6 +123,9 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
             country: "Philippines".to_string(),
             voting_center: "Voting Center 1".to_string(),
             pre_enrolled_users: mock_users,
+            chairperson_name: temp_val.to_string(),
+            poll_clerk_name: temp_val.to_string(),
+            third_member_name: temp_val.to_string(),
         })
     }
 

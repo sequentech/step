@@ -26,6 +26,9 @@ pub struct UserData {
     pub country: String,
     pub voting_center: String,
     pub num_of_registered_voters: u32,
+    pub chairperson_name: String,
+    pub poll_clerk_name: String,
+    pub third_member_name: String,
 }
 
 /// Struct for System Data
@@ -125,12 +128,16 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
         let temp_val: &str = "test";
         Ok(UserData{
             election_start_date: temp_val.to_string(),
-            election_title: election_event.name.clone(),
+            // election_title: election_event.name.clone(),
+            election_title: temp_val.to_string(),
             geograpic_region: temp_val.to_string(),
             area: temp_val.to_string(),
             country: temp_val.to_string(),
             voting_center: temp_val.to_string(),
             num_of_registered_voters: 0,
+            chairperson_name: temp_val.to_string(),
+            poll_clerk_name: temp_val.to_string(),
+            third_member_name: temp_val.to_string(),
         })
     }
 

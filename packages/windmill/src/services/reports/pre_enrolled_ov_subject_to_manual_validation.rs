@@ -30,7 +30,10 @@ pub struct UserData {
     pub area: String,
     pub country: String,
     pub voting_center: String,
-    pub pre_enrolled_users: Vec<PreEnrolledUserData>
+    pub pre_enrolled_users: Vec<PreEnrolledUserData>,
+    pub chairperson_name: String,
+    pub poll_clerk_name: String,
+    pub third_member_name: String,
 }
 
 // Struct to hold system data
@@ -121,7 +124,7 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
                 date_pre_enrolled: "2024-10-09 16:45:00".to_string(),
             },
         ];
-
+        let temp_val: &str = "test";
         Ok(UserData {
             election_start_date: "2024-11-01".to_string(),
             election_title: "National Elections".to_string(),
@@ -130,6 +133,9 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
             country: "Philippines".to_string(),
             voting_center: "Quezon City Voting Center".to_string(),
             pre_enrolled_users,
+            chairperson_name: temp_val.to_string(),
+            poll_clerk_name: temp_val.to_string(),
+            third_member_name: temp_val.to_string(),
         })
     }
 

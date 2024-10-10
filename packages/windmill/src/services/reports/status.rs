@@ -21,6 +21,9 @@ pub struct UserData {
     pub num_of_registered_voters: u32,
     pub total_ballots_counted: u32,
     pub ovcs_status: String,
+    pub chairperson_name: String,
+    pub poll_clerk_name: String,
+    pub third_member_name: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -107,6 +110,7 @@ impl TemplateRenderer for StatusTemplate {
 
         let election_start_date = "2024-10-15".to_string(); // Placeholder, adapt according to real fetched data
         let ovcs_status = "Active".to_string();  // Fetch the real status from DB
+        let temp_val: &str = "test";
 
         Ok(UserData {
             election_start_date,
@@ -118,6 +122,9 @@ impl TemplateRenderer for StatusTemplate {
             num_of_registered_voters: 10000,  // Fetch from DB
             total_ballots_counted: 8000,  // Fetch from DB
             ovcs_status,  // Fetch from DB
+            chairperson_name: temp_val.to_string(),
+            poll_clerk_name: temp_val.to_string(),
+            third_member_name: temp_val.to_string(),
         })
     }
 

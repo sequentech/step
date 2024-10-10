@@ -33,7 +33,10 @@ pub struct UserData {
     pub total_not_voted: u32,
     pub total_eb_with_privileges: u32,
     pub total_ov_users: u32,
-    pub ov_users_who_voted: Vec<OVUserData>
+    pub ov_users_who_voted: Vec<OVUserData>,
+    pub chairperson_name: String,
+    pub poll_clerk_name: String,
+    pub third_member_name: String,
 }
 
 /// Struct for System Data
@@ -119,7 +122,7 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
             },
         ];
 
-
+        let temp_val: &str = "test";
         let user_data = UserData {
             election_start_date: "2024-05-01".to_string(),  // Placeholder value, replace with real data
             election_title: "2024 National Elections".to_string(),  // Placeholder value
@@ -132,6 +135,9 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
             total_eb_with_privileges: 0,
             total_ov_users: 0,
             ov_users_who_voted: mock_ov_users_who_voted,  // Using mock data for now
+            chairperson_name: temp_val.to_string(),
+            poll_clerk_name: temp_val.to_string(),
+            third_member_name: temp_val.to_string(),
         };
 
         Ok(user_data)

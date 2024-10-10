@@ -26,7 +26,6 @@ pub enum ReportType {
     ELECTORAL_RESULTS,
     TRANSITIONS,
     STATUS,
-    SBEI,
     PRE_ENROLLED_USERS,
     PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION,
     PRE_ENROLLED_OV_BUT_DISAPPROVED,
@@ -89,7 +88,8 @@ pub trait TemplateRenderer: Debug {
 
         let presentation = match election_event.presentation {
             Some(val) => val,
-            None => return Err(anyhow!("Election event has no presentation")),
+            // None => return Err(anyhow!("Election event has no presentation")),
+            None => return Ok(None),
         };
 
         let active_template_ids = match presentation.get("active_template_ids") {
@@ -169,6 +169,7 @@ pub trait TemplateRenderer: Debug {
             .to_map()
             .map_err(|e| anyhow!("Error converting user data to map: {e:?}"))?;
 
+        info!("user data in template renderer: {:?}", user_data);
         let rendered_user_template = reports::render_template_text(&user_template, user_data)
             .map_err(|e| anyhow!("Error rendering user template: {e:?}"))?;
 

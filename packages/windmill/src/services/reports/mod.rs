@@ -5,7 +5,6 @@
 pub mod ovcs_information;
 pub mod manual_verification;
 pub mod transitions;
-pub mod SBEI;
 pub mod initialization;
 pub mod status;
 pub mod election_returns_for_national_positions;

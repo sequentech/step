@@ -37,7 +37,10 @@ pub struct UserData {
     pub number_of_ovs_not_voted: u32,
     pub number_of_ovs_total: u32,
     pub number_of_ovs_approved_by: String, // OFOV/SBEI/SYSTEM
-    pub pre_enrolled_users: Vec<PreEnrolledUserData>
+    pub pre_enrolled_users: Vec<PreEnrolledUserData>,
+    pub chairperson_name: String,
+    pub poll_clerk_name: String,
+    pub third_member_name: String,
 }
 
 // Struct to hold system data
@@ -144,6 +147,7 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
 
         // Assuming "OFOV" approval is common, modify logic to fit your use case
         let number_of_ovs_approved_by = "OFOV".to_string();
+        let temp_val: &str = "test";
 
         Ok(UserData {
             election_start_date: "2024-01-01".to_string(),
@@ -157,6 +161,9 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
             number_of_ovs_total,
             number_of_ovs_approved_by,
             pre_enrolled_users,
+            chairperson_name: temp_val.to_string(),
+            poll_clerk_name: temp_val.to_string(),
+            third_member_name: temp_val.to_string(),
         })
     }
 

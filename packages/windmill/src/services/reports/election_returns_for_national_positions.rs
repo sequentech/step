@@ -26,6 +26,9 @@ pub struct UserData {
     pub total_ballots_counted: u32,
     pub voter_turnout: f32,
     pub candidate_data: Vec<CandidateData>,
+    pub chairperson_name: String,
+    pub poll_clerk_name: String,
+    pub third_member_name: String,
 }
 
 /// Struct for each candidate's data
@@ -141,6 +144,9 @@ impl TemplateRenderer for ElectionReturnsForNationalPostionTemplate {
             area: temp_val.to_string(),
             country: temp_val.to_string(),
             voting_center: temp_val.to_string(),
+            chairperson_name: temp_val.to_string(),
+            poll_clerk_name: temp_val.to_string(),
+            third_member_name: temp_val.to_string(),
         })
     }
 
