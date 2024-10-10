@@ -29,7 +29,7 @@ use std::io::Seek;
 use std::io::{self, Read, Write};
 use std::path::Path;
 use tempfile::NamedTempFile;
-use tracing::{event, instrument, info, Level};
+use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 use zip::read::ZipArchive;
 
@@ -181,11 +181,11 @@ pub async fn insert_election_event_db(
 }
 
 async fn generate_decrypted_zip(
-    password: &str,
     temp_path_string: String,
     decrypted_temp_file_string: String,
+    password: String,
 ) -> Result<()> {
-    decrypt_file_aes_256_cbc(&temp_path_string, &decrypted_temp_file_string, password).map_err(
+    decrypt_file_aes_256_cbc(&temp_path_string, &decrypted_temp_file_string, &password).map_err(
         |err| {
             anyhow!(
                 "Error decrypting file {temp_path_string} to {decrypted_temp_file_string}: {err}"
@@ -255,19 +255,26 @@ pub async fn get_document(
         &object.document_id
     ))?;
 
-    let mut temp_file_path = documents::get_document_as_temp_file(&object.tenant_id, &document)
+    let mut temp_file = documents::get_document_as_temp_file(&object.tenant_id, &document)
         .await
         .map_err(|err| anyhow!("Error trying to get document as temporary file {err}"))
         .unwrap();
 
+    let file_contents = fs::read(&temp_file.path())?;
+    println!("******** file_contents {:?}", file_contents[0..20].to_vec());
+
     let document_type = document
         .clone()
         .media_type
-        .unwrap_or("application/json".to_string());
+        .unwrap_or("application/ezip".to_string());
 
-    temp_file_path = decrypt_document(object.password.clone(), temp_file_path).await?;
+    temp_file = decrypt_document(object.password.clone(), temp_file).await?;
 
-    Ok((temp_file_path, document, document_type))
+    // dubbugging:
+    let file_contents = fs::read(&temp_file.path())?;
+    println!("******** file_contents {:?}", file_contents[0..20].to_vec());
+
+    Ok((temp_file, document, document_type))
 }
 
 #[instrument(err, skip_all)]
@@ -275,28 +282,32 @@ pub async fn decrypt_document(
     password: Option<String>,
     mut temp_file_path: NamedTempFile,
 ) -> Result<NamedTempFile> {
-    let password = password.unwrap_or("".to_string());
-    let is_encrypted = password.len() > 0;
+    let password = password.unwrap_or_else(|| "".to_string());
+    let is_encrypted = !password.is_empty();
+    pr
+
     if is_encrypted {
-        // Create a new NamedTempFile for the decrypted file
-        let mut decrypted_temp_file = NamedTempFile::new()
-            .map_err(|err| anyhow!("Error creating decrypted temp file: {err}"))?;
+        let decrypted_path = env::temp_dir().join("election-event-e54d0802-3076-4d23-864a-8b51625b184d-export.zip"); //TODO: fix
 
         generate_decrypted_zip(
-            &password,
             temp_file_path.path().to_string_lossy().to_string(),
-            decrypted_temp_file.path().to_string_lossy().to_string(),
+            decrypted_path.as_path().to_string_lossy().to_string(),
+            password,
         )
         .await
         .map_err(|err| anyhow!("Error decrypting file: {err}"))?;
 
-        // After decryption, move the decrypted file into temp_file_path
-        temp_file_path = decrypted_temp_file;
+        // Create a new NamedTempFile for the decrypted content
+        let mut temp_file = NamedTempFile::new()?;
+        let content = fs::read(decrypted_path)?;
+        temp_file.write_all(&content)?;
+
+        return Ok(temp_file);
     }
+
     Ok(temp_file_path)
 }
 
-// A function to get the document from the database and read it
 #[instrument(err, skip_all)]
 pub async fn get_election_event_schema(
     document_type: &String,
@@ -305,7 +316,7 @@ pub async fn get_election_event_schema(
     id: Option<String>,
     tenant_id: String,
 ) -> Result<ImportElectionEventSchema> {
-    if document_type == "application/zip" {
+    if document_type == "application/ezip" || document_type == get_mime_type("zip") {
         // Handle the ZIP file case
         let file = File::open(&temp_file_path)?;
         let mut zip = ZipArchive::new(file)?;
@@ -330,9 +341,8 @@ pub async fn get_election_event_schema(
 
                 return Ok(data);
             }
-
-            // TODO: Handle other file types inside the ZIP as needed
         }
+        //TODO: remove zip file from memory
         Err(anyhow!("No JSON file found in ZIP"))
     } else {
         // Regular JSON document processing
@@ -502,7 +512,11 @@ pub async fn process_s3_files(
     let file_size = get_file_size(file_path_string.as_str())
         .with_context(|| format!("Error obtaining file size for {}", file_path_string))?;
 
-    let file_suffix = Path::new(&file_path_string).extension().unwrap().to_str().unwrap();
+    let file_suffix = Path::new(&file_path_string)
+        .extension()
+        .unwrap()
+        .to_str()
+        .unwrap();
     let document_type = get_mime_type(file_suffix);
 
     // Upload the file and return the document
@@ -586,15 +600,17 @@ pub async fn process_document(
             }
 
             if file_name.contains("/voters.csv") {
+                //TODO: fix this with the real name
                 let mut file = OpenOptions::new()
                     .read(true)
                     .write(true)
-                    .create(true) 
-                    .truncate(true) 
+                    .create(true)
+                    .truncate(true)
                     .open("/tmp/voters.csv")?;
                 let mut buffer = [0u8; 1024];
 
-                while let Ok(size) = cursor.read(&mut buffer) { //TODO: maybe not needed
+                while let Ok(size) = cursor.read(&mut buffer) {
+                    //TODO: maybe not needed
                     if size == 0 {
                         break; // End of file
                     }
@@ -751,3 +767,4 @@ pub async fn maybe_create_scheduled_event(
 
     Ok(())
 }
+

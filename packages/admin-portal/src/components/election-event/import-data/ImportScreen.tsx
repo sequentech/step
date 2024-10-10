@@ -13,7 +13,7 @@ import {useMutation} from "@apollo/client"
 import {useNotify} from "react-admin"
 
 interface ImportScreenProps {
-    doImport: (documentId: string, sha256: string) => Promise<void>
+    doImport: (documentId: string, sha256: string, password?: string) => Promise<void>
     uploadCallback?: (documentId: string, password?: string) => Promise<void>
     doCancel: () => void
     errors: string | null
@@ -71,7 +71,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                 let {data} = await getUploadUrl({
                     variables: {
                         name: theFile.name,
-                        media_type: theFile.type,
+                        media_type: isEncrypted ? "application/ezip" : theFile.type,
                         size: theFile.size,
                         is_public: false,
                     },
@@ -96,6 +96,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
 
         const handleFiles = async (files: FileList | null) => {
             // https://fullstackdojo.medium.com/s3-upload-with-presigned-url-react-and-nodejs-b77f348d54cc
+            setPassword("")
             const theFile = files?.[0]
             setTheFile(theFile)
             const isEncrypted = theFile?.name.endsWith(".ezip") || false
@@ -127,7 +128,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             }
 
             setLoading(true)
-            await doImport(documentId as string, shaField)
+            await doImport(documentId as string, shaField, password)
             setLoading(false)
         }
 
@@ -182,7 +183,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                     title={t("electionEventScreen.import.shaDialog.title")}
                     handleClose={(result: boolean) => {
                         if (result) {
-                            doImport(documentId as string, shaField)
+                            doImport(documentId as string, shaField, password)
                         }
 
                         setShowShaDialog(false)

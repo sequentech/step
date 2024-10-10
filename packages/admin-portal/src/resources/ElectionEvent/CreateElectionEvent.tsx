@@ -226,7 +226,11 @@ export const CreateElectionList: React.FC = () => {
         }
     }
 
-    const handleImportElectionEvent = async (documentId: string, sha256: string) => {
+    const handleImportElectionEvent = async (
+        documentId: string,
+        sha256: string,
+        password?: string
+    ) => {
         closeImportDrawer()
         setErrors(null)
         const currWidget = addWidget(ETasksExecution.IMPORT_ELECTION_EVENT)
@@ -237,6 +241,7 @@ export const CreateElectionList: React.FC = () => {
                 variables: {
                     tenantId,
                     documentId,
+                    password,
                 },
             })
             if (data?.import_election_event?.error) {

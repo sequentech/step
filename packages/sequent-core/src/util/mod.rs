@@ -4,8 +4,8 @@
 pub mod convert_vec;
 pub mod date;
 pub mod date_time;
-pub mod normalize_vote;
 pub mod mime;
+pub mod normalize_vote;
 
 #[cfg(feature = "log")]
 pub mod init_log;
