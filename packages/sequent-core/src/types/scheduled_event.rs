@@ -18,9 +18,9 @@ use crate::ballot::VotingPeriodDates;
     Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
 )]
 pub enum EventProcessors {
+    ALLOW_INIT_REPORT,
     CREATE_REPORT,
     SEND_TEMPLATE,
-    START_INITIALIZATION_REPORT_PERIOD,
     START_VOTING_PERIOD,
     END_VOTING_PERIOD,
     START_ENROLLMENT_PERIOD,

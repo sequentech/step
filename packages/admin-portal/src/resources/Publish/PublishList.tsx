@@ -97,6 +97,7 @@ export const PublishList: React.FC<TPublishList> = ({
     ]
 
     if (!canPublish) {
+        // FIXME(ereslibre): protect on the backend too
         return <Forbidden />
     }
 
