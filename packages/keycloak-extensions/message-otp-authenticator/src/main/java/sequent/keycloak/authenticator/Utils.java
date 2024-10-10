@@ -407,7 +407,7 @@ public class Utils {
       String bodyTemplate,
       Map<String, Object> bodyAttributes,
       String address,
-      boolean deferredUser,
+      boolean useEmailSender,
       EmailTemplateProvider emailTemplateProvider)
       throws EmailException {
     try {
@@ -421,7 +421,7 @@ public class Utils {
               bodyTemplate,
               bodyAttributes);
 
-      if (deferredUser) {
+      if (useEmailSender) {
         EmailSenderProvider emailSender = session.getProvider(EmailSenderProvider.class);
         emailSender.send(
             realm.getSmtpConfig(),
