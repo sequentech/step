@@ -1058,7 +1058,11 @@ pub enum LockedDownStatus {
     JsonSchema,
 )]
 pub enum PublishPolicy {
+    #[strum(serialize = "always")]
+    #[serde(rename = "always")]
     ALWAYS,
+    #[strum(serialize = "when-keys-ceremony-has-succeeded")]
+    #[serde(rename = "when-keys-ceremony-has-succeeded")]
     WHEN_KEYS_CEREMONY_HAS_SUCCEEDED,
 }
 
@@ -1188,10 +1192,38 @@ impl Default for ElectionStatistics {
     EnumString,
     JsonSchema,
 )]
-pub enum AllowTallyPolicy {
-    ALLOW,
-    DISALLOW,
+pub enum InitReportPolicy {
+    #[strum(serialize = "allowed")]
+    #[serde(rename = "allowed")]
+    ALLOWED,
+    #[strum(serialize = "disallowed")]
+    #[serde(rename = "disallowed")]
+    DISALLOWED,
 }
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum TallyPolicy {
+    #[strum(serialize = "always-allow")]
+    #[serde(rename = "always-allow")]
+    ALWAYS_ALLOW,
+    #[strum(serialize = "not-before-voting-period-ends")]
+    #[serde(rename = "not-before-voting-period-ends")]
+    NOT_BEFORE_VOTING_PERIOD_ENDS,
+}
+
 #[derive(
     BorshSerialize,
     BorshDeserialize,
@@ -1204,14 +1236,16 @@ pub enum AllowTallyPolicy {
 )]
 pub struct ElectionStatus {
     pub voting_status: VotingStatus,
-    pub allow_tally: AllowTallyPolicy,
+    pub init_report_policy: InitReportPolicy,
+    pub tally_policy: TallyPolicy,
 }
 
 impl Default for ElectionStatus {
     fn default() -> Self {
         ElectionStatus {
             voting_status: VotingStatus::NOT_STARTED,
-            allow_tally: AllowTallyPolicy::ALLOW,
+            init_report_policy: InitReportPolicy::ALLOWED,
+            tally_policy: TallyPolicy::ALWAYS_ALLOW,
         }
     }
 }
