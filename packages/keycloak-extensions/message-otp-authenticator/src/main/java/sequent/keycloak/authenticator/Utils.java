@@ -22,6 +22,8 @@ import java.util.Properties;
 import lombok.experimental.UtilityClass;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.AuthenticationFlowContext;
+import org.keycloak.authentication.RequiredActionContext;
+import org.keycloak.authentication.actiontoken.ActionTokenContext;
 import org.keycloak.authentication.actiontoken.DefaultActionToken;
 import org.keycloak.common.util.SecretGenerator;
 import org.keycloak.common.util.Time;
@@ -29,6 +31,8 @@ import org.keycloak.email.EmailException;
 import org.keycloak.email.EmailSenderProvider;
 import org.keycloak.email.EmailTemplateProvider;
 import org.keycloak.email.freemarker.beans.ProfileBean;
+import org.keycloak.events.Event;
+import org.keycloak.events.EventBuilder;
 import org.keycloak.forms.login.freemarker.model.UrlBean;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.Constants;
@@ -228,15 +232,31 @@ public class Utils {
 
   void communicationsLog(Object context, String body) {
     if (context instanceof AuthenticationFlowContext) {
-      AuthenticationFlowContext flowContext = (AuthenticationFlowContext) context;
-      flowContext
-          .getEvent()
-          .detail("type", EVENT_TYPE_COMMUNICATIONS)
-          .detail("msgBody", body)
-          .success();
+      logCommunications((AuthenticationFlowContext) context, body);
+    } else if (context instanceof RequiredActionContext) {
+      logCommunications((RequiredActionContext) context, body);
+    } else {
+      log.warn("Unsupported context type for communications logging: " + context.getClass().getName());
     }
-    //RequiredActionContext
-    //ActionTokenContext<ManualVerificationToken>
+  }
+
+  private <T> void logCommunications(T context, String body) {
+      EventBuilder event = getEvent(context);
+      if (event != null) {
+        event
+            .detail("type", EVENT_TYPE_COMMUNICATIONS)
+            .detail("msgBody", body)
+            .success();
+      }
+  }
+
+  private EventBuilder getEvent(Object context) {
+    if (context instanceof AuthenticationFlowContext) {
+      return ((AuthenticationFlowContext) context).getEvent();
+    } else if (context instanceof RequiredActionContext) {
+      return ((RequiredActionContext) context).getEvent();
+    }
+    return null;
   }
 
   String getMobile(AuthenticatorConfigModel config, UserModel user) {
