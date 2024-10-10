@@ -299,12 +299,12 @@ actions:
       handler: http://{{HARVEST_DOMAIN}}/export-template
       forward_client_headers: true
       request_transform:
-      body:
-        action: transform
-        template: |
-          {{$body.input}}
-      template_engine: Kriti
-      version: 2
+        body:
+          action: transform
+          template: |
+            {{$body.input}}
+        template_engine: Kriti
+        version: 2
     permissions:
       - role: admin-user
   - name: export_tenant_users
@@ -590,18 +590,18 @@ actions:
     comment: import_election_event
   - name: import_templates
     definition:
-    kind: synchronous
-    handler: http://{{HARVEST_DOMAIN}}/import-templates
-    forward_client_headers: true
-    request_transform:
-      body:
-        action: transform
-        template: |
-          {{$body.input}}
-      template_engine: Kriti
-      version: 2
+      kind: synchronous
+      handler: http://{{HARVEST_DOMAIN}}/import-templates
+      forward_client_headers: true
+      request_transform:
+        body:
+          action: transform
+          template: |
+            {{$body.input}}
+        template_engine: Kriti
+        version: 2
     permissions:
-  - role: admin-user
+      - role: admin-user
   - name: import_users
     definition:
       kind: synchronous
