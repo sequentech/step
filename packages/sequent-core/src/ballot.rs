@@ -1020,7 +1020,11 @@ impl Contest {
     JsonSchema,
 )]
 pub enum EnrollmentStatus {
+    #[strum(serialize = "enabled")]
+    #[serde(rename = "enabled")]
     ENROLLMENT_ENABLED,
+    #[strum(serialize = "disabled")]
+    #[serde(rename = "disabled")]
     ENROLLMENT_DISABLED,
 }
 
@@ -1039,7 +1043,11 @@ pub enum EnrollmentStatus {
     JsonSchema,
 )]
 pub enum LockedDownStatus {
+    #[strum(serialize = "locked-down")]
+    #[serde(rename = "locked-down")]
     LOCKED_DOWN,
+    #[strum(serialize = "not-locked-down")]
+    #[serde(rename = "not-locked-down")]
     NOT_LOCKED_DOWN,
 }
 

@@ -16,18 +16,18 @@ export enum EVotingStatus {
 }
 
 export enum EEnrollmentStatus {
-    ENROLLMENT_ENABLED = "ENROLLMENT_ENABLED",
-    ENROLLMENT_DISABLED = "ENROLLMENT_DISABLED",
+    ENROLLMENT_ENABLED = "enabled",
+    ENROLLMENT_DISABLED = "disabled",
 }
 
 export enum ELockedDownStatus {
-    LOCKED_DOWN = "LOCKED_DOWN",
-    NOT_LOCKED_DOWN = "NOT_LOCKED_DOWN",
+    LOCKED_DOWN = "locked-down",
+    NOT_LOCKED_DOWN = "not-locked-down",
 }
 
 export enum EPublishPolicy {
-    ALWAYS = "ALWAYS",
-    WHEN_KEYS_CEREMONY_HAS_SUCCEEDED = "WHEN_KEYS_CEREMONY_HAS_SUCCEEDED",
+    ALWAYS = "always",
+    WHEN_KEYS_CEREMONY_HAS_SUCCEEDED = "when-keys-ceremony-has-succeeded",
 }
 
 export interface IElectionEventStatus {
