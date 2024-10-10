@@ -31,8 +31,6 @@ import {
     Sequent_Backend_Ballot_Publication,
 } from "@/gql/graphql"
 
-import {IKeysCeremonyExecutionStatus as EStatus} from "@/services/KeyCeremony"
-
 import {PublishList} from "./PublishList"
 import {PublishGenerate} from "./PublishGenerate"
 import {UPDATE_EVENT_VOTING_STATUS} from "@/queries/UpdateEventVotingStatus"
