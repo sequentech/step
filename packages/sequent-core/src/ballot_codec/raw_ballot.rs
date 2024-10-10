@@ -19,18 +19,18 @@ pub trait RawBallotCodec {
         &self,
         plaintext: &DecodedVoteContest,
     ) -> Result<RawBallotContest, String>;
-    fn compact_encode_to_raw_ballot(
+    /*fn compact_encode_to_raw_ballot(
         contests: &Vec<Contest>,
         plaintext: &Vec<DecodedVoteContest>,
-    ) -> Result<RawBallotContest, String>;
+    ) -> Result<RawBallotContest, String>;*/
     fn decode_from_raw_ballot(
         &self,
         raw_ballot: &RawBallotContest,
     ) -> Result<DecodedVoteContest, String>;
-    fn compact_decode_from_raw_ballot(
+    /*fn compact_decode_from_raw_ballot(
         contests: &Vec<Contest>,
         raw_ballot: &RawBallotContest,
-    ) -> Result<Vec<DecodedVoteContest>, String>;
+    ) -> Result<Vec<DecodedVoteContest>, String>;*/
 
     fn available_write_in_characters_estimate(
         &self,
@@ -155,7 +155,7 @@ impl RawBallotCodec for Contest {
         Ok(RawBallotContest { bases, choices })
     }
 
-    fn compact_encode_to_raw_ballot(
+    /* fn compact_encode_to_raw_ballot(
         contests: &Vec<Contest>,
         plaintexts: &Vec<DecodedVoteContest>,
     ) -> Result<RawBallotContest, String> {
@@ -264,7 +264,7 @@ impl RawBallotCodec for Contest {
         }
 
         Ok(RawBallotContest { bases, choices })
-    }
+    }*/
 
     /**
      * Decodes a raw ballot
@@ -582,6 +582,7 @@ impl RawBallotCodec for Contest {
         Ok(decoded_contest)
     }
 
+    /*
     fn compact_decode_from_raw_ballot(
         contests: &Vec<Contest>,
         raw_ballot: &RawBallotContest,
@@ -682,7 +683,7 @@ impl RawBallotCodec for Contest {
         }
 
         Ok(ret)
-    }
+    }*/
 }
 
 fn handle_over_vote_policy(

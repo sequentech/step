@@ -12,6 +12,7 @@ use strand::util::StrandError;
 use strand::zkp::{Schnorr, Zkp};
 
 use crate::ballot::*;
+use crate::ballot_codec::multi_ballot::BallotChoices;
 use crate::ballot_codec::PlaintextCodec;
 use crate::error::BallotError;
 use crate::plaintext::DecodedVoteContest;
@@ -230,56 +231,31 @@ pub fn hash_ballot(
 }
 
 ////////////////////////////////////////////////////////////////
-/// Compact ballots
+/// Multi ballots
 ////////////////////////////////////////////////////////////////
 
-pub fn encrypt_compact_decoded_contests<C: Ctx<P = [u8; 30]>>(
+pub fn encrypt_multi_ballot<C: Ctx<P = [u8; 30]>>(
     ctx: &C,
-    decoded_contests: &Vec<DecodedVoteContest>,
+    ballot_choices: &BallotChoices,
     config: &BallotStyle,
-) -> Result<CompactAuditableBallot, BallotError> {
-    if config.contests.len() != decoded_contests.len() {
+) -> Result<AuditableMultiBallot, BallotError> {
+    if config.contests.len() != ballot_choices.choices.len() {
         return Err(BallotError::ConsistencyCheck(format!(
             "Invalid number of decoded contests {} != {}",
             config.contests.len(),
-            decoded_contests.len()
+            ballot_choices.choices.len()
         )));
     }
 
     let public_key: C::E = parse_public_key::<C>(&config)?;
+    let plaintext = ballot_choices.encode(&config).map_err(|err| {
+        BallotError::Serialization(format!(
+            "Error encrypting plaintext: {}",
+            err
+        ))
+    })?;
+    let contest_ids = ballot_choices.get_contest_ids();
 
-    let contests: Result<Vec<(Contest, DecodedVoteContest)>, BallotError> =
-        decoded_contests
-            .clone()
-            .into_iter()
-            .map(|decoded_contest| {
-                let contest = config
-                    .contests
-                    .iter()
-                    .find(|contest| contest.id == decoded_contest.contest_id)
-                    .ok_or_else(|| {
-                        BallotError::Serialization(format!(
-                            "Can't find contest with id {} on ballot style",
-                            decoded_contest.contest_id
-                        ))
-                    })?;
-
-                Ok((contest.clone(), decoded_contest))
-            })
-            .collect();
-
-    let (contests, decoded_contests): (Vec<Contest>, Vec<DecodedVoteContest>) =
-        contests?.into_iter().unzip();
-    let contest_ids: Vec<String> =
-        contests.iter().map(|c| c.id.clone()).collect();
-    let plaintext =
-        Contest::compact_encode_plaintext_contests(contests, &decoded_contests)
-            .map_err(|err| {
-                BallotError::Serialization(format!(
-                    "Error encrypting plaintext: {}",
-                    err
-                ))
-            })?;
     let (choice, proof) = encrypt_plaintext_candidate(
         ctx,
         public_key.clone(),
@@ -287,40 +263,40 @@ pub fn encrypt_compact_decoded_contests<C: Ctx<P = [u8; 30]>>(
         &DEFAULT_PLAINTEXT_LABEL,
     )?;
 
-    let contests = CompactAuditableBallotContests {
+    let contests = AuditableMultiBallotContests {
         contest_ids,
         choice,
         proof,
     };
 
-    let mut auditable_ballot = CompactAuditableBallot {
+    let mut auditable_ballot = AuditableMultiBallot {
         version: TYPES_VERSION,
         issue_date: get_current_date(),
-        contests: CompactAuditableBallot::serialize_contests::<C>(&contests)?,
+        contests: AuditableMultiBallot::serialize_contests::<C>(&contests)?,
         ballot_hash: String::from(""),
         config: config.clone(),
     };
 
-    let hashable_ballot = CompactHashableBallot::try_from(&auditable_ballot)?;
-    auditable_ballot.ballot_hash = hash_compact_ballot(&hashable_ballot)?;
+    let hashable_ballot = HashableMultiBallot::try_from(&auditable_ballot)?;
+    auditable_ballot.ballot_hash = hash_multi_ballot(&hashable_ballot)?;
 
     Ok(auditable_ballot)
 }
 
-pub fn hash_compact_ballot(
-    hashable_ballot: &CompactHashableBallot,
+pub fn hash_multi_ballot(
+    hashable_ballot: &HashableMultiBallot,
 ) -> Result<String, BallotError> {
-    let sha512_hash = hash_compact_ballot_sha512(hashable_ballot)
+    let sha512_hash = hash_multi_ballot_sha512(hashable_ballot)
         .map_err(|error| BallotError::Serialization(error.to_string()))?;
     let short_hash = shorten_hash(&sha512_hash);
     Ok(hex::encode(short_hash))
 }
 
-pub fn hash_compact_ballot_sha512(
-    hashable_ballot: &CompactHashableBallot,
+pub fn hash_multi_ballot_sha512(
+    hashable_ballot: &HashableMultiBallot,
 ) -> Result<Hash, StrandError> {
     let raw_hashable_ballot =
-        CompactRawHashableBallot::<RistrettoCtx>::try_from(hashable_ballot)
+        RawHashableMultiBallot::<RistrettoCtx>::try_from(hashable_ballot)
             .map_err(|error| StrandError::Generic(format!("{:?}", error)))?;
 
     let bytes = raw_hashable_ballot.strand_serialize()?;
