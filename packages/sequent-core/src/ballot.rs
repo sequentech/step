@@ -1063,6 +1063,17 @@ pub enum VotingStatus {
     CLOSED,
 }
 
+impl VotingStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            VotingStatus::NOT_STARTED => "NOT_STARTED",
+            VotingStatus::OPEN => "OPEN",
+            VotingStatus::PAUSED => "PAUSED",
+            VotingStatus::CLOSED => "CLOSED",
+        }
+    }
+}
+
 #[derive(
     BorshSerialize,
     BorshDeserialize,
