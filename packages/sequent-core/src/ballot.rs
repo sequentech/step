@@ -1005,6 +1005,7 @@ impl Contest {
     }
 }
 
+#[allow(non_camel_case_types)]
 #[derive(
     BorshSerialize,
     BorshDeserialize,
@@ -1023,6 +1024,7 @@ pub enum EnrollmentStatus {
     ENROLLMENT_DISABLED,
 }
 
+#[allow(non_camel_case_types)]
 #[derive(
     BorshSerialize,
     BorshDeserialize,
@@ -1041,6 +1043,7 @@ pub enum LockedDownStatus {
     NOT_LOCKED_DOWN,
 }
 
+#[allow(non_camel_case_types)]
 #[derive(
     BorshSerialize,
     BorshDeserialize,
@@ -1170,6 +1173,7 @@ impl Default for ElectionStatistics {
     }
 }
 
+#[allow(non_camel_case_types)]
 #[derive(
     BorshSerialize,
     BorshDeserialize,
