@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useState} from "react"
+import React, {useContext, useState} from "react"
 import {Menu, useSidebarState} from "react-admin"
 import {faAngleDoubleLeft, faAngleDoubleRight} from "@fortawesome/free-solid-svg-icons"
 import {IconButton, adminTheme} from "@sequentech/ui-essentials"
@@ -15,6 +15,7 @@ import GroupIcon from "@mui/icons-material/Group"
 import SettingsIcon from "@mui/icons-material/Settings"
 import HelpIcon from "@mui/icons-material/Help"
 import MailIcon from "@mui/icons-material/Mail"
+import {TenantContext} from "@/providers/TenantContextProvider"
 
 const StyledHelpItem = styled(Button)`
     max-height: 36px;
@@ -103,10 +104,11 @@ const MenuWrapper = styled(Box)`
 `
 
 export const CustomMenu = () => {
+    const {tenant} = useContext(TenantContext)
     const [open, setOpen] = useSidebarState()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
 
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
 
     const openInNewTab = (url: string) => {
         setAnchorEl(null)
@@ -136,66 +138,58 @@ export const CustomMenu = () => {
                         primaryText={open && t("sideMenu.templates")}
                         leftIcon={<MailIcon sx={{color: adminTheme.palette.brandColor}} />}
                     />
-                    <StyledHelpItem
-                        disableElevation
-                        onClick={(e: React.MouseEvent<HTMLElement>) => setAnchorEl(e.currentTarget)}
-                    >
-                        <StyledHelpItemContentWrapper>
-                            <HelpIcon sx={{color: adminTheme.palette.brandColor}} />
-                            <Typography>Help</Typography>
-                        </StyledHelpItemContentWrapper>
-                    </StyledHelpItem>
-                    <MMenu
-                        id="menu-sidebar"
-                        anchorEl={anchorEl}
-                        anchorOrigin={{
-                            vertical: "bottom",
-                            horizontal: "left",
-                        }}
-                        keepMounted
-                        transformOrigin={{
-                            vertical: "top",
-                            horizontal: "right",
-                        }}
-                        open={Boolean(anchorEl)}
-                        onClose={() => setAnchorEl(null)}
-                    >
-                        {[
-                            //temp array to be fed
-                            {
-                                title: "Google",
-                                url: "http://google.com",
-                            },
-                            {
-                                title: "X",
-                                url: "http://x.com",
-                            },
-                            {
-                                title: "Apple",
-                                url: "http://apple.com",
-                            },
-                        ].map((i) => {
-                            return (
-                                <MenuItem
-                                    key={i.title}
-                                    className="menu-sidebar-item"
-                                    onClick={() => openInNewTab(i.url)}
-                                >
-                                    <Box
-                                        sx={{
-                                            textOverflow: "ellipsis",
-                                            whiteSpace: "nowrap",
-                                            overflow: "hidden",
-                                        }}
+                    {tenant?.settings?.help_links && (
+                        <StyledHelpItem
+                            disableElevation
+                            onClick={(e: React.MouseEvent<HTMLElement>) =>
+                                setAnchorEl(e.currentTarget)
+                            }
+                        >
+                            <StyledHelpItemContentWrapper>
+                                <HelpIcon sx={{color: adminTheme.palette.brandColor}} />
+								<Typography>{t("sideMenu.help")}</Typography>
+                            </StyledHelpItemContentWrapper>
+                        </StyledHelpItem>
+                    )}
+                    {tenant?.settings?.help_links && (
+                        <MMenu
+                            id="menu-sidebar"
+                            anchorEl={anchorEl}
+                            anchorOrigin={{
+                                vertical: "bottom",
+                                horizontal: "left",
+                            }}
+                            keepMounted
+                            transformOrigin={{
+                                vertical: "top",
+                                horizontal: "right",
+                            }}
+                            open={Boolean(anchorEl)}
+                            onClose={() => setAnchorEl(null)}
+                        >
+                            {tenant?.settings?.help_links?.map((i: any) => {
+                                return (
+                                    <MenuItem
+                                        key={i.url}
+                                        className="menu-sidebar-item"
+                                        onClick={() => openInNewTab(i.url)}
                                     >
-                                        <span className="help-menu-item" title={i.title}>
-                                            {i.title}
-                                        </span>
-                                    </Box>
-                                </MenuItem>
-                            )
-                        })}
-                    </MMenu>
+                                        <Box
+                                            sx={{
+                                                textOverflow: "ellipsis",
+                                                whiteSpace: "nowrap",
+                                                overflow: "hidden",
+                                            }}
+                                        >
+                                            <span className="help-menu-item" title={i.title}>
+                                                {i.i18n?.[i18n.language]?.title ?? i.title}
+                                            </span>
+                                        </Box>
+                                    </MenuItem>
+                                )
+                            })}
+                        </MMenu>
+                    )}
                 </MenuWrapper>
 
                 <DrawerContainer open={open}>
