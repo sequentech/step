@@ -123,6 +123,9 @@ pub async fn scheduled_events() -> Result<()> {
             continue;
         };
         match event_processor {
+            EventProcessors::ALLOW_INIT_REPORT => {
+                todo!()
+            }
             EventProcessors::START_VOTING_PERIOD | EventProcessors::END_VOTING_PERIOD => {
                 if let Err(err) = handle_voting_event(celery_app.clone(), &scheduled_event).await {
                     event!(
@@ -139,11 +142,18 @@ pub async fn scheduled_events() -> Result<()> {
                     );
                 }
             }
-
-            _ => info!(
-                "Ignoring event with unknown event processor {} in queue",
-                event_processor
-            ),
+            EventProcessors::CREATE_REPORT
+            | EventProcessors::SEND_TEMPLATE
+            | EventProcessors::START_ENROLLMENT_PERIOD
+            | EventProcessors::END_ENROLLMENT_PERIOD
+            | EventProcessors::START_LOCKDOWN_PERIOD
+            | EventProcessors::END_LOCKDOWN_PERIOD => {
+                // Nothing to do for these event processors.  Avoid a
+                // catch all to ignore unknown events, this way when
+                // new variants are added to `EventProcessors`, a
+                // compile time error will happen notifying about the
+                // missing logic for handling that new variant.
+            }
         }
     }
 
