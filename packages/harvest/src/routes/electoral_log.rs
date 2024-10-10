@@ -21,6 +21,8 @@ use windmill::services::electoral_log::{
 };
 use windmill::types::resources::DataList;
 
+const EVENT_TYPE_COMMUNICATIONS: &str = "communications";
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LogEventInput {
     election_event_id: String,
@@ -94,17 +96,30 @@ pub async fn create_electoral_log(
         .await
         .with_context(|| "error getting electoral log")
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    electoral_log
-        .post_keycloak_event(
-            input.election_event_id.clone(),
-            input.message_type,
-            input.body,
-            input.user_id,
-        )
-        .await
-        .with_context(|| "error posting registration error")
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-
+    
+    if input.body.contains(EVENT_TYPE_COMMUNICATIONS) {
+        let body = input.body.replace(EVENT_TYPE_COMMUNICATIONS, "").trim().to_string();
+        let _ = electoral_log
+            .post_send_template(
+                Some(body),
+                input.election_event_id.clone(),
+                input.user_id,
+                None,
+            )
+            .await
+            .with_context(|| "error posting to the electoral log");
+    } else {
+        electoral_log
+            .post_keycloak_event(
+                input.election_event_id.clone(),
+                input.message_type,
+                input.body,
+                input.user_id,
+            )
+            .await
+            .with_context(|| "error posting registration error")
+            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    }
     Ok(Json(LogEventOutput {
         id: input.election_event_id.clone(),
     }))

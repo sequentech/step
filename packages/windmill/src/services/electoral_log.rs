@@ -246,7 +246,7 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(self))]
-    pub(crate) async fn post_send_template(
+    pub async fn post_send_template(
         &self,
         message: Option<String>,
         event_id: String,
