@@ -48,11 +48,11 @@ archive-image-artifact() {
 }
 
 build-images() {
-    docker-compose -f $(docker-compose-airgap-preparation) --profile full build
+    docker compose -f $PROJECT_ROOT/.devcontainer/docker-compose-airgap-preparation.yml --profile full build
 }
 
 pull-images() {
-    docker-compose -f $(docker-compose-airgap-preparation) --profile full pull --ignore-pull-failures
+    docker compose -f $(docker-compose-airgap-preparation) --profile full pull --ignore-pull-failures
 }
 
 add-dotenv-to-tarball() {
@@ -1266,7 +1266,7 @@ touch simplesaml/{authsources,saml20-sp-remote}.php
 echo "Loading images..."
 find images -type f -name "*.tar" | xargs -I{} docker load --input {}
 echo "Starting environment..."
-docker-compose --profile full up
+docker compose --profile full up
 EOF
     chmod +x $tmpdir/up
     tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL up
