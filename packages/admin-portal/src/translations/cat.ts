@@ -648,8 +648,8 @@ const catalanTranslation: TranslationType = {
                 END_VOTING_PERIOD: "Final del Període de Votació",
                 START_ENROLLMENT_PERIOD: "Inici del període de matrícula",
                 END_ENROLLMENT_PERIOD: "Finalització del període de matrícula",
-                START_LOCKDOWN_PERIOD: "Inicia el període de confinament",
-                END_LOCKDOWN_PERIOD: "Finalitzar el període de confinament",
+                START_LOCKDOWN_PERIOD: "Inici del Período de Bloc de Dades Censals",
+                END_LOCKDOWN_PERIOD: "Final del Período de Bloc de Dades Censals",
             },
             election: {
                 label: "Elecció",

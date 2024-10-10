@@ -649,9 +649,9 @@ const frenchTranslation: TranslationType = {
                 START_VOTING_PERIOD: "Début de la Période de Vote",
                 END_VOTING_PERIOD: "Fin de la Période de Vote",
                 START_ENROLLMENT_PERIOD: "Début de la période d'inscription",
-                END_ENROLLMENT_PERIOD: "End Enrollment Period",
-                START_LOCKDOWN_PERIOD: "Start Lockdown Period",
-                END_LOCKDOWN_PERIOD: "Fin de la période de confinement",
+                END_ENROLLMENT_PERIOD: "Fin de la période d'inscription",
+                START_LOCKDOWN_PERIOD: "Début de la période de blocage des données du recensement",
+                END_LOCKDOWN_PERIOD: "Fin de la période de blocage des données du recensement",
             },
             election: {
                 label: "Élection",
