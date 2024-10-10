@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use base64::{engine::general_purpose, Engine as _};
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{
     de, de::SeqAccess, de::Visitor, Deserialize, Deserializer, Serialize,
@@ -111,6 +112,12 @@ pub fn hash_to_array(bytes: &[u8]) -> Result<Hash, StrandError> {
 /// Single access point for all hashing.
 pub(crate) fn hasher() -> Hasher {
     Sha512::new()
+}
+/// Hash and base 64 encode resulting bytes.
+pub fn hash_b64(bytes: &[u8]) -> Result<String, StrandError> {
+    let bytes = hash(bytes)?;
+    let ret = general_purpose::STANDARD_NO_PAD.encode(&bytes);
+    Ok(ret)
 }
 
 pub(crate) use sha3::digest::{ExtendableOutput, Update, XofReader};

@@ -226,6 +226,12 @@ type Query {
   ): GetRolesOutput!
 }
 
+type Query {
+  get_top_votes_by_ip(
+    body: GetTopCastVotesByIpInput!
+  ): GetTopCastVotesByIpOutput
+}
+
 type Mutation {
   get_upload_url(
     name: String!
@@ -689,6 +695,15 @@ input EventListOrderBy {
   schedule: OrderDirection
 }
 
+input GetTopCastVotesByIpInput {
+  election_event_id : uuid!
+  limit : Int
+  offset : Int
+  ip : String
+  country : String
+  election_id : String
+}
+
 type GetManualVerificationOutput {
   document_id: String
   status: String
@@ -1149,5 +1164,20 @@ type LimtIpByCountriesOutput {
 
 type LimitAccessByCountriesOutput {
   success: Boolean
+}
+
+type GetTopCastVotesByIpOutput {
+  items : [CastVotesByIp!]!
+  total : TotalAggregate!
+}
+
+type CastVotesByIp {
+  id : String
+  ip : String
+  country : String
+  vote_count : Int
+  election_name : String
+  election_id : String
+  voters_id : [String]
 }
 

@@ -33,6 +33,7 @@ pub struct UpdateElectionVotingStatusOutput {
 #[instrument(err)]
 pub async fn update_election_status(
     tenant_id: String,
+    user_id: Option<&str>,
     hasura_transaction: &Transaction<'_>,
     election_event_id: &str,
     election_id: &str,
@@ -44,6 +45,7 @@ pub async fn update_election_status(
             .with_context(|| "error getting election event")?;
     election_event_status::update_election_voting_status_impl(
         tenant_id.clone(),
+        user_id,
         election_event_id.to_string(),
         election_id.to_string(),
         voting_status.clone(),
@@ -67,6 +69,8 @@ pub async fn update_election_status(
         )
         .await?;
         update_board_on_status_change(
+            &tenant_id,
+            user_id,
             election_event.id.to_string(),
             election_event.bulletin_board_reference.clone(),
             voting_status.clone(),
@@ -81,6 +85,8 @@ pub async fn update_election_status(
 
 #[instrument(err)]
 pub async fn update_board_on_status_change(
+    tenant_id: &str,
+    user_id: Option<&str>,
     election_event_id: String,
     board_reference: Option<Value>,
     voting_status: VotingStatus,
@@ -89,7 +95,13 @@ pub async fn update_board_on_status_change(
 ) -> Result<()> {
     let board_name =
         get_election_event_board(board_reference).with_context(|| "missing bulletin board")?;
-    let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
+
+    let electoral_log = if let Some(user_id) = user_id {
+        ElectoralLog::for_admin_user(&board_name, tenant_id, user_id).await?
+    } else {
+        ElectoralLog::new(board_name.as_str()).await?
+    };
+
     let maybe_election_id = match election_id {
         Some(election_id) => Some(election_id),
         None => None,

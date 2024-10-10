@@ -11,7 +11,7 @@ pub mod openssl;
 #[cfg(not(feature = "openssl_full"))]
 pub mod dalek;
 
-#[cfg(all(feature = "openssl_full", feature = "rustcrypto"))]
+#[cfg(all(feature = "openssl_full", feature = "rustcrypto_interop_test"))]
 #[cfg(test)]
 pub(crate) mod tests {
     use super::openssl::{

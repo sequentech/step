@@ -6,6 +6,7 @@ use crate::services::s3::get_minio_url;
 use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
+use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use std::env;
 use tracing::{info, instrument};
@@ -46,6 +47,9 @@ impl TemplateRenderer for ManualVerificationTemplate {
     type UserData = UserData;
     type SystemData = SystemData;
 
+    fn get_report_type() -> ReportType {
+        ReportType::MANUAL_VERIFICATION
+    }
     fn get_tenant_id(&self) -> String {
         self.tenant_id.clone()
     }
@@ -54,12 +58,24 @@ impl TemplateRenderer for ManualVerificationTemplate {
         self.election_event_id.clone()
     }
 
+    fn get_voter_id(&self) -> Option<String> {
+        Some(self.voter_id.clone())
+    }
+
     fn base_name() -> String {
         "manual_verification".to_string()
     }
 
     fn prefix(&self) -> String {
         format!("manual_verification_{}", self.voter_id)
+    }
+
+    fn get_email_config() -> EmailConfig {
+        EmailConfig {
+            subject: "Sequent Online Voting - Manual Verification".to_string(),
+            plaintext_body: "".to_string(),
+            html_body: None,
+        }
     }
 
     async fn prepare_user_data(&self) -> Result<Self::UserData> {
@@ -117,7 +133,7 @@ pub async fn generate_manual_verification_report(
         voter_id: voter_id.to_string(),
     };
     template
-        .execute_report(document_id, tenant_id, election_event_id)
+        .execute_report(document_id, tenant_id, election_event_id, false, None)
         .await
 }
 

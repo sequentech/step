@@ -83,7 +83,7 @@ impl<C: Ctx> Ciphertext<C> {
 pub struct PublicKey<C: Ctx> {
     pub(crate) element: C::E,
     // Will be populated with Default
-    #[borsh_skip]
+    #[borsh(skip)]
     pub(crate) ctx: C,
 }
 
@@ -93,7 +93,7 @@ pub struct PrivateKey<C: Ctx> {
     pub(crate) value: C::X,
     pub(crate) pk_element: C::E,
     // Will be populated with Default
-    #[borsh_skip]
+    #[borsh(skip)]
     pub(crate) ctx: C,
 }
 

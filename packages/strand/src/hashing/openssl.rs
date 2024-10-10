@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use base64::{engine::general_purpose, Engine as _};
 use openssl::hash::{hash_xof as hxof, Hasher as HasherOpenSSL, MessageDigest};
 
 use crate::util::StrandError;
@@ -31,6 +32,12 @@ pub fn hash_to_array(bytes: &[u8]) -> Result<Hash, StrandError> {
     let result = hasher.finish()?;
     let bytes = result.to_vec();
     Ok(crate::util::to_hash_array(&bytes)?)
+}
+/// Hash and base 64 encode resulting bytes.
+pub fn hash_b64(bytes: &[u8]) -> Result<String, StrandError> {
+    let bytes = hash(bytes)?;
+    let ret = general_purpose::STANDARD_NO_PAD.encode(&bytes);
+    Ok(ret)
 }
 
 pub fn hash_xof(

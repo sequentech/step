@@ -1,6 +1,5 @@
 {
     "nixEnvSelector.nixFile": "/workspace/shell.nix",
-    // "rust-analyzer.cargo.features": "all",
     "lldb.showDisassembly": "never",
     "lldb.launch.sourceLanguages": ["rust"],
     "editor.inlayHints.enabled": "offUnlessPressed",
@@ -20,6 +19,9 @@
     // show breakpoints in minimap
     "debug.showBreakpointsInOverviewRuler": true,
     "workbench.colorTheme": "Visual Studio Dark",
+
+    "rust-analyzer.cargo.features": [],
+    "rust-analyzer.check.features": [],
 
     // Configures environment variables when running the tasks related to the
     // "Run Test" | "Debug" buttons shown in VSCode

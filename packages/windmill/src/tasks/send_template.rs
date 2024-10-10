@@ -170,14 +170,14 @@ enum EmailTransport {
     Console,
 }
 
-struct EmailSender {
+pub struct EmailSender {
     transport: EmailTransport,
     email_from: String,
 }
 
 impl EmailSender {
     #[instrument(err)]
-    async fn new() -> Result<Self> {
+    pub async fn new() -> Result<Self> {
         let email_from =
             std::env::var("EMAIL_FROM").map_err(|err| anyhow!("EMAIL_FROM env var missing"))?;
         let email_transport_name = std::env::var("EMAIL_TRANSPORT_NAME")
@@ -201,7 +201,7 @@ impl EmailSender {
     }
 
     #[instrument(skip(self), err)]
-    async fn send(
+    pub async fn send(
         &self,
         receiver: String,
         subject: String,
@@ -290,7 +290,7 @@ async fn send_template_sms(
 }
 
 #[instrument(skip(sender), err)]
-async fn send_template_email(
+pub async fn send_template_email(
     receiver: &Option<String>,
     template: &Option<EmailConfig>,
     variables: &Map<String, Value>,
@@ -299,18 +299,30 @@ async fn send_template_email(
     if let (Some(receiver), Some(config)) = (receiver, template) {
         let subject = reports::render_template_text(config.subject.as_str(), variables.clone())
             .map_err(|err| anyhow!("{}", err))?;
+
         let plaintext_body =
             reports::render_template_text(config.plaintext_body.as_str(), variables.clone())
                 .map_err(|err| anyhow!("{}", err))?;
-        let html_body = reports::render_template_text(config.html_body.as_str(), variables.clone())
+
+        let html_body = config
+            .html_body
+            .as_ref()
+            .ok_or_else(|| anyhow!("html_body missing"))?; // Error if html_body is None
+
+        let html_body = reports::render_template_text(&html_body, variables.clone())
             .map_err(|err| anyhow!("{}", err))?;
 
         sender
             .send(receiver.to_string(), subject, plaintext_body, html_body)
             .await?;
     } else {
-        event!(Level::INFO, "Receiver empty, ignoring..");
+        // Log the event if the receiver or template is missing
+        event!(
+            Level::INFO,
+            "Receiver or template is empty, email not sent."
+        );
     }
+
     Ok(())
 }
 
@@ -427,6 +439,7 @@ async fn update_stats(
 pub async fn send_template(
     body: SendTemplateBody,
     tenant_id: String,
+    user_id: String,
     election_event_id: Option<String>,
 ) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
@@ -665,8 +678,8 @@ pub async fn send_template(
         let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
             .with_context(|| "missing bulletin board")?;
 
-        let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
-
+        // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
+        let electoral_log = ElectoralLog::for_admin_user(&board_name, &tenant_id, &user_id).await?;
         electoral_log
             .post_send_template(election_event.id, None)
             .await

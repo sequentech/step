@@ -145,6 +145,15 @@ const englishTranslation = {
             votersByChannels: "Voters by channel",
             voterLoginURL: "Voter Login URL",
             voterEnrollURL: "Voter Enroll URL",
+            ipAddress: {
+                emptyState: "No votes yet.",
+                title: "IP Addresses",
+                ip: "IP",
+                country: "Country",
+                VoteCount: "Vote Count",
+                ElectionName: "Election Name",
+                VotersId: "Voters Id",
+            },
         },
         electionEventScreen: {
             common: {

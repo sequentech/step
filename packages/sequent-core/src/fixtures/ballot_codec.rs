@@ -218,7 +218,7 @@ fn get_contest_plurality() -> Contest {
 fn get_contest_borda() -> Contest {
     let mut contest = get_contest_plurality();
     contest.counting_algorithm = Some("borda".into());
-    contest.max_votes = (4);
+    contest.max_votes = 4;
     contest
 }
 
@@ -912,7 +912,7 @@ pub(crate) fn get_configurable_contest(
     };
 
     contest.counting_algorithm = Some(counting_algorithm);
-    contest.max_votes = (max);
+    contest.max_votes = max;
     if enable_writeins {
         let mut presentation =
             contest.presentation.unwrap_or(ContestPresentation::new());
@@ -934,6 +934,90 @@ pub(crate) fn get_configurable_contest(
     contest.presentation = Some(presentation);
 
     contest.candidates = contest.candidates[0..num_candidates].to_vec();
+    contest
+}
+
+pub(crate) fn get_contest_candidates_n(num_candidates: usize) -> Contest {
+    let candidates: Vec<Candidate> = (0..num_candidates)
+        .map(|i| Candidate {
+            annotations: None,
+            id: i.to_string(),
+            tenant_id: ("1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into()),
+            election_event_id: ("1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into()),
+            election_id: ("1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into()),
+            contest_id: ("1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into()),
+            name: Some("José Rabano Pimiento".into()),
+            name_i18n: None,
+            alias: None,
+            alias_i18n: None,
+            description: None,
+            description_i18n: None,
+            candidate_type: Some("Candidaturas no agrupadas".into()),
+            presentation: Some(CandidatePresentation {
+                i18n: None,
+                is_explicit_invalid: Some(false),
+                is_explicit_blank: Some(false),
+                is_disabled: Some(false),
+                is_write_in: Some(false),
+                sort_order: Some(0),
+                urls: None,
+                invalid_vote_position: None,
+                is_category_list: Some(false),
+                subtype: None,
+            }),
+        })
+        .collect();
+
+    let mut contest: Contest = Contest {
+        annotations: None,
+        created_at: None,
+        id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+        tenant_id: ("1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into()),
+        election_event_id: ("1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into()),
+        election_id: ("1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into()),
+        name: Some("Secretario General".into()),
+        name_i18n: None,
+        alias: None,
+        alias_i18n: None,
+        description: Some(
+            "Elige quien quieres que sea tu Secretario General en tu municipio"
+                .into(),
+        ),
+        description_i18n: None,
+        winning_candidates_num: (1),
+        max_votes: (200),
+        min_votes: (0),
+        voting_type: Some("first-past-the-post".into()),
+        counting_algorithm: Some("plurality-at-large".into()),
+        is_encrypted: (true),
+        candidates,
+        presentation: Some(ContestPresentation {
+            i18n: None,
+            allow_writeins: Some(true),
+            base32_writeins: Some(true),
+            invalid_vote_policy: Some(InvalidVotePolicy::NOT_ALLOWED),
+            blank_vote_policy: None,
+            pagination_policy: None,
+            cumulative_number_of_checkboxes: None,
+            shuffle_categories: Some(true),
+            shuffle_category_list: None,
+            show_points: Some(false),
+            enable_checkable_lists: None,
+            candidates_order: None,
+            candidates_selection_policy: None,
+            max_selections_per_type: None,
+            types_presentation: None,
+            sort_order: None,
+            // FIXME check these two fields:
+            over_vote_policy: None,
+            under_vote_policy: None,
+        }),
+    };
+
+    let mut presentation =
+        contest.presentation.unwrap_or(ContestPresentation::new());
+    contest.presentation = Some(presentation);
+
     contest
 }
 

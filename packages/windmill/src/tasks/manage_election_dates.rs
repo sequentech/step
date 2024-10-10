@@ -86,6 +86,7 @@ async fn manage_election_date_wrapper(
 
     let result = voting_status::update_election_status(
         tenant_id.clone(),
+        None,
         hasura_transaction,
         &election_event_id,
         &election_id,

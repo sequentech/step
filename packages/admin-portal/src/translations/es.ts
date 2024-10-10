@@ -146,6 +146,15 @@ const spanishTranslation: TranslationType = {
             votersByChannels: "Votantes por canales",
             voterLoginURL: "URL de inicio de sesión de votantes",
             voterEnrollURL: "URL de inscripción de votantes",
+            ipAddress: {
+                emptyState: "Aún no hay votos.",
+                title: "IP Addresses",
+                ip: "IP",
+                country: "País",
+                VoteCount: "Número de votos",
+                ElectionName: "Nombre de la elección",
+                VotersId: "Identificadores de votantes",
+            },
         },
         electionEventScreen: {
             common: {

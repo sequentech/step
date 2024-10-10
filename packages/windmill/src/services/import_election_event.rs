@@ -2,11 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::protocol_manager::get_event_board;
 use crate::services::tasks_execution::update_fail;
 use ::keycloak::types::RealmRepresentation;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
-use immu_board::util::get_event_board;
 use sequent_core::ballot::ElectionEventStatistics;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::ElectionStatistics;
@@ -46,7 +46,9 @@ use crate::postgres::election_event::insert_election_event;
 use crate::postgres::scheduled_event::insert_scheduled_event;
 use crate::services::election_event_board::BoardSerializable;
 use crate::services::jwks::upsert_realm_jwks;
-use crate::services::protocol_manager::{create_protocol_manager_keys, get_board_client};
+use crate::services::protocol_manager::{
+    create_protocol_manager_keys, get_b3_pgsql_client, get_board_client,
+};
 use crate::tasks::import_election_event::ImportElectionEventBody;
 use sequent_core::types::hasura::core::{Area, Candidate, Contest, Election, ElectionEvent};
 use sequent_core::types::scheduled_event::*;
@@ -65,18 +67,17 @@ pub struct ImportElectionEventSchema {
 }
 
 #[instrument(err)]
-pub async fn upsert_immu_board(tenant_id: &str, election_event_id: &str) -> Result<Value> {
-    let index_db = env::var("IMMUDB_INDEX_DB").expect(&format!("IMMUDB_INDEX_DB must be set"));
+pub async fn upsert_b3_and_elog(tenant_id: &str, election_event_id: &str) -> Result<Value> {
     let board_name = get_event_board(tenant_id, election_event_id);
-    let mut board_client = get_board_client().await?;
-    let has_board = board_client.has_database(board_name.as_str()).await?;
-    let board = if has_board {
-        board_client.get_board(&index_db, &board_name).await?
-    } else {
-        board_client.create_board(&index_db, &board_name).await?
-    };
+    // FIXME must also create the electoral log board here
+    let mut immudb_client = get_board_client().await?;
+    immudb_client.upsert_electoral_log_db(&board_name).await?;
 
-    if !has_board {
+    let mut board_client = get_b3_pgsql_client().await?;
+    let existing = board_client.get_board(board_name.as_str()).await?;
+    board_client.create_index_ine().await?;
+    board_client.create_board_ine(board_name.as_str()).await?;
+    if existing.is_none() {
         event!(
             Level::INFO,
             "creating protocol manager keys for Election event {}",
@@ -84,8 +85,14 @@ pub async fn upsert_immu_board(tenant_id: &str, election_event_id: &str) -> Resu
         );
         create_protocol_manager_keys(&board_name).await?;
     }
+    let board = board_client.get_board(board_name.as_str()).await?;
+    let board = board.ok_or(anyhow!(
+        "Unexpected error: could not retrieve created board '{}'",
+        &board_name
+    ))?;
 
     let board_serializable: BoardSerializable = board.into();
+
     let board_value = serde_json::to_value(board_serializable.clone())?;
     Ok(board_value)
 }
@@ -267,9 +274,9 @@ pub async fn process(
     .with_context(|| format!("Error getting document for election event ID {election_event_id} and tenant ID {tenant_id}"))?;
 
     // Upsert immutable board
-    let board = upsert_immu_board(tenant_id.as_str(), &election_event_id)
+    let board = upsert_b3_and_elog(tenant_id.as_str(), &election_event_id)
         .await
-        .with_context(|| format!("Error upserting immutable board for tenant ID {tenant_id} and election event ID {election_event_id}"))?;
+        .with_context(|| format!("Error upserting b3 board for tenant ID {tenant_id} and election event ID {election_event_id}"))?;
 
     data.election_event.bulletin_board_reference = Some(board);
     data.election_event.public_key = None;
