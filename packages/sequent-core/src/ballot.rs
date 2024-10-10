@@ -1094,6 +1094,7 @@ impl Default for ElectionEventStatus {
             voting_status: VotingStatus::NOT_STARTED,
             enrollment_status: EnrollmentStatus::ENROLLMENT_ENABLED,
             locked_down_status: LockedDownStatus::NOT_LOCKED_DOWN,
+            publish_policy: PublishPolicy::ALWAYS,
         }
     }
 }
