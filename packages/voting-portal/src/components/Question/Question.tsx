@@ -181,7 +181,7 @@ export const Question: React.FC<IQuestionProps> = ({
             >
                 {translate(question, "name", i18n.language) || ""}
             </StyledTitle>
-            {question.description ? (
+            {question.description || question.description_i18n?.[i18n.language] ? (
                 <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
                     {stringToHtml(translate(question, "description", i18n.language) || "")}
                 </Typography>
