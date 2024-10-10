@@ -1303,7 +1303,5 @@ add-janitor-to-tarball
 
 clean-artifacts-root
 
-xz $DELIVERABLE_TARBALL
-
 info "Project root: $PROJECT_ROOT"
 info "Air gapped artifacts location: $AIRGAPPED_ARTIFACTS_ROOT"
