@@ -96,9 +96,13 @@ pub async fn create_electoral_log(
         .await
         .with_context(|| "error getting electoral log")
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    
+
     if input.body.contains(EVENT_TYPE_COMMUNICATIONS) {
-        let body = input.body.replace(EVENT_TYPE_COMMUNICATIONS, "").trim().to_string();
+        let body = input
+            .body
+            .replace(EVENT_TYPE_COMMUNICATIONS, "")
+            .trim()
+            .to_string();
         let _ = electoral_log
             .post_send_template(
                 Some(body),
