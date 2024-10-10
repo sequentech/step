@@ -9,6 +9,8 @@ use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use chrono::{DateTime, Utc};
 use chrono::offset::TimeZone;
+use sequent_core::types::templates::EmailConfig;
+
 
 /// Struct for Overseas Voter Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -61,6 +63,10 @@ impl TemplateRenderer for OverseasVotersReport {
     type UserData = UserData;
     type SystemData = SystemData;
 
+    fn get_report_type() -> ReportType {
+        ReportType::OVERSEAS_VOTERS
+    }
+
     fn get_tenant_id(&self) -> String {
         self.tenant_id.clone()
     }
@@ -75,6 +81,14 @@ impl TemplateRenderer for OverseasVotersReport {
 
     fn prefix(&self) -> String {
         format!("overseas_voters_report_{}", self.election_event_id)
+    }
+
+    fn get_email_config() -> EmailConfig {
+        EmailConfig {
+            subject: "Sequent Online Voting - Overseas Voters".to_string(),
+            plaintext_body: "".to_string(),
+            html_body: None,
+        }
     }
 
     // TODO: replace mock data with actual data

@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use deadpool_postgres::Client as DbClient;
 use serde::{Deserialize, Serialize};
 use tracing::info;
+use sequent_core::types::templates::EmailConfig;
 
 /// Struct for OV User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -59,6 +60,10 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
     type UserData = UserData;
     type SystemData = SystemData;
 
+    fn get_report_type() -> ReportType {
+        ReportType::OV_USERS
+    }
+
     fn get_tenant_id(&self) -> String {
         self.tenant_id.clone()
     }
@@ -73,6 +78,14 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
 
     fn prefix(&self) -> String {
         format!("ov_users_who_voted_{}", self.election_event_id)
+    }
+
+    fn get_email_config() -> EmailConfig {
+        EmailConfig {
+            subject: "Sequent Online Voting - OV Users Who Voted".to_string(),
+            plaintext_body: "".to_string(),
+            html_body: None,
+        }
     }
 
     // Prepare user data with statistics and mock data

@@ -8,6 +8,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use tracing::info;
 use deadpool_postgres::Client as DbClient;
+use sequent_core::types::templates::EmailConfig;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
@@ -45,6 +46,10 @@ impl TemplateRenderer for StatusTemplate {
     type UserData = UserData;
     type SystemData = SystemData;
 
+    fn get_report_type() -> ReportType {
+        ReportType::STATUS
+    }
+
     fn base_name() -> String {
         "ovcs_information".to_string()
     }
@@ -59,6 +64,14 @@ impl TemplateRenderer for StatusTemplate {
 
     fn get_election_event_id(&self) -> String {
         self.election_event_id.clone()
+    }
+
+    fn get_email_config() -> EmailConfig {
+        EmailConfig {
+            subject: "Sequent Online Voting - Status".to_string(),
+            plaintext_body: "".to_string(),
+            html_body: None,
+        }
     }
 
     async fn prepare_user_data(&self) -> Result<Self::UserData> {

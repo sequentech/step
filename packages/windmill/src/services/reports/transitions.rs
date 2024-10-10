@@ -13,6 +13,7 @@ use std::env;
 use tracing::{info, instrument};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
+use sequent_core::types::templates::EmailConfig;
 
 /// Struct for Transition Report Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -56,6 +57,10 @@ impl TemplateRenderer for TransitionsReport {
     type UserData = UserData;
     type SystemData = SystemData;
 
+    fn get_report_type() -> ReportType {
+        ReportType::TRANSITIONS
+    }
+
     fn get_tenant_id(&self) -> String {
         self.tenant_id.clone()
     }
@@ -70,6 +75,14 @@ impl TemplateRenderer for TransitionsReport {
 
     fn prefix(&self) -> String {
         format!("transitions_report_{}", self.election_event_id)
+    }
+
+    fn get_email_config() -> EmailConfig {
+        EmailConfig {
+            subject: "Sequent Online Voting - Transitions".to_string(),
+            plaintext_body: "".to_string(),
+            html_body: None,
+        }
     }
 
     /// Prepare user data by fetching the relevant details

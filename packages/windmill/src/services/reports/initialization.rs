@@ -8,6 +8,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
+use sequent_core::types::templates::EmailConfig;
 
 /// Struct for the initialization report
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -55,6 +56,10 @@ impl TemplateRenderer for InitializationTemplate {
     type UserData = UserData;
     type SystemData = SystemData;
 
+    fn get_report_type() -> ReportType {
+        ReportType::INITIALIZATION
+    }
+
     fn get_tenant_id(&self) -> String {
         self.tenant_id.clone()
     }
@@ -69,6 +74,14 @@ impl TemplateRenderer for InitializationTemplate {
 
     fn prefix(&self) -> String {
         format!("initialization_report_{}", self.election_event_id)
+    }
+
+    fn get_email_config() -> EmailConfig {
+        EmailConfig {
+            subject: "Sequent Online Voting - Initialization".to_string(),
+            plaintext_body: "".to_string(),
+            html_body: None,
+        }
     }
 
     async fn prepare_user_data(&self) -> Result<Self::UserData> {

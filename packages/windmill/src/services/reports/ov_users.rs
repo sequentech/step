@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use deadpool_postgres::Client as DbClient;
 use serde::{Deserialize, Serialize};
 use tracing::info;
+use sequent_core::types::templates::EmailConfig;
 
 /// Struct to represent each OV (Overseas Voter) user
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -60,6 +61,10 @@ impl TemplateRenderer for OVUserTemplate {
     type UserData = UserData;
     type SystemData = SystemData;
 
+    fn get_report_type() -> ReportType {
+        ReportType::OV_USERS
+    }
+
     fn get_tenant_id(&self) -> String {
         self.tenant_id.clone()
     }
@@ -74,6 +79,14 @@ impl TemplateRenderer for OVUserTemplate {
 
     fn prefix(&self) -> String {
         format!("ov_users_information_{}", self.tenant_id)
+    }
+
+    fn get_email_config() -> EmailConfig {
+        EmailConfig {
+            subject: "Sequent Online Voting - OV Users".to_string(),
+            plaintext_body: "".to_string(),
+            html_body: None,
+        }
     }
 
     // Fetch user data

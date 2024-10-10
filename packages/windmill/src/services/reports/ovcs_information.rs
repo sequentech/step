@@ -13,6 +13,7 @@ use std::env;
 use tracing::{info, instrument};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
+use sequent_core::types::templates::EmailConfig;
 
 
 /// Struct for User Data
@@ -52,6 +53,10 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
     type UserData = UserData;
     type SystemData = SystemData;
 
+    fn get_report_type() -> ReportType {
+        ReportType::OVCS_INFORMATION
+    }
+
     fn get_tenant_id(&self) -> String {
         self.tenant_id.clone()
     }
@@ -66,6 +71,14 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
 
     fn prefix(&self) -> String {
         format!("ovcs_information_{}", self.voter_id)
+    }
+
+    fn get_email_config() -> EmailConfig {
+        EmailConfig {
+            subject: "Sequent Online Voting - OVCS Information".to_string(),
+            plaintext_body: "".to_string(),
+            html_body: None,
+        }
     }
 
     async fn prepare_user_data(&self) -> Result<Self::UserData> {

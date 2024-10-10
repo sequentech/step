@@ -7,6 +7,7 @@ use async_trait::async_trait;
 use deadpool_postgres::Client as DbClient;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
+use sequent_core::types::templates::EmailConfig;
 
 // Struct to hold user data
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -50,6 +51,10 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
     type UserData = UserData;
     type SystemData = SystemData;
 
+    fn get_report_type() -> ReportType {
+        ReportType::OVCS_STATISTICS
+    }
+
     fn base_name() -> String {
         "ovcs_statistics".to_string()
     }
@@ -64,6 +69,14 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
 
     fn get_election_event_id(&self) -> String {
         self.election_event_id.clone()
+    }
+
+    fn get_email_config() -> EmailConfig {
+        EmailConfig {
+            subject: "Sequent Online Voting - OVCS Statistics".to_string(),
+            plaintext_body: "".to_string(),
+            html_body: None,
+        }
     }
         
     // TODO: replace mock data with actual data

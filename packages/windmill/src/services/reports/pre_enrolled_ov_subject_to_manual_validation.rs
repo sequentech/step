@@ -6,6 +6,7 @@ use deadpool_postgres::Client as DbClient;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 use rocket::http::Status;
+use sequent_core::types::templates::EmailConfig;
 
 /// Struct for User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -56,6 +57,10 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
     type UserData = UserData;
     type SystemData = SystemData;
 
+    fn get_report_type() -> ReportType {
+        ReportType::PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION
+    }
+
     fn get_tenant_id(&self) -> String {
         self.tenant_id.clone()
     }
@@ -70,6 +75,14 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
 
     fn prefix(&self) -> String {
         format!("pre_enrolled_ov_{}", self.election_event_id)
+    }
+
+    fn get_email_config() -> EmailConfig {
+        EmailConfig {
+            subject: "Sequent Online Voting - Pre Enrolled OV Subject To Manual Validation".to_string(),
+            plaintext_body: "".to_string(),
+            html_body: None,
+        }
     }
 
     /// Fetches pre-enrolled users and prepares user data

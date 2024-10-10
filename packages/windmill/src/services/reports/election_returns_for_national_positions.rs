@@ -11,6 +11,7 @@ use std::env;
 use tracing::{info, instrument};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
+use sequent_core::types::templates::EmailConfig;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
@@ -58,6 +59,10 @@ impl TemplateRenderer for ElectionReturnsForNationalPostionTemplate {
     type UserData = UserData;
     type SystemData = SystemData;
 
+    fn get_report_type() -> ReportType {
+        ReportType::ELECTION_RETURNS_FOR_NATIONAL_POSITIONS
+    }
+
     fn get_tenant_id(&self) -> String {
         self.tenant_id.clone()
     }
@@ -72,6 +77,14 @@ impl TemplateRenderer for ElectionReturnsForNationalPostionTemplate {
 
     fn prefix(&self) -> String {
         format!("election_returns_for_national_positions_{}", self.election_event_id)
+    }
+
+    fn get_email_config() -> EmailConfig {
+        EmailConfig {
+            subject: "Sequent Online Voting - Election Returns For National Positions".to_string(),
+            plaintext_body: "".to_string(),
+            html_body: None,
+        }
     }
 
     async fn prepare_user_data(&self) -> Result<Self::UserData> {

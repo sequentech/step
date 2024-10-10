@@ -8,6 +8,7 @@ use deadpool_postgres::Client as DbClient;
 use serde::{Deserialize, Serialize};
 use rocket::http::Status;
 use tracing::{info, instrument};
+use sequent_core::types::templates::EmailConfig;
 
 /// Struct for User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -58,6 +59,10 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
     type UserData = UserData;
     type SystemData = SystemData;
 
+    fn get_report_type() -> ReportType {
+        ReportType::PRE_ENROLLED_OV_BUT_DISAPPROVED
+    }
+
     fn get_tenant_id(&self) -> String {
         self.tenant_id.clone()
     }
@@ -72,6 +77,14 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
 
     fn prefix(&self) -> String {
         format!("pre_enrolled_disapproved_{}", self.election_event_id)
+    }
+
+    fn get_email_config() -> EmailConfig {
+        EmailConfig {
+            subject: "Sequent Online Voting - Pre Enrolled OV But Disapproved".to_string(),
+            plaintext_body: "".to_string(),
+            html_body: None,
+        }
     }
 
     async fn prepare_user_data(&self) -> Result<Self::UserData> {
