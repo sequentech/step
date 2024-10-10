@@ -41,7 +41,7 @@ pub async fn import_templates_route(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::ADMIN_USER],
+        vec![Permissions::TEMPLATE_WRITE],
     )?;
 
     provide_hasura_transaction(|hasura_transaction| {

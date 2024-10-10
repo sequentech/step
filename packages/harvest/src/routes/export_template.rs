@@ -36,7 +36,7 @@ pub async fn export_template(
         &claims,
         true,
         Some(body.tenant_id.clone()),
-        vec![Permissions::USER_READ],
+        vec![Permissions::TEMPLATE_WRITE],
     )?;
 
     let document_id = Uuid::new_v4().to_string();

@@ -306,6 +306,7 @@ actions:
         template_engine: Kriti
         version: 2
     permissions:
+      - role: communication-template-write
       - role: admin-user
   - name: export_tenant_users
     definition:
@@ -475,17 +476,7 @@ actions:
   - name: get_top_votes_by_ip
     definition:
       kind: ""
-      handler: http://{{HARVEST_DOMAIN}}/election-event/top-votes-by-ip
-      forward_client_headers: true
-      request_transform:
-        body:
-          action: transform
-          template: "{{$body.input.body}}"
-        template_engine: Kriti
-        version: 2
-    permissions:
-      - role: admin-user
-      - role: admin-dashboard-view
+      handler: ""
   - name: get_upload_url
     definition:
       kind: synchronous
@@ -601,6 +592,7 @@ actions:
         template_engine: Kriti
         version: 2
     permissions:
+      - role: communication-template-write
       - role: admin-user
   - name: import_users
     definition:
@@ -676,7 +668,6 @@ actions:
         template_engine: Kriti
         version: 2
     permissions:
-      - role: cloudflare-write
       - role: admin-user
   - name: listElectoralLog
     definition:
@@ -981,6 +972,7 @@ custom_types:
     - name: UserProfileAttributesInput
     - name: EventListFilter
     - name: EventListOrderBy
+    - name: GetTopCastVotesByIpInput
   objects:
     - name: GetManualVerificationOutput
     - name: CreateKeysCeremonyOutput
@@ -1059,4 +1051,6 @@ custom_types:
     - name: LimitAccessByCountriesOutput
     - name: ExportTemplateOutput
     - name: templateOutput
+    - name: GetTopCastVotesByIpOutput
+    - name: CastVotesByIp
   scalars: []
