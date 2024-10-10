@@ -2,45 +2,25 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use board_messages::braid::{message::Message, statement::StatementType};
+use b3::{
+    grpc::GrpcB3Message,
+    messages::{message::Message, statement::StatementType},
+};
+use strand::serialization::{StrandDeserialize, StrandSerialize};
 
-///////////////////////////////////////////////////////////////////////////
-// VectorBoard
-//
-// A vector backed dummy implementation for in memory testing.
-///////////////////////////////////////////////////////////////////////////
-
-/*
-Persistence implementation:
-
-* Add a message counter, starts at zero when constructing
-
-* Step procedure
-
-1) Retrieve messages starting at counter
-2) Verify messages
-3) Save messages in kv
-4) Trustee update
-5) Increment counter
-
-* When constructing:
-1) Read all persistent messages and store them in memory
-2) Return persistent messages + updated messages in next Trustee update
-3) Clear persistent messages from memory
-
-*/
-
-// #[derive(Clone)]
+/// VectorBoard
+///
+/// A vector backed dummy implementation for in memory testing.
 pub struct VectorBoard {
     session_id: u128,
-    pub(crate) messages: Vec<Message>,
+    pub(crate) messages: Vec<GrpcB3Message>,
 }
 
 impl Clone for VectorBoard {
     fn clone(&self) -> Self {
         let mut ms = vec![];
         for m in &self.messages {
-            ms.push(m.try_clone().unwrap());
+            ms.push(m.clone());
         }
         VectorBoard {
             session_id: self.session_id,
@@ -60,16 +40,22 @@ impl VectorBoard {
     }
 
     pub fn add(&mut self, message: Message) {
-        self.messages.push(message);
+        let last_id: i64 = self.messages.len() as i64;
+        let m = message.strand_serialize().unwrap();
+        self.messages.push(GrpcB3Message {
+            id: last_id,
+            message: m,
+            version: "".to_string(),
+        });
     }
 
-    pub fn get(&self, last_message: i64) -> Vec<Message> {
+    pub fn get(&self, last_message: i64) -> Vec<GrpcB3Message> {
         let next: usize = (last_message + 1) as usize;
 
         let mut ret = vec![];
         let slice = &self.messages[next..self.messages.len()];
         for m in slice {
-            ret.push(m.try_clone().unwrap());
+            ret.push(m.clone());
         }
 
         ret
@@ -87,6 +73,7 @@ impl std::fmt::Debug for VectorBoard {
         let types: Vec<(StatementType, bool)> = self
             .messages
             .iter()
+            .map(|m| Message::strand_deserialize(&m.message).unwrap())
             .map(|m| (m.statement.get_kind(), m.artifact.is_some()))
             .collect();
         write!(

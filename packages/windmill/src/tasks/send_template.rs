@@ -439,6 +439,7 @@ async fn update_stats(
 pub async fn send_template(
     body: SendTemplateBody,
     tenant_id: String,
+    user_id: String,
     election_event_id: Option<String>,
 ) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
@@ -677,8 +678,8 @@ pub async fn send_template(
         let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
             .with_context(|| "missing bulletin board")?;
 
-        let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
-
+        // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
+        let electoral_log = ElectoralLog::for_admin_user(&board_name, &tenant_id, &user_id).await?;
         electoral_log
             .post_send_template(election_event.id, None)
             .await

@@ -9,12 +9,17 @@ use tracing_subscriber::{filter, reload};
 use tracing_subscriber::{layer::SubscriberExt, registry::Registry};
 use tracing_tree::HierarchicalLayer;
 
+// Run with cargo run --bin dbg --release
+/// Runs a simple interactive ncurses terminal to
+/// simulate or debug a protocol execution.
 fn main() {
     let log_reload = init_log();
     let ctx = RistrettoCtx;
     braid::test::dbg::dbg(ctx, log_reload).unwrap();
 }
 
+/// Initialize the tracing log, returning a handle that
+/// allows changing log levels at run time.
 fn init_log() -> Handle<LevelFilter, Registry> {
     let layer = HierarchicalLayer::default()
         .with_writer(std::io::stdout)
