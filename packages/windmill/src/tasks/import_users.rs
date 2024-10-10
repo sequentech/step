@@ -17,12 +17,15 @@ use regex::Regex;
 use ring::{digest, pbkdf2};
 use rocket::futures::SinkExt as _;
 use sequent_core::services::connection::AuthHeaders;
+use sequent_core::services::keycloak::get_client_credentials;
 use sequent_core::services::keycloak::{
     get_event_realm, get_tenant_realm, MULTIVALUE_USER_ATTRIBUTE_SEPARATOR,
 };
+use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::keycloak::{
     AREA_ID_ATTR_NAME, AUTHORIZED_ELECTION_IDS_NAME, TENANT_ID_ATTR_NAME,
 };
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Seek;
@@ -106,7 +109,7 @@ impl ImportUsersBody {
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 2)]
 pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution) -> Result<()> {
-    let auth_headers = keycloak::get_client_credentials()
+    let auth_headers = get_client_credentials()
         .await
         .with_context(|| "Error obtaining keycloak client credentials")?;
 
