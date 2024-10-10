@@ -169,9 +169,9 @@ const frenchTranslation: TranslationType = {
                 subtitle: "Configuration de l'Événement Électoral.",
                 showMore: "Afficher plus",
                 showLess: "Afficher moins",
-                adminPortal: "Admin Portal",
+                adminPortal: "Portail d'administration",
                 onlyAllowPublishOnlyWhenKeysCeremonySucceeded:
-                    "Only allow election event publishing when Keys Ceremony has succeeded",
+                    "Autoriser la publication d'événements électoraux uniquement lorsque la cérémonie de remise des clés a réussi",
             },
             edit: {
                 general: "Général",
@@ -395,8 +395,8 @@ const frenchTranslation: TranslationType = {
                 votingChannels: "Canaux de Vote",
                 startDateTime: "Date et heure de début",
                 endDateTime: "Date et heure de fin",
-                startDateTimeWithTimezone: "Start Date and Time ({{timezone}})",
-                endDateTimeWithTimezone: "End Date and Time ({{timezone}})",
+                startDateTimeWithTimezone: "Date et heure de début ({{timezone}})",
+                endDateTimeWithTimezone: "Date et heure de fin ({{timezone}})",
                 scheduledOpening: "Ouverture Prévue",
                 scheduledClosing: "Fermeture Prévue",
                 alias: "Alias",
@@ -648,11 +648,10 @@ const frenchTranslation: TranslationType = {
                 label: "Type",
                 START_VOTING_PERIOD: "Début de la Période de Vote",
                 END_VOTING_PERIOD: "Fin de la Période de Vote",
-                START_ENROLLMENT_PERIOD: "Start Enrollment Period",
+                START_ENROLLMENT_PERIOD: "Début de la période d'inscription",
                 END_ENROLLMENT_PERIOD: "End Enrollment Period",
                 START_LOCKDOWN_PERIOD: "Start Lockdown Period",
-                END_LOCKDOWN_PERIOD: "End Lockdown Period",
-                START_ALLOW_TALLY_PERIOD: "Start Allow Tally Period",
+                END_LOCKDOWN_PERIOD: "Fin de la période de confinement",
             },
             election: {
                 label: "Élection",
@@ -1189,7 +1188,7 @@ const frenchTranslation: TranslationType = {
                 action: "Générer Publication",
             },
             forbidden: {
-                header: "Cannot Publish until the Keys Ceremony is completed.",
+                header: "Impossible de publier tant que la cérémonie des clés n'est pas terminée.",
             },
             dialog: {
                 title: "Confirmer Action",

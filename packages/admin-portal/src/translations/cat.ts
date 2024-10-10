@@ -169,9 +169,9 @@ const catalanTranslation: TranslationType = {
                 subtitle: "Configuració de l'Esdeveniment Electoral.",
                 showMore: "Mostra'n més",
                 showLess: "Mostra'n menys",
-                adminPortal: "Admin Portal",
+                adminPortal: "Portal d'administració",
                 onlyAllowPublishOnlyWhenKeysCeremonySucceeded:
-                    "Only allow election event publishing when Keys Ceremony has succeeded",
+                    "Només permet la publicació d'esdeveniments electorals quan la cerimònia de claus hagi tingut èxit",
             },
             edit: {
                 general: "General",
@@ -394,8 +394,8 @@ const catalanTranslation: TranslationType = {
                 votingChannels: "Canals de Vot",
                 startDateTime: "Data i hora d'inici",
                 endDateTime: "Data i hora de finalització",
-                startDateTimeWithTimezone: "Start Date and Time ({{timezone}})",
-                endDateTimeWithTimezone: "End Date and Time ({{timezone}})",
+                startDateTimeWithTimezone: "Data i hora d'inici ({{timezone}})",
+                endDateTimeWithTimezone: "Data i hora de finalització ({{timezone}})",
                 scheduledOpening: "Obertura Programada",
                 scheduledClosing: "Tancament Programat",
                 alias: "Àlies",
@@ -646,11 +646,10 @@ const catalanTranslation: TranslationType = {
                 label: "Tipus",
                 START_VOTING_PERIOD: "Inici del Període de Votació",
                 END_VOTING_PERIOD: "Final del Període de Votació",
-                START_ENROLLMENT_PERIOD: "Start Enrollment Period",
-                END_ENROLLMENT_PERIOD: "End Enrollment Period",
-                START_LOCKDOWN_PERIOD: "Start Lockdown Period",
-                END_LOCKDOWN_PERIOD: "End Lockdown Period",
-                START_ALLOW_TALLY_PERIOD: "Start Allow Tally Period",
+                START_ENROLLMENT_PERIOD: "Inici del període de matrícula",
+                END_ENROLLMENT_PERIOD: "Finalització del període de matrícula",
+                START_LOCKDOWN_PERIOD: "Inicia el període de confinament",
+                END_LOCKDOWN_PERIOD: "Finalitzar el període de confinament",
             },
             election: {
                 label: "Elecció",
@@ -1183,7 +1182,7 @@ const catalanTranslation: TranslationType = {
                 action: "Generar Publicació",
             },
             forbidden: {
-                header: "Cannot Publish until the Keys Ceremony is completed.",
+                header: "No es pot publicar fins que s'hagi completat la cerimònia de claus.",
             },
             dialog: {
                 title: "Confirmar Acció",

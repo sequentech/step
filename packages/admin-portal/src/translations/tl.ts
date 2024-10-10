@@ -172,7 +172,7 @@ const tagalogTranslation: TranslationType = {
                 showLess: "Bawasan ang nakikita",
                 adminPortal: "Admin Portal",
                 onlyAllowPublishOnlyWhenKeysCeremonySucceeded:
-                    "Only allow election event publishing when Keys Ceremony has succeeded",
+                    "Payagan lamang ang pag-publish ng kaganapan sa halalan kapag nagtagumpay ang Keys Ceremony",
             },
             edit: {
                 general: "Pangkalahatan",
@@ -393,8 +393,8 @@ const tagalogTranslation: TranslationType = {
                 votingChannels: "Mga Channel ng Pagboto",
                 startDateTime: "Petsa at Oras ng Pagsisimula",
                 endDateTime: "Petsa at Oras ng Pagtatapos",
-                startDateTimeWithTimezone: "Start Date and Time ({{timezone}})",
-                endDateTimeWithTimezone: "End Date and Time ({{timezone}})",
+                startDateTimeWithTimezone: "Petsa at Oras ng Pagsisimula ({{timezone}})",
+                endDateTimeWithTimezone: "Petsa at Oras ng Pagtatapos ({{timezone}})",
                 scheduledOpening: "Naka-iskedyul na Pagbubukas",
                 scheduledClosing: "Naka-iskedyul na Pagsasara",
                 alias: "Alias",
@@ -646,11 +646,10 @@ const tagalogTranslation: TranslationType = {
                 label: "Uri",
                 START_VOTING_PERIOD: "Simula ng Panahon ng Pagboto",
                 END_VOTING_PERIOD: "Pagtatapos ng Panahon ng Pagboto",
-                START_ENROLLMENT_PERIOD: "Start Enrollment Period",
-                END_ENROLLMENT_PERIOD: "End Enrollment Period",
-                START_LOCKDOWN_PERIOD: "Start Lockdown Period",
-                END_LOCKDOWN_PERIOD: "End Lockdown Period",
-                START_ALLOW_TALLY_PERIOD: "Start Allow Tally Period",
+                START_ENROLLMENT_PERIOD: "Simulan ang Panahon ng Pagpapatala",
+                END_ENROLLMENT_PERIOD: "Panahon ng Pagpapatala",
+                START_LOCKDOWN_PERIOD: "Simulan ang Lockdown Period",
+                END_LOCKDOWN_PERIOD: "Tapusin ang Panahon ng Lockdown",
             },
             election: {
                 label: "Halalan",
@@ -1190,7 +1189,7 @@ const tagalogTranslation: TranslationType = {
                 action: "Lumikha ng Paglalathala",
             },
             forbidden: {
-                header: "Cannot Publish until the Keys Ceremony is completed.",
+                header: "Hindi mai-publish hanggang sa makumpleto ang Keys Ceremony.",
             },
             dialog: {
                 title: "Kumpirmahin ang Aksyon",
