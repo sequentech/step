@@ -1181,7 +1181,7 @@ const spanishTranslation: TranslationType = {
                 action: "Generar Publicación",
             },
             forbidden: {
-                header: "Cannot Publish until the Keys Ceremony is completed.",
+                header: "No es posible Publicar hasta que la Ceremonia de Llaves haya terminado.",
             },
             dialog: {
                 title: "Confirmar Acción",
