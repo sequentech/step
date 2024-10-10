@@ -215,7 +215,7 @@ public class Utils {
                 messageAttributes,
                 emailAddress.trim(),
                 deferredUser,
-                emailTemplateProvider);
+                null);
         communicationsLog(context, textBody);
       } catch (EmailException error) {
         log.debug("sendCode(): Exception sending email", error);
@@ -235,6 +235,8 @@ public class Utils {
           .detail("msgBody", body)
           .success();
     }
+    //RequiredActionContext
+    //ActionTokenContext<ManualVerificationToken>
   }
 
   String getMobile(AuthenticatorConfigModel config, UserModel user) {
@@ -408,7 +410,7 @@ public class Utils {
       Map<String, Object> bodyAttributes,
       String address,
       boolean useEmailSender,
-      EmailTemplateProvider emailTemplateProvider)
+      String username)
       throws EmailException {
     try {
       EmailTemplate emailTemplate =
@@ -430,14 +432,20 @@ public class Utils {
             emailTemplate.getTextBody(),
             emailTemplate.getHtmlBody());
 
-        } else {
-          String realmName = getRealmName(realm);
-          emailTemplateProvider
-              .setRealm(realm)
-              .setUser(user)
-              .setAttribute("realmName", realmName)
-              .send(subjectFormatKey, subjectAttributes, bodyTemplate, bodyAttributes);
+      } else {
+        EmailTemplateProvider emailTemplateProvider = session.getProvider(EmailTemplateProvider.class);
+        String realmName = getRealmName(realm);
+        emailTemplateProvider
+            .setRealm(realm)
+            .setUser(user)
+            .setAttribute("realmName", realmName);
+
+        if (username != null && !username.isEmpty()) {
+            emailTemplateProvider.setAttribute("username", username);
         }
+
+        emailTemplateProvider.send(subjectFormatKey, subjectAttributes, bodyTemplate, bodyAttributes);
+    }
 
       return emailTemplate.getTextBody();
     } catch (EmailException e) {
@@ -542,9 +550,11 @@ public class Utils {
       RealmModel realm,
       UserModel user,
       MessageCourier messageCourier,
-      String mobileNumber)
+      String mobileNumber,
+      Object context)
       throws EmailException, IOException {
     log.info("sendConfirmation(): start");
+
     String realName = realm.getName();
     // Send a confirmation email
     EmailTemplateProvider emailTemplateProvider = session.getProvider(EmailTemplateProvider.class);
@@ -567,12 +577,20 @@ public class Utils {
       messageAttributes.put("realmName", realName);
       messageAttributes.put("username", username);
 
-      emailTemplateProvider
-          .setRealm(realm)
-          .setUser(user)
-          .setAttribute("realmName", realName)
-          .setAttribute("username", username)
-          .send(SEND_SUCCESS_EMAIL_SUBJECT, subjAttr, SEND_SUCCESS_EMAIL_FTL, messageAttributes);
+      String textBody = 
+          sendEmail(
+            session,
+            realm,
+            user,
+            SEND_SUCCESS_EMAIL_SUBJECT,
+            subjAttr,
+            SEND_SUCCESS_EMAIL_FTL,
+            messageAttributes,
+            email.trim(),
+            false,
+            username
+          );
+      communicationsLog(context, textBody);
     }
 
     if (mobileNumber != null
@@ -586,8 +604,9 @@ public class Utils {
       log.infov("sendCode(): Sending SMS to=`{0}`", mobileNumber.trim());
       List<String> smsAttributes = ImmutableList.of(realName, username);
 
-      smsSenderProvider.send(
+      String formattedText = smsSenderProvider.send(
           mobileNumber.trim(), SEND_SUCCESS_SMS_I18N_KEY, smsAttributes, realm, user, session);
+      communicationsLog(context, formattedText);
     }
   }
 
