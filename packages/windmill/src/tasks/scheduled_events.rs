@@ -54,7 +54,6 @@ pub async fn handle_allow_init_report(
                 get_election_by_id(&transaction, &tenant_id, &election_event_id, &election_id)
                     .await?;
             if let Some(election) = election {
-                let election_status = &election.status;
                 if let Some(election_status) = election.status {
                     let election_status: ElectionStatus = ElectionStatus {
                         init_report_policy: InitReportPolicy::ALLOWED,
