@@ -37,6 +37,7 @@ lazy_static! {
     static ref HASHED_PASSWORD_COL_NAME: String = String::from("hashed_password");
     static ref PASSWORD_COL_NAME: String = String::from("password");
     static ref USERNAME_COL_NAME: String = String::from("username");
+    static ref EMAIL_COL_NAME: String = String::from("email");
     static ref GROUP_COL_NAME: String = String::from("group_name");
     static ref AREA_NAME_COL_NAME: String = String::from("area_name");
     static ref RESERVED_COL_NAMES: Vec<String> = vec![
@@ -289,7 +290,7 @@ fn get_insert_user_query(
             FROM
                 new_user nu
             "#,
-            self.tenant_id,
+            tenant_id,
         )
     } else {
         String::new()
