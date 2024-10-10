@@ -7,7 +7,14 @@ import React, {ComponentType, useCallback, useContext, useEffect, useState} from
 import {Box} from "@mui/material"
 import {useMutation} from "@apollo/client"
 import {useTranslation} from "react-i18next"
-import {useGetOne, useNotify, useRecordContext, Identifier, useRefresh} from "react-admin"
+import {
+    useGetOne,
+    useGetList,
+    useNotify,
+    useRecordContext,
+    Identifier,
+    useRefresh,
+} from "react-admin"
 
 import {EPublishType} from "./EPublishType"
 import {PUBLISH_BALLOT} from "@/queries/PublishBallot"
@@ -29,7 +36,10 @@ import {
     GenerateBallotPublicationMutation,
     GetBallotPublicationChangesOutput,
     Sequent_Backend_Ballot_Publication,
+    Sequent_Backend_Keys_Ceremony,
 } from "@/gql/graphql"
+
+import {IKeysCeremonyExecutionStatus as EStatus} from "@/services/KeyCeremony"
 
 import {PublishList} from "./PublishList"
 import {PublishGenerate} from "./PublishGenerate"
@@ -41,6 +51,7 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {IElectionEventStatus} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {convertToNumber} from "@/lib/helpers"
+import {getActiveCeremony} from "../ElectionEvent/EditElectionEventKeys"
 
 enum ViewMode {
     Edit,
@@ -74,8 +85,25 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         const record = useRecordContext<Sequent_Backend_Election_Event | Sequent_Backend_Election>()
         const refresh = useRefresh()
 
+        const electionEvent = useRecordContext<Sequent_Backend_Election_Event>()
+
+        const {data: keysCeremonies} = useGetList<Sequent_Backend_Keys_Ceremony>(
+            "sequent_backend_keys_ceremony",
+            {
+                sort: {field: "created_at", order: "DESC"},
+                filter: {
+                    tenant_id: tenantId,
+                    election_event_id: electionEvent.id,
+                },
+            },
+            {
+                refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            }
+        )
+        let activeCeremony = getActiveCeremony(keysCeremonies, authContext)
         const canPublish =
-            !record.presentation?.allow_publishing_only_when_key_ceremony_has_succeeded
+            !record.presentation?.allow_publishing_only_when_key_ceremony_has_succeeded ||
+            activeCeremony?.execution_status === EStatus.SUCCESS
 
         const [generateData, setGenerateData] = useState<GetBallotPublicationChangesOutput | null>(
             null

@@ -93,7 +93,7 @@ const OMIT_FIELDS: Array<string> = []
 
 // Returns a keys ceremony if there's any in which we have been required to
 // participate and is active
-const getActiveCeremony = (
+export const getActiveCeremony = (
     keyCeremonies: Sequent_Backend_Keys_Ceremony[] | undefined,
     authContext: AuthContextValues
 ) => {
