@@ -398,7 +398,7 @@ fn get_insert_user_query(
 
 pub async fn import_users_file(
     hasura_transaction: &Transaction<'_>,
-    voters_file: &File,
+    voters_file: &NamedTempFile,
     separator: u8,
     election_event_id: Option<String>,
     tenant_id: String,

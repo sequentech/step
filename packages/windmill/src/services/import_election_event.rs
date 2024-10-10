@@ -55,6 +55,7 @@ use crate::services::election_event_board::BoardSerializable;
 use crate::services::jwks::upsert_realm_jwks;
 use crate::services::protocol_manager::{create_protocol_manager_keys, get_board_client};
 use crate::services::temp_path::generate_temp_file;
+use crate::types::documents::EDocuments;
 use crate::tasks::import_election_event::ImportElectionEventBody;
 use sequent_core::types::hasura::core::{Area, Candidate, Contest, Election, ElectionEvent};
 use sequent_core::types::scheduled_event::*;
@@ -261,7 +262,6 @@ pub async fn get_document(
         .unwrap();
 
     let file_contents = fs::read(&temp_file.path())?;
-    println!("******** file_contents {:?}", file_contents[0..20].to_vec());
 
     let document_type = document
         .clone()
@@ -269,10 +269,6 @@ pub async fn get_document(
         .unwrap_or("application/ezip".to_string());
 
     temp_file = decrypt_document(object.password.clone(), temp_file).await?;
-
-    // dubbugging:
-    let file_contents = fs::read(&temp_file.path())?;
-    println!("******** file_contents {:?}", file_contents[0..20].to_vec());
 
     Ok((temp_file, document, document_type))
 }
@@ -284,10 +280,9 @@ pub async fn decrypt_document(
 ) -> Result<NamedTempFile> {
     let password = password.unwrap_or_else(|| "".to_string());
     let is_encrypted = !password.is_empty();
-    pr
 
     if is_encrypted {
-        let decrypted_path = env::temp_dir().join("election-event-e54d0802-3076-4d23-864a-8b51625b184d-export.zip"); //TODO: fix
+        let decrypted_path = env::temp_dir().join("election-event.zip");
 
         generate_decrypted_zip(
             temp_file_path.path().to_string_lossy().to_string(),
@@ -318,8 +313,8 @@ pub async fn get_election_event_schema(
 ) -> Result<ImportElectionEventSchema> {
     if document_type == "application/ezip" || document_type == get_mime_type("zip") {
         // Handle the ZIP file case
-        let file = File::open(&temp_file_path)?;
-        let mut zip = ZipArchive::new(file)?;
+        let file = temp_file_path.reopen()?;
+        let mut zip = ZipArchive::new(&file)?;
 
         // Iterate through the files in the ZIP
         for i in 0..zip.len() {
@@ -342,7 +337,6 @@ pub async fn get_election_event_schema(
                 return Ok(data);
             }
         }
-        //TODO: remove zip file from memory
         Err(anyhow!("No JSON file found in ZIP"))
     } else {
         // Regular JSON document processing
@@ -463,7 +457,7 @@ pub async fn process_election_event_file(
 
 async fn process_voters_file(
     hasura_transaction: &Transaction<'_>,
-    temp_file: &File,
+    temp_file: &NamedTempFile,
     file_name: &String,
     election_event_id: Option<String>,
     tenant_id: String,
@@ -599,32 +593,38 @@ pub async fn process_document(
                 .await?;
             }
 
-            if file_name.contains("/voters.csv") {
+            if file_name.contains(&format!("/{}.csv", EDocuments::VOTERS.to_file_name())) {
                 //TODO: fix this with the real name
-                let mut file = OpenOptions::new()
-                    .read(true)
-                    .write(true)
-                    .create(true)
-                    .truncate(true)
-                    .open("/tmp/voters.csv")?;
-                let mut buffer = [0u8; 1024];
+                // let mut file = OpenOptions::new()
+                //     .read(true)
+                //     .write(true)
+                //     .create(true)
+                //     .truncate(true)
+                //     .open("/tmp/voters.csv")?;
+                let mut temp_file = NamedTempFile::new()
+                    .context("Failed to create activity logs temporary file")?;
+                io::copy(&mut cursor, &mut temp_file)
+                    .context("Failed to copy contents of activity logs to temporary file")?;
+                temp_file.as_file_mut().rewind()?;
 
-                while let Ok(size) = cursor.read(&mut buffer) {
-                    //TODO: maybe not needed
-                    if size == 0 {
-                        break; // End of file
-                    }
-                    file.write_all(&buffer[..size])
-                        .with_context(|| "Error writting to the text file")?;
-                }
+                // let mut buffer = [0u8; 1024];
 
-                file.sync_all()
-                    .with_context(|| "Error flushing the file to disk")?;
+                // while let Ok(size) = cursor.read(&mut buffer) {
+                //     //TODO: maybe not needed
+                //     if size == 0 {
+                //         break; // End of file
+                //     }
+                //     file.write_all(&buffer[..size])
+                //         .with_context(|| "Error writting to the text file")?;
+                // }
 
-                file.seek(std::io::SeekFrom::Start(0))?;
+                // file.sync_all()
+                //     .with_context(|| "Error flushing the file to disk")?;
+
+                // file.seek(std::io::SeekFrom::Start(0))?;
                 process_voters_file(
                     &hasura_transaction,
-                    &file,
+                    &temp_file,
                     &file_name,
                     Some(election_event_schema.election_event.id.clone()),
                     election_event_schema.tenant_id.to_string(),
