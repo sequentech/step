@@ -40,6 +40,7 @@ import {CustomTabPanel} from "@/components/CustomTabPanel"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
+import {EPublishPolicy} from "./CoreTypes"
 import {
     ElectionsOrder,
     IElectionEventPresentation,
@@ -1117,9 +1118,9 @@ export const EditElectionEventDataForm: React.FC = () => {
                                     <Box>
                                         <BooleanInput
                                             source={"status.publish_policy"}
-                                            format={(e) => e === "WHEN_KEYS_CEREMONY_HAS_SUCCEEDED"}
+                                            format={(e) => e === EPublishPolicy.ALWAYS}
                                             parse={(e) =>
-                                                !e ? "ALWAYS" : "WHEN_KEYS_CEREMONY_HAS_SUCCEEDED"
+                                                !e ? EPublishPolicy.ALWAYS : EPublishPolicy.WHEN_KEYS_CEREMONY_HAS_SUCCEEDED
                                             }
                                             label={t(
                                                 "electionEventScreen.common.onlyAllowPublishOnlyWhenKeysCeremonySucceeded"
