@@ -145,6 +145,15 @@ const frenchTranslation: TranslationType = {
             votersByChannels: "Votants par canaux",
             voterLoginURL: "URL de connexion des électeurs",
             voterEnrollURL: "URL d'inscription des électeurs",
+            ipAddress: {
+                emptyState: "Pas encore de votes.",
+                title: "IP Addresses",
+                ip: "IP",
+                country: "Pays",
+                VoteCount: "Nombre de votes",
+                ElectionName: "Nom de l'élection",
+                VotersId: "Identifiants des votants",
+            },
         },
         electionEventScreen: {
             common: {
@@ -370,6 +379,7 @@ const frenchTranslation: TranslationType = {
                 title: "Élection",
                 subtitle: "Configuration de l'élection.",
                 fileLoaded: "Fichier chargé",
+                noPermission: "Vous n'avez pas la permission d'accéder à cette élection.",
             },
             edit: {
                 general: "Général",
@@ -386,6 +396,7 @@ const frenchTranslation: TranslationType = {
                 reorder: "Réorganiser les concours",
                 castVoteConfirm: "Modal de Confirmation de Vote",
                 gracePeriodPolicy: "Politique de période de grâce",
+                permissionLabel: "Étiquette de permission",
             },
             field: {
                 name: "Nom",
@@ -456,28 +467,30 @@ const frenchTranslation: TranslationType = {
                     subtitle: "Créer utilisateur",
                 },
                 fields: {
-                    has_voted: "A voté",
-                    username: "Nom d'Utilisateur",
-                    first_name: "Prénom",
-                    last_name: "Nom",
-                    email: "Email",
-                    enabled: "Activé",
-                    emailVerified: "Email Vérifié",
-                    groups: "Groupes",
-                    attributes: "Attributs",
-                    area: "Zone",
-                    password: "Mot de passe",
-                    repeatPassword: "Répéter le Mot de Passe",
-                    passwordMismatch: "Les mots de passe doivent correspondre",
-                    passwordLengthValidate: "Le mot de passe doit avoir au moins 8 caractères",
-                    passwordUppercaseValidate:
+                    "has_voted": "A voté",
+                    "username": "Nom d'Utilisateur",
+                    "first_name": "Prénom",
+                    "last_name": "Nom",
+                    "email": "Email",
+                    "enabled": "Activé",
+                    "emailVerified": "Email Vérifié",
+                    "groups": "Groupes",
+                    "attributes": "Attributs",
+                    "area": "Zone",
+                    "password": "Mot de passe",
+                    "repeatPassword": "Répéter le Mot de Passe",
+                    "passwordMismatch": "Les mots de passe doivent correspondre",
+                    "passwordLengthValidate": "Le mot de passe doit avoir au moins 8 caractères",
+                    "passwordUppercaseValidate":
                         "Le mot de passe doit contenir au moins une lettre majuscule",
-                    passwordLowercaseValidate:
+                    "passwordLowercaseValidate":
                         "Le mot de passe doit contenir au moins une lettre minuscule",
-                    passwordDigitValidate: "Le mot de passe doit contenir au moins un chiffre",
-                    passwordSpecialCharValidate:
+                    "passwordDigitValidate": "Le mot de passe doit contenir au moins un chiffre",
+                    "passwordSpecialCharValidate":
                         "Le mot de passe doit contenir au moins un caractère spécial",
-                    trustee: "Agir en tant que fiduciaire",
+                    "trustee": "Agir en tant que fiduciaire",
+                    "permissionLabel": "Libellé d'autorisation",
+                    "authorized-election-ids": "Élections",
                 },
                 delete: {
                     body: "Êtes-vous sûr de vouloir supprimer cet utilisateur ?",
@@ -621,6 +634,7 @@ const frenchTranslation: TranslationType = {
                 "miru-download": "Miru Download",
                 "miru-send": "Miru Send",
                 "miru-sign": "Miru Sign",
+                "permission-label-write": "Modifier l'étiquette de permission",
                 "scheduled-event-write": "Modifier des Événements Planifiés",
             },
         },

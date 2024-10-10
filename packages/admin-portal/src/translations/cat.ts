@@ -145,6 +145,15 @@ const catalanTranslation: TranslationType = {
             votersByChannels: "Votants per canals",
             voterLoginURL: "URL d'inici de sessió dels votants",
             voterEnrollURL: "URL d'inscripció de votants",
+            ipAddress: {
+                emptyState: "Encara no hi ha vots.",
+                title: "IP Addresses",
+                ip: "IP",
+                country: "País",
+                VoteCount: "Nombre de vots",
+                ElectionName: "Nom de l'elecció",
+                VotersId: "Identificadors dels votants",
+            },
         },
         electionEventScreen: {
             common: {
@@ -369,6 +378,7 @@ const catalanTranslation: TranslationType = {
                 title: "Elecció",
                 subtitle: "Configuració de l'elecció.",
                 fileLoaded: "Fitxer carregat",
+                noPermission: "No tens permís per accedir a aquesta elecció.",
             },
             edit: {
                 general: "General",
@@ -385,6 +395,7 @@ const catalanTranslation: TranslationType = {
                 reorder: "Reordenar concursos",
                 castVoteConfirm: "Modal de Confirmació de Vot",
                 gracePeriodPolicy: "Política de període de gràcia",
+                permissionLabel: "Etiqueta de permís",
             },
             field: {
                 name: "Nom",
@@ -455,28 +466,30 @@ const catalanTranslation: TranslationType = {
                     subtitle: "Crear usuari",
                 },
                 fields: {
-                    has_voted: "Ha votat",
-                    username: "Nom d'Usuari",
-                    first_name: "Nom",
-                    last_name: "Cognom",
-                    email: "Correu",
-                    enabled: "Habilitat",
-                    emailVerified: "Correu Verificat",
-                    groups: "Grups",
-                    attributes: "Atributs",
-                    area: "Àrea",
-                    password: "Contrasenya",
-                    repeatPassword: "Repetir Contrasenya",
-                    passwordMismatch: "Les contrasenyes han de coincidir",
-                    passwordLengthValidate: "La contrasenya ha de tenir almenys 8 caràcters",
-                    passwordUppercaseValidate:
+                    "has_voted": "Ha votat",
+                    "username": "Nom d'Usuari",
+                    "first_name": "Nom",
+                    "last_name": "Cognom",
+                    "email": "Correu",
+                    "enabled": "Habilitat",
+                    "emailVerified": "Correu Verificat",
+                    "groups": "Grups",
+                    "attributes": "Atributs",
+                    "area": "Àrea",
+                    "password": "Contrasenya",
+                    "repeatPassword": "Repetir Contrasenya",
+                    "passwordMismatch": "Les contrasenyes han de coincidir",
+                    "passwordLengthValidate": "La contrasenya ha de tenir almenys 8 caràcters",
+                    "passwordUppercaseValidate":
                         "La contrasenya ha de contenir almenys una lletra majúscula",
-                    passwordLowercaseValidate:
+                    "passwordLowercaseValidate":
                         "La contrasenya ha de contenir almenys una lletra minúscula",
-                    passwordDigitValidate: "La contrasenya ha de contenir almenys un dígit",
-                    passwordSpecialCharValidate:
+                    "passwordDigitValidate": "La contrasenya ha de contenir almenys un dígit",
+                    "passwordSpecialCharValidate":
                         "La contrasenya ha de contenir almenys un caràcter especial",
-                    trustee: "Actuar com a fideïcomissari",
+                    "trustee": "Actuar com a fideïcomissari",
+                    "permissionLabel": "Etiqueta de permís",
+                    "authorized-election-ids": "Eleccions",
                 },
                 delete: {
                     body: "Estàs segur que vols esborrar aquest usuari?",
@@ -619,6 +632,7 @@ const catalanTranslation: TranslationType = {
                 "miru-download": "Miru Download",
                 "miru-send": "Miru Send",
                 "miru-sign": "Miru Sign",
+                "permission-label-write": "Edita l'etiqueta de permís",
                 "scheduled-event-write": "Editar Esdeveniments Programats",
             },
         },

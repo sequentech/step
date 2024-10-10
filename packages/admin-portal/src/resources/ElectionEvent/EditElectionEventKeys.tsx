@@ -37,6 +37,7 @@ import KeyIcon from "@mui/icons-material/Key"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {ListActions} from "../../components/ListActions"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {ResetFilters} from "@/components/ResetFilters"
 
 const NotificationLink = styled.span`
     text-decoration: underline;
@@ -274,6 +275,7 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
                     empty={<Empty />}
                     actions={<ListActions withFilter={false} withImport={false} />}
                 >
+                    <ResetFilters />
                     <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
                         <TextField source="id" />
                         <DateField

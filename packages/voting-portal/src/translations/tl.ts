@@ -283,6 +283,7 @@ const tagalogTranslation: TranslationType = {
             explicit: {
                 notAllowed:
                     "Ang balota ay tahasang minarkahan upang mapawalang-bisa ngunit hindi ito pinapayagan ng tanong",
+                alert: "An seleksyon na minarkahan ibibilang na bakong balidong boto.",
             },
             page: {
                 oopsWithStatus: "Oops! {{status}}",

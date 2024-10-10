@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext} from "react"
+import React, {useContext, useEffect, useState} from "react"
 
 import {useTranslation} from "react-i18next"
 import {TabbedShowLayout, useRecordContext} from "react-admin"
@@ -18,6 +18,8 @@ import {EditElectionData} from "./ElectionData"
 import {EPublishType} from "../Publish/EPublishType"
 import {IPermissions} from "@/types/keycloak"
 import {EditElectionEventUsers} from "../ElectionEvent/EditElectionEventUsers"
+import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
+import {Typography} from "@mui/material"
 
 export const ElectionTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
@@ -25,6 +27,8 @@ export const ElectionTabs: React.FC = () => {
     const [tabKey, setTabKey] = React.useState<string>(uuidv4())
     const authContext = useContext(AuthContext)
     const showVoters = authContext.isAuthorized(true, authContext.tenantId, IPermissions.VOTER_READ)
+    const usersPermissionLabels = authContext.permissionLabels
+    const [hasPermissionToViewElection, setHasPermissionToViewElection] = useState<boolean>(true)
     const showDashboard = authContext.isAuthorized(
         true,
         authContext.tenantId,
@@ -41,6 +45,27 @@ export const ElectionTabs: React.FC = () => {
         IPermissions.PUBLISH_READ
     )
 
+    useEffect(() => {
+        if (
+            usersPermissionLabels &&
+            record?.permission_label &&
+            !usersPermissionLabels.includes(record.permission_label)
+        ) {
+            setHasPermissionToViewElection(false)
+        } else {
+            setHasPermissionToViewElection(true)
+        }
+    }, [record])
+
+    if (!hasPermissionToViewElection) {
+        return (
+            <ResourceListStyles.EmptyBox>
+                <Typography variant="h4" paragraph>
+                    {t("electionScreen.common.noPermission")}
+                </Typography>
+            </ResourceListStyles.EmptyBox>
+        )
+    }
     return (
         <>
             <ElectionHeader title={record?.name} subtitle="electionScreen.common.subtitle" />

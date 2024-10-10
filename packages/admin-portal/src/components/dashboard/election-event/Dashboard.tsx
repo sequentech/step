@@ -24,6 +24,7 @@ import {EVotingStatus, IElectionEventStatistics, IElectionEventStatus} from "@se
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {GET_ELECTION_EVENT_STATS} from "@/queries/GetElectionEventStats"
 import {getAuthUrl} from "@/services/UrlGeneration"
+import {ListIpAddress} from "@/resources/ElectionEvent/ListIpAddress"
 
 const Container = styled(Box)`
     display: flex;
@@ -182,6 +183,7 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
                             height={cardHeight}
                         />
                     </Container>
+                    <ListIpAddress electionEventId={record?.id ?? ""} />
                 </Box>
                 <Box
                     sx={{

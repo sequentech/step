@@ -64,7 +64,6 @@ import {FetchResult, useMutation} from "@apollo/client"
 import {IMPORT_CANDIDTATES} from "@/queries/ImportCandidates"
 import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
 import {convertToNumber} from "@/lib/helpers"
-import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {ExportElectionEventDrawer} from "../../components/election-event/export-data/ExportElectionEventDrawer"
 import {ManagedNumberInput} from "@/components/managed-inputs/ManagedNumberInput"
 import {ETasksExecution} from "@/types/tasksExecution"
@@ -117,7 +116,7 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [openImportCandidates, setOpenImportCandidates] = useState(false)
     const [importCandidates] = useMutation<ImportCandidatesMutation>(IMPORT_CANDIDTATES)
     const defaultSecondsForCountdown = convertToNumber(process.env.SECONDS_TO_SHOW_COUNTDOWN) ?? 60
-    const defaultSecondsForAlert = convertToNumber(process.env.SECONDS_TO_SHOW_AlERT) ?? 180
+    const defaultSecondsForAlert = convertToNumber(process.env.SECONDS_TO_SHOW_ALERT) ?? 180
     const [customUrlsValues, setCustomUrlsValues] = useState({login: "", enrollment: "", saml: ""})
     const [customLoginRes, setCustomLoginRes] = useState<FetchResult<SetCustomUrlsMutation>>()
     const [customEnrollmentRes, setCustomEnrollmentRes] =
