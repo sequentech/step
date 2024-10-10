@@ -15,9 +15,6 @@ use deadpool_postgres::Transaction;
 use deadpool_postgres::{Client as DbClient, Transaction as _};
 use regex::Regex;
 use ring::{digest, pbkdf2};
-use sequent_core::services::{keycloak, reports};
-use sequent_core::types::hasura::core::TasksExecution;
-use serde::{Deserialize, Serialize};
 use rocket::futures::SinkExt as _;
 use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::keycloak::{

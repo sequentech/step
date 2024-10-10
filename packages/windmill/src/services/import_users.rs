@@ -289,7 +289,7 @@ fn get_insert_user_query(
             FROM
                 new_user nu
             "#,
-            self.tenant_id,
+            tenant_id,
         )
     } else {
         String::new()

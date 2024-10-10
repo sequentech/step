@@ -35,7 +35,6 @@ pub mod import_users;
 pub mod insert_cast_vote;
 pub mod jwks;
 pub mod limit_access_by_countries;
-pub mod manual_verification;
 pub mod password;
 pub mod pg_lock;
 pub mod private_keys;
