@@ -1116,8 +1116,10 @@ export const EditElectionEventDataForm: React.FC = () => {
                                     </Typography>
                                     <Box>
                                         <BooleanInput
-                                            source={
-                                                "presentation.allow_publishing_only_when_key_ceremony_has_succeeded"
+                                            source={"status.publish_policy"}
+                                            format={(e) => e === "WHEN_KEYS_CEREMONY_HAS_SUCCEEDED"}
+                                            parse={(e) =>
+                                                !e ? "ALWAYS" : "WHEN_KEYS_CEREMONY_HAS_SUCCEEDED"
                                             }
                                             label={t(
                                                 "electionEventScreen.common.onlyAllowPublishOnlyWhenKeysCeremonySucceeded"

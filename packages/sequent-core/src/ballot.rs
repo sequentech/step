@@ -602,7 +602,6 @@ pub struct ElectionEventPresentation {
     pub voting_portal_countdown_policy: Option<VotingPortalCountdownPolicy>,
     pub custom_urls: Option<CustomUrls>,
     pub active_template_ids: Option<ActiveTemplateIds>,
-    pub allow_publishing_only_when_key_ceremony_has_succeeded: Option<bool>, /* default is false */
 }
 
 #[allow(non_camel_case_types)]
@@ -1009,6 +1008,60 @@ impl Contest {
 #[derive(
     BorshSerialize,
     BorshDeserialize,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum EnrollmentStatus {
+    ENROLLMENT_ENABLED,
+    ENROLLMENT_DISABLED,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum LockedDownStatus {
+    LOCKED_DOWN,
+    NOT_LOCKED_DOWN,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum PublishPolicy {
+    ALWAYS,
+    WHEN_KEYS_CEREMONY_HAS_SUCCEEDED,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
     Serialize,
     Deserialize,
     JsonSchema,
@@ -1023,6 +1076,9 @@ pub struct ElectionEventStatus {
     pub tally_ceremony_finished: Option<bool>,
     pub is_published: Option<bool>,
     pub voting_status: VotingStatus,
+    pub enrollment_status: EnrollmentStatus,
+    pub locked_down_status: LockedDownStatus,
+    pub publish_policy: PublishPolicy,
 }
 
 impl Default for ElectionEventStatus {
@@ -1033,6 +1089,8 @@ impl Default for ElectionEventStatus {
             tally_ceremony_finished: Some(false),
             is_published: Some(false),
             voting_status: VotingStatus::NOT_STARTED,
+            enrollment_status: EnrollmentStatus::ENROLLMENT_ENABLED,
+            locked_down_status: LockedDownStatus::NOT_LOCKED_DOWN,
         }
     }
 }
@@ -1115,12 +1173,15 @@ impl Default for ElectionStatistics {
 #[derive(
     BorshSerialize,
     BorshDeserialize,
+    Display,
     Serialize,
     Deserialize,
+    Debug,
     PartialEq,
     Eq,
-    Debug,
     Clone,
+    EnumString,
+    JsonSchema,
 )]
 pub enum AllowTallyPolicy {
     ALLOW,

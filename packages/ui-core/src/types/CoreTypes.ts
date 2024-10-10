@@ -15,12 +15,30 @@ export enum EVotingStatus {
     CLOSED = "CLOSED",
 }
 
+export enum EEnrollmentStatus {
+    ENROLLMENT_ENABLED = "ENROLLMENT_ENABLED",
+    ENROLLMENT_DISABLED = "ENROLLMENT_DISABLED",
+}
+
+export enum ELockedDownStatus {
+    LOCKED_DOWN = "LOCKED_DOWN",
+    NOT_LOCKED_DOWN = "NOT_LOCKED_DOWN",
+}
+
+export enum EPublishPolicy {
+    ALWAYS = "ALWAYS",
+    WHEN_KEYS_CEREMONY_HAS_SUCCEEDED = "WHEN_KEYS_CEREMONY_HAS_SUCCEEDED",
+}
+
 export interface IElectionEventStatus {
     config_created?: boolean
     keys_ceremony_finished?: boolean
     tally_ceremony_finished?: boolean
     is_published?: boolean
     voting_status: EVotingStatus
+    enrollment_status: EEnrollmentStatus
+    locked_down_status: ELockedDownStatus
+    publish_policy: EPublishPolicy
 }
 
 export interface IElectionStatus {

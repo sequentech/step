@@ -51,7 +51,6 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {IElectionEventStatus} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {convertToNumber} from "@/lib/helpers"
-import {getActiveCeremony} from "../ElectionEvent/EditElectionEventKeys"
 
 enum ViewMode {
     Edit,
@@ -83,27 +82,12 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         const canRead = authContext.isAuthorized(true, tenantId, IPermissions.PUBLISH_READ)
 
         const record = useRecordContext<Sequent_Backend_Election_Event | Sequent_Backend_Election>()
+        const recordStatus = record?.status as IElectionEventStatus | undefined
+
         const refresh = useRefresh()
 
-        const electionEvent = useRecordContext<Sequent_Backend_Election_Event>()
-
-        const {data: keysCeremonies} = useGetList<Sequent_Backend_Keys_Ceremony>(
-            "sequent_backend_keys_ceremony",
-            {
-                sort: {field: "created_at", order: "DESC"},
-                filter: {
-                    tenant_id: tenantId,
-                    election_event_id: electionEvent.id,
-                },
-            },
-            {
-                refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-            }
-        )
-        let activeCeremony = getActiveCeremony(keysCeremonies, authContext)
         const canPublish =
-            !record.presentation?.allow_publishing_only_when_key_ceremony_has_succeeded ||
-            activeCeremony?.execution_status === EStatus.SUCCESS
+            (recordStatus?.publish_policy == "ALWAYS" || recordStatus?.keys_ceremony_finished) || false
 
         const [generateData, setGenerateData] = useState<GetBallotPublicationChangesOutput | null>(
             null
