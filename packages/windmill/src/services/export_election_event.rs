@@ -13,6 +13,8 @@ use crate::services::export_election_event_logs;
 use crate::services::import_election_event::ImportElectionEventSchema;
 use crate::services::s3;
 use crate::tasks::export_election_event::ExportOptions;
+use crate::types::documents::EDocuments;
+
 use anyhow::{anyhow, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::try_join;
@@ -118,7 +120,7 @@ pub async fn process_export_zip(
     // Add election event data file to the ZIP archive
     let export_data = read_export_data(&hasura_transaction, tenant_id, election_event_id).await?;
     let temp_election_event_file = write_export_document(export_data).await?;
-    let election_event_filename = format!("export-election-event-{}.json", election_event_id);
+    let election_event_filename = format!("{}-{}.json", EDocuments::ELECTION_EVENT.to_file_name(), election_event_id);
     zip_writer.start_file(&election_event_filename, options)?;
 
     let mut election_event_file = File::open(temp_election_event_file.path())?;
@@ -137,7 +139,7 @@ pub async fn process_export_zip(
         )
         .await
         .map_err(|e| anyhow!("Error exporting users file: {e:?}"))?;
-        let voters_filename = format!("export-voters-{}.csv", election_event_id);
+        let voters_filename = format!("{}-{}.csv", EDocuments::VOTERS.to_file_name(), election_event_id);
         zip_writer.start_file(&voters_filename, options)?;
 
         let mut voters_file = File::open(temp_voters_file_path)?;
@@ -147,7 +149,7 @@ pub async fn process_export_zip(
     // Add Activity Logs data file to the ZIP archive
     let is_include_activity_logs = export_config.activity_logs;
     if is_include_activity_logs {
-        let activity_logs_filename = format!("export-activity_logs-{}.csv", election_event_id);
+        let activity_logs_filename = format!("{}-{}.csv",EDocuments::ACTIVITY_LOGS.to_file_name(), election_event_id);
         let temp_activity_logs_file = export_election_event_logs::read_export_data(
             tenant_id,
             election_event_id,
@@ -164,7 +166,7 @@ pub async fn process_export_zip(
     // Add the S3 files to the ZIP archive
     let is_include_s3_files = export_config.s3_files;
     if is_include_s3_files {
-        let s3_folder_name = format!("s3-files");
+        let s3_folder_name = format!("{}", EDocuments::S3_FILES.to_file_name());
         let documents_prefix = format!("tenant-{}/event-{}/", tenant_id, election_event_id);
         let bucket = s3::get_private_bucket()?;
 
@@ -188,7 +190,7 @@ pub async fn process_export_zip(
     // Add Activity Logs data file to the ZIP archive
     let is_include_schedule_events = export_config.scheduled_events;
     if is_include_schedule_events {
-        let schedule_events_filename = format!("export-schedule_events-{}.csv", election_event_id);
+        let schedule_events_filename = format!("{}-{}.csv",EDocuments::SCHEDULED_EVENTS.to_file_name(), election_event_id);
         let temp_schedule_events_file = export_schedule_events::read_export_data(
             &hasura_transaction,
             tenant_id,

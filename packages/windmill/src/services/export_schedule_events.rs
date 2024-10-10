@@ -30,7 +30,7 @@ pub async fn read_export_data(
         .with_context(|| "Failed to serialize scheduled events to JSON")?;
 
     // Write the serialized data into a temporary file
-    let name = format!("tasks_execution-{}", election_event_id);
+    let name = format!("scheduled_events-{}", election_event_id);
     let (temp_path, temp_path_string, file_size) =
         write_into_named_temp_file(&data_str.into_bytes(), &name, ".json")
             .with_context(|| "Failed to write scheduled events into temp file")?;

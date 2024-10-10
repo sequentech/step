@@ -557,7 +557,7 @@ pub async fn process_document(
     .map_err(|err| anyhow!("Error processing election event file: {err}"))?;
 
     // Zip file processing
-    if document_type == "application/zip" {
+    if document_type == get_mime_type("zip") {
         let zip_entries = tokio::task::spawn_blocking(move || -> Result<Vec<_>> {
             let file = File::open(&temp_file_path)?;
             let mut zip = ZipArchive::new(file)?;
@@ -578,7 +578,7 @@ pub async fn process_document(
 
             let mut cursor = Cursor::new(&mut file_contents[..]);
 
-            if file_name.contains("activity_logs") {
+            if file_name.contains(&format!("/{}", EDocuments::ACTIVITY_LOGS.to_file_name())) {
                 let mut temp_file = NamedTempFile::new()
                     .context("Failed to create activity logs temporary file")?;
 
@@ -593,35 +593,13 @@ pub async fn process_document(
                 .await?;
             }
 
-            if file_name.contains(&format!("/{}.csv", EDocuments::VOTERS.to_file_name())) {
-                //TODO: fix this with the real name
-                // let mut file = OpenOptions::new()
-                //     .read(true)
-                //     .write(true)
-                //     .create(true)
-                //     .truncate(true)
-                //     .open("/tmp/voters.csv")?;
+            if file_name.contains(&format!("/{}", EDocuments::VOTERS.to_file_name())) {
                 let mut temp_file = NamedTempFile::new()
                     .context("Failed to create activity logs temporary file")?;
                 io::copy(&mut cursor, &mut temp_file)
                     .context("Failed to copy contents of activity logs to temporary file")?;
                 temp_file.as_file_mut().rewind()?;
 
-                // let mut buffer = [0u8; 1024];
-
-                // while let Ok(size) = cursor.read(&mut buffer) {
-                //     //TODO: maybe not needed
-                //     if size == 0 {
-                //         break; // End of file
-                //     }
-                //     file.write_all(&buffer[..size])
-                //         .with_context(|| "Error writting to the text file")?;
-                // }
-
-                // file.sync_all()
-                //     .with_context(|| "Error flushing the file to disk")?;
-
-                // file.seek(std::io::SeekFrom::Start(0))?;
                 process_voters_file(
                     &hasura_transaction,
                     &temp_file,
@@ -632,10 +610,10 @@ pub async fn process_document(
                 .await?;
             }
 
-            if file_name.contains("/s3-files/") {
+            if file_name.contains(&format!("/{}/", EDocuments::S3_FILES.to_file_name())) {
                 let folder_path: Vec<_> = file_name.split("/").collect();
                 // Skips the OS created files
-                if (folder_path[1] == "s3-files") {
+                if (folder_path[1] == EDocuments::VOTERS.to_file_name()) {
                     continue;
                 }
 
