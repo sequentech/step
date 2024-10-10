@@ -16,7 +16,7 @@ import org.keycloak.provider.Provider;
 import org.keycloak.theme.Theme;
 
 public interface SmsSenderProvider extends Provider {
-  default void send(
+  default String send(
       String phoneNumber,
       String messageKey,
       List<String> attributes,
@@ -32,6 +32,8 @@ public interface SmsSenderProvider extends Provider {
         new MessageFormat(messages.getProperty(messageKey, messageKey), locale)
             .format(attributes.toArray());
     send(phoneNumber, formattedMessage);
+
+    return formattedMessage;
   }
 
   public void send(String phoneNumber, String message);
