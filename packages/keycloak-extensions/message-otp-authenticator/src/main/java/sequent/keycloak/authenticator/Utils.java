@@ -14,6 +14,8 @@ import jakarta.ws.rs.core.UriInfo;
 import java.io.IOException;
 import java.net.URI;
 import java.text.MessageFormat;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -80,6 +82,11 @@ public class Utils {
   public static final String SEND_SUCCESS_EMAIL_SUBJECT = "messageSuccessEmailSubject";
   public static final String SEND_SUCCESS_EMAIL_FTL = "success-email.ftl";
   public static final String ERROR_MESSAGE_NOT_SENT = "messageNotSent";
+
+  public static final String SEND_ERROR_EMAIL_SUBJECT = "registrationErrorEmailSubject";
+  public static final String SEND_ERROR_EMAIL_FTL = "error-email.ftl";
+  public static final String SEND_SUPPORT_ERROR_EMAIL_SUBJECT = "userRegistrationErrorNotificationSubject";
+  public static final String SEND_SUPPORT_ERROR_EMAIL_FTL = "support-error-email.ftl";
 
   public static final String SEND_REGISTER_FAILED_SMS_I18N_KEY = "messageFailedSMS";
 
@@ -344,7 +351,21 @@ public class Utils {
       throws EmailException {
     try {
       Theme theme = session.theme().getTheme(Theme.Type.EMAIL);
-      Locale locale = session.getContext().resolveLocale(user);
+
+      Locale locale;
+      if (user != null) {
+        locale = session.getContext().resolveLocale(user);
+      } else {
+        locale = session.getContext().resolveLocale(null);
+        if (locale == null) {
+          String defaultLocale = realm.getDefaultLocale();
+          if (defaultLocale != null) {
+            locale = Locale.forLanguageTag(defaultLocale);
+          } else {
+            locale = Locale.getDefault();
+          }
+        }
+      }
       attributes.put("locale", locale);
 
       Properties messages = theme.getEnhancedMessages(realm, locale);
@@ -440,40 +461,27 @@ public class Utils {
   }
 
   // Sends an email to the user based on the event
-  protected static void sendErrorEmailToUser(KeycloakSession session, String realmId, String email, Event event)
+  protected static void sendErrorEmailToUser(
+      KeycloakSession session, String realmId, String email, Event event)
       throws EmailException {
     try {
       RealmModel realm = session.realms().getRealm(realmId);
       String errorCode = event.getDetails().get("code_id");
 
-      // Define the email subject
-      String subject = "Registration Error";
+      Map<String, Object> attributes = new HashMap<>();
+      attributes.put("errorCode", errorCode);
 
-      // Define the text body
-      String textBody = "Dear User,\n\n"
-          + "We encountered an error during your registration process.\n"
-          + "Error code: " + errorCode + "\n\n"
-          + "Please contact support for assistance.\n"
-          + "Best regards,\n"
-          + "The Team";
+      List<Object> subjectAttributes = Collections.emptyList();
 
-      // Define the HTML body
-      String htmlBody = "<html><body>"
-          + "<p>Dear User,</p>"
-          + "<p>We encountered an error during your registration process.</p>"
-          + "<p>Error code: <strong>" + errorCode + "</strong></p>"
-          + "<p>Please contact support for assistance.</p>"
-          + "<p>Best regards,<br/>The Team</p>"
-          + "</body></html>";
-
-      // Send email via SMTP
-      EmailSenderProvider emailSenderProvider = session.getProvider(EmailSenderProvider.class);
-      emailSenderProvider.send(
-          realm.getSmtpConfig(),
-          email,
-          subject,
-          textBody,
-          htmlBody);
+      sendEmail(
+          session,
+          realm,
+          null,
+          SEND_ERROR_EMAIL_SUBJECT,
+          subjectAttributes,
+          SEND_ERROR_EMAIL_FTL,
+          attributes,
+          email);
 
       log.info("Error email sent to: " + email);
     } catch (EmailException error) {
@@ -503,51 +511,28 @@ public class Utils {
   }
 
   // Sending support email with event details
-  protected static void sendSupportNotificationEmail(KeycloakSession session, String realmId, Event event)
+  protected static void sendSupportNotificationEmail(
+      KeycloakSession session, String realmId, Event event)
       throws EmailException {
     try {
       RealmModel realm = session.realms().getRealm(realmId);
 
       String supportEmail = "no-reply@sequentech.io";
-      String subject = "User Registration Error Notification";
 
-      StringBuilder textBodyBuilder = new StringBuilder();
-      textBodyBuilder.append("A user encountered an error during registration.\n\n");
-      textBodyBuilder.append("Event details:\n");
-      textBodyBuilder.append("Type: ").append(event.getType()).append("\n");
-      textBodyBuilder.append("Realm ID: ").append(event.getRealmId()).append("\n");
-      textBodyBuilder.append("Client ID: ").append(event.getClientId()).append("\n");
-      textBodyBuilder.append("User ID: ").append(event.getUserId()).append("\n");
-      textBodyBuilder.append("IP Address: ").append(event.getIpAddress()).append("\n");
-      textBodyBuilder.append("Error: ").append(event.getError()).append("\n");
-      textBodyBuilder.append("Event Details: ").append(event.getDetails()).append("\n");
+      Map<String, Object> attributes = new HashMap<>();
+      attributes.put("event", event);
 
-      String textBody = textBodyBuilder.toString();
+      List<Object> subjectAttributes = Collections.emptyList();
 
-      StringBuilder htmlBodyBuilder = new StringBuilder();
-      htmlBodyBuilder.append("<html><body>");
-      htmlBodyBuilder.append("<p>A user encountered an error during registration.</p>");
-      htmlBodyBuilder.append("<p><strong>Event details:</strong></p>");
-      htmlBodyBuilder.append("<ul>");
-      htmlBodyBuilder.append("<li>Type: ").append(event.getType()).append("</li>");
-      htmlBodyBuilder.append("<li>Realm ID: ").append(event.getRealmId()).append("</li>");
-      htmlBodyBuilder.append("<li>Client ID: ").append(event.getClientId()).append("</li>");
-      htmlBodyBuilder.append("<li>User ID: ").append(event.getUserId()).append("</li>");
-      htmlBodyBuilder.append("<li>IP Address: ").append(event.getIpAddress()).append("</li>");
-      htmlBodyBuilder.append("<li>Error: ").append(event.getError()).append("</li>");
-      htmlBodyBuilder.append("<li>Event Details: ").append(event.getDetails()).append("</li>");
-      htmlBodyBuilder.append("</ul>");
-      htmlBodyBuilder.append("</body></html>");
-
-      String htmlBody = htmlBodyBuilder.toString();
-
-      EmailSenderProvider emailSenderProvider = session.getProvider(EmailSenderProvider.class);
-      emailSenderProvider.send(
-          realm.getSmtpConfig(),
-          supportEmail,
-          subject,
-          textBody,
-          htmlBody);
+      sendEmail(
+          session,
+          realm,
+          null,
+          SEND_SUPPORT_ERROR_EMAIL_SUBJECT,
+          subjectAttributes,
+          SEND_SUPPORT_ERROR_EMAIL_FTL,
+          attributes,
+          supportEmail);
 
       log.info("Support notification email sent to: " + supportEmail);
     } catch (EmailException error) {
