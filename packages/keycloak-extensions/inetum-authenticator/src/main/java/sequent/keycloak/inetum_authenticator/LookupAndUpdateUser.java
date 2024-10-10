@@ -214,7 +214,8 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
           String telUserAttribute = config.getConfig().get(TEL_USER_ATTRIBUTE);
           String mobile = user.getFirstAttribute(telUserAttribute);
 
-          sendConfirmation(context.getSession(), context.getRealm(), user, messageCourier, mobile, context);
+          sendConfirmation(
+              context.getSession(), context.getRealm(), user, messageCourier, mobile, context);
         } catch (Exception error) {
           log.errorv("there was an error {0}", error);
           context.failureChallenge(

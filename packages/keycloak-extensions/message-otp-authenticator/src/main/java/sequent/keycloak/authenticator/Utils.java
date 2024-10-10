@@ -23,7 +23,6 @@ import lombok.experimental.UtilityClass;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.RequiredActionContext;
-import org.keycloak.authentication.actiontoken.ActionTokenContext;
 import org.keycloak.authentication.actiontoken.DefaultActionToken;
 import org.keycloak.common.util.SecretGenerator;
 import org.keycloak.common.util.Time;
@@ -31,7 +30,6 @@ import org.keycloak.email.EmailException;
 import org.keycloak.email.EmailSenderProvider;
 import org.keycloak.email.EmailTemplateProvider;
 import org.keycloak.email.freemarker.beans.ProfileBean;
-import org.keycloak.events.Event;
 import org.keycloak.events.EventBuilder;
 import org.keycloak.forms.login.freemarker.model.UrlBean;
 import org.keycloak.models.AuthenticatorConfigModel;
@@ -236,18 +234,16 @@ public class Utils {
     } else if (context instanceof RequiredActionContext) {
       logCommunications((RequiredActionContext) context, body);
     } else {
-      log.warn("Unsupported context type for communications logging: " + context.getClass().getName());
+      log.warn(
+          "Unsupported context type for communications logging: " + context.getClass().getName());
     }
   }
 
   private <T> void logCommunications(T context, String body) {
-      EventBuilder event = getEvent(context);
-      if (event != null) {
-        event
-            .detail("type", EVENT_TYPE_COMMUNICATIONS)
-            .detail("msgBody", body)
-            .success();
-      }
+    EventBuilder event = getEvent(context);
+    if (event != null) {
+      event.detail("type", EVENT_TYPE_COMMUNICATIONS).detail("msgBody", body).success();
+    }
   }
 
   private EventBuilder getEvent(Object context) {
@@ -453,19 +449,18 @@ public class Utils {
             emailTemplate.getHtmlBody());
 
       } else {
-        EmailTemplateProvider emailTemplateProvider = session.getProvider(EmailTemplateProvider.class);
+        EmailTemplateProvider emailTemplateProvider =
+            session.getProvider(EmailTemplateProvider.class);
         String realmName = getRealmName(realm);
-        emailTemplateProvider
-            .setRealm(realm)
-            .setUser(user)
-            .setAttribute("realmName", realmName);
+        emailTemplateProvider.setRealm(realm).setUser(user).setAttribute("realmName", realmName);
 
         if (username != null && !username.isEmpty()) {
-            emailTemplateProvider.setAttribute("username", username);
+          emailTemplateProvider.setAttribute("username", username);
         }
 
-        emailTemplateProvider.send(subjectFormatKey, subjectAttributes, bodyTemplate, bodyAttributes);
-    }
+        emailTemplateProvider.send(
+            subjectFormatKey, subjectAttributes, bodyTemplate, bodyAttributes);
+      }
 
       return emailTemplate.getTextBody();
     } catch (EmailException e) {
@@ -597,19 +592,18 @@ public class Utils {
       messageAttributes.put("realmName", realName);
       messageAttributes.put("username", username);
 
-      String textBody = 
+      String textBody =
           sendEmail(
-            session,
-            realm,
-            user,
-            SEND_SUCCESS_EMAIL_SUBJECT,
-            subjAttr,
-            SEND_SUCCESS_EMAIL_FTL,
-            messageAttributes,
-            email.trim(),
-            false,
-            username
-          );
+              session,
+              realm,
+              user,
+              SEND_SUCCESS_EMAIL_SUBJECT,
+              subjAttr,
+              SEND_SUCCESS_EMAIL_FTL,
+              messageAttributes,
+              email.trim(),
+              false,
+              username);
       communicationsLog(context, textBody);
     }
 
@@ -624,8 +618,9 @@ public class Utils {
       log.infov("sendCode(): Sending SMS to=`{0}`", mobileNumber.trim());
       List<String> smsAttributes = ImmutableList.of(realName, username);
 
-      String formattedText = smsSenderProvider.send(
-          mobileNumber.trim(), SEND_SUCCESS_SMS_I18N_KEY, smsAttributes, realm, user, session);
+      String formattedText =
+          smsSenderProvider.send(
+              mobileNumber.trim(), SEND_SUCCESS_SMS_I18N_KEY, smsAttributes, realm, user, session);
       communicationsLog(context, formattedText);
     }
   }
