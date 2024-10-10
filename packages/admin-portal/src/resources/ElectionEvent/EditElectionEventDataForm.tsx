@@ -1120,7 +1120,9 @@ export const EditElectionEventDataForm: React.FC = () => {
                                             source={"status.publish_policy"}
                                             format={(e) => e !== EPublishPolicy.ALWAYS}
                                             parse={(e) =>
-                                                !e ? EPublishPolicy.ALWAYS : EPublishPolicy.WHEN_KEYS_CEREMONY_HAS_SUCCEEDED
+                                                !e
+                                                    ? EPublishPolicy.ALWAYS
+                                                    : EPublishPolicy.WHEN_KEYS_CEREMONY_HAS_SUCCEEDED
                                             }
                                             label={t(
                                                 "electionEventScreen.common.onlyAllowPublishOnlyWhenKeysCeremonySucceeded"

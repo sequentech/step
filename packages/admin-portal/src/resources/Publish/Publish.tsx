@@ -7,14 +7,7 @@ import React, {ComponentType, useCallback, useContext, useEffect, useState} from
 import {Box} from "@mui/material"
 import {useMutation} from "@apollo/client"
 import {useTranslation} from "react-i18next"
-import {
-    useGetOne,
-    useGetList,
-    useNotify,
-    useRecordContext,
-    Identifier,
-    useRefresh,
-} from "react-admin"
+import {useGetOne, useNotify, useRecordContext, Identifier, useRefresh} from "react-admin"
 
 import {EPublishType} from "./EPublishType"
 import {PUBLISH_BALLOT} from "@/queries/PublishBallot"
@@ -36,7 +29,6 @@ import {
     GenerateBallotPublicationMutation,
     GetBallotPublicationChangesOutput,
     Sequent_Backend_Ballot_Publication,
-    Sequent_Backend_Keys_Ceremony,
 } from "@/gql/graphql"
 
 import {IKeysCeremonyExecutionStatus as EStatus} from "@/services/KeyCeremony"
