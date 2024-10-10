@@ -97,6 +97,7 @@ public class Utils {
   public static final String USER_PROFILE_ATTRIBUTES = "user_profile_attributes";
   public static final String AUTHENTICATOR_CLASS_NAME = "authenticator_class_name";
   public static final String MAX_RETRIES = "max-retries";
+  public static final String EVENT_TYPE_COMMUNICATIONS = "communications";
   public static final int DEFAULT_MAX_RETRIES = 3;
   public static final int BASE_RETRY_DELAY = 1_000;
 

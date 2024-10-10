@@ -87,6 +87,8 @@ public class Utils {
   public static final String USER_PROFILE_ATTRIBUTES = "user_profile_attributes";
   public static final String AUTHENTICATOR_CLASS_NAME = "authenticator_class_name";
 
+  public static final String EVENT_TYPE_COMMUNICATIONS = "communications";
+
   public enum MessageCourier {
     SMS,
     EMAIL,
@@ -115,7 +117,8 @@ public class Utils {
       MessageCourier messageCourier,
       boolean deferredUser,
       boolean isOtl,
-      String[] otlAuthNotesNames)
+      String[] otlAuthNotesNames,
+      Object context)
       throws IOException, EmailException {
     log.info("sendCode(): start");
     String mobileNumber = null;
@@ -174,8 +177,9 @@ public class Utils {
           ImmutableList.of(realmName, code, String.valueOf(Math.floorDiv(ttl, 60)));
 
       String smsTemplateKey = (isOtl) ? Utils.SEND_LINK_SMS_I18N_KEY : Utils.SEND_CODE_SMS_I18N_KEY;
-      smsSenderProvider.send(
+      String formattedMessage = smsSenderProvider.send(
           mobileNumber.trim(), smsTemplateKey, smsAttributes, realm, user, session);
+      communicationsLog(context, formattedMessage);
     } else {
       log.infov("sendCode(): NOT Sending SMS to=`{0}`", mobileNumber);
     }
@@ -199,8 +203,9 @@ public class Utils {
       try {
         String subjectKey = (isOtl) ? Utils.SEND_LINK_EMAIL_SUBJECT : Utils.SEND_CODE_EMAIL_SUBJECT;
         String ftlKey = (isOtl) ? Utils.SEND_LINK_EMAIL_FTL : Utils.SEND_CODE_EMAIL_FTL;
+        String textBody;
         if (deferredUser) {
-          sendEmail(
+          textBody = sendEmail(
               session,
               realm,
               user,
@@ -209,6 +214,7 @@ public class Utils {
               ftlKey,
               messageAttributes,
               emailAddress.trim());
+          communicationsLog(context, textBody);
         } else {
           emailTemplateProvider
               .setRealm(realm)
@@ -222,6 +228,17 @@ public class Utils {
       }
     } else {
       log.infov("sendCode(): NOT Sending email to=`{0}`", emailAddress);
+    }
+  }
+
+  void communicationsLog(Object context, String body) {
+    if (context instanceof AuthenticationFlowContext) {
+        AuthenticationFlowContext flowContext = (AuthenticationFlowContext) context;
+        flowContext
+            .getEvent()
+            .detail("type", EVENT_TYPE_COMMUNICATIONS)
+            .detail("msgBody", body)
+            .success();
     }
   }
 
@@ -386,7 +403,7 @@ public class Utils {
     }
   }
 
-  protected void sendEmail(
+  protected String sendEmail(
       KeycloakSession session,
       RealmModel realm,
       UserModel user,
@@ -414,6 +431,8 @@ public class Utils {
           emailTemplate.getSubject(),
           emailTemplate.getTextBody(),
           emailTemplate.getHtmlBody());
+
+      return emailTemplate.getTextBody();
     } catch (EmailException e) {
       throw e;
     } catch (Exception e) {
