@@ -204,26 +204,19 @@ public class Utils {
       try {
         String subjectKey = (isOtl) ? Utils.SEND_LINK_EMAIL_SUBJECT : Utils.SEND_CODE_EMAIL_SUBJECT;
         String ftlKey = (isOtl) ? Utils.SEND_LINK_EMAIL_FTL : Utils.SEND_CODE_EMAIL_FTL;
-        String textBody;
-        if (deferredUser) {
-          textBody =
-              sendEmail(
-                  session,
-                  realm,
-                  user,
-                  subjectKey,
-                  subjAttr,
-                  ftlKey,
-                  messageAttributes,
-                  emailAddress.trim());
-          communicationsLog(context, textBody);
-        } else {
-          emailTemplateProvider
-              .setRealm(realm)
-              .setUser(user)
-              .setAttribute("realmName", realmName)
-              .send(subjectKey, subjAttr, ftlKey, messageAttributes);
-        }
+        String textBody =
+            sendEmail(
+                session,
+                realm,
+                user,
+                subjectKey,
+                subjAttr,
+                ftlKey,
+                messageAttributes,
+                emailAddress.trim(),
+                deferredUser,
+                emailTemplateProvider);
+        communicationsLog(context, textBody);
       } catch (EmailException error) {
         log.debug("sendCode(): Exception sending email", error);
         throw error;
@@ -413,7 +406,9 @@ public class Utils {
       List<Object> subjectAttributes,
       String bodyTemplate,
       Map<String, Object> bodyAttributes,
-      String address)
+      String address,
+      boolean deferredUser,
+      EmailTemplateProvider emailTemplateProvider)
       throws EmailException {
     try {
       EmailTemplate emailTemplate =
@@ -425,14 +420,24 @@ public class Utils {
               subjectAttributes,
               bodyTemplate,
               bodyAttributes);
-      EmailSenderProvider emailSender = session.getProvider(EmailSenderProvider.class);
 
-      emailSender.send(
-          realm.getSmtpConfig(),
-          address,
-          emailTemplate.getSubject(),
-          emailTemplate.getTextBody(),
-          emailTemplate.getHtmlBody());
+      if (deferredUser) {
+        EmailSenderProvider emailSender = session.getProvider(EmailSenderProvider.class);
+        emailSender.send(
+            realm.getSmtpConfig(),
+            address,
+            emailTemplate.getSubject(),
+            emailTemplate.getTextBody(),
+            emailTemplate.getHtmlBody());
+
+        } else {
+          String realmName = getRealmName(realm);
+          emailTemplateProvider
+              .setRealm(realm)
+              .setUser(user)
+              .setAttribute("realmName", realmName)
+              .send(subjectFormatKey, subjectAttributes, bodyTemplate, bodyAttributes);
+        }
 
       return emailTemplate.getTextBody();
     } catch (EmailException e) {
