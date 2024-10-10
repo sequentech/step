@@ -27,6 +27,10 @@ pub trait RawBallotCodec {
         &self,
         raw_ballot: &RawBallotContest,
     ) -> Result<DecodedVoteContest, String>;
+    fn compact_decode_from_raw_ballot(
+        contests: &Vec<Contest>,
+        raw_ballot: &RawBallotContest,
+    ) -> Result<Vec<DecodedVoteContest>, String>;
 
     fn available_write_in_characters_estimate(
         &self,
@@ -57,12 +61,12 @@ impl RawBallotCodec for Contest {
             Ok(remaining_bits.div_floor(base_bits))
         }
     }
-    
+
     fn encode_to_raw_ballot(
         &self,
         plaintext: &DecodedVoteContest,
     ) -> Result<RawBallotContest, String> {
-        let mut bases = self.get_bases();
+        let mut bases = self.get_bases().map_err(|e| e.to_string())?;
         let mut choices: Vec<u64> = vec![];
 
         let char_map = self.get_char_map();
@@ -155,7 +159,111 @@ impl RawBallotCodec for Contest {
         contests: &Vec<Contest>,
         plaintexts: &Vec<DecodedVoteContest>,
     ) -> Result<RawBallotContest, String> {
-        panic!("Not implemented");
+        let bases = contests.get_bases().map_err(|e| e.to_string())?;
+        let mut choices: Vec<u64> = vec![];
+
+        // Construct a map of plaintexts, this will allow us to
+        // handle calls in which passed in contests and plaintexts
+        // may not be in the same [parallel] order
+        let plaintexts_map = plaintexts
+            .iter()
+            .map(|plaintext| (plaintext.contest_id.clone(), plaintext))
+            .collect::<HashMap<String, &DecodedVoteContest>>();
+
+        // The order of the contests is computed sorting by id.
+        // The selections must be encoded to and decoded from a ballot
+        // following this order, given by contest.id.
+        let mut sorted_contests = contests.clone();
+        sorted_contests.sort_by_key(|c| c.id.clone());
+
+        // Iterate in contest order
+        for contest in sorted_contests {
+            let plaintext = plaintexts_map.get(&contest.id).ok_or(format!(
+                "Could not find plaintexts for contest {:?}",
+                contest
+            ))?;
+
+            let invalid_vote: u64 =
+                if plaintext.is_explicit_invalid { 1 } else { 0 };
+            choices.push(invalid_vote);
+
+            // A choice of a candidate is represented as that candidate's
+            // position in the candidate list, sorted by id. the
+            // same sorting order must be used to interpret
+            // choices when decoding
+            let mut sorted_candidates = contest.candidates.clone();
+            sorted_candidates.sort_by_key(|c| c.id.clone());
+
+            // Note how the position for the candidate is mapped to the second
+            // element in the map value This will be used below when
+            // marking choices.
+            let candidates_map = sorted_candidates
+                .iter()
+                .enumerate()
+                .map(|c| (c.1.id.clone(), (c.0, c.1)))
+                .collect::<HashMap<String, (usize, &Candidate)>>();
+
+            let max_votes: usize = contest
+                .max_votes
+                .try_into()
+                .map_err(|_| format!("u64 conversion on contest max_votes"))?;
+            let min_votes: usize = contest
+                .min_votes
+                .try_into()
+                .map_err(|_| format!("u64 conversion on contest min_votes"))?;
+
+            if plaintext.choices.len() < min_votes {
+                return Err(format!(
+                    "Plaintext vector contained fewer than min_votes elements"
+                ));
+            }
+
+            // We set all values as unset (0) by default
+            let mut contest_choices = vec![0u64; max_votes];
+            let mut marked = 0;
+            for p in &plaintext.choices {
+                let (position, candidate) =
+                    candidates_map.get(&p.id).ok_or_else(|| {
+                        "choice id is not a valid candidate".to_string()
+                    })?;
+                if candidate.is_explicit_invalid() {
+                    continue;
+                }
+                if p.selected > -1 {
+                    // The slot's base is
+                    //
+                    // number of candidates + 1, such that
+                    //
+                    // 0    = unset
+                    // >0   = the chosen candidate, with an offset of 1.
+                    //
+                    // A choice of a candidate is represented as that
+                    // candidate's position in the candidate
+                    // list, sorted by id. The same sorting order must be used
+                    // to interpret choices when decoding
+                    let mark = (position + 1).try_into().map_err(|_| {
+                        format!("u64 conversion on candidate position")
+                    })?;
+                    contest_choices[marked] = mark;
+                    marked += 1;
+
+                    if marked == max_votes {
+                        break;
+                    }
+                }
+            }
+
+            if marked < min_votes {
+                return Err(format!(
+                    "Plaintext vector contained fewer than min_votes marks"
+                ));
+            }
+
+            // Accumulate the choices for each contest
+            choices.extend(contest_choices);
+        }
+
+        Ok(RawBallotContest { bases, choices })
     }
 
     /**
@@ -472,6 +580,108 @@ impl RawBallotCodec for Contest {
         }
 
         Ok(decoded_contest)
+    }
+
+    fn compact_decode_from_raw_ballot(
+        contests: &Vec<Contest>,
+        raw_ballot: &RawBallotContest,
+    ) -> Result<Vec<DecodedVoteContest>, String> {
+        let mut ret: Vec<DecodedVoteContest> = vec![];
+        let mut invalid_errors: Vec<InvalidPlaintextError> = vec![];
+        let choices = raw_ballot.choices.clone();
+
+        // Each contest contributes max_votes slots
+        let expected_choices = contests.iter().fold(0, |a, b| a + b.max_votes);
+        let expected_choices: usize = expected_choices
+            .try_into()
+            .map_err(|_| format!("u64 conversion on contest max_votes"))?;
+
+        // The first slot is used for explicit invalid ballot, so + 1
+        if choices.len() != expected_choices + 1 {
+
+            /* invalid_errors.push(InvalidPlaintextError {
+                error_type: InvalidPlaintextErrorType::EncodingError,
+                candidate_id: None,
+                message: Some(
+                    format!("Unexpected choice vector length {}", raw_ballot.choices.len()),
+                ),
+                message_map: HashMap::from([
+                ]),
+            },)*/
+        }
+
+        // The order of the contests is computed sorting by id.
+        // The selections must be encoded to and decoded from a ballot
+        // following this order, given by contest.id.
+        let mut sorted_contests = contests.clone();
+        sorted_contests.sort_by_key(|c| c.id.clone());
+
+        let is_explicit_invalid: bool = !choices.is_empty() && (choices[0] > 0);
+        // Skip past the explicit invalid slot
+        let mut choice_index = 1;
+
+        for contest in sorted_contests {
+            // A choice of a candidate is represented as that candidate's
+            // position in the candidate list, sorted by id.
+            let mut sorted_candidates = contest.candidates.clone();
+            sorted_candidates.sort_by_key(|c| c.id.clone());
+
+            let max_votes: usize = contest
+                .max_votes
+                .try_into()
+                .map_err(|_| format!("u64 conversion on contest max_votes"))?;
+            let min_votes: usize = contest
+                .min_votes
+                .try_into()
+                .map_err(|_| format!("u64 conversion on contest min_votes"))?;
+
+            let mut next_choices = vec![];
+            for i in 0..max_votes {
+                let next = choices[choice_index + i];
+                let next = usize::try_from(next).map_err(|_| {
+                    format!("u64 conversion on plaintext choice")
+                })?;
+                // Unset
+                if next == 0 {
+                    continue;
+                }
+                // choices are offset by 1 to allow for the unset value at 0
+                let next = next - 1;
+
+                let candidate = sorted_candidates.get(usize::from(next));
+
+                let Some(candidate) = candidate else {
+                    return Err(format!(
+                        "Candidate selection out of range {} > {}",
+                        next,
+                        sorted_candidates.len()
+                    ));
+                };
+
+                let choice = DecodedVoteChoice {
+                    id: candidate.id.clone(),
+                    selected: 1,
+                    write_in_text: None,
+                };
+
+                next_choices.push(choice);
+            }
+            if next_choices.len() > max_votes {}
+            if next_choices.len() < min_votes {}
+
+            let d = DecodedVoteContest {
+                contest_id: contest.id.clone(),
+                is_explicit_invalid: false,
+                invalid_errors: vec![],
+                invalid_alerts: vec![],
+                choices: next_choices,
+            };
+            ret.push(d);
+
+            choice_index += max_votes;
+        }
+
+        Ok(ret)
     }
 }
 

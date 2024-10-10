@@ -4,6 +4,7 @@ pub mod proto {
 
 pub use proto::b3_client::B3Client;
 pub use proto::b3_server::B3Server;
+pub use proto::BoardMessages;
 pub use proto::GetBoardsReply;
 pub use proto::GetBoardsRequest;
 pub use proto::GetMessagesMultiReply;
@@ -11,7 +12,6 @@ pub use proto::GetMessagesMultiRequest;
 pub use proto::GetMessagesReply;
 pub use proto::GetMessagesRequest;
 pub use proto::GrpcB3Message;
-pub use proto::BoardMessages;
 pub use proto::PutMessagesMultiReply;
 pub use proto::PutMessagesMultiRequest;
 pub use proto::PutMessagesReply;

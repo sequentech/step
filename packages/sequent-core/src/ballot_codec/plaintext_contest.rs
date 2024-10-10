@@ -52,9 +52,11 @@ impl PlaintextCodec for Contest {
         contests: Vec<Contest>,
         plaintexts: &Vec<DecodedVoteContest>,
     ) -> Result<[u8; 30], String> {
-        
         let plaintext_bytes_vec =
-            Self::compact_encode_plaintext_contests_to_bytes(&contests, &plaintexts)?;
+            Self::compact_encode_plaintext_contests_to_bytes(
+                &contests,
+                &plaintexts,
+            )?;
 
         encode_vec_to_array(&plaintext_bytes_vec)
     }
@@ -88,8 +90,9 @@ impl PlaintextCodec for Contest {
         contests: &Vec<Contest>,
         plaintexts: &Vec<DecodedVoteContest>,
     ) -> Result<Vec<u8>, String> {
-        
-        let bigint = Self::compact_encode_plaintext_contests_bigint(contests, plaintexts)?;
+        let bigint = Self::compact_encode_plaintext_contests_bigint(
+            contests, plaintexts,
+        )?;
         encode_bigint_to_bytes(&bigint)
     }
 

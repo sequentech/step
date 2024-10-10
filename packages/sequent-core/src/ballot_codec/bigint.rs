@@ -22,12 +22,12 @@ pub trait BigUIntCodec {
         &self,
         plaintext: &DecodedVoteContest,
     ) -> Result<BigUint, String>;
-    
+
     fn compact_encode_plaintext_contests_bigint(
         contests: &Vec<Contest>,
         plaintexts: &Vec<DecodedVoteContest>,
     ) -> Result<BigUint, String>;
-    
+
     fn decode_plaintext_contest_bigint(
         &self,
         bigint: &BigUint,
@@ -126,8 +126,8 @@ impl BigUIntCodec for Contest {
         contests: &Vec<Contest>,
         plaintexts: &Vec<DecodedVoteContest>,
     ) -> Result<BigUint, String> {
-        
-        let raw_ballot = Self::compact_encode_to_raw_ballot(contests, plaintexts)?;
+        let raw_ballot =
+            Self::compact_encode_to_raw_ballot(contests, plaintexts)?;
         encode(&raw_ballot.choices, &raw_ballot.bases)
     }
 
@@ -135,7 +135,7 @@ impl BigUIntCodec for Contest {
         &self,
         bigint: &BigUint,
     ) -> Result<RawBallotContest, String> {
-        let mut bases = self.get_bases();
+        let mut bases = self.get_bases().map_err(|e| e.to_string())?;
         let last_base = self.get_char_map().base();
         let choices = decode(&bases, &bigint, last_base)?;
 

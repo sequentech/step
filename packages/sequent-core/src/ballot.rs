@@ -221,7 +221,7 @@ pub struct CompactAuditableBallot {
     pub issue_date: String,
     pub config: BallotStyle,
     // CompactAuditableBallotContests,
-    pub contests: String, 
+    pub contests: String,
     pub ballot_hash: String,
 }
 
@@ -237,7 +237,7 @@ pub struct CompactHashableBallot {
     pub version: u32,
     pub issue_date: String,
     // CompactHashableBallotContests<C>,
-    pub contests: String, 
+    pub contests: String,
     pub config: BallotStyle,
 }
 
@@ -259,11 +259,8 @@ impl CompactAuditableBallot {
     pub fn deserialize_contests<C: Ctx>(
         &self,
     ) -> Result<CompactAuditableBallotContests<C>, BallotError> {
-        
-        let ret = Base64Deserialize::deserialize(
-            self.contests.clone(),
-        )
-        .map_err(|err| BallotError::Serialization(err.to_string()));
+        let ret = Base64Deserialize::deserialize(self.contests.clone())
+            .map_err(|err| BallotError::Serialization(err.to_string()));
 
         ret
     }
@@ -271,7 +268,6 @@ impl CompactAuditableBallot {
     pub fn serialize_contests<C: Ctx>(
         contest: &CompactAuditableBallotContests<C>,
     ) -> Result<String, BallotError> {
-        
         Base64Serialize::serialize(&contest)
     }
 }
@@ -280,11 +276,8 @@ impl CompactHashableBallot {
     pub fn deserialize_contests<C: Ctx>(
         &self,
     ) -> Result<CompactHashableBallotContests<C>, BallotError> {
-        
-        let ret = Base64Deserialize::deserialize(
-            self.contests.clone(),
-        )
-        .map_err(|err| BallotError::Serialization(err.to_string()));
+        let ret = Base64Deserialize::deserialize(self.contests.clone())
+            .map_err(|err| BallotError::Serialization(err.to_string()));
 
         ret
     }
@@ -292,7 +285,6 @@ impl CompactHashableBallot {
     pub fn serialize_contests<C: Ctx>(
         contest: &CompactHashableBallotContests<C>,
     ) -> Result<String, BallotError> {
-        
         Base64Serialize::serialize(&contest)
     }
 }
@@ -310,9 +302,8 @@ impl TryFrom<&CompactAuditableBallot> for CompactHashableBallot {
         }
 
         let contests = value.deserialize_contests::<RistrettoCtx>()?;
-        let hashable_ballot_contests = CompactHashableBallotContests::<RistrettoCtx>::from(
-            &contests,
-        );
+        let hashable_ballot_contests =
+            CompactHashableBallotContests::<RistrettoCtx>::from(&contests);
 
         Ok(CompactHashableBallot {
             version: TYPES_VERSION,
@@ -338,8 +329,12 @@ impl<C: Ctx> TryFrom<&CompactHashableBallot> for CompactRawHashableBallot<C> {
     }
 }
 
-impl<C: Ctx> From<&CompactAuditableBallotContests<C>> for CompactHashableBallotContests<C> {
-    fn from(value: &CompactAuditableBallotContests<C>) -> CompactHashableBallotContests<C> {
+impl<C: Ctx> From<&CompactAuditableBallotContests<C>>
+    for CompactHashableBallotContests<C>
+{
+    fn from(
+        value: &CompactAuditableBallotContests<C>,
+    ) -> CompactHashableBallotContests<C> {
         CompactHashableBallotContests {
             contest_ids: value.contest_ids.clone(),
             ciphertext: value.choice.ciphertext.clone(),
