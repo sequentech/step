@@ -56,8 +56,8 @@ use crate::services::election_event_board::BoardSerializable;
 use crate::services::jwks::upsert_realm_jwks;
 use crate::services::protocol_manager::{create_protocol_manager_keys, get_board_client};
 use crate::services::temp_path::generate_temp_file;
-use crate::types::documents::EDocuments;
 use crate::tasks::import_election_event::ImportElectionEventBody;
+use crate::types::documents::EDocuments;
 use sequent_core::types::hasura::core::{Area, Candidate, Contest, Election, ElectionEvent};
 use sequent_core::types::scheduled_event::*;
 
@@ -746,4 +746,3 @@ pub async fn maybe_create_scheduled_event(
 
     Ok(())
 }
-

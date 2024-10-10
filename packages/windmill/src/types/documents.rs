@@ -5,12 +5,12 @@
 use strum_macros::{Display, EnumString, EnumVariantNames};
 
 #[derive(Display, Debug, PartialEq, Eq, Clone, EnumString, EnumVariantNames)]
-pub enum EDocuments{
+pub enum EDocuments {
     ELECTION_EVENT,
     VOTERS,
     ACTIVITY_LOGS,
     SCHEDULED_EVENTS,
-    S3_FILES
+    S3_FILES,
 }
 
 impl EDocuments {
