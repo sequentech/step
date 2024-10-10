@@ -147,7 +147,7 @@ export const CustomMenu = () => {
                         >
                             <StyledHelpItemContentWrapper>
                                 <HelpIcon sx={{color: adminTheme.palette.brandColor}} />
-								<Typography>{t("sideMenu.help")}</Typography>
+                                <Typography>{t("sideMenu.help")}</Typography>
                             </StyledHelpItemContentWrapper>
                         </StyledHelpItem>
                     )}
