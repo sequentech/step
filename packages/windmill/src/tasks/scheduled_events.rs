@@ -2,7 +2,7 @@ use crate::hasura::scheduled_event;
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::postgres::election::update_election_voting_status;
+use crate::postgres::election::{get_election_by_id, update_election_voting_status};
 use crate::postgres::scheduled_event::find_all_active_events;
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::get_hasura_pool;
@@ -15,6 +15,7 @@ use celery::{error::TaskError, Celery};
 use chrono::prelude::*;
 use chrono::Duration;
 use deadpool_postgres::{Client as DbClient, Transaction};
+use sequent_core::ballot::{ElectionStatus, InitReportPolicy};
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::scheduled_event::*;
 use std::sync::Arc;
@@ -49,15 +50,26 @@ pub async fn handle_allow_init_report(
     let payload: ManageElectionDatePayload = deserialize_value(event_payload)?;
     match payload.election_id.clone() {
         Some(election_id) => {
-            update_election_voting_status(
-                transaction,
-                &tenant_id,
-                &election_event_id,
-                &election_id,
-                // Provide the right modified JSON
-                serde_json::to_value(payload)?,
-            )
-            .await?;
+            let election =
+                get_election_by_id(&transaction, &tenant_id, &election_event_id, &election_id)
+                    .await?;
+            if let Some(election) = election {
+                let election_status = &election.status;
+                if let Some(election_status) = election.status {
+                    let election_status: ElectionStatus = ElectionStatus {
+                        init_report_policy: InitReportPolicy::ALLOWED,
+                        ..serde_json::from_value(election_status)?
+                    };
+                    update_election_voting_status(
+                        transaction,
+                        &tenant_id,
+                        &election_event_id,
+                        &election_id,
+                        serde_json::to_value(election_status)?,
+                    )
+                    .await?;
+                }
+            }
         }
         None => {
             // Initialization reports applies to elections, not election events
