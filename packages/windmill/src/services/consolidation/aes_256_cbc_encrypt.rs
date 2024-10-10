@@ -14,9 +14,10 @@ pub fn encrypt_file_aes_256_cbc(
     output_file_path: &str,
     password: &str,
 ) -> Result<()> {
+    println!("-------password: {:?}", password);
     let command = format!(
-        "openssl enc -aes-256-cbc -e -in {} -out {} -pass pass:{} -md md5",
-        input_file_path, output_file_path, password
+        "openssl enc -aes-256-cbc -e -in {} -out {} -pass pass:12345 -md md5",
+        input_file_path, output_file_path
     );
 
     run_shell_command(&command).context("Failed to encrypt file")?;
@@ -30,9 +31,11 @@ pub fn decrypt_file_aes_256_cbc(
     output_file_path: &str,
     password: &str,
 ) -> Result<()> {
+    println!("-------password: {:?}", password);
+
     let command = format!(
-        "openssl enc -aes-256-cbc -d -in {} -out {} -pass pass:{} -md md5",
-        input_file_path, output_file_path, password
+        "openssl enc -aes-256-cbc -d -in {} -out {} -pass pass:12345 -md md5",
+        input_file_path, output_file_path
     );
 
     run_shell_command(&command).context("Failed to decrypt file")?;

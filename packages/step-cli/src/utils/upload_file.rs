@@ -4,11 +4,11 @@
 
 use crate::types::config::ConfigData;
 use graphql_client::{GraphQLQuery, Response};
+use sequent_core::util::mime::get_mime_type;
 use std::collections::HashMap;
 use std::fs::{metadata, File};
 use std::io::Read;
 use std::path::Path;
-use sequent_core::util::mime::get_mime_type;
 
 use super::read_config::read_config;
 

@@ -285,6 +285,7 @@ pub async fn get_document_as_temp_file(
     .await
     .with_context(|| "Failed to get S3 object into temporary file")?;
 
+    println!("-------file: {:?}", file);
     // Return the temporary file and the separator as a tuple
     Ok(file)
 }

@@ -71,7 +71,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                 let {data} = await getUploadUrl({
                     variables: {
                         name: theFile.name,
-                        media_type: theFile.type,
+                        media_type: isEncrypted ? "application/ezip" : theFile.type,
                         size: theFile.size,
                         is_public: false,
                     },
@@ -118,6 +118,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             if (!theFile) return
             await uploadFileToS3(theFile)
             setPasswordDialogOpen(false)
+            setPassword("")
         }
 
         const onImportButtonClick = async () => {
