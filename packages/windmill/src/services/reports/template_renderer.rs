@@ -8,15 +8,23 @@ use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document;
 use crate::services::s3::get_minio_url;
 use crate::services::temp_path::write_into_named_temp_file;
+use crate::tasks::send_template::{send_template_email, EmailSender};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Client as DbClient;
-use sequent_core::services::keycloak;
+use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
 use sequent_core::services::{pdf, reports};
+use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::fmt::Debug;
 use tracing::{info, instrument, warn};
+
+pub enum ReportType {
+    MANUAL_VERIFICATION,
+    BALLOT_RECEIPT,
+    ELECTORAL_RESULTS,
+}
 
 /// Trait that defines the behavior for rendering templates
 #[async_trait]
@@ -26,9 +34,20 @@ pub trait TemplateRenderer: Debug {
 
     fn base_name() -> String;
     fn prefix(&self) -> String;
+    fn get_report_type() -> ReportType;
+    fn get_email_config() -> EmailConfig;
 
     fn get_tenant_id(&self) -> String;
     fn get_election_event_id(&self) -> String;
+
+    fn should_send_email(&self, is_scheduled_task: bool) -> bool {
+        // Send email if it's a cron job (scheduled task) or if a voterId is present
+        is_scheduled_task || self.get_voter_id().is_some()
+    }
+
+    fn get_voter_id(&self) -> Option<String> {
+        None // Default implementation, can be overridden in specific reports that have voterId
+    }
 
     async fn prepare_user_data(&self) -> Result<Self::UserData>;
     async fn prepare_system_data(&self, rendered_user_template: String)
@@ -162,6 +181,8 @@ pub trait TemplateRenderer: Debug {
         document_id: &str,
         tenant_id: &str,
         election_event_id: &str,
+        is_scheduled_task: bool,
+        receiver: Option<String>,
     ) -> Result<()> {
         let rendered_system_template = self
             .generate_report()
@@ -169,7 +190,7 @@ pub trait TemplateRenderer: Debug {
             .map_err(|err| anyhow!("Error rendering report: {}", err))?;
 
         // Generate PDF
-        let bytes_pdf = pdf::html_to_pdf(rendered_system_template)
+        let bytes_pdf = pdf::html_to_pdf(rendered_system_template.clone())
             .map_err(|err| anyhow!("Error rendering report to pdf: {}", err))?;
 
         let base_name = Self::base_name();
@@ -197,6 +218,51 @@ pub trait TemplateRenderer: Debug {
         .await
         .map_err(|err| anyhow!("Error uploading document: {err}"))?;
 
+        if self.should_send_email(is_scheduled_task) {
+            let email_config = Self::get_email_config().clone();
+            let email_receiever = self
+                .get_email_receiver(receiver, tenant_id, election_event_id)
+                .await
+                .map_err(|err| anyhow!("Error getting email receiver: {err}"))?;
+            let email_sender = EmailSender::new().await?;
+            email_sender
+                .send(
+                    email_receiever,
+                    email_config.subject,
+                    email_config.plaintext_body,
+                    rendered_system_template.clone(),
+                )
+                .await
+                .map_err(|err| anyhow!("Error sending email: {err}"))?;
+        }
+
         Ok(())
+    }
+
+    async fn get_email_receiver(
+        &self,
+        receiver: Option<String>,
+        tenant_id: &str,
+        election_event_id: &str,
+    ) -> Result<String> {
+        match receiver {
+            Some(receiver) => Ok(receiver), // If receiver is provided, use it
+            None => {
+                // Fetch email via voter_id if receiver is not provided
+                let voter_id = self
+                    .get_voter_id()
+                    .ok_or_else(|| anyhow!("Error sending email: no receiver provided"))?;
+
+                let client = KeycloakAdminClient::new()
+                    .await
+                    .map_err(|err| anyhow!("Error initializing Keycloak client: {err}"))?;
+
+                let realm = get_event_realm(tenant_id, election_event_id);
+                let voter = client.get_user(&realm, &voter_id).await?;
+                voter
+                    .email
+                    .ok_or_else(|| anyhow!("Error sending email: no email provided"))
+            }
+        }
     }
 }
