@@ -470,8 +470,8 @@ actions:
         template_engine: Kriti
         version: 2
     permissions:
-    - role: admin-user
-    - role: admin-dashboard-view
+      - role: admin-user
+      - role: admin-dashboard-view
   - name: get_upload_url
     definition:
       kind: synchronous
@@ -953,6 +953,7 @@ custom_types:
     - name: UserProfileAttributesInput
     - name: EventListFilter
     - name: EventListOrderBy
+    - name: GetTopCastVotesByIpInput
   objects:
     - name: GetManualVerificationOutput
     - name: CreateKeysCeremonyOutput
@@ -1029,4 +1030,6 @@ custom_types:
     - name: CreateEventOutput
     - name: LimtIpByCountriesOutput
     - name: LimitAccessByCountriesOutput
+    - name: GetTopCastVotesByIpOutput
+    - name: CastVotesByIp
   scalars: []

@@ -696,12 +696,12 @@ input EventListOrderBy {
 }
 
 input GetTopCastVotesByIpInput {
-  election_event_id : uuid!
-  limit : Int
-  offset : Int
-  ip : String
-  country : String
-  election_id : String
+  election_event_id: uuid!
+  limit: Int
+  offset: Int
+  ip: String
+  country: String
+  election_id: String
 }
 
 type GetManualVerificationOutput {
@@ -1167,17 +1167,17 @@ type LimitAccessByCountriesOutput {
 }
 
 type GetTopCastVotesByIpOutput {
-  items : [CastVotesByIp!]!
-  total : TotalAggregate!
+  items: [CastVotesByIp!]!
+  total: TotalAggregate!
 }
 
 type CastVotesByIp {
-  id : String
-  ip : String
-  country : String
-  vote_count : Int
-  election_name : String
-  election_id : String
-  voters_id : [String]
+  id: String
+  ip: String
+  country: String
+  vote_count: Int
+  election_name: String
+  election_id: String
+  voters_id: [String]
 }
 
