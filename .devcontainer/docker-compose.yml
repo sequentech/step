@@ -490,6 +490,7 @@ services:
         B3_URL: ${B3_URL}
     depends_on:
       - immudb
+      - b3
   
   trustee2:
     profiles: ["full"]
@@ -821,7 +822,7 @@ services:
       BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
 
   postgres-b3:
-    profiles: ["full"]
+    profiles: ["full", "base"]
     image: sequentech.local/postgresql-b3
     container_name: postgres-b3
     build:
@@ -845,7 +846,7 @@ services:
       - postgres-volume-init
 
   b3:
-    profiles: ["full"]
+    profiles: ["full", "base"]
     stdin_open: true
     image: sequentech.local/cargo-packages
     container_name: b3
