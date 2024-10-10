@@ -31,6 +31,7 @@ use crate::tasks::miru_plugin_tasks::send_transmission_package_task;
 use crate::tasks::process_board::process_board;
 use crate::tasks::render_report::render_report;
 use crate::tasks::review_boards::review_boards;
+use crate::tasks::scheduled_reports::scheduled_reports;
 use crate::tasks::scheduled_events::scheduled_events;
 use crate::tasks::send_template::send_template;
 use crate::tasks::set_public_key::set_public_key;
@@ -147,6 +148,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             send_transmission_package_task,
             delete_election_event_t,
             export_tasks_execution,
+            scheduled_reports,
         ],
         // Route certain tasks to certain queues based on glob matching.
         task_routes = [
@@ -169,6 +171,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             export_tasks_execution::NAME => Queue::ImportExport.as_ref(),
             import_election_event::NAME => Queue::ImportExport.as_ref(),
             scheduled_events::NAME => Queue::Beat.as_ref(),
+            scheduled_reports::NAME => Queue::Beat.as_ref(),
             manage_election_date::NAME => Queue::Beat.as_ref(),
             manage_election_event_date::NAME => Queue::Beat.as_ref(),
             create_transmission_package_task::NAME => Queue::Short.as_ref(),
