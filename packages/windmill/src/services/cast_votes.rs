@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::database::PgConfig;
 use anyhow::{anyhow, Context, Result};
 use chrono::NaiveDate;
 use chrono::{DateTime, Utc};
@@ -366,4 +367,135 @@ pub async fn get_users_with_vote_info(
         }
     }
     Ok(filtered_users)
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CastVoteCountByIp {
+    id: String,
+    ip: String,
+    country: String,
+    vote_count: i64,
+    election_name: String,
+    election_id: String,
+    voters_id: Vec<String>,
+}
+impl TryFrom<Row> for CastVoteCountByIp {
+    type Error = anyhow::Error;
+    fn try_from(item: Row) -> Result<Self> {
+        Ok(CastVoteCountByIp {
+            id: item.try_get::<_, i64>("id")?.to_string(),
+            ip: item.get("ip"),
+            country: item.get("country"),
+            vote_count: item.try_get("vote_count")?,
+            election_name: item.try_get("election_name")?,
+            election_id: item.try_get::<_, Uuid>("election_id")?.to_string(),
+            voters_id: item.try_get("voters_id")?,
+        })
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct ListCastVotesByIpFilter {
+    pub limit: Option<i32>,
+    pub offset: Option<i32>,
+    pub ip: Option<String>,
+    pub country: Option<String>,
+    pub election_id: Option<String>,
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_top_count_votes_by_ip(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    filter: ListCastVotesByIpFilter,
+) -> Result<(Vec<CastVoteCountByIp>, i32)> {
+    let low_sql_limit = PgConfig::from_env()?.low_sql_limit;
+    let default_sql_limit = PgConfig::from_env()?.default_sql_limit;
+    let query_limit: i64 =
+        std::cmp::min(low_sql_limit, filter.limit.unwrap_or(default_sql_limit)).into();
+    let query_offset: i64 = if let Some(offset_val) = filter.offset {
+        offset_val.into()
+    } else {
+        0
+    };
+
+    let ip_pattern: Option<String> = if let Some(ip_val) = filter.ip {
+        Some(format!("%{ip_val}%"))
+    } else {
+        None
+    };
+
+    let country_pattern: Option<String> = if let Some(country_val) = filter.country {
+        Some(format!("%{country_val}%"))
+    } else {
+        None
+    };
+    let election_id_pattern: Option<Uuid> = if let Some(election_id_val) = filter.election_id {
+        match Uuid::parse_str(&election_id_val) {
+            Ok(uuid) => Some(uuid),
+            Err(e) => None,
+        }
+    } else {
+        None
+    };
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            SELECT 
+                ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) AS id,
+                cv.annotations->>'ip' AS ip,         
+                cv.annotations->>'country' AS country,
+                array_agg(COALESCE(cv.voter_id_string, '')) AS voters_id,
+                cv.election_id as election_id,
+                COUNT(*) AS vote_count,
+                e.name AS election_name
+            FROM 
+                sequent_backend.cast_vote cv
+            JOIN 
+                sequent_backend.election e ON cv.election_id = e.id
+            WHERE 
+                cv.tenant_id = $1
+                AND cv.election_event_id = $2
+                AND cv.annotations ? 'ip'                
+                AND cv.annotations ? 'country'    
+                AND ($3::VARCHAR IS NULL OR cv.annotations->>'ip' ILIKE $3)
+                AND ($4::VARCHAR IS NULL OR cv.annotations->>'country' ILIKE $4)
+                AND ($5::UUID IS NULL OR cv.election_id = $5)
+            GROUP BY 
+                cv.annotations->>'ip',               
+                cv.annotations->>'country',     
+                cv.election_id,
+                e.name
+            ORDER BY 
+                vote_count DESC
+            LIMIT $6 OFFSET $7;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+                &ip_pattern,
+                &country_pattern,
+                &election_id_pattern,
+                &query_limit,
+                &query_offset,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error getting cast votes: {}", err))?;
+
+    let count: i32 = rows.len().try_into().unwrap();
+    let cast_votes_by_ip: Vec<CastVoteCountByIp> = rows
+        .into_iter()
+        .map(|row| -> Result<CastVoteCountByIp> { row.try_into() })
+        .collect::<Result<Vec<CastVoteCountByIp>>>()?;
+
+    Ok((cast_votes_by_ip, count))
 }

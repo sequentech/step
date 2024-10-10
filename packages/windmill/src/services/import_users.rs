@@ -15,8 +15,12 @@ use rand::prelude::*;
 use rand::{thread_rng, Rng};
 use regex::Regex;
 use ring::{digest, pbkdf2};
-use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
-use sequent_core::types::keycloak::{AREA_ID_ATTR_NAME, TENANT_ID_ATTR_NAME};
+use sequent_core::services::keycloak::{
+    get_event_realm, get_tenant_realm, MULTIVALUE_USER_ATTRIBUTE_SEPARATOR,
+};
+use sequent_core::types::keycloak::{
+    AREA_ID_ATTR_NAME, AUTHORIZED_ELECTION_IDS_NAME, TENANT_ID_ATTR_NAME,
+};
 use std::fs::File;
 use std::num::NonZeroU32;
 use tempfile::NamedTempFile;
@@ -220,19 +224,19 @@ fn get_insert_user_query(
         .collect();
     let user_entity_query = format!(
         r#"INSERT INTO user_entity (
-                        realm_id,
-                        email_verified,
-                        created_timestamp,
-                        {}
-                    )
-                    SELECT
-                        '{realm_id}',
-                        true,
-                        (extract(epoch from now()) * 1000)::bigint,
-                        {}
-                    FROM
-                        {}
-                    RETURNING *"#,
+                realm_id,
+                email_verified,
+                created_timestamp,
+                {}
+            )
+            SELECT
+                '{realm_id}',
+                true,
+                (extract(epoch from now()) * 1000)::bigint,
+                {}
+            FROM
+                {}
+            RETURNING *"#,
         user_entity_columns.join(", "),
         select_columns.join(", "),
         voters_table,
@@ -255,17 +259,17 @@ fn get_insert_user_query(
                 let sanitized_attr = sanitize_db_key(attr);
                 format!(
                     r#"
-                            SELECT
-                                gen_random_uuid(),
-                                nu.id,
-                                '{attr}',
-                                v.{sanitized_attr}
-                            FROM
-                                {voters_table} v
-                            JOIN
-                                new_user nu ON
-                                    nu.username = v.username
-                            "#
+                    SELECT
+                        gen_random_uuid(),
+                        nu.id,
+                        '{attr}',
+                        unnest(string_to_array(v.{sanitized_attr}, '{MULTIVALUE_USER_ATTRIBUTE_SEPARATOR}'))
+                    FROM
+                        {voters_table} v
+                    JOIN
+                        new_user nu ON
+                            nu.username = v.username
+                    "#
                 )
             })
             .collect::<Vec<String>>()
@@ -273,19 +277,19 @@ fn get_insert_user_query(
 
         format!(
             r#"
-                    INSERT
-                    INTO user_attribute (id, user_id, name, value)
-                    {values_subquery}
-                    UNION ALL
-                    SELECT
-                        gen_random_uuid(),
-                        nu.id,
-                        '{TENANT_ID_ATTR_NAME}',
-                        '{}'
-                    FROM
-                        new_user nu
-                    "#,
-            tenant_id,
+            INSERT
+            INTO user_attribute (id, user_id, name, value)
+            {values_subquery}
+            UNION ALL
+            SELECT
+                gen_random_uuid(),
+                nu.id,
+                '{TENANT_ID_ATTR_NAME}',
+                '{}'
+            FROM
+                new_user nu
+            "#,
+            self.tenant_id,
         )
     } else {
         String::new()
@@ -295,32 +299,32 @@ fn get_insert_user_query(
     let group_query = if voters_table_columns.contains(group_col_name) {
         format!(
             r#",
-                    pre_user_group AS (
-                        SELECT
-                            kg.id AS group_id,
-                            nu.id AS user_id
-                        FROM
-                            {voters_table} v
-                        JOIN
-                            new_user nu ON
-                                nu.username = v.username
-                        JOIN
-                            keycloak_group kg ON
-                                kg.name = v.{group_col_name}
-                                AND kg.realm_id = '{realm_id}'
-                    ),
-                    user_group AS (
-                        INSERT 
-                        INTO user_group_membership (
-                            group_id,
-                            user_id
-                        )
-                        SELECT
-                            pug.group_id,
-                            pug.user_id
-                        FROM pre_user_group pug
-                    )
-                    "#
+            pre_user_group AS (
+                SELECT
+                    kg.id AS group_id,
+                    nu.id AS user_id
+                FROM
+                    {voters_table} v
+                JOIN
+                    new_user nu ON
+                        nu.username = v.username
+                JOIN
+                    keycloak_group kg ON
+                        kg.name = v.{group_col_name}
+                        AND kg.realm_id = '{realm_id}'
+            ),
+            user_group AS (
+                INSERT 
+                INTO user_group_membership (
+                    group_id,
+                    user_id
+                )
+                SELECT
+                    pug.group_id,
+                    pug.user_id
+                FROM pre_user_group pug
+            )
+            "#
         )
     } else {
         String::new()
@@ -333,48 +337,48 @@ fn get_insert_user_query(
     let credentials_query = if voters_table_columns.contains(hashed_password_col_name) {
         format!(
             r#",
-                    pre_credentials AS (
-                        SELECT
-                            v.{salt_col_name} AS salt,
-                            v.{hashed_password_col_name} AS hashed_password,
-                            nu.id AS id
-                        FROM
-                            {voters_table} v
-                        JOIN
-                            new_user nu ON
-                                nu.username = v.username
-                    ),
-                    credentials AS (
-                        INSERT 
-                        INTO credential (
-                            id,
-                            type,
-                            user_id,
-                            created_date,
-                            user_label,
-                            secret_data,
-                            credential_data,
-                            priority
-                        )
-                        SELECT
-                            gen_random_uuid(),
-                            'password',
-                            pc.id,
-                            (extract(epoch from now()) * 1000)::bigint,
-                            'My password',
-                            json_build_object(
-                                'value', pc.hashed_password,
-                                'salt', pc.salt
-                            )::text,
-                            json_build_object(
-                                'hashIterations', {num_iterations},
-                                'algorithm', 'pbkdf2-sha256',
-                                'additionalParameters', json_build_object()
-                            )::text,
-                            10
-                        FROM pre_credentials pc
-                    )
-                    "#
+            pre_credentials AS (
+                SELECT
+                    v.{salt_col_name} AS salt,
+                    v.{hashed_password_col_name} AS hashed_password,
+                    nu.id AS id
+                FROM
+                    {voters_table} v
+                JOIN
+                    new_user nu ON
+                        nu.username = v.username
+            ),
+            credentials AS (
+                INSERT 
+                INTO credential (
+                    id,
+                    type,
+                    user_id,
+                    created_date,
+                    user_label,
+                    secret_data,
+                    credential_data,
+                    priority
+                )
+                SELECT
+                    gen_random_uuid(),
+                    'password',
+                    pc.id,
+                    (extract(epoch from now()) * 1000)::bigint,
+                    'My password',
+                    json_build_object(
+                        'value', pc.hashed_password,
+                        'salt', pc.salt
+                    )::text,
+                    json_build_object(
+                        'hashIterations', {num_iterations},
+                        'algorithm', 'pbkdf2-sha256',
+                        'additionalParameters', json_build_object()
+                    )::text,
+                    10
+                FROM pre_credentials pc
+            )
+            "#
         )
     } else {
         String::new()
@@ -382,14 +386,14 @@ fn get_insert_user_query(
 
     let ret = format!(
         r#"
-                WITH 
-                    new_user AS (
-                        {user_entity_query}
-                    )
-                    {credentials_query}
-                    {group_query}
-                {user_attribute_query};
-                "#
+        WITH 
+            new_user AS (
+                {user_entity_query}
+            )
+            {credentials_query}
+            {group_query}
+        {user_attribute_query};
+        "#
     );
     info!("ret = {ret}");
     Ok(ret)
@@ -560,6 +564,10 @@ pub async fn import_users_file(
                         }
                     }
                 }
+                // Forces username to be lowercase. As per Keycloak convention as keycloak does not support case sensitive usernames.
+                column_name if column_name == &*USERNAME_COL_NAME => data.to_lowercase(),
+                // Forces email to be lowercase. As per Keycloak convention as keycloak does not support case sensitive emails.
+                column_name if column_name == &*EMAIL_COL_NAME => data.to_lowercase(),
                 _ => data.to_string(),
             };
             if column_name == &*PASSWORD_COL_NAME {

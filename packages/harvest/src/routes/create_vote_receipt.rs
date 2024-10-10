@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize_voter;
+use crate::services::authorization::authorize_voter_election;
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -40,9 +40,13 @@ pub async fn create_vote_receipt(
     body: Json<CreateVoteReceiptInput>,
     claims: JwtClaims,
 ) -> Result<Json<CreateVoteReceiptOutput>, (Status, String)> {
-    let area_id = authorize_voter(&claims, vec![VoterPermissions::CAST_VOTE])?;
-    let voter_id = claims.hasura_claims.user_id.clone();
     let input = body.into_inner();
+    let area_id = authorize_voter_election(
+        &claims,
+        vec![VoterPermissions::CAST_VOTE],
+        &input.election_id,
+    )?;
+    let voter_id = claims.hasura_claims.user_id.clone();
     let element_id: String = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
 

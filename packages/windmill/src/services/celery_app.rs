@@ -4,8 +4,11 @@
 
 use async_once::AsyncOnce;
 use celery::export::Arc;
+use celery::prelude::Task;
 use celery::Celery;
 use std;
+use std::convert::AsRef;
+use strum_macros::AsRefStr;
 use tracing::{event, instrument, Level};
 
 use crate::tasks::create_keys::create_keys;
@@ -22,7 +25,7 @@ use crate::tasks::insert_election_event::insert_election_event_t;
 use crate::tasks::insert_tenant::insert_tenant;
 use crate::tasks::manage_election_dates::manage_election_date;
 use crate::tasks::manage_election_event_date::manage_election_event_date;
-use crate::tasks::manual_verification_pdf::get_manual_verification_pdf;
+use crate::tasks::manual_verification_report::generate_manual_verification_report;
 use crate::tasks::miru_plugin_tasks::create_transmission_package_task;
 use crate::tasks::miru_plugin_tasks::send_transmission_package_task;
 use crate::tasks::process_board::process_board;
@@ -32,6 +35,22 @@ use crate::tasks::scheduled_events::scheduled_events;
 use crate::tasks::send_template::send_template;
 use crate::tasks::set_public_key::set_public_key;
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
+
+#[derive(AsRefStr, Debug)]
+enum Queue {
+    #[strum(serialize = "short_queue")]
+    Short,
+    #[strum(serialize = "beat")]
+    Beat,
+    #[strum(serialize = "communication_queue")]
+    Communication,
+    #[strum(serialize = "tally_queue")]
+    Tally,
+    #[strum(serialize = "reports_queue")]
+    Reports,
+    #[strum(serialize = "import_export_queue")]
+    ImportExport,
+}
 
 static mut PREFETCH_COUNT_S: u16 = 100;
 static mut ACKS_LATE_S: bool = true;
@@ -118,7 +137,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             import_users,
             export_users,
             import_election_event,
-            get_manual_verification_pdf,
+            generate_manual_verification_report,
             scheduled_events,
             manage_election_event_date,
             manage_election_date,
@@ -131,31 +150,30 @@ pub async fn generate_celery_app() -> Arc<Celery> {
         ],
         // Route certain tasks to certain queues based on glob matching.
         task_routes = [
-            "create_keys" => "short_queue",
-            "get_manual_verification_pdf" => "short_queue",
-            "review_boards" => "beat",
-            "process_board" => "beat",
-            "render_report" => "reports_queue",
-            "create_vote_receipt" => "reports_queue",
-            "set_public_key" => "short_queue",
-            "execute_tally_session" => "tally_queue",
-            "update_election_event_ballot_styles" => "short_queue",
-            "update_voting_status" => "short_queue",
-            "insert_election_event_t" => "short_queue",
-            "insert_tenant" => "short_queue",
-            "send_template" => "communication_queue",
-            "import_users" => "import_export_queue",
-            "export_users" => "import_export_queue",
-            "export_election_event" => "import_export_queue",
-            "export_election_event_logs" => "import_export_queue",
-            "export_tasks_execution" => "import_export_queue",
-            "import_election_event" => "import_export_queue",
-            "scheduled_events" => "beat",
-            "manage_election_date" => "beat",
-            "manage_election_event_date" => "beat",
-            "create_transmission_package_task" => "short_queue",
-            "send_transmission_package_task" => "short_queue",
-            "delete_election_event_t" => "short_queue",
+            create_keys::NAME => Queue::Short.as_ref(),
+            review_boards::NAME => Queue::Beat.as_ref(),
+            process_board::NAME => Queue::Beat.as_ref(),
+            generate_manual_verification_report::NAME => Queue::Reports.as_ref(),
+            render_report::NAME => Queue::Reports.as_ref(),
+            create_vote_receipt::NAME => Queue::Reports.as_ref(),
+            set_public_key::NAME => Queue::Short.as_ref(),
+            execute_tally_session::NAME => Queue::Tally.as_ref(),
+            update_election_event_ballot_styles::NAME => Queue::Short.as_ref(),
+            insert_election_event_t::NAME => Queue::Short.as_ref(),
+            insert_tenant::NAME => Queue::Short.as_ref(),
+            send_template::NAME => Queue::Communication.as_ref(),
+            import_users::NAME => Queue::ImportExport.as_ref(),
+            export_users::NAME => Queue::ImportExport.as_ref(),
+            export_election_event::NAME => Queue::ImportExport.as_ref(),
+            export_election_event_logs::NAME => Queue::ImportExport.as_ref(),
+            export_tasks_execution::NAME => Queue::ImportExport.as_ref(),
+            import_election_event::NAME => Queue::ImportExport.as_ref(),
+            scheduled_events::NAME => Queue::Beat.as_ref(),
+            manage_election_date::NAME => Queue::Beat.as_ref(),
+            manage_election_event_date::NAME => Queue::Beat.as_ref(),
+            create_transmission_package_task::NAME => Queue::Short.as_ref(),
+            send_transmission_package_task::NAME => Queue::Short.as_ref(),
+            delete_election_event_t::NAME => Queue::Short.as_ref(),
         ],
         prefetch_count = prefetch_count,
         acks_late = acks_late,

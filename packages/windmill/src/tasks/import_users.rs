@@ -18,6 +18,19 @@ use ring::{digest, pbkdf2};
 use sequent_core::services::{keycloak, reports};
 use sequent_core::types::hasura::core::TasksExecution;
 use serde::{Deserialize, Serialize};
+use rocket::futures::SinkExt as _;
+use sequent_core::services::connection::AuthHeaders;
+use sequent_core::services::keycloak::{
+    get_event_realm, get_tenant_realm, MULTIVALUE_USER_ATTRIBUTE_SEPARATOR,
+};
+use sequent_core::services::{keycloak, reports};
+use sequent_core::types::hasura::core::TasksExecution;
+use sequent_core::types::keycloak::{
+    AREA_ID_ATTR_NAME, AUTHORIZED_ELECTION_IDS_NAME, TENANT_ID_ATTR_NAME,
+};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::fs::File;
 use std::io::Seek;
 use std::num::NonZeroU32;
 use tempfile::NamedTempFile;
@@ -30,6 +43,7 @@ lazy_static! {
     static ref HASHED_PASSWORD_COL_NAME: String = String::from("hashed_password");
     static ref PASSWORD_COL_NAME: String = String::from("password");
     static ref USERNAME_COL_NAME: String = String::from("username");
+    static ref EMAIL_COL_NAME: String = String::from("email");
     static ref GROUP_COL_NAME: String = String::from("group_name");
     static ref AREA_NAME_COL_NAME: String = String::from("area_name");
     static ref RESERVED_COL_NAMES: Vec<String> = vec![

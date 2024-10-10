@@ -14,7 +14,6 @@ import {
     WrapperField,
     FunctionField,
     useRefresh,
-    BooleanInput,
     BooleanField,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
@@ -29,11 +28,11 @@ import DeleteIcon from "@mui/icons-material/Delete"
 import {useTranslation} from "react-i18next"
 import {useTenantStore} from "../../providers/TenantContextProvider"
 import {useParams} from "react-router"
-import {AreaContestItems} from "@/components/AreaContestItems"
 import VideoFileIcon from "@mui/icons-material/VideoFile"
 import AudioFileIcon from "@mui/icons-material/AudioFile"
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf"
 import ImageIcon from "@mui/icons-material/Image"
+import {ResetFilters} from "@/components/ResetFilters"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -140,6 +139,7 @@ export const ListSupportMaterials: React.FC<ListAreaProps> = (props) => {
                 }}
                 filters={Filters}
             >
+                <ResetFilters />
                 <DatagridConfigurable omit={OMIT_FIELDS}>
                     <TextField source="id" />
                     <BooleanField
