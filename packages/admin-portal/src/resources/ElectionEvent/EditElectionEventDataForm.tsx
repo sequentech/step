@@ -40,9 +40,9 @@ import {CustomTabPanel} from "@/components/CustomTabPanel"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
-import {EPublishPolicy} from "./CoreTypes"
 import {
     ElectionsOrder,
+    EPublishPolicy,
     IElectionEventPresentation,
     IElectionPresentation,
     ITenantSettings,
@@ -1118,7 +1118,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                                     <Box>
                                         <BooleanInput
                                             source={"status.publish_policy"}
-                                            format={(e) => e === EPublishPolicy.ALWAYS}
+                                            format={(e) => e !== EPublishPolicy.ALWAYS}
                                             parse={(e) =>
                                                 !e ? EPublishPolicy.ALWAYS : EPublishPolicy.WHEN_KEYS_CEREMONY_HAS_SUCCEEDED
                                             }
