@@ -120,7 +120,11 @@ pub async fn process_export_zip(
     // Add election event data file to the ZIP archive
     let export_data = read_export_data(&hasura_transaction, tenant_id, election_event_id).await?;
     let temp_election_event_file = write_export_document(export_data).await?;
-    let election_event_filename = format!("{}-{}.json", EDocuments::ELECTION_EVENT.to_file_name(), election_event_id);
+    let election_event_filename = format!(
+        "{}-{}.json",
+        EDocuments::ELECTION_EVENT.to_file_name(),
+        election_event_id
+    );
     zip_writer.start_file(&election_event_filename, options)?;
 
     let mut election_event_file = File::open(temp_election_event_file.path())?;
@@ -139,7 +143,11 @@ pub async fn process_export_zip(
         )
         .await
         .map_err(|e| anyhow!("Error exporting users file: {e:?}"))?;
-        let voters_filename = format!("{}-{}.csv", EDocuments::VOTERS.to_file_name(), election_event_id);
+        let voters_filename = format!(
+            "{}-{}.csv",
+            EDocuments::VOTERS.to_file_name(),
+            election_event_id
+        );
         zip_writer.start_file(&voters_filename, options)?;
 
         let mut voters_file = File::open(temp_voters_file_path)?;
@@ -149,7 +157,11 @@ pub async fn process_export_zip(
     // Add Activity Logs data file to the ZIP archive
     let is_include_activity_logs = export_config.activity_logs;
     if is_include_activity_logs {
-        let activity_logs_filename = format!("{}-{}.csv",EDocuments::ACTIVITY_LOGS.to_file_name(), election_event_id);
+        let activity_logs_filename = format!(
+            "{}-{}.csv",
+            EDocuments::ACTIVITY_LOGS.to_file_name(),
+            election_event_id
+        );
         let temp_activity_logs_file = export_election_event_logs::read_export_data(
             tenant_id,
             election_event_id,
@@ -190,7 +202,11 @@ pub async fn process_export_zip(
     // Add Activity Logs data file to the ZIP archive
     let is_include_schedule_events = export_config.scheduled_events;
     if is_include_schedule_events {
-        let schedule_events_filename = format!("{}-{}.csv",EDocuments::SCHEDULED_EVENTS.to_file_name(), election_event_id);
+        let schedule_events_filename = format!(
+            "{}-{}.csv",
+            EDocuments::SCHEDULED_EVENTS.to_file_name(),
+            election_event_id
+        );
         let temp_schedule_events_file = export_schedule_events::read_export_data(
             &hasura_transaction,
             tenant_id,

@@ -428,13 +428,6 @@ export const ElectionDataForm: React.FC = () => {
         }
     }
 
-    const gracePeriodPolicyChoices = () => {
-        return (Object.values(EGracePeriodPolicy) as EGracePeriodPolicy[]).map((value) => ({
-            id: value,
-            name: t(`electionScreen.gracePeriodPolicy.${value.toLowerCase()}`),
-        }))
-    }
-
     const templateMethodChoices = () => {
         return (Object.values(ITemplateMethod) as ITemplateMethod[]).map((value) => ({
             id: value,

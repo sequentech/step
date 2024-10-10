@@ -124,8 +124,12 @@ fn get_user_record(
     for attr in user_attributes {
         match &attr.name {
             Some(name) => {
-                if (!USER_FIELDS.contains(&name.as_str())) {
-                    user_info.push(user.get_attribute_val(name).unwrap_or("-".to_string()))
+                if !USER_FIELDS.contains(&name.as_str()) {
+                    if let Some(true) = &attr.multivalued {
+                        user_info.push(user.get_attribute_multival(name).unwrap_or("-".to_string()))
+                    } else {
+                        user_info.push(user.get_attribute_val(name).unwrap_or("-".to_string()))
+                    }
                 }
             }
             _ => (),
@@ -264,7 +268,7 @@ pub async fn export_users_file(
             .with_context(|| "Error retrieving users with vote info")?,
             _ => list_users(&hasura_transaction, &keycloak_transaction, filter.clone())
                 .await
-                .with_context(|| "Error listing users")?,
+                .with_context(|| "Error listing users with vote info")?,
         };
 
         if total_count.is_none() {
