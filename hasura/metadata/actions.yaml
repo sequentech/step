@@ -458,6 +458,20 @@ actions:
         version: 2
     permissions:
       - role: admin-user
+  - name: get_top_votes_by_ip
+    definition:
+      kind: ""
+      handler: http://{{HARVEST_DOMAIN}}/election-event/top-votes-by-ip
+      forward_client_headers: true
+      request_transform:
+        body:
+          action: transform
+          template: '{{$body.input.body}}'
+        template_engine: Kriti
+        version: 2
+    permissions:
+    - role: admin-user
+    - role: admin-dashboard-view
   - name: get_upload_url
     definition:
       kind: synchronous
@@ -634,6 +648,7 @@ actions:
         template_engine: Kriti
         version: 2
     permissions:
+      - role: cloudflare-write
       - role: admin-user
   - name: listElectoralLog
     definition:

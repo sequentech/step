@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {ReactElement} from "react"
+import React, {ReactElement, useEffect} from "react"
 
 import {useTranslation} from "react-i18next"
 import {Visibility} from "@mui/icons-material"
@@ -26,6 +26,7 @@ import {EPublishActionsType} from "./EPublishType"
 import {HeaderTitle} from "@/components/HeaderTitle"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {Action, ActionsColumn} from "@/components/ActionButons"
+import {ResetFilters} from "@/components/ResetFilters"
 
 const OMIT_FIELDS: string[] = []
 
@@ -78,10 +79,6 @@ export const PublishList: React.FC<TPublishList> = ({
         </ResourceListStyles.EmptyBox>
     )
 
-    if (!canRead) {
-        return <Empty />
-    }
-
     const actions: Action[] = [
         {
             icon: <Visibility className="publish-visibility-icon" />,
@@ -89,48 +86,55 @@ export const PublishList: React.FC<TPublishList> = ({
         },
     ]
 
+    if (!canRead) {
+        return <Empty />
+    }
+
     return (
         <Box>
-            <List
-                actions={
-                    <PublishActions
-                        status={status}
-                        changingStatus={changingStatus}
-                        onGenerate={onGenerate}
-                        onChangeStatus={onChangeStatus}
-                        type={EPublishActionsType.List}
-                    />
-                }
-                resource="sequent_backend_ballot_publication"
-                filter={
-                    electionId
-                        ? {
-                              election_event_id: electionEventId,
-                              election_id: electionId,
-                          }
-                        : {
-                              election_event_id: electionEventId,
-                          }
-                }
-                sort={{
-                    field: "created_at",
-                    order: "DESC",
-                }}
-                filters={filters}
-                sx={{flexGrow: 2}}
-                empty={<Empty />}
-            >
-                <HeaderTitle title={"publish.header.history"} subtitle="" />
+            {
+                <List
+                    actions={
+                        <PublishActions
+                            status={status}
+                            changingStatus={changingStatus}
+                            onGenerate={onGenerate}
+                            onChangeStatus={onChangeStatus}
+                            type={EPublishActionsType.List}
+                        />
+                    }
+                    resource="sequent_backend_ballot_publication"
+                    filter={
+                        electionId
+                            ? {
+                                  election_event_id: electionEventId,
+                                  election_id: electionId,
+                              }
+                            : {
+                                  election_event_id: electionEventId,
+                              }
+                    }
+                    sort={{
+                        field: "created_at",
+                        order: "DESC",
+                    }}
+                    filters={filters}
+                    sx={{flexGrow: 2}}
+                    empty={<Empty />}
+                >
+                    <ResetFilters />
+                    <HeaderTitle title={"publish.header.history"} subtitle="" />
 
-                <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
-                    <TextField source="id" />
-                    <BooleanField source="is_generated" />
-                    <TextField source="published_at" />
-                    <TextField source="created_at" />
+                    <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
+                        <TextField source="id" />
+                        <BooleanField source="is_generated" />
+                        <TextField source="published_at" />
+                        <TextField source="created_at" />
 
-                    <ActionsColumn actions={actions} />
-                </DatagridConfigurable>
-            </List>
+                        <ActionsColumn actions={actions} />
+                    </DatagridConfigurable>
+                </List>
+            }
         </Box>
     )
 }
