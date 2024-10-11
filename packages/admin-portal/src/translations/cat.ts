@@ -394,6 +394,8 @@ const catalanTranslation: TranslationType = {
                 votingChannels: "Canals de Vot",
                 startDateTime: "Data i hora d'inici",
                 endDateTime: "Data i hora de finalització",
+                startDateTimeWithTimezone: "Start Date and Time ({{timezone}})",
+                endDateTimeWithTimezone: "End Date and Time ({{timezone}})",
                 scheduledOpening: "Obertura Programada",
                 scheduledClosing: "Tancament Programat",
                 alias: "Àlies",

@@ -395,6 +395,8 @@ const frenchTranslation: TranslationType = {
                 votingChannels: "Canaux de Vote",
                 startDateTime: "Date et heure de début",
                 endDateTime: "Date et heure de fin",
+                startDateTimeWithTimezone: "Start Date and Time ({{timezone}})",
+                endDateTimeWithTimezone: "End Date and Time ({{timezone}})",
                 scheduledOpening: "Ouverture Prévue",
                 scheduledClosing: "Fermeture Prévue",
                 alias: "Alias",

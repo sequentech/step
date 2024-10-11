@@ -9,6 +9,7 @@ import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
 import {Button, styled, Typography} from "@mui/material"
 import React, {ReactElement, useContext, useState} from "react"
+import moment from "moment-timezone";
 import {
     DatagridConfigurable,
     FunctionField,
@@ -200,6 +201,8 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
         setOpenCreateEvent(!openCreateEvent)
     }
 
+    const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+
     const Empty = () => (
         <ResourceListStyles.EmptyBox>
             <Typography variant="h4" paragraph>
@@ -271,7 +274,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                         label={t("eventsScreen.fields.stoppedAt")}
                         source="stopped_at"
                         render={(record: Sequent_Backend_Scheduled_Event) =>
-                            (record.stopped_at && new Date(record.stopped_at).toLocaleString()) ||
+                            (record.stopped_at && moment.tz(new Date(record.stopped_at), userTimeZone).toLocaleString()) ||
                             "-"
                         }
                     />
@@ -280,7 +283,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                         source="cron_config.scheduled_date"
                         render={(record: Sequent_Backend_Scheduled_Event) =>
                             ((record.cron_config as ICronConfig | undefined)?.scheduled_date &&
-                                new Date(record.cron_config.scheduled_date).toLocaleString()) ||
+                                moment.tz(new Date(record.cron_config.scheduled_date), userTimeZone).toLocaleString()) ||
                             "-"
                         }
                     />

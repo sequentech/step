@@ -393,6 +393,8 @@ const tagalogTranslation: TranslationType = {
                 votingChannels: "Mga Channel ng Pagboto",
                 startDateTime: "Petsa at Oras ng Pagsisimula",
                 endDateTime: "Petsa at Oras ng Pagtatapos",
+                startDateTimeWithTimezone: "Start Date and Time ({{timezone}})",
+                endDateTimeWithTimezone: "End Date and Time ({{timezone}})",
                 scheduledOpening: "Naka-iskedyul na Pagbubukas",
                 scheduledClosing: "Naka-iskedyul na Pagsasara",
                 alias: "Alias",

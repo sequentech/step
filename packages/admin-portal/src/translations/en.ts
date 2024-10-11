@@ -390,6 +390,8 @@ const englishTranslation = {
                 votingChannels: "Voting Channels",
                 startDateTime: "Start Date and Time",
                 endDateTime: "End Date and Time",
+                startDateTimeWithTimezone: "Start Date and Time ({{timezone}})",
+                endDateTimeWithTimezone: "End Date and Time ({{timezone}})",
                 scheduledOpening: "Scheduled Opening",
                 scheduledClosing: "Scheduled Closing",
                 alias: "Alias",

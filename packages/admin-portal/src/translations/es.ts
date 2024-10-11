@@ -393,6 +393,8 @@ const spanishTranslation: TranslationType = {
                 votingChannels: "Canales de Voto",
                 startDateTime: "Fecha y hora de inicio",
                 endDateTime: "Fecha y hora de finalización",
+                startDateTimeWithTimezone: "Start Date and Time ({{timezone}})",
+                endDateTimeWithTimezone: "End Date and Time ({{timezone}})",
                 scheduledOpening: "Apertura Programada",
                 scheduledClosing: "Cierre Programado",
                 alias: "Alias",

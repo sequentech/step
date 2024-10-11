@@ -133,6 +133,8 @@ const CreateEvent: FC<CreateEventProps> = ({
         }
     }
 
+    const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    
     return (
         <Create hasEdit={isEditEvent}>
             <SimpleForm onSubmit={onSubmit}>
@@ -211,8 +213,8 @@ const CreateEvent: FC<CreateEventProps> = ({
                     source="cron_config.scheduled_date"
                     label={
                         eventType === EventProcessors.START_VOTING_PERIOD
-                            ? t("electionScreen.field.startDateTime")
-                            : t("electionScreen.field.endDateTime")
+                            ? t("electionScreen.field.startDateTimeWithTimezone", { timezone: userTimeZone })
+                            : t("electionScreen.field.endDateTimeWithTimezone", { timezone: userTimeZone })
                     }
                     defaultValue={
                         isEditEvent
