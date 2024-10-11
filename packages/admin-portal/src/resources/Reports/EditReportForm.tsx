@@ -18,8 +18,8 @@ import {
 import SelectTemplate from "../Template/SelectTemplate"
 import {useTranslation} from "react-i18next"
 import {Sequent_Backend_Report} from "@/gql/graphql"
-import { useMutation } from "@apollo/client"
-import { CREATE_REPORT } from "@/queries/CreateReport"
+import {useMutation} from "@apollo/client"
+import {CREATE_REPORT} from "@/queries/CreateReport"
 
 interface CronConfig {
     isActive?: boolean
@@ -96,7 +96,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                 email_recepient: cron_conig_js.emailRecepient,
             },
         }
- 
+
         try {
             if (isEditReport && reportId) {
                 await dataProvider.update("sequent_backend_report", {
@@ -137,77 +137,77 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
 
     return (
         <>
-        <Create hasEdit={isEditReport}>
-            <SimpleForm
-                record={isEditReport ? report : undefined}
-                onSubmit={handleSubmit}
-                toolbar={
-                    <Toolbar>
-                        <SaveButton />
-                    </Toolbar>
-                }
-            >
-                <Typography variant="h4">
-                    {isEditReport
-                        ? t("reportsScreen.edit.header")
-                        : t("reportsScreen.create.header")}
-                </Typography>
-                <Typography variant="body2">
-                    {" "}
-                    {isEditReport
-                        ? t("reportsScreen.edit.subtitle")
-                        : t("reportsScreen.create.subtitle")}
-                </Typography>
+            <Create hasEdit={isEditReport}>
+                <SimpleForm
+                    record={isEditReport ? report : undefined}
+                    onSubmit={handleSubmit}
+                    toolbar={
+                        <Toolbar>
+                            <SaveButton />
+                        </Toolbar>
+                    }
+                >
+                    <Typography variant="h4">
+                        {isEditReport
+                            ? t("reportsScreen.edit.header")
+                            : t("reportsScreen.create.header")}
+                    </Typography>
+                    <Typography variant="body2">
+                        {" "}
+                        {isEditReport
+                            ? t("reportsScreen.edit.subtitle")
+                            : t("reportsScreen.create.subtitle")}
+                    </Typography>
 
-                <SelectInput
-                    source="report_type"
-                    label={t("reportsScreen.fields.reportType")}
-                    choices={reportTypeChoices}
-                    onChange={handleReportTypeChange}
-                />
+                    <SelectInput
+                        source="report_type"
+                        label={t("reportsScreen.fields.reportType")}
+                        choices={reportTypeChoices}
+                        onChange={handleReportTypeChange}
+                    />
 
-                <SelectElection
-                    tenantId={tenantId}
-                    electionEventId={electionEventId}
-                    label={t("reportsScreen.fields.electionId")}
-                    onSelectElection={(electionId) => setElectionId(electionId)}
-                    source="election_id"
-                    value={electionId}
-                />
+                    <SelectElection
+                        tenantId={tenantId}
+                        electionEventId={electionEventId}
+                        label={t("reportsScreen.fields.electionId")}
+                        onSelectElection={(electionId) => setElectionId(electionId)}
+                        source="election_id"
+                        value={electionId}
+                    />
 
-                <SelectTemplate
-                    tenantId={tenantId}
-                    templateType={reportType}
-                    source={"template_id"}
-                    label={t("reportsScreen.fields.template")}
-                    onSelectTemplate={(templateId) => setTemplateId(templateId)}
-                    value={templateId}
-                />
+                    <SelectTemplate
+                        tenantId={tenantId}
+                        templateType={reportType}
+                        source={"template_id"}
+                        label={t("reportsScreen.fields.template")}
+                        onSelectTemplate={(templateId) => setTemplateId(templateId)}
+                        value={templateId}
+                    />
 
-                <BooleanInput
-                    source="cron_config.is_active"
-                    label={t("reportsScreen.fields.repeatable")}
-                    onChange={handleCronToggle}
-                />
+                    <BooleanInput
+                        source="cron_config.is_active"
+                        label={t("reportsScreen.fields.repeatable")}
+                        onChange={handleCronToggle}
+                    />
 
-                {isCronActive && (
-                    <>
-                        <TextInput
-                            source="cron_config.cron_expression"
-                            label={t("reportsScreen.fields.cronExpression")}
-                            validate={(value) =>
-                                isValidCron(value) ? undefined : "Invalid cron expression"
-                            }
-                            required={isCronActive}
-                        />
-                        <TextInput
-                            source="cron_config.email_recepient"
-                            label={t("reportsScreen.fields.cronExpression")}
-                            required={isCronActive}
-                        />
-                    </>
-                )}
-            </SimpleForm>
+                    {isCronActive && (
+                        <>
+                            <TextInput
+                                source="cron_config.cron_expression"
+                                label={t("reportsScreen.fields.cronExpression")}
+                                validate={(value) =>
+                                    isValidCron(value) ? undefined : "Invalid cron expression"
+                                }
+                                required={isCronActive}
+                            />
+                            <TextInput
+                                source="cron_config.email_recepient"
+                                label={t("reportsScreen.fields.cronExpression")}
+                                required={isCronActive}
+                            />
+                        </>
+                    )}
+                </SimpleForm>
             </Create>
         </>
     )

@@ -16935,6 +16935,56 @@
             "description": "update data of the table: \"sequent_backend.report\"",
             "args": [
               {
+                "name": "_append",
+                "description": "append existing jsonb value of filtered columns with new jsonb value",
+                "type": {
+                  "kind": "INPUT_OBJECT",
+                  "name": "sequent_backend_report_append_input",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "_delete_at_path",
+                "description": "delete the field or element with specified path (for JSON arrays, negative integers count from the end)",
+                "type": {
+                  "kind": "INPUT_OBJECT",
+                  "name": "sequent_backend_report_delete_at_path_input",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "_delete_elem",
+                "description": "delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array",
+                "type": {
+                  "kind": "INPUT_OBJECT",
+                  "name": "sequent_backend_report_delete_elem_input",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "_delete_key",
+                "description": "delete key/value pair or string element. key/value pairs are matched based on their key value",
+                "type": {
+                  "kind": "INPUT_OBJECT",
+                  "name": "sequent_backend_report_delete_key_input",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "_prepend",
+                "description": "prepend existing jsonb value of filtered columns with new jsonb value",
+                "type": {
+                  "kind": "INPUT_OBJECT",
+                  "name": "sequent_backend_report_prepend_input",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
+              {
                 "name": "_set",
                 "description": "sets the columns of the filtered rows to the given values",
                 "type": {
@@ -16971,6 +17021,56 @@
             "name": "update_sequent_backend_report_by_pk",
             "description": "update single row of the table: \"sequent_backend.report\"",
             "args": [
+              {
+                "name": "_append",
+                "description": "append existing jsonb value of filtered columns with new jsonb value",
+                "type": {
+                  "kind": "INPUT_OBJECT",
+                  "name": "sequent_backend_report_append_input",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "_delete_at_path",
+                "description": "delete the field or element with specified path (for JSON arrays, negative integers count from the end)",
+                "type": {
+                  "kind": "INPUT_OBJECT",
+                  "name": "sequent_backend_report_delete_at_path_input",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "_delete_elem",
+                "description": "delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array",
+                "type": {
+                  "kind": "INPUT_OBJECT",
+                  "name": "sequent_backend_report_delete_elem_input",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "_delete_key",
+                "description": "delete key/value pair or string element. key/value pairs are matched based on their key value",
+                "type": {
+                  "kind": "INPUT_OBJECT",
+                  "name": "sequent_backend_report_delete_key_input",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "_prepend",
+                "description": "prepend existing jsonb value of filtered columns with new jsonb value",
+                "type": {
+                  "kind": "INPUT_OBJECT",
+                  "name": "sequent_backend_report_prepend_input",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
               {
                 "name": "_set",
                 "description": "sets the columns of the filtered rows to the given values",
@@ -66194,6 +66294,41 @@
         "description": "columns and relationships of \"sequent_backend.report\"",
         "fields": [
           {
+            "name": "created_at",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "timestamptz",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "cron_config",
+            "description": null,
+            "args": [
+              {
+                "name": "path",
+                "description": "JSON select path",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "SCALAR",
+              "name": "jsonb",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "election_event_id",
             "description": null,
             "args": [],
@@ -66258,13 +66393,9 @@
             "description": null,
             "args": [],
             "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "uuid",
-                "ofType": null
-              }
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -66420,6 +66551,27 @@
       },
       {
         "kind": "INPUT_OBJECT",
+        "name": "sequent_backend_report_append_input",
+        "description": "append existing jsonb value of filtered columns with new jsonb value",
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "cron_config",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "jsonb",
+              "ofType": null
+            },
+            "defaultValue": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
         "name": "sequent_backend_report_bool_exp",
         "description": "Boolean expression to filter rows from the table \"sequent_backend.report\". All fields are combined with a logical 'AND'.",
         "fields": null,
@@ -66471,6 +66623,26 @@
             "defaultValue": null
           },
           {
+            "name": "created_at",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "timestamptz_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "cron_config",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "jsonb_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "election_event_id",
             "description": null,
             "type": {
@@ -66515,7 +66687,7 @@
             "description": null,
             "type": {
               "kind": "INPUT_OBJECT",
-              "name": "uuid_comparison_exp",
+              "name": "String_comparison_exp",
               "ofType": null
             },
             "defaultValue": null
@@ -66554,10 +66726,101 @@
       },
       {
         "kind": "INPUT_OBJECT",
+        "name": "sequent_backend_report_delete_at_path_input",
+        "description": "delete the field or element with specified path (for JSON arrays, negative integers count from the end)",
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "cron_config",
+            "description": null,
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
+            },
+            "defaultValue": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
+        "name": "sequent_backend_report_delete_elem_input",
+        "description": "delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array",
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "cron_config",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "defaultValue": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
+        "name": "sequent_backend_report_delete_key_input",
+        "description": "delete key/value pair or string element. key/value pairs are matched based on their key value",
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "cron_config",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
         "name": "sequent_backend_report_insert_input",
         "description": "input type for inserting data into table \"sequent_backend.report\"",
         "fields": null,
         "inputFields": [
+          {
+            "name": "created_at",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "timestamptz",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "cron_config",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "jsonb",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
           {
             "name": "election_event_id",
             "description": null,
@@ -66603,7 +66866,7 @@
             "description": null,
             "type": {
               "kind": "SCALAR",
-              "name": "uuid",
+              "name": "String",
               "ofType": null
             },
             "defaultValue": null
@@ -66629,6 +66892,18 @@
         "description": "aggregate max on columns",
         "fields": [
           {
+            "name": "created_at",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "timestamptz",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "election_event_id",
             "description": null,
             "args": [],
@@ -66682,7 +66957,7 @@
             "args": [],
             "type": {
               "kind": "SCALAR",
-              "name": "uuid",
+              "name": "String",
               "ofType": null
             },
             "isDeprecated": false,
@@ -66712,6 +66987,18 @@
         "description": "aggregate min on columns",
         "fields": [
           {
+            "name": "created_at",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "timestamptz",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "election_event_id",
             "description": null,
             "args": [],
@@ -66765,7 +67052,7 @@
             "args": [],
             "type": {
               "kind": "SCALAR",
-              "name": "uuid",
+              "name": "String",
               "ofType": null
             },
             "isDeprecated": false,
@@ -66904,6 +67191,26 @@
         "fields": null,
         "inputFields": [
           {
+            "name": "created_at",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "cron_config",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "election_event_id",
             "description": null,
             "type": {
@@ -66994,6 +67301,27 @@
         "possibleTypes": null
       },
       {
+        "kind": "INPUT_OBJECT",
+        "name": "sequent_backend_report_prepend_input",
+        "description": "prepend existing jsonb value of filtered columns with new jsonb value",
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "cron_config",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "jsonb",
+              "ofType": null
+            },
+            "defaultValue": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
         "kind": "ENUM",
         "name": "sequent_backend_report_select_column",
         "description": "select columns of table \"sequent_backend.report\"",
@@ -67001,6 +67329,18 @@
         "inputFields": null,
         "interfaces": null,
         "enumValues": [
+          {
+            "name": "created_at",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "cron_config",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
           {
             "name": "election_event_id",
             "description": "column name",
@@ -67047,6 +67387,26 @@
         "fields": null,
         "inputFields": [
           {
+            "name": "created_at",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "timestamptz",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "cron_config",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "jsonb",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "election_event_id",
             "description": null,
             "type": {
@@ -67091,7 +67451,7 @@
             "description": null,
             "type": {
               "kind": "SCALAR",
-              "name": "uuid",
+              "name": "String",
               "ofType": null
             },
             "defaultValue": null
@@ -67153,6 +67513,26 @@
         "fields": null,
         "inputFields": [
           {
+            "name": "created_at",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "timestamptz",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "cron_config",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "jsonb",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "election_event_id",
             "description": null,
             "type": {
@@ -67197,7 +67577,7 @@
             "description": null,
             "type": {
               "kind": "SCALAR",
-              "name": "uuid",
+              "name": "String",
               "ofType": null
             },
             "defaultValue": null
@@ -67225,6 +67605,18 @@
         "inputFields": null,
         "interfaces": null,
         "enumValues": [
+          {
+            "name": "created_at",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "cron_config",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
           {
             "name": "election_event_id",
             "description": "column name",
@@ -67270,6 +67662,56 @@
         "description": null,
         "fields": null,
         "inputFields": [
+          {
+            "name": "_append",
+            "description": "append existing jsonb value of filtered columns with new jsonb value",
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "sequent_backend_report_append_input",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "_delete_at_path",
+            "description": "delete the field or element with specified path (for JSON arrays, negative integers count from the end)",
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "sequent_backend_report_delete_at_path_input",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "_delete_elem",
+            "description": "delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array",
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "sequent_backend_report_delete_elem_input",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "_delete_key",
+            "description": "delete key/value pair or string element. key/value pairs are matched based on their key value",
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "sequent_backend_report_delete_key_input",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "_prepend",
+            "description": "prepend existing jsonb value of filtered columns with new jsonb value",
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "sequent_backend_report_prepend_input",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
           {
             "name": "_set",
             "description": "sets the columns of the filtered rows to the given values",

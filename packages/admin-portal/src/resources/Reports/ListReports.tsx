@@ -29,8 +29,8 @@ import {
     Sequent_Backend_Template,
 } from "@/gql/graphql"
 import EditIcon from "@mui/icons-material/Edit"
-import { EditReportForm } from "./EditReportForm"
-import { report } from "process"
+import {EditReportForm} from "./EditReportForm"
+import {report} from "process"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -190,11 +190,11 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                         setOpen={setOpenCreateReport}
                         Component={
                             <EditReportForm
-                            close={handleClose}
-                            electionEventId={electionEventId}
-                            tenantId={tenantId}
-                            isEditReport={false}
-                        />
+                                close={handleClose}
+                                electionEventId={electionEventId}
+                                tenantId={tenantId}
+                                isEditReport={false}
+                            />
                         }
                     />
                 }
@@ -228,13 +228,13 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                 }}
             >
                 <CustomApolloContextProvider role={IPermissions.template_WRITE}>
-                <EditReportForm
-                close={handleClose}
-                electionEventId={electionEventId}
-                tenantId={tenantId}
-                isEditReport={selectedReportId ? true : false}
-                reportId={selectedReportId}
-            />
+                    <EditReportForm
+                        close={handleClose}
+                        electionEventId={electionEventId}
+                        tenantId={tenantId}
+                        isEditReport={selectedReportId ? true : false}
+                        reportId={selectedReportId}
+                    />
                 </CustomApolloContextProvider>
             </Drawer>
         </>

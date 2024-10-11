@@ -2824,12 +2824,22 @@ export type Mutation_RootUpdate_Sequent_Backend_Notification_ManyArgs = {
 
 /** mutation root */
 export type Mutation_RootUpdate_Sequent_Backend_ReportArgs = {
+    _append?: InputMaybe<Sequent_Backend_Report_Append_Input>
+    _delete_at_path?: InputMaybe<Sequent_Backend_Report_Delete_At_Path_Input>
+    _delete_elem?: InputMaybe<Sequent_Backend_Report_Delete_Elem_Input>
+    _delete_key?: InputMaybe<Sequent_Backend_Report_Delete_Key_Input>
+    _prepend?: InputMaybe<Sequent_Backend_Report_Prepend_Input>
     _set?: InputMaybe<Sequent_Backend_Report_Set_Input>
     where: Sequent_Backend_Report_Bool_Exp
 }
 
 /** mutation root */
 export type Mutation_RootUpdate_Sequent_Backend_Report_By_PkArgs = {
+    _append?: InputMaybe<Sequent_Backend_Report_Append_Input>
+    _delete_at_path?: InputMaybe<Sequent_Backend_Report_Delete_At_Path_Input>
+    _delete_elem?: InputMaybe<Sequent_Backend_Report_Delete_Elem_Input>
+    _delete_key?: InputMaybe<Sequent_Backend_Report_Delete_Key_Input>
+    _prepend?: InputMaybe<Sequent_Backend_Report_Prepend_Input>
     _set?: InputMaybe<Sequent_Backend_Report_Set_Input>
     pk_columns: Sequent_Backend_Report_Pk_Columns_Input
 }
@@ -10177,12 +10187,19 @@ export type Sequent_Backend_Notification_Updates = {
 /** columns and relationships of "sequent_backend.report" */
 export type Sequent_Backend_Report = {
     __typename?: "sequent_backend_report"
+    created_at?: Maybe<Scalars["timestamptz"]["output"]>
+    cron_config?: Maybe<Scalars["jsonb"]["output"]>
     election_event_id: Scalars["uuid"]["output"]
     election_id?: Maybe<Scalars["uuid"]["output"]>
     id: Scalars["uuid"]["output"]
     report_type: Scalars["String"]["output"]
-    template_id: Scalars["uuid"]["output"]
+    template_id?: Maybe<Scalars["String"]["output"]>
     tenant_id: Scalars["uuid"]["output"]
+}
+
+/** columns and relationships of "sequent_backend.report" */
+export type Sequent_Backend_ReportCron_ConfigArgs = {
+    path?: InputMaybe<Scalars["String"]["input"]>
 }
 
 /** aggregated selection of "sequent_backend.report" */
@@ -10206,16 +10223,23 @@ export type Sequent_Backend_Report_Aggregate_FieldsCountArgs = {
     distinct?: InputMaybe<Scalars["Boolean"]["input"]>
 }
 
+/** append existing jsonb value of filtered columns with new jsonb value */
+export type Sequent_Backend_Report_Append_Input = {
+    cron_config?: InputMaybe<Scalars["jsonb"]["input"]>
+}
+
 /** Boolean expression to filter rows from the table "sequent_backend.report". All fields are combined with a logical 'AND'. */
 export type Sequent_Backend_Report_Bool_Exp = {
     _and?: InputMaybe<Array<Sequent_Backend_Report_Bool_Exp>>
     _not?: InputMaybe<Sequent_Backend_Report_Bool_Exp>
     _or?: InputMaybe<Array<Sequent_Backend_Report_Bool_Exp>>
+    created_at?: InputMaybe<Timestamptz_Comparison_Exp>
+    cron_config?: InputMaybe<Jsonb_Comparison_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     election_id?: InputMaybe<Uuid_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
     report_type?: InputMaybe<String_Comparison_Exp>
-    template_id?: InputMaybe<Uuid_Comparison_Exp>
+    template_id?: InputMaybe<String_Comparison_Exp>
     tenant_id?: InputMaybe<Uuid_Comparison_Exp>
 }
 
@@ -10225,35 +10249,54 @@ export enum Sequent_Backend_Report_Constraint {
     ReportPkey = "report_pkey",
 }
 
+/** delete the field or element with specified path (for JSON arrays, negative integers count from the end) */
+export type Sequent_Backend_Report_Delete_At_Path_Input = {
+    cron_config?: InputMaybe<Array<Scalars["String"]["input"]>>
+}
+
+/** delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array */
+export type Sequent_Backend_Report_Delete_Elem_Input = {
+    cron_config?: InputMaybe<Scalars["Int"]["input"]>
+}
+
+/** delete key/value pair or string element. key/value pairs are matched based on their key value */
+export type Sequent_Backend_Report_Delete_Key_Input = {
+    cron_config?: InputMaybe<Scalars["String"]["input"]>
+}
+
 /** input type for inserting data into table "sequent_backend.report" */
 export type Sequent_Backend_Report_Insert_Input = {
+    created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    cron_config?: InputMaybe<Scalars["jsonb"]["input"]>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
     report_type?: InputMaybe<Scalars["String"]["input"]>
-    template_id?: InputMaybe<Scalars["uuid"]["input"]>
+    template_id?: InputMaybe<Scalars["String"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
 }
 
 /** aggregate max on columns */
 export type Sequent_Backend_Report_Max_Fields = {
     __typename?: "sequent_backend_report_max_fields"
+    created_at?: Maybe<Scalars["timestamptz"]["output"]>
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
     election_id?: Maybe<Scalars["uuid"]["output"]>
     id?: Maybe<Scalars["uuid"]["output"]>
     report_type?: Maybe<Scalars["String"]["output"]>
-    template_id?: Maybe<Scalars["uuid"]["output"]>
+    template_id?: Maybe<Scalars["String"]["output"]>
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
 }
 
 /** aggregate min on columns */
 export type Sequent_Backend_Report_Min_Fields = {
     __typename?: "sequent_backend_report_min_fields"
+    created_at?: Maybe<Scalars["timestamptz"]["output"]>
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
     election_id?: Maybe<Scalars["uuid"]["output"]>
     id?: Maybe<Scalars["uuid"]["output"]>
     report_type?: Maybe<Scalars["String"]["output"]>
-    template_id?: Maybe<Scalars["uuid"]["output"]>
+    template_id?: Maybe<Scalars["String"]["output"]>
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
 }
 
@@ -10275,6 +10318,8 @@ export type Sequent_Backend_Report_On_Conflict = {
 
 /** Ordering options when selecting data from "sequent_backend.report". */
 export type Sequent_Backend_Report_Order_By = {
+    created_at?: InputMaybe<Order_By>
+    cron_config?: InputMaybe<Order_By>
     election_event_id?: InputMaybe<Order_By>
     election_id?: InputMaybe<Order_By>
     id?: InputMaybe<Order_By>
@@ -10288,8 +10333,17 @@ export type Sequent_Backend_Report_Pk_Columns_Input = {
     id: Scalars["uuid"]["input"]
 }
 
+/** prepend existing jsonb value of filtered columns with new jsonb value */
+export type Sequent_Backend_Report_Prepend_Input = {
+    cron_config?: InputMaybe<Scalars["jsonb"]["input"]>
+}
+
 /** select columns of table "sequent_backend.report" */
 export enum Sequent_Backend_Report_Select_Column {
+    /** column name */
+    CreatedAt = "created_at",
+    /** column name */
+    CronConfig = "cron_config",
     /** column name */
     ElectionEventId = "election_event_id",
     /** column name */
@@ -10306,11 +10360,13 @@ export enum Sequent_Backend_Report_Select_Column {
 
 /** input type for updating data in table "sequent_backend.report" */
 export type Sequent_Backend_Report_Set_Input = {
+    created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    cron_config?: InputMaybe<Scalars["jsonb"]["input"]>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
     report_type?: InputMaybe<Scalars["String"]["input"]>
-    template_id?: InputMaybe<Scalars["uuid"]["input"]>
+    template_id?: InputMaybe<Scalars["String"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
 }
 
@@ -10324,16 +10380,22 @@ export type Sequent_Backend_Report_Stream_Cursor_Input = {
 
 /** Initial value of the column from where the streaming should start */
 export type Sequent_Backend_Report_Stream_Cursor_Value_Input = {
+    created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    cron_config?: InputMaybe<Scalars["jsonb"]["input"]>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
     report_type?: InputMaybe<Scalars["String"]["input"]>
-    template_id?: InputMaybe<Scalars["uuid"]["input"]>
+    template_id?: InputMaybe<Scalars["String"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
 }
 
 /** update columns of table "sequent_backend.report" */
 export enum Sequent_Backend_Report_Update_Column {
+    /** column name */
+    CreatedAt = "created_at",
+    /** column name */
+    CronConfig = "cron_config",
     /** column name */
     ElectionEventId = "election_event_id",
     /** column name */
@@ -10349,6 +10411,16 @@ export enum Sequent_Backend_Report_Update_Column {
 }
 
 export type Sequent_Backend_Report_Updates = {
+    /** append existing jsonb value of filtered columns with new jsonb value */
+    _append?: InputMaybe<Sequent_Backend_Report_Append_Input>
+    /** delete the field or element with specified path (for JSON arrays, negative integers count from the end) */
+    _delete_at_path?: InputMaybe<Sequent_Backend_Report_Delete_At_Path_Input>
+    /** delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array */
+    _delete_elem?: InputMaybe<Sequent_Backend_Report_Delete_Elem_Input>
+    /** delete key/value pair or string element. key/value pairs are matched based on their key value */
+    _delete_key?: InputMaybe<Sequent_Backend_Report_Delete_Key_Input>
+    /** prepend existing jsonb value of filtered columns with new jsonb value */
+    _prepend?: InputMaybe<Sequent_Backend_Report_Prepend_Input>
     /** sets the columns of the filtered rows to the given values */
     _set?: InputMaybe<Sequent_Backend_Report_Set_Input>
     /** filter the rows which have to be updated */
