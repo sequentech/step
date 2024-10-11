@@ -10,6 +10,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.events.Event;
@@ -42,11 +43,26 @@ public class CustomEventListereProvider implements EventListenerProvider {
     if (this.access_token == null) {
       authenticate();
     }
-    logEvent(
-        getElectionEventId(event.getRealmId()),
-        event.getType(),
-        event.getError(),
-        event.getUserId());
+
+    String eventType = event.getDetails().get("type");
+    if (Utils.EVENT_TYPE_COMMUNICATIONS.equals(eventType)) {
+      handleCommunicationsEvent(event);
+    } else {
+      logEvent(
+          getElectionEventId(event.getRealmId()),
+          event.getType(),
+          event.getError(),
+          event.getUserId());
+    }
+  }
+
+  private void handleCommunicationsEvent(Event event) {
+    String msgBody = Optional.ofNullable(event.getDetails().get("msgBody")).orElse("");
+
+    String body =
+        String.format("%s %s", Utils.EVENT_TYPE_COMMUNICATIONS, msgBody).replace("\n", " ");
+
+    logEvent(getElectionEventId(event.getRealmId()), event.getType(), body, event.getUserId());
   }
 
   public void authenticate() {
@@ -113,7 +129,10 @@ public class CustomEventListereProvider implements EventListenerProvider {
     String requestBody =
         String.format(
             "{\"election_event_id\": \"%s\", \"message_type\": \"%s\", \"body\" : \"%s\", \"user_id\": \"%s\"}",
-            electionEventId, eventType, body, userId);
+            Utils.escapeJson(electionEventId),
+            Utils.escapeJson(eventType.toString()),
+            Utils.escapeJson(body),
+            Utils.escapeJson(userId));
     HttpRequest request =
         HttpRequest.newBuilder()
             .uri(URI.create(url))
