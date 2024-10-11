@@ -8,12 +8,11 @@ FROM rustlang/rust:nightly-slim
 WORKDIR /app
 COPY ./braid/scripts/Cargo.toml ./Cargo.toml
 COPY ./braid ./braid
-COPY ./board-messages ./board-messages
-COPY ./sequent-core ./sequent-core
+COPY ./b3 ./b3
 COPY ./immu-board ./immu-board
 COPY ./immudb-rs ./immudb-rs
 COPY ./strand ./strand
-COPY ./wrap-map-err ./wrap-map-err
+COPY ./Cargo.lock ./Cargo.lock
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     protobuf-compiler \

@@ -71,6 +71,16 @@ const catalanTranslation: TranslationType = {
                 action: "Crear una Àrea",
             },
         },
+        lookAndFeelScreen: {
+            common: {
+                helpLinks: "Enllaços d'Ajuda",
+                logoUrl: "URL del Logotip",
+                css: "CSS Personalitzat",
+            },
+            errors: {
+                invalidHelpLinks: "Format d'Enllaços d'Ajuda invàlid",
+            },
+        },
         electionTypeScreen: {
             noPermissions: "No tens permís per accedir a la configuració.",
             common: {
@@ -85,8 +95,6 @@ const catalanTranslation: TranslationType = {
                 createNew: "Crear un Tipus d'Elecció",
                 emptyHeader: "No hi ha Tipus d'Elecció encara.",
                 emptyBody: "Vols crear-ne un?",
-                logoUrl: "URL del Logotip",
-                css: "CSS personalitzat",
             },
             create: {
                 title: "Crear Tipus d'Elecció",
@@ -98,6 +106,7 @@ const catalanTranslation: TranslationType = {
                 votingChannels: "CANALS DE VOTACIÓ",
                 electionTypes: "TIPUS D'ELECCIÓ",
                 templates: "PLANTILLES",
+                localization: "LOCALITZACIÓ",
                 languages: "IDIOMES",
                 lookAndFeel: "PERSONALITZACIÓ D'APARENÇA",
                 schedules: "ESDEVENIMENTS PROGRAMATS",
@@ -145,6 +154,15 @@ const catalanTranslation: TranslationType = {
             votersByChannels: "Votants per canals",
             voterLoginURL: "URL d'inici de sessió dels votants",
             voterEnrollURL: "URL d'inscripció de votants",
+            ipAddress: {
+                emptyState: "Encara no hi ha vots.",
+                title: "IP Addresses",
+                ip: "IP",
+                country: "País",
+                VoteCount: "Nombre de vots",
+                ElectionName: "Nom de l'elecció",
+                VotersId: "Identificadors dels votants",
+            },
         },
         electionEventScreen: {
             common: {
@@ -712,6 +730,7 @@ const catalanTranslation: TranslationType = {
             usersAndRoles: "Usuaris i Rols",
             logs: "Bitàcora",
             settings: "Configuració",
+            help: "Ajuda",
             templates: "Plantilles",
             active: "Actius",
             archived: "Arxivats",

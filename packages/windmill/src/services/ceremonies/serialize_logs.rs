@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::date::ISO8601;
 use anyhow::Result;
-use board_messages::braid::message::Message;
+use b3::messages::message::Message;
 use sequent_core::types::ceremonies::Log;
 use tracing::{event, instrument, Level};
 

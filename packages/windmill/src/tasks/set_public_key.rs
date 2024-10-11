@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Context;
-use board_messages::braid::message::Message;
-use board_messages::braid::statement::StatementType;
+use b3::messages::message::Message;
+use b3::messages::statement::StatementType;
 use celery::error::TaskError;
 use sequent_core::services::keycloak;
 use sequent_core::types::ceremonies::{CeremonyStatus, ExecutionStatus, Trustee, TrusteeStatus};

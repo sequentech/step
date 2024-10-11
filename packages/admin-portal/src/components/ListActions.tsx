@@ -10,7 +10,7 @@ import {ImportConfig} from "react-admin-import-csv"
 import DownloadIcon from "@mui/icons-material/Download"
 import UploadIcon from "@mui/icons-material/Upload"
 
-import {Button, TopToolbar, FilterButton, SelectColumnsButton} from "react-admin"
+import {Button, TopToolbar, FilterButton, SelectColumnsButton, ExportButton} from "react-admin"
 
 interface ListActionsProps {
     withColumns?: boolean
@@ -29,6 +29,7 @@ interface ListActionsProps {
     Component?: React.ReactNode
     custom?: boolean
     extraActions?: Array<any>
+    defaultExport?: boolean
 }
 
 export const ListActions: React.FC<ListActionsProps> = (props) => {
@@ -49,6 +50,7 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
         setOpen = () => {},
         custom = true,
         extraActions = [],
+        defaultExport = false,
     } = props
 
     const exportWithOptions = props.openExportMenu !== undefined
@@ -122,13 +124,17 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
                 ) : null}
 
                 {(withExport && !exportWithOptions)? (
-                    <Button
-                        onClick={doExport}
-                        label={t("common.label.export")}
-                        disabled={isExportDisabled}
-                    >
-                        <DownloadIcon />
-                    </Button>
+                    !defaultExport ? (
+                        <Button
+                            onClick={doExport}
+                            label={t("common.label.export")}
+                            disabled={isExportDisabled}
+                        >
+                            <DownloadIcon />
+                        </Button>
+                    ) : (
+                        <ExportButton />
+                    )
                 ) :
                 null}
 

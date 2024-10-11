@@ -26,6 +26,7 @@ import {useMutation} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
 import {ElectionStyles} from "./styles/ElectionStyles"
 import {useLocation, useNavigate} from "react-router"
+import {ResetFilters} from "./ResetFilters"
 import { MenuItem, Menu} from "@mui/material"
 
 interface ExportWrapperProps {
@@ -140,41 +141,6 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
     const user_id = params.get("user_id")
     const filters: Array<ReactElement> = []
 
-    // Avoid error when coming from filtered list in other tabs
-    const listContext = useListController({
-        resource: "electoral_log",
-        filter: {
-            election_event_id: record?.id || undefined,
-        },
-    })
-
-    const navigate = useNavigate()
-
-    useEffect(() => {
-        for (const filter of Object.values(ElectoralLogFilters)) {
-            filters.push(<TextInput key={filter} source={filter} />)
-        }
-
-        // navigate to self but without search params
-        navigate(
-            {
-                pathname: location.pathname,
-                search: "",
-            },
-            {replace: true}
-        )
-
-        // Reset filters when the component mounts
-        if (listContext && listContext.setFilters) {
-            listContext.setFilters(
-                {
-                    election_event_id: record?.id || undefined,
-                },
-                {}
-            )
-        }
-    }, [record?.id])
-
     const getHeadField = (record: any, field: string) => {
         const message = JSON.parse(record?.message)
         if (
@@ -221,6 +187,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                 }}
                 aside={aside}
             >
+                <ResetFilters />
                 <DatagridConfigurable bulkActionButtons={<></>}>
                     <NumberField source="id" />
                     <FunctionField

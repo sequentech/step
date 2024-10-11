@@ -153,9 +153,11 @@ pub async fn create_keys_ceremony(
     )?;
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
+    let user_id = claims.hasura_claims.user_id;
 
     let keys_ceremony_id = keys_ceremony::create_keys_ceremony(
         tenant_id,
+        &user_id,
         input.election_event_id.clone(),
         input.threshold,
         input.trustee_names,

@@ -71,6 +71,16 @@ const tagalogTranslation: TranslationType = {
                 action: "Lumikha ng Lugar",
             },
         },
+        lookAndFeelScreen: {
+            common: {
+                helpLinks: "Mga Link ng Tulong",
+                logoUrl: "URL ng Logo",
+                css: "Custom CSS",
+            },
+            errors: {
+                invalidHelpLinks: "Hindi wastong format ng Mga Link ng Tulong",
+            },
+        },
         electionTypeScreen: {
             noPermissions: "Wala kang pahintulot na ma-access ang mga setting.",
             common: {
@@ -85,8 +95,6 @@ const tagalogTranslation: TranslationType = {
                 createNew: "Lumikha ng Uri ng Halalan",
                 emptyHeader: "Wala pang Uri ng Halalan.",
                 emptyBody: "Gusto mo bang lumikha ng isa?",
-                logoUrl: "URL ng Logo",
-                css: "Custom CSS",
             },
             create: {
                 title: "Lumikha ng Uri ng Halalan",
@@ -99,6 +107,7 @@ const tagalogTranslation: TranslationType = {
                 electionTypes: "URI NG HALALAN",
                 templates: "MGA TEMPLATE",
                 languages: "WIKA",
+                localization: "LOKALISASYON",
                 lookAndFeel: "PAGPASADYA KAN ITSURA",
                 schedules: "NAISKEDYUL NA MGA KAGANAPAN",
                 trustees: "TAGAPANGALAGA",
@@ -146,6 +155,15 @@ const tagalogTranslation: TranslationType = {
             votersByChannels: "Mga botante ayon sa channel",
             voterLoginURL: "URL para sa Pag-login ng Botante",
             voterEnrollURL: "URL para sa Pag-enroll ng Botante",
+            ipAddress: {
+                emptyState: "Wala pang mga boto.",
+                title: "Mga IP Address",
+                ip: "IP",
+                country: "Bansa",
+                VoteCount: "Bilang ng boto",
+                ElectionName: "Pangalan ng halalan",
+                VotersId: "Mga Id ng mga botante",
+            },
         },
         electionEventScreen: {
             common: {
@@ -712,6 +730,7 @@ const tagalogTranslation: TranslationType = {
             usersAndRoles: "Mga Tagagamit at Tungkulin",
             logs: "Mga Log",
             settings: "Mga Setting",
+            help: "Tulong",
             templates: "Templates",
             active: "Aktibo",
             archived: "Arkilado",
