@@ -71,6 +71,16 @@ const catalanTranslation: TranslationType = {
                 action: "Crear una Àrea",
             },
         },
+        lookAndFeelScreen: {
+            common: {
+                helpLinks: "Enllaços d'Ajuda",
+                logoUrl: "URL del Logotip",
+                css: "CSS Personalitzat",
+            },
+            errors: {
+                invalidHelpLinks: "Format d'Enllaços d'Ajuda invàlid",
+            },
+        },
         electionTypeScreen: {
             noPermissions: "No tens permís per accedir a la configuració.",
             common: {
@@ -85,8 +95,6 @@ const catalanTranslation: TranslationType = {
                 createNew: "Crear un Tipus d'Elecció",
                 emptyHeader: "No hi ha Tipus d'Elecció encara.",
                 emptyBody: "Vols crear-ne un?",
-                logoUrl: "URL del Logotip",
-                css: "CSS personalitzat",
             },
             create: {
                 title: "Crear Tipus d'Elecció",

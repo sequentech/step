@@ -70,6 +70,16 @@ const englishTranslation = {
                 action: "Create Area",
             },
         },
+        lookAndFeelScreen: {
+            common: {
+                helpLinks: "Help Links",
+                logoUrl: "Logo URL",
+                css: "Custom CSS",
+            },
+            errors: {
+                invalidHelpLinks: "Invalid Help Links format",
+            },
+        },
         electionTypeScreen: {
             noPermissions: "You don't have permission to access settings.",
             common: {
@@ -84,8 +94,6 @@ const englishTranslation = {
                 createNew: "Create Election Type",
                 emptyHeader: "No Election Types yet.",
                 emptyBody: "Do you want to create one?",
-                logoUrl: "Logo URL",
-                css: "Custom CSS",
             },
             create: {
                 title: "Create Election Type",

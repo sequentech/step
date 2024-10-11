@@ -138,7 +138,7 @@ export const CustomMenu = () => {
                         primaryText={open && t("sideMenu.templates")}
                         leftIcon={<MailIcon sx={{color: adminTheme.palette.brandColor}} />}
                     />
-                    {tenant?.settings?.help_links && (
+                    {tenant?.settings?.help_links?.length > 0 && (
                         <StyledHelpItem
                             disableElevation
                             onClick={(e: React.MouseEvent<HTMLElement>) =>
@@ -151,7 +151,7 @@ export const CustomMenu = () => {
                             </StyledHelpItemContentWrapper>
                         </StyledHelpItem>
                     )}
-                    {tenant?.settings?.help_links && (
+                    {tenant?.settings?.help_links?.length > 0 && (
                         <MMenu
                             id="menu-sidebar"
                             anchorEl={anchorEl}

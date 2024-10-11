@@ -71,6 +71,16 @@ const frenchTranslation: TranslationType = {
                 action: "Créer une Zone",
             },
         },
+        lookAndFeelScreen: {
+            common: {
+                helpLinks: "Liens d'Aide",
+                logoUrl: "URL du Logo",
+                css: "CSS Personnalisé",
+            },
+            errors: {
+                invalidHelpLinks: "Format des Liens d'Aide invalide",
+            },
+        },
         electionTypeScreen: {
             noPermissions: "Vous n'avez pas la permission d'accéder à la configuration.",
             common: {
@@ -85,8 +95,6 @@ const frenchTranslation: TranslationType = {
                 createNew: "Créer un Type d'Élection",
                 emptyHeader: "Aucun Type d'Élection pour l'instant.",
                 emptyBody: "Voulez-vous en créer un ?",
-                logoUrl: "URL du Logo",
-                css: "CSS personnalisé",
             },
             create: {
                 title: "Créer un Type d'Élection",

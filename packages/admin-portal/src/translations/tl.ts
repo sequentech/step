@@ -71,6 +71,16 @@ const tagalogTranslation: TranslationType = {
                 action: "Lumikha ng Lugar",
             },
         },
+        lookAndFeelScreen: {
+            common: {
+                helpLinks: "Mga Link ng Tulong",
+                logoUrl: "URL ng Logo",
+                css: "Custom CSS",
+            },
+            errors: {
+                invalidHelpLinks: "Hindi wastong format ng Mga Link ng Tulong",
+            },
+        },
         electionTypeScreen: {
             noPermissions: "Wala kang pahintulot na ma-access ang mga setting.",
             common: {
@@ -85,8 +95,6 @@ const tagalogTranslation: TranslationType = {
                 createNew: "Lumikha ng Uri ng Halalan",
                 emptyHeader: "Wala pang Uri ng Halalan.",
                 emptyBody: "Gusto mo bang lumikha ng isa?",
-                logoUrl: "URL ng Logo",
-                css: "Custom CSS",
             },
             create: {
                 title: "Lumikha ng Uri ng Halalan",
