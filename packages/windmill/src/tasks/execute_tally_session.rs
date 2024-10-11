@@ -993,7 +993,7 @@ pub async fn execute_tally_session_wrapped(
         .await?;
         let current_status = get_election_event_status(election_event.status).unwrap();
         let mut new_event_status = current_status.clone();
-        new_event_status.tally_ceremony_finished = Some(true);
+        //new_event_status.tally_ceremony_finished = Some(true);  // FFF tally fix
         let new_status_js = serde_json::to_value(new_event_status)?;
         update_election_event_status(
             auth_headers.clone(),

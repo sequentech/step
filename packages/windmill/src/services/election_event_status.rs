@@ -24,13 +24,6 @@ pub fn get_election_status(status_json_opt: Option<Value>) -> Option<ElectionSta
     status_json_opt.and_then(|status_json| deserialize_value(status_json).ok())
 }
 
-pub fn has_config_created(status_json_opt: Option<Value>) -> bool {
-    get_election_event_status(status_json_opt)
-        .map(|status| status.config_created)
-        .unwrap_or(Some(false))
-        .unwrap_or(false)
-}
-
 #[instrument(err)]
 pub async fn update_event_voting_status(
     hasura_transaction: &Transaction<'_>,

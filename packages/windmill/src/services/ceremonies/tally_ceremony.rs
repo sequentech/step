@@ -12,6 +12,7 @@ use crate::postgres::area::get_event_areas;
 use crate::postgres::area_contest::export_area_contests;
 use crate::postgres::contest::export_contests;
 use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::keys_ceremony;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::tally_session::insert_tally_session;
 use crate::postgres::tally_session_contest::{
@@ -288,7 +289,7 @@ pub async fn create_tally_ceremony(
 
     let keys_ceremony =
         find_keys_ceremony(transaction, tenant_id.clone(), election_event_id.clone()).await?;
-    let keys_ceremony_status = get_keys_ceremony_status(keys_ceremony.status)?;
+    let keys_ceremony_status = keys_ceremony.status()?;
     let keys_ceremony_id = keys_ceremony.id.clone();
     let initial_status = generate_initial_tally_status(&election_ids, &keys_ceremony_status);
     let tally_session_id: String = Uuid::new_v4().to_string();
@@ -510,7 +511,7 @@ pub async fn set_private_key(
     }
 
     // get the keys ceremonies for this election event
-    let keys_ceremony = keys_ceremony::get_keys_ceremony_by_id(
+    let keys_ceremony = get_keys_ceremony_by_id(
         &auth_headers.clone(),
         &tenant_id.clone(),
         &election_event_id.clone(),
@@ -542,7 +543,7 @@ pub async fn set_private_key(
     // get the encrypted private key
     let encrypted_private_key = "".to_string(); /*find_trustee_private_key(&auth_headers, &tenant_id, &election_event_id, &trustee_name)
                                                 .await?;*/
- // FFF tally fix
+    // FFF tally fix
 
     if encrypted_private_key != private_key_base64 {
         return Ok(false);
