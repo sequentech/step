@@ -248,12 +248,13 @@ pub fn encrypt_multi_ballot<C: Ctx<P = [u8; 30]>>(
     }
 
     let public_key: C::E = parse_public_key::<C>(&config)?;
-    let plaintext = ballot_choices.encode(&config).map_err(|err| {
-        BallotError::Serialization(format!(
-            "Error encrypting plaintext: {}",
-            err
-        ))
-    })?;
+    let plaintext =
+        ballot_choices.encode_to_30_bytes(&config).map_err(|err| {
+            BallotError::Serialization(format!(
+                "Error encrypting plaintext: {}",
+                err
+            ))
+        })?;
     let contest_ids = ballot_choices.get_contest_ids();
 
     let (choice, proof) = encrypt_plaintext_candidate(

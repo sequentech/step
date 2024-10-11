@@ -13,6 +13,13 @@ pub struct RawBallotContest {
     pub bases: Vec<u64>,
     pub choices: Vec<u64>,
 }
+impl RawBallotContest {
+    // FIXME add validation (eg all values within range)
+    // FIXME ensure this struct is always created with via RawBallotContest::new
+    pub fn new(bases: Vec<u64>, choices: Vec<u64>) -> Self {
+        RawBallotContest { bases, choices }
+    }
+}
 
 pub trait RawBallotCodec {
     fn encode_to_raw_ballot(
