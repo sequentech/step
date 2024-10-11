@@ -122,7 +122,7 @@ export const SettingsLookAndFeel: React.FC<void> = () => {
                 resettable={true}
                 multiline={true}
                 source={"settings.help_links"}
-                defaultValue={helpLinks}
+                defaultValue={JSON.stringify(helpLinks, null, 2)}
                 label={t("lookAndFeelScreen.common.helpLinks")}
                 onBlur={handleHelpLinksChange}
             />
