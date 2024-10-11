@@ -602,6 +602,8 @@ pub struct ElectionEventPresentation {
     pub voting_portal_countdown_policy: Option<VotingPortalCountdownPolicy>,
     pub custom_urls: Option<CustomUrls>,
     pub active_template_ids: Option<ActiveTemplateIds>,
+    pub locked_down: LockedDown,
+    pub publish_policy: Publish,
 }
 
 #[allow(non_camel_case_types)]
@@ -804,6 +806,10 @@ pub struct ElectionPresentation {
     pub is_grace_priod: Option<bool>,
     pub grace_period_policy: Option<EGracePeriodPolicy>,
     pub grace_period_secs: Option<u64>,
+    pub init_report: InitReport,
+    pub manual_start_voting_period: ManualStartVotingPeriod,
+    pub voting_period_end: VotingPeriodEnd,
+    pub tally: Tally,
 }
 
 #[derive(
@@ -1009,6 +1015,7 @@ impl Contest {
 #[derive(
     BorshSerialize,
     BorshDeserialize,
+    Default,
     Display,
     Serialize,
     Deserialize,
@@ -1019,19 +1026,21 @@ impl Contest {
     EnumString,
     JsonSchema,
 )]
-pub enum EnrollmentStatus {
+pub enum Enrollment {
+    #[default]
     #[strum(serialize = "enabled")]
     #[serde(rename = "enabled")]
-    ENROLLMENT_ENABLED,
+    ENABLED,
     #[strum(serialize = "disabled")]
     #[serde(rename = "disabled")]
-    ENROLLMENT_DISABLED,
+    DISABLED,
 }
 
 #[allow(non_camel_case_types)]
 #[derive(
     BorshSerialize,
     BorshDeserialize,
+    Default,
     Display,
     Serialize,
     Deserialize,
@@ -1042,10 +1051,11 @@ pub enum EnrollmentStatus {
     EnumString,
     JsonSchema,
 )]
-pub enum LockedDownStatus {
+pub enum LockedDown {
     #[strum(serialize = "locked-down")]
     #[serde(rename = "locked-down")]
     LOCKED_DOWN,
+    #[default]
     #[strum(serialize = "not-locked-down")]
     #[serde(rename = "not-locked-down")]
     NOT_LOCKED_DOWN,
@@ -1055,6 +1065,7 @@ pub enum LockedDownStatus {
 #[derive(
     BorshSerialize,
     BorshDeserialize,
+    Default,
     Display,
     Serialize,
     Deserialize,
@@ -1065,13 +1076,14 @@ pub enum LockedDownStatus {
     EnumString,
     JsonSchema,
 )]
-pub enum PublishPolicy {
+pub enum Publish {
+    #[default]
     #[strum(serialize = "always")]
     #[serde(rename = "always")]
     ALWAYS,
-    #[strum(serialize = "when-keys-ceremony-has-succeeded")]
-    #[serde(rename = "when-keys-ceremony-has-succeeded")]
-    WHEN_KEYS_CEREMONY_HAS_SUCCEEDED,
+    #[strum(serialize = "after-lockdown")]
+    #[serde(rename = "after-lockdown")]
+    AFTER_LOCKDOWN,
 }
 
 #[derive(
@@ -1091,9 +1103,6 @@ pub struct ElectionEventStatus {
     pub tally_ceremony_finished: Option<bool>,
     pub is_published: Option<bool>,
     pub voting_status: VotingStatus,
-    pub enrollment_status: EnrollmentStatus,
-    pub locked_down_status: LockedDownStatus,
-    pub publish_policy: PublishPolicy,
 }
 
 impl Default for ElectionEventStatus {
@@ -1104,9 +1113,6 @@ impl Default for ElectionEventStatus {
             tally_ceremony_finished: Some(false),
             is_published: Some(false),
             voting_status: VotingStatus::NOT_STARTED,
-            enrollment_status: EnrollmentStatus::ENROLLMENT_ENABLED,
-            locked_down_status: LockedDownStatus::NOT_LOCKED_DOWN,
-            publish_policy: PublishPolicy::ALWAYS,
         }
     }
 }
@@ -1190,6 +1196,7 @@ impl Default for ElectionStatistics {
 #[derive(
     BorshSerialize,
     BorshDeserialize,
+    Default,
     Display,
     Serialize,
     Deserialize,
@@ -1200,7 +1207,8 @@ impl Default for ElectionStatistics {
     EnumString,
     JsonSchema,
 )]
-pub enum InitReportPolicy {
+pub enum InitReport {
+    #[default]
     #[strum(serialize = "allowed")]
     #[serde(rename = "allowed")]
     ALLOWED,
@@ -1213,6 +1221,7 @@ pub enum InitReportPolicy {
 #[derive(
     BorshSerialize,
     BorshDeserialize,
+    Default,
     Display,
     Serialize,
     Deserialize,
@@ -1223,13 +1232,64 @@ pub enum InitReportPolicy {
     EnumString,
     JsonSchema,
 )]
-pub enum TallyPolicy {
+pub enum ManualStartVotingPeriod {
+    #[default]
+    #[strum(serialize = "allowed")]
+    #[serde(rename = "allowed")]
+    ALLOWED,
+    #[strum(serialize = "only-when-initialization-report-has-been-performed")]
+    #[serde(rename = "only-when-initialization-report-has-been-performed")]
+    ONLY_WHEN_INITIALIZATION_REPORT_HAS_BEEN_PERFORMED,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum VotingPeriodEnd {
+    #[default]
+    #[strum(serialize = "allowed")]
+    #[serde(rename = "allowed")]
+    ALLOWED,
+    #[strum(serialize = "disallowed")]
+    #[serde(rename = "disallowed")]
+    DISALLOWED,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum Tally {
+    #[default]
     #[strum(serialize = "always-allow")]
     #[serde(rename = "always-allow")]
     ALWAYS_ALLOW,
-    #[strum(serialize = "not-before-voting-period-ends")]
-    #[serde(rename = "not-before-voting-period-ends")]
-    NOT_BEFORE_VOTING_PERIOD_ENDS,
+    #[strum(serialize = "allow-when-voting-period-ends")]
+    #[serde(rename = "allow-when-voting-period-ends")]
+    ONLY_WHEN_VOTING_PERIOD_ENDS,
 }
 
 #[derive(
@@ -1244,16 +1304,12 @@ pub enum TallyPolicy {
 )]
 pub struct ElectionStatus {
     pub voting_status: VotingStatus,
-    pub init_report_policy: InitReportPolicy,
-    pub tally_policy: TallyPolicy,
 }
 
 impl Default for ElectionStatus {
     fn default() -> Self {
         ElectionStatus {
             voting_status: VotingStatus::NOT_STARTED,
-            init_report_policy: InitReportPolicy::ALLOWED,
-            tally_policy: TallyPolicy::ALWAYS_ALLOW,
         }
     }
 }

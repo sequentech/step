@@ -169,8 +169,7 @@ const englishTranslation = {
                 showMore: "Show More",
                 showLess: "Show Less",
                 adminPortal: "Admin Portal",
-                onlyAllowPublishOnlyWhenKeysCeremonySucceeded:
-                    "Only allow election event publishing when Keys Ceremony has succeeded",
+                allowPublishAfterLockdown: "Only allow election event publishing after lockdown",
             },
             edit: {
                 general: "General",
@@ -641,6 +640,7 @@ const englishTranslation = {
                 label: "Type",
                 START_VOTING_PERIOD: "Start Voting Period",
                 END_VOTING_PERIOD: "End Voting Period",
+                ALLOW_VOTING_PERIOD_END: "Allow Voting Period End",
                 START_ENROLLMENT_PERIOD: "Start Enrollment Period",
                 END_ENROLLMENT_PERIOD: "End Enrollment Period",
                 START_LOCKDOWN_PERIOD: "Start Lockdown Period",

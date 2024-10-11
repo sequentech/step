@@ -170,8 +170,7 @@ const spanishTranslation: TranslationType = {
                 showMore: "Mostrar más",
                 showLess: "Mostrar menos",
                 adminPortal: "Portal de Administración",
-                onlyAllowPublishOnlyWhenKeysCeremonySucceeded:
-                    "Solo permitir publicación de evento electoral una vez que se haya completado la Ceremonia de Claves",
+                allowPublishAfterLockdown: "Only allow election event publishing after lockdown",
             },
             edit: {
                 general: "General",
@@ -645,6 +644,7 @@ const spanishTranslation: TranslationType = {
                 label: "Tipo",
                 START_VOTING_PERIOD: "Inicio del Período de Votación",
                 END_VOTING_PERIOD: "Fin del Período de Votación",
+                ALLOW_VOTING_PERIOD_END: "Allow Voting Period End",
                 START_ENROLLMENT_PERIOD: "Inicio del Período de Inscripción",
                 END_ENROLLMENT_PERIOD: "Fin del Período de Inscripción",
                 START_LOCKDOWN_PERIOD: "Inicio del Período de Bloqueo de Datos Censales",

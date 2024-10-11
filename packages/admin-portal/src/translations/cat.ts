@@ -170,8 +170,7 @@ const catalanTranslation: TranslationType = {
                 showMore: "Mostra'n més",
                 showLess: "Mostra'n menys",
                 adminPortal: "Portal d'administració",
-                onlyAllowPublishOnlyWhenKeysCeremonySucceeded:
-                    "Només permet la publicació d'esdeveniments electorals quan la cerimònia de claus hagi tingut èxit",
+                allowPublishAfterLockdown: "Only allow election event publishing after lockdown",
             },
             edit: {
                 general: "General",
@@ -646,6 +645,7 @@ const catalanTranslation: TranslationType = {
                 label: "Tipus",
                 START_VOTING_PERIOD: "Inici del Període de Votació",
                 END_VOTING_PERIOD: "Final del Període de Votació",
+                ALLOW_VOTING_PERIOD_END: "Allow Voting Period End",
                 START_ENROLLMENT_PERIOD: "Inici del període de matrícula",
                 END_ENROLLMENT_PERIOD: "Finalització del període de matrícula",
                 START_LOCKDOWN_PERIOD: "Inici del Período de Bloc de Dades Censals",

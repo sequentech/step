@@ -171,8 +171,7 @@ const tagalogTranslation: TranslationType = {
                 showMore: "Lakihan ang nakikita",
                 showLess: "Bawasan ang nakikita",
                 adminPortal: "Admin Portal",
-                onlyAllowPublishOnlyWhenKeysCeremonySucceeded:
-                    "Payagan lamang ang pag-publish ng kaganapan sa halalan kapag nagtagumpay ang Keys Ceremony",
+                allowPublishAfterLockdown: "Only allow election event publishing after lockdown",
             },
             edit: {
                 general: "Pangkalahatan",
@@ -646,6 +645,7 @@ const tagalogTranslation: TranslationType = {
                 label: "Uri",
                 START_VOTING_PERIOD: "Simula ng Panahon ng Pagboto",
                 END_VOTING_PERIOD: "Pagtatapos ng Panahon ng Pagboto",
+                ALLOW_VOTING_PERIOD_END: "Allow Voting Period End",
                 START_ENROLLMENT_PERIOD: "Simulan ang Panahon ng Pagpapatala",
                 END_ENROLLMENT_PERIOD: "Panahon ng Pagpapatala",
                 START_LOCKDOWN_PERIOD: "Simulan ang Lockdown Period",

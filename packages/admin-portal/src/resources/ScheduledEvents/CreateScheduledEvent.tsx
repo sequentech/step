@@ -46,6 +46,7 @@ export enum EventProcessors {
     ALLOW_INIT_REPORT = "ALLOW_INIT_REPORT",
     START_VOTING_PERIOD = "START_VOTING_PERIOD",
     END_VOTING_PERIOD = "END_VOTING_PERIOD",
+    ALLOW_VOTING_PERIOD_END = "ALLOW_VOTING_PERIOD_END",
     START_ENROLLMENT_PERIOD = "START_ENROLLMENT_PERIOD",
     END_ENROLLMENT_PERIOD = "END_ENROLLMENT_PERIOD",
     START_LOCKDOWN_PERIOD = "START_LOCKDOWN_PERIOD",
@@ -94,6 +95,7 @@ const CreateEvent: FC<CreateEventProps> = ({
         switch (event_processor) {
             case EventProcessors.START_VOTING_PERIOD:
             case EventProcessors.END_VOTING_PERIOD:
+            case EventProcessors.ALLOW_VOTING_PERIOD_END:
                 return true
             case EventProcessors.START_ENROLLMENT_PERIOD:
             case EventProcessors.END_ENROLLMENT_PERIOD:
@@ -169,6 +171,9 @@ const CreateEvent: FC<CreateEventProps> = ({
                         </MenuItem>
                         <MenuItem value={EventProcessors.END_VOTING_PERIOD}>
                             {t("eventsScreen.eventType.END_VOTING_PERIOD")}
+                        </MenuItem>
+                        <MenuItem value={EventProcessors.ALLOW_VOTING_PERIOD_END}>
+                            {t("eventsScreen.eventType.ALLOW_VOTING_PERIOD_END")}
                         </MenuItem>
                         <MenuItem value={EventProcessors.START_ENROLLMENT_PERIOD}>
                             {t("eventsScreen.eventType.START_ENROLLMENT_PERIOD")}

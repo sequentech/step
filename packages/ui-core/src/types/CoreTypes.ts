@@ -27,7 +27,7 @@ export enum ELockedDownStatus {
 
 export enum EPublishPolicy {
     ALWAYS = "always",
-    WHEN_KEYS_CEREMONY_HAS_SUCCEEDED = "when-keys-ceremony-has-succeeded",
+    AFTER_LOCKDOWN = "after-lockdown",
 }
 
 export interface IElectionEventStatus {

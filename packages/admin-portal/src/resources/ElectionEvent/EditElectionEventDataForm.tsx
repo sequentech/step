@@ -1122,10 +1122,10 @@ export const EditElectionEventDataForm: React.FC = () => {
                                             parse={(e) =>
                                                 !e
                                                     ? EPublishPolicy.ALWAYS
-                                                    : EPublishPolicy.WHEN_KEYS_CEREMONY_HAS_SUCCEEDED
+                                                    : EPublishPolicy.AFTER_LOCKDOWN
                                             }
                                             label={t(
-                                                "electionEventScreen.common.onlyAllowPublishOnlyWhenKeysCeremonySucceeded"
+                                                "electionEventScreen.common.allowPublishAfterLockdown"
                                             )}
                                         />
                                     </Box>

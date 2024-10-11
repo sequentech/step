@@ -22,6 +22,7 @@ pub enum EventProcessors {
     CREATE_REPORT,
     SEND_TEMPLATE,
     START_VOTING_PERIOD,
+    ALLOW_VOTING_PERIOD_END,
     END_VOTING_PERIOD,
     START_ENROLLMENT_PERIOD,
     END_ENROLLMENT_PERIOD,
@@ -38,6 +39,18 @@ pub struct CronConfig {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ManageElectionDatePayload {
     pub election_id: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ManageAllowInitPayload {
+    pub election_id: Option<String>,
+    pub allow_init: Option<bool>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ManageAllowVotingPeriodEndPayload {
+    pub election_id: Option<String>,
+    pub allow_voting_period_end: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]

@@ -2,7 +2,7 @@ use crate::hasura::scheduled_event;
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::postgres::election::{get_election_by_id, update_election_voting_status};
+use crate::postgres::election::{get_election_by_id, update_election_presentation};
 use crate::postgres::scheduled_event::find_all_active_events;
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::get_hasura_pool;
@@ -15,7 +15,7 @@ use celery::{error::TaskError, Celery};
 use chrono::prelude::*;
 use chrono::Duration;
 use deadpool_postgres::{Client as DbClient, Transaction};
-use sequent_core::ballot::{ElectionStatus, InitReportPolicy};
+use sequent_core::ballot::{ElectionPresentation, InitReport, VotingPeriodEnd};
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::scheduled_event::*;
 use std::sync::Arc;
@@ -47,24 +47,72 @@ pub async fn handle_allow_init_report(
         event!(Level::WARN, "Missing election_event_id");
         return Ok(());
     };
-    let payload: ManageElectionDatePayload = deserialize_value(event_payload)?;
+    let payload: ManageAllowInitPayload = deserialize_value(event_payload)?;
     match payload.election_id.clone() {
         Some(election_id) => {
             let election =
                 get_election_by_id(&transaction, &tenant_id, &election_event_id, &election_id)
                     .await?;
             if let Some(election) = election {
-                if let Some(election_status) = election.status {
-                    let election_status: ElectionStatus = ElectionStatus {
-                        init_report_policy: InitReportPolicy::ALLOWED,
-                        ..serde_json::from_value(election_status)?
+                if let Some(election_presentation) = election.status {
+                    let election_presentation: ElectionPresentation = ElectionPresentation {
+                        init_report: InitReport::ALLOWED,
+                        ..serde_json::from_value(election_presentation)?
                     };
-                    update_election_voting_status(
+                    update_election_presentation(
                         transaction,
                         &tenant_id,
                         &election_event_id,
                         &election_id,
-                        serde_json::to_value(election_status)?,
+                        serde_json::to_value(election_presentation)?,
+                    )
+                    .await?;
+                }
+            }
+        }
+        None => {
+            // Initialization reports applies to elections, not election events
+        }
+    }
+    Ok(())
+}
+
+pub async fn handle_allow_voting_period_end(
+    transaction: &Transaction<'_>,
+    scheduled_event: &ScheduledEvent,
+) -> Result<()> {
+    let Some(tenant_id) = scheduled_event.tenant_id.clone() else {
+        return Ok(());
+    };
+    let Some(election_event_id) = scheduled_event.election_event_id.clone() else {
+        return Ok(());
+    };
+    let Some(event_payload) = scheduled_event.event_payload.clone() else {
+        event!(Level::WARN, "Missing election_event_id");
+        return Ok(());
+    };
+    let payload: ManageAllowVotingPeriodEndPayload = deserialize_value(event_payload)?;
+    match payload.election_id.clone() {
+        Some(election_id) => {
+            let election =
+                get_election_by_id(&transaction, &tenant_id, &election_event_id, &election_id)
+                    .await?;
+            if let Some(election) = election {
+                if let Some(election_presentation) = election.presentation {
+                    let election_presentation: ElectionPresentation = ElectionPresentation {
+                        voting_period_end: (if (payload.allow_voting_period_end == Some(true)) {
+                            VotingPeriodEnd::ALLOWED
+                        } else {
+                            VotingPeriodEnd::DISALLOWED
+                        }),
+                        ..serde_json::from_value(election_presentation)?
+                    };
+                    update_election_presentation(
+                        transaction,
+                        &tenant_id,
+                        &election_event_id,
+                        &election_id,
+                        serde_json::to_value(election_presentation)?,
                     )
                     .await?;
                 }
@@ -171,6 +219,9 @@ pub async fn scheduled_events() -> Result<()> {
         match event_processor {
             EventProcessors::ALLOW_INIT_REPORT => {
                 handle_allow_init_report(&hasura_transaction, scheduled_event);
+            }
+            EventProcessors::ALLOW_VOTING_PERIOD_END => {
+                handle_allow_voting_period_end(&hasura_transaction, scheduled_event);
             }
             EventProcessors::START_VOTING_PERIOD | EventProcessors::END_VOTING_PERIOD => {
                 if let Err(err) = handle_voting_event(celery_app.clone(), &scheduled_event).await {
