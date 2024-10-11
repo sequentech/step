@@ -323,7 +323,9 @@ pub async fn send_template_email(
             .await
             .map_err(|err| anyhow!("error sending email: {err:?}"))?;
 
-        return Ok(Some(format!("subject: {subject:?}\nhtml_body: {html_body:?}\n plaintext_body: {plaintext_body:?}")));
+        return Ok(Some(format!(
+            "subject: {subject:?}\nhtml_body: {html_body:?}\n plaintext_body: {plaintext_body:?}"
+        )));
     } else {
         // Log the event if the receiver or template is missing
         event!(
