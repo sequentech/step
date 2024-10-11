@@ -457,10 +457,10 @@ impl BallotChoices {
         if unique.len() != next_choices.len() {
             // FIXME decide if we do something here
             // currently duplicates will be silently ignored, unless
-            // they lead to fewer than min_votes value
+            // they lead to fewer than min_votes values
         }
 
-        // This can happen due to unset (= 0) values
+        // This can happen with unset (= 0) values
         // The opposite is impossible due to the above
         // loop's range 0..max_votes
         if unique.len() < min_votes {
