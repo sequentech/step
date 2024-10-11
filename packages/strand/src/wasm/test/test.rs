@@ -1,11 +1,10 @@
 // SPDX-FileCopyrightText: 2022 David Ruescas <david@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-#[cfg(any(not(feature = "wasm")))]
-use crate::backend::malachite::{MalachiteCtx, P2048 as MP2048};
 use rand::RngCore;
 use wasm_bindgen::prelude::*;
 
+use crate::backend::malachite::{MalachiteCtx, P2048 as MP2048};
 use crate::backend::num_bigint::{BigintCtx, P2048};
 use crate::backend::ristretto::RistrettoCtx;
 use crate::backend::tests::*;
@@ -54,12 +53,9 @@ pub fn test_chaumpedersen() {
     let ctx: BigintCtx<P2048> = Default::default();
     test_chaumpedersen_generic(&ctx);
 
-    #[cfg(any(not(feature = "wasm")))]
-    {
-        message("* Malachite chaumpedersen..");
-        let ctx: MalachiteCtx<MP2048> = Default::default();
-        test_chaumpedersen_generic(&ctx);
-    }
+    message("* Malachite chaumpedersen..");
+    let ctx: MalachiteCtx<MP2048> = Default::default();
+    test_chaumpedersen_generic(&ctx);
 }
 
 #[wasm_bindgen]
@@ -72,12 +68,9 @@ pub fn test_rerand() {
     let ctx: BigintCtx<P2048> = Default::default();
     test_rerand_generic(&ctx);
 
-    #[cfg(any(not(feature = "wasm")))]
-    {
-        message("* Malachite rerand..");
-        let ctx: MalachiteCtx<MP2048> = Default::default();
-        test_rerand_generic(&ctx);
-    }
+    message("* Malachite rerand..");
+    let ctx: MalachiteCtx<MP2048> = Default::default();
+    test_rerand_generic(&ctx);
 }
 
 #[wasm_bindgen]
@@ -96,14 +89,11 @@ pub fn test_elgamal() {
     let plaintext = ctx.rnd_plaintext(&mut rng);
     test_elgamal_generic(&ctx, plaintext);
 
-    #[cfg(any(not(feature = "wasm")))]
-    {
-        message("* Malachite encrypt..");
-        let ctx: MalachiteCtx<MP2048> = Default::default();
-        let mut rng = ctx.get_rng();
-        let plaintext = ctx.rnd_plaintext(&mut rng);
-        test_elgamal_generic(&ctx, plaintext);
-    }
+    message("* Malachite encrypt..");
+    let ctx: MalachiteCtx<MP2048> = Default::default();
+    let mut rng = ctx.get_rng();
+    let plaintext = ctx.rnd_plaintext(&mut rng);
+    test_elgamal_generic(&ctx, plaintext);
 }
 
 #[wasm_bindgen]
@@ -116,12 +106,9 @@ pub fn test_schnorr() {
     let ctx: BigintCtx<P2048> = Default::default();
     test_schnorr_generic(&ctx);
 
-    #[cfg(any(not(feature = "wasm")))]
-    {
-        message("* Malachite schnorr..");
-        let ctx: MalachiteCtx<MP2048> = Default::default();
-        test_schnorr_generic(&ctx);
-    }
+    message("* Malachite schnorr..");
+    let ctx: MalachiteCtx<MP2048> = Default::default();
+    test_schnorr_generic(&ctx);
 }
 
 #[wasm_bindgen]
@@ -140,14 +127,11 @@ pub fn test_vdecryption() {
     let plaintext = ctx.rnd_plaintext(&mut rng);
     test_vdecryption_generic(&ctx, plaintext);
 
-    #[cfg(any(not(feature = "wasm")))]
-    {
-        message("* Malachite vdecryption..");
-        let ctx: MalachiteCtx<MP2048> = Default::default();
-        let mut rng = ctx.get_rng();
-        let plaintext = ctx.rnd_plaintext(&mut rng);
-        test_vdecryption_generic(&ctx, plaintext);
-    }
+    message("* Malachite vdecryption..");
+    let ctx: MalachiteCtx<MP2048> = Default::default();
+    let mut rng = ctx.get_rng();
+    let plaintext = ctx.rnd_plaintext(&mut rng);
+    test_vdecryption_generic(&ctx, plaintext);
 }
 
 pub fn test_encrypt_exp() {
@@ -158,12 +142,10 @@ pub fn test_encrypt_exp() {
     message("* BigInt encrypt exp..");
     let ctx: BigintCtx<P2048> = Default::default();
     test_encrypt_exp_generic(&ctx);
-    #[cfg(any(not(feature = "wasm")))]
-    {
-        message("* Malachite encrypt exp..");
-        let ctx: MalachiteCtx<MP2048> = Default::default();
-        test_encrypt_exp_generic(&ctx);
-    }
+
+    message("* Malachite encrypt exp..");
+    let ctx: MalachiteCtx<MP2048> = Default::default();
+    test_encrypt_exp_generic(&ctx);
 }
 
 pub fn test_encrypt_pok() {
@@ -180,14 +162,12 @@ pub fn test_encrypt_pok() {
     let plaintext = ctx.rnd_plaintext(&mut csprng);
     test_elgamal_enc_pok_generic(&ctx, plaintext);
 
-    #[cfg(any(not(feature = "wasm")))]
-    {
-        message("* Malachite encrypt_pok..");
-        let ctx: MalachiteCtx<MP2048> = Default::default();
-        let plaintext = ctx.rnd_plaintext(&mut csprng);
-        test_elgamal_enc_pok_generic(&ctx, plaintext);
-    }
+    message("* Malachite encrypt_pok..");
+    let ctx: MalachiteCtx<MP2048> = Default::default();
+    let plaintext = ctx.rnd_plaintext(&mut csprng);
+    test_elgamal_enc_pok_generic(&ctx, plaintext);
 }
+
 /*
 #[wasm_bindgen]
 pub fn test_shuffle() {

@@ -151,7 +151,6 @@ impl BorshSerialize for StrandSignatureSk {
     }
 }
 
-#[cfg(any(not(feature = "wasm")))]
 impl BorshDeserialize for StrandSignatureSk {
     fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
         let bytes = Vec::<u8>::deserialize(buf)?;
@@ -173,7 +172,6 @@ impl BorshSerialize for StrandSignaturePk {
     }
 }
 
-#[cfg(any(not(feature = "wasm")))]
 impl BorshDeserialize for StrandSignaturePk {
     fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
         let bytes = Vec::<u8>::deserialize(buf)?;
@@ -194,7 +192,6 @@ impl BorshSerialize for StrandSignature {
     }
 }
 
-#[cfg(any(not(feature = "wasm")))]
 impl BorshDeserialize for StrandSignature {
     fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
         let bytes = Vec::<u8>::deserialize(buf)?;

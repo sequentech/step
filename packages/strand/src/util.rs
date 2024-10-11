@@ -7,7 +7,6 @@ use thiserror::Error;
 
 use crate::context::Ctx;
 use crate::elgamal::Ciphertext;
-#[cfg(any(not(feature = "wasm")))]
 use crate::shuffler_product::StrandRectangle;
 
 cfg_if::cfg_if! {
@@ -104,7 +103,6 @@ pub fn random_ciphertexts<C: Ctx>(n: usize, ctx: &C) -> Vec<Ciphertext<C>> {
 }
 
 /// Fast generation of product ciphertexts using random group elements.
-#[cfg(any(not(feature = "wasm")))]
 pub fn random_product_ciphertexts<C: Ctx>(
     n: usize,
     width: usize,

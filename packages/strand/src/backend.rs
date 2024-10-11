@@ -38,9 +38,7 @@ pub(crate) mod tests {
     use crate::serialization::StrandSerialize;
     use std::time::Instant;
 
-    #[cfg(any(not(feature = "wasm")))]
     use crate::shuffler_product::StrandRectangle;
-
     use crate::util;
     use crate::zkp::Zkp;
 
@@ -355,7 +353,6 @@ pub(crate) mod tests {
         assert!(ok_d);
     }
 
-    #[cfg(any(not(feature = "wasm")))]
     pub(crate) fn test_product_shuffle_serialization_generic<C: Ctx>(ctx: &C) {
         let sk = PrivateKey::gen(ctx);
         let pk = sk.get_pk();
