@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
-use board_messages::braid::newtypes::BatchNumber;
+use b3::messages::newtypes::BatchNumber;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
 use sequent_core::services::connection;
@@ -221,6 +221,7 @@ pub async fn set_tally_session_completed(
         let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
             .with_context(|| "missing bulletin board")?;
 
+        // Cannot find a user_id with which to post this
         let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
         electoral_log
             .post_tally_close(election_event_id.to_string(), None)

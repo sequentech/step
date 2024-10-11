@@ -472,6 +472,7 @@ async fn on_success_send_message(
 pub async fn send_template(
     body: SendTemplateBody,
     tenant_id: String,
+    user_id: String,
     election_event_id: Option<String>,
 ) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;

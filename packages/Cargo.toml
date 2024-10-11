@@ -3,15 +3,17 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 [workspace]
+resolver = "2"
 
 members = [
-    "braid",
+    "braid", 
+    "b3",
+    "electoral-log",
     "harvest",
     "strand",
     "immu-board",
     "immudb-rs",
     "sequent-core",
-    "board-messages",
     "velvet",
     "windmill",
     "wrap-map-err",

@@ -23,7 +23,6 @@ jobs:
           - service: immudb-rs
           - service: sequent-core
             extra: --features keycloak
-          - service: board-messages
           - service: velvet
           - service: windmill
           - service: wrap-map-err

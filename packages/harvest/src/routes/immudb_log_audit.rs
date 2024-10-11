@@ -8,7 +8,7 @@ use crate::types::resources::{
     Aggregate, DataList, OrderDirection, TotalAggregate,
 };
 use anyhow::{anyhow, Context, Result};
-use immu_board::assign_value;
+use electoral_log::assign_value;
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue};
 use rocket::http::Status;
 use rocket::response::Debug;

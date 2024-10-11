@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -92,10 +92,31 @@ pub async fn create_electoral_log(
     )
     .with_context(|| "error getting election event")
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    let electoral_log = ElectoralLog::new(board_name.as_str())
+    let tenant_id = claims.hasura_claims.tenant_id;
+    let user_id = claims.hasura_claims.user_id;
+    let electoral_log =
+        ElectoralLog::for_admin_user(&board_name, &tenant_id, &user_id)
+            .await
+            .map_err(|e| {
+                (
+                    Status::InternalServerError,
+                    format!("error getting electoral log: {e:?}"),
+                )
+            })?;
+    electoral_log
+        .post_keycloak_event(
+            input.election_event_id.clone(),
+            input.message_type.clone(),
+            input.body.clone(),
+            input.user_id.clone(),
+        )
         .await
-        .with_context(|| "error getting electoral log")
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("error posting registration error: {e:?}"),
+            )
+        })?;
 
     if input.body.contains(EVENT_TYPE_COMMUNICATIONS) {
         let body = input
@@ -111,7 +132,7 @@ pub async fn create_electoral_log(
                 None,
             )
             .await
-            .with_context(|| "error posting to the electoral log");
+            .map_err(|e| anyhow!("error posting to the electoral log {e:?}"));
     } else {
         electoral_log
             .post_keycloak_event(
@@ -121,8 +142,12 @@ pub async fn create_electoral_log(
                 input.user_id,
             )
             .await
-            .with_context(|| "error posting registration error")
-            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+            .map_err(|e| {
+                (
+                    Status::InternalServerError,
+                    format!("error posting registration error: {e:?}"),
+                )
+            })?;
     }
     Ok(Json(LogEventOutput {
         id: input.election_event_id.clone(),
