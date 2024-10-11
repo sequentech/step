@@ -19,7 +19,6 @@ use crate::postgres::tally_session_contest::{
 };
 use crate::postgres::tally_session_execution::insert_tally_session_execution;
 use crate::services::ceremonies::keys_ceremony::find_trustee_private_key;
-use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_status;
 use crate::services::ceremonies::serialize_logs::{
     append_tally_trustee_log, generate_tally_initial_log,
 };
@@ -152,7 +151,7 @@ pub async fn find_keys_ceremony(
             ceremony
                 .execution_status
                 .clone()
-                .map(|value| value == ExecutionStatus::SUCCESS.to_string())
+                .map(|value| value == KeysCeremonyExecutionStatus::SUCCESS.to_string())
                 .unwrap_or(false)
         })
         .collect();
@@ -165,7 +164,7 @@ pub async fn find_keys_ceremony(
 #[instrument]
 fn generate_initial_tally_status(
     election_ids: &Vec<String>,
-    keys_ceremony_status: &CeremonyStatus,
+    keys_ceremony_status: &KeysCeremonyStatus,
 ) -> TallyCeremonyStatus {
     TallyCeremonyStatus {
         stop_date: None,
@@ -511,7 +510,7 @@ pub async fn set_private_key(
     }
 
     // get the keys ceremonies for this election event
-    let keys_ceremony = get_keys_ceremony_by_id(
+    let keys_ceremony = keys_ceremony::get_keys_ceremony_by_id(
         &auth_headers.clone(),
         &tenant_id.clone(),
         &election_event_id.clone(),
@@ -541,9 +540,9 @@ pub async fn set_private_key(
     }
 
     // get the encrypted private key
-    let encrypted_private_key =
-        find_trustee_private_key(&auth_headers, &tenant_id, &election_event_id, &trustee_name)
-            .await?;
+    let encrypted_private_key = "".to_string(); /*find_trustee_private_key(&auth_headers, &tenant_id, &election_event_id, &trustee_name)
+                                                .await?;*/
+ // FFF tally fix
 
     if encrypted_private_key != private_key_base64 {
         return Ok(false);

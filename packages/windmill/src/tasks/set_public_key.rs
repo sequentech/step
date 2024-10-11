@@ -9,8 +9,9 @@ use b3::messages::statement::StatementType;
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::types::ceremonies::{
-    KeysCeremonyExecutionStatus, KeysCeremonyStatus, Trustee, TrusteeStatus,
+    KeysCeremonyExecutionStatus, KeysCeremonyStatus, Trustee as BasicTrustee, TrusteeStatus,
 };
+use sequent_core::types::hasura::core::Trustee;
 use serde_json::Value;
 use std::collections::HashSet;
 use strand::signature::StrandSignaturePk;
@@ -30,7 +31,7 @@ use crate::types::error::Result;
 #[instrument(skip(trustees_hasura, messages), err)]
 fn get_trustee_status(
     trustee_name: &str,
-    trustees_hasura: &Vec<GetTrusteesByNameSequentBackendTrustee>,
+    trustees_hasura: &Vec<Trustee>,
     messages: &Vec<Message>,
 ) -> Result<TrusteeStatus> {
     let Some(found_trustee) = trustees_hasura
@@ -133,13 +134,13 @@ pub async fn set_public_key_impl(
             .trustees
             .clone()
             .into_iter()
-            .map(|trustee| -> Result<Trustee> {
-                Ok(Trustee {
+            .map(|trustee| -> Result<BasicTrustee> {
+                Ok(BasicTrustee {
                     name: trustee.name.clone(),
                     status: get_trustee_status(&trustee.name, &trustees_by_name, &messages)?,
                 })
             })
-            .collect::<Result<Vec<Trustee>>>()?,
+            .collect::<Result<Vec<BasicTrustee>>>()?,
     })?;
 
     // update public key

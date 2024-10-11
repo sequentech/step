@@ -2,24 +2,18 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::election_event::get_election_event_by_id;
-use crate::postgres::election_event::update_election_event_status;
 use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
 use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_board;
 use crate::services::database::get_hasura_pool;
-use crate::services::election_event_board::get_election_event_board;
 use crate::services::public_keys;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
-use sequent_core::ballot::ElectionEventStatus;
-use sequent_core::ballot::VotingStatus;
-use sequent_core::serialization::deserialize_with_path::*;
-use sequent_core::services::keycloak;
+use sequent_core::types::ceremonies::KeysCeremonyExecutionStatus;
 use serde::{Deserialize, Serialize};
 use std::default::Default;
-use tracing::instrument;
+use tracing::{info, instrument};
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
 pub struct CreateKeysBody {
@@ -53,19 +47,14 @@ pub async fn create_keys_impl(
         &keys_ceremony,
     )
     .await?;
-    // fetch election_event
-    let election_event =
-        get_election_event_by_id(&hasura_transaction, &tenant_id, &election_event_id).await?;
+
+    let execution_status = keys_ceremony.execution_status()?;
+    let status = keys_ceremony.status()?;
 
     // check config is not already created
-    if keys_ceremony.is_default() {
-        let status: Option<ElectionEventStatus> = match election_event.status.clone() {
-            Some(value) => deserialize_value(value)?,
-            None => None,
-        };
-        if status.map(|val| val.is_config_created()).unwrap_or(false) {
-            return Err(anyhow!("bulletin board config already created"));
-        }
+    if execution_status != KeysCeremonyExecutionStatus::STARTED || status.public_key.is_some() {
+        info!("Unexpected status: {}", execution_status);
+        return Ok(());
     }
 
     // create config/keys for board
@@ -75,21 +64,6 @@ pub async fn create_keys_impl(
         body.threshold.clone(),
     )
     .await?;
-
-    // update election event with status: keys created
-    if keys_ceremony.is_default() {
-        let mut new_status: ElectionEventStatus = Default::default();
-        new_status.config_created = Some(true);
-        let new_status_js = serde_json::to_value(new_status)?;
-
-        update_election_event_status(
-            &hasura_transaction,
-            &tenant_id,
-            &election_event_id,
-            new_status_js,
-        )
-        .await?;
-    }
 
     hasura_transaction
         .commit()
