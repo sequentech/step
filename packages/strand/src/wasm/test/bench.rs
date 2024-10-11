@@ -4,7 +4,9 @@
 use rand::RngCore;
 use wasm_bindgen::prelude::*;
 
+#[cfg(any(not(feature = "wasm")))]
 use crate::backend::malachite::{MalachiteCtx, P2048 as MP2048};
+
 use crate::backend::num_bigint::{BigintCtx, P2048};
 use crate::backend::ristretto::RistrettoCtx;
 use crate::context::Ctx;
@@ -72,15 +74,6 @@ pub fn bench_modpow(n: u32) {
         "modpow {:.3} ms ",
         (performance.now() - now) / n as f64
     ));
-
-    let ctx: MalachiteCtx<MP2048> = Default::default();
-    postMessage(&format!("> Malachite modpow n = {n}"));
-    let now = performance.now();
-    bench_modpow_generic(ctx, n);
-    postMessage(&format!(
-        "modpow {:.3} ms ",
-        (performance.now() - now) / n as f64
-    ));
 }
 
 #[wasm_bindgen]
@@ -97,11 +90,6 @@ pub fn bench_enc_pok(n: u32) {
     let mut rng = ctx.get_rng();
     let plaintext = ctx.rnd_plaintext(&mut rng);
     postMessage("> Bigint enc_pok");
-    bench_enc_pok_generic(ctx, plaintext, n);
-
-    let ctx: MalachiteCtx<MP2048> = Default::default();
-    let plaintext = ctx.rnd_plaintext(&mut rng);
-    postMessage("> Malachite enc_pok");
     bench_enc_pok_generic(ctx, plaintext, n);
 }
 /*

@@ -33,6 +33,7 @@
 //! let plaintext_ = ctx.decode(&decrypted);
 //! assert_eq!(plaintext, plaintext_);
 //! ```
+#[cfg(any(not(feature = "wasm")))]
 use crate::shuffler_product::StrandRectangle;
 use borsh::{BorshDeserialize, BorshSerialize};
 use std::io::{Error, ErrorKind};
@@ -120,6 +121,7 @@ impl<T: BorshSerialize + BorshDeserialize + Send + Sync> BorshDeserialize
 }
 
 /// Parallel serialization for rectangles
+#[cfg(any(not(feature = "wasm")))]
 impl<T: Send + Sync + BorshSerialize> BorshSerialize for StrandRectangle<T> {
     fn serialize<W: std::io::Write>(
         &self,
@@ -136,6 +138,7 @@ impl<T: Send + Sync + BorshSerialize> BorshSerialize for StrandRectangle<T> {
 }
 
 /// Parallel serialization for rectangles
+#[cfg(any(not(feature = "wasm")))]
 impl<T: Send + Sync + BorshDeserialize> BorshDeserialize
     for StrandRectangle<T>
 {
