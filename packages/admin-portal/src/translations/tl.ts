@@ -889,6 +889,7 @@ const tagalogTranslation: TranslationType = {
         keysGeneration: {
             configureStep: {
                 create: "Lumikha ng Seremonya ng Mga Susi",
+                name: "Pangalan ng Seremonya ng mga Susi",
                 title: "Lumikha ng Seremonya ng Mga Susi para sa Kaganapan sa Halalan",
                 subtitle:
                     "Sa Seremonya ng Mga Susi, bawat trustee ay lilikha at magda-download ng kanilang piraso ng pribadong susi para sa Kaganapan sa Halalan. Upang magpatuloy, mangyaring pumili ng mga trustee na lalahok sa seremonya at ang threshold, na siyang minimum na bilang ng mga trustee na kinakailangan upang magbilang.",

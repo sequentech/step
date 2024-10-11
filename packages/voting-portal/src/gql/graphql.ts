@@ -104,6 +104,8 @@ export type CreateElectionEventOutput = {
 
 export type CreateKeysCeremonyInput = {
   election_event_id: Scalars['String']['input'];
+  election_id?: InputMaybe<Scalars['String']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
   threshold: Scalars['Int']['input'];
   trustee_names?: InputMaybe<Array<Scalars['String']['input']>>;
 };
@@ -579,6 +581,11 @@ export type RestorePrivateKeyOutput = {
   is_valid: Scalars['Boolean']['output'];
 };
 
+export type SampleOutput = {
+  __typename?: 'SampleOutput';
+  accessToken: Scalars['String']['output'];
+};
+
 export type ScheduledEventOutput3 = {
   __typename?: 'ScheduledEventOutput3';
   id?: Maybe<Scalars['String']['output']>;
@@ -756,6 +763,7 @@ export type Mutation_Root = {
   check_private_key?: Maybe<CheckPrivateKeyOutput>;
   /** create scheduled event */
   createScheduledEvent?: Maybe<ScheduledEventOutput3>;
+  create_election?: Maybe<SampleOutput>;
   /** create keys ceremony */
   create_keys_ceremony?: Maybe<CreateKeysCeremonyOutput>;
   create_permission?: Maybe<KeycloakPermission>;
@@ -1278,6 +1286,14 @@ export type Mutation_RootCreateScheduledEventArgs = {
   event_payload: Scalars['jsonb']['input'];
   event_processor: Scalars['String']['input'];
   tenant_id: Scalars['String']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootCreate_ElectionArgs = {
+  description?: InputMaybe<Scalars['String']['input']>;
+  election_event_id: Scalars['String']['input'];
+  name: Scalars['String']['input'];
 };
 
 

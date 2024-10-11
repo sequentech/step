@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useEffect, useState} from "react"
-import {CircularProgress, Typography} from "@mui/material"
+import {CircularProgress, Typography, TextField} from "@mui/material"
 import {
     CreateKeysCeremonyMutation,
     Sequent_Backend_Election_Event,
@@ -56,6 +56,8 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
         useMutation<CreateKeysCeremonyMutation>(CREATE_KEYS_CEREMONY)
     const [errors, setErrors] = useState<String | null>(null)
     const [threshold, setThreshold] = useState<number>(2)
+    const [name, setName] = useState<string>("")
+    const [electionId, setElectionId] = useState<string | null>(null)
     const [trusteeNames, setTrusteeNames] = useState<string[]>([])
     const refresh = useRefresh()
     const {data: trusteeList, error} = useGetList("sequent_backend_trustee", {
@@ -106,12 +108,16 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
     const createKeysCeremony: (input: {
         threshold: number
         trusteeNames: string[]
-    }) => Promise<string | null> = async ({threshold, trusteeNames}) => {
+        electionId?: string
+        name?: string
+    }) => Promise<string | null> = async ({threshold, trusteeNames, electionId, name}) => {
         const {data, errors} = await createKeysCeremonyMutation({
             variables: {
                 electionEventId: electionEvent.id,
                 threshold,
                 trusteeNames,
+                electionId,
+                name: name,
             },
         })
         if (errors) {
@@ -135,6 +141,8 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
             const keysCeremonyId = await createKeysCeremony({
                 threshold,
                 trusteeNames,
+                name,
+                electionId: electionId ?? undefined
             })
             if (keysCeremonyId) {
                 setNewId(keysCeremonyId)
@@ -227,6 +235,13 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                         <Typography variant="body2">
                             {t("keysGeneration.configureStep.subtitle")}
                         </Typography>
+
+                        <TextField
+                            label={t("keysGeneration.configureStep.name")}
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            variant="filled"
+                        />
 
                         <TextInput
                             source="threshold"
