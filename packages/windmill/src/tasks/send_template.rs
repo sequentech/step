@@ -287,7 +287,8 @@ async fn send_template_sms(
             json!({
                 "receiver": receiver,
                 "message": message
-            }).to_string()
+            })
+            .to_string(),
         ));
     } else {
         event!(Level::INFO, "Receiver empty, ignoring..");
@@ -334,7 +335,8 @@ pub async fn send_template_email(
                 "subject": subject,
                 "html_body": html_body,
                 "plaintext_body": plaintext_body
-            }).to_string()
+            })
+            .to_string(),
         ));
     } else {
         // Log the event if the receiver or template is missing
@@ -473,7 +475,7 @@ async fn on_success_send_message(
                 Some(message.into()),
                 election_event.id.clone(),
                 user_id,
-                None
+                None,
             )
             .await
             .map_err(|e| anyhow!("error posting to the electoral log: {e:?}"))?;

@@ -101,6 +101,12 @@ public class Utils {
   public static final int DEFAULT_MAX_RETRIES = 3;
   public static final int BASE_RETRY_DELAY = 1_000;
 
+  String escapeJson(String value) {
+    return value != null
+        ? value.replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")
+        : null;
+  }
+
   /**
    * We store the user data entered in the registration form in the session notes. This information
    * will later be retrieved to create a user account.

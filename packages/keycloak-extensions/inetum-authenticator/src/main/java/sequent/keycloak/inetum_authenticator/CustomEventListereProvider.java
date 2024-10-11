@@ -129,7 +129,10 @@ public class CustomEventListereProvider implements EventListenerProvider {
     String requestBody =
         String.format(
             "{\"election_event_id\": \"%s\", \"message_type\": \"%s\", \"body\" : \"%s\", \"user_id\": \"%s\"}",
-            electionEventId, eventType, body, userId);
+            Utils.escapeJson(electionEventId),
+            Utils.escapeJson(eventType.toString()),
+            Utils.escapeJson(body),
+            Utils.escapeJson(userId));
     HttpRequest request =
         HttpRequest.newBuilder()
             .uri(URI.create(url))

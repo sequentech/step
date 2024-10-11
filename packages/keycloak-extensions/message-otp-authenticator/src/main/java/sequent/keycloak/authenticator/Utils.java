@@ -110,6 +110,12 @@ public class Utils {
     }
   }
 
+  String escapeJson(String value) {
+    return value != null
+        ? value.replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")
+        : null;
+  }
+
   /** Sends code and also sets the auth notes related to the code */
   void sendCode(
       AuthenticatorConfigModel config,
@@ -462,7 +468,12 @@ public class Utils {
             subjectFormatKey, subjectAttributes, bodyTemplate, bodyAttributes);
       }
 
-      return emailTemplate.getTextBody();
+      return String.format(
+          "{\"to\": \"%s\", \"subject\": \"%s\", \"textBody\": \"%s\", \"htmlBody\": \"%s\"}",
+          escapeJson(address),
+          escapeJson(emailTemplate.getSubject()),
+          escapeJson(emailTemplate.getTextBody()),
+          escapeJson(emailTemplate.getHtmlBody() != null ? emailTemplate.getHtmlBody() : ""));
     } catch (EmailException e) {
       throw e;
     } catch (Exception e) {

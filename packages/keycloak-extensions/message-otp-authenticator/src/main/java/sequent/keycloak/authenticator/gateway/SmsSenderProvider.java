@@ -33,7 +33,8 @@ public interface SmsSenderProvider extends Provider {
             .format(attributes.toArray());
     send(phoneNumber, formattedMessage);
 
-    return formattedMessage;
+    return String.format(
+        "{\"phoneNumber\": \"%s\", \"message\": \"%s\"}", phoneNumber, formattedMessage);
   }
 
   public void send(String phoneNumber, String message);
