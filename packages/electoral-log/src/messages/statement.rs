@@ -50,6 +50,7 @@ impl StatementHead {
             StatementBody::TallyOpen(_) => StatementType::TallyOpen,
             StatementBody::TallyClose(_) => StatementType::TallyClose,
             StatementBody::SendTemplate => StatementType::SendTemplate,
+            StatementBody::SendCommunications(_) => StatementType::SendCommunications,
             StatementBody::KeycloakUserEvent(_, _) => StatementType::KeycloakUserEvent,
             StatementBody::VoterPublicKey(_, _, _, _) => StatementType::VoterPublicKey,
             StatementBody::AdminPublicKey(_, _, _) => StatementType::AdminPublicKey,
@@ -123,6 +124,7 @@ pub enum StatementBody {
     TallyClose(ElectionIdString),
 
     SendTemplate,
+    SendCommunications(Option<String>),
     KeycloakUserEvent(ErrorMessageString, KeycloakEventTypeString),
     /// Represents the assertion that
     ///     within the given tenant
@@ -159,6 +161,7 @@ pub enum StatementType {
     TallyOpen,
     TallyClose,
     SendTemplate,
+    SendCommunications,
     KeycloakUserEvent,
     VoterPublicKey,
     AdminPublicKey,
