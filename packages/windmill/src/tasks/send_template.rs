@@ -283,7 +283,12 @@ async fn send_template_sms(
             .map_err(|err| anyhow!("{}", err))?;
 
         sender.send(receiver.into(), message.clone()).await?;
-        return Ok(Some(message));
+        return Ok(Some(
+            json!({
+                "receiver": receiver,
+                "message": message
+            }).to_string()
+        ));
     } else {
         event!(Level::INFO, "Receiver empty, ignoring..");
     }
@@ -299,11 +304,11 @@ pub async fn send_template_email(
 ) -> Result<Option<String>> {
     if let (Some(receiver), Some(config)) = (receiver, template) {
         let subject = reports::render_template_text(config.subject.as_str(), variables.clone())
-            .map_err(|err| anyhow!("{}", err))?;
+            .map_err(|err| anyhow!("Error rendering subject template: {err:?}"))?;
 
         let plaintext_body =
             reports::render_template_text(config.plaintext_body.as_str(), variables.clone())
-                .map_err(|err| anyhow!("{}", err))?;
+                .map_err(|err| anyhow!("Error rendering plaintext body: {err:?}"))?;
 
         let html_body = config
             .html_body
@@ -323,9 +328,14 @@ pub async fn send_template_email(
             .await
             .map_err(|err| anyhow!("error sending email: {err:?}"))?;
 
-        return Ok(Some(format!(
-            "subject: {subject:?}\nhtml_body: {html_body:?}\n plaintext_body: {plaintext_body:?}"
-        )));
+        return Ok(Some(
+            json!({
+                "receiver": receiver,
+                "subject": subject,
+                "html_body": html_body,
+                "plaintext_body": plaintext_body
+            }).to_string()
+        ));
     } else {
         // Log the event if the receiver or template is missing
         event!(
@@ -446,25 +456,31 @@ async fn update_stats(
 async fn on_success_send_message(
     election_event: Option<GetElectionEventSequentBackendElectionEvent>,
     user_id: Option<String>,
-    message: Option<String>,
+    message: &str,
+    tenant_id: &str,
+    admin_id: &str,
 ) -> Result<()> {
     if let Some(election_event) = election_event {
         let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
             .with_context(|| "missing bulletin board")?;
 
-        let electoral_log = ElectoralLog::new(board_name.as_str())
+        let electoral_log = ElectoralLog::for_admin_user(&board_name, tenant_id, admin_id)
             .await
             .map_err(|e| anyhow!("Error obtaining the electoral log: {e:?}"))?;
 
         electoral_log
-            .post_send_template(message, election_event.id.clone(), user_id, None)
+            .post_send_template(
+                Some(message.into()),
+                election_event.id.clone(),
+                user_id,
+                None
+            )
             .await
-            .with_context(|| "error posting to the electoral log")?;
+            .map_err(|e| anyhow!("error posting to the electoral log: {e:?}"))?;
     } else {
         event!(
             Level::WARN,
-            "No election event provided for user: {:?}",
-            user_id,
+            "No election event provided for user: {user_id:?}"
         );
     }
 
@@ -651,11 +667,13 @@ pub async fn send_template(
                     )
                     .await;
                     match sending_result {
-                        Ok(Some(plaintext_body)) => {
+                        Ok(Some(message)) => {
                             if let Err(e) = on_success_send_message(
                                 election_event.clone(),
                                 user.id.clone(),
-                                Some(plaintext_body),
+                                &message,
+                                &tenant_id,
+                                &user_id,
                             )
                             .await
                             {
@@ -686,7 +704,9 @@ pub async fn send_template(
                             if let Err(e) = on_success_send_message(
                                 election_event.clone(),
                                 user.id.clone(),
-                                Some(message),
+                                &message,
+                                &tenant_id,
+                                &user_id,
                             )
                             .await
                             {
