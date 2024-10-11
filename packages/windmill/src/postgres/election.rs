@@ -486,9 +486,13 @@ pub async fn set_election_keys_ceremony(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    election_id: &str,
+    election_id: Option<String>,
     keys_ceremony_id: &str,
 ) -> Result<()> {
+    let election_uuid_opt = election_id
+        .clone()
+        .map(|val| Uuid::parse_str(&val))
+        .transpose()?;
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -497,7 +501,7 @@ pub async fn set_election_keys_ceremony(
                 SET
                     keys_ceremony_id = $1
                 WHERE
-                    id = $2
+                    ($2::uuid IS NULL OR id = $2::uuid) AND
                     tenant_id = $3 AND
                     election_event_id = $4
                 RETURNING
@@ -511,7 +515,7 @@ pub async fn set_election_keys_ceremony(
             &statement,
             &[
                 &Uuid::parse_str(keys_ceremony_id)?,
-                &Uuid::parse_str(election_id)?,
+                &election_uuid_opt,
                 &Uuid::parse_str(tenant_id)?,
                 &Uuid::parse_str(election_event_id)?,
             ],

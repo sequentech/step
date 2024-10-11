@@ -345,6 +345,17 @@ pub async fn create_keys_ceremony(
             .await
             .with_context(|| "error listing existing keys ceremonies")?;
 
+    let default_ceremony = keys_ceremonies
+        .clone()
+        .into_iter()
+        .find(|keys_ceremony| keys_ceremony.is_default());
+
+    if default_ceremony.is_some() {
+        return Err(anyhow!(
+            "there's already an existing running ceremony for all elections"
+        ));
+    }
+
     // find if there's any previous ceremony and if so, stop. shouldn't happen,
     // we only allow one per election
     if let Some(election_id) = election_id.clone() {
@@ -356,15 +367,6 @@ pub async fn create_keys_ceremony(
             return Err(anyhow!(
                 "there's already an existing running ceremony for election id '{}'",
                 election_id
-            ));
-        }
-    } else {
-        let default_ceremony = keys_ceremonies
-            .iter()
-            .find(|keys_ceremony| keys_ceremony.is_default());
-        if default_ceremony.is_some() {
-            return Err(anyhow!(
-                "there's already an existing running default ceremony"
             ));
         }
     };
@@ -405,16 +407,14 @@ pub async fn create_keys_ceremony(
     .await
     .with_context(|| "couldn't insert keys ceremony")?;
 
-    if let Some(election_id) = election_id.clone() {
-        set_election_keys_ceremony(
-            &transaction,
-            &tenant_id,
-            &election_event_id,
-            &election_id,
-            &keys_ceremony_id,
-        )
-        .await?;
-    }
+    set_election_keys_ceremony(
+        &transaction,
+        &tenant_id,
+        &election_event_id,
+        election_id.clone(),
+        &keys_ceremony_id,
+    )
+    .await?;
 
     // create the public keys in async task
     let task = celery_app
