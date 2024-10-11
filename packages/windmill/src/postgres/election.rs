@@ -42,6 +42,9 @@ impl TryFrom<Row> for ElectionWrapper {
             statistics: item.try_get("statistics")?,
             receipts: item.try_get("receipts")?,
             permission_label: item.try_get("permission_label")?,
+            keys_ceremony_id: item
+                .try_get::<_, Option<Uuid>>("keys_ceremony_id")?
+                .map(|val| val.to_string()),
         }))
     }
 }
@@ -112,28 +115,7 @@ pub async fn get_election_by_id(
         .prepare(
             r#"
             SELECT
-                id,
-                tenant_id,
-                election_event_id,
-                created_at,
-                last_updated_at,
-                labels,
-                annotations,
-                name,
-                description,
-                presentation,
-                status,
-                eml,
-                num_allowed_revotes,
-                is_consolidated_ballot_encoding,
-                spoil_ballot_option,
-                alias,
-                voting_channels,
-                is_kiosk,
-                image_document_id,
-                statistics,
-                receipts,
-                permission_label
+                *
             FROM
                 sequent_backend.election
             WHERE
@@ -363,28 +345,7 @@ pub async fn export_elections(
         .prepare(
             r#"
                 SELECT
-                    id,
-                    tenant_id,
-                    election_event_id,
-                    created_at,
-                    last_updated_at,
-                    labels,
-                    annotations,
-                    name,
-                    description,
-                    presentation,
-                    status,
-                    eml,
-                    num_allowed_revotes,
-                    is_consolidated_ballot_encoding,
-                    spoil_ballot_option,
-                    alias,
-                    voting_channels,
-                    is_kiosk,
-                    image_document_id,
-                    statistics,
-                    receipts,
-                    permission_label
+                    *
                 FROM
                     sequent_backend.election
                 WHERE

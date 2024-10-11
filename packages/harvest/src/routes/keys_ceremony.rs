@@ -5,21 +5,15 @@
 use crate::services::authorization::authorize;
 use anyhow::anyhow;
 use anyhow::{Context, Result};
+use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
-use sequent_core::services::keycloak;
-use sequent_core::types::ceremonies::{CeremonyStatus, ExecutionStatus};
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
-use windmill::hasura;
-use windmill::hasura::election_event::get_election_event;
-use windmill::hasura::keys_ceremony::get_keys_ceremonies;
-use windmill::hasura::trustee::get_trustees_by_name;
 use windmill::services::ceremonies::keys_ceremony;
-use windmill::services::election_event_board::get_election_event_board;
-use windmill::services::private_keys::get_trustee_encrypted_private_key;
+use windmill::services::database::get_hasura_pool;
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Endpoint: /check-private-key
@@ -132,6 +126,7 @@ pub struct CreateKeysCeremonyInput {
     threshold: usize,
     trustee_names: Vec<String>,
     election_id: Option<String>,
+    name: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -174,6 +169,8 @@ pub async fn create_keys_ceremony(
         input.election_event_id.clone(),
         input.threshold,
         input.trustee_names,
+        input.election_id.clone(),
+        input.name,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
@@ -186,9 +183,10 @@ pub async fn create_keys_ceremony(
 
     event!(
         Level::INFO,
-        "Creating Keys Ceremony, electionEventId={}, keysCeremonyId={}",
+        "Creating Keys Ceremony, electionEventId={}, keysCeremonyId={}, electionId={:?}",
         input.election_event_id,
         keys_ceremony_id,
+        input.election_id,
     );
     Ok(Json(CreateKeysCeremonyOutput { keys_ceremony_id }))
 }

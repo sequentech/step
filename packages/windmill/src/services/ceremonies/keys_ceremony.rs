@@ -9,6 +9,7 @@ use crate::hasura::keys_ceremony::{
     get_keys_ceremony_by_id, insert_keys_ceremony, update_keys_ceremony_status,
 };
 use crate::hasura::trustee::get_trustees_by_name;
+use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony;
 use crate::postgres::trustee;
@@ -343,6 +344,8 @@ pub async fn create_keys_ceremony(
     election_event_id: String,
     threshold: usize,
     trustee_names: Vec<String>,
+    election_id: Option<String>,
+    name: Option<String>,
 ) -> Result<String> {
     let celery_app = get_celery_app().await;
     // verify trustee names and fetch their objects to get their ids
@@ -354,7 +357,7 @@ pub async fn create_keys_ceremony(
         return Err(anyhow!("can't find trustees"));
     }
     if threshold < 2 || threshold > trustees.len() {
-        return Err(anyhow!("invalid threshold"));
+        return Err(anyhow!("invalid threshold, minimum is 2"));
     }
 
     // obtain trustee ids list
@@ -368,16 +371,34 @@ pub async fn create_keys_ceremony(
     let election_event =
         get_election_event_by_id(&transaction, &tenant_id, &election_event_id).await?;
 
-    // find if there's any previous ceremony and if so, stop. shouldn't happen,
-    // we only allow one per election event
     let keys_ceremonies =
         keys_ceremony::get_keys_ceremonies(&transaction, &tenant_id, &election_event_id)
             .await
             .with_context(|| "error listing existing keys ceremonies")?;
-    let has_any_running_ceremony = keys_ceremonies.len() > 0;
-    if has_any_running_ceremony {
-        return Err(anyhow!("there's already an existing running ceremony"));
-    }
+
+    // find if there's any previous ceremony and if so, stop. shouldn't happen,
+    // we only allow one per election
+    if let Some(election_id) = election_id.clone() {
+        let election =
+            get_election_by_id(transaction, &tenant_id, &election_event_id, &election_id)
+                .await?
+                .ok_or(anyhow!("Can't find election"))?;
+        if election.keys_ceremony_id.is_some() {
+            return Err(anyhow!(
+                "there's already an existing running ceremony for election id '{}'",
+                election_id
+            ));
+        }
+    } else {
+        let default_ceremony = keys_ceremonies
+            .iter()
+            .find(|keys_ceremony| keys_ceremony.is_default());
+        if default_ceremony.is_some() {
+            return Err(anyhow!(
+                "there's already an existing running default ceremony"
+            ));
+        }
+    };
 
     // generate default values
     let keys_ceremony_id: String = Uuid::new_v4().to_string();
@@ -397,6 +418,7 @@ pub async fn create_keys_ceremony(
             })
             .collect::<Result<Vec<Trustee>>>()?,
     })?;
+    let is_default = election_id.is_none();
 
     // insert keys-ceremony into the database using graphql
     keys_ceremony::insert_keys_ceremony(
@@ -408,6 +430,8 @@ pub async fn create_keys_ceremony(
         /* threshold */ threshold.try_into()?,
         /* status */ Some(status),
         /* execution_status */ Some(execution_status),
+        name,
+        is_default,
     )
     .await
     .with_context(|| "couldn't insert keys ceremony")?;

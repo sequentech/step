@@ -31,6 +31,9 @@ impl TryFrom<Row> for KeysCeremonyWrapper {
             labels: item.try_get("labels")?,
             annotations: item.try_get("annotations")?,
             threshold: item.try_get::<_, i32>("threshold")? as i64,
+            name: item.try_get("name")?,
+            presentation: item.try_get("presentation")?,
+            is_default: item.try_get("is_default")?,
         }))
     }
 }
@@ -86,6 +89,8 @@ pub async fn insert_keys_ceremony(
     threshold: i64,
     status: Option<Value>,
     execution_status: Option<String>,
+    name: Option<String>,
+    is_default: bool,
 ) -> Result<KeysCeremony> {
     let id_uuid: uuid::Uuid = Uuid::parse_str(&id).with_context(|| "Error parsing id as UUID")?;
     let tenant_uuid: uuid::Uuid =
@@ -103,7 +108,7 @@ pub async fn insert_keys_ceremony(
             r#"
                 INSERT INTO
                     sequent_backend.keys_ceremony
-                (id, tenant_id, election_event_id, trustee_ids, status, threshold, created_at)
+                (id, tenant_id, election_event_id, trustee_ids, status, threshold, name, is_default, created_at)
                 VALUES(
                     $1,
                     $2,
@@ -111,6 +116,8 @@ pub async fn insert_keys_ceremony(
                     $4,
                     $5,
                     $6,
+                    $7,
+                    $8,
                     NOW()
                 )
                 RETURNING
@@ -128,6 +135,8 @@ pub async fn insert_keys_ceremony(
                 &trustee_uuids,
                 &status,
                 &threshold,
+                &name,
+                &is_default,
             ],
         )
         .await

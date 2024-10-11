@@ -109,6 +109,7 @@ pub struct Election {
     pub statistics: Option<Value>,
     pub receipts: Option<Value>,
     pub permission_label: Option<String>,
+    pub keys_ceremony_id: Option<String>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -263,6 +264,15 @@ pub struct KeysCeremony {
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
     pub threshold: i64,
+    pub name: Option<String>,
+    pub presentation: Option<Value>,
+    pub is_default: Option<bool>,
+}
+
+impl KeysCeremony {
+    pub fn is_default(&self) -> bool {
+        self.is_default.clone().unwrap_or(true)
+    }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
