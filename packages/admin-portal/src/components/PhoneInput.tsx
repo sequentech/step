@@ -24,7 +24,7 @@ const PhoneInput = ({handlePhoneNumberChange, label, fullWidth, initialValue}: P
             <IntlTelInput
                 initOptions={{
                     utilsScript:
-                        "https://cdn.jsdelivr.net/npm/intl-tel-input@24.5.0/build/js/utils.js",
+                        "/phoneInput.js",
                     initialCountry: "auto",
                     separateDialCode: true,
                     geoIpLookup: (success, failure) => {

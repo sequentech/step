@@ -4,7 +4,39 @@ SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 */
 
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap');
+@font-face {
+    font-family: 'Roboto';
+    font-style: normal;
+    font-weight: 300;
+    src: url('../src/assets/roboto/Roboto-Regular.ttf') format('ttf'),
+}
+
+@font-face {
+    font-family: 'Roboto';
+    font-style: normal;
+    font-weight: 400;
+    src: url('../src/assets/roboto/Roboto-Medium.ttf') format('ttf'),
+}
+
+@font-face {
+    font-family: 'Roboto';
+    font-style: normal;
+    font-weight: 500;
+        src: url('../src/assets/roboto/Roboto-Bold.ttf') format('ttf'),
+
+}
+
+@font-face {
+    font-family: 'Roboto';
+    font-style: normal;
+    font-weight: 700;
+        src: url('../src/assets/roboto/Roboto-Black.ttf') format('ttf'),
+}
+
+/* Use the font in your CSS */
+body {
+    font-family: 'Roboto', sans-serif;
+}
 /*remove the tailwind base resets and add them as css */
 *{
   margin: 0; 
