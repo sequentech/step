@@ -280,6 +280,67 @@ pub async fn update_election_voting_status(
 }
 
 #[instrument(err, skip_all)]
+pub async fn create_election(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    name: &str,
+    description: Option<String>,
+) -> Result<Election> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                INSERT INTO sequent_backend.election
+                (
+                    tenant_id,
+                    election_event_id,
+                    created_at,
+                    last_updated_at,
+                    name,
+                    description,
+                )
+                VALUES
+                (
+                    $1,
+                    $2,
+                    NOW(),
+                    NOW(),
+                    $3,
+                    $4
+                )
+                RETURNING *;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(&tenant_id)?,
+                &Uuid::parse_str(&election_event_id)?,
+                &name.to_string(),
+                &description,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error running the document query: {err}"))?;
+
+    let elections: Vec<Election> = rows
+        .into_iter()
+        .map(|row| -> Result<Election> {
+            row.try_into()
+                .map(|res: ElectionWrapper| -> Election { res.0 })
+        })
+        .collect::<Result<Vec<Election>>>()?;
+
+    Ok(elections
+        .first()
+        .cloned()
+        .ok_or(anyhow!("Coudln't insert election"))?)
+}
+
+#[instrument(err, skip_all)]
 pub async fn insert_election(
     hasura_transaction: &Transaction<'_>,
     data: &ImportElectionEventSchema,

@@ -42,6 +42,7 @@ async fn rocket() -> _ {
                 routes::ballot_publication::publish_ballot,
                 routes::insert_cast_vote::insert_cast_vote,
                 routes::fetch_document::fetch_document,
+                routes::elections::create_election,
                 routes::election_event_stats::get_election_event_stats,
                 routes::election_stats::get_election_stats,
                 routes::scheduled_event::create_scheduled_event,
