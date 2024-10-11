@@ -430,6 +430,13 @@ pub fn get_event_board(tenant_id: &str, election_event_id: &str) -> String {
         .collect()
 }
 
+pub fn get_election_board(tenant_id: &str, election_id: &str) -> String {
+    format!("tenant{}election{}", tenant_id, election_id)
+        .chars()
+        .filter(|&c| c != '-')
+        .collect()
+}
+
 pub fn convert_board_messages(board_messages: &Vec<B3MessageRow>) -> Result<Vec<Message>> {
     let messages: Vec<Message> = board_messages
         .iter()

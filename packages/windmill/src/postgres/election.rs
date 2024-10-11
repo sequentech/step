@@ -148,7 +148,6 @@ pub async fn get_election_by_id(
     Ok(elections.get(0).map(|election| election.clone()))
 }
 
-
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_election_by_keys_ceremony_id(
     hasura_transaction: &Transaction<'_>,
@@ -419,4 +418,49 @@ pub async fn export_elections(
         .collect::<Result<Vec<Election>>>()?;
 
     Ok(election_events)
+}
+
+#[instrument(err, skip(hasura_transaction))]
+pub async fn set_election_keys_ceremony(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    keys_ceremony_id: &str,
+) -> Result<()> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                UPDATE
+                    sequent_backend.election
+                SET
+                    keys_ceremony_id = $1
+                WHERE
+                    id = $2
+                    tenant_id = $3 AND
+                    election_event_id = $4
+                RETURNING
+                    id;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(keys_ceremony_id)?,
+                &Uuid::parse_str(election_id)?,
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error running the set_election_keys_ceremony query: {err}"))?;
+
+    if 0 == rows.len() {
+        return Err(anyhow!("No election found"));
+    }
+
+    Ok(())
 }

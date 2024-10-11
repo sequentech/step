@@ -33,6 +33,7 @@ use uuid::Uuid;
 use super::database::get_hasura_pool;
 use super::date::ISO8601;
 use super::documents;
+use super::protocol_manager::get_election_board;
 use crate::hasura::election_event::get_election_event;
 use crate::hasura::election_event::insert_election_event as insert_election_event_hasura;
 use crate::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
@@ -67,7 +68,11 @@ pub struct ImportElectionEventSchema {
 }
 
 #[instrument(err)]
-pub async fn upsert_b3_and_elog(tenant_id: &str, election_event_id: &str) -> Result<Value> {
+pub async fn upsert_b3_and_elog(
+    tenant_id: &str,
+    election_event_id: &str,
+    election_ids: &Vec<String>,
+) -> Result<Value> {
     let board_name = get_event_board(tenant_id, election_event_id);
     // FIXME must also create the electoral log board here
     let mut immudb_client = get_board_client().await?;
@@ -84,6 +89,10 @@ pub async fn upsert_b3_and_elog(tenant_id: &str, election_event_id: &str) -> Res
             election_event_id
         );
         create_protocol_manager_keys(&board_name).await?;
+    }
+    for election_id in election_ids.clone() {
+        let board_name = get_election_board(tenant_id, &election_id);
+        board_client.create_board_ine(board_name.as_str()).await?;
     }
     let board = board_client.get_board(board_name.as_str()).await?;
     let board = board.ok_or(anyhow!(
@@ -273,8 +282,14 @@ pub async fn process(
     .await
     .with_context(|| format!("Error getting document for election event ID {election_event_id} and tenant ID {tenant_id}"))?;
 
+    let election_ids = data
+        .elections
+        .clone()
+        .into_iter()
+        .map(|election| election.id.clone())
+        .collect();
     // Upsert immutable board
-    let board = upsert_b3_and_elog(tenant_id.as_str(), &election_event_id)
+    let board = upsert_b3_and_elog(tenant_id.as_str(), &election_event_id, &election_ids)
         .await
         .with_context(|| format!("Error upserting b3 board for tenant ID {tenant_id} and election event ID {election_event_id}"))?;
 

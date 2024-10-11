@@ -9,7 +9,9 @@ use crate::hasura::keys_ceremony::{
     get_keys_ceremony_by_id, insert_keys_ceremony, update_keys_ceremony_status,
 };
 use crate::hasura::trustee::get_trustees_by_name;
-use crate::postgres::election::{get_election_by_id, get_election_by_keys_ceremony_id};
+use crate::postgres::election::{
+    get_election_by_id, get_election_by_keys_ceremony_id, set_election_keys_ceremony,
+};
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony;
 use crate::postgres::trustee;
@@ -19,6 +21,7 @@ use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::private_keys::get_trustee_encrypted_private_key;
+use crate::services::protocol_manager::get_election_board;
 use crate::tasks::create_keys::{create_keys, CreateKeysBody};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
@@ -27,6 +30,7 @@ use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak;
 use sequent_core::types::ceremonies::{CeremonyStatus, ExecutionStatus, Trustee, TrusteeStatus};
+use sequent_core::types::hasura::core::KeysCeremony;
 use serde_json::Value;
 use tracing::instrument;
 use tracing::{event, Level};
@@ -43,6 +47,38 @@ pub fn get_keys_ceremony_status(input: Option<Value>) -> Result<CeremonyStatus> 
         .flatten()
 }
 
+#[instrument(skip(transaction), err)]
+pub async fn get_keys_ceremony_board(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    keys_ceremony: &KeysCeremony,
+) -> Result<String> {
+    if keys_ceremony.is_default() {
+        // fetch election_event
+        let election_event =
+            get_election_event_by_id(transaction, tenant_id, election_event_id).await?;
+
+        // get board name
+        let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
+            .with_context(|| "missing bulletin board")?;
+        Ok(board_name)
+    } else {
+        let election = get_election_by_keys_ceremony_id(
+            transaction,
+            tenant_id,
+            election_event_id,
+            &keys_ceremony.id,
+        )
+        .await?
+        .ok_or(anyhow!(
+            "Can't find election with keys ceremony {}",
+            keys_ceremony.id
+        ))?;
+        Ok(get_election_board(tenant_id, &election.id))
+    }
+}
+
 #[instrument(err)]
 pub async fn get_private_key(
     transaction: &Transaction<'_>,
@@ -51,7 +87,6 @@ pub async fn get_private_key(
     election_event_id: String,
     keys_ceremony_id: String,
 ) -> Result<String> {
-
     // The trustee name is simply the username of the user
     let trustee_name = claims.trustee.ok_or(anyhow!("trustee name not found"))?;
 
@@ -60,7 +95,7 @@ pub async fn get_private_key(
         transaction,
         &tenant_id,
         &election_event_id,
-        &keys_ceremony_id
+        &keys_ceremony_id,
     )
     .await?;
     // check keys_ceremony has correct execution status
@@ -87,37 +122,16 @@ pub async fn get_private_key(
         return Err(anyhow!("Trustee not part of the keys ceremony"));
     }
 
-    let board_name = if keys_ceremony.is_default() {
-        // fetch election_event
-        let election_event = get_election_event_by_id(
-            transaction,
-            &tenant_id,
-            &election_event_id,
-        )
-        .await?;
+    let board_name =
+        get_keys_ceremony_board(transaction, &tenant_id, &election_event_id, &keys_ceremony)
+            .await?;
 
-        // get board name
-        let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
-            .with_context(|| "missing bulletin board")?;
-        board_name
-    } else {
-        let election = get_election_by_keys_ceremony_id(
-            transaction,
-            &tenant_id,
-            &election_event_id,
-            &keys_ceremony_id,
-        )
-        .await?;
-        "".to_string()
-    };
-
-    let trustee_public_key =
-        trustee::get_trustee_by_name(transaction, &tenant_id, &trustee_name)
-            .await
-            .with_context(|| "can't find trustee in the database")?
-            .public_key
-            .clone()
-            .ok_or(anyhow!("can't get trustee's public key"))?;
+    let trustee_public_key = trustee::get_trustee_by_name(transaction, &tenant_id, &trustee_name)
+        .await
+        .with_context(|| "can't find trustee in the database")?
+        .public_key
+        .clone()
+        .ok_or(anyhow!("can't get trustee's public key"))?;
 
     // get the encrypted private key
     let encrypted_private_key =
@@ -440,6 +454,17 @@ pub async fn create_keys_ceremony(
     .await
     .with_context(|| "couldn't insert keys ceremony")?;
 
+    if let Some(election_id) = election_id.clone() {
+        set_election_keys_ceremony(
+            &transaction,
+            &tenant_id,
+            &election_event_id,
+            &election_id,
+            &keys_ceremony_id,
+        )
+        .await?;
+    }
+
     // create the public keys in async task
     let task = celery_app
         .send_task(create_keys::new(
@@ -455,6 +480,7 @@ pub async fn create_keys_ceremony(
             },
             tenant_id.clone(),
             election_event_id.clone(),
+            keys_ceremony_id.clone(),
         ))
         .await?;
     event!(Level::INFO, "Sent create_keys task {}", task.task_id);

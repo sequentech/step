@@ -31,6 +31,7 @@ pub async fn create_keys(
     body: CreateKeysBody,
     tenant_id: String,
     election_event_id: String,
+    keys_ceremony_id: String,
 ) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
     let _celery_app = get_celery_app().await;

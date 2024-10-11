@@ -120,7 +120,6 @@ pub async fn get_keys_ceremony_by_id(
         })
         .collect::<Result<Vec<KeysCeremony>>>()?;
 
-
     keys_ceremonies
         .get(0)
         .map(|keys_ceremony| keys_ceremony.clone())
@@ -204,7 +203,6 @@ pub async fn insert_keys_ceremony(
         .ok_or(anyhow!("Row not inserted"))
 }
 
-
 #[instrument(skip(hasura_transaction, status), err)]
 pub async fn update_keys_ceremony_status(
     hasura_transaction: &Transaction<'_>,
@@ -244,9 +242,11 @@ pub async fn update_keys_ceremony_status(
             ],
         )
         .await
-        .map_err(|err| {
-            anyhow!("Error running the update_keys_ceremony_status query: {err}")
-        })?;
+        .map_err(|err| anyhow!("Error running the update_keys_ceremony_status query: {err}"))?;
+
+    if 0 == rows.len() {
+        return Err(anyhow!("No keys ceremony found"));
+    }
 
     Ok(())
 }
