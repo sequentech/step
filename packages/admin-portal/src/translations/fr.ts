@@ -71,6 +71,16 @@ const frenchTranslation: TranslationType = {
                 action: "Créer une Zone",
             },
         },
+        lookAndFeelScreen: {
+            common: {
+                helpLinks: "Liens d'Aide",
+                logoUrl: "URL du Logo",
+                css: "CSS Personnalisé",
+            },
+            errors: {
+                invalidHelpLinks: "Format des Liens d'Aide invalide",
+            },
+        },
         electionTypeScreen: {
             noPermissions: "Vous n'avez pas la permission d'accéder à la configuration.",
             common: {
@@ -85,8 +95,6 @@ const frenchTranslation: TranslationType = {
                 createNew: "Créer un Type d'Élection",
                 emptyHeader: "Aucun Type d'Élection pour l'instant.",
                 emptyBody: "Voulez-vous en créer un ?",
-                logoUrl: "URL du Logo",
-                css: "CSS personnalisé",
             },
             create: {
                 title: "Créer un Type d'Élection",
@@ -99,6 +107,7 @@ const frenchTranslation: TranslationType = {
                 electionTypes: "TYPES D'ÉLECTION",
                 templates: "MODÈLES",
                 languages: "LANGUES",
+                localization: "LOCALISATION",
                 lookAndFeel: "PERSONNALISATION DE L'APPARENCE",
                 schedules: "ÉVÉNEMENTS PROGRAMMÉS",
                 trustees: "AUTORITÉS",
@@ -723,6 +732,7 @@ const frenchTranslation: TranslationType = {
             usersAndRoles: "Utilisateurs et Rôles",
             logs: "Journaux",
             settings: "Configuration",
+            help: "Aide",
             templates: "Modèles",
             active: "Actifs",
             archived: "Archivés",
