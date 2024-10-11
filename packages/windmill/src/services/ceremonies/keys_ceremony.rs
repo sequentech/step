@@ -4,10 +4,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::hasura::election_event::{get_election_event_helper, update_election_event_status};
-use crate::hasura::keys_ceremony::get_keys_ceremonies;
-use crate::hasura::keys_ceremony::{
-    get_keys_ceremony_by_id, insert_keys_ceremony, update_keys_ceremony_status,
-};
+use crate::hasura::keys_ceremony::{get_keys_ceremony_by_id, update_keys_ceremony_status};
 use crate::hasura::trustee::get_trustees_by_name;
 use crate::postgres::election::{
     get_election_by_id, get_election_by_keys_ceremony_id, set_election_keys_ceremony,
@@ -29,23 +26,14 @@ use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak;
-use sequent_core::types::ceremonies::{CeremonyStatus, ExecutionStatus, Trustee, TrusteeStatus};
+use sequent_core::types::ceremonies::{
+    KeysCeremonyExecutionStatus, KeysCeremonyStatus, Trustee, TrusteeStatus,
+};
 use sequent_core::types::hasura::core::KeysCeremony;
 use serde_json::Value;
 use tracing::instrument;
 use tracing::{event, Level};
 use uuid::Uuid;
-
-#[instrument(err)]
-pub fn get_keys_ceremony_status(input: Option<Value>) -> Result<CeremonyStatus> {
-    input
-        .map(|value| {
-            deserialize_value(value)
-                .map_err(|err| anyhow!("Error parsing keys ceremony status: {:?}", err))
-        })
-        .ok_or(anyhow!("Missing keys ceremony status"))
-        .flatten()
-}
 
 #[instrument(skip(transaction), err)]
 pub async fn get_keys_ceremony_board(
@@ -99,18 +87,14 @@ pub async fn get_private_key(
     )
     .await?;
     // check keys_ceremony has correct execution status
-    if keys_ceremony.execution_status != Some(ExecutionStatus::IN_PROCESS.to_string()) {
-        return Err(anyhow!("Keys ceremony not in ExecutionStatus::IN_PROCESS"));
+    if keys_ceremony.execution_status()? != KeysCeremonyExecutionStatus::IN_PROGRESS {
+        return Err(anyhow!("Keys ceremony not in ExecutionStatus::IN_PROGRESS"));
     }
 
     // get ceremony status
-    let current_status: CeremonyStatus = deserialize_value(
-        keys_ceremony
-            .status
-            .clone()
-            .ok_or(anyhow!("Empty keys ceremony status"))?,
-    )
-    .with_context(|| "error parsing keys ceremony current status")?;
+    let current_status: KeysCeremonyStatus = keys_ceremony
+        .status()
+        .with_context(|| "error parsing keys ceremony current status")?;
 
     // check the trustee is part of this ceremony
     if let None = current_status
@@ -139,7 +123,7 @@ pub async fn get_private_key(
 
     // Update ceremony with the information that this trustee did get the
     // private key
-    let status: Value = serde_json::to_value(CeremonyStatus {
+    let status: Value = serde_json::to_value(KeysCeremonyStatus {
         stop_date: None,
         public_key: current_status.public_key.clone(),
         logs: append_keys_trustee_download_log(&current_status.logs, &trustee_name),
@@ -185,35 +169,23 @@ pub async fn get_private_key(
     Ok(encrypted_private_key)
 }
 
-#[instrument(skip(auth_headers), err)]
+#[instrument(skip(transaction), err)]
 pub async fn find_trustee_private_key(
-    auth_headers: &connection::AuthHeaders,
+    transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     trustee_name: &str,
+    keys_ceremony: &KeysCeremony,
 ) -> Result<String> {
-    // fetch election_event
-    let election_event = get_election_event_helper(
-        auth_headers.clone(),
-        tenant_id.to_string(),
-        election_event_id.to_string(),
-    )
-    .await?;
+    let board_name =
+        get_keys_ceremony_board(transaction, &tenant_id, &election_event_id, &keys_ceremony)
+            .await?;
 
-    // get board name
-    let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
-        .with_context(|| "missing bulletin board")?;
-
-    let trustee_public_key =
-        get_trustees_by_name(auth_headers, tenant_id, &vec![trustee_name.to_string()])
-            .await
-            .with_context(|| "can't find trustee in the database")?
-            .data
-            .with_context(|| "error fetching election event")?
-            .sequent_backend_trustee[0]
-            .public_key
-            .clone()
-            .ok_or(anyhow!("can't get election event"))?;
+    let trustee_public_key = trustee::get_trustee_by_name(transaction, tenant_id, trustee_name)
+        .await?
+        .public_key
+        .clone()
+        .ok_or(anyhow!("can't get trustee public key"))?;
 
     // get the encrypted private key
     get_trustee_encrypted_private_key(board_name.as_str(), trustee_public_key.as_str()).await
@@ -221,28 +193,29 @@ pub async fn find_trustee_private_key(
 
 #[instrument(err)]
 pub async fn check_private_key(
+    transaction: &Transaction<'_>,
     claims: JwtClaims,
     tenant_id: String,
     election_event_id: String,
     keys_ceremony_id: String,
     private_key_base64: String,
 ) -> Result<bool> {
-    let auth_headers = keycloak::get_client_credentials().await?;
-
     // The trustee name is simply the username of the user
     let trustee_name = claims.trustee.ok_or(anyhow!("trustee name not found"))?;
 
     // get the keys ceremonies for this election event
-    let keys_ceremony = get_keys_ceremony_by_id(
-        &auth_headers.clone(),
-        &tenant_id.clone(),
-        &election_event_id.clone(),
+    let keys_ceremony: KeysCeremony = keys_ceremony::get_keys_ceremony_by_id(
+        transaction,
+        &tenant_id,
+        &election_event_id,
         &keys_ceremony_id,
     )
     .await?;
+
+    let current_execution_status = keys_ceremony.execution_status()?;
     // check keys_ceremony has correct execution status
-    if keys_ceremony.execution_status != Some(ExecutionStatus::IN_PROCESS.to_string())
-        && keys_ceremony.execution_status != Some(ExecutionStatus::SUCCESS.to_string())
+    if current_execution_status != KeysCeremonyExecutionStatus::IN_PROGRESS
+        && current_execution_status != KeysCeremonyExecutionStatus::SUCCESS
     {
         return Err(anyhow!(
             "Keys ceremony not in ExecutionStatus::IN_PROCESS or  ExecutionStatus::SUCCESS"
@@ -250,13 +223,9 @@ pub async fn check_private_key(
     }
 
     // get ceremony status
-    let current_status: CeremonyStatus = deserialize_value(
-        keys_ceremony
-            .status
-            .clone()
-            .ok_or(anyhow!("Empty keys ceremony status"))?,
-    )
-    .with_context(|| "error parsing keys ceremony current status")?;
+    let current_status = keys_ceremony
+        .status()
+        .with_context(|| "error parsing keys ceremony current status")?;
 
     // check the trustee is part of this ceremony
     if let None = current_status.trustees.clone().into_iter().find(|trustee| {
@@ -271,9 +240,14 @@ pub async fn check_private_key(
     }
 
     // get the encrypted private key
-    let encrypted_private_key =
-        find_trustee_private_key(&auth_headers, &tenant_id, &election_event_id, &trustee_name)
-            .await?;
+    let encrypted_private_key = find_trustee_private_key(
+        transaction,
+        &tenant_id,
+        &election_event_id,
+        &trustee_name,
+        &keys_ceremony,
+    )
+    .await?;
 
     if encrypted_private_key != private_key_base64 {
         return Ok(false);
@@ -281,7 +255,7 @@ pub async fn check_private_key(
 
     // Update ceremony with the information that this trustee did get the
     // private key
-    let new_status = CeremonyStatus {
+    let new_status = KeysCeremonyStatus {
         stop_date: None,
         public_key: current_status.public_key.clone(),
         logs: append_keys_trustee_check_log(&current_status.logs, &trustee_name),
@@ -306,43 +280,22 @@ pub async fn check_private_key(
         .iter()
         .all(|trustee| trustee.status == TrusteeStatus::KEY_CHECKED);
     let new_execution_status = if all_trustees_checked {
-        ExecutionStatus::SUCCESS
+        KeysCeremonyExecutionStatus::SUCCESS
     } else {
-        ExecutionStatus::IN_PROCESS
+        KeysCeremonyExecutionStatus::IN_PROGRESS
     };
 
     // update keys-ceremony into the database using graphql
-    update_keys_ceremony_status(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-        keys_ceremony_id.clone(),
-        /* status */ serde_json::to_value(new_status)?,
-        /* execution_status */ new_execution_status.to_string(),
+    keys_ceremony::update_keys_ceremony_status(
+        transaction,
+        &tenant_id,
+        &election_event_id,
+        &keys_ceremony_id,
+        /* status */ &serde_json::to_value(new_status)?,
+        /* execution_status */ &new_execution_status.to_string(),
     )
     .await
     .with_context(|| "couldn't update keys ceremony")?;
-
-    if ExecutionStatus::SUCCESS == new_execution_status {
-        // get the election event
-        let election_event = get_election_event_helper(
-            auth_headers.clone(),
-            tenant_id.clone(),
-            election_event_id.clone(),
-        )
-        .await?;
-        let current_status = get_election_event_status(election_event.status).unwrap();
-        let mut new_status = current_status.clone();
-        new_status.keys_ceremony_finished = Some(true);
-        let new_status_js = serde_json::to_value(new_status)?;
-        update_election_event_status(
-            auth_headers.clone(),
-            tenant_id.clone(),
-            election_event_id.clone(),
-            new_status_js,
-        )
-        .await?;
-    }
 
     event!(
         Level::INFO,
@@ -420,8 +373,8 @@ pub async fn create_keys_ceremony(
 
     // generate default values
     let keys_ceremony_id: String = Uuid::new_v4().to_string();
-    let execution_status: String = ExecutionStatus::NOT_STARTED.to_string();
-    let status: Value = serde_json::to_value(CeremonyStatus {
+    let execution_status: String = KeysCeremonyExecutionStatus::default().to_string();
+    let status: Value = serde_json::to_value(KeysCeremonyStatus {
         stop_date: None,
         public_key: None,
         logs: generate_keys_initial_log(&trustee_names),
@@ -438,7 +391,7 @@ pub async fn create_keys_ceremony(
     })?;
     let is_default = election_id.is_none();
 
-    // insert keys-ceremony into the database using graphql
+    // insert keys-ceremony into the database using postgres
     keys_ceremony::insert_keys_ceremony(
         &transaction,
         keys_ceremony_id.clone(),

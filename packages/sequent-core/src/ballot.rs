@@ -1017,9 +1017,6 @@ impl Contest {
     Clone,
 )]
 pub struct ElectionEventStatus {
-    pub config_created: Option<bool>,
-    pub keys_ceremony_finished: Option<bool>,
-    pub tally_ceremony_finished: Option<bool>,
     pub is_published: Option<bool>,
     pub voting_status: VotingStatus,
 }
@@ -1027,18 +1024,9 @@ pub struct ElectionEventStatus {
 impl Default for ElectionEventStatus {
     fn default() -> Self {
         ElectionEventStatus {
-            config_created: Some(false),
-            keys_ceremony_finished: Some(false),
-            tally_ceremony_finished: Some(false),
             is_published: Some(false),
             voting_status: VotingStatus::NOT_STARTED,
         }
-    }
-}
-
-impl ElectionEventStatus {
-    pub fn is_config_created(&self) -> bool {
-        self.config_created.unwrap_or(false)
     }
 }
 

@@ -3,14 +3,18 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use anyhow::{anyhow, Result};
 use chrono::{DateTime, Local};
 use serde::{Deserialize, Serialize};
 use serde_json::value::Value;
+use std::str::FromStr;
 
 use crate::{
-    ballot::{ElectionEventPresentation, ElectionPresentation},
     serialization::deserialize_with_path::deserialize_value,
-    types::tally_sheets::AreaContestResults,
+    types::{
+        ceremonies::{KeysCeremonyExecutionStatus, KeysCeremonyStatus},
+        tally_sheets::AreaContestResults,
+    },
 };
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -259,8 +263,8 @@ pub struct KeysCeremony {
     pub tenant_id: String,
     pub election_event_id: String,
     pub trustee_ids: Vec<String>,
-    pub status: Option<Value>,
-    pub execution_status: Option<String>,
+    pub status: Option<Value>, // KeysCeremonyStatus
+    pub execution_status: Option<String>, // KeysCeremonyExecutionStatus
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
     pub threshold: i64,
@@ -272,6 +276,18 @@ pub struct KeysCeremony {
 impl KeysCeremony {
     pub fn is_default(&self) -> bool {
         self.is_default.clone().unwrap_or(true)
+    }
+
+    pub fn execution_status(&self) -> Result<KeysCeremonyExecutionStatus> {
+        let execution_status_str =
+            self.execution_status.clone().unwrap_or_default();
+        KeysCeremonyExecutionStatus::from_str(&execution_status_str)
+            .map_err(|err| anyhow!("{:?}", err))
+    }
+
+    pub fn status(&self) -> Result<KeysCeremonyStatus> {
+        deserialize_value(self.status.clone().unwrap_or_default())
+            .map_err(|err| anyhow!("{:?}", err))
     }
 }
 
