@@ -33,6 +33,9 @@ pub async fn review_boards() -> Result<()> {
         offset += last_length;
 
         for election_event in election_events {
+            if election_event.id != "a4d1b19a-eb58-4825-bd6f-48718fe7326a".to_string() {
+                continue;
+            }
             let task2 = celery_app
                 .send_task(
                     process_board::new(election_event.tenant_id.clone(), election_event.id.clone())

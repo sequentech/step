@@ -16,6 +16,7 @@ use crate::services::database::get_hasura_pool;
 use crate::tasks::execute_tally_session::execute_tally_session;
 use crate::tasks::set_public_key::set_public_key;
 use crate::types::error::Result;
+use crate::tasks::create_keys::create_keys;
 
 #[instrument(err)]
 pub async fn process_board_impl(tenant_id: String, election_event_id: String) -> AnyhowResult<()> {
@@ -33,7 +34,18 @@ pub async fn process_board_impl(tenant_id: String, election_event_id: String) ->
     for keys_ceremony in keys_ceremonies {
         let status = keys_ceremony.status()?;
         let execution_status = keys_ceremony.execution_status()?;
-        if execution_status == KeysCeremonyExecutionStatus::IN_PROGRESS
+        if execution_status == KeysCeremonyExecutionStatus::STARTED {
+
+            // create the public keys in async task
+            let task = celery_app
+                .send_task(create_keys::new(
+                    tenant_id.clone(),
+                    election_event_id.clone(),
+                    keys_ceremony.id.clone(),
+                ))
+                .await?;
+            event!(Level::INFO, "Sent create_keys task {}", task.task_id);
+        } else if execution_status == KeysCeremonyExecutionStatus::IN_PROGRESS
             && status.public_key.is_none()
         {
             let task = celery_app

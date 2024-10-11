@@ -133,7 +133,7 @@ pub async fn insert_keys_ceremony(
     tenant_id: String,
     election_event_id: String,
     trustee_ids: Vec<String>,
-    threshold: i64,
+    threshold: i32,
     status: Option<Value>,
     execution_status: Option<String>,
     name: Option<String>,
@@ -155,7 +155,7 @@ pub async fn insert_keys_ceremony(
             r#"
                 INSERT INTO
                     sequent_backend.keys_ceremony
-                (id, tenant_id, election_event_id, trustee_ids, status, threshold, name, is_default, created_at)
+                (id, tenant_id, election_event_id, trustee_ids, status, execution_status, threshold, name, is_default, created_at)
                 VALUES(
                     $1,
                     $2,
@@ -181,6 +181,7 @@ pub async fn insert_keys_ceremony(
                 &election_event_uuid,
                 &trustee_uuids,
                 &status,
+                &execution_status,
                 &threshold,
                 &name,
                 &is_default,

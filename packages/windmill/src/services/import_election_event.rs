@@ -93,6 +93,7 @@ pub async fn upsert_b3_and_elog(
     for election_id in election_ids.clone() {
         let board_name = get_election_board(tenant_id, &election_id);
         board_client.create_board_ine(board_name.as_str()).await?;
+        create_protocol_manager_keys(&board_name).await?;
     }
     let board = board_client.get_board(board_name.as_str()).await?;
     let board = board.ok_or(anyhow!(

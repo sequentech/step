@@ -32,6 +32,7 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Dialog} from "@sequentech/ui-essentials"
 import {isNull} from "@sequentech/ui-core"
 import {WizardStyles} from "@/components/styles/WizardStyles"
+import { useAliasRenderer } from "@/hooks/useAliasRenderer"
 
 export interface ConfigureStepProps {
     currentCeremony: Sequent_Backend_Keys_Ceremony | null
@@ -62,6 +63,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
     const [electionId, setElectionId] = useState<string | null>(null)
     const [trusteeNames, setTrusteeNames] = useState<string[]>([])
     const refresh = useRefresh()
+    const aliasRenderer = useAliasRenderer()
     const {data: trusteeList, error} = useGetList<Sequent_Backend_Trustee>("sequent_backend_trustee", {
         pagination: {page: 1, perPage: 10},
         sort: {field: "last_updated_at", order: "DESC"},
@@ -75,6 +77,10 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
         filter: {
             tenant_id: electionEvent.tenant_id,
             election_event_id: electionEvent.id,
+            keys_ceremony_id: {
+                format: "hasura-raw-query",
+                value: {_is_null: true},
+            },
         },
     })
     const {data: keysCeremony, isLoading: isOneLoading} = useGetOne<Sequent_Backend_Keys_Ceremony>(
@@ -213,6 +219,9 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
 
     const validateTrusteeList = [trusteeListValidator]
     const validateThreshold = [thresholdValidator]
+    const onElectionChange = (id: string | null) => {
+        setElectionId(id)
+    }
 
     return (
         <>
@@ -282,14 +291,14 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                         ) : null}
                         <InputLabel dir={i18n.dir(i18n.language)}>{t("electionScreen.common.title")}</InputLabel>
                         <Select
-                        dir={i18n.dir(i18n.language)}
-                          value={electionId}
-                          label={t("electionScreen.common.title")}
-                          onChange={(e) => setElectionId(e.target.value ?? null)}
+                            dir={i18n.dir(i18n.language)}
+                            value={electionId}
+                            label={t("electionScreen.common.title")}
+                            onChange={(e) => onElectionChange(e.target.value ?? null)}
                         >
                           <MenuItem value={""} dir={i18n.dir(i18n.language)}>{t("keysGeneration.configureStep.allElections")}</MenuItem>
                           {
-                            electionsList?.map(election => <MenuItem key={election.id} value={election.id} dir={i18n.dir(i18n.language)}>{election.name}</MenuItem>)
+                            electionsList?.map(election => <MenuItem key={election.id} value={election.id} dir={i18n.dir(i18n.language)}>{aliasRenderer(election)}</MenuItem>)
                           }
                         </Select>
                         {errors ? (

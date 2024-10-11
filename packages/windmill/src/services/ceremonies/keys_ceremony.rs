@@ -316,7 +316,6 @@ pub async fn create_keys_ceremony(
     election_id: Option<String>,
     name: Option<String>,
 ) -> Result<String> {
-    let celery_app = get_celery_app().await;
     // verify trustee names and fetch their objects to get their ids
     let trustees = trustee::get_trustees_by_name(&transaction, &tenant_id, &trustee_names)
         .await
@@ -415,26 +414,6 @@ pub async fn create_keys_ceremony(
         &keys_ceremony_id,
     )
     .await?;
-
-    // create the public keys in async task
-    let task = celery_app
-        .send_task(create_keys::new(
-            CreateKeysBody {
-                threshold: threshold,
-                trustee_pks: trustees
-                    .clone()
-                    .into_iter()
-                    .map(|trustee| {
-                        Ok(trustee.public_key.ok_or(anyhow!("empty trustee pub key"))?)
-                    })
-                    .collect::<Result<Vec<String>>>()?,
-            },
-            tenant_id.clone(),
-            election_event_id.clone(),
-            keys_ceremony_id.clone(),
-        ))
-        .await?;
-    event!(Level::INFO, "Sent create_keys task {}", task.task_id);
 
     // Save it in the electoral log
     let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())

@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
+use crate::postgres::keys_ceremony::{get_keys_ceremony_by_id, update_keys_ceremony_status};
+use crate::postgres::trustee::get_trustees_by_id;
 use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_board;
 use crate::services::database::get_hasura_pool;
 use crate::services::public_keys;
@@ -22,7 +23,6 @@ pub struct CreateKeysBody {
 }
 
 pub async fn create_keys_impl(
-    body: CreateKeysBody,
     tenant_id: String,
     election_event_id: String,
     keys_ceremony_id: String,
@@ -39,6 +39,17 @@ pub async fn create_keys_impl(
     )
     .await
     .with_context(|| "error finding keys ceremony")?;
+
+    let trustees = get_trustees_by_id(
+        &hasura_transaction,
+        &tenant_id,
+        &keys_ceremony.trustee_ids
+    ).await?;
+    let trustee_pks = trustees
+        .clone()
+        .into_iter()
+        .filter_map(|trustee| trustee.public_key)
+        .collect();
 
     let board_name = get_keys_ceremony_board(
         &hasura_transaction,
@@ -60,10 +71,19 @@ pub async fn create_keys_impl(
     // create config/keys for board
     public_keys::create_keys(
         board_name.as_str(),
-        body.trustee_pks.clone(),
-        body.threshold.clone(),
+        trustee_pks,
+        keys_ceremony.threshold as usize
     )
     .await?;
+
+    update_keys_ceremony_status(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &keys_ceremony.id,
+        &serde_json::to_value(status)?,
+        &KeysCeremonyExecutionStatus::IN_PROGRESS.to_string(),
+    ).await?;
 
     hasura_transaction
         .commit()
@@ -77,12 +97,11 @@ pub async fn create_keys_impl(
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn create_keys(
-    body: CreateKeysBody,
     tenant_id: String,
     election_event_id: String,
     keys_ceremony_id: String,
 ) -> Result<()> {
-    create_keys_impl(body, tenant_id, election_event_id, keys_ceremony_id)
+    create_keys_impl(tenant_id, election_event_id, keys_ceremony_id)
         .await
         .map_err(|err| Error::from(err.context("Task failed")))
 }
