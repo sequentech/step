@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::ballot::*;
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use std::convert::TryInto;
 
 pub trait BasesCodec {

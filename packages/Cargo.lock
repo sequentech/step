@@ -558,7 +558,7 @@ version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7af08ed49930c50104b2f1699d257e5053fb1809e370647bde9c58b31d65d417"
 dependencies = [
- "convert_case",
+ "convert_case 0.4.0",
  "proc-macro2",
  "quote",
  "serde",
@@ -624,7 +624,7 @@ dependencies = [
  "dirs",
  "log",
  "quick-xml",
- "rust-ini",
+ "rust-ini 0.18.0",
  "serde",
  "thiserror",
  "time",
@@ -1776,7 +1776,7 @@ version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cbf2150cce219b664a8a70df7a1f933836724b503f8a413af9365b4dcc4d90b8"
 dependencies = [
- "lazy_static",
+ "lazy_static 1.5.0",
  "windows-sys 0.48.0",
 ]
 
@@ -1824,14 +1824,34 @@ checksum = "23738e11972c7643e4ec947840fc463b6a571afcd3e735bdfce7d03c7a784aca"
 dependencies = [
  "async-trait",
  "json5",
- "lazy_static",
+ "lazy_static 1.5.0",
  "nom",
  "pathdiff",
- "ron",
- "rust-ini",
+ "ron 0.7.1",
+ "rust-ini 0.18.0",
  "serde",
  "serde_json",
  "toml 0.5.11",
+ "yaml-rust",
+]
+
+[[package]]
+name = "config"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7328b20597b53c2454f0b1919720c25c7339051c02b72b7e05409e00b14132be"
+dependencies = [
+ "async-trait",
+ "convert_case 0.6.0",
+ "json5",
+ "lazy_static 1.5.0",
+ "nom",
+ "pathdiff",
+ "ron 0.8.1",
+ "rust-ini 0.19.0",
+ "serde",
+ "serde_json",
+ "toml 0.8.19",
  "yaml-rust",
 ]
 
@@ -1852,6 +1872,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2459377285ad874054d797f3ccebf984978aa39129f6eafde5cdc8315b612f8"
 
 [[package]]
+name = "const-random"
+version = "0.1.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "87e00182fe74b066627d63b85fd550ac2998d4b0bd86bfed477a0ae4c7c71359"
+dependencies = [
+ "const-random-macro",
+]
+
+[[package]]
+name = "const-random-macro"
+version = "0.1.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f9d839f2a20b0aee515dc581a6172f2321f96cab76c1a38a4c584a194955390e"
+dependencies = [
+ "getrandom 0.2.15",
+ "once_cell",
+ "tiny-keccak",
+]
+
+[[package]]
 name = "constant_time_eq"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1862,6 +1902,15 @@ name = "convert_case"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
+
+[[package]]
+name = "convert_case"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ec182b0ca2f35d8fc196cf3404988fd8b8c739a4d270ff118a398feb0cbec1ca"
+dependencies = [
+ "unicode-segmentation",
+]
 
 [[package]]
 name = "cookie"
@@ -1964,7 +2013,7 @@ dependencies = [
  "clap 3.2.25",
  "criterion-plot",
  "itertools 0.10.5",
- "lazy_static",
+ "lazy_static 1.5.0",
  "num-traits",
  "oorandom",
  "plotters",
@@ -2458,12 +2507,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "directories"
+version = "5.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9a49173b84e034382284f27f1af4dcbbd231ffa358c0fe316541a7337f376a35"
+dependencies = [
+ "dirs-sys 0.4.1",
+]
+
+[[package]]
 name = "dirs"
 version = "4.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ca3aa72a6f96ea37bbc5aa912f6788242832f75369bdfdadcb0e38423f100059"
 dependencies = [
- "dirs-sys",
+ "dirs-sys 0.3.7",
 ]
 
 [[package]]
@@ -2475,6 +2533,18 @@ dependencies = [
  "libc",
  "redox_users",
  "winapi",
+]
+
+[[package]]
+name = "dirs-sys"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "520f05a5cbd335fae5a99ff7a6ab8627577660ee5cfd6a94a6a929b52ff0321c"
+dependencies = [
+ "libc",
+ "option-ext",
+ "redox_users",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
@@ -2493,6 +2563,15 @@ name = "dlv-list"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0688c2a7f92e427f44895cd63841bff7b29f8d7a1648b9e7e07a4a365b2e1257"
+
+[[package]]
+name = "dlv-list"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "442039f5147480ba31067cb00ada1adae6892028e40e45fc5de7b7df6dcc1b5f"
+dependencies = [
+ "const-random",
+]
 
 [[package]]
 name = "doc-comment"
@@ -3162,7 +3241,7 @@ dependencies = [
  "graphql-introspection-query",
  "graphql-parser",
  "heck 0.4.1",
- "lazy_static",
+ "lazy_static 1.5.0",
  "proc-macro2",
  "quote",
  "serde",
@@ -3322,6 +3401,12 @@ checksum = "8a9ee70c43aaf417c914396645a0fa852624801b24ebb7ae78fe8272889ac888"
 dependencies = [
  "ahash 0.7.8",
 ]
+
+[[package]]
+name = "hashbrown"
+version = "0.13.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "43a3c133739dddd0d2990f9a4bdf8eb4b21ef50e4851ca85ab661199821d510e"
 
 [[package]]
 name = "hashbrown"
@@ -4138,6 +4223,12 @@ dependencies = [
 
 [[package]]
 name = "lazy_static"
+version = "0.2.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "76f033c7ad61445c5b347c7382dd1237847eb1bce590fe50365dcb33d546be73"
+
+[[package]]
+name = "lazy_static"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
@@ -4739,7 +4830,7 @@ dependencies = [
  "base64 0.21.7",
  "biscuit",
  "chrono",
- "lazy_static",
+ "lazy_static 1.5.0",
  "mime",
  "reqwest 0.11.23",
  "serde",
@@ -4794,13 +4885,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "option-ext"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
+
+[[package]]
+name = "ordered-float"
+version = "2.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "68f19d67e5a2795c94e73e0bb1cc1a7edeb2e28efd39e2e1c9b7a40c1108b11c"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "ordered-multimap"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ccd746e37177e1711c20dd619a1620f34f5c8b569c53590a72dedd5344d8924a"
 dependencies = [
- "dlv-list",
+ "dlv-list 0.3.0",
  "hashbrown 0.12.3",
+]
+
+[[package]]
+name = "ordered-multimap"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4ed8acf08e98e744e5384c8bc63ceb0364e68a6854187221c18df61c4797690e"
+dependencies = [
+ "dlv-list 0.5.2",
+ "hashbrown 0.13.2",
 ]
 
 [[package]]
@@ -5492,7 +5608,7 @@ dependencies = [
  "bytes",
  "heck 0.4.1",
  "itertools 0.10.5",
- "lazy_static",
+ "lazy_static 1.5.0",
  "log",
  "multimap 0.8.3",
  "petgraph",
@@ -5577,6 +5693,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aa37f80ca58604976033fae9515a8a2989fc13797d953f7c04fb8fa36a11f205"
 dependencies = [
  "cc",
+]
+
+[[package]]
+name = "ptree"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "709c3b241d6a6ccc1933b1c6d7d997fae2b3dff8981f6780eac67df03c32f3ef"
+dependencies = [
+ "ansi_term",
+ "atty",
+ "config 0.14.0",
+ "directories",
+ "petgraph",
+ "serde",
+ "serde-value",
+ "tint",
 ]
 
 [[package]]
@@ -6169,6 +6301,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "ron"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b91f7eff05f748767f183df4320a63d6936e9c6107d97c9e6bdd9784f4289c94"
+dependencies = [
+ "base64 0.21.7",
+ "bitflags 2.6.0",
+ "serde",
+ "serde_derive",
+]
+
+[[package]]
 name = "rug"
 version = "1.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6200,7 +6344,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f6d5f2436026b4f6e79dc829837d467cc7e9a55ee40e750d716713540715a2df"
 dependencies = [
  "cfg-if",
- "ordered-multimap",
+ "ordered-multimap 0.4.3",
+]
+
+[[package]]
+name = "rust-ini"
+version = "0.19.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7e2a3bcec1f113553ef1c88aae6c020a369d03d55b58de9869a0908930385091"
+dependencies = [
+ "cfg-if",
+ "ordered-multimap 0.6.0",
 ]
 
 [[package]]
@@ -6597,6 +6751,7 @@ dependencies = [
  "num-traits",
  "openid",
  "phf 0.11.2",
+ "ptree",
  "quick-error",
  "rand 0.8.5",
  "regex",
@@ -6633,6 +6788,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8e3592472072e6e22e0a54d5904d9febf8508f65fb8552499a1abc7d1078c3a"
 dependencies = [
  "serde_derive",
+]
+
+[[package]]
+name = "serde-value"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f3a1a3341211875ef120e117ea7fd5228530ae7e7036a779fdc9117be6b3282c"
+dependencies = [
+ "ordered-float",
+ "serde",
 ]
 
 [[package]]
@@ -6750,7 +6915,7 @@ checksum = "0e56dd856803e253c8f298af3f4d7eb0ae5e23a737252cd90bb4f3b435033b2d"
 dependencies = [
  "dashmap",
  "futures",
- "lazy_static",
+ "lazy_static 1.5.0",
  "log",
  "parking_lot 0.12.3",
  "serial_test_derive",
@@ -6823,7 +6988,7 @@ version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f40ca3c46823713e0d4209592e8d6e826aa57e928f09752619fc696c499637f6"
 dependencies = [
- "lazy_static",
+ "lazy_static 1.5.0",
 ]
 
 [[package]]
@@ -7166,7 +7331,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c6b5c64445ba8094a6ab0c3cd2ad323e07171012d9c98b0b15651daf1787a10"
 dependencies = [
  "clap 2.34.0",
- "lazy_static",
+ "lazy_static 1.5.0",
  "structopt-derive",
 ]
 
@@ -7499,6 +7664,24 @@ checksum = "3f252a68540fde3a3877aeea552b832b40ab9a69e318efd078774a01ddee1ccf"
 dependencies = [
  "num-conv",
  "time-core",
+]
+
+[[package]]
+name = "tint"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7af24570664a3074673dbbf69a65bdae0ae0b72f2949b1adfbacb736ee4d6896"
+dependencies = [
+ "lazy_static 0.2.11",
+]
+
+[[package]]
+name = "tiny-keccak"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c9d3793400a45f954c52e73d068316d76b6f4e36977e3fcebb13a2721e80237"
+dependencies = [
+ "crunchy",
 ]
 
 [[package]]
@@ -8244,7 +8427,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b92f40481c04ff1f4f61f304d61793c7b56ff76ac1469f1beb199b1445b253bd"
 dependencies = [
  "idna 0.4.0",
- "lazy_static",
+ "lazy_static 1.5.0",
  "regex",
  "serde",
  "serde_derive",
@@ -8260,7 +8443,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bc44ca3088bb3ba384d9aecf40c6a23a676ce23e09bdaca2073d99c207f864af"
 dependencies = [
  "if_chain",
- "lazy_static",
+ "lazy_static 1.5.0",
  "proc-macro-error",
  "proc-macro2",
  "quote",
@@ -8446,7 +8629,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b21c0df030f5a177f3cba22e9bc4322695ec43e7257d865302900290bcdedca"
 dependencies = [
  "bumpalo",
- "lazy_static",
+ "lazy_static 1.5.0",
  "log",
  "proc-macro2",
  "quote",
@@ -8638,7 +8821,7 @@ dependencies = [
  "celery 0.5.5 (git+https://github.com/rusty-celery/rusty-celery.git?rev=1a0168f4b4b521c891fcfc853c21fc30de12c2f2)",
  "cfg-if",
  "chrono",
- "config",
+ "config 0.13.4",
  "csv",
  "deadpool",
  "deadpool-postgres",
@@ -8654,7 +8837,7 @@ dependencies = [
  "handlebars 4.5.0",
  "immudb-rs",
  "keycloak",
- "lazy_static",
+ "lazy_static 1.5.0",
  "lettre",
  "openssl",
  "postgres-openssl",
@@ -8972,7 +9155,7 @@ dependencies = [
  "asn1-rs 0.5.2",
  "data-encoding",
  "der-parser 8.2.0",
- "lazy_static",
+ "lazy_static 1.5.0",
  "nom",
  "oid-registry 0.6.1",
  "ring 0.16.20",
@@ -8990,7 +9173,7 @@ dependencies = [
  "asn1-rs 0.6.2",
  "data-encoding",
  "der-parser 9.0.0",
- "lazy_static",
+ "lazy_static 1.5.0",
  "nom",
  "oid-registry 0.7.1",
  "rusticata-macros",

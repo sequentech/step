@@ -38,21 +38,22 @@ impl BallotChoices {
     }
 }
 
+/// The choices for a contest
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct ContestChoices {
     pub contest_id: String,
-    pub is_explicit_invalid: bool,
+    // pub is_explicit_invalid: bool,
     pub choices: Vec<ContestChoice>,
 }
 impl ContestChoices {
     pub fn new(
         contest_id: String,
-        is_explicit_invalid: bool,
+        // is_explicit_invalid: bool,
         choices: Vec<ContestChoice>,
     ) -> Self {
         ContestChoices {
             contest_id,
-            is_explicit_invalid,
+            // is_explicit_invalid,
             choices,
         }
     }
@@ -60,6 +61,8 @@ impl ContestChoices {
 #[derive(
     Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone, Hash,
 )]
+
+/// A single choices within a Contest.
 pub struct ContestChoice {
     pub id: String,
     pub selected: i64,
@@ -103,6 +106,49 @@ impl BallotChoices {
         &self,
         config: &BallotStyle,
     ) -> Result<[u8; 30], String> {
+        /*let contests: Result<Vec<(Contest, ContestChoices)>, String> = self
+            .choices
+            .clone()
+            .into_iter()
+            .map(|choices| {
+                let contest = config
+                    .contests
+                    .iter()
+                    .find(|contest| contest.id == choices.contest_id)
+                    .ok_or_else(|| {
+                        format!(
+                            "Can't find contest with id {} on ballot style",
+                            choices.contest_id
+                        )
+                    })?;
+
+                Ok((contest.clone(), choices))
+            })
+            .collect();
+
+        let (contests, choices): (Vec<Contest>, Vec<ContestChoices>) =
+            contests?.into_iter().unzip();*/
+
+        let raw_ballot = self.encode_to_raw_ballot(&config)?;
+        /*let raw_ballot = Self::encode_to_raw_ballot_(
+            &contests,
+            &choices,
+            self.is_explicit_invalid,
+        )?;*/
+
+        let bigint =
+            mixed_radix::encode(&raw_ballot.choices, &raw_ballot.bases)?;
+        let bytes = bigint::encode_bigint_to_bytes(&bigint)?;
+
+        vec::encode_vec_to_array(&bytes)
+    }
+
+    /// FIXME change this to only extract the contests from the ballot style,
+    /// then use this method in the encode_to_raw_ballot_ below
+    pub(crate) fn encode_to_raw_ballot(
+        &self,
+        config: &BallotStyle,
+    ) -> Result<RawBallotContest, String> {
         let contests: Result<Vec<(Contest, ContestChoices)>, String> = self
             .choices
             .clone()
@@ -126,22 +172,14 @@ impl BallotChoices {
         let (contests, choices): (Vec<Contest>, Vec<ContestChoices>) =
             contests?.into_iter().unzip();
 
-        let raw_ballot = Self::encode_to_raw_ballot(
+        Self::encode_to_raw_ballot_(
             &contests,
             &choices,
             self.is_explicit_invalid,
-        )?;
-
-        let candidates: Vec<i64> =
-            contests.iter().map(|c| c.max_votes).collect();
-
-        let bigint =
-            mixed_radix::encode(&raw_ballot.choices, &raw_ballot.bases)?;
-        let bytes = bigint::encode_bigint_to_bytes(&bigint)?;
-
-        vec::encode_vec_to_array(&bytes)
+        )
     }
 
+    /// FIXME make this a &self method
     /// Encode this ballot into a mixed radix representation
     ///
     /// The following conditions will return an error:
@@ -166,7 +204,7 @@ impl BallotChoices {
     /// each of size contest.max_votes, plus one invalid flag.
     /// The total number of choices is given by the following:
     /// contests.iter().fold(0, |a, b| a + b.max_votes) + 1
-    fn encode_to_raw_ballot(
+    fn encode_to_raw_ballot_(
         contests: &Vec<Contest>,
         plaintexts: &Vec<ContestChoices>,
         explicit_invalid: bool,
@@ -219,8 +257,13 @@ impl BallotChoices {
         // A choice of a candidate is represented as that candidate's
         // position in the candidate list, sorted by id. The
         // same sorting order must be used to interpret
-        // choices when decoding
-        let mut sorted_candidates = contest.candidates.clone();
+        // choices when decoding.
+        let mut sorted_candidates: Vec<Candidate> = contest
+            .candidates
+            .clone()
+            .into_iter()
+            .filter(|candidate| !candidate.is_explicit_invalid())
+            .collect();
         sorted_candidates.sort_by_key(|c| c.id.clone());
 
         // Note how the position for the candidate is mapped to the first
@@ -228,7 +271,6 @@ impl BallotChoices {
         // marking choices.
         let candidates_map = sorted_candidates
             .iter()
-            .filter(|candidate| !candidate.is_explicit_invalid())
             .enumerate()
             .map(|c| (c.1.id.clone(), (c.0, c.1)))
             .collect::<HashMap<String, (usize, &Candidate)>>();
@@ -262,27 +304,31 @@ impl BallotChoices {
                     "choice id is not a valid candidate".to_string()
                 })?;
 
-            if p.selected > -1 {
-                // The slot's base is
-                //
-                // number of candidates + 1, such that
-                //
-                // 0    = unset
-                // >0   = the chosen candidate, with an offset of +1.
-                //
-                // A choice of a candidate is represented as that
-                // candidate's position in the candidate
-                // list, sorted by id. The same sorting order must be used
-                // to interpret choices when decoding.
-                let mark = (position + 1).try_into().map_err(|_| {
+            // The slot's base is
+            //
+            // number of candidates + 1, such that
+            //
+            // 0    = unset
+            // >0   = the chosen candidate, with an offset of +1.
+            //
+            // A choice of a candidate is represented as that
+            // candidate's position in the candidate
+            // list, sorted by id. The same sorting order must be used
+            // to interpret choices when decoding.
+            let mark = if p.selected > -1 {
+                (position + 1).try_into().map_err(|_| {
                     format!("u64 conversion on candidate position")
-                })?;
-                contest_choices[marked] = mark;
-                marked += 1;
+                })?
+            } else {
+                // unset
+                0
+            };
 
-                if marked == max_votes {
-                    break;
-                }
+            contest_choices[marked] = mark;
+            marked += 1;
+
+            if marked == max_votes {
+                break;
             }
         }
 
@@ -471,8 +517,6 @@ impl BallotChoices {
 
         let c = ContestChoices {
             contest_id: contest.id.clone(),
-            // FIXME we are currently not using this field
-            is_explicit_invalid: false,
             choices: unique.into_iter().collect(),
         };
 
@@ -586,15 +630,68 @@ impl BallotChoices {
 #[cfg(test)]
 mod tests {
 
-    use rand::{seq::SliceRandom, Rng, RngCore};
-
     use super::*;
     use crate::ballot::{BallotStyle, Candidate, Contest};
+    use rand::{seq::SliceRandom, Rng, RngCore};
 
     #[test]
     fn test_roundtrip() {
         let (ballot, style) = random_data(5);
+        print_tree(&style).unwrap();
+        print_tree(&ballot).unwrap();
+        let mixed_radix = ballot.encode_to_raw_ballot(&style).unwrap();
         ballot.encode_to_30_bytes(&style).unwrap();
+
+        println!("mixed_radix: {:?}", mixed_radix.choices);
+
+        let mut sorted_choices = ballot.choices.clone();
+        sorted_choices.sort_by_key(|c| c.contest_id.clone());
+
+        let mut index: usize = 1;
+        for choices in sorted_choices.iter() {
+            let contest = style
+                .contests
+                .iter()
+                .find(|c| c.id == choices.contest_id)
+                .unwrap();
+            let mut candidate_ids: Vec<String> =
+                contest.candidates.iter().map(|c| c.id.clone()).collect();
+            candidate_ids.sort();
+            println!("{:?}", candidate_ids);
+
+            for choice in choices.choices.iter() {
+                if choice.selected < -1 {
+                    assert_eq!(mixed_radix.choices[index], 0);
+                    index += 1;
+                    continue;
+                }
+
+                let mut value = 0;
+                // skip past unset values
+                loop {
+                    value = mixed_radix.choices[index] as usize;
+                    if value == 0 {
+                        println!(
+                            "at {}: choice: {}, value: {}, UNSET",
+                            index, choice.id, value
+                        );
+                        index += 1;
+                    } else {
+                        break;
+                    }
+                }
+                println!(
+                    "at {}: choice: {}, value: {}, target: {}",
+                    index,
+                    choice.id,
+                    value,
+                    candidate_ids[value - 1]
+                );
+                assert_eq!(choice.id, candidate_ids[value - 1]);
+
+                index += 1;
+            }
+        }
     }
 
     fn random_data(count: usize) -> (BallotChoices, BallotStyle) {
@@ -652,7 +749,7 @@ mod tests {
             .map(|c| random_choice(c.id.clone()))
             .collect();
 
-        ContestChoices::new(contest.id.clone(), false, choices)
+        ContestChoices::new(contest.id.clone(), choices)
     }
 
     fn random_contest(
@@ -724,7 +821,126 @@ mod tests {
         }
     }
 
+    use ptree::item::TreeItem;
+    use ptree::print_tree;
+    use ptree::style::Style;
+    use ptree::write_tree;
+    use std::borrow::Cow;
+    use std::fmt::Display;
+    use std::fmt::Formatter;
+    use std::io;
+
+    impl TreeItem for ContestChoice {
+        type Child = ContestChoice;
+        fn write_self<W: io::Write>(
+            &self,
+            f: &mut W,
+            style: &Style,
+        ) -> io::Result<()> {
+            write!(
+                f,
+                "{}",
+                style.paint(format!(
+                    "candidate-{} (selected = {})",
+                    self.id, self.selected
+                ))
+            )
+        }
+        fn children(&self) -> Cow<[Self::Child]> {
+            Cow::from(vec![])
+        }
+    }
+
+    impl TreeItem for BallotChoices {
+        type Child = ContestChoices;
+        fn write_self<W: io::Write>(
+            &self,
+            f: &mut W,
+            style: &Style,
+        ) -> io::Result<()> {
+            write!(f, "{}", style.paint(format!("ballot")))
+        }
+        fn children(&self) -> Cow<[Self::Child]> {
+            Cow::from(self.choices.clone())
+        }
+    }
+
+    impl TreeItem for ContestChoices {
+        type Child = ContestChoice;
+        fn write_self<W: io::Write>(
+            &self,
+            f: &mut W,
+            style: &Style,
+        ) -> io::Result<()> {
+            write!(f, "{}", style.paint(format!("{}/choices", self.contest_id)))
+        }
+        fn children(&self) -> Cow<[Self::Child]> {
+            Cow::from(self.choices.clone())
+        }
+    }
+
+    impl TreeItem for Contest {
+        type Child = Candidate;
+        fn write_self<W: io::Write>(
+            &self,
+            f: &mut W,
+            style: &Style,
+        ) -> io::Result<()> {
+            write!(f, "{}", style.paint(format!("contest-{}", self.id)))
+        }
+        fn children(&self) -> Cow<[Self::Child]> {
+            Cow::from(self.candidates.clone())
+        }
+    }
+
+    impl TreeItem for BallotStyle {
+        type Child = Contest;
+        fn write_self<W: io::Write>(
+            &self,
+            f: &mut W,
+            style: &Style,
+        ) -> io::Result<()> {
+            write!(f, "{}", style.paint("ballot-style"))
+        }
+        fn children(&self) -> Cow<[Self::Child]> {
+            Cow::from(self.contests.clone())
+        }
+    }
+
+    impl TreeItem for Candidate {
+        type Child = Self;
+
+        fn write_self<W: io::Write>(
+            &self,
+            f: &mut W,
+            style: &Style,
+        ) -> io::Result<()> {
+            write!(
+                f,
+                "{}",
+                style.paint(format!(
+                    "contest-{}/candidate-{}",
+                    self.contest_id, self.id
+                ))
+            )
+        }
+
+        fn children(&self) -> Cow<[Self::Child]> {
+            Cow::from(vec![])
+        }
+    }
+
     fn s() -> String {
         "foo".to_string()
+    }
+
+    impl Display for BallotChoices {
+        fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+            let mut buffer = vec![];
+            write_tree(self, &mut buffer).unwrap();
+            let s = String::from_utf8(buffer).expect("Invalid UTF-8 sequence");
+
+            write!(f, "{}", s)
+        }
     }
 }
