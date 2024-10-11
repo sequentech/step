@@ -4,6 +4,7 @@
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::types::hasura::core::KeysCeremony;
+use serde_json::Value;
 use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
@@ -73,4 +74,75 @@ pub async fn get_keys_ceremonies(
         .collect::<Result<Vec<KeysCeremony>>>()?;
 
     Ok(keys_ceremonies)
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn insert_keys_ceremony(
+    hasura_transaction: &Transaction<'_>,
+    id: String,
+    tenant_id: String,
+    election_event_id: String,
+    trustee_ids: Vec<String>,
+    threshold: i64,
+    status: Option<Value>,
+    execution_status: Option<String>,
+) -> Result<KeysCeremony> {
+    let id_uuid: uuid::Uuid = Uuid::parse_str(&id).with_context(|| "Error parsing id as UUID")?;
+    let tenant_uuid: uuid::Uuid =
+        Uuid::parse_str(&tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid: uuid::Uuid = Uuid::parse_str(&election_event_id)
+        .with_context(|| "Error parsing election_event_id as UUID")?;
+    let trustee_uuids: Vec<uuid::Uuid> = trustee_ids
+        .into_iter()
+        .map(|trustee_id| Uuid::parse_str(&trustee_id).map_err(|err| anyhow!("{:?}", err)))
+        .collect::<Result<Vec<uuid::Uuid>>>()
+        .with_context(|| "Error parsing trustee_ids as UUIDs")?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                INSERT INTO
+                    sequent_backend.keys_ceremony
+                (id, tenant_id, election_event_id, trustee_ids, status, threshold, created_at)
+                VALUES(
+                    $1,
+                    $2,
+                    $3,
+                    $4,
+                    $5,
+                    $6,
+                    NOW()
+                )
+                RETURNING
+                    *;
+            "#,
+        )
+        .await?;
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &id_uuid,
+                &tenant_uuid,
+                &election_event_uuid,
+                &trustee_uuids,
+                &status,
+                &threshold,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error inserting keys ceremony: {}", err))?;
+
+    let elements: Vec<KeysCeremony> = rows
+        .into_iter()
+        .map(|row| -> Result<KeysCeremony> {
+            row.try_into()
+                .map(|res: KeysCeremonyWrapper| -> KeysCeremony { res.0 })
+        })
+        .collect::<Result<Vec<KeysCeremony>>>()?;
+
+    elements
+        .get(0)
+        .map(|val| val.clone())
+        .ok_or(anyhow!("Row not inserted"))
 }

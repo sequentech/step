@@ -131,6 +131,7 @@ pub struct CreateKeysCeremonyInput {
     election_event_id: String,
     threshold: usize,
     trustee_names: Vec<String>,
+    election_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -155,7 +156,19 @@ pub async fn create_keys_ceremony(
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let user_id = claims.hasura_claims.user_id;
 
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
     let keys_ceremony_id = keys_ceremony::create_keys_ceremony(
+        &hasura_transaction,
         tenant_id,
         &user_id,
         input.election_event_id.clone(),
@@ -164,6 +177,12 @@ pub async fn create_keys_ceremony(
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    hasura_transaction
+        .commit()
+        .await
+        .with_context(|| "error comitting transaction")
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     event!(
         Level::INFO,

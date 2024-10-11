@@ -9,6 +9,9 @@ use crate::hasura::keys_ceremony::{
     get_keys_ceremony_by_id, insert_keys_ceremony, update_keys_ceremony_status,
 };
 use crate::hasura::trustee::get_trustees_by_name;
+use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::keys_ceremony;
+use crate::postgres::trustee;
 use crate::services::celery_app::get_celery_app;
 use crate::services::ceremonies::serialize_logs::*;
 use crate::services::election_event_board::get_election_event_board;
@@ -17,12 +20,12 @@ use crate::services::electoral_log::ElectoralLog;
 use crate::services::private_keys::get_trustee_encrypted_private_key;
 use crate::tasks::create_keys::{create_keys, CreateKeysBody};
 use anyhow::{anyhow, Context, Result};
+use deadpool_postgres::Transaction;
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak;
 use sequent_core::types::ceremonies::{CeremonyStatus, ExecutionStatus, Trustee, TrusteeStatus};
-use serde_json::from_value;
 use serde_json::Value;
 use tracing::instrument;
 use tracing::{event, Level};
@@ -334,20 +337,18 @@ pub async fn check_private_key(
 
 #[instrument(err)]
 pub async fn create_keys_ceremony(
+    transaction: &Transaction<'_>,
     tenant_id: String,
     user_id: &str,
     election_event_id: String,
     threshold: usize,
     trustee_names: Vec<String>,
 ) -> Result<String> {
-    let auth_headers = keycloak::get_client_credentials().await?;
     let celery_app = get_celery_app().await;
     // verify trustee names and fetch their objects to get their ids
-    let trustees = get_trustees_by_name(&auth_headers, &tenant_id, &trustee_names)
-        .await?
-        .data
-        .with_context(|| "can't find trustees")?
-        .sequent_backend_trustee;
+    let trustees = trustee::get_trustees_by_name(&transaction, &tenant_id, &trustee_names)
+        .await
+        .with_context(|| "can't find trustees")?;
 
     if trustee_names.len() != trustees.len() {
         return Err(anyhow!("can't find trustees"));
@@ -364,24 +365,15 @@ pub async fn create_keys_ceremony(
         .collect();
 
     // get the election event
-    let election_event = get_election_event_helper(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-    )
-    .await?;
+    let election_event =
+        get_election_event_by_id(&transaction, &tenant_id, &election_event_id).await?;
 
     // find if there's any previous ceremony and if so, stop. shouldn't happen,
     // we only allow one per election event
-    let keys_ceremonies = get_keys_ceremonies(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-    )
-    .await?
-    .data
-    .with_context(|| "error listing existing keys ceremonies")?
-    .sequent_backend_keys_ceremony;
+    let keys_ceremonies =
+        keys_ceremony::get_keys_ceremonies(&transaction, &tenant_id, &election_event_id)
+            .await
+            .with_context(|| "error listing existing keys ceremonies")?;
     let has_any_running_ceremony = keys_ceremonies.len() > 0;
     if has_any_running_ceremony {
         return Err(anyhow!("there's already an existing running ceremony"));
@@ -407,8 +399,8 @@ pub async fn create_keys_ceremony(
     })?;
 
     // insert keys-ceremony into the database using graphql
-    insert_keys_ceremony(
-        auth_headers.clone(),
+    keys_ceremony::insert_keys_ceremony(
+        &transaction,
         keys_ceremony_id.clone(),
         tenant_id.clone(),
         election_event_id.clone(),

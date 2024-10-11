@@ -5,7 +5,7 @@
 #![feature(result_flattening)]
 #[macro_use]
 extern crate lazy_static;
- 
+
 #[macro_use]
 extern crate quick_error;
 
