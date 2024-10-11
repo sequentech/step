@@ -118,6 +118,11 @@ impl StatementHead {
                 description: "Template sent to user.".to_string(),
                 ..default_head
             },
+            StatementBody::SendCommunications(_) => StatementHead {
+                kind: StatementType::SendCommunications,
+                description: "Communication sent to user.".to_string(),
+                ..default_head
+            },
             StatementBody::KeycloakUserEvent(_, _) => StatementHead {
                 kind: StatementType::KeycloakUserEvent,
                 event_type: StatementEventType::USER,
@@ -198,6 +203,7 @@ pub enum StatementBody {
     TallyClose(ElectionIdString),
 
     SendTemplate,
+    SendCommunications(Option<String>),
     KeycloakUserEvent(ErrorMessageString, KeycloakEventTypeString),
     /// Represents the assertion that
     ///     within the given tenant
@@ -235,6 +241,7 @@ pub enum StatementType {
     TallyOpen,
     TallyClose,
     SendTemplate,
+    SendCommunications,
     KeycloakUserEvent,
     VoterPublicKey,
     AdminPublicKey,
