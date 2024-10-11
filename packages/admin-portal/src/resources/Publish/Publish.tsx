@@ -76,11 +76,6 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 
         const refresh = useRefresh()
 
-        const canPublish =
-            recordStatus?.publish_policy == EPublishPolicy.ALWAYS ||
-            recordStatus?.keys_ceremony_finished ||
-            false
-
         const [generateData, setGenerateData] = useState<GetBallotPublicationChangesOutput | null>(
             null
         )
@@ -351,7 +346,6 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                 {viewMode === ViewMode.List && (
                     <PublishList
                         status={publishStatus}
-                        canPublish={canPublish}
                         canRead={canRead}
                         canWrite={canWrite}
                         changingStatus={changingStatus}

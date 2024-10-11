@@ -42,7 +42,6 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {
     ElectionsOrder,
-    EPublishPolicy,
     IElectionEventPresentation,
     IElectionPresentation,
     ITenantSettings,
@@ -1104,31 +1103,6 @@ export const EditElectionEventDataForm: React.FC = () => {
                                     </ElectionHeaderStyles.Wrapper>
                                 </AccordionSummary>
                                 <AccordionDetails>
-                                    <Typography
-                                        variant="body1"
-                                        component="span"
-                                        sx={{
-                                            fontWeight: "bold",
-                                            margin: 0,
-                                            display: {xs: "none", sm: "block"},
-                                        }}
-                                    >
-                                        {t("electionEventScreen.common.adminPortal")}
-                                    </Typography>
-                                    <Box>
-                                        <BooleanInput
-                                            source={"status.publish_policy"}
-                                            format={(e) => e !== EPublishPolicy.ALWAYS}
-                                            parse={(e) =>
-                                                !e
-                                                    ? EPublishPolicy.ALWAYS
-                                                    : EPublishPolicy.AFTER_LOCKDOWN
-                                            }
-                                            label={t(
-                                                "electionEventScreen.common.allowPublishAfterLockdown"
-                                            )}
-                                        />
-                                    </Box>
                                     <Typography
                                         variant="body1"
                                         component="span"
