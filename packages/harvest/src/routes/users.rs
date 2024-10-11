@@ -222,6 +222,7 @@ pub async fn get_users(
         email_verified: input.email_verified,
         sort: input.sort,
         has_voted: input.has_voted,
+        authorized_to_election_alias: None,
     };
 
     let (users, count) = match input.show_votes_info.unwrap_or(false) {

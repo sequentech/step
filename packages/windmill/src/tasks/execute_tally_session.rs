@@ -367,8 +367,6 @@ pub async fn count_cast_votes_election_with_census(
             None => "",
         }.to_string();
 
-        let attributes = Some(HashMap::from([("authorized-election-ids".to_string(), election_alias.to_string())]));
-
         let (_users, census) = list_users(
             &hasura_transaction,
             &keycloak_transaction,
@@ -386,11 +384,12 @@ pub async fn count_cast_votes_election_with_census(
                 limit: Some(1),
                 offset: None,
                 user_ids: None,
-                attributes,
+                attributes: None,
                 enabled: None,
                 email_verified: None,
                 sort: None,
                 has_voted: None,
+                authorized_to_election_alias: Some(election_alias.to_string()),
             },
         )
         .await?;
@@ -413,8 +412,6 @@ pub async fn get_eligible_voters(
 ) -> Result<u64> {
     let realm = get_event_realm(tenant_id, election_event_id);
 
-    let attributes = Some(HashMap::from([("authorized-election-ids".to_string(), election_alias.to_string())]));
-
     let (users, census) = list_users(
         &hasura_transaction,
         &keycloak_transaction,
@@ -432,11 +429,12 @@ pub async fn get_eligible_voters(
             limit: Some(1),
             offset: None,
             user_ids: None,
-            attributes,
+            attributes: None,
             enabled: None,
             email_verified: None,
             sort: None,
             has_voted: None,
+            authorized_to_election_alias: Some(election_alias.to_string()),
         },
     )
     .await?;
