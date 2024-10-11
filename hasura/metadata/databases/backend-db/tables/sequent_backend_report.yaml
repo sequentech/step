@@ -8,10 +8,11 @@ insert_permissions:
       tenant_id:
         _eq: X-Hasura-Tenant-Id
     columns:
-    - report_type
+    - cron_config
     - election_event_id
     - election_id
     - id
+    - report_type
     - template_id
     - tenant_id
   role: admin-user
@@ -21,10 +22,11 @@ insert_permissions:
       tenant_id:
         _eq: X-Hasura-Tenant-Id
     columns:
-    - report_type
+    - cron_config
     - election_event_id
     - election_id
     - id
+    - report_type
     - template_id
     - tenant_id
   role: report-write
@@ -33,10 +35,11 @@ select_permissions:
   permission:
     allow_aggregations: true
     columns:
-    - report_type
+    - cron_config
     - election_event_id
     - election_id
     - id
+    - report_type
     - template_id
     - tenant_id
     filter:
@@ -47,10 +50,11 @@ select_permissions:
   permission:
     allow_aggregations: true
     columns:
-    - report_type
+    - cron_config
     - election_event_id
     - election_id
     - id
+    - report_type
     - template_id
     - tenant_id
     filter:
@@ -61,10 +65,11 @@ select_permissions:
   permission:
     allow_aggregations: true
     columns:
-    - report_type
+    - cron_config
     - election_event_id
     - election_id
     - id
+    - report_type
     - template_id
     - tenant_id
     filter:
@@ -78,10 +83,11 @@ update_permissions:
       tenant_id:
         _eq: X-Hasura-Tenant-Id
     columns:
-    - report_type
+    - cron_config
     - election_event_id
     - election_id
     - id
+    - report_type
     - template_id
     - tenant_id
     filter: {}
@@ -90,10 +96,11 @@ update_permissions:
   permission:
     check: {}
     columns:
-    - report_type
+    - cron_config
     - election_event_id
     - election_id
     - id
+    - report_type
     - template_id
     - tenant_id
     filter:

@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Context, Result};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Utc, Local};
 use deadpool_postgres::Transaction;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -10,7 +10,7 @@ use tracing::{info, instrument};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReportCronConfig {
     pub is_active: bool,
-    pub last_document_produced: Option<DateTime<Utc>>,
+    pub last_document_produced: Option<DateTime<Local>>,
     pub cron_expression: String,
 }
 
@@ -21,9 +21,9 @@ pub struct Report {
     pub tenant_id: String,
     pub election_id: Option<String>,
     pub report_type: String,
-    pub template_id: String,
+    pub template_id: Option<String>,
     pub cron_config: Option<ReportCronConfig>,
-    pub created_at: DateTime<Utc>,
+    pub created_at: DateTime<Local>,
 }
 
 pub struct ReportWrapper(pub Report);

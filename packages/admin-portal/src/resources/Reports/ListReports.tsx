@@ -29,6 +29,8 @@ import {
     Sequent_Backend_Template,
 } from "@/gql/graphql"
 import EditIcon from "@mui/icons-material/Edit"
+import { EditReportForm } from "./EditReportForm"
+import { report } from "process"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -65,17 +67,17 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
     const canWrtieReport = authContext.isAuthorized(true, tenantId, IPermissions.REPORT_WRITE)
-    const [openEditReport, setOpenEditReport] = useState<boolean>(false)
+    // const [openEditReport, setOpenEditReport] = useState<boolean>(false)
     const handleClose = () => {
         setOpenCreateReport(false)
-        setOpenEditReport(false)
+        // setOpenEditReport(false)
         setIsEditReport(false)
         setSelectedReportId(null)
     }
 
     const handleEditDrawer = (id: Identifier) => {
         setSelectedReportId(id)
-        setOpenEditReport(true)
+        setOpenCreateReport(true)
     }
 
     const {data: templates} = useGetList<Sequent_Backend_Template>(
@@ -121,6 +123,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
 
     const handleCreateDrawer = () => {
         setSelectedReportId(null)
+        // setOpenEditReport(false)
         setOpenCreateReport(true)
     }
 
@@ -186,7 +189,12 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                         open={openCreateReport}
                         setOpen={setOpenCreateReport}
                         Component={
-                            <CreateReport close={handleClose} electionEventId={electionEventId} />
+                            <EditReportForm
+                            close={handleClose}
+                            electionEventId={electionEventId}
+                            tenantId={tenantId}
+                            isEditReport={false}
+                        />
                         }
                     />
                 }
@@ -213,18 +221,20 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
 
             <Drawer
                 anchor="right"
-                open={openEditReport}
+                open={openCreateReport}
                 onClose={handleClose}
                 PaperProps={{
                     sx: {width: "40%"},
                 }}
             >
                 <CustomApolloContextProvider role={IPermissions.template_WRITE}>
-                    <EditReport
-                        close={handleClose}
-                        electionEventId={electionEventId}
-                        reportId={selectedReportId}
-                    />
+                <EditReportForm
+                close={handleClose}
+                electionEventId={electionEventId}
+                tenantId={tenantId}
+                isEditReport={selectedReportId ? true : false}
+                reportId={selectedReportId}
+            />
                 </CustomApolloContextProvider>
             </Drawer>
         </>

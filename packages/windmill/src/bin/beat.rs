@@ -44,11 +44,11 @@ async fn main() -> Result<()> {
                 schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::from_args().interval)),
                 args = (),
             },
-            "scheduled_events" => {
-                scheduled_events,
-                schedule = DeltaSchedule::new(Duration::from_secs(10)),
-                args = (),
-            },
+            // "scheduled_events" => {
+            //     scheduled_events,
+            //     schedule = DeltaSchedule::new(Duration::from_secs(10)),
+            //     args = (),
+            // },
             "scheduled_reports" => {
                 scheduled_reports,
                 schedule = DeltaSchedule::new(Duration::from_secs(10)),
@@ -58,7 +58,7 @@ async fn main() -> Result<()> {
         ],
         task_routes = [
             "review_boards" => "beat",
-            "scheduled_events" => "beat",
+            // "scheduled_events" => "beat",
             "scheduled_reports" => "beat",
         ],
     ).await?;

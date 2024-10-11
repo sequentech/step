@@ -55,7 +55,7 @@ const EditNotifications = lazy(() =>
 )
 
 const Reports = lazy(() =>
-    import("../Reports/EditReports").then((module) => ({
+    import("../Reports/EditReportsTab").then((module) => ({
         default: module.EditReportsTab,
     }))
 )
