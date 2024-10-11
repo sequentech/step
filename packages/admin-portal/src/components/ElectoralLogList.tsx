@@ -57,6 +57,7 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
             const {data: exportElectionEventData, errors} = await exportElectionEvent({ // TODO: send over the exportFormat
                 variables: {
                     electionEventId,
+                    format: exportFormat,
                 },
             })
             let documentId = exportElectionEventData?.export_election_event_logs?.document_id

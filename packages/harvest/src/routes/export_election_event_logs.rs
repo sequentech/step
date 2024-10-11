@@ -17,6 +17,7 @@ use windmill::tasks::export_election_event_logs;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ExportElectionEventInput {
     election_event_id: String,
+    format: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -32,6 +33,9 @@ pub async fn export_election_event_logs_route(
     input: Json<ExportElectionEventInput>,
 ) -> Result<Json<ExportElectionEventOutput>, (Status, String)> {
     let body = input.into_inner();
+
+    info!("Export election event logs into {}", body.format);
+
     authorize(
         &claims,
         true,
