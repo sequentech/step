@@ -888,6 +888,7 @@ const catalanTranslation: TranslationType = {
             configureStep: {
                 create: "Crear Cerimònia de Claus",
                 name: "Nom de la Cerimònia de Claus",
+                allElections: "Totes les Eleccions",
                 title: "Crear Cerimònia de Claus de l'Esdeveniment Electoral",
                 subtitle:
                     "En aquesta cerimònia cada autoritat generarà i descarregarà la seva part de les claus privades per a l'Esdeveniment Electoral. Per continuar, trieu les autoritats que participaran en la cerimònia i el llindar, que és el nombre mínim d'autoritats necessaris per comptar.",

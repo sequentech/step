@@ -4,11 +4,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useEffect, useState} from "react"
-import {CircularProgress, Typography, TextField} from "@mui/material"
+import {CircularProgress, Typography, TextField, InputLabel, Select, MenuItem} from "@mui/material"
 import {
     CreateKeysCeremonyMutation,
+    Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Keys_Ceremony,
+    Sequent_Backend_Trustee,
 } from "@/gql/graphql"
 import {
     useGetList,
@@ -46,7 +48,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
     openCeremonyStep,
     goBack,
 }) => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const [tenantId] = useTenantStore()
     const notify = useNotify()
     const [newId, setNewId] = useState<string | null>(null)
@@ -60,11 +62,19 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
     const [electionId, setElectionId] = useState<string | null>(null)
     const [trusteeNames, setTrusteeNames] = useState<string[]>([])
     const refresh = useRefresh()
-    const {data: trusteeList, error} = useGetList("sequent_backend_trustee", {
+    const {data: trusteeList, error} = useGetList<Sequent_Backend_Trustee>("sequent_backend_trustee", {
         pagination: {page: 1, perPage: 10},
         sort: {field: "last_updated_at", order: "DESC"},
         filter: {
             tenant_id: electionEvent.tenant_id,
+        },
+    })
+    const {data: electionsList} = useGetList<Sequent_Backend_Election>("sequent_backend_election", {
+        pagination: {page: 1, perPage: 10},
+        sort: {field: "last_updated_at", order: "DESC"},
+        filter: {
+            tenant_id: electionEvent.tenant_id,
+            election_event_id: electionEvent.id,
         },
     })
     const {data: keysCeremony, isLoading: isOneLoading} = useGetOne<Sequent_Backend_Keys_Ceremony>(
@@ -229,14 +239,15 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                     }
                 >
                     <WizardStyles.MainContent>
-                        <WizardStyles.StepHeader variant="h4">
+                        <WizardStyles.StepHeader variant="h4" dir={i18n.dir(i18n.language)}>
                             {t("keysGeneration.configureStep.title")}
                         </WizardStyles.StepHeader>
-                        <Typography variant="body2">
+                        <Typography variant="body2" dir={i18n.dir(i18n.language)}>
                             {t("keysGeneration.configureStep.subtitle")}
                         </Typography>
 
                         <TextField
+                            dir={i18n.dir(i18n.language)}
                             label={t("keysGeneration.configureStep.name")}
                             value={name}
                             onChange={(e) => setName(e.target.value)}
@@ -244,6 +255,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                         />
 
                         <TextInput
+                            dir={i18n.dir(i18n.language)}
                             source="threshold"
                             label={t("keysGeneration.configureStep.threshold")}
                             value={threshold}
@@ -256,6 +268,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                         />
                         {trusteeList ? (
                             <CheckboxGroupInput
+                                dir={i18n.dir(i18n.language)}
                                 validate={validateTrusteeList}
                                 label={t("keysGeneration.configureStep.trusteeList")}
                                 source="trusteeNames"
@@ -267,6 +280,18 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                                 className="keys-trustees-input"
                             />
                         ) : null}
+                        <InputLabel dir={i18n.dir(i18n.language)}>{t("electionScreen.common.title")}</InputLabel>
+                        <Select
+                        dir={i18n.dir(i18n.language)}
+                          value={electionId}
+                          label={t("electionScreen.common.title")}
+                          onChange={(e) => setElectionId(e.target.value ?? null)}
+                        >
+                          <MenuItem value={""} dir={i18n.dir(i18n.language)}>{t("keysGeneration.configureStep.allElections")}</MenuItem>
+                          {
+                            electionsList?.map(election => <MenuItem key={election.id} value={election.id} dir={i18n.dir(i18n.language)}>{election.name}</MenuItem>)
+                          }
+                        </Select>
                         {errors ? (
                             <WizardStyles.ErrorMessage variant="body2" className="keys-error">
                                 {errors}

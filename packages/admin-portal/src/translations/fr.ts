@@ -892,6 +892,7 @@ const frenchTranslation: TranslationType = {
             configureStep: {
                 create: "Créer une Cérémonie de Clés",
                 name: "Nom de la Cérémonie des Clés",
+                allElections: "Toutes les Élections",
                 title: "Créer une Cérémonie de Clés de l'Événement Électoral",
                 subtitle:
                     "Dans cette cérémonie, chaque autorité générera et téléchargera sa part des clés privées pour l'Événement Électoral. Pour continuer, choisissez les autorités qui participeront à la cérémonie et le seuil, qui est le nombre minimum d'autorités nécessaires pour compter.",

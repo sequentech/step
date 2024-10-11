@@ -883,6 +883,7 @@ const englishTranslation = {
             configureStep: {
                 create: "Create Keys Ceremony",
                 name: "Keys Ceremony Name",
+                allElections: "All Elections",
                 title: "Create Election Event Keys Ceremony",
                 subtitle:
                     "In the Keys Ceremony each trustee will generate and download their fragment of the private key for the Election Event. To proceed, please choose the trustees that will participate in the ceremony and the threshold, which is the minimum number of trustees required to tally.",
