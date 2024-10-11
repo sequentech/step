@@ -9,6 +9,7 @@ use crate::services::database::get_hasura_pool;
 use crate::services::date::ISO8601;
 use crate::tasks::manage_election_dates::manage_election_date;
 use crate::tasks::manage_election_event_date::manage_election_event_date;
+use crate::tasks::manage_election_init_report::manage_election_init_report;
 use crate::types::error::Result;
 use anyhow::anyhow;
 use celery::{error::TaskError, Celery};
@@ -17,6 +18,7 @@ use chrono::Duration;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::ballot::{ElectionPresentation, InitReport, VotingPeriodEnd};
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
+use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::types::scheduled_event::*;
 use std::sync::Arc;
 use tracing::instrument;
@@ -34,9 +36,13 @@ pub fn get_datetime(event: &ScheduledEvent) -> Option<DateTime<Local>> {
 }
 
 pub async fn handle_allow_init_report(
+    celery_app: Arc<Celery>,
     transaction: &Transaction<'_>,
     scheduled_event: &ScheduledEvent,
 ) -> Result<()> {
+    let Some(datetime) = get_datetime(scheduled_event) else {
+        return Ok(());
+    };
     let Some(tenant_id) = scheduled_event.tenant_id.clone() else {
         return Ok(());
     };
@@ -47,37 +53,52 @@ pub async fn handle_allow_init_report(
         event!(Level::WARN, "Missing election_event_id");
         return Ok(());
     };
-    let payload: ManageAllowInitPayload = deserialize_value(event_payload)?;
+    let payload: ManageElectionDatePayload = deserialize_value(event_payload)?;
+    // run the actual task in a different async task
     match payload.election_id.clone() {
         Some(election_id) => {
-            let election =
-                get_election_by_id(&transaction, &tenant_id, &election_event_id, &election_id)
-                    .await?;
-            if let Some(election) = election {
-                if let Some(election_presentation) = election.status {
-                    let election_presentation: ElectionPresentation = ElectionPresentation {
-                        init_report: InitReport::ALLOWED,
-                        ..serde_json::from_value(election_presentation)?
-                    };
-                    update_election_presentation(
-                        transaction,
-                        &tenant_id,
-                        &election_event_id,
-                        &election_id,
-                        serde_json::to_value(election_presentation)?,
+            let task = celery_app
+                .send_task(
+                    manage_election_init_report::new(
+                        tenant_id.clone(),
+                        election_event_id.clone(),
+                        scheduled_event.id.clone(),
+                        election_id,
                     )
-                    .await?;
-                }
-            }
+                    .with_eta(datetime.with_timezone(&Utc))
+                    .with_expires_in(120),
+                )
+                .await?;
+            event!(
+                Level::INFO,
+                "Sent manage_election_date task {}",
+                task.task_id
+            );
         }
         None => {
-            // Initialization reports applies to elections, not election events
+            let task = celery_app
+                .send_task(
+                    manage_election_event_date::new(
+                        tenant_id.clone(),
+                        election_event_id.clone(),
+                        scheduled_event.id.clone(),
+                    )
+                    .with_eta(datetime.with_timezone(&Utc))
+                    .with_expires_in(120),
+                )
+                .await?;
+            event!(
+                Level::INFO,
+                "Sent manage_election_event_date task {}",
+                task.task_id
+            );
         }
     }
     Ok(())
 }
 
 pub async fn handle_allow_voting_period_end(
+    celery_app: Arc<Celery>,
     transaction: &Transaction<'_>,
     scheduled_event: &ScheduledEvent,
 ) -> Result<()> {
@@ -218,10 +239,14 @@ pub async fn scheduled_events() -> Result<()> {
         };
         match event_processor {
             EventProcessors::ALLOW_INIT_REPORT => {
-                handle_allow_init_report(&hasura_transaction, scheduled_event);
+                handle_allow_init_report(celery_app.clone(), &hasura_transaction, scheduled_event);
             }
             EventProcessors::ALLOW_VOTING_PERIOD_END => {
-                handle_allow_voting_period_end(&hasura_transaction, scheduled_event);
+                handle_allow_voting_period_end(
+                    celery_app.clone(),
+                    &hasura_transaction,
+                    scheduled_event,
+                );
             }
             EventProcessors::START_VOTING_PERIOD | EventProcessors::END_VOTING_PERIOD => {
                 if let Err(err) = handle_voting_event(celery_app.clone(), &scheduled_event).await {
@@ -239,12 +264,11 @@ pub async fn scheduled_events() -> Result<()> {
                     );
                 }
             }
-            EventProcessors::CREATE_REPORT
-            | EventProcessors::SEND_TEMPLATE
-            | EventProcessors::START_ENROLLMENT_PERIOD
-            | EventProcessors::END_ENROLLMENT_PERIOD
-            | EventProcessors::START_LOCKDOWN_PERIOD
-            | EventProcessors::END_LOCKDOWN_PERIOD => {
+            EventProcessors::START_ENROLLMENT_PERIOD => {}
+            EventProcessors::END_ENROLLMENT_PERIOD => {}
+            EventProcessors::START_LOCKDOWN_PERIOD => {}
+            EventProcessors::END_LOCKDOWN_PERIOD => {}
+            EventProcessors::CREATE_REPORT | EventProcessors::SEND_TEMPLATE => {
                 // Nothing to do for these event processors.  Avoid a
                 // catch all to ignore unknown events, this way when
                 // new variants are added to `EventProcessors`, a
