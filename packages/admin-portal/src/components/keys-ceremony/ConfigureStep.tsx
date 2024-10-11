@@ -32,7 +32,7 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Dialog} from "@sequentech/ui-essentials"
 import {isNull} from "@sequentech/ui-core"
 import {WizardStyles} from "@/components/styles/WizardStyles"
-import { useAliasRenderer } from "@/hooks/useAliasRenderer"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 export interface ConfigureStepProps {
     currentCeremony: Sequent_Backend_Keys_Ceremony | null
@@ -64,13 +64,16 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
     const [trusteeNames, setTrusteeNames] = useState<string[]>([])
     const refresh = useRefresh()
     const aliasRenderer = useAliasRenderer()
-    const {data: trusteeList, error} = useGetList<Sequent_Backend_Trustee>("sequent_backend_trustee", {
-        pagination: {page: 1, perPage: 10},
-        sort: {field: "last_updated_at", order: "DESC"},
-        filter: {
-            tenant_id: electionEvent.tenant_id,
-        },
-    })
+    const {data: trusteeList, error} = useGetList<Sequent_Backend_Trustee>(
+        "sequent_backend_trustee",
+        {
+            pagination: {page: 1, perPage: 10},
+            sort: {field: "last_updated_at", order: "DESC"},
+            filter: {
+                tenant_id: electionEvent.tenant_id,
+            },
+        }
+    )
     const {data: electionsList} = useGetList<Sequent_Backend_Election>("sequent_backend_election", {
         pagination: {page: 1, perPage: 10},
         sort: {field: "last_updated_at", order: "DESC"},
@@ -158,7 +161,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                 threshold,
                 trusteeNames,
                 name,
-                electionId: electionId ?? undefined
+                electionId: electionId ?? undefined,
             })
             if (keysCeremonyId) {
                 setNewId(keysCeremonyId)
@@ -289,17 +292,27 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                                 className="keys-trustees-input"
                             />
                         ) : null}
-                        <InputLabel dir={i18n.dir(i18n.language)}>{t("electionScreen.common.title")}</InputLabel>
+                        <InputLabel dir={i18n.dir(i18n.language)}>
+                            {t("electionScreen.common.title")}
+                        </InputLabel>
                         <Select
                             dir={i18n.dir(i18n.language)}
                             value={electionId}
                             label={t("electionScreen.common.title")}
                             onChange={(e) => onElectionChange(e.target.value ?? null)}
                         >
-                          <MenuItem value={""} dir={i18n.dir(i18n.language)}>{t("keysGeneration.configureStep.allElections")}</MenuItem>
-                          {
-                            electionsList?.map(election => <MenuItem key={election.id} value={election.id} dir={i18n.dir(i18n.language)}>{aliasRenderer(election)}</MenuItem>)
-                          }
+                            <MenuItem value={""} dir={i18n.dir(i18n.language)}>
+                                {t("keysGeneration.configureStep.allElections")}
+                            </MenuItem>
+                            {electionsList?.map((election) => (
+                                <MenuItem
+                                    key={election.id}
+                                    value={election.id}
+                                    dir={i18n.dir(i18n.language)}
+                                >
+                                    {aliasRenderer(election)}
+                                </MenuItem>
+                            ))}
                         </Select>
                         {errors ? (
                             <WizardStyles.ErrorMessage variant="body2" className="keys-error">

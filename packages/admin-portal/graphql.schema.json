@@ -728,6 +728,33 @@
         "possibleTypes": null
       },
       {
+        "kind": "OBJECT",
+        "name": "CreateElectionOutput",
+        "description": null,
+        "fields": [
+          {
+            "name": "id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
         "kind": "INPUT_OBJECT",
         "name": "CreateKeysCeremonyInput",
         "description": null,
@@ -4910,33 +4937,6 @@
       },
       {
         "kind": "OBJECT",
-        "name": "SampleOutput",
-        "description": null,
-        "fields": [
-          {
-            "name": "accessToken",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
-        "inputFields": null,
-        "interfaces": [],
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "OBJECT",
         "name": "ScheduledEventOutput3",
         "description": null,
         "fields": [
@@ -7356,7 +7356,7 @@
             ],
             "type": {
               "kind": "OBJECT",
-              "name": "SampleOutput",
+              "name": "CreateElectionOutput",
               "ofType": null
             },
             "isDeprecated": false,

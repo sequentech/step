@@ -102,6 +102,11 @@ export type CreateElectionEventOutput = {
   id: Scalars['String']['output'];
 };
 
+export type CreateElectionOutput = {
+  __typename?: 'CreateElectionOutput';
+  id: Scalars['String']['output'];
+};
+
 export type CreateKeysCeremonyInput = {
   election_event_id: Scalars['String']['input'];
   election_id?: InputMaybe<Scalars['String']['input']>;
@@ -581,11 +586,6 @@ export type RestorePrivateKeyOutput = {
   is_valid: Scalars['Boolean']['output'];
 };
 
-export type SampleOutput = {
-  __typename?: 'SampleOutput';
-  accessToken: Scalars['String']['output'];
-};
-
 export type ScheduledEventOutput3 = {
   __typename?: 'ScheduledEventOutput3';
   id?: Maybe<Scalars['String']['output']>;
@@ -763,7 +763,7 @@ export type Mutation_Root = {
   check_private_key?: Maybe<CheckPrivateKeyOutput>;
   /** create scheduled event */
   createScheduledEvent?: Maybe<ScheduledEventOutput3>;
-  create_election?: Maybe<SampleOutput>;
+  create_election?: Maybe<CreateElectionOutput>;
   /** create keys ceremony */
   create_keys_ceremony?: Maybe<CreateKeysCeremonyOutput>;
   create_permission?: Maybe<KeycloakPermission>;
