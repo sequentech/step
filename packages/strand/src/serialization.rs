@@ -33,7 +33,7 @@
 //! let plaintext_ = ctx.decode(&decrypted);
 //! assert_eq!(plaintext, plaintext_);
 //! ```
-use crate::shuffler_product::StrandRectangle;
+// use crate::shuffler_product::StrandRectangle;
 use borsh::{BorshDeserialize, BorshSerialize};
 use std::io::{Error, ErrorKind};
 
@@ -119,52 +119,52 @@ impl<T: BorshSerialize + BorshDeserialize + Send + Sync> BorshDeserialize
     }
 }
 
-/// Parallel serialization for rectangles
-impl<T: Send + Sync + BorshSerialize> BorshSerialize for StrandRectangle<T> {
-    fn serialize<W: std::io::Write>(
-        &self,
-        writer: &mut W,
-    ) -> std::io::Result<()> {
-        let vector = self.rows();
+// /// Parallel serialization for rectangles
+// impl<T: Send + Sync + BorshSerialize> BorshSerialize for StrandRectangle<T> {
+//     fn serialize<W: std::io::Write>(
+//         &self,
+//         writer: &mut W,
+//     ) -> std::io::Result<()> {
+//         let vector = self.rows();
 
-        let vecs: Result<Vec<Vec<u8>>, std::io::Error> =
-            vector.par().map(|t| borsh::to_vec(t)).collect();
-        let inside = vecs?;
+//         let vecs: Result<Vec<Vec<u8>>, std::io::Error> =
+//             vector.par().map(|t| borsh::to_vec(t)).collect();
+//         let inside = vecs?;
 
-        inside.serialize(writer)
-    }
-}
+//         inside.serialize(writer)
+//     }
+// }
 
-/// Parallel serialization for rectangles
-impl<T: Send + Sync + BorshDeserialize> BorshDeserialize
-    for StrandRectangle<T>
-{
-    fn deserialize_reader<R: std::io::Read>(
-        reader: &mut R,
-    ) -> Result<Self, std::io::Error> {
-        let vectors = <Vec<Vec<u8>>>::deserialize_reader(reader)?;
-        let results: std::io::Result<Vec<Vec<T>>> = vectors
-            .par()
-            .map(|v| Vec::<T>::try_from_slice(&v))
-            .collect();
+// /// Parallel serialization for rectangles
+// impl<T: Send + Sync + BorshDeserialize> BorshDeserialize
+//     for StrandRectangle<T>
+// {
+//     fn deserialize_reader<R: std::io::Read>(
+//         reader: &mut R,
+//     ) -> Result<Self, std::io::Error> {
+//         let vectors = <Vec<Vec<u8>>>::deserialize_reader(reader)?;
+//         let results: std::io::Result<Vec<Vec<T>>> = vectors
+//             .par()
+//             .map(|v| Vec::<T>::try_from_slice(&v))
+//             .collect();
 
-        StrandRectangle::new(results?).map_err(|_| {
-            Error::new(ErrorKind::Other, "Parsed bytes were not rectangular")
-        })
-    }
+//         StrandRectangle::new(results?).map_err(|_| {
+//             Error::new(ErrorKind::Other, "Parsed bytes were not rectangular")
+//         })
+//     }
 
-    /*fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
-        let vectors = <Vec<Vec<u8>>>::deserialize(buf)?;
-        let results: std::io::Result<Vec<Vec<T>>> = vectors
-            .par()
-            .map(|v| Vec::<T>::try_from_slice(&v))
-            .collect();
+//     /*fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+//         let vectors = <Vec<Vec<u8>>>::deserialize(buf)?;
+//         let results: std::io::Result<Vec<Vec<T>>> = vectors
+//             .par()
+//             .map(|v| Vec::<T>::try_from_slice(&v))
+//             .collect();
 
-        StrandRectangle::new(results?).map_err(|_| {
-            Error::new(ErrorKind::Other, "Parsed bytes were not rectangular")
-        })
-    }*/
-}
+//         StrandRectangle::new(results?).map_err(|_| {
+//             Error::new(ErrorKind::Other, "Parsed bytes were not rectangular")
+//         })
+//     }*/
+// }
 
 #[cfg(test)]
 pub(crate) mod tests {

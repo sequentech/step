@@ -38,7 +38,7 @@ pub(crate) mod tests {
     use crate::serialization::StrandSerialize;
     use std::time::Instant;
 
-    use crate::shuffler_product::StrandRectangle;
+    // use crate::shuffler_product::StrandRectangle;
     use crate::util;
     use crate::zkp::Zkp;
 
@@ -286,30 +286,30 @@ pub(crate) mod tests {
         assert!(ok);
     }
 
-    pub(crate) fn test_product_shuffle_generic<C: Ctx>(ctx: &C) {
-        let sk = PrivateKey::gen(ctx);
-        let pk = sk.get_pk();
+    // pub(crate) fn test_product_shuffle_generic<C: Ctx>(ctx: &C) {
+    //     let sk = PrivateKey::gen(ctx);
+    //     let pk = sk.get_pk();
 
-        let es = util::random_product_ciphertexts(100, 3, ctx);
-        let seed = vec![];
-        let hs = ctx.generators(es.rows().len() + 1, &seed).unwrap();
-        let shuffler = crate::shuffler_product::Shuffler {
-            pk: &pk,
-            generators: &hs,
-            ctx: (*ctx).clone(),
-        };
+    //     let es = util::random_product_ciphertexts(100, 3, ctx);
+    //     let seed = vec![];
+    //     let hs = ctx.generators(es.rows().len() + 1, &seed).unwrap();
+    //     let shuffler = crate::shuffler_product::Shuffler {
+    //         pk: &pk,
+    //         generators: &hs,
+    //         ctx: (*ctx).clone(),
+    //     };
 
-        let (e_primes, rs, perm) = shuffler.gen_shuffle(&es);
-        let proof = shuffler.gen_proof(&es, &e_primes, rs, &perm, &[]).unwrap();
+    //     let (e_primes, rs, perm) = shuffler.gen_shuffle(&es);
+    //     let proof = shuffler.gen_proof(&es, &e_primes, rs, &perm, &[]).unwrap();
 
-        let ok = shuffler.check_proof(&proof, &es, &e_primes, &[]).unwrap();
+    //     let ok = shuffler.check_proof(&proof, &es, &e_primes, &[]).unwrap();
 
-        assert!(ok);
+    //     assert!(ok);
 
-        let e_primes_bad = util::random_product_ciphertexts(100, 3, ctx);
-        let ok = shuffler.check_proof(&proof, &es, &e_primes_bad, &[]).unwrap();
-        assert!(!ok);
-    }
+    //     let e_primes_bad = util::random_product_ciphertexts(100, 3, ctx);
+    //     let ok = shuffler.check_proof(&proof, &es, &e_primes_bad, &[]).unwrap();
+    //     assert!(!ok);
+    // }
 
     pub(crate) fn test_shuffle_serialization_generic<C: Ctx>(ctx: &C) {
         let sk = PrivateKey::gen(ctx);
@@ -353,47 +353,47 @@ pub(crate) mod tests {
         assert!(ok_d);
     }
 
-    pub(crate) fn test_product_shuffle_serialization_generic<C: Ctx>(ctx: &C) {
-        let sk = PrivateKey::gen(ctx);
-        let pk = sk.get_pk();
+    // pub(crate) fn test_product_shuffle_serialization_generic<C: Ctx>(ctx: &C) {
+    //     let sk = PrivateKey::gen(ctx);
+    //     let pk = sk.get_pk();
 
-        let es = util::random_product_ciphertexts(100, 3, ctx);
-        let seed = vec![];
-        let hs = ctx.generators(es.rows().len() + 1, &seed).unwrap();
-        let shuffler = crate::shuffler_product::Shuffler {
-            pk: &pk,
-            generators: &hs,
-            ctx: (*ctx).clone(),
-        };
-        let (e_primes, rs, perm) = shuffler.gen_shuffle(&es);
-        let proof = shuffler.gen_proof(&es, &e_primes, rs, &perm, &[]).unwrap();
-        // in this test do this only after serialization
-        // let ok = shuffler.check_proof(&proof, &es, &e_primes, &[]);
-        // assert!(ok);
+    //     let es = util::random_product_ciphertexts(100, 3, ctx);
+    //     let seed = vec![];
+    //     let hs = ctx.generators(es.rows().len() + 1, &seed).unwrap();
+    //     let shuffler = crate::shuffler_product::Shuffler {
+    //         pk: &pk,
+    //         generators: &hs,
+    //         ctx: (*ctx).clone(),
+    //     };
+    //     let (e_primes, rs, perm) = shuffler.gen_shuffle(&es);
+    //     let proof = shuffler.gen_proof(&es, &e_primes, rs, &perm, &[]).unwrap();
+    //     // in this test do this only after serialization
+    //     // let ok = shuffler.check_proof(&proof, &es, &e_primes, &[]);
+    //     // assert!(ok);
 
-        let pk_b = pk.strand_serialize().unwrap();
-        let es_b = es.strand_serialize().unwrap();
-        let eprimes_b = e_primes.strand_serialize().unwrap();
-        let proof_b = proof.strand_serialize().unwrap();
+    //     let pk_b = pk.strand_serialize().unwrap();
+    //     let es_b = es.strand_serialize().unwrap();
+    //     let eprimes_b = e_primes.strand_serialize().unwrap();
+    //     let proof_b = proof.strand_serialize().unwrap();
 
-        let pk_d = PublicKey::<C>::strand_deserialize(&pk_b).unwrap();
-        let es_d = StrandRectangle::<Ciphertext<C>>::strand_deserialize(&es_b).unwrap();
-        let eprimes_d =
-            StrandRectangle::<Ciphertext<C>>::strand_deserialize(&eprimes_b).unwrap();
-        let proof_d = crate::shuffler_product::ShuffleProof::<C>::strand_deserialize(&proof_b).unwrap();
+    //     let pk_d = PublicKey::<C>::strand_deserialize(&pk_b).unwrap();
+    //     let es_d = StrandRectangle::<Ciphertext<C>>::strand_deserialize(&es_b).unwrap();
+    //     let eprimes_d =
+    //         StrandRectangle::<Ciphertext<C>>::strand_deserialize(&eprimes_b).unwrap();
+    //     let proof_d = crate::shuffler_product::ShuffleProof::<C>::strand_deserialize(&proof_b).unwrap();
 
-        let shuffler_d = crate::shuffler_product::Shuffler {
-            pk: &pk_d,
-            generators: &hs,
-            ctx: (*ctx).clone(),
-        };
+    //     let shuffler_d = crate::shuffler_product::Shuffler {
+    //         pk: &pk_d,
+    //         generators: &hs,
+    //         ctx: (*ctx).clone(),
+    //     };
 
-        let ok_d = shuffler_d
-            .check_proof(&proof_d, &es_d, &eprimes_d, &[])
-            .unwrap();
+    //     let ok_d = shuffler_d
+    //         .check_proof(&proof_d, &es_d, &eprimes_d, &[])
+    //         .unwrap();
 
-        assert!(ok_d);
-    }
+    //     assert!(ok_d);
+    // }
 
     }}
 }

@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-#[cfg(feature = "wasm")]
-pub mod rustcrypto;
+// #[cfg(feature = "wasm")]
+// pub mod rustcrypto;
 
 #[cfg(feature = "openssl_full")]
 pub mod openssl;
