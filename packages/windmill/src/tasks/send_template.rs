@@ -311,18 +311,19 @@ pub async fn send_template_email(
             .ok_or_else(|| anyhow!("html_body missing"))?; // Error if html_body is None
 
         let html_body = reports::render_template_text(&html_body, variables.clone())
-            .map_err(|err| anyhow!("{}", err))?;
+            .map_err(|err| anyhow!("error rendering html body: {err:?}"))?;
 
         sender
             .send(
                 receiver.to_string(),
-                subject,
+                subject.clone(),
                 plaintext_body.clone(),
-                html_body,
+                html_body.clone(),
             )
-            .await?;
+            .await
+            .map_err(|err| anyhow!("error sending email: {err:?}"))?;
 
-        return Ok(Some(plaintext_body));
+        return Ok(Some(format!("subject: {subject:?}\nhtml_body: {html_body:?}\n plaintext_body: {plaintext_body:?}")));
     } else {
         // Log the event if the receiver or template is missing
         event!(
