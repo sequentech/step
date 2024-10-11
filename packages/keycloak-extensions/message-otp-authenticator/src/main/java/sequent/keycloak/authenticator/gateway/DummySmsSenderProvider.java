@@ -16,7 +16,7 @@ public class DummySmsSenderProvider implements SmsSenderProvider {
   DummySmsSenderProvider() {}
 
   @Override
-  public void send(
+  public String send(
       String phoneNumber,
       String messageKey,
       List<String> attributes,
@@ -25,7 +25,7 @@ public class DummySmsSenderProvider implements SmsSenderProvider {
       KeycloakSession session)
       throws IOException {
     log.infov("send(): called");
-    SmsSenderProvider.super.send(phoneNumber, messageKey, attributes, realm, user, session);
+    return SmsSenderProvider.super.send(phoneNumber, messageKey, attributes, realm, user, session);
   }
 
   @Override
