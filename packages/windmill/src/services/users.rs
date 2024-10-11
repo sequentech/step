@@ -235,8 +235,16 @@ pub async fn list_users(
     let mut dynamic_attr_params: Vec<Option<String>> = vec![];
 
     if let Some(attributes) = &filter.attributes {
-        let mut attr_placeholder_count = 9;
+        let mut attr_placeholder_count = match area_ids.is_some() {
+            true => 10,
+            false => 9,
+        };
+        
         for (key, value) in attributes {
+
+            info!("attributes key: {:?}", key);
+            info!("attributes value: {:?}", value);
+        
             dynamic_attr_conditions.push(format!(
                 "EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value ILIKE ${})",
                 attr_placeholder_count,
@@ -255,6 +263,9 @@ pub async fn list_users(
     } else {
         "1=1".to_string() // Always true if no dynamic attributes are specified
     };
+
+    info!("attributes sql: {:?}", dynamic_attr_clause);
+    info!("attributes sql params: {:?}", dynamic_attr_params);
 
     let (sort_field, sort_order) = get_sort_order_and_field(filter.sort);
 

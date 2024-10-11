@@ -48,7 +48,7 @@ export const ElectionEventTallyContextProvider = (
     props: ElectionEventTallyContextProviderProps
 ) => {
     const [tally, setTally] = useState<string | null>(
-        localStorage.getItem("selected-election-event-tally-id") || null
+        sessionStorage.getItem("selected-election-event-tally-id") || null
     )
     const [isTrustee, setIsTrustee] = useState<boolean>(false)
     const [isCreating, setIsCreating] = useState<boolean>(false)
@@ -59,7 +59,7 @@ export const ElectionEventTallyContextProvider = (
         useState<IMiruTransmissionPackageData | null>(null)
 
     const setTallyId = (tallyId: string | null, isTrustee?: boolean | undefined): void => {
-        localStorage.setItem("selected-election-event-tally-id", tallyId?.toString() || "")
+        sessionStorage.setItem("selected-election-event-tally-id", tallyId?.toString() || "")
         setTally(tallyId)
         setIsTrustee(isTrustee || false)
     }
