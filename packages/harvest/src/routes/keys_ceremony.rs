@@ -96,7 +96,20 @@ pub async fn get_private_key(
     )?;
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
+
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
     let encrypted_private_key = keys_ceremony::get_private_key(
+        &hasura_transaction,
         claims,
         tenant_id,
         input.election_event_id.clone(),
@@ -111,6 +124,13 @@ pub async fn get_private_key(
         input.election_event_id.clone(),
         input.keys_ceremony_id.clone(),
     );
+
+    hasura_transaction
+        .commit()
+        .await
+        .with_context(|| "error comitting transaction")
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
     Ok(Json(GetPrivateKeyOutput {
         private_key_base64: encrypted_private_key,
     }))

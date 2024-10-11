@@ -9,7 +9,7 @@ use crate::hasura::keys_ceremony::{
     get_keys_ceremony_by_id, insert_keys_ceremony, update_keys_ceremony_status,
 };
 use crate::hasura::trustee::get_trustees_by_name;
-use crate::postgres::election::get_election_by_id;
+use crate::postgres::election::{get_election_by_id, get_election_by_keys_ceremony_id};
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony;
 use crate::postgres::trustee;
@@ -45,29 +45,24 @@ pub fn get_keys_ceremony_status(input: Option<Value>) -> Result<CeremonyStatus> 
 
 #[instrument(err)]
 pub async fn get_private_key(
+    transaction: &Transaction<'_>,
     claims: JwtClaims,
     tenant_id: String,
     election_event_id: String,
     keys_ceremony_id: String,
 ) -> Result<String> {
-    let auth_headers = keycloak::get_client_credentials().await?;
 
     // The trustee name is simply the username of the user
     let trustee_name = claims.trustee.ok_or(anyhow!("trustee name not found"))?;
 
     // get the keys ceremonies for this election event
-    let keys_ceremony = get_keys_ceremonies(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
+    let keys_ceremony = keys_ceremony::get_keys_ceremony_by_id(
+        transaction,
+        &tenant_id,
+        &election_event_id,
+        &keys_ceremony_id
     )
-    .await?
-    .data
-    .with_context(|| "error listing existing keys ceremonies")?
-    .sequent_backend_keys_ceremony
-    .into_iter()
-    .find(|ceremony| ceremony.id == keys_ceremony_id)
-    .with_context(|| "error listing existing keys ceremonies")?;
+    .await?;
     // check keys_ceremony has correct execution status
     if keys_ceremony.execution_status != Some(ExecutionStatus::IN_PROCESS.to_string()) {
         return Err(anyhow!("Keys ceremony not in ExecutionStatus::IN_PROCESS"));
@@ -92,28 +87,37 @@ pub async fn get_private_key(
         return Err(anyhow!("Trustee not part of the keys ceremony"));
     }
 
-    // fetch election_event
-    let election_event = get_election_event_helper(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-    )
-    .await?;
+    let board_name = if keys_ceremony.is_default() {
+        // fetch election_event
+        let election_event = get_election_event_by_id(
+            transaction,
+            &tenant_id,
+            &election_event_id,
+        )
+        .await?;
 
-    // get board name
-    let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
-        .with_context(|| "missing bulletin board")?;
+        // get board name
+        let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
+            .with_context(|| "missing bulletin board")?;
+        board_name
+    } else {
+        let election = get_election_by_keys_ceremony_id(
+            transaction,
+            &tenant_id,
+            &election_event_id,
+            &keys_ceremony_id,
+        )
+        .await?;
+        "".to_string()
+    };
 
     let trustee_public_key =
-        get_trustees_by_name(&auth_headers, &tenant_id, &vec![trustee_name.clone()])
+        trustee::get_trustee_by_name(transaction, &tenant_id, &trustee_name)
             .await
             .with_context(|| "can't find trustee in the database")?
-            .data
-            .with_context(|| "error fetching election event")?
-            .sequent_backend_trustee[0]
             .public_key
             .clone()
-            .ok_or(anyhow!("can't get election event"))?;
+            .ok_or(anyhow!("can't get trustee's public key"))?;
 
     // get the encrypted private key
     let encrypted_private_key =
@@ -143,14 +147,14 @@ pub async fn get_private_key(
     })?;
 
     // update keys-ceremony into the database using graphql
-    update_keys_ceremony_status(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-        keys_ceremony_id.clone(),
-        /* status */ status,
+    keys_ceremony::update_keys_ceremony_status(
+        transaction,
+        &tenant_id,
+        &election_event_id,
+        &keys_ceremony_id,
+        /* status */ &status,
         /* execution_status */
-        keys_ceremony
+        &keys_ceremony
             .execution_status
             .with_context(|| "empty current execution_status")?,
     )

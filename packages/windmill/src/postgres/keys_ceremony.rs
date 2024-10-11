@@ -79,6 +79,54 @@ pub async fn get_keys_ceremonies(
     Ok(keys_ceremonies)
 }
 
+#[instrument(err, skip_all)]
+pub async fn get_keys_ceremony_by_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    keys_ceremony_id: &str,
+) -> Result<KeysCeremony> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    *
+                FROM
+                    sequent_backend.keys_ceremony
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2 AND
+                    id = $3;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+                &Uuid::parse_str(keys_ceremony_id)?,
+            ],
+        )
+        .await?;
+
+    let keys_ceremonies: Vec<KeysCeremony> = rows
+        .into_iter()
+        .map(|row| -> Result<KeysCeremony> {
+            row.try_into()
+                .map(|res: KeysCeremonyWrapper| -> KeysCeremony { res.0 })
+        })
+        .collect::<Result<Vec<KeysCeremony>>>()?;
+
+
+    keys_ceremonies
+        .get(0)
+        .map(|keys_ceremony| keys_ceremony.clone())
+        .ok_or(anyhow!("Keys ceremony {keys_ceremony_id} not found"))
+}
+
 #[instrument(skip(hasura_transaction), err)]
 pub async fn insert_keys_ceremony(
     hasura_transaction: &Transaction<'_>,
@@ -154,4 +202,51 @@ pub async fn insert_keys_ceremony(
         .get(0)
         .map(|val| val.clone())
         .ok_or(anyhow!("Row not inserted"))
+}
+
+
+#[instrument(skip(hasura_transaction, status), err)]
+pub async fn update_keys_ceremony_status(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    keys_ceremony_id: &str,
+    status: &Value,
+    execution_status: &str,
+) -> Result<()> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                UPDATE
+                    sequent_backend.keys_ceremony
+                SET
+                    status = $1
+                    execution_status = $2
+                WHERE
+                    id = $3
+                    tenant_id = $4 AND
+                    election_event_id = $5
+                RETURNING
+                    id;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &status,
+                &execution_status.to_string(),
+                &Uuid::parse_str(keys_ceremony_id)?,
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| {
+            anyhow!("Error running the update_keys_ceremony_status query: {err}")
+        })?;
+
+    Ok(())
 }
