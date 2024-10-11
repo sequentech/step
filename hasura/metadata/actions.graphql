@@ -16,6 +16,14 @@ type Mutation {
 }
 
 type Mutation {
+  create_election(
+    election_event_id: String!
+    name: String!
+    description: String
+  ): SampleOutput
+}
+
+type Mutation {
   create_keys_ceremony(
     object: CreateKeysCeremonyInput!
   ): CreateKeysCeremonyOutput
@@ -563,6 +571,8 @@ input CreateKeysCeremonyInput {
   election_event_id: String!
   threshold: Int!
   trustee_names: [String!]
+  election_id: String
+  name: String
 }
 
 input ElectionEventStatsInput {
@@ -1179,5 +1189,9 @@ type CastVotesByIp {
   election_name: String
   election_id: String
   voters_id: [String]
+}
+
+type CreateElectionOutput {
+  id: String!
 }
 
