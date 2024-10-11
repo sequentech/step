@@ -3,11 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::{database::get_hasura_pool, jwks::remove_realm_jwks};
 use crate::postgres::election_event::delete_election_event;
+use crate::services::protocol_manager::get_event_board;
 use crate::services::protocol_manager::get_immudb_client;
 use crate::services::s3;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
-use immu_board::util::get_event_board;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use tracing::{event, instrument, Level};
 

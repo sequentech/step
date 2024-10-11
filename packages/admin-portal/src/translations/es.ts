@@ -71,6 +71,16 @@ const spanishTranslation: TranslationType = {
                 action: "Crear un Área",
             },
         },
+        lookAndFeelScreen: {
+            common: {
+                helpLinks: "Enlaces de Ayuda",
+                logoUrl: "Logo URL",
+                css: "CSS Personalizado",
+            },
+            errors: {
+                invalidHelpLinks: "Formato de Enlaces de Ayuda inválido",
+            },
+        },
         electionTypeScreen: {
             noPermissions: "No tienes permiso para acceder a la configuración.",
             common: {
@@ -85,8 +95,6 @@ const spanishTranslation: TranslationType = {
                 createNew: "Crear un Tipo de Elección",
                 emptyHeader: "No hay Tipos de Elección aún.",
                 emptyBody: "¿Quieres crear uno?",
-                logoUrl: "Logo URL",
-                css: "CSS personalizado",
             },
             create: {
                 title: "Crear Tipo de Elección",
@@ -99,6 +107,7 @@ const spanishTranslation: TranslationType = {
                 electionTypes: "TIPOS DE ELECCIÓN",
                 templates: "PLANTILLAS",
                 languages: "IDIOMAS",
+                localization: "LOCALIZACIÓN",
                 lookAndFeel: "PERSONILIZACIÓN DE APARIENCIA",
                 schedules: "EVENTOS PROGRAMADOS",
                 trustees: "AUTORIDADES",
@@ -720,6 +729,7 @@ const spanishTranslation: TranslationType = {
             usersAndRoles: "Usuarios y Roles",
             logs: "Bitácora",
             settings: "Configuracion",
+            help: "Ayuda",
             templates: "Plantillas",
             active: "Activos",
             archived: "Archivados",
@@ -1196,7 +1206,7 @@ const spanishTranslation: TranslationType = {
                 richtext: "Cuerpo de Texto Enriquecido",
             },
         },
-        sendTemplate: {
+        sendCommunication: {
             send: "Enviar",
             title: "Enviar Notificación",
             subtitle: "Enviar una notificación a usuarios/votantes.",
@@ -1224,11 +1234,11 @@ const spanishTranslation: TranslationType = {
                 voters: "votantes",
             },
             methodTitle: "Método de Comunicación",
-            templateMethod: {
+            communicationMethod: {
                 EMAIL: "Email",
                 SMS: "SMS",
             },
-            templateType: {
+            communicationType: {
                 CREDENTIALS: "Credenciales",
                 BALLOT_RECEIPT: "Comprobante de Votación",
                 PARTICIPATION_REPORT: "Informe de Participación",

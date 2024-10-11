@@ -26,12 +26,6 @@ struct Cli {
     #[arg(short, long, value_name = "URL")]
     server_url: Option<String>,
 
-    /// Index dbname
-    /// [example: bbindex]
-    /// [default: IMMUDB_INDEX_DBNAME env var if set]
-    #[arg(short, long, value_name = "DBNAME")]
-    index_dbname: Option<String>,
-
     /// Board dbname
     /// [example: board1]
     /// [default: IMMUDB_BOARD_DBNAME env var if set]
@@ -71,8 +65,6 @@ enum LogLevel {
 
 #[derive(clap::ValueEnum, Clone, Debug)]
 enum Action {
-    DeleteInitDb,
-    UpsertInitDb,
     DeleteBoardDb,
     UpsertBoardDb,
 }
@@ -99,7 +91,6 @@ impl Cli {
 
 struct BBHelper {
     client: BoardClient,
-    index_dbname: String,
     board_dbname: String,
     actions: Vec<Action>,
 }
@@ -111,11 +102,6 @@ impl BBHelper {
             Some(server_url) => server_url.to_owned(),
             None => env::var("IMMUDB_SERVER_URL")
                 .context("server_url not provided and IMMUDB_SERVER_URL env var not set")?,
-        };
-        let index_dbname = match args.index_dbname.as_deref() {
-            Some(index_dbname) => index_dbname.to_owned(),
-            None => env::var("IMMUDB_INDEX_DBNAME")
-                .context("index_dbname not provided and IMMUDB_INDEX_DBNAME env var not set")?,
         };
         let board_dbname = match args.board_dbname.as_deref() {
             Some(board_dbname) => board_dbname.to_owned(),
@@ -137,27 +123,14 @@ impl BBHelper {
         let client = BoardClient::new(&server_url, &username, &password).await?;
         Ok(BBHelper {
             client: client,
-            index_dbname: index_dbname,
             board_dbname: board_dbname,
             actions: args.actions,
         })
     }
 
-    async fn upsert_index_db(&mut self) -> Result<()> {
-        self.client
-            .upsert_index_db(self.index_dbname.clone().as_str())
-            .await
-    }
-
-    async fn delete_index_db(&mut self) -> Result<()> {
-        self.client
-            .delete_database(self.index_dbname.clone().as_str())
-            .await
-    }
-
     async fn upsert_board_db(&mut self) -> Result<()> {
         self.client
-            .upsert_board_db(self.board_dbname.clone().as_str())
+            .upsert_electoral_log_db(self.board_dbname.clone().as_str())
             .await
     }
 
@@ -173,8 +146,6 @@ impl BBHelper {
             debug!("executing action {:?}:\n", action);
 
             match action {
-                Action::DeleteInitDb => self.delete_index_db().await?,
-                Action::UpsertInitDb => self.upsert_index_db().await?,
                 Action::DeleteBoardDb => self.delete_board_db().await?,
                 Action::UpsertBoardDb => self.upsert_board_db().await?,
             }
