@@ -17,7 +17,7 @@ use celery::error::TaskError;
 use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::{ElectionPresentation, InitReport, VotingStatus};
+use sequent_core::ballot::{ElectionPresentation, VotingPeriodEnd, VotingStatus};
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
@@ -26,7 +26,7 @@ use tracing::{error, event, info, Level};
 use uuid::Uuid;
 
 #[instrument(err)]
-async fn manage_election_init_report_wrapped(
+async fn manage_election_voting_period_end_wrapped(
     hasura_transaction: &Transaction<'_>,
     tenant_id: String,
     election_event_id: String,
@@ -65,14 +65,14 @@ async fn manage_election_init_report_wrapped(
         event!(Level::WARN, "Missing election_event_id");
         return Ok(());
     };
-    let event_payload: ManageAllowInitPayload = deserialize_value(event_payload)?;
+    let event_payload: ManageAllowVotingPeriodEndPayload = deserialize_value(event_payload)?;
 
     if let Some(election_presentation) = election.presentation {
         let election_presentation: ElectionPresentation = ElectionPresentation {
-            init_report: if (event_payload.allow_init == Some(true)) {
-                InitReport::ALLOWED
+            voting_period_end: if (event_payload.allow_voting_period_end == Some(true)) {
+                VotingPeriodEnd::ALLOWED
             } else {
-                InitReport::DISALLOWED
+                VotingPeriodEnd::DISALLOWED
             },
             ..serde_json::from_value(election_presentation)?
         };
@@ -96,7 +96,7 @@ async fn manage_election_init_report_wrapped(
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(time_limit = 10, max_retries = 0, expires = 30)]
-pub async fn manage_election_init_report(
+pub async fn manage_election_voting_period_end(
     tenant_id: String,
     election_event_id: String,
     scheduled_event_id: String,
@@ -104,7 +104,7 @@ pub async fn manage_election_init_report(
 ) -> Result<()> {
     let lock: PgLock = PgLock::acquire(
         format!(
-            "execute_manage_election_init_report-{}-{}-{}-{}",
+            "execute_manage_election_voting_period_end-{}-{}-{}-{}",
             tenant_id, election_event_id, scheduled_event_id, election_id
         ),
         Uuid::new_v4().to_string(),
@@ -120,7 +120,7 @@ pub async fn manage_election_init_report(
         let election_id = election_id.clone();
         Box::pin(async move {
             // Your async code here
-            manage_election_init_report_wrapped(
+            manage_election_voting_period_end_wrapped(
                 hasura_transaction,
                 tenant_id,
                 election_event_id,

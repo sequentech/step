@@ -20,6 +20,7 @@ pub mod insert_tenant;
 pub mod manage_election_dates;
 pub mod manage_election_event_date;
 pub mod manage_election_init_report;
+pub mod manage_election_voting_period_end;
 pub mod manual_verification_report;
 pub mod miru_plugin_tasks;
 pub mod process_board;
