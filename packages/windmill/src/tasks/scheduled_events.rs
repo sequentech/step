@@ -3,15 +3,17 @@ use crate::hasura::scheduled_event;
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::election::{get_election_by_id, update_election_presentation};
+use crate::postgres::keycloak_realm;
 use crate::postgres::scheduled_event::find_all_active_events;
 use crate::services::celery_app::get_celery_app;
-use crate::services::database::get_hasura_pool;
+use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::date::ISO8601;
+use crate::services::tasks_execution::update_fail;
 use crate::tasks::manage_election_dates::manage_election_date;
 use crate::tasks::manage_election_event_date::manage_election_event_date;
 use crate::tasks::manage_election_init_report::manage_election_init_report;
 use crate::tasks::manage_election_voting_period_end::manage_election_voting_period_end;
-use crate::types::error::Result;
+use crate::types::error::{Error, Result};
 use anyhow::anyhow;
 use celery::{error::TaskError, Celery};
 use chrono::prelude::*;
@@ -19,7 +21,7 @@ use chrono::Duration;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::ballot::{ElectionPresentation, InitReport, VotingPeriodEnd};
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
-use sequent_core::services::keycloak::KeycloakAdminClient;
+use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm, KeycloakAdminClient};
 use sequent_core::types::scheduled_event::*;
 use std::sync::Arc;
 use tracing::instrument;
@@ -278,8 +280,80 @@ pub async fn scheduled_events() -> Result<()> {
                     );
                 }
             }
-            EventProcessors::START_ENROLLMENT_PERIOD => {}
-            EventProcessors::END_ENROLLMENT_PERIOD => {}
+            EventProcessors::START_ENROLLMENT_PERIOD | EventProcessors::END_ENROLLMENT_PERIOD => {
+                let realm_name = match scheduled_event.election_event_id {
+                    Some(ref event_id) => get_event_realm(
+                        scheduled_event
+                            .tenant_id
+                            .as_ref()
+                            .ok_or("scheduled event missing tenant_id")?
+                            .as_str(),
+                        scheduled_event
+                            .election_event_id
+                            .as_ref()
+                            .ok_or("scheduled event missing election_event_id")?
+                            .as_str(),
+                    ),
+                    None => get_tenant_realm(
+                        &scheduled_event
+                            .tenant_id
+                            .as_ref()
+                            .ok_or("scheduled event missing tenant_id")?
+                            .as_str(),
+                    ),
+                };
+
+                let mut keycloak_db_client: DbClient = match get_keycloak_pool().await.get().await {
+                    Ok(client) => client,
+                    Err(err) => {
+                        return Err(Error::String(format!(
+                            "Error getting Keycloak DB pool: {err}"
+                        )));
+                    }
+                };
+
+                let keycloak_transaction = match keycloak_db_client.transaction().await {
+                    Ok(transaction) => transaction,
+                    Err(err) => {
+                        return Err(Error::String(format!(
+                            "Error starting Keycloak transaction: {err}"
+                        )));
+                    }
+                };
+
+                let realm_id = match keycloak_realm::get_realm_id(
+                    &keycloak_transaction,
+                    realm_name.to_string(),
+                )
+                .await
+                {
+                    Ok(id) => id,
+                    Err(err) => {
+                        return Err(Error::String(format!("Error obtaining realm id: {err}")));
+                    }
+                };
+                let keycloak_client = KeycloakAdminClient::new().await?;
+                let other_client = KeycloakAdminClient::pub_new().await?;
+                let mut realm = keycloak_client
+                    .get_realm(&other_client, &realm_name)
+                    .await?;
+                realm.registration_allowed =
+                    Some(event_processor == EventProcessors::START_ENROLLMENT_PERIOD);
+                let keycloak_client = KeycloakAdminClient::new().await?;
+                keycloak_client
+                    .upsert_realm(
+                        &realm_name,
+                        &serde_json::to_string(&realm)?,
+                        scheduled_event
+                            .tenant_id
+                            .as_ref()
+                            .ok_or("scheduled event missing tenant_id")?
+                            .as_str(),
+                        false,
+                        None,
+                    )
+                    .await?
+            }
             EventProcessors::START_LOCKDOWN_PERIOD => {}
             EventProcessors::END_LOCKDOWN_PERIOD => {}
             EventProcessors::CREATE_REPORT | EventProcessors::SEND_TEMPLATE => {
