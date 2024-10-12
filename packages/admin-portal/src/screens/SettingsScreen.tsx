@@ -22,6 +22,7 @@ import {SettingsSchedulesCreate} from "@/resources/Settings/SettingsSchedulesCre
 import {SettingsTrustees} from "@/resources/Settings/SettingsTrustees"
 import {SettingsLookAndFeel} from "@/resources/Settings/SettingsLookAndFeel"
 import {SettingsCountries} from "@/resources/Settings/SettingsCountries"
+import SettingsLocalization from "@/resources/Settings/constants/SettingLocalization"
 
 export const SettingsScreen: React.FC = () => {
     const {t} = useTranslation()
@@ -79,6 +80,12 @@ export const SettingsScreen: React.FC = () => {
                         label: t("electionTypeScreen.tabs.languages"),
                         component: () => (
                             <Resource name="sequent_backend_tenant" list={SettingsLanguages} />
+                        ),
+                    },
+                    {
+                        label: t("electionTypeScreen.tabs.localization"),
+                        component: () => (
+                            <Resource name="sequent_backend_tenant" list={SettingsLocalization} />
                         ),
                     },
                     {
