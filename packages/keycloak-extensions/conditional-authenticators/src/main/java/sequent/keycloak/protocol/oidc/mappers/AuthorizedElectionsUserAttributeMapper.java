@@ -35,9 +35,9 @@ import org.keycloak.representations.IDToken;
 import org.keycloak.util.JsonSerialization;
 
 /**
- * Mappings UserModel.attribute to an ID Token claim. Token claim name can be a full qualified
- * nested object name, i.e. "address.country". This will create a nested json object within the toke
- * claim.
+ * Mappings UserModel.attribute to an ID Token claim. Token claim name can be a
+ * full qualified nested object name, i.e. "address.country". This will create a
+ * nested json object within the toke claim.
  */
 @JBossLog
 public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocolMapper

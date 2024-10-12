@@ -1,12 +1,13 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use base64::engine::general_purpose;
 use base64::Engine;
 use serde;
-use serde::{Deserialize, Serialize};
+use serde::{de, de::Unexpected, Deserialize, Deserializer, Serialize};
 use serde_json;
+use serde_json::Value;
 use std::collections::HashMap;
 use tracing::{event, info, instrument, Level};
 
@@ -25,12 +26,63 @@ pub struct JwtHasuraClaims {
     pub user_id: String,
     #[serde(rename = "x-hasura-area-id")]
     pub area_id: Option<String>,
-    #[serde(rename = "authorized-election-ids")]
+    #[serde(
+        rename = "x-hasura-authorized-election-ids",
+        default,
+        deserialize_with = "deserialize_election_ids"
+    )]
     pub authorized_election_ids: Option<Vec<String>>,
     #[serde(rename = "x-hasura-allowed-roles")]
     pub allowed_roles: Vec<String>,
     #[serde(rename = "x-hasura-permission-label")]
     pub permission_labels: Option<String>,
+}
+
+// Custom deserialization function. The input format is related to what
+// PostgreSQL allows in queries because of how Hasura works, so the election ids
+// are something like: `"{\"ccf84b74-f6d5-4d18-aa34-fa4f16a816ca\"}"` and
+// instead we need to convert it to a Vec<String>.
+#[instrument(err, skip_all)]
+fn deserialize_election_ids<'de, D>(
+    deserializer: D,
+) -> Result<Option<Vec<String>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    info!("deserialize_election_ids");
+    // Deserialize the value as an Option<Value>
+    let value: Option<Value> = Option::deserialize(deserializer)?;
+    match value {
+        // If the value is None, return None
+        None => Ok(None),
+        // If the value is a string, attempt to parse it
+        Some(Value::String(s)) => {
+            if s.starts_with('{') && s.ends_with('}') {
+                // Remove the surrounding braces to create an array
+                let trimmed = &s[1..s.len() - 1];
+                let json_array_str = format!("[{trimmed}]");
+
+                // Use serde_json to parse the string as a Vec<String>
+                info!("deserializing: {json_array_str:?}");
+                serde_json::from_str(&json_array_str)
+                    .with_context(|| anyhow!("Deserialization error"))
+                    .map(Some)
+                    .map_err(serde::de::Error::custom)
+            } else {
+                // If the string does not have the expected format, return an
+                // error
+                Err(de::Error::invalid_value(
+                    Unexpected::Str(&s),
+                    &"a string with surrounding braces",
+                ))
+            }
+        }
+        // If the value is of any other type, return an error
+        Some(other) => Err(de::Error::invalid_type(
+            Unexpected::Other(&format!("{:?}", other)),
+            &"a string",
+        )),
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

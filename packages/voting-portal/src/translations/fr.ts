@@ -121,6 +121,8 @@ const frenchTranslation: TranslationType = {
                     "Échec de la validation de votre vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
                 CAST_VOTE_UuidParseFailed:
                     "Une erreur est survenue lors du traitement de votre demande. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                CAST_VOTE_unexpected:
+                    "Une erreur inconnue est survenue lors du vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
                 CAST_VOTE_UnknownError:
                     "Une erreur inconnue est survenue lors du vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
                 NO_BALLOT_SELECTION:
