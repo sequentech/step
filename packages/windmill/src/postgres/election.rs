@@ -297,7 +297,7 @@ pub async fn create_election(
                     created_at,
                     last_updated_at,
                     name,
-                    description,
+                    description
                 )
                 VALUES
                 (
