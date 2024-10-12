@@ -9,7 +9,10 @@ use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::date::ISO8601;
 use crate::services::tasks_execution::update_fail;
 use crate::tasks::manage_election_dates::manage_election_date;
+use crate::tasks::manage_election_enrollment::manage_election_enrollment;
 use crate::tasks::manage_election_event_date::manage_election_event_date;
+use crate::tasks::manage_election_event_lockdown_end::manage_election_event_lockdown_end;
+use crate::tasks::manage_election_event_lockdown_start::manage_election_event_lockdown_start;
 use crate::tasks::manage_election_init_report::manage_election_init_report;
 use crate::tasks::manage_election_voting_period_end::manage_election_voting_period_end;
 use crate::types::error::{Error, Result};
@@ -55,7 +58,7 @@ pub async fn handle_allow_init_report(
         event!(Level::WARN, "Missing election_event_id");
         return Ok(());
     };
-    let payload: ManageElectionDatePayload = deserialize_value(event_payload)
+    let payload: ManageAllowInitPayload = deserialize_value(event_payload)
         .map_err(|e| anyhow!("Error deserializing manage election date payload {}", e))?;
     // run the actual task in a different async task
     match payload.election_id.clone() {
@@ -120,7 +123,7 @@ pub async fn handle_allow_voting_period_end(
         event!(Level::WARN, "Missing election_event_id");
         return Ok(());
     };
-    let payload: ManageElectionDatePayload = deserialize_value(event_payload)
+    let payload: ManageAllowVotingPeriodEndPayload = deserialize_value(event_payload)
         .map_err(|e| anyhow!("Error deserializing manage election date payload {}", e))?;
     // run the actual task in a different async task
     match payload.election_id.clone() {
@@ -231,6 +234,130 @@ pub async fn handle_voting_event(
     Ok(())
 }
 
+pub async fn handle_election_enrollment(
+    celery_app: Arc<Celery>,
+    scheduled_event: &ScheduledEvent,
+) -> Result<()> {
+    let Some(datetime) = get_datetime(scheduled_event) else {
+        return Ok(());
+    };
+    let Some(tenant_id) = scheduled_event.tenant_id.clone() else {
+        return Ok(());
+    };
+    let Some(election_event_id) = scheduled_event.election_event_id.clone() else {
+        return Ok(());
+    };
+    let Some(event_payload) = scheduled_event.event_payload.clone() else {
+        event!(Level::WARN, "Missing election_event_id");
+        return Ok(());
+    };
+    let payload: ManageEnrollmentPayload = deserialize_value(event_payload)
+        .map_err(|e| anyhow!("Error deserializing manage election date payload {}", e))?;
+    // run the actual task in a different async task
+    match payload.election_id.clone() {
+        Some(election_id) => {
+            let task = celery_app
+                .send_task(
+                    manage_election_enrollment::new(
+                        tenant_id.clone(),
+                        election_event_id.clone(),
+                        scheduled_event.id.clone(),
+                        election_id,
+                    )
+                    .with_eta(datetime.with_timezone(&Utc))
+                    .with_expires_in(120),
+                )
+                .await
+                .map_err(|e| anyhow!("Error sending task to celery {}", e))?;
+            event!(
+                Level::INFO,
+                "Sent manage_election_voting_period_end task {}",
+                task.task_id
+            );
+        }
+        None => {}
+    }
+    Ok(())
+}
+
+pub async fn handle_election_lockdown(
+    celery_app: Arc<Celery>,
+    scheduled_event: &ScheduledEvent,
+) -> Result<()> {
+    let Some(datetime) = get_datetime(scheduled_event) else {
+        return Ok(());
+    };
+    let Some(tenant_id) = scheduled_event.tenant_id.clone() else {
+        return Ok(());
+    };
+    let Some(election_event_id) = scheduled_event.election_event_id.clone() else {
+        return Ok(());
+    };
+    let Some(event_payload) = scheduled_event.event_payload.clone() else {
+        event!(Level::WARN, "Missing election_event_id");
+        return Ok(());
+    };
+    let payload: ManageLockdownPayload = deserialize_value(event_payload)
+        .map_err(|e| anyhow!("Error deserializing manage election date payload {}", e))?;
+    // run the actual task in a different async task
+    match payload.election_id.clone() {
+        Some(election_id) => {
+            let task_id = if payload.locked_down == Some(true) {
+                let task = celery_app
+                    .send_task(
+                        manage_election_event_lockdown_start::new(
+                            tenant_id.clone(),
+                            election_event_id.clone(),
+                            scheduled_event.id.clone(),
+                            election_id,
+                        )
+                        .with_eta(datetime.with_timezone(&Utc))
+                        .with_expires_in(120),
+                    )
+                    .await
+                    .map_err(|e| anyhow!("Error sending task to celery {}", e))?;
+                task.task_id
+            } else {
+                let task = celery_app
+                    .send_task(
+                        manage_election_event_lockdown_end::new(
+                            tenant_id.clone(),
+                            election_event_id.clone(),
+                            scheduled_event.id.clone(),
+                            election_id,
+                        )
+                        .with_eta(datetime.with_timezone(&Utc))
+                        .with_expires_in(120),
+                    )
+                    .await
+                    .map_err(|e| anyhow!("Error sending task to celery {}", e))?;
+                task.task_id
+            };
+            event!(Level::INFO, "Sent manage_election_date task {}", task_id);
+        }
+        None => {
+            let task = celery_app
+                .send_task(
+                    manage_election_event_date::new(
+                        tenant_id.clone(),
+                        election_event_id.clone(),
+                        scheduled_event.id.clone(),
+                    )
+                    .with_eta(datetime.with_timezone(&Utc))
+                    .with_expires_in(120),
+                )
+                .await
+                .map_err(|e| anyhow!("Error sending task to celery {}", e))?;
+            event!(
+                Level::INFO,
+                "Sent manage_election_event_date task {}",
+                task.task_id
+            );
+        }
+    }
+    Ok(())
+}
+
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(time_limit = 10, max_retries = 0, expires = 30)]
@@ -268,14 +395,16 @@ pub async fn scheduled_events() -> Result<()> {
         };
         match event_processor {
             EventProcessors::ALLOW_INIT_REPORT => {
-                handle_allow_init_report(celery_app.clone(), &hasura_transaction, scheduled_event);
+                handle_allow_init_report(celery_app.clone(), &hasura_transaction, scheduled_event)
+                    .await?;
             }
             EventProcessors::ALLOW_VOTING_PERIOD_END => {
                 handle_allow_voting_period_end(
                     celery_app.clone(),
                     &hasura_transaction,
                     scheduled_event,
-                );
+                )
+                .await?;
             }
             EventProcessors::START_VOTING_PERIOD | EventProcessors::END_VOTING_PERIOD => {
                 if let Err(err) = handle_voting_event(celery_app.clone(), &scheduled_event).await {
@@ -293,9 +422,12 @@ pub async fn scheduled_events() -> Result<()> {
                     );
                 }
             }
-            EventProcessors::START_ENROLLMENT_PERIOD | EventProcessors::END_ENROLLMENT_PERIOD => {}
-            EventProcessors::START_LOCKDOWN_PERIOD => {}
-            EventProcessors::END_LOCKDOWN_PERIOD => {}
+            EventProcessors::START_ENROLLMENT_PERIOD | EventProcessors::END_ENROLLMENT_PERIOD => {
+                handle_election_enrollment(celery_app.clone(), scheduled_event).await?;
+            }
+            EventProcessors::START_LOCKDOWN_PERIOD | EventProcessors::END_LOCKDOWN_PERIOD => {
+                handle_election_lockdown(celery_app.clone(), scheduled_event).await?;
+            }
             EventProcessors::CREATE_REPORT | EventProcessors::SEND_TEMPLATE => {
                 // Nothing to do for these event processors.  Avoid a
                 // catch all to ignore unknown events, this way when
