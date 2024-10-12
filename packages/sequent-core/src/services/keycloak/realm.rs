@@ -110,10 +110,10 @@ impl KeycloakAdminClient {
 
         match real_get_result {
             Ok(_) => self
-                        .client
-                        .realm_put(&board_name, realm)
-                        .await
-                        .map_err(|err| anyhow!("Keycloak error: {:?}", err)),
+                .client
+                .realm_put(&board_name, realm)
+                .await
+                .map_err(|err| anyhow!("Keycloak error: {:?}", err)),
             Err(_) => self
                 .client
                 .post(realm)

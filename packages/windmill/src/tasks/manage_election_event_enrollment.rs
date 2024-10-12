@@ -54,7 +54,12 @@ pub async fn update_keycloak(
         .await?;
     realm.registration_allowed = Some(enable_enrollment);
 
-    event!(Level::WARN, "About to update keycloak ({board_name})with JSON {json}", board_name = &realm_name, json = serde_json::to_string(&realm)?);
+    event!(
+        Level::WARN,
+        "About to update keycloak ({board_name})with JSON {json}",
+        board_name = &realm_name,
+        json = serde_json::to_string(&realm)?
+    );
 
     let keycloak_client = KeycloakAdminClient::new().await?;
     keycloak_client
