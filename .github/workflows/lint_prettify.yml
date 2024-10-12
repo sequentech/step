@@ -52,7 +52,7 @@ jobs:
           cmd: prettify
           dir: packages/
 
-  lint-prettify:
+  lint-prettify-hasura:
     name: Check Hasura linting
     runs-on: ubuntu-latest
     steps:
