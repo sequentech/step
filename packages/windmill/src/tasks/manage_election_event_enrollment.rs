@@ -33,29 +33,20 @@ use uuid::Uuid;
 
 pub async fn update_keycloak(
     scheduled_event: &ScheduledEvent,
-    registration_allowed: bool,
+    enable_enrollment: bool,
 ) -> Result<()> {
-    let realm_name = match scheduled_event.election_event_id {
-        Some(ref event_id) => get_event_realm(
-            scheduled_event
-                .tenant_id
-                .as_ref()
-                .ok_or("scheduled event missing tenant_id")?
-                .as_str(),
-            scheduled_event
-                .election_event_id
-                .as_ref()
-                .ok_or("scheduled event missing election_event_id")?
-                .as_str(),
-        ),
-        None => get_tenant_realm(
-            &scheduled_event
-                .tenant_id
-                .as_ref()
-                .ok_or("scheduled event missing tenant_id")?
-                .as_str(),
-        ),
-    };
+    let realm_name = get_event_realm(
+        scheduled_event
+            .tenant_id
+            .as_ref()
+            .ok_or("scheduled event missing tenant_id")?
+            .as_str(),
+        scheduled_event
+            .election_event_id
+            .as_ref()
+            .ok_or("scheduled event missing election_event_id")?
+            .as_str(),
+    );
 
     let mut keycloak_db_client: DbClient = match get_keycloak_pool().await.get().await {
         Ok(client) => client,
@@ -75,19 +66,12 @@ pub async fn update_keycloak(
         }
     };
 
-    let realm_id =
-        match keycloak_realm::get_realm_id(&keycloak_transaction, realm_name.to_string()).await {
-            Ok(id) => id,
-            Err(err) => {
-                return Err(Error::String(format!("Error obtaining realm id: {err}")));
-            }
-        };
     let keycloak_client = KeycloakAdminClient::new().await?;
     let other_client = KeycloakAdminClient::pub_new().await?;
     let mut realm = keycloak_client
         .get_realm(&other_client, &realm_name)
         .await?;
-    realm.registration_allowed = Some(registration_allowed);
+    realm.registration_allowed = Some(enable_enrollment);
     let keycloak_client = KeycloakAdminClient::new().await?;
     keycloak_client
         .upsert_realm(
