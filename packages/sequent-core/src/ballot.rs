@@ -806,6 +806,7 @@ pub struct ElectionPresentation {
     pub is_grace_priod: Option<bool>,
     pub grace_period_policy: Option<EGracePeriodPolicy>,
     pub grace_period_secs: Option<u64>,
+    pub enrollment: Enrollment,
     pub init_report: InitReport,
     pub manual_start_voting_period: ManualStartVotingPeriod,
     pub voting_period_end: VotingPeriodEnd,

@@ -18,6 +18,7 @@ pub mod import_users;
 pub mod insert_election_event;
 pub mod insert_tenant;
 pub mod manage_election_dates;
+pub mod manage_election_enrollment;
 pub mod manage_election_event_date;
 pub mod manage_election_event_lockdown_end;
 pub mod manage_election_event_lockdown_start;
