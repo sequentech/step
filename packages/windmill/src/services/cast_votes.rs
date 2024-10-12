@@ -372,9 +372,9 @@ pub async fn get_users_with_vote_info(
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CastVoteCountByIp {
     id: String,
-    ip: String,
-    country: String,
-    vote_count: i64,
+    ip: Option<String>,
+    country: Option<String>,
+    vote_count: Option<i64>,
     election_name: String,
     election_id: String,
     voters_id: Vec<String>,
