@@ -10,7 +10,22 @@ export const LIST_KEYS_CEREMONY = gql`
         list_keys_ceremony(
                 election_event_id: $electionEventId
         ) {
-            items
+            items {
+                id
+                created_at
+                last_updated_at
+                tenant_id
+                election_event_id
+                trustee_ids
+                status
+                execution_status
+                labels
+                annotations
+                threshold
+                name
+                settings
+                is_default
+            }
             count
         }
     }
