@@ -13,12 +13,14 @@ use crate::hasura::tally_session_execution::{
 };
 use crate::postgres::area::get_event_areas;
 use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
 use crate::postgres::tally_sheet::get_published_tally_sheets_by_event;
 use crate::postgres::template::get_template_by_id;
 use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
 use crate::services::ceremonies::insert_ballots::{
     count_auditable_ballots, get_elections_end_dates, insert_ballots_messages,
 };
+use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_board;
 use crate::services::ceremonies::results::populate_results_tables;
 use crate::services::ceremonies::serialize_logs::generate_logs;
 use crate::services::ceremonies::serialize_logs::print_messages;
@@ -66,6 +68,7 @@ use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::ceremonies::TallyTrusteeStatus;
 use sequent_core::types::hasura::core::Area;
 use sequent_core::types::hasura::core::ElectionEvent;
+use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::hasura::core::TallySessionConfiguration;
 use sequent_core::types::hasura::core::TallySheet;
 use sequent_core::types::templates::SendTemplateBody;
@@ -539,6 +542,7 @@ async fn map_plaintext_data(
     election_event_id: String,
     tally_session_id: String,
     ceremony_status: TallyCeremonyStatus,
+    keys_ceremony: &KeysCeremony,
 ) -> Result<
     Option<(
         Vec<AreaContestDataType>,
@@ -565,18 +569,13 @@ async fn map_plaintext_data(
     };
 
     // get name of bulletin board
-    let bulletin_board_opt =
-        get_election_event_board(election_event.bulletin_board_reference.clone());
-
-    let Some(bulletin_board) = bulletin_board_opt else {
-        event!(
-            Level::INFO,
-            "Election Event {} has no bulletin board",
-            election_event_id.clone()
-        );
-
-        return Ok(None);
-    };
+    let bulletin_board = get_keys_ceremony_board(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        keys_ceremony,
+    )
+    .await?;
 
     // get all data for the execution: the last tally session execution,
     // the list of tally_session_contest, and the ballot styles
@@ -868,6 +867,14 @@ pub async fn execute_tally_session_wrapped(
         event!(Level::INFO, "Can't find last execution status, skipping");
         return Ok(());
     };
+
+    let keys_ceremony = get_keys_ceremony_by_id(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session.keys_ceremony_id,
+    )
+    .await?;
     let configuration: Option<TallySessionConfiguration> = tally_session
         .configuration
         .map(|value| deserialize_value(value))
@@ -902,6 +909,7 @@ pub async fn execute_tally_session_wrapped(
         election_event_id.clone(),
         tally_session_id.clone(),
         status,
+        &keys_ceremony,
     )
     .await?;
 
