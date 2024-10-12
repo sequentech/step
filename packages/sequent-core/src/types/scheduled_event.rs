@@ -60,7 +60,7 @@ pub struct ManageLockdownPayload {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ManageEnrollmentPayload {
+pub struct ManageElectionEventEnrollmentPayload {
     pub election_id: Option<String>,
     pub enable_enrollment: Option<bool>,
 }

@@ -103,11 +103,12 @@ pub async fn update_keycloak(
 }
 
 #[instrument(err)]
-pub async fn manage_election_enrollment_wrapped(
+pub async fn manage_election_event_enrollment_wrapped(
     hasura_transaction: &Transaction<'_>,
     tenant_id: String,
     election_event_id: String,
     scheduled_event_id: String,
+    election_id: String,
 ) -> AnyhowResult<()> {
     let scheduled_event = find_scheduled_event_by_id(
         hasura_transaction,
@@ -129,6 +130,7 @@ pub async fn manage_election_enrollment_wrapped(
         hasura_transaction,
         &tenant_id,
         &election_event_id,
+        &election_id,
     )
     .await
     .with_context(|| "Error obtaining election by id")?
@@ -140,7 +142,7 @@ pub async fn manage_election_enrollment_wrapped(
         event!(Level::WARN, "Missing election_event_id");
         return Ok(());
     };
-    let event_payload: ManageEnrollmentPayload = deserialize_value(event_payload)?;
+    let event_payload: ManageElectionEventEnrollmentPayload = deserialize_value(event_payload)?;
 
     update_keycloak(
         &scheduled_event,
@@ -148,8 +150,8 @@ pub async fn manage_election_enrollment_wrapped(
     )
     .await?;
 
-    if let Some(election_event_presentation) = election_event.presentation {
-        let election_event_presentation: ElectionEventPresentation = ElectionEventPresentation {
+    if let Some(election_presentation) = election.presentation {
+        let election_presentation: ElectionPresentation = ElectionPresentation {
             enrollment: if (event_payload.enable_enrollment == Some(true)) {
                 Enrollment::ENABLED
             } else {
@@ -157,11 +159,12 @@ pub async fn manage_election_enrollment_wrapped(
             },
             ..serde_json::from_value(election_presentation)?
         };
-        update_election_event_presentation(
+        update_election_presentation(
             hasura_transaction,
             &tenant_id,
             &election_event_id,
-            serde_json::to_value(election_event_presentation)?,
+            &election_id,
+            serde_json::to_value(election_presentation)?,
         )
         .await?;
     }
@@ -176,15 +179,16 @@ pub async fn manage_election_enrollment_wrapped(
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(time_limit = 10, max_retries = 0, expires = 30)]
-pub async fn manage_election_enrollment(
+pub async fn manage_election_event_enrollment(
     tenant_id: String,
     election_event_id: String,
     scheduled_event_id: String,
+    election_id: String,
 ) -> Result<()> {
     let lock: PgLock = PgLock::acquire(
         format!(
-            "execute_manage_election_enrollment-{}-{}-{}",
-            tenant_id, election_event_id, scheduled_event_id
+            "execute_manage_election_enrollment-{}-{}-{}-{}",
+            tenant_id, election_event_id, scheduled_event_id, election_id
         ),
         Uuid::new_v4().to_string(),
         ISO8601::now() + Duration::seconds(120),
@@ -196,13 +200,15 @@ pub async fn manage_election_enrollment(
         let tenant_id = tenant_id.clone();
         let election_event_id = election_event_id.clone();
         let scheduled_event_id = scheduled_event_id.clone();
+        let election_id = election_id.clone();
         Box::pin(async move {
             // Your async code here
-            manage_election_enrollment_wrapped(
+            manage_election_event_enrollment_wrapped(
                 hasura_transaction,
                 tenant_id,
                 election_event_id,
                 scheduled_event_id,
+                election_id,
             )
             .await
         })
