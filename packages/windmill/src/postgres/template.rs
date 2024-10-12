@@ -135,12 +135,34 @@ pub async fn insert_templates(
         .prepare(
             r#"
             INSERT INTO sequent_backend.template
-            (id, tenant_id, template, created_by, labels, annotations, created_at, updated_at, communication_method, type)
-            VALUES
-            ($1, $2, $3, $4, $5, $6, NOW(), NOW(), $7, $8);
+            (
+                id,
+                tenant_id,
+                template,
+                created_by,
+                labels,
+                annotations,
+                created_at,
+                updated_at,
+                communication_method,
+                type
+            )
+            VALUES (
+                $1,
+                $2,
+                $3,
+                $4,
+                $5,
+                $6,
+                NOW(),
+                NOW(),
+                $7,
+                $8
+            );
             "#,
         )
-        .await?;
+        .await
+        .map_err(|err| anyhow!("Error preparing the insert template query: {err}"))?;
 
     for template in templates {
         hasura_transaction

@@ -20,12 +20,13 @@ import {
     DatagridConfigurable,
     useRefresh,
     WrapperField,
-    useRecordContext,
+    Button as ReactAdminButton,
     useNotify,
 } from "react-admin"
 
 import {IPermissions} from "@/types/keycloak"
 import {ListActions} from "@/components/ListActions"
+import UploadIcon from "@mui/icons-material/Upload"
 import {ActionsColumn} from "@/components/ActionButons"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {Dialog, IconButton} from "@sequentech/ui-essentials"
@@ -183,7 +184,13 @@ export const TemplateList: React.FC = () => {
                     <Typography variant="body1" paragraph>
                         {t("template.empty.subtitle")}
                     </Typography>
-                    <CreateButton />
+
+                    <ResourceListStyles.EmptyButtonList>
+                        <CreateButton />
+                        <ReactAdminButton onClick={handleImport} label={t("common.label.import")}>
+                            <UploadIcon />
+                        </ReactAdminButton>
+                    </ResourceListStyles.EmptyButtonList>
                 </>
             ) : null}
         </TemplateEmpty>
@@ -292,8 +299,7 @@ export const TemplateList: React.FC = () => {
                     {exporting && exportDocumentId ? (
                         <DownloadDocument
                             documentId={exportDocumentId}
-                            electionEventId={"33f18502-a67c-4853-8333-a58630663559"}
-                            fileName={`template-export.csv`}
+                            fileName={`templates-export.csv`}
                             onDownload={() => {
                                 console.log("onDownload called")
                                 setExportDocumentId(undefined)

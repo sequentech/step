@@ -232,6 +232,7 @@ pub async fn get_document_url(
     )
     .await?;
     let Some(document) = document else {
+        info!("document is None");
         return Ok(None);
     };
 
@@ -242,10 +243,9 @@ pub async fn get_document_url(
             &document.name.clone().unwrap_or_default(),
         )
     } else {
-        let election_id = election_event_id.unwrap_or("");
         s3::get_document_key(
             tenant_id,
-            Some(election_id),
+            election_event_id,
             document_id,
             &document.name.clone().unwrap_or_default(),
         )
