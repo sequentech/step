@@ -160,7 +160,6 @@ pub async fn get_board_public_key<C: Ctx>(board_name: &str) -> Result<C::E> {
 pub async fn check_configuration_exists(board_name: &str) -> Result<bool> {
     let board = get_b3_pgsql_client().await?;
 
-
     let b3 = board.get_messages(board_name, -1).await?;
     let messages = convert_b3(&b3)?;
 

@@ -41,11 +41,8 @@ pub async fn create_keys_impl(
     .await
     .with_context(|| "error finding keys ceremony")?;
 
-    let trustees = get_trustees_by_id(
-        &hasura_transaction,
-        &tenant_id,
-        &keys_ceremony.trustee_ids
-    ).await?;
+    let trustees =
+        get_trustees_by_id(&hasura_transaction, &tenant_id, &keys_ceremony.trustee_ids).await?;
     info!("trustees: {:?}", trustees);
     let trustee_pks = trustees
         .clone()
@@ -71,14 +68,14 @@ pub async fn create_keys_impl(
         return Ok(());
     }
 
-    let configuration_exists = check_configuration_exists(board_name.as_str(),).await?;
+    let configuration_exists = check_configuration_exists(board_name.as_str()).await?;
 
     if !configuration_exists {
         // create config/keys for board
         public_keys::create_keys(
             board_name.as_str(),
             trustee_pks,
-            keys_ceremony.threshold as usize
+            keys_ceremony.threshold as usize,
         )
         .await?;
     }
@@ -90,7 +87,8 @@ pub async fn create_keys_impl(
         &keys_ceremony.id,
         &serde_json::to_value(status)?,
         &KeysCeremonyExecutionStatus::IN_PROGRESS.to_string(),
-    ).await?;
+    )
+    .await?;
 
     hasura_transaction
         .commit()

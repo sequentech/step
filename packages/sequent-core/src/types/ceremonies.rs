@@ -23,8 +23,8 @@ use strum_macros::{Display, EnumString};
 pub enum KeysCeremonyExecutionStatus {
     USER_CONFIGURATION, // user can configure the ceremony at this step
     #[default]
-    STARTED, /* process starts but the config message hasn't been added to
-              * the board */
+    STARTED, /* process starts but the config message hasn't
+                         * been added to the board */
     IN_PROGRESS, /* config message has been added to the board and trustees
                   * are working */
     SUCCESS,   // successful completion
