@@ -26,7 +26,11 @@ export const LIST_KEYS_CEREMONY = gql`
                 settings
                 is_default
             }
-            count
+            total {
+                aggregate {
+                    count
+                }
+            }
         }
     }
 `
