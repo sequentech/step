@@ -33,7 +33,7 @@ pub async fn review_boards() -> Result<()> {
         offset += last_length;
 
         for election_event in election_events {
-            if election_event.id != "a4d1b19a-eb58-4825-bd6f-48718fe7326a".to_string() {
+            if election_event.id != "445c54df-30c9-4b60-9f87-5aedc37a866a".to_string() {
                 continue;
             }
             let task2 = celery_app

@@ -165,6 +165,7 @@ pub async fn insert_keys_ceremony(
                     $6,
                     $7,
                     $8,
+                    $9,
                     NOW()
                 )
                 RETURNING
@@ -219,10 +220,10 @@ pub async fn update_keys_ceremony_status(
                 UPDATE
                     sequent_backend.keys_ceremony
                 SET
-                    status = $1
+                    status = $1,
                     execution_status = $2
                 WHERE
-                    id = $3
+                    id = $3 AND
                     tenant_id = $4 AND
                     election_event_id = $5
                 RETURNING

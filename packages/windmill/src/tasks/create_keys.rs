@@ -6,6 +6,7 @@ use crate::postgres::keys_ceremony::{get_keys_ceremony_by_id, update_keys_ceremo
 use crate::postgres::trustee::get_trustees_by_id;
 use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_board;
 use crate::services::database::get_hasura_pool;
+use crate::services::protocol_manager::check_configuration_exists;
 use crate::services::public_keys;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
@@ -45,11 +46,13 @@ pub async fn create_keys_impl(
         &tenant_id,
         &keys_ceremony.trustee_ids
     ).await?;
+    info!("trustees: {:?}", trustees);
     let trustee_pks = trustees
         .clone()
         .into_iter()
         .filter_map(|trustee| trustee.public_key)
         .collect();
+    info!("trustee_pks: {:?}", trustee_pks);
 
     let board_name = get_keys_ceremony_board(
         &hasura_transaction,
@@ -68,13 +71,17 @@ pub async fn create_keys_impl(
         return Ok(());
     }
 
-    // create config/keys for board
-    public_keys::create_keys(
-        board_name.as_str(),
-        trustee_pks,
-        keys_ceremony.threshold as usize
-    )
-    .await?;
+    let configuration_exists = check_configuration_exists(board_name.as_str(),).await?;
+
+    if !configuration_exists {
+        // create config/keys for board
+        public_keys::create_keys(
+            board_name.as_str(),
+            trustee_pks,
+            keys_ceremony.threshold as usize
+        )
+        .await?;
+    }
 
     update_keys_ceremony_status(
         &hasura_transaction,

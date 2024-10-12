@@ -157,7 +157,7 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
     const CreateButton = () => (
         <Button
             onClick={() => setShowCeremony(true)}
-            disabled={!keysCeremonies || keysCeremonies?.length > 0}
+            disabled={!keysCeremonies}
             className="keys-add-button"
         >
             <ResourceListStyles.CreateIcon icon={faPlus} />
@@ -278,6 +278,7 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
                     <ResetFilters />
                     <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
                         <TextField source="id" />
+                        <TextField source="name" />
                         <DateField
                             source="created_at"
                             showTime={true}
