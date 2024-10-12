@@ -23,8 +23,7 @@ const PhoneInput = ({handlePhoneNumberChange, label, fullWidth, initialValue}: P
             <InputLabel>{label}</InputLabel>
             <IntlTelInput
                 initOptions={{
-                    utilsScript:
-                        "/phoneInput.js",
+                    utilsScript: "/phoneInput.js",
                     initialCountry: "auto",
                     separateDialCode: true,
                     geoIpLookup: (success, failure) => {
