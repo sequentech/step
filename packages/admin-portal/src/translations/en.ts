@@ -638,6 +638,7 @@ const englishTranslation = {
             },
             eventType: {
                 label: "Type",
+                ALLOW_INIT_REPORT: "Allow Initialization Report",
                 START_VOTING_PERIOD: "Start Voting Period",
                 END_VOTING_PERIOD: "End Voting Period",
                 ALLOW_VOTING_PERIOD_END: "Allow Voting Period End",

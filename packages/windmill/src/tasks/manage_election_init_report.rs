@@ -70,9 +70,9 @@ async fn manage_election_init_report_wrapped(
     if let Some(election_presentation) = election.presentation {
         let election_presentation: ElectionPresentation = ElectionPresentation {
             init_report: if (event_payload.allow_init == Some(true)) {
-                InitReport::ALLOWED
+                Some(InitReport::ALLOWED)
             } else {
-                InitReport::DISALLOWED
+                Some(InitReport::DISALLOWED)
             },
             ..serde_json::from_value(election_presentation)?
         };

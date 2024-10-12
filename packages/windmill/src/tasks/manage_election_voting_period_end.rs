@@ -70,9 +70,9 @@ async fn manage_election_voting_period_end_wrapped(
     if let Some(election_presentation) = election.presentation {
         let election_presentation: ElectionPresentation = ElectionPresentation {
             voting_period_end: if (event_payload.allow_voting_period_end == Some(true)) {
-                VotingPeriodEnd::ALLOWED
+                Some(VotingPeriodEnd::ALLOWED)
             } else {
-                VotingPeriodEnd::DISALLOWED
+                Some(VotingPeriodEnd::DISALLOWED)
             },
             ..serde_json::from_value(election_presentation)?
         };

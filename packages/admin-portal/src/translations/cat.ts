@@ -643,6 +643,7 @@ const catalanTranslation: TranslationType = {
             },
             eventType: {
                 label: "Tipus",
+                ALLOW_INIT_REPORT: "Allow Initialization Report",
                 START_VOTING_PERIOD: "Inici del Període de Votació",
                 END_VOTING_PERIOD: "Final del Període de Votació",
                 ALLOW_VOTING_PERIOD_END: "Allow Voting Period End",

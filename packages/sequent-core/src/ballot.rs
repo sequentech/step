@@ -794,7 +794,6 @@ pub enum EOverVotePolicy {
     Eq,
     Debug,
     Clone,
-    Default,
 )]
 pub struct ElectionPresentation {
     pub i18n: Option<I18nContent<I18nContent<Option<String>>>>,
@@ -807,10 +806,22 @@ pub struct ElectionPresentation {
     pub is_grace_priod: Option<bool>,
     pub grace_period_policy: Option<EGracePeriodPolicy>,
     pub grace_period_secs: Option<u64>,
-    pub init_report: InitReport,
-    pub manual_start_voting_period: ManualStartVotingPeriod,
-    pub voting_period_end: VotingPeriodEnd,
-    pub tally: Tally,
+    pub init_report: Option<InitReport>,
+    pub manual_start_voting_period: Option<ManualStartVotingPeriod>,
+    pub voting_period_end: Option<VotingPeriodEnd>,
+    pub tally: Option<Tally>,
+}
+
+impl Default for ElectionPresentation {
+    fn default() -> ElectionPresentation {
+        ElectionPresentation {
+            init_report: Some(InitReport::ALLOWED),
+            manual_start_voting_period: Some(ManualStartVotingPeriod::ALLOWED),
+            voting_period_end: Some(VotingPeriodEnd::DISALLOWED),
+            tally: Some(Tally::ALWAYS_ALLOW),
+            ..Default::default()
+        }
+    }
 }
 
 #[derive(

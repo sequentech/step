@@ -44,7 +44,12 @@ pub struct ManageElectionDatePayload {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ManageAllowInitPayload {
     pub election_id: Option<String>,
+    #[serde(default = "default_allow_init")]
     pub allow_init: Option<bool>,
+}
+
+fn default_allow_init() -> Option<bool> {
+    Some(true)
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

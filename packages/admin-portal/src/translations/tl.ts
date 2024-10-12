@@ -643,6 +643,7 @@ const tagalogTranslation: TranslationType = {
             },
             eventType: {
                 label: "Uri",
+                ALLOW_INIT_REPORT: "Allow Initialization Report",
                 START_VOTING_PERIOD: "Simula ng Panahon ng Pagboto",
                 END_VOTING_PERIOD: "Pagtatapos ng Panahon ng Pagboto",
                 ALLOW_VOTING_PERIOD_END: "Allow Voting Period End",

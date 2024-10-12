@@ -93,6 +93,7 @@ const CreateEvent: FC<CreateEventProps> = ({
     )
     const targetsElection = (event_processor: EventProcessors) => {
         switch (event_processor) {
+            case EventProcessors.ALLOW_INIT_REPORT:
             case EventProcessors.START_VOTING_PERIOD:
             case EventProcessors.END_VOTING_PERIOD:
             case EventProcessors.ALLOW_VOTING_PERIOD_END:
@@ -166,6 +167,9 @@ const CreateEvent: FC<CreateEventProps> = ({
                         onChange={(e: any) => setEventType(e.target.value)}
                         disabled={isEditEvent || isLoading}
                     >
+                        <MenuItem value={EventProcessors.ALLOW_INIT_REPORT}>
+                            {t("eventsScreen.eventType.ALLOW_INIT_REPORT")}
+                        </MenuItem>
                         <MenuItem value={EventProcessors.START_VOTING_PERIOD}>
                             {t("eventsScreen.eventType.START_VOTING_PERIOD")}
                         </MenuItem>

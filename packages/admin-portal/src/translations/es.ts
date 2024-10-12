@@ -642,6 +642,7 @@ const spanishTranslation: TranslationType = {
             },
             eventType: {
                 label: "Tipo",
+                ALLOW_INIT_REPORT: "Allow Initialization Report",
                 START_VOTING_PERIOD: "Inicio del Período de Votación",
                 END_VOTING_PERIOD: "Fin del Período de Votación",
                 ALLOW_VOTING_PERIOD_END: "Allow Voting Period End",

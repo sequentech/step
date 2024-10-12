@@ -645,6 +645,7 @@ const frenchTranslation: TranslationType = {
             },
             eventType: {
                 label: "Type",
+                ALLOW_INIT_REPORT: "Allow Initialization Report",
                 START_VOTING_PERIOD: "Début de la Période de Vote",
                 END_VOTING_PERIOD: "Fin de la Période de Vote",
                 ALLOW_VOTING_PERIOD_END: "Allow Voting Period End",
