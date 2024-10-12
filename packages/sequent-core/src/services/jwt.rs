@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use base64::engine::general_purpose;
 use base64::Engine;
 use serde;
-use serde::{Deserializer, Deserialize, Serialize, de, de::Unexpected};
+use serde::{Deserialize, Serialize};
 use serde_json;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -26,7 +26,7 @@ pub struct JwtHasuraClaims {
     pub user_id: String,
     #[serde(rename = "x-hasura-area-id")]
     pub area_id: Option<String>,
-    #[serde(rename = "x-hasura-authorized-election-ids")]
+    #[serde(rename = "x-authorized-election-ids")]
     pub authorized_election_ids: Option<Vec<String>>,
     #[serde(rename = "x-hasura-allowed-roles")]
     pub allowed_roles: Vec<String>,
