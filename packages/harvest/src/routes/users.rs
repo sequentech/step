@@ -146,6 +146,7 @@ pub struct GetUsersBody {
     enabled: Option<bool>,
     sort: Option<HashMap<String, String>>,
     has_voted: Option<bool>,
+    authorized_to_election_alias: Option<String>,
 }
 
 #[instrument(skip(claims), ret)]
@@ -222,7 +223,7 @@ pub async fn get_users(
         email_verified: input.email_verified,
         sort: input.sort,
         has_voted: input.has_voted,
-        authorized_to_election_alias: None,
+        authorized_to_election_alias: input.authorized_to_election_alias,
     };
 
     let (users, count) = match input.show_votes_info.unwrap_or(false) {

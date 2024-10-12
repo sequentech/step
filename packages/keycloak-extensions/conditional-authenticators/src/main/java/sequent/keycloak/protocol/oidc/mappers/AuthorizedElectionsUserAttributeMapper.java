@@ -145,10 +145,10 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
     // authorize him to all
     // elections.
     if (attributeValue.isEmpty() || attributeValue == null) {
-      log.infov("Empty: {0}", electionsAliasIds.keySet().stream().collect(Collectors.joining("|")));
+      log.infov("No authorized elections: {0}", electionsAliasIds.keySet().stream().collect(Collectors.joining("|")));
       authorizedElectionIds.addAll(electionsAliasIds.keySet());
     } else {
-      log.infov("Not empty: {0}", attributeValue.stream().collect(Collectors.joining("|")));
+      log.infov("User has authorized elections: {0}", attributeValue.stream().collect(Collectors.joining("|")));
       authorizedElectionIds.addAll(attributeValue);
     }
 
@@ -164,6 +164,9 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
       // Format the collection as a string
       String result =
           authorizedElectionIds.stream()
+              // Filter out elements that are not the alias. For elections that have alias to null key is the election id.
+              .filter(electionAlias -> electionsAliasIds.get(electionAlias).equals(electionAlias))
+              // Map alias to election_id
               .map(electionAlias -> electionsAliasIds.get(electionAlias))
               .map(s -> "\"" + s + "\"")
               .collect(Collectors.joining(", ", "{", "}"));
@@ -330,10 +333,17 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
     Map<String, String> electionIds = new HashMap<>();
 
     for (JsonNode election : elections.get("data").get("sequent_backend_election")) {
-      log.infov("Name: {0}", election.get("name").textValue());
-      log.infov("Alias: {0}", election.get("alias").textValue());
-      log.infov("Id: {0}", election.get("id").textValue());
-      electionIds.put(election.get("alias").textValue(), election.get("id").textValue());
+      String id = election.get("id").textValue();
+      String alias = election.get("alias").textValue();
+      
+      // Make sure to populate the list with all elections even if alias is not set
+      String key = alias != null ? alias : id;
+      
+      log.infov("Key: {0}", key);
+      log.infov("Id: {0}", id);
+      log.infov("Alias: {0}", alias);
+      
+      electionIds.put(key, id);
     }
 
     return electionIds;

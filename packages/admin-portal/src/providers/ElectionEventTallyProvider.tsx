@@ -47,9 +47,7 @@ interface ElectionEventTallyContextProviderProps {
 export const ElectionEventTallyContextProvider = (
     props: ElectionEventTallyContextProviderProps
 ) => {
-    const [tally, setTally] = useState<string | null>(
-        sessionStorage.getItem("selected-election-event-tally-id") || null
-    )
+    const [tally, setTally] = useState<string | null>(null)
     const [isTrustee, setIsTrustee] = useState<boolean>(false)
     const [isCreating, setIsCreating] = useState<boolean>(false)
     const [isCreated, setIsCreated] = useState<boolean>(false)
