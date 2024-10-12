@@ -48,7 +48,7 @@ const SettingsLocalization = () => {
         record,
         save,
         isLoading: recordLoading,
-    } = useEditController({
+    } = useEditController<Sequent_Backend_Tenant, undefined>({
         resource: "sequent_backend_tenant",
         id: tenantId,
         redirect: false,
@@ -82,13 +82,14 @@ const SettingsLocalization = () => {
     const languageOptions = useMemo(() => {
         return (languageConf?.enabled_language_codes ?? []) as string[]
     }, [languageConf?.enabled_language_codes])
+    
 
     const handleLanguageChange = (event: SelectChangeEvent<string>) => {
         const value = event?.target?.value ?? ""
         if (!isString(value) || !value) return
         setSelectedLanguage(value)
     }
-    const translationData = Object.entries(record?.settings?.i18n?.[selectedLanguage] || {}).map(
+    const translationData = Object.entries((record?.settings as ITenantSettings | undefined)?.i18n?.[selectedLanguage] || {}).map(
         ([key, value]) => ({
             id: key,
             value: value,
@@ -108,6 +109,7 @@ const SettingsLocalization = () => {
         setRecordId(null)
         setOpenEdit(false)
     }
+
     const handleCreateText = (e: any) => {
         if (!e || !e?.presentation || !e?.presentation?.i18n) return
         const newKey: string = e?.presentation?.i18n?.[selectedLanguage]?.newKey ?? ""
@@ -116,15 +118,15 @@ const SettingsLocalization = () => {
         update(
             "sequent_backend_tenant",
             {
-                id: record.id,
+                id: record?.id,
                 data: {
                     ...record,
                     settings: {
                         ...(record?.settings ?? {}),
                         i18n: {
-                            ...(record?.settings?.i18n ?? {}),
+                            ...((record?.settings as ITenantSettings | undefined)?.i18n ?? {}),
                             [selectedLanguage]: {
-                                ...(record?.settings?.i18n?.[selectedLanguage] ?? {}),
+                                ...((record?.settings as ITenantSettings | undefined)?.i18n?.[selectedLanguage] ?? {}),
                                 [newKey]: newValue,
                             },
                         },
@@ -152,15 +154,15 @@ const SettingsLocalization = () => {
         update(
             "sequent_backend_tenant",
             {
-                id: record.id,
+                id: record?.id,
                 data: {
                     ...record,
                     settings: {
-                        ...record.settings,
+                        ...record?.settings,
                         i18n: {
-                            ...record.settings.i18n,
+                            ...(record?.settings as ITenantSettings | undefined)?.i18n,
                             [selectedLanguage]: {
-                                ...record.settings.i18n?.[selectedLanguage],
+                                ...(record?.settings as ITenantSettings | undefined)?.i18n?.[selectedLanguage],
                                 [recordId as string]: editVal,
                             },
                         },
@@ -182,19 +184,19 @@ const SettingsLocalization = () => {
     }
     const confirmDeleteAction = () => {
         if (!deleteId || !selectedLanguage) return
-        const updatedI18nForLanguage = {...record.settings.i18n[selectedLanguage]}
+        const updatedI18nForLanguage = {...(record?.settings as ITenantSettings | undefined)?.i18n?.[selectedLanguage]}
         delete updatedI18nForLanguage[deleteId as string]
 
         update(
             "sequent_backend_tenant",
             {
-                id: record.id,
+                id: record?.id,
                 data: {
                     ...record,
                     settings: {
-                        ...record.settings,
+                        ...(record?.settings as ITenantSettings | undefined),
                         i18n: {
-                            ...record.settings.i18n,
+                            ...(record?.settings as ITenantSettings | undefined)?.i18n,
                             [selectedLanguage]: updatedI18nForLanguage,
                         },
                     },
@@ -333,7 +335,7 @@ const SettingsLocalization = () => {
                 }}
             >
                 <SimpleForm
-                    record={record?.settings?.i18n?.[selectedLanguage] || {}}
+                    record={(record?.settings as ITenantSettings | undefined)?.i18n?.[selectedLanguage] || {}}
                     toolbar={<SaveButton sx={{marginInline: "1rem"}} />}
                     onSubmit={handleEditText}
                 >
@@ -356,7 +358,7 @@ const SettingsLocalization = () => {
                             label={t("electionEventScreen.localization.labels.value")}
                             defaultValue={
                                 recordId
-                                    ? record.settings.i18n[selectedLanguage][recordId]
+                                    ? (record?.settings as ITenantSettings | undefined)?.i18n?.[selectedLanguage][recordId]
                                     : undefined
                             }
                             multiline

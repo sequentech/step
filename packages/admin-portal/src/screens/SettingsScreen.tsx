@@ -22,7 +22,7 @@ import {SettingsSchedulesCreate} from "@/resources/Settings/SettingsSchedulesCre
 import {SettingsTrustees} from "@/resources/Settings/SettingsTrustees"
 import {SettingsLookAndFeel} from "@/resources/Settings/SettingsLookAndFeel"
 import {SettingsCountries} from "@/resources/Settings/SettingsCountries"
-import SettingsLocalization from "@/resources/Settings/constants/SettingLocalization"
+import SettingsLocalization from "@/resources/Settings/SettingsLocalization"
 
 export const SettingsScreen: React.FC = () => {
     const {t} = useTranslation()
