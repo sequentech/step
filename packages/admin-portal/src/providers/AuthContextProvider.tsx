@@ -48,7 +48,7 @@ export interface AuthContextValues {
     /**
      * The permission labels an admin user has
      */
-    permissionLabels: String[]
+    permissionLabels: string[]
     /**
      * Function to initiate the logout
      */

@@ -239,16 +239,11 @@ pub struct ListKeysCeremonyInput {
     election_event_id: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct ListKeysCeremonyOutput {
-    keys_ceremony_id: String,
-}
-
 // The main function to start a key ceremony
 #[instrument(skip(claims))]
 #[post("/list-keys-ceremonies", format = "json", data = "<body>")]
 pub async fn list_keys_ceremonies(
-    body: Json<CreateKeysCeremonyInput>,
+    body: Json<ListKeysCeremonyInput>,
     claims: JwtClaims,
 ) -> Result<Json<DataList<KeysCeremony>>, (Status, String)> {
     let admin_auth = authorize(
