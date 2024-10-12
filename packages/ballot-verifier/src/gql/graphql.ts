@@ -493,9 +493,33 @@ export type KeycloakUserArea = {
     name?: Maybe<Scalars["String"]["output"]>
 }
 
+export type KeysCeremony = {
+    __typename?: "KeysCeremony"
+    annotations?: Maybe<Scalars["jsonb"]["output"]>
+    created_at?: Maybe<Scalars["String"]["output"]>
+    election_event_id: Scalars["String"]["output"]
+    execution_status?: Maybe<Scalars["String"]["output"]>
+    id: Scalars["String"]["output"]
+    is_default?: Maybe<Scalars["Boolean"]["output"]>
+    labels?: Maybe<Scalars["jsonb"]["output"]>
+    last_updated_at?: Maybe<Scalars["String"]["output"]>
+    name?: Maybe<Scalars["String"]["output"]>
+    settings?: Maybe<Scalars["jsonb"]["output"]>
+    status?: Maybe<Scalars["jsonb"]["output"]>
+    tenant_id: Scalars["String"]["output"]
+    threshold: Scalars["Int"]["output"]
+    trustee_ids: Array<Scalars["String"]["output"]>
+}
+
 export type LimitAccessByCountriesOutput = {
     __typename?: "LimitAccessByCountriesOutput"
     success?: Maybe<Scalars["Boolean"]["output"]>
+}
+
+export type ListKeysCeremonyOutput = {
+    __typename?: "ListKeysCeremonyOutput"
+    items: Array<KeysCeremony>
+    total: TotalAggregate
 }
 
 export type LogEventOutput = {
@@ -3344,6 +3368,7 @@ export type Query_Root = {
     listElectoralLog?: Maybe<DataListElectoralLog>
     /** List PostgreSQL audit logs */
     listPgaudit?: Maybe<DataListPgAudit>
+    list_keys_ceremony?: Maybe<ListKeysCeremonyOutput>
     list_user_roles: Array<KeycloakRole>
     /** log an event in immudb */
     logEvent?: Maybe<LogEventOutput>
@@ -3589,6 +3614,10 @@ export type Query_RootListPgauditArgs = {
     limit?: InputMaybe<Scalars["Int"]["input"]>
     offset?: InputMaybe<Scalars["Int"]["input"]>
     order_by?: InputMaybe<PgAuditOrderBy>
+}
+
+export type Query_RootList_Keys_CeremonyArgs = {
+    election_event_id: Scalars["String"]["input"]
 }
 
 export type Query_RootList_User_RolesArgs = {

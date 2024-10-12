@@ -3,10 +3,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {Sequent_Backend_Election_Event, Sequent_Backend_Keys_Ceremony} from "@/gql/graphql"
+import {ListKeysCeremonyQuery, Sequent_Backend_Election_Event, Sequent_Backend_Keys_Ceremony} from "@/gql/graphql"
 import {styled as MUIStiled} from "@mui/material/styles"
 import styled from "@emotion/styled"
-import React, {useEffect, useState} from "react"
+import React, {useEffect, useMemo, useState} from "react"
 import {
     DatagridConfigurable,
     List,
@@ -38,6 +38,8 @@ import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {ListActions} from "../../components/ListActions"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ResetFilters} from "@/components/ResetFilters"
+import { useQuery } from "@apollo/client"
+import { LIST_KEYS_CEREMONY } from "@/queries/ListKeysCeremonies"
 
 const NotificationLink = styled.span`
     text-decoration: underline;
@@ -128,22 +130,25 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
     const electionEvent = useRecordContext<Sequent_Backend_Election_Event>()
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
+    const isTrustee = authContext.hasRole(IPermissions.TRUSTEE_CEREMONY)
     const {globalSettings} = useContext(SettingsContext)
 
-    const {data: keysCeremonies} = useGetList<Sequent_Backend_Keys_Ceremony>(
-        "sequent_backend_keys_ceremony",
-        {
-            sort: {field: "created_at", order: "DESC"},
-            filter: {
-                tenant_id: tenantId,
-                election_event_id: electionEvent.id,
+    const {data: keysCeremonies} = useQuery<ListKeysCeremonyQuery>(LIST_KEYS_CEREMONY, {
+        variables: {
+            tenantId: tenantId,
+            electionEventId: electionEvent.id,
+        },
+        pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+        context: {
+            headers: {
+                "x-hasura-role": isTrustee ? IPermissions.TRUSTEE_CEREMONY : IPermissions.ADMIN_CEREMONY,
             },
         },
-        {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-        }
-    )
-    let activeCeremony = getActiveCeremony(keysCeremonies, authContext)
+    })
+    const keysCeremonyIds = useMemo(() => {
+        return keysCeremonies?.list_keys_ceremony?.items.map(key => key.id) ?? []
+    }, [keysCeremonies?.list_keys_ceremony?.items])
+    let activeCeremony = getActiveCeremony(keysCeremonies?.list_keys_ceremony?.items as any, authContext)
 
     // This is the ceremony currently being shown
     const [currentCeremony, setCurrentCeremony] = useState<Sequent_Backend_Keys_Ceremony | null>(
@@ -187,9 +192,9 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
         setCurrentCeremony(null)
     }
 
-    const getCeremony = (id: Identifier) => {
+    const getCeremony = (id: Identifier): Sequent_Backend_Keys_Ceremony | undefined => {
         if (keysCeremonies) {
-            return keysCeremonies?.find((element) => element.id === id)
+            return keysCeremonies?.list_keys_ceremony?.items.find((element) => element.id === id) as any
         }
     }
 
@@ -270,6 +275,9 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
                     filter={{
                         tenant_id: tenantId || undefined,
                         election_event_id: electionEvent?.id || undefined,
+                        id: {
+                            _in: keysCeremonyIds,
+                        }
                     }}
                     storeKey={false}
                     empty={<Empty />}

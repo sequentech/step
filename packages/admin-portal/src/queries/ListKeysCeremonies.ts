@@ -4,12 +4,8 @@
 import {gql} from "@apollo/client"
 
 export const LIST_KEYS_CEREMONY = gql`
-    mutation ListKeysCeremony(
-        $electionEventId: String!
-    ) {
-        list_keys_ceremony(
-                election_event_id: $electionEventId
-        ) {
+    query ListKeysCeremony($electionEventId: String!) {
+        list_keys_ceremony(election_event_id: $electionEventId) {
             items {
                 id
                 created_at
