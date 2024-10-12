@@ -9,7 +9,7 @@ use anyhow::{Context, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
-use sequent_core::services::jwt::JwtClaims;
+use sequent_core::services::jwt::{decode_permission_labels, JwtClaims};
 use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
@@ -268,6 +268,7 @@ pub async fn list_keys_ceremonies(
     } else if trustee_auth.is_err() {
         admin_auth?;
     }
+    let permission_labels = decode_permission_labels(&claims);
 
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
@@ -286,9 +287,10 @@ pub async fn list_keys_ceremonies(
 
     let (keys_ceremonies, count) = keys_ceremony::list_keys_ceremony(
         &hasura_transaction,
-        tenant_id,
+        &tenant_id,
         &user_id,
-        input.election_event_id.clone(),
+        &input.election_event_id,
+        &permission_labels,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;

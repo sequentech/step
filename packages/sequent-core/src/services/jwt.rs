@@ -87,6 +87,29 @@ pub fn decode_jwt(token: &str) -> Result<JwtClaims> {
     Ok(claims)
 }
 
+#[instrument]
+pub fn decode_permission_labels(claims: &JwtClaims) -> Vec<String> {
+    let Some(label_str) = claims.hasura_claims.permission_labels.clone() else {
+        return vec![];
+    };
+
+    let s = label_str.trim();
+    let s = if s.starts_with('{') && s.ends_with('}') {
+        &s[1..s.len() - 1]
+    } else {
+        s
+    };
+
+    // Split the string into items
+    let items = s.split(',');
+
+    // Process each item: trim whitespace and surrounding quotes
+    let keys: Vec<String> = items
+        .map(|item| item.trim().trim_matches('"').to_string())
+        .collect();
+    keys
+}
+
 #[cfg(test)]
 mod tests {
     use crate::services::jwt::*;
