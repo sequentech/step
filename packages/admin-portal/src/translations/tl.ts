@@ -1066,6 +1066,8 @@ const tagalogTranslation: TranslationType = {
             exportElectionArea: "Ipadala ang pakete ng transmisyon para sa lugar '{{name}}'",
             templateTitle: "Template ng Resulta",
             templateSubTitle: "Opsyonal na palitan ang template ng mga resulta.",
+            keysCeremonyTitle: "Seremonya ng mga Susi",
+            keysCeremonySubTitle: "Piliin ang Seremonya ng mga Susi para sa pagbilang na ito",
             ceremonyTitle: "Halalan para sa Pagbibilang",
             ceremonySubTitle: "Piliin ang halalan para sa pagbibilang",
             tallyTitle: "Progreso ng Pagbibilang ng Halalan",

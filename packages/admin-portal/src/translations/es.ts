@@ -1064,6 +1064,8 @@ const spanishTranslation: TranslationType = {
             exportElectionArea: "Enviar paquete de transmisión para el área '{{name}}'",
             templateTitle: "Plantilla de Resultados",
             templateSubTitle: "Opcionalmente sobrescribir la plantilla de resultados.",
+            keysCeremonyTitle: "Ceremonia de Llaves",
+            keysCeremonySubTitle: "Selecciona la Ceremonia de Llaves para este recuento",
             ceremonyTitle: "Elecciones para el Recuento",
             ceremonySubTitle: "Seleccione las elecciones para el recuento",
             tallyTitle: "Progreso del Recuento de Elecciones",

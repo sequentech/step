@@ -304,8 +304,9 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
                         <ListActions
                             withFilter={false}
                             withImport={false}
-                            setOpen={() => setShowCeremony(true)}
-                            Component={null}
+                            actionLabel="common.label.add"
+                            doAction={() => setShowCeremony(true)}
+                            withAction={true}
                         />
                     }
                 >

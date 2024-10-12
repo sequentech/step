@@ -1065,6 +1065,8 @@ const catalanTranslation: TranslationType = {
             exportElectionArea: "Envia paquet de transmissió per a l'àrea '{{name}}'",
             templateTitle: "Plantilla de Resultats",
             templateSubTitle: "Opcionalment sobreescriure la plantilla de resultats.",
+            keysCeremonyTitle: "Cerimònia de Claus",
+            keysCeremonySubTitle: "Selecciona la Cerimònia de Claus per a aquest recompte",
             ceremonyTitle: "Eleccions per al Recompte",
             ceremonySubTitle: "Seleccioneu les eleccions per al recompte",
             tallyTitle: "Progrés del Recompte d'Eleccions",

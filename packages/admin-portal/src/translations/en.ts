@@ -1058,6 +1058,8 @@ const englishTranslation = {
             exportElectionArea: "Send Transmission Package for Area '{{name}}'",
             templateTitle: "Results Template",
             templateSubTitle: "Optionally overwrite the results template.",
+            keysCeremonyTitle: "Keys Ceremony",
+            keysCeremonySubTitle: "Select the Keys Ceremony for this tally",
             ceremonyTitle: "Elections to Tally",
             ceremonySubTitle: "Choose the elections you want to tally",
             tallyTitle: "Elections Tally Progress",

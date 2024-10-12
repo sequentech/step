@@ -1071,6 +1071,8 @@ const frenchTranslation: TranslationType = {
             exportElectionArea: "Envoyer le paquet de transmission pour la zone '{{name}}'",
             templateTitle: "Modèle de Résultats",
             templateSubTitle: "Éventuellement écraser le modèle de résultats.",
+            keysCeremonyTitle: "Cérémonie des Clés",
+            keysCeremonySubTitle: "Sélectionnez la Cérémonie des Clés pour ce dépouillement",
             ceremonyTitle: "Élections pour le Comptage",
             ceremonySubTitle: "Sélectionnez les élections pour le comptage",
             tallyTitle: "Progrès du Comptage des Élections",
