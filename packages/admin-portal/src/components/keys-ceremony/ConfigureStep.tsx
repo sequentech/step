@@ -33,6 +33,7 @@ import {Dialog} from "@sequentech/ui-essentials"
 import {isNull} from "@sequentech/ui-core"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {IPermissions} from "@/types/keycloak"
 
 export interface ConfigureStepProps {
     currentCeremony: Sequent_Backend_Keys_Ceremony | null
@@ -56,7 +57,13 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
     const [isLoading, setIsLoading] = useState(false)
     const [openConfirmationModal, setOpenConfirmationModal] = useState(false)
     const [createKeysCeremonyMutation] =
-        useMutation<CreateKeysCeremonyMutation>(CREATE_KEYS_CEREMONY)
+        useMutation<CreateKeysCeremonyMutation>(CREATE_KEYS_CEREMONY, {
+            context: {
+                headers: {
+                    "x-hasura-role": IPermissions.ADMIN_CEREMONY,
+                },
+            },
+        })
     const [errors, setErrors] = useState<String | null>(null)
     const [threshold, setThreshold] = useState<number>(2)
     const [name, setName] = useState<string>("")
