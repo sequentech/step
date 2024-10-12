@@ -20,25 +20,12 @@ export enum EEnrollmentStatus {
     ENROLLMENT_DISABLED = "disabled",
 }
 
-export enum ELockedDownStatus {
-    LOCKED_DOWN = "locked-down",
-    NOT_LOCKED_DOWN = "not-locked-down",
-}
-
-export enum EPublishPolicy {
-    ALWAYS = "always",
-    AFTER_LOCKDOWN = "after-lockdown",
-}
-
 export interface IElectionEventStatus {
     config_created?: boolean
     keys_ceremony_finished?: boolean
     tally_ceremony_finished?: boolean
     is_published?: boolean
     voting_status: EVotingStatus
-    enrollment_status: EEnrollmentStatus
-    locked_down_status: ELockedDownStatus
-    publish_policy: EPublishPolicy
 }
 
 export interface IElectionStatus {
