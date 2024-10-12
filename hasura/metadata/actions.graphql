@@ -348,7 +348,7 @@ type Query {
   ): DataListPgAudit
 }
 
-type Mutation {
+type Query {
   list_keys_ceremony(
     election_event_id: String!
   ): ListKeysCeremonyOutput

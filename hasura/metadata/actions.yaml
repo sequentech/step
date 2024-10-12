@@ -717,7 +717,7 @@ actions:
     comment: List PostgreSQL audit logs
   - name: list_keys_ceremony
     definition:
-      kind: synchronous
+      kind: ""
       handler: http://{{HARVEST_DOMAIN}}/list-keys-ceremonies
       forward_client_headers: true
       request_transform:
