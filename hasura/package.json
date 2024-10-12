@@ -1,4 +1,6 @@
 {
+  "name": "hasura-metadata",
+  "private": true,
   "devDependencies": {
     "@graphql-eslint/eslint-plugin": "^3.20.1",
     "@typescript-eslint/eslint-plugin": "^5.32.0",
