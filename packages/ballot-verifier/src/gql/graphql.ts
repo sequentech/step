@@ -347,6 +347,7 @@ export type GetUploadUrlOutput = {
 
 export type GetUsersInput = {
     attributes?: InputMaybe<Scalars["jsonb"]["input"]>
+    authorized_to_election_alias?: InputMaybe<Scalars["String"]["input"]>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
     email?: InputMaybe<Scalars["String"]["input"]>

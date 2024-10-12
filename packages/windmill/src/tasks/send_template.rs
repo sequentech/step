@@ -603,6 +603,7 @@ pub async fn send_template(
             email_verified: None,
             sort: None,
             has_voted: None,
+            authorized_to_election_alias: None,
         };
 
         let (users, total_count) = match audience_selection {
