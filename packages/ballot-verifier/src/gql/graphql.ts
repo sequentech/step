@@ -13111,7 +13111,6 @@ export type Sequent_Backend_Scheduled_Event = {
     created_by?: Maybe<Scalars["String"]["output"]>
     cron_config?: Maybe<Scalars["jsonb"]["output"]>
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
-    election_id?: Maybe<Scalars["uuid"]["output"]>
     event_payload?: Maybe<Scalars["jsonb"]["output"]>
     event_processor?: Maybe<Scalars["String"]["output"]>
     id: Scalars["uuid"]["output"]
@@ -13181,7 +13180,6 @@ export type Sequent_Backend_Scheduled_Event_Bool_Exp = {
     created_by?: InputMaybe<String_Comparison_Exp>
     cron_config?: InputMaybe<Jsonb_Comparison_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
-    election_id?: InputMaybe<Uuid_Comparison_Exp>
     event_payload?: InputMaybe<Jsonb_Comparison_Exp>
     event_processor?: InputMaybe<String_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
@@ -13229,7 +13227,6 @@ export type Sequent_Backend_Scheduled_Event_Insert_Input = {
     created_by?: InputMaybe<Scalars["String"]["input"]>
     cron_config?: InputMaybe<Scalars["jsonb"]["input"]>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
-    election_id?: InputMaybe<Scalars["uuid"]["input"]>
     event_payload?: InputMaybe<Scalars["jsonb"]["input"]>
     event_processor?: InputMaybe<Scalars["String"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -13246,7 +13243,6 @@ export type Sequent_Backend_Scheduled_Event_Max_Fields = {
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     created_by?: Maybe<Scalars["String"]["output"]>
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
-    election_id?: Maybe<Scalars["uuid"]["output"]>
     event_processor?: Maybe<Scalars["String"]["output"]>
     id?: Maybe<Scalars["uuid"]["output"]>
     stopped_at?: Maybe<Scalars["timestamptz"]["output"]>
@@ -13261,7 +13257,6 @@ export type Sequent_Backend_Scheduled_Event_Min_Fields = {
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     created_by?: Maybe<Scalars["String"]["output"]>
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
-    election_id?: Maybe<Scalars["uuid"]["output"]>
     event_processor?: Maybe<Scalars["String"]["output"]>
     id?: Maybe<Scalars["uuid"]["output"]>
     stopped_at?: Maybe<Scalars["timestamptz"]["output"]>
@@ -13293,7 +13288,6 @@ export type Sequent_Backend_Scheduled_Event_Order_By = {
     created_by?: InputMaybe<Order_By>
     cron_config?: InputMaybe<Order_By>
     election_event_id?: InputMaybe<Order_By>
-    election_id?: InputMaybe<Order_By>
     event_payload?: InputMaybe<Order_By>
     event_processor?: InputMaybe<Order_By>
     id?: InputMaybe<Order_By>
@@ -13331,8 +13325,6 @@ export enum Sequent_Backend_Scheduled_Event_Select_Column {
     /** column name */
     ElectionEventId = "election_event_id",
     /** column name */
-    ElectionId = "election_id",
-    /** column name */
     EventPayload = "event_payload",
     /** column name */
     EventProcessor = "event_processor",
@@ -13356,7 +13348,6 @@ export type Sequent_Backend_Scheduled_Event_Set_Input = {
     created_by?: InputMaybe<Scalars["String"]["input"]>
     cron_config?: InputMaybe<Scalars["jsonb"]["input"]>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
-    election_id?: InputMaybe<Scalars["uuid"]["input"]>
     event_payload?: InputMaybe<Scalars["jsonb"]["input"]>
     event_processor?: InputMaybe<Scalars["String"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -13382,7 +13373,6 @@ export type Sequent_Backend_Scheduled_Event_Stream_Cursor_Value_Input = {
     created_by?: InputMaybe<Scalars["String"]["input"]>
     cron_config?: InputMaybe<Scalars["jsonb"]["input"]>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
-    election_id?: InputMaybe<Scalars["uuid"]["input"]>
     event_payload?: InputMaybe<Scalars["jsonb"]["input"]>
     event_processor?: InputMaybe<Scalars["String"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -13406,8 +13396,6 @@ export enum Sequent_Backend_Scheduled_Event_Update_Column {
     CronConfig = "cron_config",
     /** column name */
     ElectionEventId = "election_event_id",
-    /** column name */
-    ElectionId = "election_id",
     /** column name */
     EventPayload = "event_payload",
     /** column name */
