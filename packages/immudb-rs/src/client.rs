@@ -28,7 +28,7 @@ pub type AsyncResponse<T> = Result<Response<T>>;
 /// Represents a Immudb Client.
 /// Allows you to handle operations in an easier manner.
 impl Client {
-    #[instrument(skip(password))]
+    #[instrument(skip(password), level = "trace")]
     pub async fn new(server_url: &str, username: &str, password: &str) -> Result<Client> {
         let mut client = ImmuServiceClient::connect(String::from(server_url)).await?;
         client = client.max_encoding_message_size(134217728);
@@ -43,7 +43,7 @@ impl Client {
         })
     }
 
-    #[instrument]
+    #[instrument(level = "debug")]
     pub async fn login(&mut self) -> Result<()> {
         let login_request = Request::new(LoginRequest {
             user: self.username.clone().into(),
@@ -52,6 +52,15 @@ impl Client {
         let response = self.client.login(login_request).await?;
         debug!("grpc-login-response={:?}", response);
         self.auth_token = Some(format!("Bearer {}", response.get_ref().token));
+        Ok(())
+    }
+
+    #[instrument(level = "debug")]
+    pub async fn logout(&mut self) -> Result<()> {
+        let request = self.get_request(())?;
+        let response = self.client.logout(request).await?;
+        debug!("grpc-login-response={:?}", response);
+        self.auth_token = None;
         Ok(())
     }
 
@@ -82,7 +91,7 @@ impl Client {
         Ok(database_list_response)
     }
 
-    #[instrument]
+    #[instrument(level = "trace")]
     pub async fn has_database(&mut self, database_name: &str) -> Result<bool> {
         let database_list_request = self.get_request(DatabaseListRequestV2 {})?;
         let database_list_response = self.client.database_list_v2(database_list_request).await?;
@@ -106,7 +115,7 @@ impl Client {
 
     pub async fn sql_exec(&mut self, sql: &str, params: Vec<NamedParam>) -> Result<()> {
         let sql_exec_request = self.get_request(SqlExecRequest {
-            sql: sql.clone().into(),
+            sql: sql.into(),
             no_wait: false,
             params: params,
         })?;
@@ -121,7 +130,7 @@ impl Client {
         params: Vec<NamedParam>,
     ) -> AsyncResponse<SqlQueryResult> {
         let sql_query_request = self.get_request(SqlQueryRequest {
-            sql: sql.clone().into(),
+            sql: sql.into(),
             reuse_snapshot: false,
             params: params,
         })?;
@@ -169,7 +178,7 @@ impl Client {
         params: Vec<NamedParam>,
     ) -> Result<()> {
         let mut sql_exec_request = self.get_request(SqlExecRequest {
-            sql: sql.clone().into(),
+            sql: sql.into(),
             no_wait: false,
             params: params,
         })?;
@@ -190,7 +199,7 @@ impl Client {
         params: Vec<NamedParam>,
     ) -> AsyncResponse<SqlQueryResult> {
         let mut sql_query_request = self.get_request(SqlQueryRequest {
-            sql: sql.clone().into(),
+            sql: sql.into(),
             reuse_snapshot: false,
             params: params,
         })?;

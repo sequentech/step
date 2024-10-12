@@ -181,6 +181,11 @@ pub async fn insert_cast_vote(
                 ErrorCode::InternalServerError.to_string().as_str(),
                 ErrorCode::InternalServerError,
             ),
+            CastVoteError::BallotVoterSignatureFailed(_) => ErrorResponse::new(
+                Status::InternalServerError,
+                ErrorCode::InternalServerError.to_string().as_str(),
+                ErrorCode::InternalServerError,
+            ),
             CastVoteError::UuidParseFailed(_, _) => {
                 ErrorResponse::new(
                     Status::BadRequest,

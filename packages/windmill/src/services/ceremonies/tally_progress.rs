@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::tally_session_execution::get_last_tally_session_execution;
 use anyhow::{anyhow, Context, Result};
-use board_messages::braid::{artifact::Plaintexts, message::Message, statement::StatementType};
+use b3::messages::{artifact::Plaintexts, message::Message, statement::StatementType};
 use sequent_core::types::ceremonies::{TallyElection, TallyElectionStatus};
 use std::collections::{HashMap, HashSet};
 use tracing::{event, instrument, Level};

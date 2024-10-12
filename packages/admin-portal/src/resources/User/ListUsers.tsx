@@ -494,7 +494,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             icon: <MailIcon />,
             action: sendTemplateForIdAction,
             showAction: () => canSendTemplates,
-            label: t(`sendTemplate.send`),
+            label: t(`sendCommunication.send`),
         },
         {
             icon: <EditIcon className="edit-voter-icon" />,
@@ -821,7 +821,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                     }}
                                 >
                                     <ResourceListStyles.MailIcon />
-                                    {t("sendTemplate.send")}
+                                    {t("sendCommunication.send")}
                                 </Button>,
                             ]}
                         />

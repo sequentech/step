@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use immu_board::Board;
+use b3::client::pgsql::B3IndexRow;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use serde::{Deserialize, Serialize};
 use serde_json::value::Value;
@@ -14,11 +14,11 @@ pub struct BoardSerializable {
     pub is_archived: bool,
 }
 
-impl Into<BoardSerializable> for Board {
+impl Into<BoardSerializable> for B3IndexRow {
     fn into(self) -> BoardSerializable {
         BoardSerializable {
-            id: self.id,
-            database_name: self.database_name,
+            id: self.id.into(),
+            database_name: self.board_name,
             is_archived: self.is_archived,
         }
     }

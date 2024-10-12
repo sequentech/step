@@ -70,6 +70,16 @@ const englishTranslation = {
                 action: "Create Area",
             },
         },
+        lookAndFeelScreen: {
+            common: {
+                helpLinks: "Help Links",
+                logoUrl: "Logo URL",
+                css: "Custom CSS",
+            },
+            errors: {
+                invalidHelpLinks: "Invalid Help Links format",
+            },
+        },
         electionTypeScreen: {
             noPermissions: "You don't have permission to access settings.",
             common: {
@@ -84,8 +94,6 @@ const englishTranslation = {
                 createNew: "Create Election Type",
                 emptyHeader: "No Election Types yet.",
                 emptyBody: "Do you want to create one?",
-                logoUrl: "Logo URL",
-                css: "Custom CSS",
             },
             create: {
                 title: "Create Election Type",
@@ -98,6 +106,7 @@ const englishTranslation = {
                 electionTypes: "ELECTION TYPES",
                 templates: "TEMPLATES",
                 languages: "LANGUAGES",
+                localization: "LOCALIZATION",
                 lookAndFeel: "Look & Feel",
                 schedules: "SCHEDULED EVENTS",
                 trustees: "TRUSTEES",
@@ -739,6 +748,7 @@ const englishTranslation = {
             usersAndRoles: "Users and Roles",
             logs: "Logs",
             settings: "Settings",
+            help: "Help",
             templates: "Templates",
             active: "Active",
             archived: "Archived",

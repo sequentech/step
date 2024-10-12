@@ -10,7 +10,14 @@ export interface ITenantScheduledEvent {
     name: string
 }
 
+export interface IHelpLink {
+    url: string
+    title: string
+    i18n?: Record<string, Record<string, string>>
+}
+
 export interface ITenantSettings {
+    help_links?: Array<IHelpLink>
     language_conf?: ILanguageConf
     sms?: boolean
     mail?: boolean

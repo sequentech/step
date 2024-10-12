@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::postgres::area::get_areas_by_name;
 use crate::postgres::document::get_document;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::documents::get_document_as_temp_file;
@@ -21,6 +22,7 @@ use sequent_core::services::keycloak::get_client_credentials;
 use sequent_core::services::keycloak::{
     get_event_realm, get_tenant_realm, MULTIVALUE_USER_ATTRIBUTE_SEPARATOR,
 };
+use sequent_core::services::{keycloak, reports};
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::keycloak::{
     AREA_ID_ATTR_NAME, AUTHORIZED_ELECTION_IDS_NAME, TENANT_ID_ATTR_NAME,

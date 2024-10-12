@@ -11,6 +11,7 @@ import {
     NumberField,
     useRecordContext,
     useNotify,
+    useListController,
 } from "react-admin"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ListActions} from "@/components/ListActions"
