@@ -32,7 +32,6 @@ async fn manage_election_event_lockdown_wrapped(
     tenant_id: String,
     election_event_id: String,
     scheduled_event_id: String,
-    election_id: String,
 ) -> AnyhowResult<()> {
     let scheduled_event = find_scheduled_event_by_id(
         hasura_transaction,
@@ -57,7 +56,7 @@ async fn manage_election_event_lockdown_wrapped(
         event!(Level::WARN, "Missing election_event_id");
         return Ok(());
     };
-    let event_payload: ManageLockdownPayload = deserialize_value(event_payload)?;
+    let event_payload: ManageElectionEventLockdownPayload = deserialize_value(event_payload)?;
 
     if let Some(election_event_presentation) = election_event.presentation {
         let election_event_presentation: ElectionEventPresentation = ElectionEventPresentation {
@@ -91,12 +90,11 @@ pub async fn manage_election_event_lockdown(
     tenant_id: String,
     election_event_id: String,
     scheduled_event_id: String,
-    election_id: String,
 ) -> Result<()> {
     let lock: PgLock = PgLock::acquire(
         format!(
-            "execute_manage_election_event_lockdown-{}-{}-{}-{}",
-            tenant_id, election_event_id, scheduled_event_id, election_id
+            "execute_manage_election_event_lockdown-{}-{}-{}",
+            tenant_id, election_event_id, scheduled_event_id
         ),
         Uuid::new_v4().to_string(),
         ISO8601::now() + Duration::seconds(120),
@@ -108,7 +106,6 @@ pub async fn manage_election_event_lockdown(
         let tenant_id = tenant_id.clone();
         let election_event_id = election_event_id.clone();
         let scheduled_event_id = scheduled_event_id.clone();
-        let election_id = election_id.clone();
         Box::pin(async move {
             // Your async code here
             manage_election_event_lockdown_wrapped(
@@ -116,7 +113,6 @@ pub async fn manage_election_event_lockdown(
                 tenant_id,
                 election_event_id,
                 scheduled_event_id,
-                election_id,
             )
             .await
         })
