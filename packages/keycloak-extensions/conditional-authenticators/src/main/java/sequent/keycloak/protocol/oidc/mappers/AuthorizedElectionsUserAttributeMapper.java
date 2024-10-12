@@ -35,9 +35,9 @@ import org.keycloak.representations.IDToken;
 import org.keycloak.util.JsonSerialization;
 
 /**
- * Mappings UserModel.attribute to an ID Token claim. Token claim name can be a
- * full qualified nested object name, i.e. "address.country". This will create a
- * nested json object within the toke claim.
+ * Mappings UserModel.attribute to an ID Token claim. Token claim name can be a full qualified
+ * nested object name, i.e. "address.country". This will create a nested json object within the toke
+ * claim.
  */
 @JBossLog
 public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocolMapper
@@ -145,10 +145,14 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
     // authorize him to all
     // elections.
     if (attributeValue.isEmpty() || attributeValue == null) {
-      log.infov("No authorized elections: {0}", electionsAliasIds.keySet().stream().collect(Collectors.joining("|")));
+      log.infov(
+          "No authorized elections: {0}",
+          electionsAliasIds.keySet().stream().collect(Collectors.joining("|")));
       authorizedElectionIds.addAll(electionsAliasIds.keySet());
     } else {
-      log.infov("User has authorized elections: {0}", attributeValue.stream().collect(Collectors.joining("|")));
+      log.infov(
+          "User has authorized elections: {0}",
+          attributeValue.stream().collect(Collectors.joining("|")));
       authorizedElectionIds.addAll(attributeValue);
     }
 
@@ -164,7 +168,8 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
       // Format the collection as a string
       String result =
           authorizedElectionIds.stream()
-              // Filter out elements that are not the alias. For elections that have alias to null key is the election id.
+              // Filter out elements that are not the alias. For elections that have alias to null
+              // key is the election id.
               .filter(electionAlias -> electionsAliasIds.get(electionAlias).equals(electionAlias))
               // Map alias to election_id
               .map(electionAlias -> electionsAliasIds.get(electionAlias))
@@ -335,14 +340,21 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
     for (JsonNode election : elections.get("data").get("sequent_backend_election")) {
       String id = election.get("id").textValue();
       String alias = election.get("alias").textValue();
-      
+
       // Make sure to populate the list with all elections even if alias is not set
       String key = alias != null ? alias : id;
-      
+
       log.infov("Key: {0}", key);
       log.infov("Id: {0}", id);
       log.infov("Alias: {0}", alias);
-      
+
+      // Check if two elections have the same alias and warn
+      String found = electionIds.get(alias);
+      if (found != null) {
+        log.warnv(
+            "Two elections found with the same alias: {0} id_1: {1} id_2: {2}", alias, found, id);
+      }
+
       electionIds.put(key, id);
     }
 
