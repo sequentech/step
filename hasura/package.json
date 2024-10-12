@@ -1,0 +1,15 @@
+{
+  "devDependencies": {
+    "@graphql-eslint/eslint-plugin": "^3.20.1",
+    "@typescript-eslint/eslint-plugin": "^5.32.0",
+    "@typescript-eslint/parser": "^5.32.0",
+    "eslint": "^8.21.0",
+    "eslint-plugin-yml": "^1.14.0",
+    "typescript": "^4.4.2",
+    "graphql": "^16.9.0"
+  },
+  "scripts": {
+    "lint": "eslint --ext .json,.yaml,.graphql .",
+    "lint:fix": "eslint --fix --ext .json,.yaml,.graphql ."
+  }
+}
