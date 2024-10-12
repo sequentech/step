@@ -14,48 +14,14 @@ use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use deadpool_postgres::Transaction;
 use deadpool_postgres::{Client as DbClient, Transaction as _};
-use regex::Regex;
-use ring::{digest, pbkdf2};
-use rocket::futures::SinkExt as _;
-use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::keycloak::get_client_credentials;
-use sequent_core::services::keycloak::{
-    get_event_realm, get_tenant_realm, MULTIVALUE_USER_ATTRIBUTE_SEPARATOR,
-};
 use sequent_core::services::{keycloak, reports};
 use sequent_core::types::hasura::core::TasksExecution;
-use sequent_core::types::keycloak::{
-    AREA_ID_ATTR_NAME, AUTHORIZED_ELECTION_IDS_NAME, TENANT_ID_ATTR_NAME,
-};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::fs::File;
 use std::io::Seek;
 use std::num::NonZeroU32;
 use tempfile::NamedTempFile;
 use tracing::{debug, info, instrument};
-
-lazy_static! {
-    static ref HEADER_RE: Regex = Regex::new(r"^[a-zA-Z0-9._-]+$").unwrap();
-    static ref PBKDF2_ITERATIONS: NonZeroU32 = NonZeroU32::new(27_500).unwrap();
-    static ref SALT_COL_NAME: String = String::from("password_salt");
-    static ref HASHED_PASSWORD_COL_NAME: String = String::from("hashed_password");
-    static ref PASSWORD_COL_NAME: String = String::from("password");
-    static ref USERNAME_COL_NAME: String = String::from("username");
-    static ref EMAIL_COL_NAME: String = String::from("email");
-    static ref GROUP_COL_NAME: String = String::from("group_name");
-    static ref AREA_NAME_COL_NAME: String = String::from("area_name");
-    static ref RESERVED_COL_NAMES: Vec<String> = vec![
-        HASHED_PASSWORD_COL_NAME.clone(),
-        SALT_COL_NAME.clone(),
-        PASSWORD_COL_NAME.clone(),
-        GROUP_COL_NAME.clone(),
-    ];
-}
-
-static PBKDF2_ALGORITHM: pbkdf2::Algorithm = pbkdf2::PBKDF2_HMAC_SHA256;
-const CREDENTIAL_LEN: usize = digest::SHA256_OUTPUT_LEN;
-pub type Credential = [u8; CREDENTIAL_LEN];
 
 #[derive(Deserialize, Debug, Clone, Serialize)]
 pub struct ImportUsersBody {

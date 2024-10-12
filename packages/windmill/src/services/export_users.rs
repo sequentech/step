@@ -17,7 +17,6 @@ use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::keycloak::{User, UserProfileAttribute};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::Arc;
 use tempfile::{NamedTempFile, TempPath};
 
 pub const USER_FIELDS: [&str; 8] = [

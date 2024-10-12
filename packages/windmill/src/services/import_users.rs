@@ -19,9 +19,8 @@ use sequent_core::services::keycloak::{
     get_event_realm, get_tenant_realm, MULTIVALUE_USER_ATTRIBUTE_SEPARATOR,
 };
 use sequent_core::types::keycloak::{
-    AREA_ID_ATTR_NAME, AUTHORIZED_ELECTION_IDS_NAME, TENANT_ID_ATTR_NAME,
+    AREA_ID_ATTR_NAME, TENANT_ID_ATTR_NAME,
 };
-use std::fs::File;
 use std::num::NonZeroU32;
 use tempfile::NamedTempFile;
 use tokio_postgres::binary_copy::BinaryCopyInWriter;
@@ -29,7 +28,6 @@ use tokio_postgres::types::{ToSql, Type};
 use tracing::{debug, info, instrument};
 use uuid::Uuid;
 
-//TODO: import it from tasks instead of copy-pasting
 lazy_static! {
     static ref HEADER_RE: Regex = Regex::new(r"^[a-zA-Z0-9._-]+$").unwrap();
     static ref PBKDF2_ITERATIONS: NonZeroU32 = NonZeroU32::new(27_500).unwrap();
