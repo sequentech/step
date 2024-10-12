@@ -2,8 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::election::{get_election_by_id, update_election_presentation};
-use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::election::get_election_by_id;
+use crate::postgres::election_event::{
+    get_election_event_by_id, update_election_event_presentation,
+};
 use crate::postgres::keycloak_realm;
 use crate::postgres::scheduled_event::*;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
@@ -18,7 +20,9 @@ use celery::error::TaskError;
 use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::{ElectionPresentation, Enrollment, InitReport, VotingStatus};
+use sequent_core::ballot::{
+    ElectionEventPresentation, ElectionPresentation, Enrollment, InitReport, VotingStatus,
+};
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm, KeycloakAdminClient};
 use sequent_core::types::scheduled_event::*;
@@ -108,7 +112,6 @@ pub async fn manage_election_event_enrollment_wrapped(
     tenant_id: String,
     election_event_id: String,
     scheduled_event_id: String,
-    election_id: String,
 ) -> AnyhowResult<()> {
     let scheduled_event = find_scheduled_event_by_id(
         hasura_transaction,
@@ -126,45 +129,38 @@ pub async fn manage_election_event_enrollment_wrapped(
         ));
     };
 
-    let Some(election) = get_election_by_id(
-        hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        &election_id,
-    )
-    .await
-    .with_context(|| "Error obtaining election by id")?
-    else {
-        return Err(anyhow!("Election not found"));
-    };
+    let election_event =
+        get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id)
+            .await
+            .with_context(|| "Error obtaining election by id")?;
 
-    let Some(event_payload) = scheduled_event.event_payload.clone() else {
+    let Some(election_event_payload) = scheduled_event.event_payload.clone() else {
         event!(Level::WARN, "Missing election_event_id");
         return Ok(());
     };
-    let event_payload: ManageElectionEventEnrollmentPayload = deserialize_value(event_payload)?;
+    let election_event_payload: ManageElectionEventEnrollmentPayload =
+        deserialize_value(election_event_payload)?;
 
     update_keycloak(
         &scheduled_event,
-        event_payload.enable_enrollment == Some(true),
+        election_event_payload.enable_enrollment == Some(true),
     )
     .await?;
 
-    if let Some(election_presentation) = election.presentation {
-        let election_presentation: ElectionPresentation = ElectionPresentation {
-            enrollment: if (event_payload.enable_enrollment == Some(true)) {
+    if let Some(election_event_presentation) = election_event.presentation {
+        let election_event_presentation = ElectionEventPresentation {
+            enrollment: if (election_event_payload.enable_enrollment == Some(true)) {
                 Enrollment::ENABLED
             } else {
                 Enrollment::DISABLED
             },
-            ..serde_json::from_value(election_presentation)?
+            ..serde_json::from_value(election_event_presentation)?
         };
-        update_election_presentation(
+        update_election_event_presentation(
             hasura_transaction,
             &tenant_id,
             &election_event_id,
-            &election_id,
-            serde_json::to_value(election_presentation)?,
+            serde_json::to_value(election_event_presentation)?,
         )
         .await?;
     }
@@ -183,12 +179,11 @@ pub async fn manage_election_event_enrollment(
     tenant_id: String,
     election_event_id: String,
     scheduled_event_id: String,
-    election_id: String,
 ) -> Result<()> {
     let lock: PgLock = PgLock::acquire(
         format!(
-            "execute_manage_election_enrollment-{}-{}-{}-{}",
-            tenant_id, election_event_id, scheduled_event_id, election_id
+            "execute_manage_election_enrollment-{}-{}-{}",
+            tenant_id, election_event_id, scheduled_event_id
         ),
         Uuid::new_v4().to_string(),
         ISO8601::now() + Duration::seconds(120),
@@ -200,7 +195,6 @@ pub async fn manage_election_event_enrollment(
         let tenant_id = tenant_id.clone();
         let election_event_id = election_event_id.clone();
         let scheduled_event_id = scheduled_event_id.clone();
-        let election_id = election_id.clone();
         Box::pin(async move {
             // Your async code here
             manage_election_event_enrollment_wrapped(
@@ -208,7 +202,6 @@ pub async fn manage_election_event_enrollment(
                 tenant_id,
                 election_event_id,
                 scheduled_event_id,
-                election_id,
             )
             .await
         })

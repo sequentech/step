@@ -265,7 +265,6 @@ pub async fn handle_election_event_enrollment(
                 tenant_id.clone(),
                 election_event_id.clone(),
                 scheduled_event.id.clone(),
-                election_event_id,
             )
             .with_eta(datetime.with_timezone(&Utc))
             .with_expires_in(120),
