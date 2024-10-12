@@ -34,6 +34,8 @@ Files:
   packages/admin-portal/graphql.schema.json
   packages/admin-portal/logs/*
   packages/admin-portal/tests_output/*
+  packages/admin-portal/src/assets/roboto/*
+  packages/admin-portal/public/img*
   packages/voting-portal/graphql.schema.json
   packages/voting-portal/logs/*
   packages/voting-portal/src/gql/*
