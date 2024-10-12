@@ -31,10 +31,10 @@ use tracing::instrument;
 use tracing::{error, event, info, Level};
 use uuid::Uuid;
 
-pub async fn update_keycloak(
-    scheduled_event: &ScheduledEvent,
-    enable_enrollment: bool,
-) -> Result<()> {
+pub async fn update_keycloak(scheduled_event: &ScheduledEvent) -> Result<()> {
+    let enable_enrollment =
+        scheduled_event.event_processor == Some(EventProcessors::START_ENROLLMENT_PERIOD);
+
     let Some(ref tenant_id) = scheduled_event.tenant_id else {
         return Ok(());
     };
@@ -102,29 +102,19 @@ pub async fn manage_election_event_enrollment_wrapped(
         ));
     };
 
+    let enable_enrollment =
+        scheduled_event.event_processor == Some(EventProcessors::START_ENROLLMENT_PERIOD);
+
     let election_event =
         get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id)
             .await
             .with_context(|| "Error obtaining election by id")?;
 
-    let Some(election_event_payload) = scheduled_event.event_payload.clone() else {
-        event!(Level::WARN, "Missing election_event_id");
-        return Ok(());
-    };
-    let election_event_payload: ManageElectionEventEnrollmentPayload =
-        deserialize_value(election_event_payload)?;
-
-    event!(Level::WARN, "About to update keycloak");
-
-    update_keycloak(
-        &scheduled_event,
-        election_event_payload.enable_enrollment == Some(true),
-    )
-    .await?;
+    update_keycloak(&scheduled_event).await?;
 
     if let Some(election_event_presentation) = election_event.presentation {
         let election_event_presentation = ElectionEventPresentation {
-            enrollment: if (election_event_payload.enable_enrollment == Some(true)) {
+            enrollment: if (enable_enrollment) {
                 Some(Enrollment::ENABLED)
             } else {
                 Some(Enrollment::DISABLED)

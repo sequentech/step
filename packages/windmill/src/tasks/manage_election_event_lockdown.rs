@@ -49,18 +49,15 @@ async fn manage_election_event_lockdown_wrapped(
         ));
     };
 
+    let locked_down =
+        scheduled_event.event_processor == Some(EventProcessors::START_LOCKDOWN_PERIOD);
+
     let election_event =
         get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id).await?;
 
-    let Some(event_payload) = scheduled_event.event_payload.clone() else {
-        event!(Level::WARN, "Missing election_event_id");
-        return Ok(());
-    };
-    let event_payload: ManageElectionEventLockdownPayload = deserialize_value(event_payload)?;
-
     if let Some(election_event_presentation) = election_event.presentation {
         let election_event_presentation: ElectionEventPresentation = ElectionEventPresentation {
-            locked_down: if event_payload.locked_down == Some(true) {
+            locked_down: if locked_down {
                 Some(LockedDown::LOCKED_DOWN)
             } else {
                 Some(LockedDown::NOT_LOCKED_DOWN)

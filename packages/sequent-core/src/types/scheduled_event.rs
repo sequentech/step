@@ -53,16 +53,6 @@ pub struct ManageAllowVotingPeriodEndPayload {
     pub allow_voting_period_end: Option<bool>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ManageElectionEventLockdownPayload {
-    pub locked_down: Option<bool>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ManageElectionEventEnrollmentPayload {
-    pub enable_enrollment: Option<bool>,
-}
-
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct ScheduledEvent {
     pub id: String,
