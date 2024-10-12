@@ -60,14 +60,6 @@ export const PublishList: React.FC<TPublishList> = ({
 }) => {
     const {t} = useTranslation()
 
-    const Forbidden = () => (
-        <ResourceListStyles.EmptyBox>
-            <Typography variant="h4" paragraph>
-                {t("publish.forbidden.header")}
-            </Typography>
-        </ResourceListStyles.EmptyBox>
-    )
-
     const Empty = () => (
         <ResourceListStyles.EmptyBox>
             <Typography variant="h4" paragraph>

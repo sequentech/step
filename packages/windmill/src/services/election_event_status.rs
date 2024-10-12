@@ -151,8 +151,7 @@ pub async fn update_election_voting_status_impl(
         return Ok(());
     };
 
-    let mut status: ElectionStatus =
-        get_election_status(election.status.clone()).unwrap_or_default();
+    let mut status = get_election_status(election.status.clone()).unwrap_or_default();
 
     let current_voting_status = status.voting_status.clone();
 

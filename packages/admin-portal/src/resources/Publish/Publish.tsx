@@ -38,7 +38,7 @@ import {UPDATE_ELECTION_VOTING_STATUS} from "@/queries/UpdateElectionVotingStatu
 import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {IElectionEventStatus, EPublishPolicy} from "@sequentech/ui-core"
+import {IElectionEventStatus} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {convertToNumber} from "@/lib/helpers"
 
@@ -72,8 +72,6 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         const canRead = authContext.isAuthorized(true, tenantId, IPermissions.PUBLISH_READ)
 
         const record = useRecordContext<Sequent_Backend_Election_Event | Sequent_Backend_Election>()
-        const recordStatus = record?.status as IElectionEventStatus | undefined
-
         const refresh = useRefresh()
 
         const [generateData, setGenerateData] = useState<GetBallotPublicationChangesOutput | null>(

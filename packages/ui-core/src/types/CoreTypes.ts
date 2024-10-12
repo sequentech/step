@@ -15,11 +15,6 @@ export enum EVotingStatus {
     CLOSED = "CLOSED",
 }
 
-export enum EEnrollmentStatus {
-    ENROLLMENT_ENABLED = "enabled",
-    ENROLLMENT_DISABLED = "disabled",
-}
-
 export interface IElectionEventStatus {
     config_created?: boolean
     keys_ceremony_finished?: boolean
