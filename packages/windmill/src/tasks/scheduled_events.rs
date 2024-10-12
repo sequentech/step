@@ -2,18 +2,24 @@ use crate::hasura::scheduled_event;
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::postgres::election::{get_election_by_id, update_election_presentation};
-use crate::postgres::scheduled_event::find_all_active_events;
-use crate::services::celery_app::get_celery_app;
-use crate::services::database::{get_hasura_pool, get_keycloak_pool};
-use crate::services::date::ISO8601;
-use crate::services::tasks_execution::update_fail;
-use crate::tasks::manage_election_dates::manage_election_date;
-use crate::tasks::manage_election_enrollment::manage_election_enrollment;
-use crate::tasks::manage_election_event_date::manage_election_event_date;
-use crate::tasks::manage_election_event_lockdown::manage_election_event_lockdown;
-use crate::tasks::manage_election_init_report::manage_election_init_report;
-use crate::tasks::manage_election_voting_period_end::manage_election_voting_period_end;
+use crate::postgres::{
+    election::{get_election_by_id, update_election_presentation},
+    scheduled_event::find_all_active_events,
+};
+use crate::services::{
+    celery_app::get_celery_app,
+    database::{get_hasura_pool, get_keycloak_pool},
+    date::ISO8601,
+    tasks_execution::update_fail,
+};
+use crate::tasks::{
+    manage_election_dates::manage_election_date,
+    manage_election_enrollment::manage_election_enrollment,
+    manage_election_event_date::manage_election_event_date,
+    manage_election_event_lockdown::manage_election_event_lockdown,
+    manage_election_init_report::manage_election_init_report,
+    manage_election_voting_period_end::manage_election_voting_period_end,
+};
 use crate::types::error::{Error, Result};
 use anyhow::anyhow;
 use celery::{error::TaskError, Celery};
