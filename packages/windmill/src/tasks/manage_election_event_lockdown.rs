@@ -61,9 +61,9 @@ async fn manage_election_event_lockdown_wrapped(
     if let Some(election_event_presentation) = election_event.presentation {
         let election_event_presentation: ElectionEventPresentation = ElectionEventPresentation {
             locked_down: if event_payload.locked_down == Some(true) {
-                LockedDown::LOCKED_DOWN
+                Some(LockedDown::LOCKED_DOWN)
             } else {
-                LockedDown::NOT_LOCKED_DOWN
+                Some(LockedDown::NOT_LOCKED_DOWN)
             },
             ..serde_json::from_value(election_event_presentation)?
         };
@@ -91,17 +91,6 @@ pub async fn manage_election_event_lockdown(
     election_event_id: String,
     scheduled_event_id: String,
 ) -> Result<()> {
-    let lock: PgLock = PgLock::acquire(
-        format!(
-            "execute_manage_election_event_lockdown-{}-{}-{}",
-            tenant_id, election_event_id, scheduled_event_id
-        ),
-        Uuid::new_v4().to_string(),
-        ISO8601::now() + Duration::seconds(120),
-    )
-    .await
-    .with_context(|| "Error acquiring pglock")?;
-
     let res = provide_hasura_transaction(|hasura_transaction| {
         let tenant_id = tenant_id.clone();
         let election_event_id = election_event_id.clone();
@@ -120,10 +109,6 @@ pub async fn manage_election_event_lockdown(
     .await;
 
     info!("result: {:?}", res);
-
-    lock.release()
-        .await
-        .with_context(|| "Error releasing pglock")?;
 
     Ok(res?)
 }

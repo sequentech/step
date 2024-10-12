@@ -602,9 +602,9 @@ pub struct ElectionEventPresentation {
     pub voting_portal_countdown_policy: Option<VotingPortalCountdownPolicy>,
     pub custom_urls: Option<CustomUrls>,
     pub active_template_ids: Option<ActiveTemplateIds>,
-    pub locked_down: LockedDown,
-    pub publish_policy: Publish,
-    pub enrollment: Enrollment,
+    pub locked_down: Option<LockedDown>,
+    pub publish_policy: Option<Publish>,
+    pub enrollment: Option<Enrollment>,
 }
 
 #[allow(non_camel_case_types)]

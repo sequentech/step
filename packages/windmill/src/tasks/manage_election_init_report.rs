@@ -102,17 +102,6 @@ pub async fn manage_election_init_report(
     scheduled_event_id: String,
     election_id: String,
 ) -> Result<()> {
-    let lock: PgLock = PgLock::acquire(
-        format!(
-            "execute_manage_election_init_report-{}-{}-{}-{}",
-            tenant_id, election_event_id, scheduled_event_id, election_id
-        ),
-        Uuid::new_v4().to_string(),
-        ISO8601::now() + Duration::seconds(120),
-    )
-    .await
-    .with_context(|| "Error acquiring pglock")?;
-
     let res = provide_hasura_transaction(|hasura_transaction| {
         let tenant_id = tenant_id.clone();
         let election_event_id = election_event_id.clone();
@@ -133,10 +122,6 @@ pub async fn manage_election_init_report(
     .await;
 
     info!("result: {:?}", res);
-
-    lock.release()
-        .await
-        .with_context(|| "Error releasing pglock")?;
 
     Ok(res?)
 }

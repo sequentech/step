@@ -35,12 +35,11 @@ pub async fn update_keycloak(
     scheduled_event: &ScheduledEvent,
     enable_enrollment: bool,
 ) -> Result<()> {
+    let Some(ref tenant_id) = scheduled_event.tenant_id else {
+        return Ok(());
+    };
     let realm_name = get_event_realm(
-        scheduled_event
-            .tenant_id
-            .as_ref()
-            .ok_or("scheduled event missing tenant_id")?
-            .as_str(),
+        &tenant_id,
         scheduled_event
             .election_event_id
             .as_ref()
@@ -48,30 +47,15 @@ pub async fn update_keycloak(
             .as_str(),
     );
 
-    let mut keycloak_db_client: DbClient = match get_keycloak_pool().await.get().await {
-        Ok(client) => client,
-        Err(err) => {
-            return Err(Error::String(format!(
-                "Error getting Keycloak DB pool: {err}"
-            )));
-        }
-    };
-
-    let keycloak_transaction = match keycloak_db_client.transaction().await {
-        Ok(transaction) => transaction,
-        Err(err) => {
-            return Err(Error::String(format!(
-                "Error starting Keycloak transaction: {err}"
-            )));
-        }
-    };
-
     let keycloak_client = KeycloakAdminClient::new().await?;
     let other_client = KeycloakAdminClient::pub_new().await?;
     let mut realm = keycloak_client
         .get_realm(&other_client, &realm_name)
         .await?;
     realm.registration_allowed = Some(enable_enrollment);
+
+    event!(Level::WARN, "About to update keycloak ({board_name})with JSON {json}", board_name = &realm_name, json = serde_json::to_string(&realm)?);
+
     let keycloak_client = KeycloakAdminClient::new().await?;
     keycloak_client
         .upsert_realm(
@@ -125,6 +109,8 @@ pub async fn manage_election_event_enrollment_wrapped(
     let election_event_payload: ManageElectionEventEnrollmentPayload =
         deserialize_value(election_event_payload)?;
 
+    event!(Level::WARN, "About to update keycloak");
+
     update_keycloak(
         &scheduled_event,
         election_event_payload.enable_enrollment == Some(true),
@@ -134,9 +120,9 @@ pub async fn manage_election_event_enrollment_wrapped(
     if let Some(election_event_presentation) = election_event.presentation {
         let election_event_presentation = ElectionEventPresentation {
             enrollment: if (election_event_payload.enable_enrollment == Some(true)) {
-                Enrollment::ENABLED
+                Some(Enrollment::ENABLED)
             } else {
-                Enrollment::DISABLED
+                Some(Enrollment::DISABLED)
             },
             ..serde_json::from_value(election_event_presentation)?
         };
@@ -164,17 +150,6 @@ pub async fn manage_election_event_enrollment(
     election_event_id: String,
     scheduled_event_id: String,
 ) -> Result<()> {
-    let lock: PgLock = PgLock::acquire(
-        format!(
-            "execute_manage_election_enrollment-{}-{}-{}",
-            tenant_id, election_event_id, scheduled_event_id
-        ),
-        Uuid::new_v4().to_string(),
-        ISO8601::now() + Duration::seconds(120),
-    )
-    .await
-    .with_context(|| "Error acquiring pglock")?;
-
     let res = provide_hasura_transaction(|hasura_transaction| {
         let tenant_id = tenant_id.clone();
         let election_event_id = election_event_id.clone();
@@ -190,13 +165,9 @@ pub async fn manage_election_event_enrollment(
             .await
         })
     })
-    .await;
+    .await?;
 
     info!("result: {:?}", res);
 
-    lock.release()
-        .await
-        .with_context(|| "Error releasing pglock")?;
-
-    Ok(res?)
+    Ok(res)
 }

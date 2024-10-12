@@ -252,12 +252,7 @@ pub async fn handle_election_event_enrollment(
     let Some(election_event_id) = scheduled_event.election_event_id.clone() else {
         return Ok(());
     };
-    let Some(event_payload) = scheduled_event.event_payload.clone() else {
-        event!(Level::WARN, "Missing election_event_id");
-        return Ok(());
-    };
-    let payload: ManageElectionEventEnrollmentPayload = deserialize_value(event_payload)
-        .map_err(|e| anyhow!("Error deserializing manage election date payload {}", e))?;
+
     // run the actual task in a different async task
     let task = celery_app
         .send_task(
