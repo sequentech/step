@@ -48,7 +48,7 @@ impl TemplateRenderer for ManualVerificationTemplate {
     type SystemData = SystemData;
 
     fn get_report_type() -> ReportType {
-        ReportType::MANUAL_VERIFICATION
+        ReportType::ManualVerification
     }
     fn get_tenant_id(&self) -> String {
         self.tenant_id.clone()

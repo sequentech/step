@@ -13,6 +13,7 @@ use electoral_log::messages::message::SigningData;
 use electoral_log::messages::newtypes::ErrorMessageString;
 use electoral_log::messages::newtypes::KeycloakEventTypeString;
 use electoral_log::messages::newtypes::*;
+use electoral_log::messages::statement::StatementHead;
 use strand::hash::HashWrapper;
 
 use crate::services::insert_cast_vote::hash_voter_id;
@@ -516,6 +517,59 @@ pub struct ElectoralLogRow {
     statement_kind: String,
     message: String,
     user_id: Option<String>,
+}
+
+// #[derive(Serialize, Deserialize, Debug)]
+// pub struct Message {
+//     pub sender: serde_json::Value,
+//     pub sender_signature: String,
+//     pub system_signature: String,
+//     pub statement: serde_json::Value,
+//     pub artifact: Option<serde_json::Value>,
+//     pub user_id: Option<String>,
+// }
+
+impl ElectoralLogRow {
+    pub fn id(&self) -> i64 {
+        self.id
+    }
+
+    pub fn created(&self) -> i64 {
+        self.created
+    }
+
+    pub fn statement_timestamp(&self) -> i64 {
+        self.statement_timestamp
+    }
+
+    pub fn statement_kind(&self) -> &str {
+        &self.statement_kind
+    }
+
+    pub fn message(&self) -> &str {
+        &self.message
+    }
+
+    pub fn user_id(&self) -> Option<&str> {
+        self.user_id.as_ref().map(|s| s.as_str())
+    }
+
+    pub fn statement_head(&self) -> Result<StatementHead, serde_json::Error> {
+        let message: Message = serde_json::from_str(&self.message)?;
+        Ok(message.statement.head.clone())
+    }
+
+    pub fn log_type(&self) -> Result<String, serde_json::Error> {
+        Ok(self.statement_head()?.log_type.to_string())
+    }
+
+    pub fn event_type(&self) -> Result<String, serde_json::Error> {
+        Ok(self.statement_head()?.event_type.to_string())
+    }
+
+    pub fn description(&self) -> Result<String, serde_json::Error> {
+        Ok(self.statement_head()?.description.to_string())
+    }
 }
 
 impl TryFrom<&Row> for ElectoralLogRow {

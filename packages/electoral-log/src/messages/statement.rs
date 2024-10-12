@@ -20,7 +20,7 @@ impl Statement {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Debug, Clone)]
 pub struct StatementHead {
     pub event: EventIdString,
     pub kind: StatementType,
@@ -223,7 +223,7 @@ pub enum StatementBody {
     AdminPublicKey(TenantIdString, AdminUserIdString, PublicKeyDerB64),
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug, Clone)]
 pub enum StatementType {
     Unknown,
     CastVote,
@@ -247,13 +247,13 @@ pub enum StatementType {
     AdminPublicKey,
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug, Clone)]
 pub enum StatementEventType {
     USER,
     SYSTEM,
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug, Clone)]
 pub enum StatementLogType {
     INFO,
     ERROR,

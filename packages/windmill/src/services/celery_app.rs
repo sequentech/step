@@ -11,12 +11,12 @@ use std::convert::AsRef;
 use strum_macros::AsRefStr;
 use tracing::{event, instrument, Level};
 
+use crate::tasks::activity_logs_report::generate_activity_logs_report;
 use crate::tasks::create_keys::create_keys;
 use crate::tasks::create_vote_receipt::create_vote_receipt;
 use crate::tasks::delete_election_event::delete_election_event_t;
 use crate::tasks::execute_tally_session::execute_tally_session;
 use crate::tasks::export_election_event::export_election_event;
-use crate::tasks::export_election_event_logs::export_election_event_logs;
 use crate::tasks::export_tasks_execution::export_tasks_execution;
 use crate::tasks::export_users::export_users;
 use crate::tasks::import_election_event::import_election_event;
@@ -142,7 +142,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             manage_election_event_date,
             manage_election_date,
             export_election_event,
-            export_election_event_logs,
+            generate_activity_logs_report,
             create_transmission_package_task,
             send_transmission_package_task,
             delete_election_event_t,
@@ -165,7 +165,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             import_users::NAME => Queue::ImportExport.as_ref(),
             export_users::NAME => Queue::ImportExport.as_ref(),
             export_election_event::NAME => Queue::ImportExport.as_ref(),
-            export_election_event_logs::NAME => Queue::ImportExport.as_ref(),
+            generate_activity_logs_report::NAME => Queue::ImportExport.as_ref(),
             export_tasks_execution::NAME => Queue::ImportExport.as_ref(),
             import_election_event::NAME => Queue::ImportExport.as_ref(),
             scheduled_events::NAME => Queue::Beat.as_ref(),

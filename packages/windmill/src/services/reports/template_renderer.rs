@@ -21,9 +21,9 @@ use std::fmt::Debug;
 use tracing::{info, instrument, warn};
 
 pub enum ReportType {
-    MANUAL_VERIFICATION,
-    BALLOT_RECEIPT,
-    ELECTORAL_RESULTS,
+    ManualVerification,
+    BallotReceipt,
+    ElectoralResults,
 }
 
 /// Trait that defines the behavior for rendering templates
@@ -87,12 +87,12 @@ pub trait TemplateRenderer: Debug {
         };
 
         let usr_verification_tpl_id = match active_template_ids
-            .get("manual_verification")
+            .get(Self::base_name())
             .and_then(Value::as_str)
         {
             Some(id) if !id.is_empty() => id.to_string(),
             _ => {
-                info!("manual_verification id not found or empty");
+                info!("{} id not found or empty", Self::base_name());
                 return Ok(None);
             }
         };
@@ -112,7 +112,7 @@ pub trait TemplateRenderer: Debug {
                 .get("document")
                 .and_then(Value::as_str),
             None => {
-                warn!("No manual verification template was found by id");
+                warn!("No {} template was found by id", Self::base_name());
                 return Ok(None);
             }
         };
