@@ -55,7 +55,8 @@ pub async fn handle_allow_init_report(
         event!(Level::WARN, "Missing election_event_id");
         return Ok(());
     };
-    let payload: ManageElectionDatePayload = deserialize_value(event_payload)?;
+    let payload: ManageElectionDatePayload = deserialize_value(event_payload)
+        .map_err(|e| anyhow!("Error deserializing manage election date payload {}", e))?;
     // run the actual task in a different async task
     match payload.election_id.clone() {
         Some(election_id) => {
@@ -70,7 +71,8 @@ pub async fn handle_allow_init_report(
                     .with_eta(datetime.with_timezone(&Utc))
                     .with_expires_in(120),
                 )
-                .await?;
+                .await
+                .map_err(|e| anyhow!("Error sending task to celery {}", e))?;
             event!(
                 Level::INFO,
                 "Sent manage_election_date task {}",
@@ -88,7 +90,8 @@ pub async fn handle_allow_init_report(
                     .with_eta(datetime.with_timezone(&Utc))
                     .with_expires_in(120),
                 )
-                .await?;
+                .await
+                .map_err(|e| anyhow!("Error sending task to celery {}", e))?;
             event!(
                 Level::INFO,
                 "Sent manage_election_event_date task {}",
@@ -117,7 +120,8 @@ pub async fn handle_allow_voting_period_end(
         event!(Level::WARN, "Missing election_event_id");
         return Ok(());
     };
-    let payload: ManageElectionDatePayload = deserialize_value(event_payload)?;
+    let payload: ManageElectionDatePayload = deserialize_value(event_payload)
+        .map_err(|e| anyhow!("Error deserializing manage election date payload {}", e))?;
     // run the actual task in a different async task
     match payload.election_id.clone() {
         Some(election_id) => {
@@ -132,7 +136,8 @@ pub async fn handle_allow_voting_period_end(
                     .with_eta(datetime.with_timezone(&Utc))
                     .with_expires_in(120),
                 )
-                .await?;
+                .await
+                .map_err(|e| anyhow!("Error sending task to celery {}", e))?;
             event!(
                 Level::INFO,
                 "Sent manage_election_voting_period_end task {}",
@@ -150,7 +155,8 @@ pub async fn handle_allow_voting_period_end(
                     .with_eta(datetime.with_timezone(&Utc))
                     .with_expires_in(120),
                 )
-                .await?;
+                .await
+                .map_err(|e| anyhow!("Error sending task to celery {}", e))?;
             event!(
                 Level::INFO,
                 "Sent manage_election_voting_period_end task {}",
@@ -178,7 +184,8 @@ pub async fn handle_voting_event(
         event!(Level::WARN, "Missing election_event_id");
         return Ok(());
     };
-    let payload: ManageElectionDatePayload = deserialize_value(event_payload)?;
+    let payload: ManageElectionDatePayload = deserialize_value(event_payload)
+        .map_err(|e| anyhow!("Error deserializing manage election date payload {}", e))?;
     // run the actual task in a different async task
     match payload.election_id.clone() {
         Some(election_id) => {
@@ -193,7 +200,8 @@ pub async fn handle_voting_event(
                     .with_eta(datetime.with_timezone(&Utc))
                     .with_expires_in(120),
                 )
-                .await?;
+                .await
+                .map_err(|e| anyhow!("Error sending task to celery {}", e))?;
             event!(
                 Level::INFO,
                 "Sent manage_election_date task {}",
@@ -211,7 +219,8 @@ pub async fn handle_voting_event(
                     .with_eta(datetime.with_timezone(&Utc))
                     .with_expires_in(120),
                 )
-                .await?;
+                .await
+                .map_err(|e| anyhow!("Error sending task to celery {}", e))?;
             event!(
                 Level::INFO,
                 "Sent manage_election_event_date task {}",
@@ -234,9 +243,14 @@ pub async fn scheduled_events() -> Result<()> {
         .get()
         .await
         .map_err(|e| anyhow!("Error getting hasura client {}", e))?;
-    let hasura_transaction = hasura_db_client.transaction().await?;
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .map_err(|e| anyhow!("Error creating a hasura transaction {}", e))?;
 
-    let scheduled_events = find_all_active_events(&hasura_transaction).await?;
+    let scheduled_events = find_all_active_events(&hasura_transaction)
+        .await
+        .map_err(|e| anyhow!("Error finding all active events {}", e))?;
     info!("Found {} scheduled events", scheduled_events.len());
     let to_be_run_now = scheduled_events
         .iter()
