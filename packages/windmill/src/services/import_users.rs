@@ -18,9 +18,7 @@ use ring::{digest, pbkdf2};
 use sequent_core::services::keycloak::{
     get_event_realm, get_tenant_realm, MULTIVALUE_USER_ATTRIBUTE_SEPARATOR,
 };
-use sequent_core::types::keycloak::{
-    AREA_ID_ATTR_NAME, TENANT_ID_ATTR_NAME,
-};
+use sequent_core::types::keycloak::{AREA_ID_ATTR_NAME, TENANT_ID_ATTR_NAME};
 use std::num::NonZeroU32;
 use tempfile::NamedTempFile;
 use tokio_postgres::binary_copy::BinaryCopyInWriter;
