@@ -82,19 +82,18 @@ const SettingsLocalization = () => {
     const languageOptions = useMemo(() => {
         return (languageConf?.enabled_language_codes ?? []) as string[]
     }, [languageConf?.enabled_language_codes])
-    
 
     const handleLanguageChange = (event: SelectChangeEvent<string>) => {
         const value = event?.target?.value ?? ""
         if (!isString(value) || !value) return
         setSelectedLanguage(value)
     }
-    const translationData = Object.entries((record?.settings as ITenantSettings | undefined)?.i18n?.[selectedLanguage] || {}).map(
-        ([key, value]) => ({
-            id: key,
-            value: value,
-        })
-    )
+    const translationData = Object.entries(
+        (record?.settings as ITenantSettings | undefined)?.i18n?.[selectedLanguage] || {}
+    ).map(([key, value]) => ({
+        id: key,
+        value: value,
+    }))
 
     const editAction = (id: Identifier) => {
         setOpenEdit(true)
@@ -126,7 +125,9 @@ const SettingsLocalization = () => {
                         i18n: {
                             ...((record?.settings as ITenantSettings | undefined)?.i18n ?? {}),
                             [selectedLanguage]: {
-                                ...((record?.settings as ITenantSettings | undefined)?.i18n?.[selectedLanguage] ?? {}),
+                                ...((record?.settings as ITenantSettings | undefined)?.i18n?.[
+                                    selectedLanguage
+                                ] ?? {}),
                                 [newKey]: newValue,
                             },
                         },
@@ -162,7 +163,9 @@ const SettingsLocalization = () => {
                         i18n: {
                             ...(record?.settings as ITenantSettings | undefined)?.i18n,
                             [selectedLanguage]: {
-                                ...(record?.settings as ITenantSettings | undefined)?.i18n?.[selectedLanguage],
+                                ...(record?.settings as ITenantSettings | undefined)?.i18n?.[
+                                    selectedLanguage
+                                ],
                                 [recordId as string]: editVal,
                             },
                         },
@@ -184,7 +187,9 @@ const SettingsLocalization = () => {
     }
     const confirmDeleteAction = () => {
         if (!deleteId || !selectedLanguage) return
-        const updatedI18nForLanguage = {...(record?.settings as ITenantSettings | undefined)?.i18n?.[selectedLanguage]}
+        const updatedI18nForLanguage = {
+            ...(record?.settings as ITenantSettings | undefined)?.i18n?.[selectedLanguage],
+        }
         delete updatedI18nForLanguage[deleteId as string]
 
         update(
@@ -335,7 +340,11 @@ const SettingsLocalization = () => {
                 }}
             >
                 <SimpleForm
-                    record={(record?.settings as ITenantSettings | undefined)?.i18n?.[selectedLanguage] || {}}
+                    record={
+                        (record?.settings as ITenantSettings | undefined)?.i18n?.[
+                            selectedLanguage
+                        ] || {}
+                    }
                     toolbar={<SaveButton sx={{marginInline: "1rem"}} />}
                     onSubmit={handleEditText}
                 >
@@ -358,7 +367,9 @@ const SettingsLocalization = () => {
                             label={t("electionEventScreen.localization.labels.value")}
                             defaultValue={
                                 recordId
-                                    ? (record?.settings as ITenantSettings | undefined)?.i18n?.[selectedLanguage][recordId]
+                                    ? (record?.settings as ITenantSettings | undefined)?.i18n?.[
+                                          selectedLanguage
+                                      ][recordId]
                                     : undefined
                             }
                             multiline

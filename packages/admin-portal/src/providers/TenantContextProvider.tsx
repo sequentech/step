@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {createContext, useContext, useEffect, useState} from "react"
 import {Sequent_Backend_Tenant} from "@/gql/graphql"
-import { ITenantSettings } from "@sequentech/ui-core"
-import { triggerOverrideTranslations } from "@/services/i18n"
+import {ITenantSettings} from "@sequentech/ui-core"
+import {triggerOverrideTranslations} from "@/services/i18n"
 
 interface TenantContextProps {
     tenantId: string | null
