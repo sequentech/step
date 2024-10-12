@@ -254,8 +254,6 @@ pub async fn get_document(
         .map_err(|err| anyhow!("Error trying to get document as temporary file {err}"))
         .unwrap();
 
-    let file_contents = fs::read(&temp_file.path())?;
-
     let document_type = document
         .clone()
         .media_type
@@ -551,7 +549,7 @@ pub async fn process_document(
     .map_err(|err| anyhow!("Error processing election event file: {err}"))?;
 
     // Zip file processing
-    if document_type == get_mime_type("zip") {
+    if document_type == "application/ezip" || document_type == get_mime_type("zip") {
         let zip_entries = tokio::task::spawn_blocking(move || -> Result<Vec<_>> {
             let file = File::open(&temp_file_path)?;
             let mut zip = ZipArchive::new(file)?;
@@ -572,7 +570,7 @@ pub async fn process_document(
 
             let mut cursor = Cursor::new(&mut file_contents[..]);
 
-            if file_name.contains(&format!("/{}", EDocuments::ACTIVITY_LOGS.to_file_name())) {
+            if file_name.contains(&format!("{}", EDocuments::ACTIVITY_LOGS.to_file_name())) {
                 let mut temp_file = NamedTempFile::new()
                     .context("Failed to create activity logs temporary file")?;
 
@@ -587,7 +585,7 @@ pub async fn process_document(
                 .await?;
             }
 
-            if file_name.contains(&format!("/{}", EDocuments::VOTERS.to_file_name())) {
+            if file_name.contains(&format!("{}", EDocuments::VOTERS.to_file_name())) {
                 let mut temp_file = NamedTempFile::new()
                     .context("Failed to create activity logs temporary file")?;
                 io::copy(&mut cursor, &mut temp_file)
