@@ -43,7 +43,7 @@ export interface AuthContextValues {
     /**
      * The trustee an admin user can act as
      */
-    trustee: String
+    trustee: string
 
     /**
      * The permission labels an admin user has
@@ -140,7 +140,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const [firstName, setFirstName] = useState<string>("")
     const [tenantId, setTenantId] = useState<string>("")
     const [trustee, setTrustee] = useState<string>("")
-    const [permissionLabels, setPermissionLabels] = useState<String[]>([])
+    const [permissionLabels, setPermissionLabels] = useState<string[]>([])
 
     const sleepSecs = 50
     const bufferSecs = 10

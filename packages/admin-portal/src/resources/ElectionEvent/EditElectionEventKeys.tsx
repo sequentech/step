@@ -44,6 +44,7 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ResetFilters} from "@/components/ResetFilters"
 import {useQuery} from "@apollo/client"
 import {LIST_KEYS_CEREMONY} from "@/queries/ListKeysCeremonies"
+import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
 
 const NotificationLink = styled.span`
     text-decoration: underline;
@@ -230,6 +231,12 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
         }
     }
 
+    const ShowAdminWizard: React.FC = () => {
+        setShowCeremony(true)
+
+        return <></>
+    }
+
     const actions: Action[] = [
         {
             icon: <FileOpenIcon className="keys-view-admin-icon" />,
@@ -288,12 +295,19 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
                         election_event_id: electionEvent?.id || undefined,
                         id: {
                             format: "hasura-raw-query",
-                            value: {_in: keysCeremonyIds}
+                            value: {_in: keysCeremonyIds},
                         },
                     }}
                     storeKey={false}
                     empty={<Empty />}
-                    actions={<ListActions withFilter={false} withImport={false} />}
+                    actions={
+                        <ListActions
+                            withFilter={false}
+                            withImport={false}
+                            setOpen={() => setShowCeremony(true)}
+                            Component={null}
+                        />
+                    }
                 >
                     <ResetFilters />
                     <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>

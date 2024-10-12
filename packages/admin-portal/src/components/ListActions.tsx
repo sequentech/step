@@ -74,7 +74,7 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
 
                 {withAction ? <Button onClick={doAction} label={t(actionLabel)} /> : null}
 
-                {Component && (
+                {setOpen && (
                     <>
                         <Button
                             onClick={() => setOpen(true)}
@@ -84,18 +84,20 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
                             <Add />
                         </Button>
 
-                        <Drawer
-                            anchor="right"
-                            open={open}
-                            onClose={() => {
-                                setOpen(false)
-                            }}
-                            PaperProps={{
-                                sx: {width: "30%"},
-                            }}
-                        >
-                            {Component}
-                        </Drawer>
+                        {Component && (
+                            <Drawer
+                                anchor="right"
+                                open={open}
+                                onClose={() => {
+                                    setOpen(false)
+                                }}
+                                PaperProps={{
+                                    sx: {width: "30%"},
+                                }}
+                            >
+                                {Component}
+                            </Drawer>
+                        )}
                     </>
                 )}
 
