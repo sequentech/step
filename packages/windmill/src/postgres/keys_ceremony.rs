@@ -32,7 +32,7 @@ impl TryFrom<Row> for KeysCeremonyWrapper {
             annotations: item.try_get("annotations")?,
             threshold: item.try_get::<_, i32>("threshold")? as i64,
             name: item.try_get("name")?,
-            presentation: item.try_get("presentation")?,
+            settings: item.try_get("settings")?,
             is_default: item.try_get("is_default")?,
         }))
     }

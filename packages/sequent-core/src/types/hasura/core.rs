@@ -269,7 +269,7 @@ pub struct KeysCeremony {
     pub annotations: Option<Value>,
     pub threshold: i64,
     pub name: Option<String>,
-    pub presentation: Option<Value>,
+    pub settings: Option<Value>,
     pub is_default: Option<bool>,
 }
 

@@ -61183,7 +61183,7 @@
             "deprecationReason": null
           },
           {
-            "name": "presentation",
+            "name": "settings",
             "description": null,
             "args": [
               {
@@ -61540,7 +61540,7 @@
             "defaultValue": null
           },
           {
-            "name": "presentation",
+            "name": "settings",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -61750,7 +61750,7 @@
             "defaultValue": null
           },
           {
-            "name": "presentation",
+            "name": "settings",
             "description": null,
             "type": {
               "kind": "INPUT_OBJECT",
@@ -61864,7 +61864,7 @@
             "defaultValue": null
           },
           {
-            "name": "presentation",
+            "name": "settings",
             "description": null,
             "type": {
               "kind": "LIST",
@@ -61931,7 +61931,7 @@
             "defaultValue": null
           },
           {
-            "name": "presentation",
+            "name": "settings",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -61982,7 +61982,7 @@
             "defaultValue": null
           },
           {
-            "name": "presentation",
+            "name": "settings",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -62134,7 +62134,7 @@
             "defaultValue": null
           },
           {
-            "name": "presentation",
+            "name": "settings",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -62665,7 +62665,7 @@
             "defaultValue": null
           },
           {
-            "name": "presentation",
+            "name": "settings",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -62799,7 +62799,7 @@
             "defaultValue": null
           },
           {
-            "name": "presentation",
+            "name": "settings",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -62886,7 +62886,7 @@
             "deprecationReason": null
           },
           {
-            "name": "presentation",
+            "name": "settings",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -63015,7 +63015,7 @@
             "defaultValue": null
           },
           {
-            "name": "presentation",
+            "name": "settings",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -63278,7 +63278,7 @@
             "defaultValue": null
           },
           {
-            "name": "presentation",
+            "name": "settings",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -63426,7 +63426,7 @@
             "deprecationReason": null
           },
           {
-            "name": "presentation",
+            "name": "settings",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null

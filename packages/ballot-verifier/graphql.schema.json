@@ -67823,7 +67823,7 @@
             "deprecationReason": null
           },
           {
-            "name": "presentation",
+            "name": "settings",
             "description": null,
             "args": [
               {
@@ -68192,7 +68192,7 @@
             "deprecationReason": null
           },
           {
-            "name": "presentation",
+            "name": "settings",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -68434,7 +68434,7 @@
             "deprecationReason": null
           },
           {
-            "name": "presentation",
+            "name": "settings",
             "description": null,
             "type": {
               "kind": "INPUT_OBJECT",
@@ -68562,7 +68562,7 @@
             "deprecationReason": null
           },
           {
-            "name": "presentation",
+            "name": "settings",
             "description": null,
             "type": {
               "kind": "LIST",
@@ -68637,7 +68637,7 @@
             "deprecationReason": null
           },
           {
-            "name": "presentation",
+            "name": "settings",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -68696,7 +68696,7 @@
             "deprecationReason": null
           },
           {
-            "name": "presentation",
+            "name": "settings",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -68874,7 +68874,7 @@
             "deprecationReason": null
           },
           {
-            "name": "presentation",
+            "name": "settings",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -69441,7 +69441,7 @@
             "deprecationReason": null
           },
           {
-            "name": "presentation",
+            "name": "settings",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -69595,7 +69595,7 @@
             "deprecationReason": null
           },
           {
-            "name": "presentation",
+            "name": "settings",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -69686,7 +69686,7 @@
             "deprecationReason": null
           },
           {
-            "name": "presentation",
+            "name": "settings",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -69833,7 +69833,7 @@
             "deprecationReason": null
           },
           {
-            "name": "presentation",
+            "name": "settings",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -70128,7 +70128,7 @@
             "deprecationReason": null
           },
           {
-            "name": "presentation",
+            "name": "settings",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -70286,7 +70286,7 @@
             "deprecationReason": null
           },
           {
-            "name": "presentation",
+            "name": "settings",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null

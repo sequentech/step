@@ -9698,7 +9698,7 @@ export type Sequent_Backend_Keys_Ceremony = {
   labels?: Maybe<Scalars['jsonb']['output']>;
   last_updated_at: Scalars['timestamptz']['output'];
   name?: Maybe<Scalars['String']['output']>;
-  presentation?: Maybe<Scalars['jsonb']['output']>;
+  settings?: Maybe<Scalars['jsonb']['output']>;
   status?: Maybe<Scalars['jsonb']['output']>;
   tenant_id: Scalars['uuid']['output'];
   threshold: Scalars['Int']['output'];
@@ -9739,7 +9739,7 @@ export type Sequent_Backend_Keys_CeremonyLabelsArgs = {
 
 
 /** columns and relationships of "sequent_backend.keys_ceremony" */
-export type Sequent_Backend_Keys_CeremonyPresentationArgs = {
+export type Sequent_Backend_Keys_CeremonySettingsArgs = {
   path?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -9783,7 +9783,7 @@ export type Sequent_Backend_Keys_Ceremony_Aggregate_FieldsCountArgs = {
 export type Sequent_Backend_Keys_Ceremony_Append_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
-  presentation?: InputMaybe<Scalars['jsonb']['input']>;
+  settings?: InputMaybe<Scalars['jsonb']['input']>;
   status?: InputMaybe<Scalars['jsonb']['input']>;
 };
 
@@ -9809,7 +9809,7 @@ export type Sequent_Backend_Keys_Ceremony_Bool_Exp = {
   labels?: InputMaybe<Jsonb_Comparison_Exp>;
   last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   name?: InputMaybe<String_Comparison_Exp>;
-  presentation?: InputMaybe<Jsonb_Comparison_Exp>;
+  settings?: InputMaybe<Jsonb_Comparison_Exp>;
   status?: InputMaybe<Jsonb_Comparison_Exp>;
   tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
   threshold?: InputMaybe<Int_Comparison_Exp>;
@@ -9826,7 +9826,7 @@ export enum Sequent_Backend_Keys_Ceremony_Constraint {
 export type Sequent_Backend_Keys_Ceremony_Delete_At_Path_Input = {
   annotations?: InputMaybe<Array<Scalars['String']['input']>>;
   labels?: InputMaybe<Array<Scalars['String']['input']>>;
-  presentation?: InputMaybe<Array<Scalars['String']['input']>>;
+  settings?: InputMaybe<Array<Scalars['String']['input']>>;
   status?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
@@ -9834,7 +9834,7 @@ export type Sequent_Backend_Keys_Ceremony_Delete_At_Path_Input = {
 export type Sequent_Backend_Keys_Ceremony_Delete_Elem_Input = {
   annotations?: InputMaybe<Scalars['Int']['input']>;
   labels?: InputMaybe<Scalars['Int']['input']>;
-  presentation?: InputMaybe<Scalars['Int']['input']>;
+  settings?: InputMaybe<Scalars['Int']['input']>;
   status?: InputMaybe<Scalars['Int']['input']>;
 };
 
@@ -9842,7 +9842,7 @@ export type Sequent_Backend_Keys_Ceremony_Delete_Elem_Input = {
 export type Sequent_Backend_Keys_Ceremony_Delete_Key_Input = {
   annotations?: InputMaybe<Scalars['String']['input']>;
   labels?: InputMaybe<Scalars['String']['input']>;
-  presentation?: InputMaybe<Scalars['String']['input']>;
+  settings?: InputMaybe<Scalars['String']['input']>;
   status?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -9863,7 +9863,7 @@ export type Sequent_Backend_Keys_Ceremony_Insert_Input = {
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
-  presentation?: InputMaybe<Scalars['jsonb']['input']>;
+  settings?: InputMaybe<Scalars['jsonb']['input']>;
   status?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   threshold?: InputMaybe<Scalars['Int']['input']>;
@@ -9926,7 +9926,7 @@ export type Sequent_Backend_Keys_Ceremony_Order_By = {
   labels?: InputMaybe<Order_By>;
   last_updated_at?: InputMaybe<Order_By>;
   name?: InputMaybe<Order_By>;
-  presentation?: InputMaybe<Order_By>;
+  settings?: InputMaybe<Order_By>;
   status?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
   threshold?: InputMaybe<Order_By>;
@@ -9944,7 +9944,7 @@ export type Sequent_Backend_Keys_Ceremony_Pk_Columns_Input = {
 export type Sequent_Backend_Keys_Ceremony_Prepend_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
-  presentation?: InputMaybe<Scalars['jsonb']['input']>;
+  settings?: InputMaybe<Scalars['jsonb']['input']>;
   status?: InputMaybe<Scalars['jsonb']['input']>;
 };
 
@@ -9969,7 +9969,7 @@ export enum Sequent_Backend_Keys_Ceremony_Select_Column {
   /** column name */
   Name = 'name',
   /** column name */
-  Presentation = 'presentation',
+  Settings = 'settings',
   /** column name */
   Status = 'status',
   /** column name */
@@ -9991,7 +9991,7 @@ export type Sequent_Backend_Keys_Ceremony_Set_Input = {
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
-  presentation?: InputMaybe<Scalars['jsonb']['input']>;
+  settings?: InputMaybe<Scalars['jsonb']['input']>;
   status?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   threshold?: InputMaybe<Scalars['Int']['input']>;
@@ -10035,7 +10035,7 @@ export type Sequent_Backend_Keys_Ceremony_Stream_Cursor_Value_Input = {
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
-  presentation?: InputMaybe<Scalars['jsonb']['input']>;
+  settings?: InputMaybe<Scalars['jsonb']['input']>;
   status?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   threshold?: InputMaybe<Scalars['Int']['input']>;
@@ -10069,7 +10069,7 @@ export enum Sequent_Backend_Keys_Ceremony_Update_Column {
   /** column name */
   Name = 'name',
   /** column name */
-  Presentation = 'presentation',
+  Settings = 'settings',
   /** column name */
   Status = 'status',
   /** column name */

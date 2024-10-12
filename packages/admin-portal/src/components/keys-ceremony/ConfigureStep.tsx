@@ -56,14 +56,16 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
     const [newId, setNewId] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(false)
     const [openConfirmationModal, setOpenConfirmationModal] = useState(false)
-    const [createKeysCeremonyMutation] =
-        useMutation<CreateKeysCeremonyMutation>(CREATE_KEYS_CEREMONY, {
+    const [createKeysCeremonyMutation] = useMutation<CreateKeysCeremonyMutation>(
+        CREATE_KEYS_CEREMONY,
+        {
             context: {
                 headers: {
                     "x-hasura-role": IPermissions.ADMIN_CEREMONY,
                 },
             },
-        })
+        }
+    )
     const [errors, setErrors] = useState<String | null>(null)
     const [threshold, setThreshold] = useState<number>(2)
     const [name, setName] = useState<string>("")
