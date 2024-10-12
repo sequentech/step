@@ -101,7 +101,8 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                         <WizardStyles.CeremonyStatus
                             sx={{
                                 backgroundColor: statusColor(
-                                    (ceremony?.execution_status as EStatus) ?? EStatus.USER_CONFIGURATION
+                                    (ceremony?.execution_status as EStatus) ??
+                                        EStatus.USER_CONFIGURATION
                                 ),
                                 color: theme.palette.background.default,
                             }}

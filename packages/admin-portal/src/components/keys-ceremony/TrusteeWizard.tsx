@@ -88,7 +88,10 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
         ) {
             return WizardStep.Success
             // if the trustee has not checked the key, then show the start screen
-        } else if (currentCeremony.execution_status === EStatus.IN_PROGRESS && !trusteeCheckedKeys) {
+        } else if (
+            currentCeremony.execution_status === EStatus.IN_PROGRESS &&
+            !trusteeCheckedKeys
+        ) {
             return WizardStep.Start
             // In all other cases, just show the status
         } else {

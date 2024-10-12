@@ -28,9 +28,9 @@ import {NewResourceContext} from "@/providers/NewResourceProvider"
 import {Sequent_Backend_Election_Extended} from "./ElectionDataForm"
 import {addDefaultTranslationsToElement} from "@/services/i18n"
 import {IElectionPresentation, ITenantSettings} from "@sequentech/ui-core"
-import { useMutation } from "@apollo/client"
-import { CREATE_ELECTION } from "@/queries/CreateElection"
-import { CreateElectionMutation } from "@/gql/graphql"
+import {useMutation} from "@apollo/client"
+import {CREATE_ELECTION} from "@/queries/CreateElection"
+import {CreateElectionMutation} from "@/gql/graphql"
 
 const Hidden = styled(Box)`
     display: none;
@@ -45,8 +45,7 @@ export const CreateElection: React.FC = () => {
 
     const [settings, setSettings] = useState<any>()
     const electionEventId = searchParams.get("electionEventId")
-    const [createElection] =
-        useMutation<CreateElectionMutation>(CREATE_ELECTION)
+    const [createElection] = useMutation<CreateElectionMutation>(CREATE_ELECTION)
 
     const {data: electionEvent} = useGetOne("sequent_backend_election_event", {
         id: electionEventId,
@@ -85,7 +84,7 @@ export const CreateElection: React.FC = () => {
     }
 
     const onSubmit = async (input0: any) => {
-        let input = input0 as {name: string, description?: string}
+        let input = input0 as {name: string; description?: string}
         try {
             const {data} = await createElection({
                 variables: {
