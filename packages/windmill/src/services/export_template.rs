@@ -61,27 +61,32 @@ pub async fn write_export_document(
 
     let name = format!("template-{}", document_id);
 
-    let mut wtr = Writer::from_writer(vec![]);
-    wtr.write_record(&headers)?;
+    let mut writer = Writer::from_writer(vec![]);
+    writer.write_record(&headers)?;
 
     for template in data.clone() {
-        wtr.write_record(&[
-            template.id,
-            template.tenant_id,
-            template.template.to_string(),
-            template.created_by,
-            template.labels.unwrap_or_default().to_string(),
-            template.annotations.unwrap_or_default().to_string(),
-            template.created_at.expect("REASON").to_string(),
-            template.updated_at.expect("REASON").to_string(),
-            template.communication_method,
-            template.r#type,
-        ])?;
+        writer
+            .write_record(&[
+                template.id,
+                template.tenant_id,
+                template.template.to_string(),
+                template.created_by,
+                template.labels.unwrap_or_default().to_string(),
+                template.annotations.unwrap_or_default().to_string(),
+                template.created_at.expect("REASON").to_string(),
+                template.updated_at.expect("REASON").to_string(),
+                template.communication_method,
+                template.r#type,
+            ])
+            .map_err(|e| anyhow!("Error writting the template: {e:?}"))?;
     }
 
-    let data_bytes = wtr.into_inner()?;
-    let (temp_path, temp_path_string, file_size) =
-        write_into_named_temp_file(&data_bytes, &name, ".csv")?;
+    let data_bytes = writer
+        .into_inner()
+        .map_err(|e| anyhow!("Error converting writer into inner: {e:?}"))?;
+    let (_temp_path, temp_path_string, file_size) =
+        write_into_named_temp_file(&data_bytes, &name, ".csv")
+            .map_err(|e| anyhow!("Error writing into named temp file: {e:?}"))?;
 
     if let Some(first_template) = data.first() {
         upload_and_return_document_postgres(
@@ -90,7 +95,7 @@ pub async fn write_export_document(
             file_size,
             "text/csv",
             &first_template.tenant_id.to_string(),
-            "33f18502-a67c-4853-8333-a58630663559",
+            None,
             &name,
             Some(document_id.to_string()),
             false,
@@ -120,7 +125,7 @@ pub async fn process_export(tenant_id: &str, document_id: &str) -> Result<()> {
     let _commit = hasura_transaction
         .commit()
         .await
-        .map_err(|e| anyhow!("Commit failed: {}", e));
+        .map_err(|e| anyhow!("Commit failed: {e}"));
 
     Ok(())
 }

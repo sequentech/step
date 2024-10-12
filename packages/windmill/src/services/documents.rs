@@ -106,7 +106,7 @@ pub async fn upload_and_return_document_postgres(
     file_size: u64,
     media_type: &str,
     tenant_id: &str,
-    election_event_id: &str,
+    election_event_id: Option<String>,
     name: &str,
     document_id: Option<String>,
     is_public: bool,
@@ -114,7 +114,7 @@ pub async fn upload_and_return_document_postgres(
     let document = postgres::document::insert_document(
         hasura_transaction,
         tenant_id,
-        Some(election_event_id.to_string()),
+        election_event_id.clone(),
         name,
         media_type,
         file_size.try_into()?,
@@ -123,7 +123,7 @@ pub async fn upload_and_return_document_postgres(
     )
     .await?;
 
-    info!("Document inserted {:?}", document);
+    info!("Document inserted {document:?}");
 
     let (document_s3_key, bucket) = match is_public {
         true => {
@@ -134,7 +134,7 @@ pub async fn upload_and_return_document_postgres(
         }
         false => {
             let document_s3_key =
-                s3::get_document_key(tenant_id, Some(election_event_id), &document.id, name);
+                s3::get_document_key(tenant_id, election_event_id.as_deref(), &document.id, name);
             let bucket = s3::get_private_bucket()?;
 
             (document_s3_key, bucket)
