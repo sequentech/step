@@ -17,7 +17,7 @@ export interface DownloadDocumentProps {
     onDownload: () => void
     fileName: string | null
     documentId: string
-    electionEventId: string
+    electionEventId?: string
     withProgress?: boolean
 }
 

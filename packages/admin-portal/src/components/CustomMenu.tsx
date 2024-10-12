@@ -18,6 +18,8 @@ import MailIcon from "@mui/icons-material/Mail"
 import {TenantContext} from "@/providers/TenantContextProvider"
 
 const StyledHelpItem = styled(Button)`
+    margin-top: -4px;
+    margin-left: -1px;
     max-height: 36px;
     width: 100%;
     background-color: ${adminTheme.palette.white};

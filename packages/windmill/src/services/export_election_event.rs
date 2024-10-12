@@ -40,7 +40,7 @@ pub async fn read_export_data(
             export_candidates(&transaction, tenant_id, election_event_id),
             get_event_areas(&transaction, tenant_id, election_event_id),
             export_area_contests(&transaction, tenant_id, election_event_id),
-            find_scheduled_event_by_election_event_id(&transaction, tenant_id, election_event_id),
+            find_scheduled_event_by_election_event_id(&transaction, tenant_id, election_event_id)
         )?;
 
     Ok(ImportElectionEventSchema {
@@ -75,7 +75,7 @@ pub async fn write_export_document(
         file_size,
         "application/json",
         &data.tenant_id.to_string(),
-        &data.election_event.id,
+        Some(data.election_event.id.to_string()),
         &name,
         Some(document_id.to_string()),
         false, // is_public: bool,

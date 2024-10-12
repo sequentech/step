@@ -1,7 +1,5 @@
 type Mutation {
-  check_private_key(
-    object: CheckPrivateKeyInput!
-  ): CheckPrivateKeyOutput
+  check_private_key(object: CheckPrivateKeyInput!): CheckPrivateKeyOutput
 }
 
 type Mutation {
@@ -22,16 +20,11 @@ type Mutation {
 }
 
 type Mutation {
-  create_permission(
-    body: CreatePermissionInput!
-  ): KeycloakPermission
+  create_permission(body: CreatePermissionInput!): KeycloakPermission
 }
 
 type Mutation {
-  create_role(
-    tenant_id: String!
-    role: KeycloakRole2!
-  ): KeycloakRole!
+  create_role(tenant_id: String!, role: KeycloakRole2!): KeycloakRole!
 }
 
 type Mutation {
@@ -72,9 +65,7 @@ type Mutation {
 }
 
 type Mutation {
-  delete_election_event(
-    election_event_id: String!
-  ): DeleteElectionEvent
+  delete_election_event(election_event_id: String!): DeleteElectionEvent
 }
 
 type Mutation {
@@ -85,10 +76,7 @@ type Mutation {
 }
 
 type Mutation {
-  delete_role(
-    tenant_id: String!
-    role_id: String!
-  ): SetUserRoleOutput
+  delete_role(tenant_id: String!, role_id: String!): SetUserRoleOutput
 }
 
 type Mutation {
@@ -124,27 +112,19 @@ type Mutation {
 }
 
 type Mutation {
-  edit_user(
-    body: EditUsersInput!
-  ): KeycloakUser!
+  edit_user(body: EditUsersInput!): KeycloakUser!
 }
 
 type Mutation {
-  export_election_event(
-    election_event_id: String
-  ): documentTaskOutput
+  export_election_event(election_event_id: String): documentTaskOutput
 }
 
 type Mutation {
-  export_election_event_logs(
-    election_event_id: String
-  ): ExportLogsOutput
+  export_election_event_logs(election_event_id: String): ExportLogsOutput
 }
 
 type Mutation {
-  export_election_event_tasks(
-    election_event_id: String
-  ): ExportTasksOutput
+  export_election_event_tasks(election_event_id: String): ExportTasksOutput
 }
 
 type Mutation {
@@ -155,9 +135,15 @@ type Mutation {
 }
 
 type Mutation {
-  export_tenant_users(
+  export_template(
     tenant_id: String!
-  ): ExportTenantUsersOutput
+    election_event_id: String
+    election_id: String
+  ): ExportTemplateOutput
+}
+
+type Mutation {
+  export_tenant_users(tenant_id: String!): ExportTenantUsersOutput
 }
 
 type Mutation {
@@ -189,9 +175,7 @@ type Query {
 }
 
 type Query {
-  getElectionStats(
-    object: ElectionStatsInput!
-  ): ElectionStatsOutput
+  getElectionStats(object: ElectionStatsInput!): ElectionStatsOutput
 }
 
 type Mutation {
@@ -209,21 +193,15 @@ type Mutation {
 }
 
 type Query {
-  get_permissions(
-    body: GetPermissionsInput!
-  ): GetPermissionsOutput!
+  get_permissions(body: GetPermissionsInput!): GetPermissionsOutput!
 }
 
 type Mutation {
-  get_private_key(
-    object: GetPrivateKeyInput!
-  ): GetPrivateKeyOutput
+  get_private_key(object: GetPrivateKeyInput!): GetPrivateKeyOutput
 }
 
 type Query {
-  get_roles(
-    body: GetRolesInput!
-  ): GetRolesOutput!
+  get_roles(body: GetRolesInput!): GetRolesOutput!
 }
 
 type Query {
@@ -259,16 +237,11 @@ type Query {
 }
 
 type Query {
-  get_users(
-    body: GetUsersInput!
-  ): GetUsersOutput!
+  get_users(body: GetUsersInput!): GetUsersOutput!
 }
 
 type Mutation {
-  import_areas(
-    election_event_id: String!
-    document_id: String!
-  ): OptionalId
+  import_areas(election_event_id: String!, document_id: String!): OptionalId
 }
 
 type Mutation {
@@ -287,6 +260,10 @@ type Mutation {
 }
 
 type Mutation {
+  import_templates(tenant_id: String!, document_id: String!): templateOutput
+}
+
+type Mutation {
   import_users(
     tenant_id: String!
     election_event_id: String
@@ -301,9 +278,7 @@ type Mutation {
 }
 
 type Mutation {
-  insertTenant(
-    slug: String!
-  ): InsertTenantOutput
+  insertTenant(slug: String!): InsertTenantOutput
 }
 
 type Mutation {
@@ -315,9 +290,7 @@ type Mutation {
 }
 
 type Mutation {
-  limit_access_by_countries(
-    countries: [String!]!
-  ): LimitAccessByCountriesOutput
+  limit_access_by_countries(countries: [String!]!): LimitAccessByCountriesOutput
 }
 
 type Query {
@@ -382,9 +355,7 @@ type Mutation {
 }
 
 type Mutation {
-  restore_private_key(
-    object: RestorePrivateKeyInput!
-  ): RestorePrivateKeyOutput
+  restore_private_key(object: RestorePrivateKeyInput!): RestorePrivateKeyOutput
 }
 
 type Mutation {
@@ -455,10 +426,7 @@ type Mutation {
 }
 
 type Mutation {
-  upsert_areas(
-    election_event_id: String!
-    document_id: String!
-  ): OptionalId
+  upsert_areas(election_event_id: String!, document_id: String!): OptionalId
 }
 
 enum OrderDirection {
@@ -696,12 +664,12 @@ input EventListOrderBy {
 }
 
 input GetTopCastVotesByIpInput {
-  election_event_id : uuid!
-  limit : Int
-  offset : Int
-  ip : String
-  country : String
-  election_id : String
+  election_event_id: uuid!
+  limit: Int
+  offset: Int
+  ip: String
+  country: String
+  election_id: String
 }
 
 type GetManualVerificationOutput {
@@ -1166,18 +1134,27 @@ type LimitAccessByCountriesOutput {
   success: Boolean
 }
 
+type ExportTemplateOutput {
+  error_msg: String
+  document_id: String!
+}
+
+type templateOutput {
+  error_msg: String
+  document_id: String!
+}
+
 type GetTopCastVotesByIpOutput {
-  items : [CastVotesByIp!]!
-  total : TotalAggregate!
+  items: [CastVotesByIp!]!
+  total: TotalAggregate!
 }
 
 type CastVotesByIp {
-  id : String
-  ip : String
-  country : String
-  vote_count : Int
-  election_name : String
-  election_id : String
-  voters_id : [String]
+  id: String
+  ip: String
+  country: String
+  vote_count: Int
+  election_name: String
+  election_id: String
+  voters_id: [String]
 }
-

@@ -20,6 +20,7 @@ use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClie
 use sequent_core::services::replace_uuids::replace_uuids;
 use sequent_core::types::hasura::core::AreaContest;
 use sequent_core::types::hasura::core::TasksExecution;
+use sequent_core::types::hasura::core::Template;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use std::env;

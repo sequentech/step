@@ -245,6 +245,12 @@ export type ExportTasksOutput = {
     task_id: Scalars["String"]["output"]
 }
 
+export type ExportTemplateOutput = {
+    __typename?: "ExportTemplateOutput"
+    document_id: Scalars["String"]["output"]
+    error_msg?: Maybe<Scalars["String"]["output"]>
+}
+
 export type ExportTenantUsersOutput = {
     __typename?: "ExportTenantUsersOutput"
     document_id: Scalars["String"]["output"]
@@ -908,6 +914,7 @@ export type Mutation_Root = {
     export_election_event_logs?: Maybe<ExportLogsOutput>
     export_election_event_tasks?: Maybe<ExportTasksOutput>
     export_tasks_execution?: Maybe<ExportTasksExecutionOutput>
+    export_template?: Maybe<ExportTemplateOutput>
     export_tenant_users?: Maybe<ExportTenantUsersOutput>
     export_users?: Maybe<ExportUsersOutput>
     generate_ballot_publication?: Maybe<PublishBallotOutput>
@@ -921,6 +928,7 @@ export type Mutation_Root = {
     import_candidates?: Maybe<DocumentTaskOutput>
     /** import_election_event */
     import_election_event?: Maybe<OptionalImportEvent>
+    import_templates?: Maybe<TemplateOutput>
     import_users?: Maybe<TaskOutput>
     insertElectionEvent?: Maybe<CreateElectionEventOutput>
     /** insertTenant */
@@ -1828,6 +1836,13 @@ export type Mutation_RootExport_Tasks_ExecutionArgs = {
 }
 
 /** mutation root */
+export type Mutation_RootExport_TemplateArgs = {
+    election_event_id?: InputMaybe<Scalars["String"]["input"]>
+    election_id?: InputMaybe<Scalars["String"]["input"]>
+    tenant_id: Scalars["String"]["input"]
+}
+
+/** mutation root */
 export type Mutation_RootExport_Tenant_UsersArgs = {
     tenant_id: Scalars["String"]["input"]
 }
@@ -1894,6 +1909,12 @@ export type Mutation_RootImport_CandidatesArgs = {
 /** mutation root */
 export type Mutation_RootImport_Election_EventArgs = {
     check_only?: InputMaybe<Scalars["Boolean"]["input"]>
+    document_id: Scalars["String"]["input"]
+    tenant_id: Scalars["String"]["input"]
+}
+
+/** mutation root */
+export type Mutation_RootImport_TemplatesArgs = {
     document_id: Scalars["String"]["input"]
     tenant_id: Scalars["String"]["input"]
 }
@@ -13111,7 +13132,6 @@ export type Sequent_Backend_Scheduled_Event = {
     created_by?: Maybe<Scalars["String"]["output"]>
     cron_config?: Maybe<Scalars["jsonb"]["output"]>
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
-    election_id?: Maybe<Scalars["uuid"]["output"]>
     event_payload?: Maybe<Scalars["jsonb"]["output"]>
     event_processor?: Maybe<Scalars["String"]["output"]>
     id: Scalars["uuid"]["output"]
@@ -13181,7 +13201,6 @@ export type Sequent_Backend_Scheduled_Event_Bool_Exp = {
     created_by?: InputMaybe<String_Comparison_Exp>
     cron_config?: InputMaybe<Jsonb_Comparison_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
-    election_id?: InputMaybe<Uuid_Comparison_Exp>
     event_payload?: InputMaybe<Jsonb_Comparison_Exp>
     event_processor?: InputMaybe<String_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
@@ -13229,7 +13248,6 @@ export type Sequent_Backend_Scheduled_Event_Insert_Input = {
     created_by?: InputMaybe<Scalars["String"]["input"]>
     cron_config?: InputMaybe<Scalars["jsonb"]["input"]>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
-    election_id?: InputMaybe<Scalars["uuid"]["input"]>
     event_payload?: InputMaybe<Scalars["jsonb"]["input"]>
     event_processor?: InputMaybe<Scalars["String"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -13246,7 +13264,6 @@ export type Sequent_Backend_Scheduled_Event_Max_Fields = {
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     created_by?: Maybe<Scalars["String"]["output"]>
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
-    election_id?: Maybe<Scalars["uuid"]["output"]>
     event_processor?: Maybe<Scalars["String"]["output"]>
     id?: Maybe<Scalars["uuid"]["output"]>
     stopped_at?: Maybe<Scalars["timestamptz"]["output"]>
@@ -13261,7 +13278,6 @@ export type Sequent_Backend_Scheduled_Event_Min_Fields = {
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     created_by?: Maybe<Scalars["String"]["output"]>
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
-    election_id?: Maybe<Scalars["uuid"]["output"]>
     event_processor?: Maybe<Scalars["String"]["output"]>
     id?: Maybe<Scalars["uuid"]["output"]>
     stopped_at?: Maybe<Scalars["timestamptz"]["output"]>
@@ -13293,7 +13309,6 @@ export type Sequent_Backend_Scheduled_Event_Order_By = {
     created_by?: InputMaybe<Order_By>
     cron_config?: InputMaybe<Order_By>
     election_event_id?: InputMaybe<Order_By>
-    election_id?: InputMaybe<Order_By>
     event_payload?: InputMaybe<Order_By>
     event_processor?: InputMaybe<Order_By>
     id?: InputMaybe<Order_By>
@@ -13331,8 +13346,6 @@ export enum Sequent_Backend_Scheduled_Event_Select_Column {
     /** column name */
     ElectionEventId = "election_event_id",
     /** column name */
-    ElectionId = "election_id",
-    /** column name */
     EventPayload = "event_payload",
     /** column name */
     EventProcessor = "event_processor",
@@ -13356,7 +13369,6 @@ export type Sequent_Backend_Scheduled_Event_Set_Input = {
     created_by?: InputMaybe<Scalars["String"]["input"]>
     cron_config?: InputMaybe<Scalars["jsonb"]["input"]>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
-    election_id?: InputMaybe<Scalars["uuid"]["input"]>
     event_payload?: InputMaybe<Scalars["jsonb"]["input"]>
     event_processor?: InputMaybe<Scalars["String"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -13382,7 +13394,6 @@ export type Sequent_Backend_Scheduled_Event_Stream_Cursor_Value_Input = {
     created_by?: InputMaybe<Scalars["String"]["input"]>
     cron_config?: InputMaybe<Scalars["jsonb"]["input"]>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
-    election_id?: InputMaybe<Scalars["uuid"]["input"]>
     event_payload?: InputMaybe<Scalars["jsonb"]["input"]>
     event_processor?: InputMaybe<Scalars["String"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -13406,8 +13417,6 @@ export enum Sequent_Backend_Scheduled_Event_Update_Column {
     CronConfig = "cron_config",
     /** column name */
     ElectionEventId = "election_event_id",
-    /** column name */
-    ElectionId = "election_id",
     /** column name */
     EventPayload = "event_payload",
     /** column name */
@@ -17644,6 +17653,12 @@ export type Tasks_Execution_Type = {
     start_at: Scalars["timestamptz"]["output"]
     tenant_id: Scalars["uuid"]["output"]
     type: Scalars["String"]["output"]
+}
+
+export type TemplateOutput = {
+    __typename?: "templateOutput"
+    document_id: Scalars["String"]["output"]
+    error_msg?: Maybe<Scalars["String"]["output"]>
 }
 
 /** Boolean expression to compare columns of type "timestamptz". All fields are combined with logical 'AND'. */
