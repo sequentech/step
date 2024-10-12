@@ -2557,6 +2557,16 @@
             "defaultValue": null
           },
           {
+            "name": "authorized_to_election_alias",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "election_event_id",
             "description": null,
             "type": {
