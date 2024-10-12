@@ -25,7 +25,7 @@ jobs:
       - name: Run install
         uses: borales/actions-yarn@v4
         with:
-          cmd: install # will run `yarn install` command
+          cmd: install
           dir: packages/
 
       - name: Build ui-core
@@ -67,7 +67,7 @@ jobs:
       - name: Run install
         uses: borales/actions-yarn@v4
         with:
-          cmd: install # will run `yarn install` command
+          cmd: install
           dir: hasura/
 
       - name: Lint
