@@ -242,7 +242,8 @@ public class MessageOTPAuthenticator
             messageCourier,
             deferredUser,
             isOtl,
-            otlAuthNoteNames);
+            otlAuthNoteNames,
+            context);
         context
             .getEvent()
             .detail("action", "send_code via " + messageCourier)

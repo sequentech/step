@@ -1199,7 +1199,7 @@ const englishTranslation = {
                 richtext: "Rich Text Body",
             },
         },
-        sendTemplate: {
+        sendCommunication: {
             send: "Send",
             title: "Send Notification",
             subtitle: "Send a notification to voters.",
@@ -1227,11 +1227,11 @@ const englishTranslation = {
                 voters: "voters",
             },
             methodTitle: "Communication Template",
-            templateMethod: {
+            communicationMethod: {
                 EMAIL: "Email",
                 SMS: "SMS",
             },
-            templateType: {
+            communicationType: {
                 CREDENTIALS: "Credentials",
                 BALLOT_RECEIPT: "Ballot Receipt",
                 PARTICIPATION_REPORT: "Participation Report",

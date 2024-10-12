@@ -1207,7 +1207,7 @@ const catalanTranslation: TranslationType = {
                 richtext: "Cos de Text Enriquit",
             },
         },
-        sendTemplate: {
+        sendCommunication: {
             send: "Enviar",
             title: "Enviar Notificació",
             subtitle: "Enviar una notificació a usuaris/votants.",
@@ -1235,11 +1235,11 @@ const catalanTranslation: TranslationType = {
                 voters: "votants",
             },
             methodTitle: "Mètode de Comunicació",
-            templateMethod: {
+            communicationMethod: {
                 EMAIL: "Email",
                 SMS: "SMS",
             },
-            templateType: {
+            communicationType: {
                 CREDENTIALS: "Credencials",
                 BALLOT_RECEIPT: "Comprovant de Votació",
                 PARTICIPATION_REPORT: "Informe de Participació",

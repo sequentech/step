@@ -182,9 +182,11 @@ impl Message {
         event: EventIdString,
         _election: ElectionIdString,
         sd: &SigningData,
+        user_id: Option<String>,
+        message: Option<String>,
     ) -> Result<Self> {
-        let body = StatementBody::SendTemplate;
-        Self::from_body(event, body, sd, None)
+        let body = StatementBody::SendCommunications(message);
+        Self::from_body(event, body, sd, user_id)
     }
 
     pub fn voter_public_key_message(
