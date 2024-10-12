@@ -27,7 +27,7 @@ use tracing::{error, event, info, Level};
 use uuid::Uuid;
 
 #[instrument(err)]
-async fn manage_election_event_lockdown_end_wrapped(
+async fn manage_election_event_lockdown_wrapped(
     hasura_transaction: &Transaction<'_>,
     tenant_id: String,
     election_event_id: String,
@@ -53,9 +53,19 @@ async fn manage_election_event_lockdown_end_wrapped(
     let election_event =
         get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id).await?;
 
+    let Some(event_payload) = scheduled_event.event_payload.clone() else {
+        event!(Level::WARN, "Missing election_event_id");
+        return Ok(());
+    };
+    let event_payload: ManageLockdownPayload = deserialize_value(event_payload)?;
+
     if let Some(election_event_presentation) = election_event.presentation {
         let election_event_presentation: ElectionEventPresentation = ElectionEventPresentation {
-            locked_down: LockedDown::NOT_LOCKED_DOWN,
+            locked_down: if event_payload.locked_down == Some(true) {
+                LockedDown::LOCKED_DOWN
+            } else {
+                LockedDown::NOT_LOCKED_DOWN
+            },
             ..serde_json::from_value(election_event_presentation)?
         };
         update_election_event_presentation(
@@ -77,7 +87,7 @@ async fn manage_election_event_lockdown_end_wrapped(
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(time_limit = 10, max_retries = 0, expires = 30)]
-pub async fn manage_election_event_lockdown_end(
+pub async fn manage_election_event_lockdown(
     tenant_id: String,
     election_event_id: String,
     scheduled_event_id: String,
@@ -85,7 +95,7 @@ pub async fn manage_election_event_lockdown_end(
 ) -> Result<()> {
     let lock: PgLock = PgLock::acquire(
         format!(
-            "execute_manage_election_event_lockdown_end-{}-{}-{}-{}",
+            "execute_manage_election_event_lockdown-{}-{}-{}-{}",
             tenant_id, election_event_id, scheduled_event_id, election_id
         ),
         Uuid::new_v4().to_string(),
@@ -101,7 +111,7 @@ pub async fn manage_election_event_lockdown_end(
         let election_id = election_id.clone();
         Box::pin(async move {
             // Your async code here
-            manage_election_event_lockdown_end_wrapped(
+            manage_election_event_lockdown_wrapped(
                 hasura_transaction,
                 tenant_id,
                 election_event_id,

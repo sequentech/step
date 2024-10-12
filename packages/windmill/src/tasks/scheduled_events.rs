@@ -11,8 +11,7 @@ use crate::services::tasks_execution::update_fail;
 use crate::tasks::manage_election_dates::manage_election_date;
 use crate::tasks::manage_election_enrollment::manage_election_enrollment;
 use crate::tasks::manage_election_event_date::manage_election_event_date;
-use crate::tasks::manage_election_event_lockdown_end::manage_election_event_lockdown_end;
-use crate::tasks::manage_election_event_lockdown_start::manage_election_event_lockdown_start;
+use crate::tasks::manage_election_event_lockdown::manage_election_event_lockdown;
 use crate::tasks::manage_election_init_report::manage_election_init_report;
 use crate::tasks::manage_election_voting_period_end::manage_election_voting_period_end;
 use crate::types::error::{Error, Result};
@@ -302,38 +301,24 @@ pub async fn handle_election_lockdown(
     // run the actual task in a different async task
     match payload.election_id.clone() {
         Some(election_id) => {
-            let task_id = if payload.locked_down == Some(true) {
-                let task = celery_app
-                    .send_task(
-                        manage_election_event_lockdown_start::new(
-                            tenant_id.clone(),
-                            election_event_id.clone(),
-                            scheduled_event.id.clone(),
-                            election_id,
-                        )
-                        .with_eta(datetime.with_timezone(&Utc))
-                        .with_expires_in(120),
+            let task = celery_app
+                .send_task(
+                    manage_election_event_lockdown::new(
+                        tenant_id.clone(),
+                        election_event_id.clone(),
+                        scheduled_event.id.clone(),
+                        election_id,
                     )
-                    .await
-                    .map_err(|e| anyhow!("Error sending task to celery {}", e))?;
+                    .with_eta(datetime.with_timezone(&Utc))
+                    .with_expires_in(120),
+                )
+                .await
+                .map_err(|e| anyhow!("Error sending task to celery {}", e))?;
+            event!(
+                Level::INFO,
+                "Sent manage_election_date task {}",
                 task.task_id
-            } else {
-                let task = celery_app
-                    .send_task(
-                        manage_election_event_lockdown_end::new(
-                            tenant_id.clone(),
-                            election_event_id.clone(),
-                            scheduled_event.id.clone(),
-                            election_id,
-                        )
-                        .with_eta(datetime.with_timezone(&Utc))
-                        .with_expires_in(120),
-                    )
-                    .await
-                    .map_err(|e| anyhow!("Error sending task to celery {}", e))?;
-                task.task_id
-            };
-            event!(Level::INFO, "Sent manage_election_date task {}", task_id);
+            );
         }
         None => {
             let task = celery_app
