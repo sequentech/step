@@ -428,14 +428,3 @@ pub async fn create_keys_ceremony(
 
     Ok(keys_ceremony_id)
 }
-
-#[instrument(skip(transaction), err)]
-pub async fn list_keys_ceremony(
-    transaction: &Transaction<'_>,
-    tenant_id: &str,
-    user_id: &str,
-    election_event_id: &str,
-    permission_labels: &Vec<String>,
-) -> Result<(Vec<KeysCeremony>, i32)> {
-    Ok((vec![], 0))
-}

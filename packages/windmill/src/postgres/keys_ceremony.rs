@@ -252,3 +252,55 @@ pub async fn update_keys_ceremony_status(
 
     Ok(())
 }
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn list_keys_ceremony(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    permission_labels: &Vec<String>,
+) -> Result<Vec<KeysCeremony>> {
+    let permission_labels_slice: Vec<&str> = permission_labels.iter().map(AsRef::as_ref).collect();
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                     keys_ceremony.*
+                FROM
+                    sequent_backend.keys_ceremony AS keys_ceremony
+                INNER JOIN
+                    sequent_backend.election AS election
+                ON
+                    election.keys_ceremony_id = keys_ceremony.id
+                WHERE
+                    keys_ceremony.tenant_id = $1 AND
+                    election.tenant_id = $1 AND
+                    keys_ceremony.election_event_id = $2 AND
+                    election.election_event_id = $2 AND
+                    (cardinality($3::text[]) = 0 OR election.permission_label = ANY($3::text[]));
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+                &permission_labels_slice,
+            ],
+        )
+        .await?;
+
+    let keys_ceremonies: Vec<KeysCeremony> = rows
+        .into_iter()
+        .map(|row| -> Result<KeysCeremony> {
+            let res: KeysCeremonyWrapper = row.try_into()?;
+            Ok(res.0)
+        })
+        .collect::<Result<Vec<KeysCeremony>>>()?;
+
+    Ok(keys_ceremonies)
+}

@@ -14,6 +14,7 @@ use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
+use windmill::postgres;
 use windmill::services::ceremonies::keys_ceremony;
 use windmill::services::database::get_hasura_pool;
 
@@ -285,10 +286,9 @@ pub async fn list_keys_ceremonies(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    let (keys_ceremonies, count) = keys_ceremony::list_keys_ceremony(
+    let keys_ceremonies = postgres::keys_ceremony::list_keys_ceremony(
         &hasura_transaction,
         &tenant_id,
-        &user_id,
         &input.election_event_id,
         &permission_labels,
     )
@@ -301,12 +301,11 @@ pub async fn list_keys_ceremonies(
         .with_context(|| "error comitting transaction")
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
+    let count = keys_ceremonies.len() as i64;
     Ok(Json(DataList {
         items: keys_ceremonies,
         total: TotalAggregate {
-            aggregate: Aggregate {
-                count: count as i64,
-            },
+            aggregate: Aggregate { count: count },
         },
     }))
 }
