@@ -146,6 +146,15 @@ const tagalogTranslation: TranslationType = {
             votersByChannels: "Mga botante ayon sa channel",
             voterLoginURL: "URL para sa Pag-login ng Botante",
             voterEnrollURL: "URL para sa Pag-enroll ng Botante",
+            ipAddress: {
+                emptyState: "Wala pang mga boto.",
+                title: "Mga IP Address",
+                ip: "IP",
+                country: "Bansa",
+                VoteCount: "Bilang ng boto",
+                ElectionName: "Pangalan ng halalan",
+                VotersId: "Mga Id ng mga botante",
+            },
         },
         electionEventScreen: {
             common: {
@@ -359,6 +368,8 @@ const tagalogTranslation: TranslationType = {
                 exportError: "Error sa pag-export ng Kaganapang Halalan",
                 passwordTitle: "Password",
                 passwordDescription: "Password para i-decrypt ang file:",
+                copiedSuccess: "Nakopya ang password sa clipboard",
+                copiedError: "Error sa pag-copy ng password sa clipboard",
             },
             taskNotification:
                 "{{action}} ay nagsimula na. Maaari mong makita ang status nito sa Talahanayan ng Pagpapatupad ng Mga Gawain.",
@@ -368,6 +379,7 @@ const tagalogTranslation: TranslationType = {
                 title: "Halalan",
                 subtitle: "Pag-configure ng halalan.",
                 fileLoaded: "Na-load ang file",
+                noPermission: "Wala kang pahintulot na ma-access ang halalang ito.",
             },
             edit: {
                 general: "Pangkalahatan",
@@ -384,6 +396,7 @@ const tagalogTranslation: TranslationType = {
                 reorder: "I-reorder ang mga paligsahan",
                 castVoteConfirm: "Modal ng Pagkumpirma ng Pagboto",
                 gracePeriodPolicy: "Patakaran sa Palugit",
+                permissionLabel: "Label ng pahintulot",
             },
             field: {
                 name: "Pangalan",
@@ -454,29 +467,31 @@ const tagalogTranslation: TranslationType = {
                     subtitle: "Lumikha ng tagagamit",
                 },
                 fields: {
-                    has_voted: "Nakaboto",
-                    username: "Username",
-                    first_name: "Unang Pangalan",
-                    last_name: "Huling Pangalan",
-                    email: "Email",
-                    enabled: "Pinagana",
-                    emailVerified: "Na-verify ang Email",
-                    groups: "Mga Grupo",
-                    attributes: "Mga Katangian",
-                    area: "Lugar",
-                    password: "Password",
-                    repeatPassword: "Ulitin ang Password",
-                    passwordMismatch: "Dapat magkatugma ang mga password",
-                    passwordLengthValidate: "Ang password ay dapat hindi bababa sa 8 karakter",
-                    passwordUppercaseValidate:
+                    "has_voted": "Nakaboto",
+                    "username": "Username",
+                    "first_name": "Unang Pangalan",
+                    "last_name": "Huling Pangalan",
+                    "email": "Email",
+                    "enabled": "Pinagana",
+                    "emailVerified": "Na-verify ang Email",
+                    "groups": "Mga Grupo",
+                    "attributes": "Mga Katangian",
+                    "area": "Lugar",
+                    "password": "Password",
+                    "repeatPassword": "Ulitin ang Password",
+                    "passwordMismatch": "Dapat magkatugma ang mga password",
+                    "passwordLengthValidate": "Ang password ay dapat hindi bababa sa 8 karakter",
+                    "passwordUppercaseValidate":
                         "Ang password ay dapat maglaman ng hindi bababa sa isang malaking titik",
-                    passwordLowercaseValidate:
+                    "passwordLowercaseValidate":
                         "Ang password ay dapat maglaman ng hindi bababa sa isang maliit na titik",
-                    passwordDigitValidate:
+                    "passwordDigitValidate":
                         "Ang password ay dapat maglaman ng hindi bababa sa isang digit",
-                    passwordSpecialCharValidate:
+                    "passwordSpecialCharValidate":
                         "Ang password ay dapat maglaman ng hindi bababa sa isang espesyal na karakter",
-                    trustee: "Kumilos bilang trustee",
+                    "trustee": "Kumilos bilang trustee",
+                    "permissionLabel": "Label ng pahintulot",
+                    "authorized-election-ids": "Halalan",
                 },
                 delete: {
                     body: "Sigurado ka bang gusto mong tanggalin ang tagagamit na ito?",
@@ -619,6 +634,7 @@ const tagalogTranslation: TranslationType = {
                 "miru-download": "Miru I-download",
                 "miru-send": "Miru Ipadala",
                 "miru-sign": "Miru Lagdaan",
+                "permission-label-write": "I-edit ang label ng pahintulot",
                 "scheduled-event-write": "I-edit ang Naka-schedule na Kaganapan",
             },
         },

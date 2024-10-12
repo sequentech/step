@@ -10,6 +10,7 @@ use sequent_core::ballot::ElectionEventStatistics;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::ElectionStatistics;
 use sequent_core::ballot::ElectionStatus;
+use sequent_core::ballot::VotingPeriodDates;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::connection;
 use sequent_core::services::keycloak::get_event_realm;
@@ -55,8 +56,8 @@ use crate::services::election_event_board::BoardSerializable;
 use crate::services::jwks::upsert_realm_jwks;
 use crate::services::protocol_manager::{create_protocol_manager_keys, get_board_client};
 use crate::services::temp_path::generate_temp_file;
-use crate::types::documents::EDocuments;
 use crate::tasks::import_election_event::ImportElectionEventBody;
+use crate::types::documents::EDocuments;
 use sequent_core::types::hasura::core::{Area, Candidate, Contest, Election, ElectionEvent};
 use sequent_core::types::scheduled_event::*;
 
@@ -181,22 +182,6 @@ pub async fn insert_election_event_db(
     Ok(())
 }
 
-async fn generate_decrypted_zip(
-    temp_path_string: String,
-    decrypted_temp_file_string: String,
-    password: String,
-) -> Result<()> {
-    decrypt_file_aes_256_cbc(&temp_path_string, &decrypted_temp_file_string, &password).map_err(
-        |err| {
-            anyhow!(
-                "Error decrypting file {temp_path_string} to {decrypted_temp_file_string}: {err}"
-            )
-        },
-    )?;
-
-    Ok(())
-}
-
 #[instrument(err, skip(data_str, original_data))]
 pub fn replace_ids(
     data_str: &str,
@@ -268,7 +253,9 @@ pub async fn get_document(
         .media_type
         .unwrap_or("application/ezip".to_string());
 
-    temp_file = decrypt_document(object.password.clone(), temp_file).await?;
+    temp_file = decrypt_document(object.password.clone(), temp_file)
+        .await
+        .map_err(|err| anyhow!("error decrypting document {:?}", document.id))?;
 
     Ok((temp_file, document, document_type))
 }
@@ -284,13 +271,12 @@ pub async fn decrypt_document(
     if is_encrypted {
         let decrypted_path = env::temp_dir().join("election-event.zip");
 
-        generate_decrypted_zip(
-            temp_file_path.path().to_string_lossy().to_string(),
-            decrypted_path.as_path().to_string_lossy().to_string(),
-            password,
+        decrypt_file_aes_256_cbc(
+            &temp_file_path.path().to_string_lossy().to_string(),
+            &decrypted_path.as_path().to_string_lossy().to_string(),
+            &password,
         )
-        .await
-        .map_err(|err| anyhow!("Error decrypting file: {err}"))?;
+        .map_err(|err| anyhow!("Error generating decrypted file"))?;
 
         // Create a new NamedTempFile for the decrypted content
         let mut temp_file = NamedTempFile::new()?;
@@ -543,7 +529,7 @@ pub async fn process_document(
         Some(election_event_id.clone()),
     )
     .await
-    .map_err(|err| anyhow!("Error getting document: {err}"))?;
+    .map_err(|err| anyhow!("Failed to get document: {err}"))?;
 
     let election_event_schema = process_election_event_file(
         hasura_transaction,
@@ -745,4 +731,3 @@ pub async fn maybe_create_scheduled_event(
 
     Ok(())
 }
-

@@ -31,19 +31,29 @@ pub async fn import_election_event(
     tenant_id: String,
     task_execution: TasksExecution,
 ) -> Result<()> {
+    let task_execution_clone = task_execution.clone();
+
     let result = provide_hasura_transaction(|hasura_transaction| {
         let object = object.clone();
         let tenant_id = tenant_id.clone();
         let election_event_id = election_event_id.clone();
+        let task_execution = task_execution_clone.clone();
 
         Box::pin(async move {
-            import_election_event_service::process_document(
+            match import_election_event_service::process_document(
                 hasura_transaction,
                 object,
                 election_event_id,
                 tenant_id,
             )
             .await
+            {
+                Ok(_) => Ok(()),
+                Err(err) => {
+                    update_fail(&task_execution, &err.to_string()).await?;
+                    Err(anyhow!("Error process election event document: {err}"))
+                }
+            }
         })
     })
     .await;

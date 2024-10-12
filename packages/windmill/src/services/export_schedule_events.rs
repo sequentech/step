@@ -21,12 +21,21 @@ pub async fn read_export_data(
     election_event_id: &str,
 ) -> Result<TempPath> {
     // Fetch the scheduled events from the database
-    let scheduled_events =
+    let scheduled_events: Vec<ScheduledEvent> =
         find_scheduled_event_by_election_event_id(transaction, tenant_id, election_event_id)
             .await?;
 
+    let mut scheduled_events_filtered = vec![];
+    for event in &scheduled_events {
+        let mut obj = serde_json::to_value(&event).unwrap();
+        if let Some(map) = obj.as_object_mut() {
+            map.remove("id");
+            scheduled_events_filtered.push(map.clone());
+        }
+    }
+
     // Serialize the scheduled events to a JSON string
-    let data_str = serde_json::to_string(&scheduled_events)
+    let data_str = serde_json::to_string(&scheduled_events_filtered)
         .with_context(|| "Failed to serialize scheduled events to JSON")?;
 
     // Write the serialized data into a temporary file

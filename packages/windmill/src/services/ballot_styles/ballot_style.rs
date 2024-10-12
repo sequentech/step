@@ -19,9 +19,10 @@ use anyhow::{anyhow, Context, Result as AnyhowResult};
 use chrono::Duration;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::try_join;
+use rocket::http::Status;
 use sequent_core::types::hasura::core::{
-    self as hasura_type, Area, AreaContest, BallotPublication, Candidate, Contest, Election,
-    ElectionEvent,
+    self as hasura_type, Area, AreaContest, BallotPublication, BallotStyle, Candidate, Contest,
+    Election, ElectionEvent,
 };
 use sequent_core::types::scheduled_event::ScheduledEvent;
 
@@ -259,4 +260,13 @@ pub async fn update_election_event_ballot_styles(
     let _commit = transaction.commit().await.with_context(|| "Commit failed");
     lock.release().await?;
     Ok(())
+}
+
+#[instrument(err)]
+pub async fn get_ballot_styles_for_authorized_elections(
+    tenant_id: &str,
+    election_event_id: &str,
+    authorized_election_ids: &Vec<String>,
+) -> AnyhowResult<Vec<BallotStyle>> {
+    todo!()
 }

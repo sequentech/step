@@ -44,6 +44,11 @@ export interface AuthContextValues {
      * The trustee an admin user can act as
      */
     trustee: String
+
+    /**
+     * The permission labels an admin user has
+     */
+    permissionLabels: String[]
     /**
      * Function to initiate the logout
      */
@@ -56,6 +61,8 @@ export interface AuthContextValues {
      * Get Access Token
      */
     getAccessToken: () => string | undefined
+
+    updateTokenAndPermissionLabels: () => void
 
     /**
      * Check whether the user has permissions for an action or data
@@ -93,6 +100,8 @@ const defaultAuthContextValues: AuthContextValues = {
     getAccessToken: () => undefined,
     isAuthorized: () => false,
     openProfileLink: () => new Promise(() => undefined),
+    permissionLabels: [],
+    updateTokenAndPermissionLabels: () => {},
 }
 
 /**
@@ -131,6 +140,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const [firstName, setFirstName] = useState<string>("")
     const [tenantId, setTenantId] = useState<string>("")
     const [trustee, setTrustee] = useState<string>("")
+    const [permissionLabels, setPermissionLabels] = useState<String[]>([])
 
     const sleepSecs = 50
     const bufferSecs = 10
@@ -306,6 +316,16 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         updateTokenPeriodically()
     }
 
+    const extractPermissionLabels = (input: string): string[] => {
+        const regex = /\"(.*?)\"/g
+        const matches = []
+        let match
+        while ((match = regex.exec(input)) !== null) {
+            matches.push(match[1])
+        }
+        return matches
+    }
+
     // This effect loads the users profile in order to extract the username
     useEffect(() => {
         /**
@@ -340,6 +360,14 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
                 if (keycloak.tokenParsed?.trustee) {
                     setTrustee(keycloak.tokenParsed?.trustee)
+                }
+                const tokenPermissionLabels =
+                    keycloak.tokenParsed?.["https://hasura.io/jwt/claims"]?.[
+                        "x-hasura-permission-labels"
+                    ]
+                if (tokenPermissionLabels) {
+                    const permissionLabelsArray = extractPermissionLabels(tokenPermissionLabels)
+                    setPermissionLabels(permissionLabelsArray)
                 }
             } catch {
                 console.log("error trying to load the users profile")
@@ -398,6 +426,26 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         await keycloak.accountManagement()
     }
 
+    const updateTokenAndPermissionLabels = () => {
+        if (keycloak) {
+            const refresh = keycloak.updateToken(keycloak.tokenParsed?.exp || 30)
+            refresh
+                .then(() => {
+                    const tokenPermissionLabels =
+                        keycloak.tokenParsed?.["https://hasura.io/jwt/claims"]?.[
+                            "x-hasura-permission-labels"
+                        ]
+                    if (tokenPermissionLabels) {
+                        const permissionLabelsArray = extractPermissionLabels(tokenPermissionLabels)
+                        setPermissionLabels(permissionLabelsArray)
+                    }
+                })
+                .catch((error) => {
+                    console.log("error updating token", error)
+                })
+        }
+    }
+
     // Setup the context provider
     return (
         <AuthContext.Provider
@@ -414,6 +462,8 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 getAccessToken,
                 isAuthorized,
                 openProfileLink,
+                permissionLabels,
+                updateTokenAndPermissionLabels,
             }}
         >
             {props.children}

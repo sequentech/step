@@ -124,8 +124,12 @@ fn get_user_record(
     for attr in user_attributes {
         match &attr.name {
             Some(name) => {
-                if (!USER_FIELDS.contains(&name.as_str())) {
-                    user_info.push(user.get_attribute_val(name).unwrap_or("-".to_string()))
+                if !USER_FIELDS.contains(&name.as_str()) {
+                    if let Some(true) = &attr.multivalued {
+                        user_info.push(user.get_attribute_multival(name).unwrap_or("-".to_string()))
+                    } else {
+                        user_info.push(user.get_attribute_val(name).unwrap_or("-".to_string()))
+                    }
                 }
             }
             _ => (),

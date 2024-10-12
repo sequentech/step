@@ -8,7 +8,6 @@ import {
     List,
     TextField,
     FunctionField,
-    TextInput,
     NumberField,
     useRecordContext,
     useNotify,
@@ -24,7 +23,8 @@ import {EXPORT_ELECTION_EVENT_LOGS} from "@/queries/ExportElectionEventLogs"
 import {useMutation} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
 import {ElectionStyles} from "./styles/ElectionStyles"
-import {useLocation} from "react-router"
+import {useLocation, useNavigate} from "react-router"
+import {ResetFilters} from "./ResetFilters"
 
 interface ExportWrapperProps {
     electionEventId: string
@@ -133,11 +133,6 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
     const user_id = params.get("user_id")
     const filters: Array<ReactElement> = []
 
-    useEffect(() => {
-        for (const filter of Object.values(ElectoralLogFilters)) {
-            filters.push(<TextInput key={filter} source={filter} />)
-        }
-    }, [])
     const [openExport, setOpenExport] = React.useState(false)
 
     const handleExport = () => {
@@ -167,6 +162,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                 }}
                 aside={aside}
             >
+                <ResetFilters />
                 <DatagridConfigurable bulkActionButtons={<></>}>
                     <NumberField source="id" />
                     <FunctionField

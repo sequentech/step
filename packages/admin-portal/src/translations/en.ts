@@ -144,6 +144,15 @@ const englishTranslation = {
             votersByChannels: "Voters by channel",
             voterLoginURL: "Voter Login URL",
             voterEnrollURL: "Voter Enroll URL",
+            ipAddress: {
+                emptyState: "No votes yet.",
+                title: "IP Addresses",
+                ip: "IP",
+                country: "Country",
+                VoteCount: "Vote Count",
+                ElectionName: "Election Name",
+                VotersId: "Voters Id",
+            },
         },
         electionEventScreen: {
             common: {
@@ -356,6 +365,8 @@ const englishTranslation = {
                 exportError: "Error exporting Election Event",
                 passwordTitle: "Password",
                 passwordDescription: "Password to decrypt the file:",
+                copiedSuccess: "Password copied to clipboard",
+                copiedError: "Error copying password",
             },
             taskNotification:
                 "{{action}} has started. You can see its status at Tasks Execution table.",
@@ -365,6 +376,7 @@ const englishTranslation = {
                 title: "Election",
                 subtitle: "Election configuration.",
                 fileLoaded: "File loaded",
+                noPermission: "You don't have permission to access this election.",
             },
             edit: {
                 general: "General",
@@ -381,6 +393,7 @@ const englishTranslation = {
                 reorder: "Reorder contests",
                 castVoteConfirm: "Cast Vote Confirmation Modal",
                 gracePeriodPolicy: "Grace Period",
+                permissionLabel: "Permission Label",
             },
             field: {
                 name: "Name",
@@ -450,28 +463,30 @@ const englishTranslation = {
                     subtitle: "Create user",
                 },
                 fields: {
-                    has_voted: "Voted",
-                    username: "Username",
-                    first_name: "First Name",
-                    last_name: "Last Name",
-                    email: "Email",
-                    enabled: "Enabled",
-                    emailVerified: "Email Verified",
-                    groups: "Groups",
-                    attributes: "Attributes",
-                    area: "Area",
-                    password: "Password",
-                    repeatPassword: "Repeat Password",
-                    passwordMismatch: "Passwords must match",
-                    passwordLengthValidate: "Password must be at least 8 characters long",
-                    passwordUppercaseValidate:
+                    "has_voted": "Voted",
+                    "username": "Username",
+                    "first_name": "First Name",
+                    "last_name": "Last Name",
+                    "email": "Email",
+                    "enabled": "Enabled",
+                    "emailVerified": "Email Verified",
+                    "groups": "Groups",
+                    "attributes": "Attributes",
+                    "area": "Area",
+                    "password": "Password",
+                    "repeatPassword": "Repeat Password",
+                    "passwordMismatch": "Passwords must match",
+                    "passwordLengthValidate": "Password must be at least 8 characters long",
+                    "passwordUppercaseValidate":
                         "Password must contain at least one uppercase letter",
-                    passwordLowercaseValidate:
+                    "passwordLowercaseValidate":
                         "Password must contain at least one lowercase letter",
-                    passwordDigitValidate: "Password must contain at least one digit",
-                    passwordSpecialCharValidate:
+                    "passwordDigitValidate": "Password must contain at least one digit",
+                    "passwordSpecialCharValidate":
                         "Password must contain at least one special character",
-                    trustee: "Act as Trustee",
+                    "trustee": "Act as Trustee",
+                    "permissionLabel": "Permission Label",
+                    "authorized-election-ids": "Elections",
                 },
                 delete: {
                     body: "Are you sure you want to delete this user?",
@@ -614,6 +629,7 @@ const englishTranslation = {
                 "miru-download": "Miru Download",
                 "miru-send": "Miru Send",
                 "miru-sign": "Miru Sign",
+                "permission-label-write": "Edit Permission Label",
                 "scheduled-event-write": "Edit Scheduled Events",
             },
         },

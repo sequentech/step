@@ -4,7 +4,7 @@
 
 import {Dialog} from "@sequentech/ui-essentials"
 import {isString} from "@sequentech/ui-core"
-import React, {useMemo, useState} from "react"
+import React, {useEffect, useMemo, useState} from "react"
 import {
     Button,
     Datagrid,
@@ -36,7 +36,6 @@ import {
 } from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
-import {ListActions} from "@/components/ListActions"
 
 const EditElectionEventTextDataTable = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event_Extended>()

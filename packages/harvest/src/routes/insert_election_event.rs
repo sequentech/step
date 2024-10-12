@@ -116,14 +116,19 @@ pub async fn import_election_event_f(
     )?;
 
     let (temp_file_path, document, document_type) =
-        get_document(&hasura_transaction, input.clone(), None)
-            .await
-            .map_err(|err| {
-                (
-                    Status::InternalServerError,
-                    format!("Error getting document: {err}"),
-                )
-            })?;
+        match get_document(&hasura_transaction, input.clone(), None).await {
+            Ok((temp_file_path, document, document_type)) => {
+                (temp_file_path, document, document_type)
+            }
+            Err(err) => {
+                return Ok(Json(ImportElectionEventOutput {
+                    id: None,
+                    message: None,
+                    error: Some(err.to_string()),
+                    task_execution: None,
+                }))
+            }
+        };
 
     let document_result =
         services::import_election_event::get_election_event_schema(

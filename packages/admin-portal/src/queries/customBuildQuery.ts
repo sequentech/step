@@ -10,6 +10,7 @@ import {getPermissions} from "./GetPermissions"
 import {getRoles} from "./GetRoles"
 import {isString} from "lodash"
 import {COLUMNS_MAP} from "@/types/query"
+import {GetCastVotesByIp} from "./GetCastVotesByIp"
 
 export interface ParamsSort {
     field: string
@@ -19,14 +20,23 @@ export interface ParamsSort {
 export const customBuildQuery =
     (introspectionResults: any) => (raFetchType: any, resourceName: any, params: any) => {
         let sort: ParamsSort | undefined | null = params.sort
-        if (
-            isString(resourceName) &&
-            raFetchType === "GET_LIST" &&
-            sort?.field &&
-            COLUMNS_MAP[resourceName] &&
-            !COLUMNS_MAP[resourceName].includes(sort.field)
-        ) {
-            params.sort = undefined
+        if (isString(resourceName) && raFetchType === "GET_LIST") {
+            if (
+                sort?.field &&
+                COLUMNS_MAP[resourceName] &&
+                !COLUMNS_MAP[resourceName].includes(sort.field)
+            ) {
+                params.sort = undefined
+            }
+
+            let validFilters = COLUMNS_MAP[resourceName]
+            if (validFilters) {
+                Object.keys(params.filter).forEach((f) => {
+                    if (!validFilters.includes(f)) {
+                        delete params.filter[f]
+                    }
+                })
+            }
         }
 
         if (resourceName.startsWith("pgaudit") && raFetchType === "GET_LIST") {
@@ -191,6 +201,31 @@ export const customBuildQuery =
                 ),
                 parseResponse: (res: any) => {
                     const response = res.data.get_permissions
+                    let output = {
+                        data: response.items,
+                        total: response.total.aggregate.count,
+                    }
+                    return output
+                },
+            }
+        } else if (resourceName === "ip_address" && raFetchType === "GET_LIST") {
+            const resource: any = {
+                type: {
+                    fields: [],
+                    name: "ip_address",
+                },
+            }
+
+            return {
+                query: GetCastVotesByIp(params),
+                variables: buildVariables(introspectionResults)(
+                    resource,
+                    raFetchType,
+                    params,
+                    null
+                ),
+                parseResponse: (res: any) => {
+                    const response = res.data.get_top_votes_by_ip
                     let output = {
                         data: response.items,
                         total: response.total.aggregate.count,

@@ -1,4 +1,5 @@
 import React, {useState} from "react"
+import {useNotify} from "react-admin"
 import {ExportElectionEventMutation} from "@/gql/graphql"
 import {EXPORT_ELECTION_EVENT} from "@/queries/ExportElectionEvent"
 import {useMutation} from "@apollo/client"
@@ -29,7 +30,7 @@ interface ExportWrapperProps {
 
 // Helper function to generate a random password
 const generateRandomPassword = (length = 12) => {
-    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()"
+    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!#$%&*"
     let password = ""
     for (let i = 0; i < length; i++) {
         password += charset.charAt(Math.floor(Math.random() * charset.length))
@@ -226,15 +227,20 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
 
 const PasswordDialog: React.FC<{password: string; onClose: () => void}> = ({password, onClose}) => {
     const {t} = useTranslation()
+    const notify = useNotify()
 
     const handleCopyPassword = () => {
         navigator.clipboard
             .writeText(password)
             .then(() => {
-                alert(t("common.label.copied"))
+                notify(t("electionEventScreen.export.copiedSuccess"), {
+                    type: "success",
+                })
             })
             .catch((err) => {
-                console.error("Failed to copy text: ", err)
+                notify(t("electionEventScreen.export.copiedError"), {
+                    type: "error",
+                })
             })
     }
 

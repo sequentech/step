@@ -21,6 +21,7 @@ Files:
   yarn.lock
   packages/.ignore
   packages/admin-portal/.ignore
+  packages/step-cli/.ignore
   packages/ballot-verifier/.ignore
   packages/braid/.ignore
   packages/sequent-core/.ignore
@@ -42,8 +43,7 @@ Files:
   packages/immudb-rs/proto/immudb/*
   packages/keycloak-extensions/message-otp-authenticator/src/main/resources/theme-resources/templates/*
   packages/keycloak-extensions/inetum-authenticator/src/main/resources/theme-resources/resources/inetum-sdk-4.0.2/*
-  packages/keycloak-extensions/sequent-extend-admin-console-spi/src/main/resources/META-INF/services/org.keycloak.services.ui.extend.UiPageProviderFactory
-  packages/keycloak-extensions/sequent-extend-admin-console-spi/src/main/resources/META-INF/services/org.keycloak.services.ui.extend.UiTabProviderFactory
+  packages/keycloak-extensions/conditional-authenticators/src/main/resources/META-INF/services/org.keycloak.protocol.ProtocolMapper
   docs/assets/*
 Copyright: 2024 Sequent Tech <legal@sequentech.io>
 License: AGPL-3.0-only
