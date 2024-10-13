@@ -85,7 +85,8 @@ public class Utils {
 
   public static final String SEND_ERROR_EMAIL_SUBJECT = "registrationErrorEmailSubject";
   public static final String SEND_ERROR_EMAIL_FTL = "error-email.ftl";
-  public static final String SEND_SUPPORT_ERROR_EMAIL_SUBJECT = "userRegistrationErrorNotificationSubject";
+  public static final String SEND_SUPPORT_ERROR_EMAIL_SUBJECT =
+      "userRegistrationErrorNotificationSubject";
   public static final String SEND_SUPPORT_ERROR_EMAIL_FTL = "support-error-email.ftl";
 
   public static final String SEND_REGISTER_FAILED_SMS_I18N_KEY = "messageFailedSMS";
@@ -152,13 +153,14 @@ public class Utils {
 
     // Handle OTL/OTP
     if (isOtl) {
-      code = generateOTL(
-          authSession,
-          session,
-          ttl,
-          otlAuthNotesNames,
-          authSession.getRedirectUri(),
-          deferredUser);
+      code =
+          generateOTL(
+              authSession,
+              session,
+              ttl,
+              otlAuthNotesNames,
+              authSession.getRedirectUri(),
+              deferredUser);
       authSession.setAuthNote(Utils.OTL_VISITED, "false");
     } else {
       code = SecretGenerator.getInstance().randomString(length, SecretGenerator.DIGITS);
@@ -180,7 +182,8 @@ public class Utils {
         && (messageCourier == MessageCourier.SMS || messageCourier == MessageCourier.BOTH)) {
       SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
       log.infov("sendCode(): Sending SMS to=`{0}`", mobileNumber.trim());
-      List<String> smsAttributes = ImmutableList.of(realmName, code, String.valueOf(Math.floorDiv(ttl, 60)));
+      List<String> smsAttributes =
+          ImmutableList.of(realmName, code, String.valueOf(Math.floorDiv(ttl, 60)));
 
       String smsTemplateKey = (isOtl) ? Utils.SEND_LINK_SMS_I18N_KEY : Utils.SEND_CODE_SMS_I18N_KEY;
       smsSenderProvider.send(
@@ -194,7 +197,8 @@ public class Utils {
         && emailAddress.trim().length() > 0
         && (messageCourier == MessageCourier.EMAIL || messageCourier == MessageCourier.BOTH)) {
       log.infov("sendCode(): Sending email to=`{0}`", emailAddress.trim());
-      EmailTemplateProvider emailTemplateProvider = session.getProvider(EmailTemplateProvider.class);
+      EmailTemplateProvider emailTemplateProvider =
+          session.getProvider(EmailTemplateProvider.class);
 
       Map<String, Object> messageAttributes = Maps.newHashMap();
       messageAttributes.put("realmName", realmName);
@@ -255,8 +259,9 @@ public class Utils {
   public static String linkFromActionToken(
       KeycloakSession session, RealmModel realm, DefaultActionToken token) {
     UriInfo uriInfo = session.getContext().getUri();
-    UriBuilder builder = actionTokenBuilder(
-        uriInfo.getBaseUri(), token.serialize(session, realm, uriInfo), token.getIssuedFor());
+    UriBuilder builder =
+        actionTokenBuilder(
+            uriInfo.getBaseUri(), token.serialize(session, realm, uriInfo), token.getIssuedFor());
     return builder.build(realm.getName()).toString();
   }
 
@@ -279,50 +284,54 @@ public class Utils {
       String redirectUri,
       boolean isDeferredUser) {
     // Get necessary components from the context
-    AuthenticationSessionCompoundId compoundId = AuthenticationSessionCompoundId.fromAuthSession(authSession);
+    AuthenticationSessionCompoundId compoundId =
+        AuthenticationSessionCompoundId.fromAuthSession(authSession);
     String sessionId = compoundId.getEncodedId();
-    String userId = authSession.getAuthenticatedUser() == null
-        ? authSession.getAuthNote(USER_ID)
-        : authSession.getAuthenticatedUser().getId();
+    String userId =
+        authSession.getAuthenticatedUser() == null
+            ? authSession.getAuthNote(USER_ID)
+            : authSession.getAuthenticatedUser().getId();
     RealmModel realm = authSession.getRealm();
 
     // Create the OTLActionToken with the necessary information
-    OTLActionToken token = new OTLActionToken(
-        userId,
-        Time.currentTime() + ttl,
-        sessionId, // Original compound session ID
-        otlAuthNotesNames,
-        isDeferredUser,
-        redirectUri,
-        authSession.getClient().getClientId());
+    OTLActionToken token =
+        new OTLActionToken(
+            userId,
+            Time.currentTime() + ttl,
+            sessionId, // Original compound session ID
+            otlAuthNotesNames,
+            isDeferredUser,
+            redirectUri,
+            authSession.getClient().getClientId());
 
     // Generate the OTL link
     return linkFromActionToken(session, realm, token);
-  };
+  }
+  ;
 
   Optional<AuthenticatorConfigModel> getConfig(RealmModel realm) {
     // Using streams to find the first matching configuration
     // TODO: We're assuming there's only one instance in this realm of this
     // authenticator
-    Optional<AuthenticatorConfigModel> configOptional = realm
-        .getAuthenticationFlowsStream()
-        .flatMap(flow -> realm.getAuthenticationExecutionsStream(flow.getId()))
-        .filter(
-            model -> {
-              boolean ret = (model.getAuthenticator() != null
-                  && model
-                      .getAuthenticator()
-                      .equals(MessageOTPAuthenticatorFactory.PROVIDER_ID));
-              return ret;
-            })
-        .map(model -> realm.getAuthenticatorConfigById(model.getAuthenticatorConfig()))
-        .findFirst();
+    Optional<AuthenticatorConfigModel> configOptional =
+        realm
+            .getAuthenticationFlowsStream()
+            .flatMap(flow -> realm.getAuthenticationExecutionsStream(flow.getId()))
+            .filter(
+                model -> {
+                  boolean ret =
+                      (model.getAuthenticator() != null
+                          && model
+                              .getAuthenticator()
+                              .equals(MessageOTPAuthenticatorFactory.PROVIDER_ID));
+                  return ret;
+                })
+            .map(model -> realm.getAuthenticatorConfigById(model.getAuthenticatorConfig()))
+            .findFirst();
     return configOptional;
   }
 
-  /**
-   * We use constant time comparison for security reasons, to avoid timing attacks
-   */
+  /** We use constant time comparison for security reasons, to avoid timing attacks */
   boolean constantTimeIsEqual(byte[] digesta, byte[] digestb) {
     if (digesta.length != digestb.length) {
       return false;
@@ -379,8 +388,9 @@ public class Utils {
       KeycloakUriInfo uriInfo = session.getContext().getUri();
       attributes.put("url", new UrlBean(realm, theme, uriInfo.getBaseUri(), null));
 
-      String subject = new MessageFormat(messages.getProperty(subjectKey, subjectKey), locale)
-          .format(subjectAttributes.toArray());
+      String subject =
+          new MessageFormat(messages.getProperty(subjectKey, subjectKey), locale)
+              .format(subjectAttributes.toArray());
       String textTemplate = String.format("text/%s", template);
       String textBody;
       FreeMarkerProvider freeMarker = session.getProvider(FreeMarkerProvider.class);
@@ -413,14 +423,15 @@ public class Utils {
       String address)
       throws EmailException {
     try {
-      EmailTemplate emailTemplate = processEmailTemplate(
-          session,
-          realm,
-          user,
-          subjectFormatKey,
-          subjectAttributes,
-          bodyTemplate,
-          bodyAttributes);
+      EmailTemplate emailTemplate =
+          processEmailTemplate(
+              session,
+              realm,
+              user,
+              subjectFormatKey,
+              subjectAttributes,
+              bodyTemplate,
+              bodyAttributes);
       EmailSenderProvider emailSender = session.getProvider(EmailSenderProvider.class);
 
       emailSender.send(
@@ -437,8 +448,8 @@ public class Utils {
   }
 
   // Sending Email Or SMS based on the enrollment
-  public static void sendErrorNotificationToUser(KeycloakSession session, String realmId, Event event)
-      throws EmailException, IOException {
+  public static void sendErrorNotificationToUser(
+      KeycloakSession session, String realmId, Event event) throws EmailException, IOException {
 
     String email = event.getDetails().get("email");
     String mobileNumber = event.getDetails().get("sequent.read-only.mobile-number");
@@ -457,13 +468,11 @@ public class Utils {
     }
     // Send email to support
     sendSupportNotificationEmail(session, realmId, event);
-
   }
 
   // Sends an email to the user based on the event
   protected static void sendErrorEmailToUser(
-      KeycloakSession session, String realmId, String email, Event event)
-      throws EmailException {
+      KeycloakSession session, String realmId, String email, Event event) throws EmailException {
     try {
       RealmModel realm = session.realms().getRealm(realmId);
       String errorCode = event.getDetails().get("code_id");
@@ -491,7 +500,8 @@ public class Utils {
   }
 
   // Sending SMS to the user based on the event
-  protected static void sendErrorSmsToUser(KeycloakSession session, String realmId, String mobileNumber, Event event)
+  protected static void sendErrorSmsToUser(
+      KeycloakSession session, String realmId, String mobileNumber, Event event)
       throws IOException {
     try {
       RealmModel realm = session.realms().getRealm(realmId);
@@ -501,7 +511,12 @@ public class Utils {
       List<String> smsAttributes = ImmutableList.of(errorCode);
 
       smsSenderProvider.send(
-          mobileNumber.trim(), SEND_REGISTER_FAILED_SMS_I18N_KEY, smsAttributes, realm, null, session);
+          mobileNumber.trim(),
+          SEND_REGISTER_FAILED_SMS_I18N_KEY,
+          smsAttributes,
+          realm,
+          null,
+          session);
 
       log.info("Error SMS sent to: " + mobileNumber);
     } catch (IOException e) {
@@ -512,8 +527,7 @@ public class Utils {
 
   // Sending support email with event details
   protected static void sendSupportNotificationEmail(
-      KeycloakSession session, String realmId, Event event)
-      throws EmailException {
+      KeycloakSession session, String realmId, Event event) throws EmailException {
     try {
       RealmModel realm = session.realms().getRealm(realmId);
 

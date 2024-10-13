@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package sequent.keycloak.inetum_authenticator;
 
+import static sequent.keycloak.authenticator.Utils.sendErrorNotificationToUser;
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -18,7 +20,6 @@ import org.keycloak.events.EventType;
 import org.keycloak.events.admin.AdminEvent;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.util.JsonSerialization;
-import static sequent.keycloak.authenticator.Utils.sendErrorNotificationToUser;
 
 @JBossLog
 public class CustomEventListenerProvider implements EventListenerProvider {
@@ -36,8 +37,7 @@ public class CustomEventListenerProvider implements EventListenerProvider {
   }
 
   @Override
-  public void close() {
-  }
+  public void close() {}
 
   @Override
   public void onEvent(Event event) {
@@ -57,31 +57,33 @@ public class CustomEventListenerProvider implements EventListenerProvider {
         event.getType(),
         event.getError(),
         event.getUserId());
-
   }
 
   public void authenticate() {
     HttpClient client = HttpClient.newHttpClient();
-    String url = this.keycloakUrl
-        + "/realms/"
-        + getTenantRealmName(this.tenantId)
-        + "/protocol/openid-connect/token";
+    String url =
+        this.keycloakUrl
+            + "/realms/"
+            + getTenantRealmName(this.tenantId)
+            + "/protocol/openid-connect/token";
     Map<Object, Object> data = new HashMap<>();
     data.put("client_id", this.clientId);
     data.put("scope", "openid");
     data.put("client_secret", this.clientSecret);
     data.put("grant_type", "client_credentials");
 
-    String form = data.entrySet().stream()
-        .map(entry -> entry.getKey() + "=" + entry.getValue())
-        .reduce((entry1, entry2) -> entry1 + "&" + entry2)
-        .orElse("");
+    String form =
+        data.entrySet().stream()
+            .map(entry -> entry.getKey() + "=" + entry.getValue())
+            .reduce((entry1, entry2) -> entry1 + "&" + entry2)
+            .orElse("");
     log.info(form);
-    HttpRequest request = HttpRequest.newBuilder()
-        .uri(URI.create(url))
-        .header("Content-Type", "application/x-www-form-urlencoded")
-        .POST(HttpRequest.BodyPublishers.ofString(form))
-        .build();
+    HttpRequest request =
+        HttpRequest.newBuilder()
+            .uri(URI.create(url))
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .POST(HttpRequest.BodyPublishers.ofString(form))
+            .build();
 
     CompletableFuture<HttpResponse<String>> responseFuture;
     responseFuture = client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
@@ -118,16 +120,19 @@ public class CustomEventListenerProvider implements EventListenerProvider {
   private void logEvent(String electionEventId, EventType eventType, String body, String userId) {
     HttpClient client = HttpClient.newHttpClient();
     String url = "http://" + this.harvestUrl + "/immudb/log-event";
-    String requestBody = String.format(
-        "{\"election_event_id\": \"%s\", \"message_type\": \"%s\", \"body\" : \"%s\", \"user_id\": \"%s\"}",
-        electionEventId, eventType, body, userId);
-    HttpRequest request = HttpRequest.newBuilder()
-        .uri(URI.create(url))
-        .header("Content-Type", "application/json")
-        .header("Authorization", "Bearer " + this.access_token)
-        .POST(HttpRequest.BodyPublishers.ofString(requestBody))
-        .build();
-    CompletableFuture<HttpResponse<String>> response = client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+    String requestBody =
+        String.format(
+            "{\"election_event_id\": \"%s\", \"message_type\": \"%s\", \"body\" : \"%s\", \"user_id\": \"%s\"}",
+            electionEventId, eventType, body, userId);
+    HttpRequest request =
+        HttpRequest.newBuilder()
+            .uri(URI.create(url))
+            .header("Content-Type", "application/json")
+            .header("Authorization", "Bearer " + this.access_token)
+            .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+            .build();
+    CompletableFuture<HttpResponse<String>> response =
+        client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
     response
         .thenAccept(
             res -> {
