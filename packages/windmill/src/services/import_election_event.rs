@@ -39,11 +39,11 @@ use zip::read::ZipArchive;
 
 use super::consolidation::aes_256_cbc_encrypt::decrypt_file_aes_256_cbc;
 use super::documents;
-use super::protocol_manager::get_election_board;
 use super::documents::upload_and_return_document_postgres;
 use super::election_event_board::get_election_event_board;
 use super::electoral_log::ElectoralLog;
 use super::import_users::import_users_file;
+use super::protocol_manager::get_election_board;
 use super::temp_path::get_file_size;
 use crate::hasura::election_event::get_election_event;
 use crate::hasura::election_event::insert_election_event as insert_election_event_hasura;

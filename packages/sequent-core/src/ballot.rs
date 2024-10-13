@@ -543,7 +543,7 @@ pub enum CandidatesSelectionPolicy {
     Display,
     Default,
 )]
-pub enum KeysCeremonySettings {
+pub enum KeysCeremonyPolicy {
     #[strum(serialize = "ELECTION_EVENT")]
     #[serde(rename = "ELECTION_EVENT")]
     #[default]
@@ -627,7 +627,7 @@ pub struct ElectionEventPresentation {
     pub voting_portal_countdown_policy: Option<VotingPortalCountdownPolicy>,
     pub custom_urls: Option<CustomUrls>,
     pub active_template_ids: Option<ActiveTemplateIds>,
-    pub keys_ceremony_settings: Option<KeysCeremonySettings>,
+    pub keys_ceremony_policy: Option<KeysCeremonyPolicy>,
     pub locked_down: Option<LockedDown>,
     pub publish_policy: Option<Publish>,
     pub enrollment: Option<Enrollment>,
