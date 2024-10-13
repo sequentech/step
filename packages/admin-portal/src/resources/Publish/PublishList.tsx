@@ -60,7 +60,8 @@ export const PublishList: React.FC<TPublishList> = ({
     setBallotPublicationId = () => null,
 }) => {
     const {t} = useTranslation()
-    const [open, setOpen] = React.useState(false)
+    const [open, setOpen] = React.useState(false);
+    const [publicationId, setPublicationId] = React.useState<string | Identifier>();
 
     const Empty = () => (
         <ResourceListStyles.EmptyBox>
@@ -81,6 +82,11 @@ export const PublishList: React.FC<TPublishList> = ({
         </ResourceListStyles.EmptyBox>
     )
 
+    const onPreview = (id: string | Identifier) => {
+        setPublicationId(id);
+        setOpen(true);
+    }
+
     const actions: Action[] = [
         {
             icon: <Visibility className="publish-visibility-icon" />,
@@ -88,7 +94,7 @@ export const PublishList: React.FC<TPublishList> = ({
         },
         {
             icon: <Preview className="publish-preview-icon" />,
-            action: () => setOpen(true),
+            action: onPreview,
         },
     ]
 
@@ -153,7 +159,7 @@ export const PublishList: React.FC<TPublishList> = ({
                     sx: {width: "30%"},
                 }}
             >
-                <EditPreview electionEventId={electionEventId} close={handleCloseEditDrawer} />
+                <EditPreview id={publicationId} electionEventId={electionEventId} close={handleCloseEditDrawer} />
             </Drawer>
         </Box>
     )
