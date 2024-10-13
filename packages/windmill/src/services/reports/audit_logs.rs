@@ -19,7 +19,7 @@ use deadpool_postgres::Client as DbClient;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use sequent_core::types::templates::EmailConfig;
-use chrono::{NaiveDate, TimeZone, Utc};
+use chrono::{NaiveDate, TimeZone, Utc, Local};
 use rocket::http::Status;
 
 /// Struct for Audit Logs User Data
@@ -41,7 +41,7 @@ pub struct SystemData {
     pub election_date: String,
     pub election_title: String,
     pub voting_period: String,
-    pub geographic_region: String,
+    pub geographical_region: String,
     pub post: String,
     pub country: String,
     pub voting_center: String,
@@ -263,7 +263,8 @@ impl TemplateRenderer for AuditLogsTemplate {
         ).await?;
 
         // Parse the date string into a NaiveDate
-        let date_printed_parsed = NaiveDate::parse_from_str(&date_printed, "%Y-%m-%d").expect("Failed to parse date");
+        let current_date = Local::now().date_naive();
+        let date_printed_parsed = NaiveDate::parse_from_str(&current_date.to_string(), "%Y-%m-%d").expect("Failed to parse date");
     
         // Format the date to the desired format
         date_printed = date_printed_parsed.format("%B %d, %Y").to_string();
@@ -289,7 +290,7 @@ impl TemplateRenderer for AuditLogsTemplate {
             election_date,
             election_title: election.name,
             voting_period: format!("{} - {}", voting_period_start_date, voting_period_end_date),
-            geographic_region: election_general_data.geographical_region,
+            geographical_region: election_general_data.geographical_region,
             post: election_general_data.post,
             country: election_general_data.country,
             voting_center: election_general_data.voting_center,
