@@ -106,16 +106,29 @@ pub async fn genereate_fill_up_rate(
 }
 
 #[instrument(err, skip_all)]
+pub async fn get_total_number_of_ballots(
+    results_area_contest: &ResultsAreaContest,
+) -> Result<(i64)> {
+    let annotitions = results_area_contest.annotations.clone();
+    match &annotitions {
+        Some(annotitions) => Ok(annotitions
+            .get("extended_metrics")
+            .and_then(|extended_metric| extended_metric.get("ballots"))
+            .and_then(|under_vote| under_vote.as_i64())
+            .unwrap_or(0)),
+        None => Ok(0),
+    }
+}
+
+
+#[instrument(err, skip_all)]
 pub async fn genereate_voters_turnout(
-    results_area_contest_annotations: &Value,
+    results_area_contest: &ResultsAreaContest,
     number_of_registered_voters: &i64,
 ) -> Result<(i64)> {
-    let annotitions = results_area_contest_annotations.clone();
-    let number_of_ballots = annotitions
-        .get("extended_metrics")
-        .and_then(|extended_metric| extended_metric.get("ballots"))
-        .and_then(|under_vote| under_vote.as_i64())
-        .unwrap_or(0);
+    let number_of_ballots = get_total_number_of_ballots(&results_area_contest)
+        .await
+        .map_err(|err| anyhow!("Error getting total number of ballots: {err}"))?;
 
     let voters_turnout = (number_of_ballots / number_of_registered_voters) * 100;
     Ok(voters_turnout)

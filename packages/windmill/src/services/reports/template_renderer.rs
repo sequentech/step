@@ -54,6 +54,9 @@ pub trait TemplateRenderer: Debug {
 
     fn get_tenant_id(&self) -> String;
     fn get_election_event_id(&self) -> String;
+    fn get_election_id(&self) -> Option<String> {
+        None // Default implementation, can be overridden in specific reports that have election_id
+    } 
 
     fn should_send_email(&self, is_scheduled_task: bool) -> bool {
         // Send email if it's a cron job (scheduled task) or if a voterId is present

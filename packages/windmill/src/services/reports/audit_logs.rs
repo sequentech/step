@@ -1,6 +1,12 @@
+use super::report_variables::{extract_eleciton_data, get_total_number_of_registered_voters_for_country, genereate_voters_turnout};
 use super::template_renderer::*;
+use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
+use sequent_core::types::scheduled_event::generate_voting_period_dates;
+use crate::services::database::{get_keycloak_pool, PgConfig};
 use crate::services::electoral_log::{list_electoral_log, GetElectoralLogBody};
 use crate::services::database::get_hasura_pool;
+use crate::postgres::election::get_election_by_id;
+use sequent_core::services::keycloak::get_event_realm;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Client as DbClient;
@@ -8,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use sequent_core::types::templates::EmailConfig;
 use chrono::{NaiveDate, TimeZone, Utc};
-
+use rocket::http::Status;
 
 /// Struct for Audit Logs User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -21,7 +27,7 @@ pub struct UserData {
     pub country: String,
     pub voting_center: String,
     pub precinct_code: String,
-    pub registered_voters: u32,
+    pub registered_voters: i64,
     pub ballots_counted: u32,
     pub voters_turnout: String,
     pub sequences: Vec<AuditLogEntry>,
@@ -42,7 +48,6 @@ pub struct AuditLogEntry {
     pub username: String,
     pub activity: String,
 }
-
 /// Struct for System Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SystemData {
@@ -55,11 +60,11 @@ pub struct SystemData {
     pub date_printed: String,
     pub printing_code: String,
 }
-
 #[derive(Debug)]
 pub struct AuditLogsTemplate {
     tenant_id: String,
     election_event_id: String,
+    election_id: String,
 }
 
 #[async_trait]
@@ -77,6 +82,10 @@ impl TemplateRenderer for AuditLogsTemplate {
 
     fn get_election_event_id(&self) -> String {
         self.election_event_id.clone()
+    }
+
+    fn get_election_id(&self) -> Option<String> {
+        Some(self.election_id.clone())
     }
 
     fn base_name() -> String {
@@ -104,41 +113,77 @@ impl TemplateRenderer for AuditLogsTemplate {
             .await
             .with_context(|| "Error getting DB pool")?;
 
-        let transaction = db_client
+        let hasura_transaction = db_client
             .transaction()
             .await
             .with_context(|| "Error starting transaction")?;
 
-        // Fetch necessary data (dummy placeholders for now)
-        let mut election_date = "2024-10-13".to_string();
-        let election_title = "election title".to_string();
-        let voting_period = "April 10 - May 10, 2024".to_string();
-        let geographic_region = "Region A".to_string();
-        let post = "Post X".to_string();
-        let country = "Country Y".to_string();
-        let voting_center = "Voting Center Z".to_string();
-        let precinct_code = "12345".to_string();
-        let registered_voters = 5000;
-        let ballots_counted = 3500;
-        let voters_turnout = "70%".to_string();
-        let chairperson_name = "John Doe".to_string();
-        let poll_clerk_name = "Jane Smith".to_string();
-        let third_member_name = "Alice Johnson".to_string();
-        let chairperson_digital_signature = "DigitalSignatureABC".to_string();
-        let poll_clerk_digital_signature = "DigitalSignatureDEF".to_string();
-        let third_member_digital_signature = "DigitalSignatureGHI".to_string();
-        let goverment_time = "18:00".to_string();
+        let realm_name = get_event_realm(self.tenant_id.as_str(), self.election_event_id.as_str());
+        let mut keycloak_db_client = get_keycloak_pool()
+        .await
+        .get()
+        .await
+        .with_context(|| "Error acquiring Keycloak DB pool")?;
+
+        let keycloak_transaction = keycloak_db_client
+        .transaction()
+        .await
+        .with_context(|| "Error starting Keycloak transaction")?;
+
+        let election = match get_election_by_id(
+            &hasura_transaction,
+            &self.get_tenant_id(),
+            &self.get_election_event_id(),
+            &self.get_election_id().unwrap()
+        )
+        .await
+        .with_context(|| "Error getting election by id")? 
+        {
+            Some(election) => election,
+            None => return Err(anyhow::anyhow!("Election not found")),
+        };   
+
+        let election_general_data = match extract_eleciton_data(&election).await {
+            Ok(data) => data,  // Extracting the ElectionData struct out of Ok
+            Err(err) => {
+                return Err(anyhow::anyhow!(format!("Error fetching election data: {}", err)));
+            }
+        };
+
+        // Fetch election event data
+        let start_election_event = find_scheduled_event_by_election_event_id(
+            &hasura_transaction,
+            &self.get_tenant_id(),
+            &self.get_election_event_id(),
+        )
+        .await?;
+
+        let voting_period_dates = generate_voting_period_dates(
+            start_election_event,
+            &self.get_tenant_id(),
+            &self.get_election_event_id(),
+            Some(&self.get_election_id().unwrap()),
+        )?;
+
+        let voting_period_start_date = match voting_period_dates.start_date {
+            Some(voting_period_start_date) => voting_period_start_date,
+            None => return Err(anyhow::anyhow!(format!("Error fetching election start date: "))),
+        };
+
+        let voting_period_end_date = match voting_period_dates.end_date {
+            Some(voting_period_end_date) => voting_period_end_date,
+            None => return Err(anyhow::anyhow!(format!("Error fetching election end date: "))),
+        };
 
         // Parse the date string into a NaiveDate
-        let date = NaiveDate::parse_from_str(&election_date, "%Y-%m-%d").expect("Failed to parse date");
-
+        let parsed_date = NaiveDate::parse_from_str(&voting_period_start_date, "%Y-%m-%d").expect("Failed to parse date");
         // Format the date to the desired format
-        election_date = date.format("%B %d, %Y").to_string();
+        let election_date = parsed_date.format("%B %d, %Y").to_string();
 
         // Fetch list of audit logs
         let mut sequences: Vec<AuditLogEntry> = Vec::new();
         let electoral_logs = list_electoral_log(GetElectoralLogBody {
-            tenant_id: String::from(&self.tenant_id),
+            tenant_id: String::from(&self.get_tenant_id()),
             election_event_id: String::from(&self.election_event_id),
             limit: None,
             offset: None,
@@ -169,15 +214,33 @@ impl TemplateRenderer for AuditLogsTemplate {
             sequences.push(audit_log_entry);
         }
 
+        let registered_voters = get_total_number_of_registered_voters_for_country(
+            &keycloak_transaction,
+            &realm_name,
+            &election_general_data.country
+        ).await?;
+
+        // Fetch necessary data (dummy placeholders for now)
+        let voting_period = "April 10 - May 10, 2024".to_string();
+        let ballots_counted = 3500;
+        let voters_turnout = "70%".to_string();
+        let chairperson_name = "John Doe".to_string();
+        let poll_clerk_name = "Jane Smith".to_string();
+        let third_member_name = "Alice Johnson".to_string();
+        let chairperson_digital_signature = "DigitalSignatureABC".to_string();
+        let poll_clerk_digital_signature = "DigitalSignatureDEF".to_string();
+        let third_member_digital_signature = "DigitalSignatureGHI".to_string();
+        let goverment_time = "18:00".to_string();
+
         Ok(UserData {
             election_date,
-            election_title,
-            voting_period,
-            geographic_region,
-            post,
-            country,
-            voting_center,
-            precinct_code,
+            election_title: election.name,
+            voting_period: format!("{} - {}", voting_period_start_date, voting_period_end_date),
+            geographic_region: election_general_data.geographical_region,
+            post: election_general_data.post,
+            country: election_general_data.country,
+            voting_center: election_general_data.voting_center,
+            precinct_code: election_general_data.clustered_precinct_id,
             registered_voters,
             ballots_counted,
             voters_turnout,
