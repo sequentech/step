@@ -52,11 +52,11 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
     })
 
     const filteredElections = useMemo(() => {
-        if (!keysCeremonyId) {
+        if (!keysCeremonyId || tallyData) {
             return elections
         }
-        elections?.filter((election) => election.keys_ceremony_id === keysCeremonyId)
-    }, [elections, keysCeremonyId])
+        return elections?.filter((election) => election.keys_ceremony_id === keysCeremonyId)
+    }, [elections, keysCeremonyId, tallyData])
 
     useEffect(() => {
         if (filteredElections) {
