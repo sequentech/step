@@ -1,48 +1,48 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useEffect, Suspense, lazy} from "react"
-import {TabbedShowLayout, useRecordContext} from "react-admin"
-import {Sequent_Backend_Election_Event} from "@/gql/graphql"
+import React, { useContext, useEffect, Suspense, lazy } from "react"
+import { TabbedShowLayout, useRecordContext } from "react-admin"
+import { Sequent_Backend_Election_Event } from "@/gql/graphql"
 import ElectionHeader from "@/components/ElectionHeader"
-import {AuthContext} from "@/providers/AuthContextProvider"
-import {IPermissions} from "@/types/keycloak"
-import {useTranslation} from "react-i18next"
-import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
-import {useLocation, useNavigate} from "react-router"
-import {v4 as uuidv4} from "uuid"
-import {Box, Tabs, Tab} from "@mui/material"
-import {EPublishType} from "../Publish/EPublishType"
-import {EElectionEventLockedDown} from "@sequentech/ui-core"
+import { AuthContext } from "@/providers/AuthContextProvider"
+import { IPermissions } from "@/types/keycloak"
+import { useTranslation } from "react-i18next"
+import { useElectionEventTallyStore } from "@/providers/ElectionEventTallyProvider"
+import { useLocation, useNavigate } from "react-router"
+import { v4 as uuidv4 } from "uuid"
+import { Box, Tabs, Tab } from "@mui/material"
+import { EPublishType } from "../Publish/EPublishType"
+import { EElectionEventLockedDown } from "@sequentech/ui-core"
 
 // Lazy load the tab components
 const DashboardElectionEvent = lazy(() => import("@/components/dashboard/election-event/Dashboard"))
 const EditElectionEventData = lazy(() =>
-    import("./EditElectionEventData").then((module) => ({default: module.EditElectionEventData}))
+    import("./EditElectionEventData").then((module) => ({ default: module.EditElectionEventData }))
 )
 const EditElectionEventTextData = lazy(() =>
-    import("./EditElectionEventTextData").then((module) => ({default: module.default}))
+    import("./EditElectionEventTextData").then((module) => ({ default: module.default }))
 )
 const EditElectionEventUsers = lazy(() =>
-    import("./EditElectionEventUsers").then((module) => ({default: module.EditElectionEventUsers}))
+    import("./EditElectionEventUsers").then((module) => ({ default: module.EditElectionEventUsers }))
 )
 const EditElectionEventAreas = lazy(() =>
-    import("./EditElectionEventAreas").then((module) => ({default: module.EditElectionEventAreas}))
+    import("./EditElectionEventAreas").then((module) => ({ default: module.EditElectionEventAreas }))
 )
 const EditElectionEventKeys = lazy(() =>
-    import("./EditElectionEventKeys").then((module) => ({default: module.EditElectionEventKeys}))
+    import("./EditElectionEventKeys").then((module) => ({ default: module.EditElectionEventKeys }))
 )
 const EditElectionEventTally = lazy(() =>
-    import("./EditElectionEventTally").then((module) => ({default: module.EditElectionEventTally}))
+    import("./EditElectionEventTally").then((module) => ({ default: module.EditElectionEventTally }))
 )
 const Publish = lazy(() =>
-    import("@/resources/Publish/Publish").then((module) => ({default: module.Publish}))
+    import("@/resources/Publish/Publish").then((module) => ({ default: module.Publish }))
 )
 const ElectoralLog = lazy(() =>
-    import("./ElectoralLog").then((module) => ({default: module.ElectoralLog}))
+    import("./ElectoralLog").then((module) => ({ default: module.ElectoralLog }))
 )
 const EditElectionEventTasks = lazy(() =>
-    import("./EditElectionEventTasks").then((module) => ({default: module.EditElectionEventTasks}))
+    import("./EditElectionEventTasks").then((module) => ({ default: module.EditElectionEventTasks }))
 )
 const EditElectionEventEvents = lazy(() =>
     import("./EditElectionEventScheduledEvents").then((module) => ({
@@ -64,8 +64,8 @@ export const ElectionEventTabs: React.FC = () => {
     const location = useLocation()
     const navigate = useNavigate()
     const refreshRef = React.useRef<HTMLButtonElement>()
-    const {t} = useTranslation()
-    const {setTallyId, setCreatingFlag, setSelectedTallySessionData} = useElectionEventTallyStore()
+    const { t } = useTranslation()
+    const { setTallyId, setCreatingFlag, setSelectedTallySessionData } = useElectionEventTallyStore()
     const isElectionEventLocked =
         record?.presentation?.locked_down == EElectionEventLockedDown.LOCKED_DOWN
 
@@ -133,6 +133,21 @@ export const ElectionEventTabs: React.FC = () => {
             refreshRef.current?.click()
         }
     }, [loadedChildren])
+
+    // This useEffect handles the 'tabIndex' search parameter from the URL.
+    // It reads the parameter, parses it, and sets the active tab based on the index.
+    // If the 'tabIndex' parameter is present and valid, the corresponding tab will be selected.
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const tabIndexParam = params.get("tabIndex");
+
+        if (tabIndexParam) {
+            const tabIndex = parseInt(tabIndexParam, 10);
+            if (!isNaN(tabIndex)) {
+                setValue(tabIndex);
+            }
+        }
+    }, [location.search]);
 
     const renderTabContent = () => {
         switch (value) {
@@ -222,7 +237,7 @@ export const ElectionEventTabs: React.FC = () => {
     return (
         <>
             <ElectionHeader title={record?.name} subtitle="electionEventScreen.common.subtitle" />
-            <Box sx={{maxWidth: {xs: 360, sm: 420, m: 680, lg: 1100}, bgcolor: "background.paper"}}>
+            <Box sx={{ maxWidth: { xs: 360, sm: 420, m: 680, lg: 1100 }, bgcolor: "background.paper" }}>
                 <Tabs
                     value={value}
                     onChange={handleChange}
@@ -264,7 +279,7 @@ export const ElectionEventTabs: React.FC = () => {
                 </Tabs>
             </Box>
 
-            <Box sx={{padding: 2}}>{renderTabContent()}</Box>
+            <Box sx={{ padding: 2 }}>{renderTabContent()}</Box>
         </>
     )
 }

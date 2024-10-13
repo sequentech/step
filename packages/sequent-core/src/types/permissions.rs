@@ -147,6 +147,11 @@ pub enum Permissions {
     SCHEDULED_EVENT_WRITE,
     #[strum(serialize = "cloudflare-write")]
     CLOUDFLARE_WRITE,
+    #[strum(serialize = "gold")]
+    GOLD,
+    #[strum(serialize = "silver")]
+    SILVER,
+    
 }
 
 #[allow(non_camel_case_types)]

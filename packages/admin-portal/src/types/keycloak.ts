@@ -71,4 +71,6 @@ export enum IPermissions {
     PERMISSION_LABEL_WRITE = "permission-label-write",
     SCHEDULED_EVENT_WRITE = "scheduled-event-write",
     CLOUDFLARE_WRITE = "cloudflare-write",
+    GOLD_PERMISSION = "gold",
+    SILVER_PERMISSION = "silver"
 }

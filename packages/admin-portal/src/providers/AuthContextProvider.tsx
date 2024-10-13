@@ -1,16 +1,16 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext} from "react"
+import React, { useContext } from "react"
 
-import Keycloak, {KeycloakConfig, KeycloakInitOptions} from "keycloak-js"
-import {createContext, useEffect, useState} from "react"
-import {isNull, isString, sleep} from "@sequentech/ui-core"
-import {IPermissions} from "@/types/keycloak"
-import {SettingsContext} from "./SettingsContextProvider"
-import {useLocation, useNavigate} from "react-router"
-import {ExecutionResult} from "graphql"
-import {GetAllTenantsQuery} from "@/gql/graphql"
+import Keycloak, { KeycloakConfig, KeycloakInitOptions } from "keycloak-js"
+import { createContext, useEffect, useState } from "react"
+import { isNull, isString, sleep } from "@sequentech/ui-core"
+import { IPermissions } from "@/types/keycloak"
+import { SettingsContext } from "./SettingsContextProvider"
+import { useLocation, useNavigate } from "react-router"
+import { ExecutionResult } from "graphql"
+import { GetAllTenantsQuery } from "@/gql/graphql"
 
 /**
  * AuthContextValues defines the structure for the default values of the {@link AuthContext}.
@@ -82,6 +82,10 @@ export interface AuthContextValues {
      * @returns
      */
     openProfileLink: () => Promise<void>
+
+    isGoldUser: () => boolean
+
+    reauthWithGold: (redirectUri: string) => Promise<void>
 }
 
 /**
@@ -95,13 +99,15 @@ const defaultAuthContextValues: AuthContextValues = {
     firstName: "",
     tenantId: "",
     trustee: "",
-    logout: () => {},
+    logout: () => { },
     hasRole: () => false,
     getAccessToken: () => undefined,
     isAuthorized: () => false,
     openProfileLink: () => new Promise(() => undefined),
     permissionLabels: [],
-    updateTokenAndPermissionLabels: () => {},
+    updateTokenAndPermissionLabels: () => { },
+    isGoldUser: () => false,
+    reauthWithGold: async () => { }
 }
 
 /**
@@ -126,7 +132,7 @@ interface AuthContextProviderProps {
  */
 const AuthContextProvider = (props: AuthContextProviderProps) => {
     console.log("rendering AuthContextProvider")
-    const {loaded, globalSettings} = useContext(SettingsContext)
+    const { loaded, globalSettings } = useContext(SettingsContext)
     const [keycloak, setKeycloak] = useState<Keycloak | null>()
     const [isKeycloakInitialized, setIsKeycloakInitialized] = useState<boolean>(false)
     const [isGetTenantChecked, setIsGetTenantChecked] = useState<boolean>(false)
@@ -174,10 +180,28 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         return fetchGraphQL(operation, "GetTenant", {})
     }
 
+    const isGoldUser = () => {
+        const acr = keycloak?.tokenParsed?.acr
+        return acr === IPermissions.GOLD_PERMISSION;
+    };
+
+    const reauthWithGold = async (redirectUri: string): Promise<void> => {
+        try {
+            await keycloak?.login({
+                acr: { essential: true, values: [IPermissions.GOLD_PERMISSION] },
+                redirectUri: redirectUri || window.location.href, // Use the passed URL or fallback to current URL
+            });
+        } catch (error) {
+            console.error("Re-authentication failed:", error);
+        }
+    };
+
+
+
     useEffect(() => {
         const getTenant = async (slug: string) => {
             try {
-                const {data, errors} = await fetchGetTenant()
+                const { data, errors } = await fetchGetTenant()
 
                 if (errors) {
                     console.error(errors)
@@ -188,7 +212,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
                 if (tenants && tenantIdFromParam) {
                     const matchedTenant = tenants.find(
-                        (tenant: {id: string; slug: string}) => tenant.slug === tenantIdFromParam
+                        (tenant: { id: string; slug: string }) => tenant.slug === tenantIdFromParam
                     )
 
                     if (matchedTenant) {
@@ -363,7 +387,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 }
                 const tokenPermissionLabels =
                     keycloak.tokenParsed?.["https://hasura.io/jwt/claims"]?.[
-                        "x-hasura-permission-labels"
+                    "x-hasura-permission-labels"
                     ]
                 if (tokenPermissionLabels) {
                     const permissionLabelsArray = extractPermissionLabels(tokenPermissionLabels)
@@ -435,7 +459,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 .then(() => {
                     const tokenPermissionLabels =
                         keycloak.tokenParsed?.["https://hasura.io/jwt/claims"]?.[
-                            "x-hasura-permission-labels"
+                        "x-hasura-permission-labels"
                         ]
                     if (tokenPermissionLabels) {
                         const permissionLabelsArray = extractPermissionLabels(tokenPermissionLabels)
@@ -466,6 +490,8 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 openProfileLink,
                 permissionLabels,
                 updateTokenAndPermissionLabels,
+                isGoldUser,
+                reauthWithGold
             }}
         >
             {props.children}

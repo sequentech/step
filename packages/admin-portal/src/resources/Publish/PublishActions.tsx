@@ -2,21 +2,21 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useState} from "react"
+import React, { useContext, useEffect, useState } from "react"
 
 import styled from "@emotion/styled"
 
-import {useTranslation} from "react-i18next"
-import {Dialog} from "@sequentech/ui-essentials"
-import {CircularProgress, Typography} from "@mui/material"
-import {Publish, RotateLeft, PlayCircle, PauseCircle, StopCircle} from "@mui/icons-material"
-import {Button, FilterButton, SelectColumnsButton} from "react-admin"
+import { useTranslation } from "react-i18next"
+import { Dialog } from "@sequentech/ui-essentials"
+import { CircularProgress, Typography } from "@mui/material"
+import { Publish, RotateLeft, PlayCircle, PauseCircle, StopCircle } from "@mui/icons-material"
+import { Button, FilterButton, SelectColumnsButton } from "react-admin"
 
-import {EPublishActionsType} from "./EPublishType"
-import {PublishStatus, ElectionEventStatus, nextStatus} from "./EPublishStatus"
-import {useTenantStore} from "@/providers/TenantContextProvider"
-import {AuthContext} from "@/providers/AuthContextProvider"
-import {IPermissions} from "@/types/keycloak"
+import { EPublishActionsType } from "./EPublishType"
+import { PublishStatus, ElectionEventStatus, nextStatus } from "./EPublishStatus"
+import { useTenantStore } from "@/providers/TenantContextProvider"
+import { AuthContext } from "@/providers/AuthContextProvider"
+import { IPermissions } from "@/types/keycloak"
 import SvgIcon from "@mui/material/SvgIcon"
 
 type SvgIconComponent = typeof SvgIcon
@@ -47,9 +47,11 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     onPublish = () => null,
     onChangeStatus = () => null,
 }) => {
-    const {t} = useTranslation()
+    const { t } = useTranslation()
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
+    const { isGoldUser, reauthWithGold } = authContext
+
     const canWrite = authContext.isAuthorized(true, tenantId, IPermissions.PUBLISH_WRITE)
     const canRead = authContext.isAuthorized(true, tenantId, IPermissions.PUBLISH_READ)
     const canChangeStatus = authContext.isAuthorized(
@@ -62,7 +64,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     const [dialogText, setDialogText] = useState("")
     const [currentCallback, setCurrentCallback] = useState<any>(null)
 
-    const IconOrProgress = ({st, Icon}: {st: PublishStatus; Icon: SvgIconComponent}) => {
+    const IconOrProgress = ({ st, Icon }: { st: PublishStatus; Icon: SvgIconComponent }) => {
         return nextStatus(st) === status && status !== PublishStatus.Void ? (
             <CircularProgress size={16} />
         ) : (
@@ -92,10 +94,10 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
             style={
                 changingStatus || disabledStatus?.includes(status)
                     ? {
-                          color: "#ccc",
-                          cursor: "not-allowed",
-                          backgroundColor: "#eee",
-                      }
+                        color: "#ccc",
+                        cursor: "not-allowed",
+                        backgroundColor: "#eee",
+                    }
                     : {}
             }
             disabled={disabledStatus?.includes(status) || st === status + 0.1}
@@ -104,11 +106,51 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         </Button>
     )
 
+    /**
+     * General Handler for Events:
+     * Shows a confirmation dialog without involving re-authentication.
+     * Used by buttons that don't require Gold-level permissions.
+     */
     const handleEvent = (callback: (status?: number) => void, dialogText: string) => {
         setDialogText(dialogText)
         setShowDialog(true)
         setCurrentCallback(() => callback)
     }
+
+    /**
+      * Specific Handler for "Start Voting Period" Button:
+      * Incorporates re-authentication logic for actions that require Gold-level permissions.
+      */
+    const handleStartVotingPeriod = () => {
+        setDialogText(t("publish.dialog.startInfo"))
+        setShowDialog(true)
+        setCurrentCallback(() => async () => {
+            try {
+                if (!isGoldUser()) {
+                    const baseUrl = new URL(window.location.href);
+                    baseUrl.searchParams.set("tabIndex", "7");
+                    sessionStorage.setItem('pendingStartVotingPeriod', 'true')
+                    await reauthWithGold(baseUrl.toString())
+                } else {
+                    onChangeStatus(ElectionEventStatus.Open)
+                }
+            } catch (error) {
+                console.error("Re-authentication failed:", error)
+            }
+        })
+    }
+
+    /**
+     * Checks for any pending actions after the component mounts.
+     * If a pending action is found, it executes the action and removes the flag.
+     */
+    useEffect(() => {
+        const pending = sessionStorage.getItem('pendingStartVotingPeriod')
+        if (pending) {
+            sessionStorage.removeItem('pendingStartVotingPeriod')
+            onChangeStatus(ElectionEventStatus.Open)
+        }
+    }, [onChangeStatus])
 
     const handleOnChange = (status: ElectionEventStatus) => () => onChangeStatus(status)
 
@@ -122,12 +164,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                             <FilterButton />
                             {canChangeStatus && (
                                 <ButtonDisabledOrNot
-                                    onClick={() =>
-                                        handleEvent(
-                                            handleOnChange(ElectionEventStatus.Open),
-                                            t("publish.dialog.startInfo")
-                                        )
-                                    }
+                                    onClick={handleStartVotingPeriod}
                                     label={t("publish.action.startVotingPeriod")}
                                     st={PublishStatus.Started}
                                     Icon={PlayCircle}
@@ -210,12 +247,11 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
 
             <Dialog
                 handleClose={(flag) => {
-                    if (flag) {
-                        currentCallback()
+                    if (flag && currentCallback) {
+                        currentCallback() // Execute the saved callback
                     }
-
-                    setShowDialog(false)
-                    setCurrentCallback(null)
+                    setShowDialog(false) // Close the dialog
+                    setCurrentCallback(null) // Reset the callback
                 }}
                 open={showDialog}
                 title={t("publish.dialog.title")}

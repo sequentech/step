@@ -26,18 +26,29 @@ pub struct UpdateEventVotingStatusOutput {
     pub election_event_id: String,
 }
 
+fn has_gold_permission(claims: &JwtClaims) -> bool {
+    claims.acr == Permissions::GOLD.to_string()
+}
+
 #[instrument(skip(claims))]
 #[post("/update-event-voting-status", format = "json", data = "<body>")]
 pub async fn update_event_status(
     body: Json<UpdateEventVotingStatusInput>,
     claims: JwtClaims,
 ) -> Result<Json<UpdateEventVotingStatusOutput>, (Status, String)> {
+    if body.voting_status == VotingStatus::OPEN {
+        // Check if the user has the required "Gold" role
+        if !has_gold_permission(&claims) {
+            return Err((Status::Forbidden, "Insufficient privileges".into()));
+        }
+    }
     authorize(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::ELECTION_STATE_WRITE],
     )?;
+
     let input = body.into_inner();
     let tenant_id = &claims.hasura_claims.tenant_id;
     let user_id = claims.hasura_claims.user_id;
