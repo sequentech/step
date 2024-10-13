@@ -34,7 +34,6 @@ Files:
   packages/admin-portal/graphql.schema.json
   packages/admin-portal/logs/*
   packages/admin-portal/tests_output/*
-  packages/admin-portal/src/assets/roboto/*
   packages/admin-portal/public/img*
   packages/voting-portal/graphql.schema.json
   packages/voting-portal/logs/*
@@ -51,6 +50,7 @@ Copyright: 2024 Sequent Tech <legal@sequentech.io>
 License: AGPL-3.0-only
 
 Files:
+  packages/admin-portal/public/roboto/*
   vendor/immudb-log-audit/*
 Copyright:
   2023 Codenotary Inc
