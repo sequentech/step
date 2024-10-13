@@ -231,6 +231,16 @@ export type ExportLogsOutput = {
   task_id: Scalars['String']['output'];
 };
 
+export type ExportOptions = {
+  activity_logs?: InputMaybe<Scalars['Boolean']['input']>;
+  bulletin_board?: InputMaybe<Scalars['Boolean']['input']>;
+  include_voters?: InputMaybe<Scalars['Boolean']['input']>;
+  password: Scalars['String']['input'];
+  publications?: InputMaybe<Scalars['Boolean']['input']>;
+  s3_files?: InputMaybe<Scalars['Boolean']['input']>;
+  scheduled_events?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
 export type ExportTasksExecutionOutput = {
   __typename?: 'ExportTasksExecutionOutput';
   document_id: Scalars['String']['output'];
@@ -1838,6 +1848,7 @@ export type Mutation_RootEdit_UserArgs = {
 /** mutation root */
 export type Mutation_RootExport_Election_EventArgs = {
   election_event_id?: InputMaybe<Scalars['String']['input']>;
+  export_configurations?: InputMaybe<ExportOptions>;
 };
 
 
@@ -1946,6 +1957,7 @@ export type Mutation_RootImport_CandidatesArgs = {
 export type Mutation_RootImport_Election_EventArgs = {
   check_only?: InputMaybe<Scalars['Boolean']['input']>;
   document_id: Scalars['String']['input'];
+  password?: InputMaybe<Scalars['String']['input']>;
   tenant_id: Scalars['String']['input'];
 };
 

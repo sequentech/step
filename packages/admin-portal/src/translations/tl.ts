@@ -355,8 +355,32 @@ const tagalogTranslation: TranslationType = {
                     description:
                         "Hindi mo ipinakita ang field para sa Pag-check ng Integridad (SHA-256). Mangyaring kumpirmahin na ini-import mo ang tamang file at nais mo itong i-import.",
                 },
+                passwordDialog: {
+                    title: "Decryption Password",
+                    description: "Ilagay ang password para i-decrypt ang file",
+                    label: "Password",
+                    copyPassword: "Kopyahin ang Password",
+                    ok: "Ok",
+                },
             },
-            exportError: "Error sa pag-export ng Kaganapan ng Halalan",
+            export: {
+                title: "I-export ang Kaganapang Halalan",
+                subtitle:
+                    "Ang pag-export ay maaaring isang mahabang proseso. Sigurado ka bang gusto mong i-export ang mga tala?",
+                encryptWithPassword: "I-encrypt gamit ang Password",
+                includeVoters: "Isama ang mga Botante",
+                activityLogs: "Mga Log ng Aktibidad",
+                bulletinBoard: "Bulletin Board",
+                publications: "Mga Publikasyon",
+                s3Files: "Mga File ng S3",
+                scheduledEvents: "Nakatakdang Mga Kaganapan",
+                exportSuccess: "Matagumpay na nai-export ang Kaganapang Halalan",
+                exportError: "Error sa pag-export ng Kaganapang Halalan",
+                passwordTitle: "Password",
+                passwordDescription: "Password para i-decrypt ang file:",
+                copiedSuccess: "Nakopya ang password sa clipboard",
+                copiedError: "Error sa pag-copy ng password sa clipboard",
+            },
             taskNotification:
                 "{{action}} ay nagsimula na. Maaari mong makita ang status nito sa Talahanayan ng Pagpapatupad ng Mga Gawain.",
         },

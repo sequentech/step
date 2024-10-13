@@ -355,8 +355,32 @@ const spanishTranslation: TranslationType = {
                     description:
                         "No ingresó el campo Verificación de integridad (SHA-256). Confirme que está importando el archivo correcto y que desea importarlo.",
                 },
+                passwordDialog: {
+                    title: "Contraseña de Descifrado",
+                    description: "Introduce la contraseña para descifrar el archivo",
+                    label: "Contraseña",
+                    copyPassword: "Copiar Contraseña",
+                    ok: "Aceptar",
+                },
             },
-            exportError: "Error al exportar el Evento Electoral",
+            export: {
+                title: "Exportar Evento Electoral",
+                subtitle:
+                    "La exportación puede ser una operación larga. ¿Estás seguro de que deseas exportar los registros?",
+                encryptWithPassword: "Cifrar con Contraseña",
+                includeVoters: "Incluir Votantes",
+                activityLogs: "Registros de Actividad",
+                bulletinBoard: "Tablón de Anuncios",
+                publications: "Publicaciones",
+                s3Files: "Archivos S3",
+                scheduledEvents: "Eventos Programados",
+                exportSuccess: "Evento Electoral exportado con éxito",
+                exportError: "Error al exportar el Evento Electoral",
+                passwordTitle: "Contraseña",
+                passwordDescription: "Contraseña para descifrar el archivo:",
+                copiedSuccess: "Nakopya ang password sa clipboard",
+                copiedError: "Error al copiar la contraseña",
+            },
             taskNotification:
                 "{{action}} ha comenzado. Puedes ver su estado en la tabla de Ejecución de Tareas.",
         },

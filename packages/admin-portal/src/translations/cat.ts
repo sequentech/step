@@ -356,8 +356,32 @@ const catalanTranslation: TranslationType = {
                     description:
                         "No va introduir el camp Verificació d'integritat (SHA-256). Confirmeu que està importanr el fitxer correcte i que desitja importar-lo.",
                 },
+                passwordDialog: {
+                    title: "Contrasenya de Desxifrat",
+                    description: "Introdueix la contrasenya per desxifrar l'arxiu",
+                    label: "Contrasenya",
+                    copyPassword: "Copiar Contrasenya",
+                    ok: "D'acord",
+                },
             },
-            exportError: "Error exportant l'esdeveniment electoral",
+            export: {
+                title: "Exportar Esdeveniment Electoral",
+                subtitle:
+                    "L'exportació pot ser una operació llarga. Estàs segur que vols exportar els registres?",
+                encryptWithPassword: "Xifrar amb Contrasenya",
+                includeVoters: "Incloure Votants",
+                activityLogs: "Registres d'Activitat",
+                bulletinBoard: "Tauler d'Anuncis",
+                publications: "Publicacions",
+                s3Files: "Fitxers S3",
+                scheduledEvents: "Esdeveniments Programats",
+                exportSuccess: "Esdeveniment Electoral exportat amb èxit",
+                exportError: "Error en exportar l'Esdeveniment Electoral",
+                passwordTitle: "Contrasenya",
+                passwordDescription: "Contrasenya per desxifrar el fitxer:",
+                copiedSuccess: "Contrasenya copiada al porta-retalls",
+                copiedError: "Error copiant la contrasenya",
+            },
             taskNotification:
                 "{{action}} ha començat. Podeu veure el seu estat a la taula d'Execució de Tasques.",
         },
