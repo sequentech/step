@@ -8,8 +8,12 @@ use super::bigint;
 use super::{vec, RawBallotContest};
 use crate::ballot::{BallotStyle, Candidate, Contest};
 use crate::mixed_radix;
+use num_bigint::BigUint;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+
+use num_bigint::ToBigUint;
+use num_traits::{ToPrimitive, Zero};
 
 /// A multi contest ballot.
 ///
@@ -18,7 +22,7 @@ use serde::{Deserialize, Serialize};
 /// It does not support per-contest invalid flags.
 ///
 /// A multi contest ballot can be encoded in to a
-/// 30 byte representation suitable for encryption
+/// 30 byte representation suitable for encrypting
 /// the ballot into a single ciphertext, provided
 /// there is sufficient space.
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
@@ -42,7 +46,6 @@ impl BallotChoices {
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct ContestChoices {
     pub contest_id: String,
-    // pub is_explicit_invalid: bool,
     pub choices: Vec<ContestChoice>,
 }
 impl ContestChoices {
@@ -66,25 +69,36 @@ impl ContestChoices {
 pub struct ContestChoice {
     pub id: String,
     pub selected: i64,
-    pub write_in_text: Option<String>,
 }
 impl ContestChoice {
-    pub fn new(
-        id: String,
-        selected: i64,
-        write_in_text: Option<String>,
-    ) -> Self {
-        ContestChoice {
-            id,
-            selected,
-            write_in_text,
-        }
+    pub fn new(id: String, selected: i64) -> Self {
+        ContestChoice { id, selected }
     }
 }
 
+/// The choices for a contest
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+pub struct DecodedContestChoices {
+    pub contest_id: String,
+    pub choices: Vec<DecodedContestChoice>,
+}
+impl DecodedContestChoices {
+    pub fn new(contest_id: String, choices: Vec<DecodedContestChoice>) -> Self {
+        DecodedContestChoices {
+            contest_id,
+            choices,
+        }
+    }
+}
+#[derive(
+    Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone, Hash,
+)]
+pub struct DecodedContestChoice(String);
+
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct DecodedBallotChoices {
     pub is_explicit_invalid: bool,
-    pub choices: Vec<ContestChoices>,
+    pub choices: Vec<DecodedContestChoices>,
 }
 impl DecodedBallotChoices {
     pub fn get_contest_ids(&self) -> Vec<String> {
@@ -95,92 +109,29 @@ impl DecodedBallotChoices {
 impl BallotChoices {
     /// Encode this ballot into a 30 byte representation
     ///
-    /// The steps in this encoding are
-    /// 1. Retrieve this ballot's contests from the supplied BallotStyle
-    /// 2. Encode this ballot into a mixed radix representation
-    /// 3. Convert the mixed radix representation into a radix-10 big integer
-    /// 4. Convert the radix-10 big integer into a 30-byte representation
+    /// The following steps take place:
+    ///
+    /// 1) BallotChoices -> RawBallotContest (this is a mixed-radix structure)
+    /// 2) RawBallotContest -> BigUint
+    /// 3) BigUint -> Vec<u8>
+    /// 4) Vec<u8> -> [u8; 30]
     ///
     /// Returns a fixed-size array of 30 bytes encoding this ballot.
     pub fn encode_to_30_bytes(
         &self,
         config: &BallotStyle,
     ) -> Result<[u8; 30], String> {
-        /*let contests: Result<Vec<(Contest, ContestChoices)>, String> = self
-            .choices
-            .clone()
-            .into_iter()
-            .map(|choices| {
-                let contest = config
-                    .contests
-                    .iter()
-                    .find(|contest| contest.id == choices.contest_id)
-                    .ok_or_else(|| {
-                        format!(
-                            "Can't find contest with id {} on ballot style",
-                            choices.contest_id
-                        )
-                    })?;
-
-                Ok((contest.clone(), choices))
-            })
-            .collect();
-
-        let (contests, choices): (Vec<Contest>, Vec<ContestChoices>) =
-            contests?.into_iter().unzip();*/
-
         let raw_ballot = self.encode_to_raw_ballot(&config)?;
-        /*let raw_ballot = Self::encode_to_raw_ballot_(
-            &contests,
-            &choices,
-            self.is_explicit_invalid,
-        )?;*/
 
         let bigint =
             mixed_radix::encode(&raw_ballot.choices, &raw_ballot.bases)?;
+
         let bytes = bigint::encode_bigint_to_bytes(&bigint)?;
 
         vec::encode_vec_to_array(&bytes)
     }
 
-    /// FIXME change this to only extract the contests from the ballot style,
-    /// then use this method in the encode_to_raw_ballot_ below
-    pub(crate) fn encode_to_raw_ballot(
-        &self,
-        config: &BallotStyle,
-    ) -> Result<RawBallotContest, String> {
-        let contests: Result<Vec<(Contest, ContestChoices)>, String> = self
-            .choices
-            .clone()
-            .into_iter()
-            .map(|choices| {
-                let contest = config
-                    .contests
-                    .iter()
-                    .find(|contest| contest.id == choices.contest_id)
-                    .ok_or_else(|| {
-                        format!(
-                            "Can't find contest with id {} on ballot style",
-                            choices.contest_id
-                        )
-                    })?;
-
-                Ok((contest.clone(), choices))
-            })
-            .collect();
-
-        let (contests, choices): (Vec<Contest>, Vec<ContestChoices>) =
-            contests?.into_iter().unzip();
-
-        Self::encode_to_raw_ballot_(
-            &contests,
-            &choices,
-            self.is_explicit_invalid,
-        )
-    }
-
-    /// FIXME make this a &self method
-    /// Encode this ballot into a mixed radix representation
+    /// Encode this multi-ballot into a mixed radix representation
     ///
     /// The following conditions will return an error:
     ///
@@ -204,19 +155,21 @@ impl BallotChoices {
     /// each of size contest.max_votes, plus one invalid flag.
     /// The total number of choices is given by the following:
     /// contests.iter().fold(0, |a, b| a + b.max_votes) + 1
-    fn encode_to_raw_ballot_(
-        contests: &Vec<Contest>,
-        plaintexts: &Vec<ContestChoices>,
-        explicit_invalid: bool,
+    fn encode_to_raw_ballot(
+        &self,
+        config: &BallotStyle,
     ) -> Result<RawBallotContest, String> {
-        let bases = Self::get_bases(contests).map_err(|e| e.to_string())?;
+        let contests = self.get_contests(config)?;
+
+        let bases = Self::get_bases(&contests).map_err(|e| e.to_string())?;
         let mut choices: Vec<u64> = vec![];
 
         // Construct a map of plaintexts, this will allow us to
         // handle calls in which passed in contests and plaintexts
         // may not be in the same [parallel] order. We will
         // obtain plaintexts from this map using the contest_id.
-        let plaintexts_map = plaintexts
+        let plaintexts_map = self
+            .choices
             .iter()
             .map(|plaintext| (plaintext.contest_id.clone(), plaintext))
             .collect::<HashMap<String, &ContestChoices>>();
@@ -227,7 +180,7 @@ impl BallotChoices {
         let mut sorted_contests = contests.clone();
         sorted_contests.sort_by_key(|c| c.id.clone());
 
-        let invalid_vote: u64 = if explicit_invalid { 1 } else { 0 };
+        let invalid_vote: u64 = if self.is_explicit_invalid { 1 } else { 0 };
         choices.push(invalid_vote);
 
         // Iterate in contest order
@@ -353,7 +306,14 @@ impl BallotChoices {
         Ok(contest_choices)
     }
 
-    /// Decode a mixed radix representation of the ballot
+    /// Decodes a multi-ballot from 30 bytes.
+    ///
+    /// The following steps take place:
+    ///
+    /// 1) [u8; 30] -> Vec<u8>
+    /// 2) Vec<u8> -> BigUint
+    /// 3) BigUint -> RawBallotContest (this is a mixed-radix structure)
+    /// 4) RawBallotContest -> DecodedBallotChoices
     ///
     /// The following conditions will return an error.
     ///
@@ -379,11 +339,25 @@ impl BallotChoices {
     /// Returns the decoded ballot. Because this is a multi
     /// contest ballot, it will have n ContestChoices and
     /// an overall invalid flag.
+    pub fn decode_from_30_bytes(
+        bytes: &[u8; 30],
+        style: &BallotStyle,
+    ) -> Result<DecodedBallotChoices, String> {
+        let bytes = vec::decode_array_to_vec(&bytes);
+        let bigint = bigint::decode_bigint_from_bytes(&bytes)?;
+
+        let raw_ballot = Self::bigint_to_raw_ballot(&bigint, &style.contests)?;
+        println!("mixed radix {:?}", raw_ballot);
+
+        Self::decode(&style.contests, &raw_ballot)
+    }
+
+    /// Decode a mixed radix representation of the ballot.
     pub fn decode(
         contests: &Vec<Contest>,
         raw_ballot: &RawBallotContest,
     ) -> Result<DecodedBallotChoices, String> {
-        let mut contest_choices: Vec<ContestChoices> = vec![];
+        let mut contest_choices: Vec<DecodedContestChoices> = vec![];
         let choices = raw_ballot.choices.clone();
 
         // Each contest contributes max_votes slots
@@ -434,14 +408,15 @@ impl BallotChoices {
     /// Decodes one contest in the ballot
     ///
     /// Returns a ContestChoice for the choices slice argument,
-    /// which will be read up to index contest.max_votes. This
+    /// which will be read up to position contest.max_votes. This
     /// ContestChoice will be added to the overall DecodedBallotChoices.
+    /// Values set to 0 (unset) will not return a ContestChoice.
     /// It is the responsibility of the caller to advance the choice slice
     /// as choices are decoded.
     fn decode_contest(
         contest: &Contest,
         choices: &[u64],
-    ) -> Result<ContestChoices, String> {
+    ) -> Result<DecodedContestChoices, String> {
         // A choice of a candidate is represented as that candidate's
         // position in the candidate list, sorted by id.
         let mut sorted_candidates: Vec<Candidate> = contest
@@ -487,17 +462,13 @@ impl BallotChoices {
                 ));
             };
 
-            let choice = ContestChoice {
-                id: candidate.id.clone(),
-                selected: 1,
-                write_in_text: None,
-            };
+            let choice = DecodedContestChoice(candidate.id.clone());
 
             next_choices.push(choice);
         }
 
         // Duplicate values will be ignored
-        let unique: HashSet<ContestChoice> =
+        let unique: HashSet<DecodedContestChoice> =
             HashSet::from_iter(next_choices.iter().cloned());
 
         if unique.len() != next_choices.len() {
@@ -515,7 +486,7 @@ impl BallotChoices {
             ));
         }
 
-        let c = ContestChoices {
+        let c = DecodedContestChoices {
             contest_id: contest.id.clone(),
             choices: unique.into_iter().collect(),
         };
@@ -590,12 +561,80 @@ impl BallotChoices {
 
             let max_selections = contest.max_votes;
             for _ in 1..=max_selections {
-                // include a per-ballot invalid flag
+                // + 1: include a per-ballot invalid flag
                 bases.push(u64::from(num_valid_candidates + 1));
             }
         }
 
         Ok(bases)
+    }
+
+    /// Returns the contests corresponding to the choices in this ballot
+    /// from the given ballot style.
+    pub(crate) fn get_contests(
+        &self,
+        style: &BallotStyle,
+    ) -> Result<Vec<Contest>, String> {
+        self.choices
+            .clone()
+            .into_iter()
+            .map(|choices| {
+                let contest = style
+                    .contests
+                    .iter()
+                    .find(|contest| contest.id == choices.contest_id)
+                    .ok_or_else(|| {
+                        format!(
+                            "Can't find contest with id {} on ballot style",
+                            choices.contest_id
+                        )
+                    })?;
+
+                Ok(contest.clone())
+            })
+            .collect()
+    }
+
+    fn bigint_to_raw_ballot(
+        bigint: &BigUint,
+        contests: &Vec<Contest>,
+    ) -> Result<RawBallotContest, String> {
+        let bases = Self::get_bases(contests).map_err(|e| e.to_string())?;
+
+        let choices = Self::decode_mixed_radix(&bases, &bigint)?;
+
+        Ok(RawBallotContest { bases, choices })
+    }
+
+    /// Decode the choices in the given mixed radix bigint
+    ///
+    /// This function is adapted from mixed_radix::decode
+    /// to remove its write-in functionality.
+    pub fn decode_mixed_radix(
+        bases: &Vec<u64>,
+        encoded_value: &BigUint,
+    ) -> Result<Vec<u64>, String> {
+        let mut values: Vec<u64> = vec![];
+        let mut accumulator: BigUint = encoded_value.clone();
+        let mut index = 0usize;
+
+        while accumulator > Zero::zero() {
+            let base: BigUint = bases[index].to_biguint().unwrap();
+
+            let remainder = &accumulator % &base;
+            values.push(remainder.to_u64().unwrap());
+
+            accumulator = (&accumulator - &remainder) / &base;
+            index += 1;
+        }
+
+        // If we didn't run all the bases, fill the rest with zeros
+        while index < bases.len() {
+            values.push(0);
+            index += 1;
+        }
+
+        Ok(values)
     }
 
     /// Compute an upper bound on the number of bytes needed
@@ -632,22 +671,63 @@ mod tests {
 
     use super::*;
     use crate::ballot::{BallotStyle, Candidate, Contest};
-    use rand::{seq::SliceRandom, Rng, RngCore};
+    use rand::{seq::SliceRandom, Rng};
 
     #[test]
     fn test_roundtrip() {
-        let (ballot, style) = random_data(5);
-        print_tree(&style).unwrap();
-        print_tree(&ballot).unwrap();
-        let mixed_radix = ballot.encode_to_raw_ballot(&style).unwrap();
-        ballot.encode_to_30_bytes(&style).unwrap();
+        let (ballot, style) = random_ballot(5);
+        println!("{:?}", ballot);
 
-        println!("mixed_radix: {:?}", mixed_radix.choices);
+        let max_bytes =
+            BallotChoices::maximum_size_bytes(&style.contests).unwrap();
+        assert!(max_bytes <= 30);
+
+        println!("max bytes: {:?}", max_bytes);
+
+        let bytes = ballot.encode_to_30_bytes(&style).unwrap();
+        println!("bytes {:?}", bytes);
+
+        let back = BallotChoices::decode_from_30_bytes(&bytes, &style).unwrap();
+
+        let mut in_choices = ballot.choices.clone();
+        in_choices.sort_by_key(|c| c.contest_id.clone());
+
+        let mut out_choices = back.choices.clone();
+        out_choices.sort_by_key(|c| c.contest_id.clone());
+
+        assert_eq!(in_choices.len(), out_choices.len());
+
+        for (i, inc) in in_choices.iter().enumerate() {
+            let outc = out_choices[i].clone();
+
+            assert_eq!(inc.contest_id, outc.contest_id);
+            assert_eq!(inc.choices.len(), outc.choices.len());
+
+            let mut inc = inc.choices.clone();
+            inc.sort_by_key(|c| c.id.clone());
+
+            let mut outc = outc.choices.clone();
+            outc.sort_by_key(|c| c.clone().0);
+
+            for (j, ic) in inc.iter().enumerate() {
+                let oc = outc[j].clone();
+
+                assert_eq!(ic.id, oc.0);
+            }
+        }
+    }
+
+    #[test]
+    fn test_mixed_radix_encode() {
+        let (ballot, style) = random_ballot(5);
+
+        let mixed_radix = ballot.encode_to_raw_ballot(&style).unwrap();
 
         let mut sorted_choices = ballot.choices.clone();
         sorted_choices.sort_by_key(|c| c.contest_id.clone());
 
         let mut index: usize = 1;
+
         for choices in sorted_choices.iter() {
             let contest = style
                 .contests
@@ -657,7 +737,6 @@ mod tests {
             let mut candidate_ids: Vec<String> =
                 contest.candidates.iter().map(|c| c.id.clone()).collect();
             candidate_ids.sort();
-            println!("{:?}", candidate_ids);
 
             for choice in choices.choices.iter() {
                 if choice.selected < -1 {
@@ -666,27 +745,17 @@ mod tests {
                     continue;
                 }
 
-                let mut value = 0;
+                let mut value;
                 // skip past unset values
                 loop {
                     value = mixed_radix.choices[index] as usize;
                     if value == 0 {
-                        println!(
-                            "at {}: choice: {}, value: {}, UNSET",
-                            index, choice.id, value
-                        );
                         index += 1;
                     } else {
                         break;
                     }
                 }
-                println!(
-                    "at {}: choice: {}, value: {}, target: {}",
-                    index,
-                    choice.id,
-                    value,
-                    candidate_ids[value - 1]
-                );
+
                 assert_eq!(choice.id, candidate_ids[value - 1]);
 
                 index += 1;
@@ -694,9 +763,9 @@ mod tests {
         }
     }
 
-    fn random_data(count: usize) -> (BallotChoices, BallotStyle) {
+    fn random_ballot(contests: usize) -> (BallotChoices, BallotStyle) {
         let mut rng = rand::thread_rng();
-        let contests: Vec<Contest> = (0..count)
+        let contests: Vec<Contest> = (0..contests)
             .map(|i| {
                 let contest_id = i.to_string();
 
@@ -715,11 +784,6 @@ mod tests {
             })
             .collect();
 
-        println!(
-            "max size is {}",
-            BallotChoices::maximum_size_bytes(&contests).unwrap()
-        );
-
         let choices: Vec<ContestChoices> = contests
             .iter()
             .map(|c| random_contest_choices(&c))
@@ -734,7 +798,11 @@ mod tests {
 
     fn random_choice(id: String) -> ContestChoice {
         let mut rng = rand::thread_rng();
-        ContestChoice::new(id, (rng.next_u32() % 10) as i64, None)
+        // we do not include -1 here as this will cause the test to fail due to
+        // 1) mismatched number of choices (an unset value does not produce a
+        //    choice when decoding)
+        // 2) number of choices below min_votes
+        ContestChoice::new(id, rng.gen_range(1..10) as i64)
     }
 
     fn random_contest_choices(contest: &Contest) -> ContestChoices {
@@ -822,7 +890,6 @@ mod tests {
     }
 
     use ptree::item::TreeItem;
-    use ptree::print_tree;
     use ptree::style::Style;
     use ptree::write_tree;
     use std::borrow::Cow;

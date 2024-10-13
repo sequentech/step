@@ -11,10 +11,7 @@ pub trait PlaintextCodec {
         &self,
         plaintext: &DecodedVoteContest,
     ) -> Result<[u8; 30], String>;
-    /*fn compact_encode_plaintext_contests(
-        contests: Vec<Contest>,
-        plaintexts: &Vec<DecodedVoteContest>,
-    ) -> Result<[u8; 30], String>;*/
+
     fn decode_plaintext_contest(
         &self,
         code: &[u8; 30],
@@ -28,10 +25,7 @@ pub trait PlaintextCodec {
         &self,
         plaintext: &DecodedVoteContest,
     ) -> Result<Vec<u8>, String>;
-    /*fn compact_encode_plaintext_contests_to_bytes(
-        contests: &Vec<Contest>,
-        plaintexts: &Vec<DecodedVoteContest>,
-    ) -> Result<Vec<u8>, String>;*/
+
     fn decode_plaintext_contest_from_bytes(
         &self,
         bytes: &[u8],
@@ -47,20 +41,6 @@ impl PlaintextCodec for Contest {
             self.encode_plaintext_contest_to_bytes(plaintext)?;
         encode_vec_to_array(&plaintext_bytes_vec)
     }
-
-    /*
-    fn compact_encode_plaintext_contests(
-        contests: Vec<Contest>,
-        plaintexts: &Vec<DecodedVoteContest>,
-    ) -> Result<[u8; 30], String> {
-        let plaintext_bytes_vec =
-            Self::compact_encode_plaintext_contests_to_bytes(
-                &contests,
-                &plaintexts,
-            )?;
-
-        encode_vec_to_array(&plaintext_bytes_vec)
-    }*/
 
     fn decode_plaintext_contest(
         &self,
