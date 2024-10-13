@@ -545,6 +545,7 @@ export const TallyCeremony: React.FC = () => {
                             update={(elections) => setSelectedElections(elections)}
                             disabled={isTallyElectionListDisabled}
                             electionEventId={record?.id}
+                            keysCeremonyId={keysCeremonyId}
                         />
                         <FormControl fullWidth>
                             <ElectionHeader
@@ -599,6 +600,7 @@ export const TallyCeremony: React.FC = () => {
                             electionEventId={record?.id}
                             disabled={true}
                             update={(elections) => setSelectedElections(elections)}
+                            keysCeremonyId={keysCeremonyId}
                         />
 
                         <TallyTrusteesList
