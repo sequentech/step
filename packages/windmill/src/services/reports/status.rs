@@ -1,17 +1,17 @@
 use super::template_renderer::*;
-use crate::services::database::get_hasura_pool;
-use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::election::get_election_by_id;
-use crate::services::s3::get_minio_url;
+use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id_and_event_processor;
+use crate::services::database::get_hasura_pool;
+use crate::services::s3::get_minio_url;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
-use tracing::info;
 use deadpool_postgres::Client as DbClient;
-use sequent_core::{ballot::VotingStatus, types::templates::EmailConfig, ballot::ElectionStatus};
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
+use sequent_core::{ballot::ElectionStatus, ballot::VotingStatus, types::templates::EmailConfig};
+use serde::{Deserialize, Serialize};
 use serde_json::value::Value;
+use tracing::info;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
@@ -97,7 +97,7 @@ impl TemplateRenderer for StatusTemplate {
         let election_event = get_election_event_by_id(
             &hasura_transaction,
             &self.tenant_id,
-            &self.election_event_id
+            &self.election_event_id,
         )
         .await
         .with_context(|| "Error obtaining election event")?;
@@ -107,7 +107,7 @@ impl TemplateRenderer for StatusTemplate {
             &hasura_transaction,
             &self.tenant_id,
             &self.election_event_id,
-            "START_VOTING_PERIOD"
+            "START_VOTING_PERIOD",
         )
         .await
         .map_err(|e| anyhow!("Error fetching scheduled election event: {:?}", e))?;
@@ -116,21 +116,21 @@ impl TemplateRenderer for StatusTemplate {
             &hasura_transaction,
             &self.tenant_id,
             &self.election_event_id,
-            &self.election_id
+            &self.election_id,
         )
         .await
-        .with_context(|| "Error getting election by id")? 
+        .with_context(|| "Error getting election by id")?
         {
             Some(election) => election,
             None => return Err(anyhow::anyhow!("Election not found")),
-        };        
+        };
 
         let mut status = get_election_status(election.status.clone()).unwrap_or(ElectionStatus {
             voting_status: VotingStatus::NOT_STARTED,
         });
 
         let election_start_date = "2024-10-15".to_string(); // Placeholder, adapt according to real fetched data
-        let ovcs_status = status.voting_status.as_str().to_string();  // Fetch the real status from DB
+        let ovcs_status = status.voting_status.as_str().to_string(); // Fetch the real status from DB
         let temp_val: &str = "test";
 
         Ok(UserData {
@@ -140,9 +140,9 @@ impl TemplateRenderer for StatusTemplate {
             area: "Area A".to_string(),
             country: "Country X".to_string(),
             voting_center: "Center 1".to_string(),
-            num_of_registered_voters: 10000,  // Fetch from DB
-            total_ballots_counted: 8000,  // Fetch from DB
-            ovcs_status,  // Fetch from DB
+            num_of_registered_voters: 10000, // Fetch from DB
+            total_ballots_counted: 8000,     // Fetch from DB
+            ovcs_status,                     // Fetch from DB
             chairperson_name: temp_val.to_string(),
             poll_clerk_name: temp_val.to_string(),
             third_member_name: temp_val.to_string(),

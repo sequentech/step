@@ -2,19 +2,18 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
+use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id_and_event_processor;
 use crate::services::database::get_hasura_pool;
-use crate::{postgres::election_event::get_election_event_by_id, services::s3::get_minio_url};
-use crate::{postgres::scheduled_event::find_scheduled_event_by_election_event_id_and_event_processor};
 use crate::services::temp_path::*;
+use crate::{postgres::election_event::get_election_event_by_id, services::s3::get_minio_url};
 use anyhow::{anyhow, Context, Ok, Result};
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
-use std::env;
-use tracing::{info, instrument};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use sequent_core::types::templates::EmailConfig;
-
+use serde::{Deserialize, Serialize};
+use std::env;
+use tracing::{info, instrument};
 
 /// Struct for User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -49,7 +48,6 @@ pub struct OVCSInformaitionTemplate {
     election_event_id: String,
     voter_id: String,
 }
-
 
 #[async_trait]
 impl TemplateRenderer for OVCSInformaitionTemplate {
@@ -87,29 +85,31 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
     async fn prepare_user_data(&self) -> Result<Self::UserData> {
         // Fetch the Hasura database client from the pool
         let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .with_context(|| "Error getting hasura db pool")?;
+            .await
+            .get()
+            .await
+            .with_context(|| "Error getting hasura db pool")?;
 
         let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .with_context(|| "Error starting hasura transaction")?;
-
-         // Fetch election event data
-        let election_event =
-        get_election_event_by_id(&hasura_transaction, &self.tenant_id,  &self.election_event_id)
+            .transaction()
             .await
-            .with_context(|| "Error obtaining election event")?;
+            .with_context(|| "Error starting hasura transaction")?;
 
+        // Fetch election event data
+        let election_event = get_election_event_by_id(
+            &hasura_transaction,
+            &self.tenant_id,
+            &self.election_event_id,
+        )
+        .await
+        .with_context(|| "Error obtaining election event")?;
 
         // Fetch election event data
         let start_election_event = find_scheduled_event_by_election_event_id_and_event_processor(
             &hasura_transaction,
             &self.tenant_id,
             &self.election_event_id,
-            "START_VOTING_PERIOD"
+            "START_VOTING_PERIOD",
         )
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)));
@@ -120,13 +120,12 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
         //     // Now cron_config is a CronConfig, not an Option
         //     if let Some(scheduled_date) = cron_config.scheduled_date {
         //         election_start_date = scheduled_date;
-        //     } 
-            
+        //     }
+
         // }
-        
 
         let temp_val: &str = "test";
-        Ok(UserData{
+        Ok(UserData {
             election_start_date: temp_val.to_string(),
             // election_title: election_event.name.clone(),
             election_title: temp_val.to_string(),
@@ -140,8 +139,6 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
             third_member_name: temp_val.to_string(),
         })
     }
-
-
 
     async fn prepare_system_data(
         &self,

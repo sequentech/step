@@ -2,15 +2,15 @@ use super::template_renderer::*;
 use crate::postgres::candidate::get_candidates_by_election_id;
 use crate::postgres::contest::get_contest_by_election_id;
 use crate::services::database::get_hasura_pool;
-use crate::{postgres::election_event::get_election_event_by_id, services::s3::get_minio_url};
 use crate::services::temp_path::*;
+use crate::{postgres::election_event::get_election_event_by_id, services::s3::get_minio_url};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use sequent_core::types::hasura::core::{Candidate, Contest};
-use serde::{Deserialize, Serialize};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
+use sequent_core::types::hasura::core::{Candidate, Contest};
 use sequent_core::types::templates::EmailConfig;
+use serde::{Deserialize, Serialize};
 
 /// Struct for the initialization report
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -131,7 +131,7 @@ impl TemplateRenderer for InitializationTemplate {
             let contest_name = contest.clone().name.unwrap_or_default();
             let contest_name_parts = contest_name.split('/').collect::<Vec<&str>>();
             let contest_name = contest_name_parts.get(0).unwrap_or(&"").to_string();
-            let position_name = contest_name_parts.get(1).unwrap_or(&"").to_string();            
+            let position_name = contest_name_parts.get(1).unwrap_or(&"").to_string();
 
             let filtered_candidates = election_candidates
                 .iter()
@@ -145,7 +145,13 @@ impl TemplateRenderer for InitializationTemplate {
                 .into_iter()
                 .map(|candidate| CandidateData {
                     name_in_ballot: candidate.clone().name.unwrap_or_default(),
-                    acronym: candidate.clone().annotations.unwrap_or_default().get("acronym").unwrap_or(&serde_json::Value::Null).to_string(),
+                    acronym: candidate
+                        .clone()
+                        .annotations
+                        .unwrap_or_default()
+                        .get("acronym")
+                        .unwrap_or(&serde_json::Value::Null)
+                        .to_string(),
                     votes_garnered: 0, //TODO: Get votes from the database
                 })
                 .collect();
@@ -184,7 +190,8 @@ impl TemplateRenderer for InitializationTemplate {
         rendered_user_template: String,
     ) -> Result<Self::SystemData> {
         let public_asset_path = get_public_assets_path_env_var()?;
-        let minio_endpoint_base = get_minio_url().with_context(|| "Error getting minio endpoint")?;
+        let minio_endpoint_base =
+            get_minio_url().with_context(|| "Error getting minio endpoint")?;
 
         Ok(SystemData {
             report_hash: String::new(),

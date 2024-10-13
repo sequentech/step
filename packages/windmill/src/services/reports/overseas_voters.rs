@@ -1,16 +1,15 @@
 use super::template_renderer::*;
+use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::database::get_hasura_pool;
-use crate::{postgres::election_event::get_election_event_by_id};
 use crate::services::temp_path::*;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
+use chrono::offset::TimeZone;
+use chrono::{DateTime, Utc};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
-use chrono::{DateTime, Utc};
-use chrono::offset::TimeZone;
 use sequent_core::types::templates::EmailConfig;
-
+use serde::{Deserialize, Serialize};
 
 /// Struct for Overseas Voter Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -97,13 +96,21 @@ impl TemplateRenderer for OverseasVotersReport {
     // TODO: replace mock data with actual data
     /// Prepare user data for the report
     async fn prepare_user_data(&self) -> Result<Self::UserData> {
-        let mut db_client: DbClient = get_hasura_pool().await.get().await.with_context(|| "Error getting hasura db pool")?;
-        let transaction = db_client.transaction().await.with_context(|| "Error starting transaction")?;
+        let mut db_client: DbClient = get_hasura_pool()
+            .await
+            .get()
+            .await
+            .with_context(|| "Error getting hasura db pool")?;
+        let transaction = db_client
+            .transaction()
+            .await
+            .with_context(|| "Error starting transaction")?;
 
         // Fetch election event data
-        let election_event = get_election_event_by_id(&transaction, &self.tenant_id, &self.election_event_id)
-            .await
-            .with_context(|| "Error getting election event")?;
+        let election_event =
+            get_election_event_by_id(&transaction, &self.tenant_id, &self.election_event_id)
+                .await
+                .with_context(|| "Error getting election event")?;
 
         // Example Voters list (should be fetched from the database or external service)
         let voters_list = vec![
@@ -113,7 +120,7 @@ impl TemplateRenderer for OverseasVotersReport {
                 last_name: "Doe".to_string(),
                 middle_name: Some("M".to_string()),
                 voted: true,
-                date_time_voted: Some(Utc::now()),  // Replace with actual DB data
+                date_time_voted: Some(Utc::now()), // Replace with actual DB data
             },
             VoterData {
                 index: 2,
@@ -121,24 +128,24 @@ impl TemplateRenderer for OverseasVotersReport {
                 last_name: "Smith".to_string(),
                 middle_name: None,
                 voted: false,
-                date_time_voted: None,  // Replace with actual DB data
+                date_time_voted: None, // Replace with actual DB data
             },
         ];
 
         // Aggregate voter statistics
         let total_voted = voters_list.iter().filter(|v| v.voted).count() as u32;
         let total_not_voted = voters_list.len() as u32 - total_voted;
-        let total_not_enrolled = 10;  // Replace with actual data
-        let total_eb_voted = 5;  // Replace with actual data
-        let total_ov = voters_list.len() as u32 + total_not_enrolled;  // Total OV = registered + not enrolled
+        let total_not_enrolled = 10; // Replace with actual data
+        let total_eb_voted = 5; // Replace with actual data
+        let total_ov = voters_list.len() as u32 + total_not_enrolled; // Total OV = registered + not enrolled
 
         let temp_val: &str = "test";
         let user_data = UserData {
             election_start_date: temp_val.to_string(),
             election_title: temp_val.to_string(),
-            geograpic_region: "Asia".to_string(),  // Replace with actual data
-            area: "Region 1".to_string(),  // Replace with actual data
-            country: "Philippines".to_string(),  // Replace with actual data
+            geograpic_region: "Asia".to_string(), // Replace with actual data
+            area: "Region 1".to_string(),         // Replace with actual data
+            country: "Philippines".to_string(),   // Replace with actual data
             voting_center: "Manila".to_string(),  // Replace with actual data
             total_voted,
             total_not_voted,
@@ -155,19 +162,22 @@ impl TemplateRenderer for OverseasVotersReport {
     }
 
     /// Prepare system metadata for the report
-    async fn prepare_system_data(&self, _rendered_user_template: String) -> Result<Self::SystemData> {
+    async fn prepare_system_data(
+        &self,
+        _rendered_user_template: String,
+    ) -> Result<Self::SystemData> {
         let now = Utc::now();
         let date_printed = now.format("%Y-%m-%d").to_string();
         let time_printed = now.format("%H:%M:%S").to_string();
 
         let system_data = SystemData {
-            report_hash: String::new(),  // Placeholder, should be computed
-            ovcs_version: "1.0".to_string(),  // Replace with actual version
-            system_hash: String::new(),  // Placeholder, should be computed
-            file_logo: String::new(),  // Placeholder for file logo path
+            report_hash: String::new(),      // Placeholder, should be computed
+            ovcs_version: "1.0".to_string(), // Replace with actual version
+            system_hash: String::new(),      // Placeholder, should be computed
+            file_logo: String::new(),        // Placeholder for file logo path
             file_qrcode_lib: String::new(),  // Placeholder for QR code file path
             date_time_printed: format!("{} {}", date_printed, time_printed),
-            printing_code: String::new(),  // Placeholder, should be computed
+            printing_code: String::new(), // Placeholder, should be computed
         };
 
         Ok(system_data)

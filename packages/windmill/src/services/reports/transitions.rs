@@ -2,18 +2,18 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
+use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id_and_event_processor;
 use crate::services::database::get_hasura_pool;
-use crate::{postgres::election_event::get_election_event_by_id, services::s3::get_minio_url};
-use crate::{postgres::scheduled_event::find_scheduled_event_by_election_event_id_and_event_processor};
 use crate::services::temp_path::*;
+use crate::{postgres::election_event::get_election_event_by_id, services::s3::get_minio_url};
 use anyhow::{anyhow, Context, Ok, Result};
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
-use std::env;
-use tracing::{info, instrument};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use sequent_core::types::templates::EmailConfig;
+use serde::{Deserialize, Serialize};
+use std::env;
+use tracing::{info, instrument};
 
 /// Struct for Transition Report Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -115,7 +115,7 @@ impl TemplateRenderer for TransitionsReport {
             &hasura_transaction,
             &self.tenant_id,
             &self.election_event_id,
-            "START_VOTING_PERIOD"
+            "START_VOTING_PERIOD",
         )
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)));
@@ -126,7 +126,7 @@ impl TemplateRenderer for TransitionsReport {
         //     // Now cron_config is a CronConfig, not an Option
         //     if let Some(scheduled_date) = cron_config.scheduled_date {
         //         election_start_date = scheduled_date;
-        //     } 
+        //     }
 
         // }
 

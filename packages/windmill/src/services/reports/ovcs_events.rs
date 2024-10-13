@@ -1,15 +1,13 @@
 use super::template_renderer::*;
+use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::database::get_hasura_pool;
-use crate::{postgres::election_event::get_election_event_by_id};
 use anyhow::{anyhow, Context, Ok, Result};
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use deadpool_postgres::Client as DbClient;
+use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
-use chrono::{DateTime, Utc};
-use sequent_core::types::templates::EmailConfig;
-
-
 
 /// Struct for OVCSEvents Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -26,12 +24,11 @@ pub struct UserData {
     pub date_time_closing_polls: String,
     pub date_time_transmission_results: String,
     pub transmission_status: String,
-    pub remarks: Option<String>,  // Free text input, so it can be optional
+    pub remarks: Option<String>, // Free text input, so it can be optional
     pub chairperson_name: String,
     pub poll_clerk_name: String,
     pub third_member_name: String,
 }
-
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SystemData {
@@ -54,7 +51,6 @@ pub struct OVCSEventsTemplate {
 impl TemplateRenderer for OVCSEventsTemplate {
     type UserData = UserData;
     type SystemData = SystemData;
-
 
     fn get_report_type() -> ReportType {
         ReportType::OVCS_EVENTS
@@ -110,9 +106,9 @@ impl TemplateRenderer for OVCSEventsTemplate {
         Ok(UserData {
             election_start_date: temp_val.to_string(),
             election_title: temp_val.to_string(),
-            geograpic_region: "Asia".to_string(),  // Replace with actual data
-            area: "Region 1".to_string(),  // Replace with actual data
-            country: "Philippines".to_string(),  // Replace with actual data
+            geograpic_region: "Asia".to_string(), // Replace with actual data
+            area: "Region 1".to_string(),         // Replace with actual data
+            country: "Philippines".to_string(),   // Replace with actual data
             voting_center: "Manila".to_string(),  // Replace with actual data
             date_of_final_testing: "2024-10-09".to_string(),
             date_time_initialization: "2024-10-09 08:00".to_string(),
@@ -124,23 +120,26 @@ impl TemplateRenderer for OVCSEventsTemplate {
             chairperson_name: temp_val.to_string(),
             third_member_name: temp_val.to_string(),
             poll_clerk_name: temp_val.to_string(),
-})
+        })
     }
 
     /// Prepare system metadata for the report
-    async fn prepare_system_data(&self, _rendered_user_template: String) -> Result<Self::SystemData> {
+    async fn prepare_system_data(
+        &self,
+        _rendered_user_template: String,
+    ) -> Result<Self::SystemData> {
         let now = Utc::now();
         let date_printed = now.format("%Y-%m-%d").to_string();
         let time_printed = now.format("%H:%M:%S").to_string();
 
         let system_data = SystemData {
-            report_hash: String::new(),  // Placeholder, should be computed
-            ovcs_version: "1.0".to_string(),  // Replace with actual version
-            system_hash: String::new(),  // Placeholder, should be computed
-            file_logo: String::new(),  // Placeholder for file logo path
+            report_hash: String::new(),      // Placeholder, should be computed
+            ovcs_version: "1.0".to_string(), // Replace with actual version
+            system_hash: String::new(),      // Placeholder, should be computed
+            file_logo: String::new(),        // Placeholder for file logo path
             file_qrcode_lib: String::new(),  // Placeholder for QR code file path
             date_time_printed: format!("{} {}", date_printed, time_printed),
-            printing_code: String::new(),  // Placeholder, should be computed
+            printing_code: String::new(), // Placeholder, should be computed
         };
 
         Ok(system_data)

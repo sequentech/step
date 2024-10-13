@@ -3,11 +3,11 @@ use crate::services::database::get_hasura_pool;
 use crate::services::s3::get_minio_url;
 use anyhow::{anyhow, Context, Ok, Result};
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
-use tracing::{info, instrument};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use sequent_core::types::templates::EmailConfig;
+use serde::{Deserialize, Serialize};
+use tracing::{info, instrument};
 
 /// Struct for Pre-Enrolled User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -18,10 +18,10 @@ pub struct PreEnrolledUserData {
     pub middle_name: Option<String>,
     pub suffix: Option<String>,
     pub id: String,
-    pub status: String, // Either "voted" or "not voted"
+    pub status: String,            // Either "voted" or "not voted"
     pub date_pre_enrolled: String, // Assuming this is a string, format: YYYY-MM-DD
     pub time_pre_enrolled: String, // Assuming this is a string, format: HH:MM:SS
-    pub approved_by: String, // OFOV/SBEI/SYSTEM
+    pub approved_by: String,       // OFOV/SBEI/SYSTEM
 }
 
 /// Struct for OV Count Data
@@ -71,7 +71,6 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
     fn get_report_type() -> ReportType {
         ReportType::PRE_ENROLLED_USERS
     }
-
 
     fn get_tenant_id(&self) -> String {
         self.tenant_id.clone()
@@ -137,12 +136,18 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
                 date_pre_enrolled: "2024-01-03".to_string(),
                 time_pre_enrolled: "10:30:00".to_string(),
                 approved_by: "SYSTEM".to_string(),
-            }
+            },
         ];
 
         // Calculate the number of OVs who voted, didn't vote, and the total
-        let number_of_ovs_voted = pre_enrolled_users.iter().filter(|u| u.status == "voted").count() as u32;
-        let number_of_ovs_not_voted = pre_enrolled_users.iter().filter(|u| u.status == "not voted").count() as u32;
+        let number_of_ovs_voted = pre_enrolled_users
+            .iter()
+            .filter(|u| u.status == "voted")
+            .count() as u32;
+        let number_of_ovs_not_voted = pre_enrolled_users
+            .iter()
+            .filter(|u| u.status == "not voted")
+            .count() as u32;
         let number_of_ovs_total = pre_enrolled_users.len() as u32;
 
         // Assuming "OFOV" approval is common, modify logic to fit your use case
@@ -168,8 +173,12 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
     }
 
     // Fetch and prepare SystemData with mock data
-    async fn prepare_system_data(&self, rendered_user_template: String) -> Result<Self::SystemData> {
-        let minio_endpoint_base = get_minio_url().with_context(|| "Error getting minio endpoint")?;
+    async fn prepare_system_data(
+        &self,
+        rendered_user_template: String,
+    ) -> Result<Self::SystemData> {
+        let minio_endpoint_base =
+            get_minio_url().with_context(|| "Error getting minio endpoint")?;
 
         Ok(SystemData {
             report_hash: String::new(),

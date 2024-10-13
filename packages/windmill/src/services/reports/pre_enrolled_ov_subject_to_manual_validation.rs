@@ -3,10 +3,10 @@ use crate::services::database::get_hasura_pool;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Client as DbClient;
-use serde::{Deserialize, Serialize};
-use tracing::{info, instrument};
 use rocket::http::Status;
 use sequent_core::types::templates::EmailConfig;
+use serde::{Deserialize, Serialize};
+use tracing::{info, instrument};
 
 /// Struct for User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -82,7 +82,8 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
 
     fn get_email_config() -> EmailConfig {
         EmailConfig {
-            subject: "Sequent Online Voting - Pre Enrolled OV Subject To Manual Validation".to_string(),
+            subject: "Sequent Online Voting - Pre Enrolled OV Subject To Manual Validation"
+                .to_string(),
             plaintext_body: "".to_string(),
             html_body: None,
         }

@@ -187,7 +187,6 @@ pub async fn get_contest_by_election_id(
     Ok(contests)
 }
 
-
 #[instrument(err, skip_all)]
 pub async fn get_contest_by_id(
     hasura_transaction: &Transaction<'_>,
@@ -206,9 +205,9 @@ pub async fn get_contest_by_id(
                     election_event_id = $2;
                     contest_id = $3;
                 "#,
-            )
+        )
         .await?;
-    
+
     let row: Option<Row> = hasura_transaction
         .query_opt(
             &statement,
@@ -219,7 +218,7 @@ pub async fn get_contest_by_id(
             ],
         )
         .await?;
-        
+
     if let Some(row) = row {
         let contest: Contest = row
             .try_into()
@@ -229,4 +228,3 @@ pub async fn get_contest_by_id(
         Err(anyhow::anyhow!("No contest found with the provided id"))
     }
 }
-        

@@ -41,7 +41,10 @@ pub async fn manage_dates(
         .get("initialization_report_policy")
         .unwrap_or(&JsonValue::Null)
         == &JsonValue::String(EInitializeReportPolicy::REQUIRED.to_string())
-        && !_election.clone().initializion_report_generated.unwrap_or(false)
+        && !_election
+            .clone()
+            .initializion_report_generated
+            .unwrap_or(false)
     {
         return Err(anyhow!("Initialization report must be generated"));
     }

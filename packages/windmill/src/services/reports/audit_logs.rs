@@ -1,14 +1,13 @@
 use super::template_renderer::*;
-use crate::services::electoral_log::{list_electoral_log, GetElectoralLogBody};
 use crate::services::database::get_hasura_pool;
+use crate::services::electoral_log::{list_electoral_log, GetElectoralLogBody};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
+use chrono::{NaiveDate, TimeZone, Utc};
 use deadpool_postgres::Client as DbClient;
+use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
-use sequent_core::types::templates::EmailConfig;
-use chrono::{NaiveDate, TimeZone, Utc};
-
 
 /// Struct for Audit Logs User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -130,7 +129,8 @@ impl TemplateRenderer for AuditLogsTemplate {
         let goverment_time = "18:00".to_string();
 
         // Parse the date string into a NaiveDate
-        let date = NaiveDate::parse_from_str(&election_date, "%Y-%m-%d").expect("Failed to parse date");
+        let date =
+            NaiveDate::parse_from_str(&election_date, "%Y-%m-%d").expect("Failed to parse date");
 
         // Format the date to the desired format
         election_date = date.format("%B %d, %Y").to_string();
@@ -149,14 +149,18 @@ impl TemplateRenderer for AuditLogsTemplate {
 
         for item in &electoral_logs.items {
             // Convert the `created` timestamp from Unix time to a formatted date-time string
-            let created_datetime = Utc.timestamp_opt(item.created, 0)
-            .single()  // Handle the Option, get Some(T) or None
-            .expect("Invalid timestamp");
+            let created_datetime = Utc
+                .timestamp_opt(item.created, 0)
+                .single() // Handle the Option, get Some(T) or None
+                .expect("Invalid timestamp");
             let formatted_datetime: String = created_datetime.format("%Y-%m-%d %H:%M").to_string();
-        
+
             // Set default username if user_id is None
-            let username = item.user_id.clone().unwrap_or_else(|| "Unknown User".to_string());
-        
+            let username = item
+                .user_id
+                .clone()
+                .unwrap_or_else(|| "Unknown User".to_string());
+
             // Map fields from `ElectoralLogRow` to `AuditLogEntry`
             let audit_log_entry = AuditLogEntry {
                 number: item.id, // Increment number for each item
@@ -164,7 +168,7 @@ impl TemplateRenderer for AuditLogsTemplate {
                 username,
                 activity: item.statement_kind.clone(), // Assuming `statement_kind` is the activity
             };
-        
+
             // Push the constructed `AuditLogEntry` to the sequences array
             sequences.push(audit_log_entry);
         }
@@ -188,7 +192,7 @@ impl TemplateRenderer for AuditLogsTemplate {
             poll_clerk_name,
             poll_clerk_digital_signature,
             third_member_name,
-            third_member_digital_signature
+            third_member_digital_signature,
         })
     }
 
@@ -207,7 +211,8 @@ impl TemplateRenderer for AuditLogsTemplate {
         let printing_code = "XYZ123".to_string();
 
         // Parse the date string into a NaiveDate
-         let date = NaiveDate::parse_from_str(&date_printed, "%Y-%m-%d").expect("Failed to parse date");
+        let date =
+            NaiveDate::parse_from_str(&date_printed, "%Y-%m-%d").expect("Failed to parse date");
 
         // Format the date to the desired format
         date_printed = date.format("%B %d, %Y").to_string();

@@ -1,13 +1,13 @@
 use super::template_renderer::*;
 use crate::services::database::get_hasura_pool;
 use crate::services::s3::get_minio_url;
-use anyhow::{Context, Result};
 use crate::services::temp_path::*;
+use anyhow::{Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Client as DbClient;
+use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
-use sequent_core::types::templates::EmailConfig;
 
 // Struct to hold user data
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -81,7 +81,7 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
             html_body: None,
         }
     }
-        
+
     // TODO: replace mock data with actual data
     async fn prepare_user_data(&self) -> Result<Self::UserData> {
         // Fetch the Hasura database client from the pool
@@ -101,9 +101,9 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
         let user_data = UserData {
             election_start_date: temp_val.to_string(),
             election_title: temp_val.to_string(),
-            geograpic_region: "Asia".to_string(),  // Replace with actual data
-            area: "Region 1".to_string(),  // Replace with actual data
-            country: "Philippines".to_string(),  // Replace with actual data
+            geograpic_region: "Asia".to_string(), // Replace with actual data
+            area: "Region 1".to_string(),         // Replace with actual data
+            country: "Philippines".to_string(),   // Replace with actual data
             voting_center: "Manila".to_string(),  // Replace with actual data
             num_of_rovs: 1000,
             none_enrolled_rov: 200,
