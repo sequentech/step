@@ -359,6 +359,7 @@ const tagalogTranslation: TranslationType = {
                     title: "Decryption Password",
                     description: "Ilagay ang password para i-decrypt ang file",
                     label: "Password",
+                    copyPassword: "Kopyahin ang Password",
                     ok: "Ok",
                 },
             },

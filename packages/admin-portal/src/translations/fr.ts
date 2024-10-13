@@ -361,6 +361,7 @@ const frenchTranslation: TranslationType = {
                     title: "Mot de passe de déchiffrement",
                     description: "Entrez le mot de passe pour déchiffrer le fichier",
                     label: "Mot de passe",
+                    copyPassword: "Copier le Mot de Passe",
                     ok: "OK",
                 },
             },

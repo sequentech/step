@@ -356,6 +356,7 @@ const englishTranslation = {
                     title: "Decryption Password",
                     description: "Enter the password to decrypt the file",
                     label: "Password",
+                    copyPassword: "Copy Password",
                     ok: "Ok",
                 },
             },

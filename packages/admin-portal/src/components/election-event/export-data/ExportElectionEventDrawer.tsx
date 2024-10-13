@@ -265,7 +265,7 @@ const PasswordDialog: React.FC<{password: string; onClose: () => void}> = ({pass
                 InputProps={{
                     readOnly: true,
                     endAdornment: (
-                        <Tooltip title={t("common.label.copy")}>
+                        <Tooltip title={t("electionEventScreen.import.passwordDialog.copyPassword")}>
                             <IconButton onClick={handleCopyPassword}>
                                 <ContentCopyIcon />
                             </IconButton>

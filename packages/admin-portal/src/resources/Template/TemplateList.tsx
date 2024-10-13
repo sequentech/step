@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {ReactElement, useContext} from "react"
+import React, {ReactElement, useContext, useState} from "react"
 
 import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
@@ -20,10 +20,13 @@ import {
     DatagridConfigurable,
     useRefresh,
     WrapperField,
+    Button as ReactAdminButton,
+    useNotify,
 } from "react-admin"
 
 import {IPermissions} from "@/types/keycloak"
 import {ListActions} from "@/components/ListActions"
+import UploadIcon from "@mui/icons-material/Upload"
 import {ActionsColumn} from "@/components/ActionButons"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {Dialog, IconButton} from "@sequentech/ui-essentials"
@@ -33,6 +36,13 @@ import {CustomApolloContextProvider} from "@/providers/ApolloContextProvider"
 import ElectionHeader from "@/components/ElectionHeader"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {TemplateEdit} from "./TemplateEdit"
+import {useMutation} from "@apollo/client"
+import {EXPORT_TEMPLATE} from "@/queries/ExportTemplate"
+import {FormStyles} from "@/components/styles/FormStyles"
+import {DownloadDocument} from "../User/DownloadDocument"
+import {ExportTemplateMutation, ImportTemplatesMutation} from "@/gql/graphql"
+import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
+import {IMPORT_TEMPLATES} from "@/queries/ImportTemplate"
 
 const TemplateEmpty = styled(Box)`
     display: flex;
@@ -64,12 +74,42 @@ export const TemplateList: React.FC = () => {
     const authContext = useContext(AuthContext)
     const [tenantId] = useTenantStore()
     const templateRead = authContext.isAuthorized(true, tenantId, IPermissions.template_READ)
-
+    const [openExport, setOpenExport] = useState(false)
+    const [exporting, setExporting] = useState(false)
+    const [exportDocumentId, setExportDocumentId] = useState<string | undefined>()
+    const [openImportDrawer, setOpenImportDrawer] = useState<boolean>(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
     const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
     const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
+    const [ExportTemplate] = useMutation<ExportTemplateMutation>(EXPORT_TEMPLATE)
+    const [ImportTemplate] = useMutation<ImportTemplatesMutation>(IMPORT_TEMPLATES)
     const refresh = useRefresh()
+    const notify = useNotify()
+
+    const handleExport = async () => {
+        setExporting(false)
+        setExportDocumentId(undefined)
+        setOpenExport(true)
+    }
+
+    const confirmExportAction = async () => {
+        try {
+            setExporting(true)
+            const {data, errors} = await ExportTemplate({variables: {tenantId}})
+            notify("Templates exported successfully", {type: "success"})
+            if (errors) {
+                setExporting(false)
+                notify("Error exporting templates", {type: "error"})
+                return
+            }
+            const documentId = data?.export_template?.document_id
+            setExportDocumentId(documentId)
+        } catch (error) {
+            console.log(error)
+            notify("Error exporting templates", {type: "error"})
+        }
+    }
 
     const handleCloseDrawer = () => {
         setOpenDrawer(false)
@@ -78,6 +118,10 @@ export const TemplateList: React.FC = () => {
         setTimeout(() => {
             setRecordId(undefined)
         }, 400)
+    }
+
+    const handleImport = () => {
+        setOpenImportDrawer(true)
     }
 
     const handleCreateDrawer = () => {
@@ -112,6 +156,23 @@ export const TemplateList: React.FC = () => {
         </Button>
     )
 
+    const handleImportTemplates = async (documentId: string, sha256: string) => {
+        setOpenImportDrawer(false)
+        try {
+            const {data, errors} = await ImportTemplate({
+                variables: {
+                    tenantId,
+                    documentId,
+                },
+            })
+            notify("Templates imported successfully", {type: "success"})
+            refresh()
+        } catch (err) {
+            console.log(err)
+            notify("Error importing templates", {type: "error"})
+        }
+    }
+
     const Empty = () => (
         <TemplateEmpty m={1}>
             <Typography variant="h4" paragraph>
@@ -123,7 +184,13 @@ export const TemplateList: React.FC = () => {
                     <Typography variant="body1" paragraph>
                         {t("template.empty.subtitle")}
                     </Typography>
-                    <CreateButton />
+
+                    <ResourceListStyles.EmptyButtonList>
+                        <CreateButton />
+                        <ReactAdminButton onClick={handleImport} label={t("common.label.import")}>
+                            <UploadIcon />
+                        </ReactAdminButton>
+                    </ResourceListStyles.EmptyButtonList>
                 </>
             ) : null}
         </TemplateEmpty>
@@ -155,8 +222,10 @@ export const TemplateList: React.FC = () => {
                         custom
                         withFilter
                         /* TODO: */
-                        withExport={false}
-                        withImport={false}
+                        doImport={handleImport}
+                        withExport={true}
+                        doExport={handleExport}
+                        withImport={true}
                         open={openDrawer}
                         setOpen={setOpenDrawer}
                         Component={<TemplateCreate close={handleCloseDrawer} />}
@@ -207,6 +276,50 @@ export const TemplateList: React.FC = () => {
             >
                 {t("common.message.delete")}
             </Dialog>
+            <Dialog
+                variant="info"
+                open={openExport}
+                ok={t("common.label.export")}
+                okEnabled={() => !exporting}
+                cancel={t("common.label.cancel")}
+                title={t("common.label.export")}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        confirmExportAction()
+                    } else {
+                        setExportDocumentId(undefined)
+                        setExporting(false)
+                        setOpenExport(false)
+                    }
+                }}
+            >
+                {t("common.export")}
+                <FormStyles.ReservedProgressSpace>
+                    {exporting ? <FormStyles.ShowProgress /> : null}
+                    {exporting && exportDocumentId ? (
+                        <DownloadDocument
+                            documentId={exportDocumentId}
+                            fileName={`templates-export.csv`}
+                            onDownload={() => {
+                                console.log("onDownload called")
+                                setExportDocumentId(undefined)
+                                setExporting(false)
+                                setOpenExport(false)
+                            }}
+                        />
+                    ) : null}
+                </FormStyles.ReservedProgressSpace>
+            </Dialog>
+
+            <ImportDataDrawer
+                open={openImportDrawer}
+                closeDrawer={() => setOpenImportDrawer(false)}
+                title="electionEventScreen.import.title"
+                subtitle="electionEventScreen.import.subtitle"
+                paragraph="electionEventScreen.import.votersParagraph"
+                doImport={handleImportTemplates}
+                errors={null}
+            />
         </>
     )
 }

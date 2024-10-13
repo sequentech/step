@@ -359,6 +359,7 @@ const spanishTranslation: TranslationType = {
                     title: "Contraseña de Descifrado",
                     description: "Introduce la contraseña para descifrar el archivo",
                     label: "Contraseña",
+                    copyPassword: "Copiar Contraseña",
                     ok: "Aceptar",
                 },
             },

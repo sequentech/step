@@ -360,6 +360,7 @@ const catalanTranslation: TranslationType = {
                     title: "Contrasenya de Desxifrat",
                     description: "Introdueix la contrasenya per desxifrar l'arxiu",
                     label: "Contrasenya",
+                    copyPassword: "Copiar Contrasenya",
                     ok: "D'acord",
                 },
             },

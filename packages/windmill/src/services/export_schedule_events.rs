@@ -67,7 +67,7 @@ pub async fn write_export_document(
         file_size,
         "text/csv",
         tenant_id,
-        election_event_id,
+        Some(election_event_id.to_string()),
         &name,
         Some(document_id.to_string()),
         false, // is_public: bool,

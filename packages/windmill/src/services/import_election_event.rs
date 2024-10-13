@@ -19,6 +19,8 @@ use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClie
 use sequent_core::services::replace_uuids::replace_uuids;
 use sequent_core::types::hasura::core::AreaContest;
 use sequent_core::types::hasura::core::Document;
+use sequent_core::types::hasura::core::TasksExecution;
+use sequent_core::types::hasura::core::Template;
 use sequent_core::util::mime::get_mime_type;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
@@ -512,7 +514,7 @@ pub async fn process_s3_files(
         file_size,
         &document_type,
         &tenant_id,
-        &election_event_id,
+        Some(election_event_id.to_string()),
         file_name,
         None,
         false,

@@ -5,4 +5,5 @@
 *.license
 yarn.lock
 *.sql
+.eslintrc.json
 node_modules/

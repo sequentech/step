@@ -51,7 +51,7 @@ pub async fn read_export_data(
             export_candidates(&transaction, tenant_id, election_event_id),
             get_event_areas(&transaction, tenant_id, election_event_id),
             export_area_contests(&transaction, tenant_id, election_event_id),
-            find_scheduled_event_by_election_event_id(&transaction, tenant_id, election_event_id),
+            find_scheduled_event_by_election_event_id(&transaction, tenant_id, election_event_id)
         )?;
 
     Ok(ImportElectionEventSchema {
@@ -251,7 +251,7 @@ pub async fn process_export_zip(
         zip_size,
         "application/zip",
         &tenant_id.to_string(),
-        &election_event_id,
+        Some(election_event_id.to_string()),
         &zip_filename,
         Some(document_id.to_string()),
         false,
