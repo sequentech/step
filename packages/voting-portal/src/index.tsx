@@ -23,8 +23,10 @@ import {action as castBallotAction} from "./routes/ReviewScreen"
 import Loader from "./components/Loader"
 
 const TenantEvent = lazy(() => import("./routes/TenantEvent"))
+const PreviewPublicationEvent = lazy(() => import("./routes/PreviewPublicationEvent"))
 const ElectionSelectionScreen = lazy(() => import("./routes/ElectionSelectionScreen"))
 const LoginScreen = lazy(() => import("./routes/LoginScreen"))
+const PreviewPublicationScreen = lazy(() => import("./routes/PreviewPublicationScreen"))
 const RegisterScreen = lazy(() => import("./routes/RegisterScreen"))
 const StartScreen = lazy(() => import("./routes/StartScreen"))
 const VotingScreen = lazy(() => import("./routes/VotingScreen"))
@@ -41,6 +43,11 @@ initCore()
 export type TenantEventType = {
     tenantId: string
     eventId: string
+}
+
+export type PreviewPublicationEventType = {
+    publicationId: string
+    areaId: string
 }
 
 export interface KeycloakProviderProps extends React.PropsWithChildren {
@@ -73,8 +80,20 @@ const router = createBrowserRouter(
                 {
                     path: "/preview/:publicationId/:areaId",
                     element: (
-                        <>Nice cookies</>
-                    )
+                        <Suspense fallback={<Loader />}>
+                            <PreviewPublicationEvent />
+                        </Suspense>
+                    ),
+                    children: [
+                        {
+                            path: "demo",
+                            element: (
+                                <Suspense fallback={<Loader />}>
+                                    <PreviewPublicationScreen />
+                                </Suspense>
+                            ),
+                        }
+                    ]
                 },
                 {
                     path: "/tenant/:tenantId/event/:eventId",

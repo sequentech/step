@@ -12,7 +12,7 @@ import Stack from "@mui/material/Stack"
 import {useNavigate} from "react-router-dom"
 import {AuthContext} from "./providers/AuthContextProvider"
 import {SettingsContext} from "./providers/SettingsContextProvider"
-import {TenantEventType} from "."
+import {TenantEventType, PreviewPublicationEventType} from "."
 import {ApolloWrapper} from "./providers/ApolloContextProvider"
 import {VotingPortalError, VotingPortalErrorType} from "./services/VotingPortalError"
 import {useAppSelector} from "./store/hooks"
@@ -82,13 +82,19 @@ const App = () => {
     const {globalSettings} = useContext(SettingsContext)
     const location = useLocation()
     const {tenantId, eventId} = useParams<TenantEventType>()
+    const {publicationId, areaId} = useParams<PreviewPublicationEventType>()
     const {isAuthenticated, setTenantEvent} = useContext(AuthContext)
 
     const electionIds = useAppSelector(selectElectionIds)
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionIds[0])))
 
     useEffect(() => {
-        if (globalSettings.DISABLE_AUTH) {
+        if (location.pathname.includes('preview')) {
+            navigate(
+                `/preview/${publicationId}/${areaId}/demo`
+            )
+        }
+        else if (globalSettings.DISABLE_AUTH) {
             navigate(
                 `/tenant/${globalSettings.DEFAULT_TENANT_ID}/event/${globalSettings.DEFAULT_EVENT_ID}/election-chooser${location.search}`
             )
