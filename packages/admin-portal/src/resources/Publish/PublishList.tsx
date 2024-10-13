@@ -27,6 +27,7 @@ import {HeaderTitle} from "@/components/HeaderTitle"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {Action, ActionsColumn} from "@/components/ActionButons"
 import {ResetFilters} from "@/components/ResetFilters"
+import { EditPreview } from "./EditPreview"
 
 const OMIT_FIELDS: string[] = []
 
@@ -95,6 +96,10 @@ export const PublishList: React.FC<TPublishList> = ({
         return <Empty />
     }
 
+    const handleCloseEditDrawer = () => {
+        throw new Error("Function not implemented.")
+    }
+
     return (
         <Box>
             {
@@ -145,10 +150,10 @@ export const PublishList: React.FC<TPublishList> = ({
                 open={open}
                 onClose={()=> setOpen(false)}
                 PaperProps={{
-                    sx: {width: "40%"},
+                    sx: {width: "20%"},
                 }}
             >
-                {/* <EditArea id={recordId} electionEventId={id} close={handleCloseEditDrawer} /> */}
+                <EditPreview electionEventId={electionEventId} close={handleCloseEditDrawer} />
             </Drawer>
         </Box>
     )
