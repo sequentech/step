@@ -1,10 +1,12 @@
 use super::template_renderer::*;
+use crate::postgres::candidate::get_candidates_by_election_id;
+use crate::postgres::contest::get_contest_by_election_id;
 use crate::services::database::get_hasura_pool;
 use crate::{postgres::election_event::get_election_event_by_id, services::s3::get_minio_url};
-use crate::{postgres::scheduled_event::find_scheduled_event_by_election_event_id_and_event_processor};
 use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
+use sequent_core::types::hasura::core::{Candidate, Contest};
 use serde::{Deserialize, Serialize};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -13,25 +15,33 @@ use sequent_core::types::templates::EmailConfig;
 /// Struct for the initialization report
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
-    pub election_start_date: String,
-    pub election_title: String,
-    pub geograpic_region: String,
-    pub area: String,
+    pub election_date: String,
+    pub voting_period: String,
+    pub geographical_region: String,
+    pub post: String,
     pub country: String,
     pub voting_center: String,
-    pub total_registered_voters: u32,
-    pub total_ballots_counted: u32,
-    pub elective_position_name: String,
-    pub candidate_data: Vec<CandidateData>,
+    pub precinct_code: String,
+    pub registered_voters: u32,
+    pub ballots_counted: u32,
+    pub contests: Vec<ContestData>,
     pub chairperson_name: String,
     pub poll_clerk_name: String,
     pub third_member_name: String,
 }
 
+/// Struct for each contest's data
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ContestData {
+    pub contest_name: String,
+    pub position_name: String,
+    pub candidates: Vec<CandidateData>,
+}
+
 /// Struct for each candidate's data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CandidateData {
-    pub name_appearing_on_ballot: String,
+    pub name_in_ballot: String,
     pub acronym: String,
     pub votes_garnered: u32,
 }
@@ -42,16 +52,14 @@ pub struct SystemData {
     pub report_hash: String,
     pub ovsc_version: String,
     pub system_hash: String,
-    pub file_logo: String,
-    pub file_qrcode_lib: String,
-    pub date_time_printed: String,
-    pub printing_code: String,
+    pub software_version: String,
 }
 
 #[derive(Debug)]
 pub struct InitializationTemplate {
     tenant_id: String,
     election_event_id: String,
+    election_id: String,
 }
 
 #[async_trait]
@@ -88,7 +96,6 @@ impl TemplateRenderer for InitializationTemplate {
     }
 
     async fn prepare_user_data(&self) -> Result<Self::UserData> {
-        // Fetch the Hasura database client from the pool
         let mut hasura_db_client: DbClient = get_hasura_pool()
             .await
             .get()
@@ -100,51 +107,75 @@ impl TemplateRenderer for InitializationTemplate {
             .await
             .with_context(|| "Error starting hasura transaction")?;
 
-        // Fetch election event data
-        let election_event = get_election_event_by_id(
-            &hasura_transaction, 
-            &self.tenant_id, 
-            &self.election_event_id
+        let contests = get_contest_by_election_id(
+            &hasura_transaction,
+            &self.tenant_id,
+            &self.election_event_id,
+            &self.election_id,
         )
         .await
-        .with_context(|| "Error obtaining election event")?;
+        .with_context(|| "Error obtaining contests")?;
 
-        // Split elective position name before the '/'
-        let elective_position_name = election_event.name.split('/').next()
-            .unwrap_or("Unknown Position")
-            .to_string();
-        
-        // TODO: replace mock data with actual data
-        // Extract candidate names and acronyms
-        let candidates: Vec<CandidateData> = Vec::new(); // Assuming the structure has candidates array
-        let mut candidate_data: Vec<CandidateData> = Vec::new();
-        for candidate in candidates {
-            candidate_data.push(CandidateData {
-                name_appearing_on_ballot: candidate.name_appearing_on_ballot.clone(),
-                acronym: candidate.acronym.clone(), // Assuming acronym is part of the candidate structure
-                votes_garnered: 0, // Default value since no votes have been cast yet
+        // All candidates for the election (several contests)
+        let election_candidates = get_candidates_by_election_id(
+            &hasura_transaction,
+            &self.tenant_id,
+            &self.election_event_id,
+            &self.election_id,
+        )
+        .await
+        .with_context(|| "Error obtaining contests")?;
+
+        let mut contests_data: Vec<ContestData> = Vec::new();
+        for contest in contests {
+            let contest_name = contest.clone().name.unwrap_or_default();
+            let contest_name_parts = contest_name.split('/').collect::<Vec<&str>>();
+            let contest_name = contest_name_parts.get(0).unwrap_or(&"").to_string();
+            let position_name = contest_name_parts.get(1).unwrap_or(&"").to_string();            
+
+            let filtered_candidates = election_candidates
+                .iter()
+                .filter(|candidate| {
+                    candidate.contest_id.as_ref().unwrap_or(&String::new()) == &contest.id
+                })
+                .collect::<Vec<&Candidate>>();
+
+            // Fetch candidates for the contest
+            let candidate_data: Vec<CandidateData> = filtered_candidates
+                .into_iter()
+                .map(|candidate| CandidateData {
+                    name_in_ballot: candidate.clone().name.unwrap_or_default(),
+                    acronym: candidate.clone().annotations.unwrap_or_default().get("acronym").unwrap_or(&serde_json::Value::Null).to_string(),
+                    votes_garnered: 0, //TODO: Get votes from the database
+                })
+                .collect();
+
+            contests_data.push(ContestData {
+                contest_name,
+                position_name,
+                candidates: candidate_data,
             });
         }
 
-        // Retrieve total registered voters and total ballots counted (Placeholder for now)
-        let total_registered_voters = 0; // Replace with the correct value fetched from Felix
-        let total_ballots_counted = 0; // Replace with the correct value fetched from Felix
+        // Placeholder values for the remaining data
+        let temp_val = "test".to_string();
+        let total_registered_voters = 0;
+        let total_ballots_counted = 0;
 
-        let temp_val: &str = "test";
         Ok(UserData {
-            total_registered_voters,
-            total_ballots_counted,
-            elective_position_name,
-            candidate_data,
-            election_start_date: temp_val.to_string(),
-            election_title: election_event.name.clone(),
-            geograpic_region: temp_val.to_string(),
-            area: temp_val.to_string(),
-            country: temp_val.to_string(),
-            voting_center: temp_val.to_string(),
-            chairperson_name: temp_val.to_string(),
-            poll_clerk_name: temp_val.to_string(),
-            third_member_name: temp_val.to_string(),
+            election_date: temp_val.clone(),
+            voting_period: temp_val.clone(),
+            geographical_region: temp_val.clone(),
+            post: temp_val.clone(),
+            country: temp_val.clone(),
+            voting_center: temp_val.clone(),
+            precinct_code: temp_val.clone(),
+            registered_voters: total_registered_voters,
+            ballots_counted: total_ballots_counted,
+            contests: contests_data,
+            chairperson_name: temp_val.clone(),
+            poll_clerk_name: temp_val.clone(),
+            third_member_name: temp_val,
         })
     }
 
@@ -153,17 +184,13 @@ impl TemplateRenderer for InitializationTemplate {
         rendered_user_template: String,
     ) -> Result<Self::SystemData> {
         let public_asset_path = get_public_assets_path_env_var()?;
-        let minio_endpoint_base =
-            get_minio_url().with_context(|| "Error getting minio endpoint")?;
+        let minio_endpoint_base = get_minio_url().with_context(|| "Error getting minio endpoint")?;
 
         Ok(SystemData {
             report_hash: String::new(),
             ovsc_version: String::new(),
             system_hash: String::new(),
-            file_logo: String::new(),
-            file_qrcode_lib: String::new(),
-            date_time_printed: String::new(),
-            printing_code: String::new(),
+            software_version: String::new(),
         })
     }
 }
