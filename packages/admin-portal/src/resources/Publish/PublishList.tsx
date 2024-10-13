@@ -5,9 +5,9 @@
 import React, {ReactElement, useEffect} from "react"
 
 import {useTranslation} from "react-i18next"
-import {Visibility} from "@mui/icons-material"
+import {Visibility, Preview} from "@mui/icons-material"
 import {IconButton} from "@sequentech/ui-essentials"
-import {Box, Typography, Button} from "@mui/material"
+import {Box, Typography, Button, Drawer} from "@mui/material"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 
 import {
@@ -59,6 +59,7 @@ export const PublishList: React.FC<TPublishList> = ({
     setBallotPublicationId = () => null,
 }) => {
     const {t} = useTranslation()
+    const [open, setOpen] = React.useState(false)
 
     const Empty = () => (
         <ResourceListStyles.EmptyBox>
@@ -83,6 +84,10 @@ export const PublishList: React.FC<TPublishList> = ({
         {
             icon: <Visibility className="publish-visibility-icon" />,
             action: setBallotPublicationId,
+        },
+        {
+            icon: <Preview className="publish-preview-icon" />,
+            action: () => setOpen(true),
         },
     ]
 
@@ -135,6 +140,16 @@ export const PublishList: React.FC<TPublishList> = ({
                     </DatagridConfigurable>
                 </List>
             }
+            <Drawer
+                anchor="right"
+                open={open}
+                onClose={()=> setOpen(false)}
+                PaperProps={{
+                    sx: {width: "40%"},
+                }}
+            >
+                {/* <EditArea id={recordId} electionEventId={id} close={handleCloseEditDrawer} /> */}
+            </Drawer>
         </Box>
     )
 }
