@@ -401,7 +401,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         id={ballotPublicationId}
                         electionEventId={electionEventId}
                         close={handleCloseEditDrawer}
-                        data={generateData}
+                        ballotData={generateData}
                     />
                 </Drawer>
             </Box>
