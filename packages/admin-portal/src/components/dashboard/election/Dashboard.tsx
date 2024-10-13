@@ -39,6 +39,7 @@ export default function DashboardElection() {
             electionId: record.id,
             startDate: formatDate(startDate),
             endDate: formatDate(endDate),
+            electionAlias: record.alias,
         },
         pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
     })

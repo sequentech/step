@@ -13,16 +13,17 @@ use crate::services::cast_votes::CastVote;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::protocol_manager::get_protocol_manager;
+use crate::services::vault;
 use crate::{
     hasura::election_event::get_election_event::GetElectionEventSequentBackendElectionEvent,
     services::database::get_hasura_pool,
 };
 use anyhow::{anyhow, Context, Result};
-use board_messages::braid::message::Signer;
-use board_messages::electoral_log::newtypes::*;
+use b3::messages::message::Signer;
 use chrono::{DateTime, Duration, Local, NaiveDateTime, Utc};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
+use electoral_log::messages::newtypes::*;
 use rocket::futures::TryFutureExt;
 use sequent_core::ballot::EGracePeriodPolicy;
 use sequent_core::ballot::ElectionEventStatus;
@@ -56,6 +57,48 @@ pub struct InsertCastVoteInput {
     pub ballot_id: String,
     pub election_id: Uuid,
     pub content: String,
+}
+impl InsertCastVoteInput {
+    /// Returns a byte representation of this object suitable for hashing
+    /// and then signing.
+    ///
+    /// To avoid adding the borsh dependency we do the serialization
+    /// manually. This requires an invertible map which we get
+    /// by prepending a fixed length prefix to each field
+    /// with its size. Because the maximum representation of a usize is
+    /// 8, we use 8 as the fixed size length prefix.
+    pub(crate) fn get_bytes_for_signing(&self) -> Vec<u8> {
+        let mut ret: Vec<u8> = vec![];
+
+        let bytes = self.ballot_id.as_bytes();
+        let mut length = [0u8; 8];
+        let b = bytes.len().to_le_bytes();
+        let l = b.len();
+        length[0..l].copy_from_slice(&bytes[0..l]);
+
+        ret.extend(&length);
+        ret.extend(bytes);
+
+        let bytes = self.election_id.as_bytes();
+        let mut length = [0u8; 8];
+        let b = bytes.len().to_le_bytes();
+        let l = b.len();
+        length[0..l].copy_from_slice(&bytes[0..l]);
+
+        ret.extend(&length);
+        ret.extend(bytes);
+
+        let bytes = self.content.as_bytes();
+        let mut length = [0u8; 8];
+        let b = bytes.len().to_le_bytes();
+        let l = b.len();
+        length[0..l].copy_from_slice(&bytes[0..l]);
+
+        ret.extend(&length);
+        ret.extend(bytes);
+
+        ret
+    }
 }
 
 pub type InsertCastVoteOutput = CastVote;
@@ -106,6 +149,8 @@ pub enum CastVoteError {
     PokValidationFailed(String),
     #[serde(rename = "ballot_sign_failed")]
     BallotSignFailed(String),
+    #[serde(rename = "ballot_voter_signature_failed")]
+    BallotVoterSignatureFailed(String),
     #[serde(rename = "uuid_parse_failed")]
     UuidParseFailed(String, String),
     #[serde(rename = "unknown_error")]
@@ -224,6 +269,15 @@ pub async fn try_insert_cast_vote(
 
     match result {
         Ok(inserted_cast_vote) => {
+            let electoral_log = ElectoralLog::for_voter(
+                &electoral_log.elog_database,
+                tenant_id,
+                election_event_id,
+                voter_id,
+            )
+            .await
+            .map_err(|e| CastVoteError::ElectoralLogNotFound(e.to_string()))?;
+
             let log_result = electoral_log
                 .post_cast_vote(
                     election_event_id.to_string(),
@@ -241,7 +295,7 @@ pub async fn try_insert_cast_vote(
         }
         Err(err) => {
             error!(err=?err);
-            // TODO error message may leak implementation details
+
             let log_result = electoral_log
                 .post_cast_vote_error(
                     election_event_id.to_string(),
@@ -295,10 +349,29 @@ pub async fn insert_cast_vote_and_commit<'a>(
         &hasura_transaction,
     );
 
-    // TODO signature must include more information
+    // These are unhashed bytes, the signing code will hash it first.
+    let ballot_bytes = input.get_bytes_for_signing();
+
     let ballot_signature = signing_key
-        .sign(input.content.as_bytes())
+        .sign(&ballot_bytes)
         .map_err(|e| CastVoteError::BallotSignFailed(e.to_string()))?;
+    let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
+        .with_context(|| "missing bulletin board")
+        .map_err(|e| CastVoteError::BallotVoterSignatureFailed(e.to_string()))?;
+
+    let voter_signing_key = vault::get_voter_signing_key(
+        &board_name,
+        ids.tenant_id,
+        ids.election_event_id,
+        ids.voter_id,
+    )
+    .await
+    .map_err(|e| CastVoteError::BallotVoterSignatureFailed(e.to_string()))?;
+
+    // TODO do something with this
+    let voter_ballot_signature = voter_signing_key
+        .sign(&ballot_bytes)
+        .map_err(|e| CastVoteError::BallotVoterSignatureFailed(e.to_string()))?;
 
     let ballot_signature = ballot_signature.to_bytes().to_vec();
     let tenant_uuid = Uuid::parse_str(ids.tenant_id)
@@ -339,7 +412,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
     Ok(cast_vote)
 }
 
-fn hash_voter_id(voter_id: &str) -> Result<Hash, StrandError> {
+pub(crate) fn hash_voter_id(voter_id: &str) -> Result<Hash, StrandError> {
     let bytes = voter_id.to_string().strand_serialize()?;
     hash_to_array(&bytes)
 }

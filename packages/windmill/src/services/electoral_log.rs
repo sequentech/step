@@ -7,33 +7,39 @@ use crate::services::protocol_manager::get_protocol_manager;
 use crate::services::protocol_manager::{create_named_param, get_board_client, get_immudb_client};
 use crate::types::resources::{Aggregate, DataList, OrderDirection, TotalAggregate};
 use anyhow::{anyhow, Context, Result};
-use board_messages::braid::message::{self, Signer as _};
-use board_messages::electoral_log::message::Message;
-use board_messages::electoral_log::message::SigningData;
-use board_messages::electoral_log::newtypes::*;
-use immu_board::assign_value;
-use immu_board::util::get_event_board;
-use immu_board::ElectoralLogMessage;
+use base64::engine::general_purpose;
+use base64::Engine;
+
+use electoral_log::messages::message::Message;
+use electoral_log::messages::message::SigningData;
+use electoral_log::messages::newtypes::ErrorMessageString;
+use electoral_log::messages::newtypes::KeycloakEventTypeString;
+use electoral_log::messages::newtypes::*;
+use strand::hash::HashWrapper;
+
+use crate::services::insert_cast_vote::hash_voter_id;
+use crate::services::protocol_manager::get_event_board;
+use crate::services::vault;
+use b3::messages::message::{self, Signer as _};
+use electoral_log::assign_value;
+use electoral_log::ElectoralLogMessage;
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue};
-use sequent_core::services::connection;
-use sequent_core::services::jwt::JwtClaims;
-use sequent_core::types::permissions::Permissions;
+use sequent_core::serialization::base64::{Base64Deserialize, Base64Serialize};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::env;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::serialization::StrandDeserialize;
 use strand::signature::StrandSignatureSk;
 use strum_macros::{Display, EnumString, ToString};
+use tempfile::NamedTempFile;
 use tracing::{event, info, instrument, Level};
-
 pub struct ElectoralLog {
-    sd: SigningData,
-    elog_database: String,
+    pub(crate) sd: SigningData,
+    pub(crate) elog_database: String,
 }
 
 impl ElectoralLog {
-    #[instrument]
+    #[instrument(err)]
     pub async fn new(elog_database: &str) -> Result<Self> {
         let protocol_manager = get_protocol_manager::<RistrettoCtx>(elog_database).await?;
 
@@ -47,13 +53,152 @@ impl ElectoralLog {
         })
     }
 
-    pub async fn new_from_sk(elog_database: &str, signing_key: &StrandSignatureSk) -> Result<Self> {
-        // let protocol_manager = get_protocol_manager::<RistrettoCtx>(elog_database).await?;
+    #[instrument(skip(sender_sk), err)]
+    pub async fn new_from_sk(elog_database: &str, sender_sk: &StrandSignatureSk) -> Result<Self> {
+        let protocol_manager = get_protocol_manager::<RistrettoCtx>(elog_database).await?;
+        let system_sk = protocol_manager.get_signing_key().clone();
 
         Ok(ElectoralLog {
-            sd: SigningData::new(signing_key.clone(), "", signing_key.clone()),
+            sd: SigningData::new(sender_sk.clone(), "", system_sk),
             elog_database: elog_database.to_string(),
         })
+    }
+
+    /// Returns an electoral log whose posts will have the given voter
+    /// as the signing sender, as well as the system signer.
+    ///
+    /// The sender signing private key is obtained from the vault.
+    ///
+    /// We need to pass in the log database because the vault
+    /// will post a public key message if it needs to generates
+    /// a signing key.
+    #[instrument(err)]
+    pub async fn for_voter(
+        elog_database: &str,
+        tenant_id: &str,
+        event_id: &str,
+        user_id: &str,
+    ) -> Result<Self> {
+        let protocol_manager = get_protocol_manager::<RistrettoCtx>(elog_database).await?;
+        let system_sk = protocol_manager.get_signing_key().clone();
+
+        let sk = vault::get_voter_signing_key(elog_database, tenant_id, event_id, user_id).await?;
+
+        Ok(ElectoralLog {
+            sd: SigningData::new(sk, "", system_sk),
+            elog_database: elog_database.to_string(),
+        })
+    }
+
+    /// Returns an electoral log whose posts will have the given admin
+    /// user as the signing sender, as well as the system signer.
+    ///
+    /// The sender signing private key is obtained from the vault.
+    ///
+    /// We need to pass in the log database because the vault
+    /// will post a public key message if it needs to generates
+    /// a signing key.
+    #[instrument(err)]
+    pub async fn for_admin_user(
+        elog_database: &str,
+        tenant_id: &str,
+        user_id: &str,
+    ) -> Result<Self> {
+        let protocol_manager = get_protocol_manager::<RistrettoCtx>(elog_database).await?;
+        let system_sk = protocol_manager.get_signing_key().clone();
+
+        let sk = vault::get_admin_user_signing_key(elog_database, tenant_id, user_id).await?;
+
+        Ok(ElectoralLog {
+            sd: SigningData::new(sk, "", system_sk),
+            elog_database: elog_database.to_string(),
+        })
+    }
+
+    /// Posts a voter's public key
+    #[instrument(err)]
+    pub async fn post_voter_pk(
+        elog_database: &str,
+        tenant_id: &str,
+        event_id: &str,
+        user_id: &str,
+        pk_der_b64: &str,
+    ) -> Result<()> {
+        let protocol_manager = get_protocol_manager::<RistrettoCtx>(elog_database).await?;
+        let system_sk = protocol_manager.get_signing_key().clone();
+        let sd = SigningData::new(system_sk.clone(), "", system_sk.clone());
+
+        let pseudonym = hash_voter_id(&user_id)?;
+        let message = Message::voter_public_key_message(
+            TenantIdString(tenant_id.to_string()),
+            EventIdString(event_id.to_string()),
+            PseudonymHash(HashWrapper::new(pseudonym)),
+            PublicKeyDerB64(pk_der_b64.to_string()),
+            &sd,
+        )?;
+
+        let elog = ElectoralLog {
+            sd,
+            elog_database: elog_database.to_string(),
+        };
+
+        let ret = elog.post(&message).await;
+
+        if ret.is_err() {
+            tracing::error!(
+                "Unable to post public key for voter {:?}, {:?}",
+                message,
+                ret
+            );
+        }
+
+        ret
+    }
+
+    /// Posts an admin user's public key
+    ///
+    /// Because admin users are cross election event entities, a
+    /// dummy election event id will be used instead, with value
+    /// electoral_log::messages::Message:GENERIC_EVENT.
+    ///
+    /// FIXME: it may be necessary to implement a tenant-wide electoral
+    /// log to save this type of message. An admin user could be created
+    /// in the context of one event and the notification will only
+    /// be present in its log, even if the corresponding signing private key
+    /// would be used in other events.
+    pub async fn post_admin_pk(
+        elog_database: &str,
+        tenant_id: &str,
+        user_id: &str,
+        pk_der_b64: &str,
+    ) -> Result<()> {
+        let protocol_manager = get_protocol_manager::<RistrettoCtx>(elog_database).await?;
+        let system_sk = protocol_manager.get_signing_key().clone();
+        let sd = SigningData::new(system_sk.clone(), "", system_sk.clone());
+
+        let message = Message::admin_public_key_message(
+            TenantIdString(tenant_id.to_string()),
+            AdminUserIdString(user_id.to_string()),
+            PublicKeyDerB64(pk_der_b64.to_string()),
+            &sd,
+        )?;
+
+        let elog = ElectoralLog {
+            sd,
+            elog_database: elog_database.to_string(),
+        };
+
+        let ret = elog.post(&message).await;
+
+        if ret.is_err() {
+            tracing::error!(
+                "Unable to post public key for admin user {:?}, {:?}",
+                message,
+                ret
+            );
+        }
+
+        ret
     }
 
     #[instrument(skip(self, pseudonym_h, vote_h))]
@@ -81,7 +226,7 @@ impl ElectoralLog {
             country,
         )?;
 
-        self.post(message).await
+        self.post(&message).await
     }
 
     #[instrument(skip(self, pseudonym_h))]
@@ -110,7 +255,7 @@ impl ElectoralLog {
             country,
         )?;
 
-        self.post(message).await
+        self.post(&message).await
     }
 
     #[instrument(skip(self))]
@@ -127,7 +272,7 @@ impl ElectoralLog {
         let message =
             Message::election_published_message(event, election, ballot_pub_id, &self.sd)?;
 
-        self.post(message).await
+        self.post(&message).await
     }
 
     #[instrument(skip(self))]
@@ -141,7 +286,7 @@ impl ElectoralLog {
         let election = election_id.map(|id| ElectionIdString(Some(id)));
         let message = Message::election_open_message(event, election, elections_ids, &self.sd)?;
 
-        self.post(message).await
+        self.post(&message).await
     }
 
     #[instrument(skip(self))]
@@ -155,7 +300,7 @@ impl ElectoralLog {
 
         let message = Message::election_pause_message(event, election, &self.sd)?;
 
-        self.post(message).await
+        self.post(&message).await
     }
 
     #[instrument(skip(self))]
@@ -170,7 +315,7 @@ impl ElectoralLog {
 
         let message = Message::election_close_message(event, election, elections_ids, &self.sd)?;
 
-        self.post(message).await
+        self.post(&message).await
     }
 
     #[instrument(skip(self))]
@@ -186,7 +331,7 @@ impl ElectoralLog {
         let event_type = KeycloakEventTypeString(event_type);
         let message =
             Message::keycloak_user_event(event, event_type, error_message, user_id, &self.sd)?;
-        self.post(message).await
+        self.post(&message).await
     }
 
     #[instrument(skip(self))]
@@ -195,7 +340,7 @@ impl ElectoralLog {
 
         let message = Message::keygen_message(event, &self.sd)?;
 
-        self.post(message).await
+        self.post(&message).await
     }
 
     #[instrument(skip(self))]
@@ -204,7 +349,7 @@ impl ElectoralLog {
 
         let message = Message::key_insertion_start(event, &self.sd)?;
 
-        self.post(message).await
+        self.post(&message).await
     }
 
     #[instrument(skip(self))]
@@ -214,7 +359,7 @@ impl ElectoralLog {
 
         let message = Message::key_insertion_message(event, trustee_name, &self.sd)?;
 
-        self.post(message).await
+        self.post(&message).await
     }
 
     #[instrument(skip(self))]
@@ -228,7 +373,7 @@ impl ElectoralLog {
 
         let message = Message::tally_open_message(event, election, &self.sd)?;
 
-        self.post(message).await
+        self.post(&message).await
     }
 
     #[instrument(skip(self))]
@@ -242,24 +387,27 @@ impl ElectoralLog {
 
         let message = Message::tally_close_message(event, election, &self.sd)?;
 
-        self.post(message).await
+        self.post(&message).await
     }
 
     #[instrument(skip(self))]
-    pub(crate) async fn post_send_template(
+    pub async fn post_send_template(
         &self,
+        message: Option<String>,
         event_id: String,
+        user_id: Option<String>,
         election_id: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = ElectionIdString(election_id);
 
-        let message = Message::send_template(event, election, &self.sd)?;
+        let message = Message::send_template(event, election, &self.sd, user_id, message)
+            .map_err(|e| anyhow!("Error sending template: {e:?}"))?;
 
-        self.post(message).await
+        self.post(&message).await
     }
 
-    async fn post(&self, message: Message) -> Result<()> {
+    async fn post(&self, message: &Message) -> Result<()> {
         let board_message: ElectoralLogMessage = message.try_into()?;
         let ms = vec![board_message];
 
@@ -267,6 +415,37 @@ impl ElectoralLog {
         client
             .insert_electoral_log_messages(self.elog_database.as_str(), &ms)
             .await
+    }
+
+    #[instrument(skip(self))]
+    pub async fn import_from_csv(&self, logs_file: &NamedTempFile) -> Result<()> {
+        let mut client = get_board_client().await?;
+        let mut rows = Vec::new();
+
+        let mut rdr = csv::Reader::from_reader(logs_file);
+
+        for result in rdr.deserialize() {
+            let row: ElectoralLogRow =
+                result.map_err(|err| anyhow::Error::new(err).context("Failed to read CSV row"))?;
+            rows.push(row);
+        }
+
+        for log in rows {
+            let message: &Message =
+                &Message::strand_deserialize(&general_purpose::STANDARD_NO_PAD.decode(&log.data)?)
+                    .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
+            let electoral_log_message: ElectoralLogMessage = message.try_into()?;
+
+            client
+                .insert_electoral_log_messages(
+                    self.elog_database.as_str(),
+                    &vec![electoral_log_message],
+                )
+                .await
+                .map_err(|err| anyhow!("Failed to insert log message: {:?}", err))?;
+        }
+
+        Ok(())
     }
 }
 
@@ -365,12 +544,13 @@ impl GetElectoralLogBody {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ElectoralLogRow {
-    id: i64,
-    created: i64,
-    statement_timestamp: i64,
-    statement_kind: String,
-    message: String,
-    user_id: Option<String>,
+    pub id: i64,
+    pub created: i64,
+    pub statement_timestamp: i64,
+    pub statement_kind: String,
+    pub message: String,
+    pub data: String,
+    pub user_id: Option<String>,
 }
 
 impl TryFrom<&Row> for ElectoralLogRow {
@@ -414,16 +594,17 @@ impl TryFrom<&Row> for ElectoralLogRow {
                 _ => return Err(anyhow!("invalid column found '{}'", column.as_str())),
             }
         }
+        let deserialized_message =
+            Message::strand_deserialize(&message).with_context(|| "Error deserializing message")?;
+        let serialized = general_purpose::STANDARD_NO_PAD.encode(message);
         Ok(ElectoralLogRow {
             id,
             created,
             statement_timestamp,
             statement_kind,
-            message: serde_json::to_string_pretty(
-                &Message::strand_deserialize(&message)
-                    .with_context(|| "Error deserializing message")?,
-            )
-            .with_context(|| "Error serializing message to json")?,
+            message: serde_json::to_string_pretty(&deserialized_message)
+                .with_context(|| "Error serializing message to json")?,
+            data: serialized,
             user_id,
         })
     }

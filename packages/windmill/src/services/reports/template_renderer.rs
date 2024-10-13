@@ -36,7 +36,9 @@ pub enum ReportType {
     OV_USERS,
     OV_USERS_WHO_VOTED,
     INITIALIZATION,
-    ELECTION_RETURNS_FOR_NATIONAL_POSITIONS
+    AUDIT_LOGS,
+    ELECTION_RETURNS_FOR_NATIONAL_POSITIONS,
+    STATISTICAL_REPORT,
 }
 
 /// Trait that defines the behavior for rendering templates

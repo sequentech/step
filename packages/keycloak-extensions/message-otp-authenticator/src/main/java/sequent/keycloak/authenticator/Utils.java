@@ -22,6 +22,7 @@ import java.util.Properties;
 import lombok.experimental.UtilityClass;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.AuthenticationFlowContext;
+import org.keycloak.authentication.RequiredActionContext;
 import org.keycloak.authentication.actiontoken.DefaultActionToken;
 import org.keycloak.common.util.SecretGenerator;
 import org.keycloak.common.util.Time;
@@ -29,6 +30,7 @@ import org.keycloak.email.EmailException;
 import org.keycloak.email.EmailSenderProvider;
 import org.keycloak.email.EmailTemplateProvider;
 import org.keycloak.email.freemarker.beans.ProfileBean;
+import org.keycloak.events.EventBuilder;
 import org.keycloak.forms.login.freemarker.model.UrlBean;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.Constants;
@@ -87,6 +89,8 @@ public class Utils {
   public static final String USER_PROFILE_ATTRIBUTES = "user_profile_attributes";
   public static final String AUTHENTICATOR_CLASS_NAME = "authenticator_class_name";
 
+  public static final String EVENT_TYPE_COMMUNICATIONS = "communications";
+
   public enum MessageCourier {
     SMS,
     EMAIL,
@@ -106,6 +110,12 @@ public class Utils {
     }
   }
 
+  String escapeJson(String value) {
+    return value != null
+        ? value.replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")
+        : null;
+  }
+
   /** Sends code and also sets the auth notes related to the code */
   void sendCode(
       AuthenticatorConfigModel config,
@@ -115,7 +125,8 @@ public class Utils {
       MessageCourier messageCourier,
       boolean deferredUser,
       boolean isOtl,
-      String[] otlAuthNotesNames)
+      String[] otlAuthNotesNames,
+      Object context)
       throws IOException, EmailException {
     log.info("sendCode(): start");
     String mobileNumber = null;
@@ -174,8 +185,10 @@ public class Utils {
           ImmutableList.of(realmName, code, String.valueOf(Math.floorDiv(ttl, 60)));
 
       String smsTemplateKey = (isOtl) ? Utils.SEND_LINK_SMS_I18N_KEY : Utils.SEND_CODE_SMS_I18N_KEY;
-      smsSenderProvider.send(
-          mobileNumber.trim(), smsTemplateKey, smsAttributes, realm, user, session);
+      String formattedMessage =
+          smsSenderProvider.send(
+              mobileNumber.trim(), smsTemplateKey, smsAttributes, realm, user, session);
+      communicationsLog(context, formattedMessage);
     } else {
       log.infov("sendCode(): NOT Sending SMS to=`{0}`", mobileNumber);
     }
@@ -199,23 +212,19 @@ public class Utils {
       try {
         String subjectKey = (isOtl) ? Utils.SEND_LINK_EMAIL_SUBJECT : Utils.SEND_CODE_EMAIL_SUBJECT;
         String ftlKey = (isOtl) ? Utils.SEND_LINK_EMAIL_FTL : Utils.SEND_CODE_EMAIL_FTL;
-        if (deferredUser) {
-          sendEmail(
-              session,
-              realm,
-              user,
-              subjectKey,
-              subjAttr,
-              ftlKey,
-              messageAttributes,
-              emailAddress.trim());
-        } else {
-          emailTemplateProvider
-              .setRealm(realm)
-              .setUser(user)
-              .setAttribute("realmName", realmName)
-              .send(subjectKey, subjAttr, ftlKey, messageAttributes);
-        }
+        String textBody =
+            sendEmail(
+                session,
+                realm,
+                user,
+                subjectKey,
+                subjAttr,
+                ftlKey,
+                messageAttributes,
+                emailAddress.trim(),
+                deferredUser,
+                null);
+        communicationsLog(context, textBody);
       } catch (EmailException error) {
         log.debug("sendCode(): Exception sending email", error);
         throw error;
@@ -223,6 +232,33 @@ public class Utils {
     } else {
       log.infov("sendCode(): NOT Sending email to=`{0}`", emailAddress);
     }
+  }
+
+  void communicationsLog(Object context, String body) {
+    if (context instanceof AuthenticationFlowContext) {
+      logCommunications((AuthenticationFlowContext) context, body);
+    } else if (context instanceof RequiredActionContext) {
+      logCommunications((RequiredActionContext) context, body);
+    } else {
+      log.warn(
+          "Unsupported context type for communications logging: " + context.getClass().getName());
+    }
+  }
+
+  private <T> void logCommunications(T context, String body) {
+    EventBuilder event = getEvent(context);
+    if (event != null) {
+      event.detail("type", EVENT_TYPE_COMMUNICATIONS).detail("msgBody", body).success();
+    }
+  }
+
+  private EventBuilder getEvent(Object context) {
+    if (context instanceof AuthenticationFlowContext) {
+      return ((AuthenticationFlowContext) context).getEvent();
+    } else if (context instanceof RequiredActionContext) {
+      return ((RequiredActionContext) context).getEvent();
+    }
+    return null;
   }
 
   String getMobile(AuthenticatorConfigModel config, UserModel user) {
@@ -386,7 +422,7 @@ public class Utils {
     }
   }
 
-  protected void sendEmail(
+  protected String sendEmail(
       KeycloakSession session,
       RealmModel realm,
       UserModel user,
@@ -394,7 +430,9 @@ public class Utils {
       List<Object> subjectAttributes,
       String bodyTemplate,
       Map<String, Object> bodyAttributes,
-      String address)
+      String address,
+      boolean useEmailSender,
+      String username)
       throws EmailException {
     try {
       EmailTemplate emailTemplate =
@@ -406,14 +444,36 @@ public class Utils {
               subjectAttributes,
               bodyTemplate,
               bodyAttributes);
-      EmailSenderProvider emailSender = session.getProvider(EmailSenderProvider.class);
 
-      emailSender.send(
-          realm.getSmtpConfig(),
-          address,
-          emailTemplate.getSubject(),
-          emailTemplate.getTextBody(),
-          emailTemplate.getHtmlBody());
+      if (useEmailSender) {
+        EmailSenderProvider emailSender = session.getProvider(EmailSenderProvider.class);
+        emailSender.send(
+            realm.getSmtpConfig(),
+            address,
+            emailTemplate.getSubject(),
+            emailTemplate.getTextBody(),
+            emailTemplate.getHtmlBody());
+
+      } else {
+        EmailTemplateProvider emailTemplateProvider =
+            session.getProvider(EmailTemplateProvider.class);
+        String realmName = getRealmName(realm);
+        emailTemplateProvider.setRealm(realm).setUser(user).setAttribute("realmName", realmName);
+
+        if (username != null && !username.isEmpty()) {
+          emailTemplateProvider.setAttribute("username", username);
+        }
+
+        emailTemplateProvider.send(
+            subjectFormatKey, subjectAttributes, bodyTemplate, bodyAttributes);
+      }
+
+      return String.format(
+          "{\"to\": \"%s\", \"subject\": \"%s\", \"textBody\": \"%s\", \"htmlBody\": \"%s\"}",
+          escapeJson(address),
+          escapeJson(emailTemplate.getSubject()),
+          escapeJson(emailTemplate.getTextBody()),
+          escapeJson(emailTemplate.getHtmlBody() != null ? emailTemplate.getHtmlBody() : ""));
     } catch (EmailException e) {
       throw e;
     } catch (Exception e) {
@@ -516,9 +576,11 @@ public class Utils {
       RealmModel realm,
       UserModel user,
       MessageCourier messageCourier,
-      String mobileNumber)
+      String mobileNumber,
+      Object context)
       throws EmailException, IOException {
     log.info("sendConfirmation(): start");
+
     String realName = realm.getName();
     // Send a confirmation email
     EmailTemplateProvider emailTemplateProvider = session.getProvider(EmailTemplateProvider.class);
@@ -541,12 +603,19 @@ public class Utils {
       messageAttributes.put("realmName", realName);
       messageAttributes.put("username", username);
 
-      emailTemplateProvider
-          .setRealm(realm)
-          .setUser(user)
-          .setAttribute("realmName", realName)
-          .setAttribute("username", username)
-          .send(SEND_SUCCESS_EMAIL_SUBJECT, subjAttr, SEND_SUCCESS_EMAIL_FTL, messageAttributes);
+      String textBody =
+          sendEmail(
+              session,
+              realm,
+              user,
+              SEND_SUCCESS_EMAIL_SUBJECT,
+              subjAttr,
+              SEND_SUCCESS_EMAIL_FTL,
+              messageAttributes,
+              email.trim(),
+              false,
+              username);
+      communicationsLog(context, textBody);
     }
 
     if (mobileNumber != null
@@ -560,8 +629,10 @@ public class Utils {
       log.infov("sendCode(): Sending SMS to=`{0}`", mobileNumber.trim());
       List<String> smsAttributes = ImmutableList.of(realName, username);
 
-      smsSenderProvider.send(
-          mobileNumber.trim(), SEND_SUCCESS_SMS_I18N_KEY, smsAttributes, realm, user, session);
+      String formattedText =
+          smsSenderProvider.send(
+              mobileNumber.trim(), SEND_SUCCESS_SMS_I18N_KEY, smsAttributes, realm, user, session);
+      communicationsLog(context, formattedText);
     }
   }
 
