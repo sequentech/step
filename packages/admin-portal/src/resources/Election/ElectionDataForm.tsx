@@ -54,6 +54,7 @@ import {ElectionStyles} from "../../components/styles/ElectionStyles"
 import {
     ContestsOrder,
     EGracePeriodPolicy,
+    EInitializeReportPolicy,
     EVotingPortalAuditButtonCfg,
     IContestPresentation,
     IElectionDates,
@@ -462,6 +463,13 @@ export const ElectionDataForm: React.FC = () => {
         }))
     }
 
+    const initializeReportChoices = (): Array<EnumChoice<EInitializeReportPolicy>> => {
+        return Object.values(EInitializeReportPolicy).map((value) => ({
+            id: value,
+            name: t(`electionScreen.initializeReportPolicy.${value.toLowerCase()}`),
+        }))
+    }
+
     const auditButtonConfigChoices = (): Array<EnumChoice<EVotingPortalAuditButtonCfg>> => {
         return Object.values(EVotingPortalAuditButtonCfg).map((value) => ({
             id: value,
@@ -770,6 +778,12 @@ export const ElectionDataForm: React.FC = () => {
                                     parsedValue={parsedValue}
                                     fileSource="configuration"
                                     jsonSource="presentation"
+                                />
+                                <SelectInput
+                                    source={`presentation.initialize_report_policy`}
+                                    choices={initializeReportChoices()}
+                                    label={t("electionScreen.initializeReportPolicy.label")}
+                                    validate={required()}
                                 />
                             </AccordionDetails>
                         </Accordion>

@@ -630,6 +630,29 @@ pub enum EGracePeriodPolicy {
     GRACE_PERIOD_WITHOUT_ALERT,
 }
 
+#[allow(non_camel_case_types)]
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+)]
+pub enum EInitializeReportPolicy {
+    #[strum(serialize = "required")]
+    #[serde(rename = "required")]
+    REQUIRED,
+    #[strum(serialize = "not-required")]
+    #[serde(rename = "not-required")]
+    NOT_REQUIRED,
+}
+
 #[derive(
     BorshSerialize,
     BorshDeserialize,
@@ -810,6 +833,7 @@ pub struct ElectionPresentation {
     pub manual_start_voting_period: Option<ManualStartVotingPeriod>,
     pub voting_period_end: Option<VotingPeriodEnd>,
     pub tally: Option<Tally>,
+    pub initialize_report_policy: Option<EInitializeReportPolicy>,
 }
 
 impl Default for ElectionPresentation {

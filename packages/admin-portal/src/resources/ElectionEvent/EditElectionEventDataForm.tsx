@@ -781,7 +781,8 @@ export const EditElectionEventDataForm: React.FC = () => {
                                         {t("electionEventScreen.field.userVerification")}
                                     </Typography>
                                     <SelectInput
-                                        source={`presentation.active_template_ids.manual_verification`}
+                                        source={`presentation.
+                                            `}
                                         choices={manuallyVerifyVoterTemplates()}
                                         label={t("template.form.name")}
                                         translateChoice={false}

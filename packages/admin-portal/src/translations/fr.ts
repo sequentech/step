@@ -454,6 +454,11 @@ const frenchTranslation: TranslationType = {
                 "grace-period-without-alert": "Période de grâce sans alerte",
                 "gracePeriodSecs": "Période de grâce en secondes",
             },
+            initializeReportPolicy: {
+                "label": "Initialiser la Politique de Rapport",
+                "not-required": "Non Requis",
+                "required": "Requis",
+            },
         },
         tenantScreen: {
             common: {

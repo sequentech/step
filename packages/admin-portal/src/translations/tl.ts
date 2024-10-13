@@ -452,6 +452,11 @@ const tagalogTranslation: TranslationType = {
                 "grace-period-without-alert": "Palugit na walang babala",
                 "gracePeriodSecs": "Palugit sa segundo",
             },
+            initializeReportPolicy: {
+                "label": "I-initialize ang Patakaran sa Ulat",
+                "not-required": "Hindi Kinakailangan",
+                "required": "Kinakailangan",
+            },
         },
         tenantScreen: {
             common: {

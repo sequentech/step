@@ -449,6 +449,11 @@ const englishTranslation = {
                 "grace-period-without-alert": "Grace period without alert",
                 "gracePeriodSecs": "Grace period in seconds",
             },
+            initializeReportPolicy: {
+                "label": "Initialize Report Policy",
+                "not-required": "Not Required",
+                "required": "Required",
+            },
         },
         tenantScreen: {
             common: {

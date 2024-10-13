@@ -453,6 +453,11 @@ const catalanTranslation: TranslationType = {
                 "grace-period-without-alert": "Període de gràcia sense avís",
                 "gracePeriodSecs": "Període de gràcia (segons)",
             },
+            initializeReportPolicy: {
+                "label": "Inicialitzar política d'informes",
+                "not-required": "No requereix",
+                "required": "Requerit",
+            },
         },
         tenantScreen: {
             common: {
@@ -920,7 +925,7 @@ const catalanTranslation: TranslationType = {
             },
             paginationPolicy: {
                 label: "Nom de la pàgina",
-            },
+            },            
             error: {},
             createContestSuccess: "Pregunta creada",
             createContestError: "Error creant pregunta",

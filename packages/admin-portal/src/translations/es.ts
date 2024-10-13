@@ -452,6 +452,11 @@ const spanishTranslation: TranslationType = {
                 "grace-period-without-alert": "Período de gracia sin alerta",
                 "gracePeriodSecs": "Tiempo de gracia en segundos",
             },
+            initializeReportPolicy: {
+                "label": "Inicializar Política de Reportes",
+                "not-required": "No Requerido",
+                "required": "Requerido",
+            },
         },
         tenantScreen: {
             common: {

@@ -216,17 +216,17 @@ pub async fn get_contest_by_id(
                 &Uuid::parse_str(tenant_id)?,
                 &Uuid::parse_str(election_event_id)?,
                 &Uuid::parse_str(contest_id)?,
-                ],
-            )
-            .await?;
+            ],
+        )
+        .await?;
         
-            if let Some(row) = row {
-                let contest: Contest = row
-                    .try_into()
-                    .map(|res: ContestWrapper| -> Contest { res.0 })?;
-                Ok(contest as Contest)
-            } else {
-                Err(anyhow::anyhow!("No contest found with the provided id"))
-            }
-        }
+    if let Some(row) = row {
+        let contest: Contest = row
+            .try_into()
+            .map(|res: ContestWrapper| -> Contest { res.0 })?;
+        Ok(contest as Contest)
+    } else {
+        Err(anyhow::anyhow!("No contest found with the provided id"))
+    }
+}
         
