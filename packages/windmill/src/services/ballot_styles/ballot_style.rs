@@ -88,6 +88,7 @@ pub fn get_elections_contests_map_for_area(
                 set
             });
     }
+    println!("----election_contest_map: {:?}", election_contest_map);
     Ok(election_contest_map)
 }
 

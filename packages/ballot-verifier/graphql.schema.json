@@ -53750,6 +53750,18 @@
             "deprecationReason": null
           },
           {
+            "name": "initializion_report_generated",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "is_consolidated_ballot_encoding",
             "description": null,
             "args": [],
@@ -54991,6 +55003,18 @@
             "type": {
               "kind": "INPUT_OBJECT",
               "name": "String_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "initializion_report_generated",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "Boolean_comparison_exp",
               "ofType": null
             },
             "defaultValue": null,
@@ -59083,6 +59107,18 @@
             "deprecationReason": null
           },
           {
+            "name": "initializion_report_generated",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "is_consolidated_ballot_encoding",
             "description": null,
             "type": {
@@ -60093,6 +60129,18 @@
           },
           {
             "name": "image_document_id",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "initializion_report_generated",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -62578,6 +62626,12 @@
             "deprecationReason": null
           },
           {
+            "name": "initializion_report_generated",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "is_consolidated_ballot_encoding",
             "description": "column name",
             "isDeprecated": false,
@@ -62673,6 +62727,12 @@
         "interfaces": null,
         "enumValues": [
           {
+            "name": "initializion_report_generated",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "is_consolidated_ballot_encoding",
             "description": "column name",
             "isDeprecated": false,
@@ -62701,6 +62761,12 @@
         "inputFields": null,
         "interfaces": null,
         "enumValues": [
+          {
+            "name": "initializion_report_generated",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
           {
             "name": "is_consolidated_ballot_encoding",
             "description": "column name",
@@ -62818,6 +62884,18 @@
             "type": {
               "kind": "SCALAR",
               "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "initializion_report_generated",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
               "ofType": null
             },
             "defaultValue": null,
@@ -63270,6 +63348,18 @@
             "type": {
               "kind": "SCALAR",
               "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "initializion_report_generated",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
               "ofType": null
             },
             "defaultValue": null,
@@ -65097,6 +65187,12 @@
           },
           {
             "name": "image_document_id",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "initializion_report_generated",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null

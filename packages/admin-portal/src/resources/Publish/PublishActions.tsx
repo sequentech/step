@@ -10,7 +10,7 @@ import {useTranslation} from "react-i18next"
 import {Dialog} from "@sequentech/ui-essentials"
 import {CircularProgress, Typography} from "@mui/material"
 import {Publish, RotateLeft, PlayCircle, PauseCircle, StopCircle} from "@mui/icons-material"
-import {Button, FilterButton, SelectColumnsButton} from "react-admin"
+import {Button, FilterButton, SelectColumnsButton, useRecordContext} from "react-admin"
 
 import {EPublishActionsType} from "./EPublishType"
 import {PublishStatus, ElectionEventStatus, nextStatus} from "./EPublishStatus"
@@ -18,6 +18,8 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import SvgIcon from "@mui/material/SvgIcon"
+import {Sequent_Backend_Election} from "@/gql/graphql"
+import {EInitializeReportPolicy} from "@sequentech/ui-core"
 
 type SvgIconComponent = typeof SvgIcon
 
@@ -51,7 +53,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
     const canWrite = authContext.isAuthorized(true, tenantId, IPermissions.PUBLISH_WRITE)
-    const canRead = authContext.isAuthorized(true, tenantId, IPermissions.PUBLISH_READ)
+    const record = useRecordContext<Sequent_Backend_Election>()
     const canChangeStatus = authContext.isAuthorized(
         true,
         tenantId,
@@ -76,6 +78,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         onClick,
         Icon,
         disabledStatus,
+        disabled = false,
         className,
     }: {
         st: PublishStatus
@@ -83,6 +86,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         onClick: () => void
         Icon: SvgIconComponent
         disabledStatus: Array<PublishStatus>
+        disabled?: boolean
         className?: string
     }) => (
         <Button
@@ -98,7 +102,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                       }
                     : {}
             }
-            disabled={disabledStatus?.includes(status) || st === status + 0.1}
+            disabled={disabled || disabledStatus?.includes(status) || st === status + 0.1}
         >
             <IconOrProgress st={st} Icon={Icon} />
         </Button>
@@ -136,6 +140,11 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                         PublishStatus.Started,
                                         PublishStatus.GeneratedLoading,
                                     ]}
+                                    disabled={
+                                        record?.presentation?.initialize_report_policy ===
+                                            EInitializeReportPolicy.REQUIRED &&
+                                        !record?.initializion_report_generated
+                                    }
                                 />
                             )}
 

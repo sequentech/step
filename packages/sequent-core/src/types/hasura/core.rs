@@ -109,6 +109,7 @@ pub struct Election {
     pub statistics: Option<Value>,
     pub receipts: Option<Value>,
     pub permission_label: Option<String>,
+    pub initializion_report_generated: Option<bool>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]

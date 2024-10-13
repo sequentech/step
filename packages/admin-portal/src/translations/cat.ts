@@ -925,7 +925,7 @@ const catalanTranslation: TranslationType = {
             },
             paginationPolicy: {
                 label: "Nom de la pàgina",
-            },            
+            },
             error: {},
             createContestSuccess: "Pregunta creada",
             createContestError: "Error creant pregunta",

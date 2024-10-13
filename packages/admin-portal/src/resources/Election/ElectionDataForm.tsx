@@ -57,7 +57,6 @@ import {
     EInitializeReportPolicy,
     EVotingPortalAuditButtonCfg,
     IContestPresentation,
-    IElectionDates,
     IElectionEventPresentation,
     IElectionPresentation,
 } from "@sequentech/ui-core"
