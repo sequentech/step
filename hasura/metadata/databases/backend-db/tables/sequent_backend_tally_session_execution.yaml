@@ -2,7 +2,7 @@ table:
     name: tally_session_execution
     schema: sequent_backend
 insert_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           check:
               tenant_id:
@@ -20,8 +20,8 @@ insert_permissions:
               - status
               - tally_session_id
               - tenant_id
-      comment: ""
-    - role: service-account
+      role: admin-user
+    - comment: ""
       permission:
           check: {}
           columns:
@@ -37,10 +37,11 @@ insert_permissions:
               - status
               - tally_session_id
               - tenant_id
-      comment: ""
+      role: service-account
 select_permissions:
-    - role: admin-ceremony
+    - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - session_ids
               - current_message_id
@@ -57,10 +58,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          allow_aggregations: true
-      comment: ""
-    - role: admin-user
+      role: admin-ceremony
+    - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - annotations
               - created_at
@@ -77,10 +78,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          allow_aggregations: true
-      comment: ""
-    - role: service-account
+      role: admin-user
+    - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - annotations
               - created_at
@@ -95,10 +96,10 @@ select_permissions:
               - tally_session_id
               - tenant_id
           filter: {}
-          allow_aggregations: true
-      comment: ""
-    - role: trustee-ceremony
+      role: service-account
+    - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - session_ids
               - current_message_id
@@ -115,33 +116,33 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          allow_aggregations: true
-      comment: ""
+      role: trustee-ceremony
 update_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
-          columns:
-              - annotations
-              - created_at
-              - current_message_id
-              - election_event_id
-              - id
-              - labels
-              - last_updated_at
-              - results_event_id
-              - session_ids
-              - status
-              - tally_session_id
-              - tenant_id
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: service-account
+          columns:
+              - annotations
+              - created_at
+              - current_message_id
+              - election_event_id
+              - id
+              - labels
+              - last_updated_at
+              - results_event_id
+              - session_ids
+              - status
+              - tally_session_id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
       permission:
+          check: {}
           columns:
               - annotations
               - created_at
@@ -156,16 +157,15 @@ update_permissions:
               - tally_session_id
               - tenant_id
           filter: {}
-          check: {}
-      comment: ""
+      role: service-account
 delete_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: service-account
+      role: admin-user
+    - comment: ""
       permission:
           filter: {}
-      comment: ""
+      role: service-account
