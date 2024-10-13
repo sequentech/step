@@ -14,6 +14,7 @@ import {
     useGetList,
     useSidebarState,
     WrapperField,
+    useDataProvider,
 } from "react-admin"
 import {useTranslation} from "react-i18next"
 import {CreateReport} from "./CreateReport"
@@ -30,7 +31,10 @@ import {
 } from "@/gql/graphql"
 import EditIcon from "@mui/icons-material/Edit"
 import {EditReportForm} from "./EditReportForm"
-import {report} from "process"
+import DeleteIcon from "@mui/icons-material/Delete"
+import DescriptionIcon from "@mui/icons-material/Description"
+import {Dialog} from "@sequentech/ui-essentials"
+import {id} from "intl-tel-input/i18n"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -67,18 +71,28 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
     const canWrtieReport = authContext.isAuthorized(true, tenantId, IPermissions.REPORT_WRITE)
-    // const [openEditReport, setOpenEditReport] = useState<boolean>(false)
+    const [openDeleteModal, setOpenDeleteModal] = useState<boolean>(false)
+    const dataProvider = useDataProvider()
     const handleClose = () => {
         setOpenCreateReport(false)
-        // setOpenEditReport(false)
         setIsEditReport(false)
         setSelectedReportId(null)
+        setOpenDeleteModal(false)
     }
 
     const handleEditDrawer = (id: Identifier) => {
         setSelectedReportId(id)
         setOpenCreateReport(true)
+        setOpenDeleteModal(false)
     }
+
+    const deleteReport = (id: Identifier) => {
+        setOpenDeleteModal(true)
+        setOpenCreateReport(false)
+        setSelectedReportId(id)
+    }
+
+    const handleGenerateReport = (id: Identifier) => {}
 
     const {data: templates} = useGetList<Sequent_Backend_Template>(
         "sequent_backend_template",
@@ -119,7 +133,23 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
 
     const Filters: Array<ReactElement> = []
 
-    const actions: Action[] = [{icon: <EditIcon />, action: handleEditDrawer}]
+    const actions: Action[] = [
+        {
+            icon: <EditIcon />,
+            action: handleEditDrawer,
+            showAction: () => canWrtieReport,
+        },
+        {
+            icon: <DeleteIcon />,
+            action: deleteReport,
+            showAction: () => canWrtieReport,
+            label: t("common.label.delete"),
+        },
+        {
+            icon: <DescriptionIcon />,
+            action: handleGenerateReport,
+        },
+    ]
 
     const handleCreateDrawer = () => {
         setSelectedReportId(null)
@@ -147,6 +177,35 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                     </>
                 )}
             </TemplateEmpty>
+        )
+    }
+
+    const confirmDeleteAction = async () => {
+        if (selectedReportId) {
+            await dataProvider.delete("sequent_backend_report", {
+                id: selectedReportId,
+            })
+            handleClose()
+        }
+    }
+
+    const renderDeleteModal = () => {
+        return (
+            <Dialog
+                variant="warning"
+                open={openDeleteModal}
+                ok={t("common.label.delete")}
+                cancel={t("common.label.cancel")}
+                title={t("common.label.warning")}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        confirmDeleteAction()
+                    }
+                    setOpenDeleteModal(false)
+                }}
+            >
+                {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.delete.body`)}
+            </Dialog>
         )
     }
 
@@ -237,6 +296,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                     />
                 </CustomApolloContextProvider>
             </Drawer>
+            {renderDeleteModal()}
         </>
     )
 }

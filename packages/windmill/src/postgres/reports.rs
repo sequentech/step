@@ -6,6 +6,8 @@ use serde_json::Value;
 use tokio_postgres::row::Row;
 use uuid::Uuid;
 use tracing::{info, instrument};
+use strum_macros::{Display, EnumString};
+
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReportCronConfig {
@@ -24,6 +26,23 @@ pub struct Report {
     pub template_id: Option<String>,
     pub cron_config: Option<ReportCronConfig>,
     pub created_at: DateTime<Local>,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+)]
+pub enum ReportType {
+    MANUAL_VERIFICATION, 
+    BALLOT_RECEIPT,
+    ELECTORAL_RESULTS,
 }
 
 pub struct ReportWrapper(pub Report);
@@ -156,4 +175,58 @@ pub async fn find_by_id(
         .with_context(|| "Error converting rows into Report")?;
 
     Ok(reports.get(0).cloned())
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_template_id_for_report(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    report_type: &ReportType,
+    election_id: Option<&str>,
+) -> Result<Option<String>> {
+    let tenant_uuid = Uuid::parse_str(tenant_id)
+        .with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid = Uuid::parse_str(election_event_id)
+        .with_context(|| "Error parsing election_event_id as UUID")?;
+    let election_uuid = if let Some(election_id) = election_id {
+        Some(Uuid::parse_str(election_id)
+            .with_context(|| "Error parsing election_id as UUID")?)
+    } else {
+        None
+    };
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            SELECT template_id
+            FROM "sequent_backend".sequent_backend_report
+            WHERE tenant_id = $1
+              AND election_event_id = $2
+              AND report_type = $3
+              AND ($4::uuid IS NULL OR election_id = $4::uuid)
+            LIMIT 1
+            "#,
+        )
+        .await?;
+
+    let rows = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &tenant_uuid,
+                &election_event_uuid,
+                &report_type.to_string(),
+                &election_uuid,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error executing query: {err}"))?;
+
+    if let Some(row) = rows.get(0) {
+        let template_id: Option<String> = row.get("template_id");
+        Ok(template_id)
+    } else {
+        Ok(None)
+    }
 }

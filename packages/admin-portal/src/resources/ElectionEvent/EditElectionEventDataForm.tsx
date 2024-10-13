@@ -829,44 +829,6 @@ export const EditElectionEventDataForm: React.FC = () => {
 
                             <Accordion
                                 sx={{width: "100%"}}
-                                expanded={expanded === "election-event-data-user-templates"}
-                                onChange={() => setExpanded("election-event-data-user-templates")}
-                            >
-                                <AccordionSummary
-                                    expandIcon={
-                                        <ExpandMoreIcon id="election-event-data-user-templates" />
-                                    }
-                                >
-                                    <ElectionHeaderStyles.Wrapper>
-                                        <ElectionHeaderStyles.Title>
-                                            {t("electionEventScreen.edit.templates")}
-                                        </ElectionHeaderStyles.Title>
-                                    </ElectionHeaderStyles.Wrapper>
-                                </AccordionSummary>
-                                <AccordionDetails>
-                                    <Typography
-                                        variant="body1"
-                                        component="span"
-                                        sx={{
-                                            fontWeight: "bold",
-                                            margin: 0,
-                                            display: {xs: "none", sm: "block"},
-                                        }}
-                                    >
-                                        {t("electionEventScreen.field.userVerification")}
-                                    </Typography>
-                                    <SelectInput
-                                        source={`presentation.active_template_ids.manual_verification`}
-                                        choices={manuallyVerifyVoterTemplates()}
-                                        label={t("template.form.name")}
-                                        translateChoice={false}
-                                        emptyText={t("template.default")}
-                                    />
-                                </AccordionDetails>
-                            </Accordion>
-
-                            <Accordion
-                                sx={{width: "100%"}}
                                 expanded={expanded === "election-event-data-allowed"}
                                 onChange={() =>
                                     setExpanded((prev) =>

@@ -182,6 +182,12 @@ type Mutation {
   ): PublishBallotOutput
 }
 
+type Mutation {
+  generate_report (
+    report_id: String!
+  ): generateReportOutput
+}
+
 type Query {
   getElectionEventStats (
     object: ElectionEventStatsInput!
@@ -1149,5 +1155,9 @@ type LimtIpByCountriesOutput {
 
 type LimitAccessByCountriesOutput {
   success : Boolean
+}
+
+type generateReportOutput {
+  document_id : String!
 }
 

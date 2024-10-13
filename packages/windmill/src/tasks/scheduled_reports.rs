@@ -25,7 +25,7 @@ pub fn get_next_scheduled_time(
     };
  
     let cron_expression = cron_config.cron_expression.clone();
-
+    info!("cron_expression: {}", cron_expression);
     let schedule = match Schedule::from_str(&cron_expression) {
         Ok(schedule) => schedule,
         Err(err) => {
@@ -42,6 +42,7 @@ pub fn get_next_scheduled_time(
     // Get the next scheduled time after the last run
     let next_run = schedule.after(&last_run).next();
 
+    info!("Next run: {:?}", next_run);
 
     if let Some(next_run) = next_run {
         // Return the next run if it's in the past or due within the next minute

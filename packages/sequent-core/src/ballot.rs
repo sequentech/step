@@ -573,22 +573,6 @@ pub struct ElectionEventLanguageConf {
     Clone,
     Default,
 )]
-pub struct ActiveTemplateIds {
-    pub manual_verification: Option<String>,
-}
-
-#[derive(
-    BorshSerialize,
-    BorshDeserialize,
-    Serialize,
-    Deserialize,
-    JsonSchema,
-    PartialEq,
-    Eq,
-    Debug,
-    Clone,
-    Default,
-)]
 pub struct ElectionEventPresentation {
     pub i18n: Option<I18nContent<I18nContent<Option<String>>>>,
     pub materials: Option<ElectionEventMaterials>,
@@ -601,7 +585,6 @@ pub struct ElectionEventPresentation {
     pub elections_order: Option<ElectionsOrder>,
     pub voting_portal_countdown_policy: Option<VotingPortalCountdownPolicy>,
     pub custom_urls: Option<CustomUrls>,
-    pub active_template_ids: Option<ActiveTemplateIds>,
 }
 
 #[allow(non_camel_case_types)]
