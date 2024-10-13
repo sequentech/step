@@ -6,6 +6,7 @@ use crate::services::s3::get_minio_url;
 use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
+use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use std::env;
 use tracing::{info, instrument};
@@ -61,6 +62,18 @@ impl TemplateRenderer for StatisticalReportTemplate {
         format!("statistical_report_{}", self.contest_id)
     }
 
+    fn get_report_type() -> ReportType {
+        ReportType::STATISTICAL_REPORT
+    }
+
+    fn get_email_config() -> EmailConfig {
+        EmailConfig {
+            subject: "Statistical Report".to_string(),
+            plaintext_body: "".to_string(),
+            html_body: None,
+        }
+    }
+
     async fn prepare_user_data(&self) -> Result<Self::UserData> {
         Ok(UserData {
             qrcode: QR_CODE_TEMPLATE.to_string(),
@@ -106,6 +119,6 @@ pub async fn generate_statistical_report(
         election_id: election_id.to_string(),
     };
     template
-        .execute_report(document_id, tenant_id, election_event_id)
+        .execute_report(document_id, tenant_id, election_event_id, false, None)
         .await
 }
