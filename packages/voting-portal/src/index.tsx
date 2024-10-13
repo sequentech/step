@@ -71,6 +71,12 @@ const router = createBrowserRouter(
             errorElement: <ErrorPage />,
             children: [
                 {
+                    path: "/preview/:publicationId/:areaId",
+                    element: (
+                        <>Nice cookies</>
+                    )
+                },
+                {
                     path: "/tenant/:tenantId/event/:eventId",
                     element: (
                         <Suspense fallback={<Loader />}>

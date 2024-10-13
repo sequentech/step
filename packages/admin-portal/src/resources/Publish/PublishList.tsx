@@ -97,7 +97,7 @@ export const PublishList: React.FC<TPublishList> = ({
     }
 
     const handleCloseEditDrawer = () => {
-        throw new Error("Function not implemented.")
+        setOpen(false);
     }
 
     return (
@@ -148,9 +148,9 @@ export const PublishList: React.FC<TPublishList> = ({
             <Drawer
                 anchor="right"
                 open={open}
-                onClose={()=> setOpen(false)}
+                onClose={handleCloseEditDrawer}
                 PaperProps={{
-                    sx: {width: "20%"},
+                    sx: {width: "30%"},
                 }}
             >
                 <EditPreview electionEventId={electionEventId} close={handleCloseEditDrawer} />
