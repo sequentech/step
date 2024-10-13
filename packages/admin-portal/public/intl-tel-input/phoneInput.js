@@ -1,6 +1,3 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
-//
-// SPDX-License-Identifier: AGPL-3.0-only
 (function () {/*
 
  Copyright The Closure Library Authors.

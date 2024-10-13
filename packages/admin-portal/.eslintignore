@@ -8,4 +8,4 @@ pkg/
 build/
 src/gql/
 public/tinymce/
-public/phoneInput.js
+public/intl-tel-input/
