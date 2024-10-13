@@ -1,9 +1,19 @@
 use super::template_renderer::*;
+use super::report_variables::{
+    extract_eleciton_data, 
+    get_total_number_of_registered_voters_for_country, 
+    genereate_voters_turnout,
+    get_total_number_of_ballots
+};
+use crate::services::database::{get_keycloak_pool, PgConfig};
+use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::types::scheduled_event::generate_voting_period_dates;
+use crate::postgres::results_area_contest::get_results_area_contest;
 use crate::services::database::get_hasura_pool;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::election::get_election_by_id;
 use crate::services::s3::get_minio_url;
-use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id_and_event_processor;
+use crate::postgres::scheduled_event::{find_scheduled_event_by_election_event_id_and_event_processor, find_scheduled_event_by_election_event_id};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -11,32 +21,35 @@ use tracing::info;
 use deadpool_postgres::Client as DbClient;
 use sequent_core::{ballot::VotingStatus, types::templates::EmailConfig, ballot::ElectionStatus};
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
+use chrono::{NaiveDate, TimeZone, Utc, Local};
 use serde_json::value::Value;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct UserData {
-    pub election_start_date: String,
+pub struct UserData {}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SystemData {
+    pub election_date: String,
     pub election_title: String,
-    pub geograpic_region: String,
-    pub area: String,
+    pub voting_period: String,
+    pub geographical_region: String,
+    pub post: String,
     pub country: String,
     pub voting_center: String,
-    pub num_of_registered_voters: u32,
-    pub total_ballots_counted: u32,
+    pub precinct_code: String,
+    pub registered_voters: i64,
+    pub ballots_counted: i64,
     pub ovcs_status: String,
     pub chairperson_name: String,
     pub poll_clerk_name: String,
     pub third_member_name: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct SystemData {
     pub report_hash: String,
     pub ovcs_version: String,
     pub system_hash: String,
     pub file_logo: String,
     pub file_qrcode_lib: String,
-    pub date_time_printed: String,
+    pub date_printed: String,
+    pub time_printed: String,
     pub printing_code: String,
 }
 
@@ -45,7 +58,7 @@ pub struct StatusTemplate {
     pub tenant_id: String,
     pub election_event_id: String,
     pub election_id: String,
-    pub voter_id: String,
+    pub contest_id: String
 }
 
 #[async_trait]
@@ -62,7 +75,7 @@ impl TemplateRenderer for StatusTemplate {
     }
 
     fn prefix(&self) -> String {
-        format!("ovcs_information_{}", self.voter_id)
+        format!("ovcs_information_{}", self.election_event_id)
     }
 
     fn get_tenant_id(&self) -> String {
@@ -82,16 +95,35 @@ impl TemplateRenderer for StatusTemplate {
     }
 
     async fn prepare_user_data(&self) -> Result<Self::UserData> {
+        Ok(UserData {})
+    }
+
+    async fn prepare_system_data(
+        &self,
+        _rendered_user_template: String,
+    ) -> Result<Self::SystemData> {
         let mut hasura_db_client: DbClient = get_hasura_pool()
-            .await
-            .get()
-            .await
-            .with_context(|| "Error getting hasura db pool")?;
+        .await
+        .get()
+        .await
+        .with_context(|| "Error getting hasura db pool")?;
 
         let hasura_transaction = hasura_db_client
             .transaction()
             .await
             .with_context(|| "Error starting hasura transaction")?;
+
+        let realm_name = get_event_realm(self.tenant_id.as_str(), self.election_event_id.as_str());
+        let mut keycloak_db_client = get_keycloak_pool()
+        .await
+        .get()
+        .await
+        .with_context(|| "Error acquiring Keycloak DB pool")?;
+    
+        let keycloak_transaction = keycloak_db_client
+        .transaction()
+        .await
+        .with_context(|| "Error starting Keycloak transaction")?;
 
         // Fetch election event data
         let election_event = get_election_event_by_id(
@@ -129,37 +161,92 @@ impl TemplateRenderer for StatusTemplate {
             voting_status: VotingStatus::NOT_STARTED,
         });
 
-        let election_start_date = "2024-10-15".to_string(); // Placeholder, adapt according to real fetched data
-        let ovcs_status = status.voting_status.as_str().to_string();  // Fetch the real status from DB
+        // get election instace's general data (post, country, etc...)
+        let election_general_data = match extract_eleciton_data(&election).await {
+            Ok(data) => data,  // Extracting the ElectionData struct out of Ok
+            Err(err) => {
+                return Err(anyhow::anyhow!(format!("Error fetching election data: {}", err)));
+            }
+        };
+
+        // Fetch election event data
+        let start_election_event = find_scheduled_event_by_election_event_id(
+            &hasura_transaction,
+            &self.get_tenant_id(),
+            &self.get_election_event_id(),
+        )
+        .await?;
+        
+        // Fetch election's voting periods
+        let voting_period_dates = generate_voting_period_dates(
+            start_election_event,
+            &self.get_tenant_id(),
+            &self.get_election_event_id(),
+            Some(&self.get_election_id().unwrap()),
+        )?;
+            
+        // extract start date from voting period
+        let voting_period_start_date = match voting_period_dates.start_date {
+            Some(voting_period_start_date) => voting_period_start_date,
+            None => return Err(anyhow::anyhow!(format!("Error fetching election start date: "))),
+        };
+        // extract end date from voting period
+        let voting_period_end_date = match voting_period_dates.end_date {
+            Some(voting_period_end_date) => voting_period_end_date,
+            None => return Err(anyhow::anyhow!(format!("Error fetching election end date: "))),
+        };
+
+        // fetch total of registerd voters
+        let registered_voters = get_total_number_of_registered_voters_for_country(
+            &keycloak_transaction,
+            &realm_name,
+            &election_general_data.country
+        ).await?;
+    
+        // fetch area contest for the contest of the election
+        let results_area_contest = get_results_area_contest(
+            &hasura_transaction,
+            &self.get_tenant_id(),
+            &self.get_election_event_id(),
+            &self.get_election_id().unwrap(),
+            &self.contest_id
+        ).await?;
+    
+        // fetch the amount of ballot counted in the contest
+        let ballots_counted = get_total_number_of_ballots(
+            &results_area_contest,
+        ).await?;
+
+
+        // Parse the date start date from voting period into a NaiveDate
+        let parsed_date = NaiveDate::parse_from_str(&voting_period_start_date, "%Y-%m-%d").expect("Failed to parse date");
+        // Format the date to the desired format
+        let election_date = parsed_date.format("%B %d, %Y").to_string();        
+        let ovcs_status = status.voting_status.as_str().to_string(); 
         let temp_val: &str = "test";
 
-        Ok(UserData {
-            election_start_date,
+        Ok(SystemData {
+            election_date: election_date,
             election_title: election_event.name.clone(),
-            geograpic_region: "Region 1".to_string(),
-            area: "Area A".to_string(),
-            country: "Country X".to_string(),
-            voting_center: "Center 1".to_string(),
-            num_of_registered_voters: 10000,  // Fetch from DB
-            total_ballots_counted: 8000,  // Fetch from DB
-            ovcs_status,  // Fetch from DB
+            voting_period: format!("{} - {}", voting_period_start_date, voting_period_end_date),
+            geographical_region: election_general_data.geographical_region,
+            post: election_general_data.post,
+            country: election_general_data.country,
+            voting_center: election_general_data.voting_center,
+            precinct_code: election_general_data.clustered_precinct_id,
+            registered_voters: registered_voters,
+            ballots_counted: ballots_counted,
+            ovcs_status: ovcs_status,
             chairperson_name: temp_val.to_string(),
             poll_clerk_name: temp_val.to_string(),
             third_member_name: temp_val.to_string(),
-        })
-    }
-
-    async fn prepare_system_data(
-        &self,
-        _rendered_user_template: String,
-    ) -> Result<Self::SystemData> {
-        Ok(SystemData {
             report_hash: "hash123".to_string(),
             ovcs_version: "1.0".to_string(),
             system_hash: "sys_hash123".to_string(),
             file_logo: "logo.png".to_string(),
             file_qrcode_lib: "qrcode.png".to_string(),
-            date_time_printed: "2024-10-09T12:00:00Z".to_string(),
+            date_printed: "2024-10-09T12:00:00Z".to_string(),
+            time_printed: "2024-10-09T12:00:00Z".to_string(),
             printing_code: "print123".to_string(),
         })
     }
