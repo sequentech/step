@@ -17,6 +17,7 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {
     CastVotesPerDay,
     GetElectionEventStatsQuery,
+    ListKeysCeremonyQuery,
     Sequent_Backend_Election_Event,
 } from "@/gql/graphql"
 import {useRecordContext} from "react-admin"
@@ -25,6 +26,10 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {GET_ELECTION_EVENT_STATS} from "@/queries/GetElectionEventStats"
 import {getAuthUrl} from "@/services/UrlGeneration"
 import {ListIpAddress} from "@/resources/ElectionEvent/ListIpAddress"
+import {IPermissions} from "@/types/keycloak"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {LIST_KEYS_CEREMONY} from "@/queries/ListKeysCeremonies"
+import {IKeysCeremonyExecutionStatus} from "@/services/KeyCeremony"
 
 const Container = styled(Box)`
     display: flex;
@@ -49,6 +54,8 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
     const endDate = getToday()
     const startDate = daysBefore(endDate, 6)
     const {t} = useTranslation()
+    const authContext = useContext(AuthContext)
+    const isTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_CEREMONY)
 
     const {
         loading,
@@ -62,6 +69,20 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
             endDate: formatDate(endDate),
         },
         pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+    })
+
+    const {data: keysCeremonies} = useQuery<ListKeysCeremonyQuery>(LIST_KEYS_CEREMONY, {
+        variables: {
+            tenantId: tenantId,
+            electionEventId: record?.id,
+        },
+        context: {
+            headers: {
+                "x-hasura-role": isTrustee
+                    ? IPermissions.TRUSTEE_CEREMONY
+                    : IPermissions.ADMIN_CEREMONY,
+            },
+        },
     })
 
     const stats = dataStats?.election_event?.[0]?.statistics as IElectionEventStatistics | null
@@ -85,7 +106,12 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
         }
         const status = record.status as IElectionEventStatus
         let data: Array<number> = [0]
-        if (status.keys_ceremony_finished) {
+        let finishedKeysCeremonies = keysCeremonies?.list_keys_ceremony?.items?.find(
+            (ceremony) =>
+                (ceremony.execution_status as IKeysCeremonyExecutionStatus) ===
+                IKeysCeremonyExecutionStatus.SUCCESS
+        )
+        if (finishedKeysCeremonies) {
             data.push(1)
         }
         if (status.is_published) {
@@ -97,11 +123,11 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
         if (EVotingStatus.CLOSED === status.voting_status) {
             data.push(4)
         }
-        if (status.tally_ceremony_finished) {
+        /*if (status.tally_ceremony_finished) {
             data.push(5)
-        }
+        }*/
         setSelected(Math.max(...data))
-    }, [record?.status])
+    }, [record?.status, keysCeremonies?.list_keys_ceremony?.items])
 
     const loginUrl = useMemo(() => {
         return getAuthUrl(

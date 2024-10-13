@@ -21,6 +21,11 @@ export enum ElectionsOrder {
     ALPHABETICAL = "alphabetical",
 }
 
+export enum KeysCeremonySettings {
+    ELECTION_EVENT,
+    ELECTION,
+}
+
 export interface IActiveTemplateIds {
     manual_verification?: string
 }
@@ -38,4 +43,5 @@ export interface IElectionEventPresentation {
     voting_portal_countdown_policy?: IVotingPortalCountdownPolicy
     custom_urls?: ICustomUrls
     active_template_ids?: IActiveTemplateIds
+    keys_ceremony_settings?: KeysCeremonySettings
 }

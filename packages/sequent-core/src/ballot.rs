@@ -528,6 +528,31 @@ pub enum CandidatesSelectionPolicy {
     CUMULATIVE, // default behaviour
 }
 
+#[allow(non_camel_case_types)]
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+    Default,
+)]
+pub enum KeysCeremonySettings {
+    #[strum(serialize = "ELECTION_EVENT")]
+    #[serde(rename = "ELECTION_EVENT")]
+    #[default]
+    ELECTION_EVENT,
+    #[strum(serialize = "ELECTION")]
+    #[serde(rename = "ELECTION")]
+    ELECTION,
+}
+
 #[derive(
     BorshSerialize,
     BorshDeserialize,
@@ -602,6 +627,7 @@ pub struct ElectionEventPresentation {
     pub voting_portal_countdown_policy: Option<VotingPortalCountdownPolicy>,
     pub custom_urls: Option<CustomUrls>,
     pub active_template_ids: Option<ActiveTemplateIds>,
+    pub keys_ceremony_settings: Option<KeysCeremonySettings>,
 }
 
 #[allow(non_camel_case_types)]
