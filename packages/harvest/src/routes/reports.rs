@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 use crate::services::authorization::authorize;
 use anyhow::Result;
 use deadpool_postgres::Client as DbClient;

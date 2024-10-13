@@ -1,4 +1,8 @@
-import {Action, ActionsColumn} from "@/components/ActionButons"
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+import {Action} from "@/components/ActionButons"
 import ElectionHeader from "@/components/ElectionHeader"
 import {ListActions} from "@/components/ListActions"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
@@ -17,12 +21,10 @@ import {
     useDataProvider,
 } from "react-admin"
 import {useTranslation} from "react-i18next"
-import {CreateReport} from "./CreateReport"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {CustomApolloContextProvider} from "@/providers/ApolloContextProvider"
-import {EditReport} from "./EditReport"
 import {
     GenerateReportMutation,
     Sequent_Backend_Election,

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local, Utc};
 use deadpool_postgres::Transaction;
@@ -50,6 +54,7 @@ pub enum ReportType {
     MANUAL_VERIFICATION,
     BALLOT_RECEIPT,
     ELECTORAL_RESULTS,
+    STATISTICAL_REPORT,
 }
 
 pub struct ReportWrapper(pub Report);

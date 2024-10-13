@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import SelectElection from "@/components/election/SelectElection"
 import {EReportType, ReportActions, reportTypeConfig} from "@/types/reports"
 import {Typography} from "@mui/material"
@@ -20,6 +24,7 @@ import {useTranslation} from "react-i18next"
 import {Sequent_Backend_Report} from "@/gql/graphql"
 import {useMutation} from "@apollo/client"
 import {CREATE_REPORT} from "@/queries/CreateReport"
+import {UPDATE_REPORT} from "@/queries/UpdateReport"
 
 interface CronConfig {
     isActive?: boolean
@@ -46,6 +51,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
     const [electionId, setElectionId] = useState<string | null | undefined>(undefined)
     const [templateId, setTemplateId] = useState<string | null | undefined>(undefined)
     const [createReport] = useMutation(CREATE_REPORT)
+    const [updateReport] = useMutation(UPDATE_REPORT)
     const [isCronActive, setIsCronActive] = useState<boolean>(false)
     const dataProvider = useDataProvider()
     const handleReportTypeChange = (event: any) => {
@@ -106,10 +112,11 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
 
         try {
             if (isEditReport && reportId) {
-                await dataProvider.update("sequent_backend_report", {
-                    id: reportId,
-                    data: formData,
-                    previousData: undefined,
+                await updateReport({
+                    variables: {
+                        id: reportId,
+                        set: formData,
+                    },
                 })
                 notify("Report updated successfully", {type: "success"})
             } else {
@@ -239,7 +246,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                             />
                             <TextInput
                                 source="cron_config.emailRecepient"
-                                label={t("reportsScreen.fields.cronExpression")}
+                                label={t("reportsScreen.fields.emailRecepient")}
                                 required={isCronActive}
                             />
                         </>
