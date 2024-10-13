@@ -35,6 +35,8 @@ import {WizardStyles} from "@/components/styles/WizardStyles"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {IPermissions} from "@/types/keycloak"
 
+const ALL_ELECTIONS = "all-elections"
+
 export interface ConfigureStepProps {
     currentCeremony: Sequent_Backend_Keys_Ceremony | null
     setCurrentCeremony: (keysCeremony: Sequent_Backend_Keys_Ceremony) => void
@@ -144,7 +146,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                 electionEventId: electionEvent.id,
                 threshold,
                 trusteeNames,
-                electionId,
+                electionId: (ALL_ELECTIONS !== electionId && electionId) || null,
                 name: name,
             },
         })
@@ -310,7 +312,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                             label={t("electionScreen.common.title")}
                             onChange={(e) => onElectionChange(e.target.value ?? null)}
                         >
-                            <MenuItem value={""} dir={i18n.dir(i18n.language)}>
+                            <MenuItem value={ALL_ELECTIONS} dir={i18n.dir(i18n.language)}>
                                 {t("keysGeneration.configureStep.allElections")}
                             </MenuItem>
                             {electionsList?.map((election) => (
