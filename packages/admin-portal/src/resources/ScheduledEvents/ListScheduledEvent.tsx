@@ -14,6 +14,7 @@ import {
     DatagridConfigurable,
     FunctionField,
     List,
+    TextField,
     useGetList,
     useGetOne,
     useNotify,
@@ -40,7 +41,6 @@ import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {ICronConfig, IManageElectionDatePayload} from "@/types/scheduledEvents"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import ElectionHeader from "@/components/ElectionHeader"
-import {SidebarScreenStyles} from "@/components/styles/SidebarScreenStyles"
 
 export const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -105,6 +105,10 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
             filter: {
                 tenant_id: tenantId,
                 election_event_id: electionEventId,
+                archived_at: {
+                    format: "hasura-raw-query",
+                    value: {_is_null: true},
+                },
             },
         },
         {
@@ -128,7 +132,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
         IPermissions.SCHEDULED_EVENT_WRITE
     )
 
-    const OMIT_FIELDS: Array<string> = []
+    const OMIT_FIELDS: Array<string> = ["id"]
 
     const Filters: Array<ReactElement> = []
 
@@ -258,6 +262,8 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                     isOpenSideBar={isOpenSidebar}
                     omit={OMIT_FIELDS}
                 >
+                    <TextField source="id" />
+
                     <FunctionField
                         label={t("eventsScreen.fields.electionId")}
                         source="event_payload.election_id"

@@ -60,8 +60,6 @@ async fn manage_election_date_wrapper(
         return Err(anyhow!("Election not found"));
     };
 
-    let mut election_status: ElectionStatus = Default::default();
-
     let Some(event_processor) = scheduled_manage_date.event_processor.clone() else {
         return Err(anyhow!("Missing event processor"));
     };
@@ -86,11 +84,11 @@ async fn manage_election_date_wrapper(
         &status,
     )
     .await;
-    info!("result: {:?}", result);
+    info!("result: {result:?}");
 
     stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id)
         .await
-        .with_context(|| "Error stopping scheduled event")?;
+        .map_err(|err| anyhow!("Error stopping scheduled event: {err:?}"))?;
 
     result?;
 
