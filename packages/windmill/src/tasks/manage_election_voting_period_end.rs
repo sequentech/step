@@ -1,8 +1,8 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2023 Rafael Fernández López <rafael.fernandez@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::election::get_election_by_id;
+use crate::postgres::election::{get_election_by_id, update_election_presentation};
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::*;
 use crate::services::database::get_hasura_pool;
@@ -17,7 +17,8 @@ use celery::error::TaskError;
 use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::{ElectionStatus, VotingStatus};
+use sequent_core::ballot::{ElectionPresentation, VotingPeriodEnd, VotingStatus};
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -25,14 +26,14 @@ use tracing::{error, event, info, Level};
 use uuid::Uuid;
 
 #[instrument(err)]
-async fn manage_election_date_wrapper(
+async fn manage_election_voting_period_end_wrapped(
     hasura_transaction: &Transaction<'_>,
     tenant_id: String,
     election_event_id: String,
     scheduled_event_id: String,
     election_id: String,
 ) -> AnyhowResult<()> {
-    let scheduled_manage_date_opt = find_scheduled_event_by_id(
+    let scheduled_event = find_scheduled_event_by_id(
         hasura_transaction,
         Some(tenant_id.clone()),
         Some(election_event_id.clone()),
@@ -41,14 +42,14 @@ async fn manage_election_date_wrapper(
     .await
     .with_context(|| "Error obtaining scheduled event by id")?;
 
-    let Some(scheduled_manage_date) = scheduled_manage_date_opt else {
+    let Some(scheduled_event) = scheduled_event else {
         return Err(anyhow!(
             "Can't find scheduled event with id: {}",
             scheduled_event_id
         ));
     };
 
-    let Some(_election) = get_election_by_id(
+    let Some(election) = get_election_by_id(
         hasura_transaction,
         &tenant_id,
         &election_event_id,
@@ -60,37 +61,34 @@ async fn manage_election_date_wrapper(
         return Err(anyhow!("Election not found"));
     };
 
-    let Some(event_processor) = scheduled_manage_date.event_processor.clone() else {
-        return Err(anyhow!("Missing event processor"));
+    let Some(event_payload) = scheduled_event.event_payload.clone() else {
+        event!(Level::WARN, "Missing election_event_id");
+        return Ok(());
     };
+    let event_payload: ManageAllowVotingPeriodEndPayload = deserialize_value(event_payload)?;
 
-    let status = match event_processor {
-        EventProcessors::START_VOTING_PERIOD => VotingStatus::OPEN,
-        EventProcessors::END_VOTING_PERIOD => VotingStatus::CLOSED,
-        _ => {
-            info!("Invalid scheduled event type: {:?}", event_processor);
-            stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id)
-                .await?;
-            return Ok(());
-        }
-    };
+    if let Some(election_presentation) = election.presentation {
+        let election_presentation: ElectionPresentation = ElectionPresentation {
+            voting_period_end: if (event_payload.allow_voting_period_end == Some(true)) {
+                Some(VotingPeriodEnd::ALLOWED)
+            } else {
+                Some(VotingPeriodEnd::DISALLOWED)
+            },
+            ..serde_json::from_value(election_presentation)?
+        };
+        update_election_presentation(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &election_id,
+            serde_json::to_value(election_presentation)?,
+        )
+        .await?;
+    }
 
-    let result = voting_status::update_election_status(
-        tenant_id.clone(),
-        None,
-        hasura_transaction,
-        &election_event_id,
-        &election_id,
-        &status,
-    )
-    .await;
-    info!("result: {result:?}");
-
-    stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id)
+    stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_event.id)
         .await
-        .map_err(|err| anyhow!("Error stopping scheduled event: {err:?}"))?;
-
-    result?;
+        .with_context(|| "Error stopping scheduled event")?;
 
     Ok(())
 }
@@ -98,7 +96,7 @@ async fn manage_election_date_wrapper(
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(time_limit = 10, max_retries = 0, expires = 30)]
-pub async fn manage_election_date(
+pub async fn manage_election_voting_period_end(
     tenant_id: String,
     election_event_id: String,
     scheduled_event_id: String,
@@ -106,7 +104,7 @@ pub async fn manage_election_date(
 ) -> Result<()> {
     let lock: PgLock = PgLock::acquire(
         format!(
-            "execute_manage_election_date-{}-{}-{}-{}",
+            "execute_manage_election_voting_period_end-{}-{}-{}-{}",
             tenant_id, election_event_id, scheduled_event_id, election_id
         ),
         Uuid::new_v4().to_string(),
@@ -122,7 +120,7 @@ pub async fn manage_election_date(
         let election_id = election_id.clone();
         Box::pin(async move {
             // Your async code here
-            manage_election_date_wrapper(
+            manage_election_voting_period_end_wrapped(
                 hasura_transaction,
                 tenant_id,
                 election_event_id,

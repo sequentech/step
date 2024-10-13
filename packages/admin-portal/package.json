@@ -31,6 +31,7 @@
     "jotai": "^2.6.0",
     "keycloak-js": "^22.0.1",
     "lodash": "^4.17.21",
+    "moment-timezone": "^0.5.46",
     "mui-image": "1.0.7",
     "ra-data-hasura": "0.6.0",
     "react": "18.1.0",

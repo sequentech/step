@@ -18,10 +18,16 @@ use crate::ballot::VotingPeriodDates;
     Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
 )]
 pub enum EventProcessors {
+    ALLOW_INIT_REPORT,
     CREATE_REPORT,
     SEND_TEMPLATE,
     START_VOTING_PERIOD,
     END_VOTING_PERIOD,
+    ALLOW_VOTING_PERIOD_END,
+    START_ENROLLMENT_PERIOD,
+    END_ENROLLMENT_PERIOD,
+    START_LOCKDOWN_PERIOD,
+    END_LOCKDOWN_PERIOD,
 }
 
 #[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Clone)]
@@ -33,6 +39,23 @@ pub struct CronConfig {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ManageElectionDatePayload {
     pub election_id: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ManageAllowInitPayload {
+    pub election_id: Option<String>,
+    #[serde(default = "default_allow_init")]
+    pub allow_init: Option<bool>,
+}
+
+fn default_allow_init() -> Option<bool> {
+    Some(true)
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ManageAllowVotingPeriodEndPayload {
+    pub election_id: Option<String>,
+    pub allow_voting_period_end: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
