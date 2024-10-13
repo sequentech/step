@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::election_event::get_election_event_helper;
-use crate::hasura::keys_ceremony::get_keys_ceremony_by_id;
 use crate::hasura::tally_session::{get_tally_session_by_id, update_tally_session_status};
 use crate::hasura::tally_session_execution::{
     get_last_tally_session_execution,
@@ -14,6 +13,7 @@ use crate::postgres::contest::export_contests;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
+use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
 use crate::postgres::tally_session::insert_tally_session;
 use crate::postgres::tally_session_contest::{
     get_tally_session_highest_batch, insert_tally_session_contest,
@@ -471,6 +471,7 @@ pub async fn update_tally_ceremony(
 
 #[instrument(err)]
 pub async fn set_private_key(
+    transaction: &Transaction<'_>,
     claims: &JwtClaims,
     tenant_id: &str,
     election_event_id: &str,
@@ -512,9 +513,9 @@ pub async fn set_private_key(
 
     // get the keys ceremonies for this election event
     let keys_ceremony = get_keys_ceremony_by_id(
-        &auth_headers.clone(),
-        &tenant_id.clone(),
-        &election_event_id.clone(),
+        transaction,
+        &tenant_id,
+        &election_event_id,
         &tally_session.keys_ceremony_id,
     )
     .await?;
@@ -541,8 +542,14 @@ pub async fn set_private_key(
     }
 
     // get the encrypted private key
-    let encrypted_private_key = "".to_string(); /*find_trustee_private_key(&auth_headers, &tenant_id, &election_event_id, &trustee_name)
-                                                .await?;*/
+    let encrypted_private_key = find_trustee_private_key(
+        transaction,
+        &tenant_id,
+        &election_event_id,
+        &trustee_name,
+        &keys_ceremony,
+    )
+    .await?;
     // FFF tally fix
 
     if encrypted_private_key != private_key_base64 {
