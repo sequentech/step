@@ -268,7 +268,6 @@ pub async fn list_keys_ceremonies(
 
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
-    let user_id = claims.hasura_claims.user_id;
 
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await

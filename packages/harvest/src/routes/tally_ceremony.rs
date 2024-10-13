@@ -7,6 +7,7 @@ use anyhow::{anyhow, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use sequent_core::services::jwt::decode_permission_labels;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::permissions::Permissions;
 use sequent_core::{
@@ -46,6 +47,7 @@ pub async fn create_tally_ceremony(
     let input = body.into_inner();
     let tenant_id: String = claims.hasura_claims.tenant_id.clone();
     let user_id = claims.hasura_claims.user_id;
+    let permission_labels = decode_permission_labels(&claims);
 
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|err| {
@@ -70,6 +72,7 @@ pub async fn create_tally_ceremony(
         input.election_event_id.clone(),
         input.election_ids,
         input.configuration,
+        &permission_labels,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;

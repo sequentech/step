@@ -10,6 +10,7 @@ use crate::hasura::tally_session_execution::{
 use crate::postgres::area::get_event_areas;
 use crate::postgres::area_contest::export_area_contests;
 use crate::postgres::contest::export_contests;
+use crate::postgres::election::export_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
@@ -45,6 +46,7 @@ use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak;
 use sequent_core::types::ceremonies::*;
 use sequent_core::types::hasura::core::Contest;
+use sequent_core::types::hasura::core::Election;
 use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::hasura::core::{AreaContest, TallySessionConfiguration};
 use serde_json::{from_value, Value};
@@ -242,8 +244,10 @@ pub async fn create_tally_ceremony(
     election_event_id: String,
     election_ids: Vec<String>,
     configuration: Option<TallySessionConfiguration>,
+    permission_labels: &Vec<String>,
 ) -> Result<String> {
-    let (all_contests, areas, all_area_contests) = try_join!(
+    let (all_elections, all_contests, areas, all_area_contests) = try_join!(
+        export_elections(&transaction, &tenant_id, &election_event_id),
         export_contests(&transaction, &tenant_id, &election_event_id),
         get_event_areas(&transaction, &tenant_id, &election_event_id),
         export_area_contests(&transaction, &tenant_id, &election_event_id),
@@ -252,6 +256,26 @@ pub async fn create_tally_ceremony(
         .into_iter()
         .filter(|contest| election_ids.contains(&contest.election_id))
         .collect();
+    let elections: Vec<Election> = all_elections
+        .into_iter()
+        .filter(|election| election_ids.contains(&election.id))
+        .collect();
+    if elections.len() != election_ids.len() {
+        return Err(anyhow!("Some elections were not found"));
+    }
+    let permission_label_filtered_elections: Vec<_> = elections
+        .into_iter()
+        .filter(|election| {
+            0 == permission_labels.len()
+                || permission_labels
+                    .contains(&election.permission_label.clone().unwrap_or("".to_string()))
+        })
+        .collect();
+    if permission_label_filtered_elections.len() != election_ids.len() {
+        return Err(anyhow!(
+            "Some elections have unauthorized permission labels"
+        ));
+    }
     event!(Level::INFO, "contests {:?}", contests);
     let contest_ids: Vec<String> = contests.clone().into_iter().map(|c| c.id.clone()).collect();
     let area_contests: Vec<AreaContest> = all_area_contests
