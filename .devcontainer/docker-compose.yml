@@ -676,7 +676,7 @@ services:
       "${IMMUDB_BOARD_DB_NAME}",
       "--cache-dir",
       "/tmp/immu-board",
-      "upsert-init-db"
+      "upsert-board-db"
     ]
     env_file:
       - .env
