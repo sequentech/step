@@ -12,12 +12,17 @@ use crate::types::error::{Error, Result};
 use crate::util::aws::get_max_upload_size;
 use anyhow::{anyhow, Context};
 use deadpool_postgres::Transaction;
+use regex::Regex;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::keycloak::{User, UserProfileAttribute};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tempfile::{NamedTempFile, TempPath};
+
+lazy_static! {
+    static ref SAFE_CHARS_RE: Regex = Regex::new(r"[^a-zA-Z0-9._-]").unwrap();
+}
 
 pub const USER_FIELDS: [&str; 8] = [
     "id",
@@ -54,6 +59,11 @@ pub enum ExportBody {
     },
 }
 
+fn sanitize_name(name: &str) -> String {
+    // Replace all characters not matching the regex with an underscore '_'
+    SAFE_CHARS_RE.replace_all(name, "_").to_string()
+}
+
 fn get_headers(
     elections: &Option<Vec<ElectionHead>>,
     user_attributes: &Vec<UserProfileAttribute>,
@@ -66,13 +76,13 @@ fn get_headers(
         "first_name".to_string(),
         "last_name".to_string(),
         "username".to_string(),
-        "area".to_string(),
+        "area_name".to_string(),
     ];
     for attr in user_attributes {
-        match (&attr.name, &attr.display_name) {
-            (Some(name), Some(display_name)) => {
+        match (&attr.name) {
+            (Some(name)) => {
                 if (!USER_FIELDS.contains(&name.as_str())) {
-                    user_headers.push(display_name.clone())
+                    user_headers.push(name.clone())
                 }
             }
             _ => (),
@@ -84,8 +94,10 @@ fn get_headers(
             Some(ref some_elections) => some_elections
                 .iter()
                 .map(|election| match election.alias {
-                    Some(ref election_alias) => format!("election: {}", election_alias.clone()),
-                    None => format!("election: {}", election.name.clone()),
+                    Some(ref election_alias) => {
+                        format!("election__{}", sanitize_name(&election_alias))
+                    }
+                    None => format!("election__{}", sanitize_name(&election.name)),
                 })
                 .collect::<Vec<String>>(),
             None => vec![],
@@ -206,8 +218,13 @@ pub async fn export_users_file(
     };
 
     // Initialize the Keycloak client and CSV writer
-    let client = KeycloakAdminClient::new().await?;
-    let attributes = client.get_user_profile_attributes(&realm).await?;
+    let client = KeycloakAdminClient::new()
+        .await
+        .map_err(|e| anyhow!("Error obtaining Keycloak admin client: {e:?}"))?;
+    let attributes = client
+        .get_user_profile_attributes(&realm)
+        .await
+        .map_err(|e| anyhow!("Error obtaining Keycloak User Profile Attributes: {e:?}"))?;
     let headers = get_headers(&elections, &attributes);
 
     // Pagination loop to export users in batches

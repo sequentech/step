@@ -36,6 +36,7 @@ lazy_static! {
     static ref EMAIL_COL_NAME: String = String::from("email");
     static ref GROUP_COL_NAME: String = String::from("group_name");
     static ref AREA_NAME_COL_NAME: String = String::from("area_name");
+    static ref ELECTION_COL_PREFIX: String = String::from("election__");
     static ref RESERVED_COL_NAMES: Vec<String> = vec![
         HASHED_PASSWORD_COL_NAME.clone(),
         SALT_COL_NAME.clone(),
@@ -244,7 +245,9 @@ fn get_insert_user_query(
         .clone()
         .into_iter()
         .filter(|col| {
-            !user_entity_columns.contains(&col.as_str()) && !RESERVED_COL_NAMES.contains(&col)
+            !user_entity_columns.contains(&col.as_str())
+                && !RESERVED_COL_NAMES.contains(&col)
+                && !col.starts_with(&*ELECTION_COL_PREFIX)
         })
         .collect::<Vec<String>>();
 
