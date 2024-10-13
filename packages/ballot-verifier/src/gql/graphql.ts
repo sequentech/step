@@ -727,6 +727,11 @@ export type DocumentTaskOutput = {
     task_execution: Tasks_Execution_Type
 }
 
+export type GenerateReportOutput = {
+    __typename?: "generateReportOutput"
+    document_id: Scalars["String"]["output"]
+}
+
 /** Boolean expression to compare columns of type "json". All fields are combined with logical 'AND'. */
 export type Json_Comparison_Exp = {
     _eq?: InputMaybe<Scalars["json"]["input"]>
@@ -933,6 +938,7 @@ export type Mutation_Root = {
     export_tenant_users?: Maybe<ExportTenantUsersOutput>
     export_users?: Maybe<ExportUsersOutput>
     generate_ballot_publication?: Maybe<PublishBallotOutput>
+    generate_report?: Maybe<GenerateReportOutput>
     get_ballot_publication_changes?: Maybe<GetBallotPublicationChangesOutput>
     get_manual_verification_pdf?: Maybe<GetManualVerificationOutput>
     /** get private key */
@@ -1896,6 +1902,13 @@ export type Mutation_RootExport_UsersArgs = {
 export type Mutation_RootGenerate_Ballot_PublicationArgs = {
     election_event_id: Scalars["uuid"]["input"]
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
+}
+
+/** mutation root */
+export type Mutation_RootGenerate_ReportArgs = {
+    report_id: Scalars["String"]["input"]
+    report_mode: Scalars["String"]["input"]
+    tenant_id: Scalars["String"]["input"]
 }
 
 /** mutation root */
