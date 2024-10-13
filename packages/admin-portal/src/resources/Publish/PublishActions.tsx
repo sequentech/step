@@ -141,7 +141,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                         PublishStatus.GeneratedLoading,
                                     ]}
                                     disabled={
-                                        record?.presentation?.initialize_report_policy ===
+                                        record?.presentation?.initialization_report_policy ===
                                             EInitializeReportPolicy.REQUIRED &&
                                         !record?.initializion_report_generated
                                     }

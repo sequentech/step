@@ -833,7 +833,7 @@ pub struct ElectionPresentation {
     pub manual_start_voting_period: Option<ManualStartVotingPeriod>,
     pub voting_period_end: Option<VotingPeriodEnd>,
     pub tally: Option<Tally>,
-    pub initialize_report_policy: Option<EInitializeReportPolicy>,
+    pub initialization_report_policy: Option<EInitializeReportPolicy>,
 }
 
 impl Default for ElectionPresentation {

@@ -779,7 +779,7 @@ export const ElectionDataForm: React.FC = () => {
                                     jsonSource="presentation"
                                 />
                                 <SelectInput
-                                    source={`presentation.initialize_report_policy`}
+                                    source={`presentation.initialization_report_policy`}
                                     choices={initializeReportChoices()}
                                     label={t("electionScreen.initializeReportPolicy.label")}
                                     validate={required()}

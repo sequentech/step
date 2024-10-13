@@ -24,7 +24,7 @@ export interface IElectionPresentation {
     is_grace_priod?: boolean
     grace_period_policy?: EGracePeriodPolicy
     grace_period_secs?: number
-    initialize_report_policy?: EInitializeReportPolicy
+    initialization_report_policy?: EInitializeReportPolicy
     // more missing
 }
 
