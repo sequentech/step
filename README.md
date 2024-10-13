@@ -560,7 +560,6 @@ cargo build && \
   --server-url http://immudb:3322 \
   --username immudb \
   --password immudb \
-  --index-dbname indexdb \
   --board-dbname 33f18502a67c48538333a58630663559 \
   --cache-dir /tmp/immu-board upsert-init-db
 ```
