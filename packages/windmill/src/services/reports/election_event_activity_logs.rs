@@ -14,6 +14,8 @@ use crate::services::temp_path::{generate_temp_file, get_file_size};
 use crate::types::resources::DataList;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
+use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use csv::WriterBuilder;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::types::hasura::core::Document;
@@ -129,10 +131,23 @@ impl TemplateRenderer for ActivityLogsTemplate {
                     Some(user_id) => user_id.to_string(),
                     None => "-".to_string(),
                 };
+
+                let timestamp = electoral_log.statement_timestamp();
+                let dt =
+                    DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(timestamp, 0), Utc);
+                let statement_timestamp = dt.to_rfc2822();
+
+                let creation_timestamp = electoral_log.created();
+                let dt = DateTime::<Utc>::from_utc(
+                    NaiveDateTime::from_timestamp(creation_timestamp, 0),
+                    Utc,
+                );
+                let created = dt.format("%Y-%m-%d").to_string();
+
                 act_log.push(ActivityLogRow {
                     id: electoral_log.id(),
-                    created: electoral_log.created().to_string(), // TODO: Format propperly in universal date format
-                    statement_timestamp: electoral_log.statement_timestamp().to_string(), // TODO: Format propperly in universal date format
+                    created,
+                    statement_timestamp,
                     statement_kind: electoral_log.statement_kind().to_string(),
                     event_type: electoral_log.event_type()?,
                     log_type: electoral_log.log_type()?,
