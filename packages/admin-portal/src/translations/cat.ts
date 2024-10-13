@@ -224,6 +224,13 @@ const catalanTranslation: TranslationType = {
                 css: "CSS personalitzat",
                 skipElectionList: "Saltar pantalla per escollir elecció",
                 showUserProfile: "Mostra el perfil de l'usuari",
+                lockdownState: {
+                    policyLabel: "Estat de Confinament",
+                    options: {
+                        "locked-down": "Confinat",
+                        "not-locked-down": "No Confinat",
+                    },
+                },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Sense compte enrere",
                     COUNTDOWN: "Compte enrere",

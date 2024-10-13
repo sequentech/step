@@ -225,6 +225,13 @@ const tagalogTranslation: TranslationType = {
                 css: "Custom CSS",
                 skipElectionList: "Laktawan ang Screen ng Listahan ng Halalan",
                 showUserProfile: "Ipakita ang Profile ng Gumagamit",
+                lockdownState: {
+                    policyLabel: "Kalagayan ng Lockdown",
+                    options: {
+                        "locked-down": "Naka-lockdown",
+                        "not-locked-down": "Hindi naka-lockdown",
+                    },
+                },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Walang Countdown",
                     COUNTDOWN: "Countdown",

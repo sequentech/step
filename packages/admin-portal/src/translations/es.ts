@@ -224,6 +224,13 @@ const spanishTranslation: TranslationType = {
                 css: "CSS personalizado",
                 skipElectionList: "Saltar pantalla para escoger elección",
                 showUserProfile: "Mostrar perfil de usuario",
+                lockdownState: {
+                    policyLabel: "Estado de Confinamiento",
+                    options: {
+                        "locked-down": "Confinado",
+                        "not-locked-down": "No Confinado",
+                    },
+                },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Sin cuenta regresiva",
                     COUNTDOWN: "Cuenta regresiva",

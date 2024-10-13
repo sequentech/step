@@ -223,6 +223,13 @@ const englishTranslation = {
                 css: "Custom CSS",
                 skipElectionList: "Skip Election List Screen",
                 showUserProfile: "Show User Profile",
+                lockdownState: {
+                    policyLabel: "Lockdown Status",
+                    options: {
+                        "locked-down": "Locked Down",
+                        "not-locked-down": "Not Locked Down",
+                    },
+                },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "No Countdown",
                     COUNTDOWN: "Countdown",

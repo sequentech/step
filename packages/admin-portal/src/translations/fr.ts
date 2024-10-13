@@ -224,6 +224,13 @@ const frenchTranslation: TranslationType = {
                 css: "CSS personnalisé",
                 skipElectionList: "Passer l'écran pour choisir l'élection",
                 showUserProfile: "Afficher le profil utilisateur",
+                lockdownState: {
+                    policyLabel: "État de Confinement",
+                    options: {
+                        "locked-down": "Confiné",
+                        "not-locked-down": "Non Confiné",
+                    },
+                },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Pas de compte à rebours",
                     COUNTDOWN: "Compte à rebours",
