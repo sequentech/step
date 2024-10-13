@@ -46,7 +46,7 @@ pub async fn create_tally_ceremony(
     )?;
     let input = body.into_inner();
     let tenant_id: String = claims.hasura_claims.tenant_id.clone();
-    let user_id = claims.hasura_claims.user_id;
+    let user_id = claims.clone().hasura_claims.user_id;
     let permission_labels = decode_permission_labels(&claims);
 
     let mut hasura_db_client: DbClient =
