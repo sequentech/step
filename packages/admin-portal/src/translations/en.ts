@@ -170,6 +170,8 @@ const englishTranslation = {
                 subtitle: "Election event configuration.",
                 showMore: "Show More",
                 showLess: "Show Less",
+                adminPortal: "Admin Portal",
+                allowPublishAfterLockdown: "Only allow election event publishing after lockdown",
             },
             edit: {
                 general: "General",
@@ -223,6 +225,13 @@ const englishTranslation = {
                 css: "Custom CSS",
                 skipElectionList: "Skip Election List Screen",
                 showUserProfile: "Show User Profile",
+                lockdownState: {
+                    policyLabel: "Lockdown Status",
+                    options: {
+                        "locked-down": "Locked Down",
+                        "not-locked-down": "Not Locked Down",
+                    },
+                },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "No Countdown",
                     COUNTDOWN: "Countdown",
@@ -414,6 +423,8 @@ const englishTranslation = {
                 votingChannels: "Voting Channels",
                 startDateTime: "Start Date and Time",
                 endDateTime: "End Date and Time",
+                startDateTimeWithTimezone: "Start Date and Time ({{timezone}})",
+                endDateTimeWithTimezone: "End Date and Time ({{timezone}})",
                 scheduledOpening: "Scheduled Opening",
                 scheduledClosing: "Scheduled Closing",
                 alias: "Alias",
@@ -661,8 +672,14 @@ const englishTranslation = {
             },
             eventType: {
                 label: "Type",
+                ALLOW_INIT_REPORT: "Allow Initialization Report",
                 START_VOTING_PERIOD: "Start Voting Period",
                 END_VOTING_PERIOD: "End Voting Period",
+                ALLOW_VOTING_PERIOD_END: "Allow Voting Period End",
+                START_ENROLLMENT_PERIOD: "Start Enrollment Period",
+                END_ENROLLMENT_PERIOD: "End Enrollment Period",
+                START_LOCKDOWN_PERIOD: "Start Lockdown Period",
+                END_LOCKDOWN_PERIOD: "End Lockdown Period",
             },
             election: {
                 label: "Election",
@@ -1237,6 +1254,9 @@ const englishTranslation = {
             empty: {
                 header: "No Publication Yet.",
                 action: "Generate Publication",
+            },
+            forbidden: {
+                header: "Cannot Publish until the Keys Ceremony is completed.",
             },
             dialog: {
                 title: "Confirm Action",

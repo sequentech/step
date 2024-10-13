@@ -26,6 +26,10 @@ use crate::tasks::insert_election_event::insert_election_event_t;
 use crate::tasks::insert_tenant::insert_tenant;
 use crate::tasks::manage_election_dates::manage_election_date;
 use crate::tasks::manage_election_event_date::manage_election_event_date;
+use crate::tasks::manage_election_event_enrollment::manage_election_event_enrollment;
+use crate::tasks::manage_election_event_lockdown::manage_election_event_lockdown;
+use crate::tasks::manage_election_init_report::manage_election_init_report;
+use crate::tasks::manage_election_voting_period_end::manage_election_voting_period_end;
 use crate::tasks::manual_verification_report::generate_manual_verification_report;
 use crate::tasks::miru_plugin_tasks::create_transmission_package_task;
 use crate::tasks::miru_plugin_tasks::send_transmission_package_task;
@@ -142,6 +146,10 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             generate_manual_verification_report,
             scheduled_events,
             manage_election_event_date,
+            manage_election_event_enrollment,
+            manage_election_event_lockdown,
+            manage_election_init_report,
+            manage_election_voting_period_end,
             manage_election_date,
             export_election_event,
             export_election_event_logs,
@@ -177,6 +185,10 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             scheduled_reports::NAME => Queue::Beat.as_ref(),
             manage_election_date::NAME => Queue::Beat.as_ref(),
             manage_election_event_date::NAME => Queue::Beat.as_ref(),
+            manage_election_event_enrollment::NAME => Queue::Beat.as_ref(),
+            manage_election_event_lockdown::NAME => Queue::Beat.as_ref(),
+            manage_election_init_report::NAME => Queue::Beat.as_ref(),
+            manage_election_voting_period_end::NAME => Queue::Beat.as_ref(),
             create_transmission_package_task::NAME => Queue::Short.as_ref(),
             send_transmission_package_task::NAME => Queue::Short.as_ref(),
             delete_election_event_t::NAME => Queue::Short.as_ref(),

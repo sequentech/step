@@ -46,6 +46,7 @@ import {
     IElectionPresentation,
     ITenantSettings,
     EVotingPortalCountdownPolicy,
+    EElectionEventLockedDown,
 } from "@sequentech/ui-core"
 import {ListActions} from "@/components/ListActions"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
@@ -529,6 +530,14 @@ export const EditElectionEventDataForm: React.FC = () => {
         let sortOrderB = presentationB?.sort_order ?? -1
         return sortOrderA - sortOrderB
     })
+
+    const lockdownStateChoices = () => {
+        return Object.values(EElectionEventLockedDown).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.lockdownState.options.${value}`),
+        }))
+    }
+
     const votingPortalCountDownPolicies = () => {
         return Object.values(EVotingPortalCountdownPolicy).map((value) => ({
             id: value,
@@ -975,6 +984,16 @@ export const EditElectionEventDataForm: React.FC = () => {
                                     </ElectionHeaderStyles.Wrapper>
                                 </AccordionSummary>
                                 <AccordionDetails>
+                                    <SelectInput
+                                        source={"presentation.presentation.locked_down"}
+                                        choices={lockdownStateChoices()}
+                                        label={t(
+                                            "electionEventScreen.field.lockdownState.policyLabel"
+                                        )}
+                                        defaultValue={EElectionEventLockedDown.NOT_LOCKED_DOWN}
+                                        emptyText={undefined}
+                                        validate={required()}
+                                    />
                                     <Typography
                                         variant="body1"
                                         component="span"
