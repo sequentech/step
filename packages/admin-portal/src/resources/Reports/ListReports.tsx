@@ -3,7 +3,7 @@ import ElectionHeader from "@/components/ElectionHeader"
 import {ListActions} from "@/components/ListActions"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {Box, styled, Typography, Button, Drawer} from "@mui/material"
+import {Box, styled, Typography, Button, Drawer, IconButton} from "@mui/material"
 import React, {ReactElement, useContext, useState} from "react"
 import {
     DatagridConfigurable,
@@ -21,20 +21,24 @@ import {CreateReport} from "./CreateReport"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
-import {IconButton} from "@sequentech/ui-essentials"
 import {CustomApolloContextProvider} from "@/providers/ApolloContextProvider"
 import {EditReport} from "./EditReport"
 import {
+    GenerateReportMutation,
     Sequent_Backend_Election,
     Sequent_Backend_Report,
     Sequent_Backend_Template,
 } from "@/gql/graphql"
 import EditIcon from "@mui/icons-material/Edit"
+import {IconButton as IconButtonSequent} from "@sequentech/ui-essentials"
 import {EditReportForm} from "./EditReportForm"
 import DeleteIcon from "@mui/icons-material/Delete"
 import DescriptionIcon from "@mui/icons-material/Description"
+import PreviewIcon from "@mui/icons-material/Preview"
 import {Dialog} from "@sequentech/ui-essentials"
-import {id} from "intl-tel-input/i18n"
+import {EGenerateReportMode, EReportType, ReportActions, reportTypeConfig} from "@/types/reports"
+import {GENERATE_REPORT} from "@/queries/GenerateReport"
+import {useMutation} from "@apollo/client"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -61,6 +65,12 @@ interface ListReportsProps {
     electionEventId: string
 }
 
+interface ActionsColumnProps {
+    actions: Action[]
+    record: Sequent_Backend_Report
+    canWriteReport: boolean
+}
+
 const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const {t} = useTranslation()
     const [openCreateReport, setOpenCreateReport] = useState<boolean>(false)
@@ -70,6 +80,13 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const {globalSettings} = useContext(SettingsContext)
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
+    const [generateReport] = useMutation<GenerateReportMutation>(GENERATE_REPORT, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.REPORT_READ,
+            },
+        },
+    })
     const canWrtieReport = authContext.isAuthorized(true, tenantId, IPermissions.REPORT_WRITE)
     const [openDeleteModal, setOpenDeleteModal] = useState<boolean>(false)
     const dataProvider = useDataProvider()
@@ -92,7 +109,25 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         setSelectedReportId(id)
     }
 
-    const handleGenerateReport = (id: Identifier) => {}
+    const handleGenerateReport = async (id: Identifier) => {
+        await generateReport({
+            variables: {
+                reportId: id,
+                tenantId: tenantId,
+                reportMode: EGenerateReportMode.REAL,
+            },
+        })
+    }
+
+    const handleGeneratePreviewReport = async (id: Identifier) => {
+        await generateReport({
+            variables: {
+                reportId: id,
+                tenantId: tenantId,
+                reportMode: EGenerateReportMode.PREVIEW,
+            },
+        })
+    }
 
     const {data: templates} = useGetList<Sequent_Backend_Template>(
         "sequent_backend_template",
@@ -135,19 +170,28 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
 
     const actions: Action[] = [
         {
+            key: ReportActions.EDIT,
             icon: <EditIcon />,
             action: handleEditDrawer,
-            showAction: () => canWrtieReport,
+            label: t("reportsScreen.actions.edit"),
         },
         {
+            key: ReportActions.DELETE,
             icon: <DeleteIcon />,
             action: deleteReport,
-            showAction: () => canWrtieReport,
-            label: t("common.label.delete"),
+            label: t("reportsScreen.actions.delete"),
         },
         {
+            key: ReportActions.GENERATE,
             icon: <DescriptionIcon />,
             action: handleGenerateReport,
+            label: t("reportsScreen.actions.generate"),
+        },
+        {
+            key: ReportActions.PREVIEW,
+            icon: <PreviewIcon />,
+            action: handleGeneratePreviewReport,
+            label: t("reportsScreen.actions.preview"),
         },
     ]
 
@@ -159,7 +203,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
 
     const CreateButton = () => (
         <Button onClick={handleCreateDrawer}>
-            <IconButton icon={faPlus} fontSize="24px" />
+            <IconButtonSequent icon={faPlus} fontSize="24px" />
             {t("reportsScreen.empty.button")}
         </Button>
     )
@@ -204,7 +248,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                     setOpenDeleteModal(false)
                 }}
             >
-                {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.delete.body`)}
+                {t(`reportsScreen.delete.body`)}
             </Dialog>
         )
     }
@@ -220,6 +264,45 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         if (!electionId) return "-"
         const election = elections?.find((election) => election.id === electionId)
         return election?.name
+    }
+
+    const ActionsColumn: React.FC<ActionsColumnProps> = ({actions, record, canWriteReport}) => {
+        const reportConfig = reportTypeConfig[record.report_type]
+
+        if (!reportConfig) {
+            return null
+        }
+
+        return (
+            <Box>
+                {actions.map((action, index) => {
+                    if (!action.key) {
+                        return null
+                    }
+                    if (!reportConfig.actions.includes(action.key as ReportActions)) {
+                        return null
+                    }
+
+                    if (
+                        (action.key === ReportActions.EDIT ||
+                            action.key === ReportActions.DELETE) &&
+                        !canWriteReport
+                    ) {
+                        return null
+                    }
+
+                    return (
+                        <IconButton
+                            key={index}
+                            onClick={() => action.action(record.id)}
+                            ariel-label={action.label ?? ""}
+                        >
+                            {action.icon}
+                        </IconButton>
+                    )
+                })}
+            </Box>
+        )
     }
 
     return (
@@ -272,9 +355,17 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                         render={getElectionName}
                     />
 
-                    <WrapperField label={t("common.label.actions")}>
-                        <ActionsColumn actions={actions} />
-                    </WrapperField>
+                
+                    <FunctionField
+                        label={t("common.label.actions")}
+                        render={(record: Sequent_Backend_Report) => (
+                            <ActionsColumn
+                                actions={actions}
+                                record={record}
+                                canWriteReport={canWrtieReport}
+                            />
+                        )}
+                    />
                 </DataGridContainerStyle>
             </List>
 

@@ -698,7 +698,7 @@ const spanishTranslation: TranslationType = {
                 createError: "Error al crear el informe",
             },
             empty: {
-                header: "Aún no hay informes.",
+                header: "No hay informes todavía.",
                 body: "¿Quieres crear uno?",
                 button: "Crear informe",
             },
@@ -708,14 +708,26 @@ const spanishTranslation: TranslationType = {
             },
             edit: {
                 title: "Editar informe",
-                subtitle: "Editar la configuración del informe.",
-                delete: "¿Estás seguro de que deseas eliminar este informe?",
+                subtitle: "Editar configuración del informe.",
+                delete: "¿Estás seguro de que quieres eliminar este informe?",
             },
             fields: {
                 electionId: "Elección",
                 template: "Plantilla",
                 reportType: "Tipo de informe",
+                repeatable: "Repetible",
+                cronExpression: "Expresión Cron",
+                emailRecepient: "Destinatario de correo electrónico",
             },
+            delete: {
+                body: "¿Estás seguro de que quieres eliminar este informe?",
+            },
+            actions: {
+                generate: "Generar",
+                delete: "Eliminar",
+                edit: "Editar",
+                preview: "Vista previa",
+            }
         },
         common: {
             export: "La exportación puede ser un proceso largo. ¿Estás seguro que quieres exportar?",

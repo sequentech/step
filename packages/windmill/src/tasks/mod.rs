@@ -32,4 +32,4 @@ pub mod set_public_key;
 pub mod update_election_event_ballot_styles;
 pub mod upsert_areas;
 pub mod scheduled_reports;
-pub mod manage_scheduled_report;
+pub mod generate_report;

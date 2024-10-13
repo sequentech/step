@@ -1,17 +1,18 @@
 import React from "react"
 import {SxProps} from "@mui/material"
-import {AutocompleteInput, Identifier, ReferenceInput} from "react-admin"
-import {EReportTypes} from "@/types/reports"
+import {AutocompleteInput, Identifier, isRequired, ReferenceInput} from "react-admin"
+import {EReportType} from "@/types/reports"
 
 interface SelectTemplateProps {
     tenantId: string | null
-    templateType: EReportTypes
+    templateType: EReportType | undefined
     source: string
     label?: string
     onSelectTemplate?: (templateId: string) => void
     customStyle?: SxProps
     disabled?: boolean
     value?: string | null
+    isRequired?: boolean
 }
 
 const SelectTemplate = ({
@@ -23,6 +24,7 @@ const SelectTemplate = ({
     customStyle,
     disabled,
     value,
+    isRequired,
 }: SelectTemplateProps) => {
     const templateFilterToQuery = (searchText: string) => {
         if (!searchText || searchText.length === 0) {
@@ -46,6 +48,7 @@ const SelectTemplate = ({
             disabled={disabled}
             value={value}
             defaultValue={value}
+            isRequired={isRequired}
         >
             <AutocompleteInput
                 label={label}

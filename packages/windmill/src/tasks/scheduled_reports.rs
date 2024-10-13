@@ -1,14 +1,16 @@
-use crate::postgres::reports::{get_all_active_reports, Report};
+use crate::postgres::reports::{get_all_active_reports, update_report_last_document_time, Report};
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::get_hasura_pool;
 use crate::services::date::ISO8601;
+use crate::tasks::generate_report::generate_report;
+use deadpool_postgres::Client as DbClient;
 // use crate::tasks::process_report::process_report_task;
 use crate::types::error::Result;
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
-use chrono::{DateTime, Utc, Duration, Local};
+use chrono::{DateTime, Duration, Local, NaiveDateTime, Utc};
 use cron::Schedule;
-use deadpool_postgres::Client as DbClient;
+use uuid::Uuid;
 use std::str::FromStr;
 use tracing::{event, info, instrument, Level, error};
 
@@ -25,7 +27,7 @@ pub fn get_next_scheduled_time(
     };
  
     let cron_expression = cron_config.cron_expression.clone();
-    info!("cron_expression: {}", cron_expression);
+
     let schedule = match Schedule::from_str(&cron_expression) {
         Ok(schedule) => schedule,
         Err(err) => {
@@ -33,12 +35,19 @@ pub fn get_next_scheduled_time(
             return None; // Return early if there's a parsing error
         }
     };
-
-    // Determine the last run time, fall back to created_at if last_document_produced is not set
-    let last_run = cron_config
-        .last_document_produced
-        .unwrap_or_else(|| report.created_at);
-
+    let last_document_produced_date = match &cron_config.last_document_produced {
+        Some(date_str) => parse_last_document_produced(date_str),
+        None => Some(report.created_at),
+    };
+    
+    info!("last_document_produced_date: {:?}", last_document_produced_date);
+    let last_run = match last_document_produced_date {
+        Some(last_run) => last_run,
+        None => {
+            error!("No last run date found for report id {}", report.id);
+            return None;
+        }
+    };
     // Get the next scheduled time after the last run
     let next_run = schedule.after(&last_run).next();
 
@@ -57,6 +66,17 @@ pub fn get_next_scheduled_time(
     }
 }
 
+fn parse_last_document_produced(date_str: &str) -> Option<DateTime<Utc>> {
+    let format = "%Y-%m-%dT%H:%M:%S%.f";
+    match NaiveDateTime::parse_from_str(date_str, format) {
+        Ok(naive_dt) => Some(naive_dt.and_utc()),
+        Err(e) => {
+            error!("Failed to parse last_document_produced '{}': {}", date_str, e);
+            None
+        }
+    }
+}
+
 /// The Celery task for scheduling reports based on cron configuration.
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
@@ -69,14 +89,14 @@ pub async fn scheduled_reports() -> Result<()> {
     let now = ISO8601::now();
     let one_minute_later = now + Duration::minutes(1);
 
-    // Establish a connection to Hasura database
     let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|e| anyhow!("Error getting hasura client: {e}"))?;
-    
-    let hasura_transaction = hasura_db_client.transaction().await?;
+    .await
+    .get()
+    .await
+    .map_err(|e| anyhow!("Error getting hasura client: {e}"))?;
+
+    let hasura_transaction =
+        hasura_db_client.transaction().await?;
 
     // Fetch all active reports from the database
     let active_reports = get_all_active_reports(&hasura_transaction).await?;
@@ -94,16 +114,27 @@ pub async fn scheduled_reports() -> Result<()> {
         .collect::<Vec<_>>();
     
     info!("Found {} reports to be run now", to_be_run_now.len());
-
     // Schedule the task for each report that needs to run
     for report in to_be_run_now {
-        // let task = celery_app
-        //     .send_task(
-        //         process_report_task::new(report.id.clone())
-        //             .with_eta(now)
-        //             .with_expires_in(120),
-        //     )
-        //     .await?;
+
+        let Some(datetime) = get_next_scheduled_time(report) else {
+            continue;
+        };
+
+        let document_id = Uuid::new_v4().to_string();
+        let task = celery_app
+            .send_task(
+                generate_report::new(report.clone(), document_id.clone())
+                    .with_eta(datetime.with_timezone(&Utc))
+                    .with_expires_in(120),
+            )
+            .await?;
+
+        update_report_last_document_time(
+            &hasura_transaction,
+            &report.tenant_id,
+            &report.id,
+        ).await?;
         
         event!(
             Level::INFO,
@@ -111,6 +142,8 @@ pub async fn scheduled_reports() -> Result<()> {
             report.id
         );
     }
+
+    let _commit = hasura_transaction.commit().await?;
 
     Ok(())
 }

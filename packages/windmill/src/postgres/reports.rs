@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc, Local};
 use deadpool_postgres::Transaction;
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio_postgres::row::Row;
@@ -9,11 +10,27 @@ use tracing::{info, instrument};
 use strum_macros::{Display, EnumString};
 
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Clone)]
 pub struct ReportCronConfig {
+    #[serde(default)]
     pub is_active: bool,
-    pub last_document_produced: Option<DateTime<Local>>,
+    #[serde(default)]
+    pub last_document_produced: Option<String>,
+    #[serde(default)]
     pub cron_expression: String,
+    #[serde(default)]
+    pub email_recepient: Option<String>,
+}
+
+impl Default for ReportCronConfig {
+    fn default() -> Self {
+        ReportCronConfig {
+            is_active: false,
+            last_document_produced: None,
+            cron_expression: String::new(),
+            email_recepient: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -25,7 +42,7 @@ pub struct Report {
     pub report_type: String,
     pub template_id: Option<String>,
     pub cron_config: Option<ReportCronConfig>,
-    pub created_at: DateTime<Local>,
+    pub created_at: DateTime<Utc>,
 }
 
 #[allow(non_camel_case_types)]
@@ -51,9 +68,11 @@ impl TryFrom<Row> for ReportWrapper {
     type Error = anyhow::Error;
 
     fn try_from(item: Row) -> Result<Self> {
-        let cron_config_js: Option<Value> = item.try_get("cron_config")?;
-        let cron_config: Option<ReportCronConfig> = cron_config_js.map(|val| serde_json::from_value(val).unwrap());
-
+        let cron_config_js: Option<Value> = item.try_get("cron_config")
+        .map_err(|err| anyhow!("Error deserializing cron_config: {err}"))?;
+        info!("cron_config wrapper: {:?}", cron_config_js);
+        let cron_config: Option<ReportCronConfig> = cron_config_js.map(|val| serde_json::from_value(val).unwrap_or_default());
+        info!("cron_config wrapper: {:?}", cron_config);
         Ok(ReportWrapper(Report {
             id: item
                 .try_get::<_, Uuid>("id")?
@@ -106,40 +125,46 @@ pub async fn get_all_active_reports(
 }
 
 #[instrument(skip(hasura_transaction), err)]
-pub async fn update_report_cron_config(
+pub async fn update_report_last_document_time(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     id: &str,
-    cron_config: ReportCronConfig,
 ) -> Result<()> {
-    let tenant_uuid: Uuid =
-        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
-    let id_uuid: Uuid =
-        Uuid::parse_str(id).with_context(|| "Error parsing id as UUID")?;
-
-    let cron_config_js: Value = serde_json::to_value(cron_config)?;
+    let tenant_uuid: Uuid = Uuid::parse_str(tenant_id)
+        .with_context(|| "Error parsing tenant_id as UUID")?;
+    let id_uuid: Uuid = Uuid::parse_str(id)
+        .with_context(|| "Error parsing id as UUID")?;
 
     let statement = hasura_transaction
         .prepare(
             r#"
-            UPDATE "sequent_backend".sequent_backend_report
-            SET cron_config = $3
+            UPDATE "sequent_backend".report
+            SET cron_config = jsonb_set(
+                cron_config,
+                '{last_document_produced}',
+                to_jsonb(to_char(NOW() at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.US')),
+                true
+            )
             WHERE tenant_id = $1
-            AND id = $2
+              AND id = $2
             "#,
         )
         .await?;
 
-    let _rows: Vec<Row> = hasura_transaction
-        .query(&statement, &[&tenant_uuid, &id_uuid, &cron_config_js])
+    let affected_rows = hasura_transaction
+        .execute(&statement, &[&tenant_uuid, &id_uuid])
         .await
         .map_err(|err| anyhow!("Error updating report: {err}"))?;
+
+    if affected_rows == 0 {
+        return Err(anyhow!("No report found with the given tenant_id and id"));
+    }
 
     Ok(())
 }
 
 #[instrument(skip(hasura_transaction), err)]
-pub async fn find_by_id(
+pub async fn get_report_by_id(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     id: &str,
@@ -153,7 +178,7 @@ pub async fn find_by_id(
         .prepare(
             r#"
             SELECT *
-            FROM "sequent_backend".sequent_backend_report
+            FROM "sequent_backend".report
             WHERE tenant_id = $1
             AND id = $2
             "#,
@@ -200,7 +225,7 @@ pub async fn get_template_id_for_report(
         .prepare(
             r#"
             SELECT template_id
-            FROM "sequent_backend".sequent_backend_report
+            FROM "sequent_backend".report
             WHERE tenant_id = $1
               AND election_event_id = $2
               AND report_type = $3

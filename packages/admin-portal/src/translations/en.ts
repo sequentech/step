@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import { email } from "react-admin"
+
 const englishTranslation = {
     translations: {
         loadingDataProvider: "Loading data provider...",
@@ -711,7 +713,20 @@ const englishTranslation = {
                 electionId: "Election",
                 template: "Template",
                 reportType: "Report Type",
+                repeatable: "Repeatable",
+                cronExpression: "Cron Expression",
+                emailRecepient: "Email Recepient",
             },
+
+            delete: {
+                body: "Are you sure you want delete this Report?",
+            },
+            actions: {
+                generate: "Generate",
+                delete: "Delete",
+                edit: "Edit",
+                preview: "Preview",
+            }
         },
         common: {
             export: "Export can be a long operation. Are you sure you want to export records?",

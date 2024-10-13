@@ -693,7 +693,7 @@ const catalanTranslation: TranslationType = {
         },
         reportsScreen: {
             title: "Informes",
-            subtitle: "Genera informes per als esdeveniments electorals",
+            subtitle: "Generar informes per als esdeveniments electorals",
             messages: {
                 createSuccess: "Informe creat amb èxit",
                 createError: "Error en crear l'informe",
@@ -708,15 +708,27 @@ const catalanTranslation: TranslationType = {
                 subtitle: "Crear una nova configuració d'informe.",
             },
             edit: {
-                title: "Edita l'informe",
-                subtitle: "Edita la configuració de l'informe.",
-                delete: "Estàs segur que vols suprimir aquest informe?",
+                title: "Editar informe",
+                subtitle: "Editar la configuració de l'informe.",
+                delete: "Estàs segur que vols eliminar aquest informe?",
             },
             fields: {
                 electionId: "Elecció",
                 template: "Plantilla",
                 reportType: "Tipus d'informe",
+                repeatable: "Repetible",
+                cronExpression: "Expressió Cron",
+                emailRecepient: "Destinatari de correu electrònic",
             },
+            delete: {
+                body: "Estàs segur que vols eliminar aquest informe?",
+            },
+            actions: {
+                generate: "Generar",
+                delete: "Eliminar",
+                edit: "Editar",
+                preview: "Previsualitzar",
+            }
         },
         common: {
             export: "L'exportació pot ser un procés llarg. Estàs segur que vols exportar?",

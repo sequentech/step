@@ -23,13 +23,6 @@ use tracing::{info, instrument, warn};
 use strum_macros::{Display, EnumString};
 
 
-
-pub enum ReportType {
-    MANUAL_VERIFICATION,
-    BALLOT_RECEIPT,
-    ELECTORAL_RESULTS,
-}
-
 /// Trait that defines the behavior for rendering templates
 #[async_trait]
 pub trait TemplateRenderer: Debug {
@@ -218,24 +211,6 @@ pub trait TemplateRenderer: Debug {
             email_sender.send(email_receiever, email_config.subject, email_config.plaintext_body, rendered_system_template.clone())
             .await
             .map_err(|err| anyhow!("Error sending email: {err}"))?;
-        }
-
-        if self.should_send_email(is_scheduled_task) {
-            let email_config = Self::get_email_config().clone();
-            let email_receiever = self
-                .get_email_receiver(receiver, tenant_id, election_event_id)
-                .await
-                .map_err(|err| anyhow!("Error getting email receiver: {err}"))?;
-            let email_sender = EmailSender::new().await?;
-            email_sender
-                .send(
-                    email_receiever,
-                    email_config.subject,
-                    email_config.plaintext_body,
-                    rendered_system_template.clone(),
-                )
-                .await
-                .map_err(|err| anyhow!("Error sending email: {err}"))?;
         }
 
         Ok(())

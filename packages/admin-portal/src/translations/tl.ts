@@ -693,30 +693,42 @@ const tagalogTranslation: TranslationType = {
         },
         reportsScreen: {
             title: "Mga Ulat",
-            subtitle: "Gumawa ng mga ulat para sa mga kaganapan ng halalan",
+            subtitle: "Lumikha ng mga ulat para sa mga kaganapan ng halalan",
             messages: {
                 createSuccess: "Matagumpay na nalikha ang ulat",
-                createError: "Error sa paglikha ng ulat",
+                createError: "Nagkaroon ng error sa paglikha ng ulat",
             },
             empty: {
                 header: "Wala pang mga ulat.",
                 body: "Gusto mo bang lumikha ng isa?",
-                button: "Lumikha ng ulat",
+                button: "Lumikha ng Ulat",
             },
             create: {
                 title: "Lumikha ng Ulat",
-                subtitle: "Lumikha ng bagong pagsasaayos ng ulat.",
+                subtitle: "Lumikha ng bagong konfigurasyon ng ulat.",
             },
             edit: {
                 title: "I-edit ang Ulat",
-                subtitle: "I-edit ang pagsasaayos ng ulat.",
-                delete: "Sigurado ka bang gusto mong tanggalin ang ulat na ito?",
+                subtitle: "I-edit ang konfigurasyon ng ulat.",
+                delete: "Sigurado ka bang nais mong tanggalin ang ulat na ito?",
             },
             fields: {
                 electionId: "Halalan",
                 template: "Template",
-                reportType: "Uri ng ulat",
+                reportType: "Uri ng Ulat",
+                repeatable: "Nauulit",
+                cronExpression: "Cron Expression",
+                emailRecepient: "Email na Tatanggap",
             },
+            delete: {
+                body: "Sigurado ka bang nais mong tanggalin ang ulat na ito?",
+            },
+            actions: {
+                generate: "Gumawa",
+                delete: "Tanggalin",
+                edit: "I-edit",
+                preview: "I-preview",
+            }
         },
         common: {
             export: "Maaaring magtagal ang pag-export. Sigurado ka bang nais mong i-export ang mga rekord?",

@@ -718,7 +718,19 @@ const frenchTranslation: TranslationType = {
                 electionId: "Élection",
                 template: "Modèle",
                 reportType: "Type de rapport",
+                repeatable: "Répétable",
+                cronExpression: "Expression Cron",
+                emailRecepient: "Destinataire de courriel",
             },
+            delete: {
+                body: "Êtes-vous sûr de vouloir supprimer ce rapport?",
+            },
+            actions: {
+                generate: "Générer",
+                delete: "Supprimer",
+                edit: "Modifier",
+                preview: "Aperçu",
+            }
         },
         common: {
             export: "L'exportation peut être un processus long. Êtes-vous sûr de vouloir exporter ?",
