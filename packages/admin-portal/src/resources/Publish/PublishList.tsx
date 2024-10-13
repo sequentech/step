@@ -46,6 +46,7 @@ type TPublishList = {
     onGenerate: () => void
     onChangeStatus: (status: ElectionEventStatus) => void
     setBallotPublicationId: (id: string | Identifier) => void
+    onPreview: (id: string | Identifier) => void
 }
 
 export const PublishList: React.FC<TPublishList> = ({
@@ -58,10 +59,9 @@ export const PublishList: React.FC<TPublishList> = ({
     onGenerate = () => null,
     onChangeStatus = () => null,
     setBallotPublicationId = () => null,
+    onPreview = () => null,
 }) => {
     const {t} = useTranslation()
-    const [open, setOpen] = React.useState(false);
-    const [publicationId, setPublicationId] = React.useState<string | Identifier>();
 
     const Empty = () => (
         <ResourceListStyles.EmptyBox>
@@ -82,11 +82,6 @@ export const PublishList: React.FC<TPublishList> = ({
         </ResourceListStyles.EmptyBox>
     )
 
-    const onPreview = (id: string | Identifier) => {
-        setPublicationId(id);
-        setOpen(true);
-    }
-
     const actions: Action[] = [
         {
             icon: <Visibility className="publish-visibility-icon" />,
@@ -100,10 +95,6 @@ export const PublishList: React.FC<TPublishList> = ({
 
     if (!canRead) {
         return <Empty />
-    }
-
-    const handleCloseEditDrawer = () => {
-        setOpen(false);
     }
 
     return (
@@ -151,16 +142,6 @@ export const PublishList: React.FC<TPublishList> = ({
                     </DatagridConfigurable>
                 </List>
             }
-            <Drawer
-                anchor="right"
-                open={open}
-                onClose={handleCloseEditDrawer}
-                PaperProps={{
-                    sx: {width: "30%"},
-                }}
-            >
-                <EditPreview id={publicationId} electionEventId={electionEventId} close={handleCloseEditDrawer} />
-            </Drawer>
         </Box>
     )
 }
