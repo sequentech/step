@@ -35,3 +35,4 @@ pub mod tally_sheets;
 pub mod upload_document;
 pub mod users;
 pub mod voting_status;
+pub mod export_ballot_publication;

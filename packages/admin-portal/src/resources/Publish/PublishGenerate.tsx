@@ -79,6 +79,7 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
                     changingStatus={changingStatus}
                     onPublish={onPublish}
                     onGenerate={onGenerate}
+                    data={data}
                     type={EPublishActionsType.Generate}
                 />
             )}

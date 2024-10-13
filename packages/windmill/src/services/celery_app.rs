@@ -15,6 +15,7 @@ use crate::tasks::create_keys::create_keys;
 use crate::tasks::create_vote_receipt::create_vote_receipt;
 use crate::tasks::delete_election_event::delete_election_event_t;
 use crate::tasks::execute_tally_session::execute_tally_session;
+use crate::tasks::export_ballot_publication::export_ballot_publication;
 use crate::tasks::export_election_event::export_election_event;
 use crate::tasks::export_election_event_logs::export_election_event_logs;
 use crate::tasks::export_tasks_execution::export_tasks_execution;
@@ -149,6 +150,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             delete_election_event_t,
             export_tasks_execution,
             export_templates,
+            export_ballot_publication,
         ],
         // Route certain tasks to certain queues based on glob matching.
         task_routes = [
@@ -177,6 +179,8 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             create_transmission_package_task::NAME => Queue::Short.as_ref(),
             send_transmission_package_task::NAME => Queue::Short.as_ref(),
             delete_election_event_t::NAME => Queue::Short.as_ref(),
+            export_ballot_publication::NAME => Queue::ImportExport.as_ref(),
+
         ],
         prefetch_count = prefetch_count,
         acks_late = acks_late,
