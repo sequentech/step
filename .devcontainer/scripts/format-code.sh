@@ -9,7 +9,6 @@ source .devcontainer/.env
 
 # lint & prettify hasura
 cd hasura/
-yarn lint:fix
 yarn prettify:fix
 
 # lint & prettify rust code

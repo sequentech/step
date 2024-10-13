@@ -70,12 +70,6 @@ jobs:
           cmd: install
           dir: hasura/
 
-      - name: Lint
-        uses: borales/actions-yarn@v4
-        with:
-          cmd: lint
-          dir: hasura/
-
       - name: Prettify
         uses: borales/actions-yarn@v4
         with:

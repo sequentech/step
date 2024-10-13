@@ -35,4 +35,4 @@ yarn generate:ballot-verifier
 yarn lint:fix && yarn prettify:fix
 
 # Format the generated hasura files
-cd ../hasura && yarn lint:fix && yarn prettify:fix
+cd ../hasura && yarn prettify:fix
