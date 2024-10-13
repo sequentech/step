@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package sequent.keycloak.inetum_authenticator;
 
+import static sequent.keycloak.authenticator.Utils.sendErrorNotificationToUser;
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -21,7 +23,7 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.util.JsonSerialization;
 
 @JBossLog
-public class CustomEventListereProvider implements EventListenerProvider {
+public class CustomEventListenerProvider implements EventListenerProvider {
 
   private final KeycloakSession session;
   private String keycloakUrl = System.getenv("KEYCLOAK_URL");
@@ -31,7 +33,7 @@ public class CustomEventListereProvider implements EventListenerProvider {
   private String harvestUrl = System.getenv("HARVEST_DOMAIN");
   private String access_token;
 
-  public CustomEventListereProvider(KeycloakSession session) {
+  public CustomEventListenerProvider(KeycloakSession session) {
     this.session = session;
   }
 
@@ -44,6 +46,13 @@ public class CustomEventListereProvider implements EventListenerProvider {
       authenticate();
     }
 
+    if (event.getType() == EventType.REGISTER_ERROR && "userNotFound".equals(event.getError())) {
+      try {
+        sendErrorNotificationToUser(session, event.getRealmId(), event);
+      } catch (Exception e) {
+        log.error("Failed to send error notification", e);
+      }
+    }
     String eventType = event.getDetails().get("type");
     if (Utils.EVENT_TYPE_COMMUNICATIONS.equals(eventType)) {
       handleCommunicationsEvent(event);
