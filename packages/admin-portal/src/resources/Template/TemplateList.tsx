@@ -221,7 +221,6 @@ export const TemplateList: React.FC = () => {
                     <ListActions
                         custom
                         withFilter
-                        /* TODO: */
                         doImport={handleImport}
                         withExport={true}
                         doExport={handleExport}
