@@ -67,7 +67,7 @@ export const ElectionEventTabs: React.FC = () => {
     const {t} = useTranslation()
     const {setTallyId, setCreatingFlag, setSelectedTallySessionData} = useElectionEventTallyStore()
     const isElectionEventLocked =
-        record?.presentation?.locked_down == EElectionEventLockedDown.LOCKED_DOWN || false
+        record?.presentation?.locked_down == EElectionEventLockedDown.LOCKED_DOWN
 
     const showDashboard = authContext.isAuthorized(
         true,
