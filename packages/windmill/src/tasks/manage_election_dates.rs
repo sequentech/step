@@ -60,26 +60,17 @@ async fn manage_election_date_wrapper(
         return Err(anyhow!("Election not found"));
     };
 
-    let mut election_status: ElectionStatus = Default::default();
-
     let Some(event_processor) = scheduled_manage_date.event_processor.clone() else {
         return Err(anyhow!("Missing event processor"));
     };
 
-    election_status.voting_status = if EventProcessors::START_VOTING_PERIOD == event_processor {
-        VotingStatus::OPEN
-    } else {
-        VotingStatus::CLOSED
-    };
-
-    election_status.voting_status = match event_processor {
+    let status = match event_processor {
         EventProcessors::START_VOTING_PERIOD => VotingStatus::OPEN,
         EventProcessors::END_VOTING_PERIOD => VotingStatus::CLOSED,
         _ => {
             info!("Invalid scheduled event type: {:?}", event_processor);
             stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id)
-                .await
-                .with_context(|| "Error stopping scheduled event")?;
+                .await?;
             return Ok(());
         }
     };
@@ -90,14 +81,14 @@ async fn manage_election_date_wrapper(
         hasura_transaction,
         &election_event_id,
         &election_id,
-        &election_status.voting_status,
+        &status,
     )
     .await;
-    info!("result: {:?}", result);
+    info!("result: {result:?}");
 
     stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id)
         .await
-        .with_context(|| "Error stopping scheduled event")?;
+        .map_err(|err| anyhow!("Error stopping scheduled event: {err:?}"))?;
 
     result?;
 

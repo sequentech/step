@@ -170,6 +170,8 @@ const tagalogTranslation: TranslationType = {
                 subtitle: "Pag-configure ng kaganapan ng halalan.",
                 showMore: "Lakihan ang nakikita",
                 showLess: "Bawasan ang nakikita",
+                adminPortal: "Admin Portal",
+                allowPublishAfterLockdown: "Only allow election event publishing after lockdown",
             },
             edit: {
                 general: "Pangkalahatan",
@@ -223,6 +225,13 @@ const tagalogTranslation: TranslationType = {
                 css: "Custom CSS",
                 skipElectionList: "Laktawan ang Screen ng Listahan ng Halalan",
                 showUserProfile: "Ipakita ang Profile ng Gumagamit",
+                lockdownState: {
+                    policyLabel: "Kalagayan ng Lockdown",
+                    options: {
+                        "locked-down": "Naka-lockdown",
+                        "not-locked-down": "Hindi naka-lockdown",
+                    },
+                },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Walang Countdown",
                     COUNTDOWN: "Countdown",
@@ -414,6 +423,8 @@ const tagalogTranslation: TranslationType = {
                 votingChannels: "Mga Channel ng Pagboto",
                 startDateTime: "Petsa at Oras ng Pagsisimula",
                 endDateTime: "Petsa at Oras ng Pagtatapos",
+                startDateTimeWithTimezone: "Petsa at Oras ng Pagsisimula ({{timezone}})",
+                endDateTimeWithTimezone: "Petsa at Oras ng Pagtatapos ({{timezone}})",
                 scheduledOpening: "Naka-iskedyul na Pagbubukas",
                 scheduledClosing: "Naka-iskedyul na Pagsasara",
                 alias: "Alias",
@@ -663,8 +674,14 @@ const tagalogTranslation: TranslationType = {
             },
             eventType: {
                 label: "Uri",
+                ALLOW_INIT_REPORT: "Allow Initialization Report",
                 START_VOTING_PERIOD: "Simula ng Panahon ng Pagboto",
                 END_VOTING_PERIOD: "Pagtatapos ng Panahon ng Pagboto",
+                ALLOW_VOTING_PERIOD_END: "Allow Voting Period End",
+                START_ENROLLMENT_PERIOD: "Simulan ang Panahon ng Pagpapatala",
+                END_ENROLLMENT_PERIOD: "Panahon ng Pagpapatala",
+                START_LOCKDOWN_PERIOD: "Simulan ang Lockdown Period",
+                END_LOCKDOWN_PERIOD: "Tapusin ang Panahon ng Lockdown",
             },
             election: {
                 label: "Halalan",
@@ -1202,6 +1219,9 @@ const tagalogTranslation: TranslationType = {
             empty: {
                 header: "Walang Paglalathala Pa.",
                 action: "Lumikha ng Paglalathala",
+            },
+            forbidden: {
+                header: "Hindi mai-publish hanggang sa makumpleto ang Keys Ceremony.",
             },
             dialog: {
                 title: "Kumpirmahin ang Aksyon",
