@@ -1,8 +1,10 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {createContext, useContext, useState} from "react"
+import React, {createContext, useContext, useEffect, useState} from "react"
 import {Sequent_Backend_Tenant} from "@/gql/graphql"
+import {ITenantSettings} from "@sequentech/ui-core"
+import {triggerOverrideTranslations} from "@/services/i18n"
 
 interface TenantContextProps {
     tenantId: string | null
@@ -37,6 +39,12 @@ export const TenantContextProvider = (props: TenantContextProviderProps) => {
         setTenantId(tenantId)
     }
     const [tenant, setTenant] = useState<Sequent_Backend_Tenant | undefined>(undefined)
+
+    // Overwrites translations based on the settings config
+    useEffect(() => {
+        console.log(`triggering overriding of translations..`)
+        triggerOverrideTranslations((tenant?.settings as ITenantSettings | undefined)?.i18n ?? {})
+    }, [tenant?.settings?.i18n])
 
     const setTenantWrapper = (newTenant: Sequent_Backend_Tenant | undefined) => {
         setTenant(newTenant)

@@ -9,11 +9,11 @@ use std::collections::HashMap;
 use strand::context::Ctx;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 
-use board_messages::braid::artifact::*;
-use board_messages::braid::message::VerifiedMessage;
-use board_messages::braid::statement::{Statement, StatementType};
+use b3::messages::artifact::*;
+use b3::messages::message::VerifiedMessage;
+use b3::messages::statement::{Statement, StatementType};
 
-use board_messages::braid::newtypes::*;
+use b3::messages::newtypes::*;
 use strand::hash::Hash;
 
 use crate::util::{ProtocolContext, ProtocolError};
@@ -22,12 +22,12 @@ use crate::util::{ProtocolContext, ProtocolError};
 // LocalBoard
 ///////////////////////////////////////////////////////////////////////////
 
-// A LocalBoard is a trustee's local copy of a bulletin board. It is specific to a protocol
+// A LocalBoard is a trustee's in-memory copy of a bulletin board. It is specific to a protocol
 // execution (session_id), referenced in the configuration
 //
 // Messages are composed of statements and optionally artifacts
 //
-#[derive(Clone)] // FIXME used by dbg
+// #[derive(Clone)] // FIXME used by dbg
 pub(crate) struct LocalBoard<C: Ctx> {
     pub(crate) configuration: Option<Configuration<C>>,
     cfg_hash: Option<Hash>,
@@ -50,6 +50,12 @@ pub(crate) struct LocalBoard<C: Ctx> {
     // that construct the keys to the underlying key value store, the hash is
     // checked on retrieval (it's not in the key)
     pub(crate) artifacts: HashMap<ArtifactEntryIdentifier, (Hash, Vec<u8>)>,
+    // For efficiency we store these artifacts in deserialized form,
+    // which requires separate collections
+    pub(crate) mixes: HashMap<ArtifactEntryIdentifier, (Hash, Mix<C>)>,
+    pub(crate) ballots: HashMap<ArtifactEntryIdentifier, (Hash, Ballots<C>)>,
+    pub(crate) decryption_factors: HashMap<ArtifactEntryIdentifier, (Hash, DecryptionFactors<C>)>,
+    pub(crate) plaintexts: HashMap<ArtifactEntryIdentifier, (Hash, Plaintexts<C>)>,
 }
 
 impl<C: Ctx> LocalBoard<C> {
@@ -62,6 +68,10 @@ impl<C: Ctx> LocalBoard<C> {
             cfg_hash: None,
             statements,
             artifacts,
+            mixes: HashMap::new(),
+            ballots: HashMap::new(),
+            decryption_factors: HashMap::new(),
+            plaintexts: HashMap::new(),
         }
     }
 
@@ -166,9 +176,10 @@ impl<C: Ctx> LocalBoard<C> {
                 let artifact_identifier = self.get_artifact_entry_identifier(&statement_identifier);
                 let artifact_hash = strand::hash::hash_to_array(&artifact)?;
 
-                let artifact_entry = self.artifacts.get(&artifact_identifier);
+                // let artifact_entry = self.artifacts.get(&artifact_identifier);
+                let existing_hash = self.get_artifact_hash(&artifact_identifier);
 
-                if let Some((existing_hash, _)) = artifact_entry {
+                if let Some(existing_hash) = existing_hash {
                     if artifact_hash == *existing_hash {
                         warn!("Artifact identical, ignored");
                         Ok(())
@@ -193,8 +204,10 @@ impl<C: Ctx> LocalBoard<C> {
                         ),
                     );
 
-                    self.artifacts
-                        .insert(artifact_identifier, (artifact_hash, artifact));
+                    /*self.artifacts
+                        .insert(artifact_identifier, (artifact_hash, artifact));*/
+                    self.insert_artifact(artifact_identifier, artifact_hash, artifact)?;
+
                     debug!("Artifact inserted");
 
                     Ok(())
@@ -212,6 +225,40 @@ impl<C: Ctx> LocalBoard<C> {
                 Ok(())
             }
         }
+    }
+
+    fn get_artifact_hash(&self, ai: &ArtifactEntryIdentifier) -> Option<&[u8; 64]> {
+        match ai.statement_entry.kind {
+            StatementType::Ballots => self.ballots.get(ai).map(|v| &v.0),
+            StatementType::Mix => self.mixes.get(ai).map(|v| &v.0),
+            StatementType::DecryptionFactors => self.decryption_factors.get(ai).map(|v| &v.0),
+            StatementType::Plaintexts => self.plaintexts.get(ai).map(|v| &v.0),
+            _ => self.artifacts.get(&ai).map(|v| &v.0)
+        }
+    }
+
+    fn insert_artifact(&mut self, ai: ArtifactEntryIdentifier, hash: [u8; 64], bytes: Vec<u8>) -> Result<(), ProtocolError> {
+        match ai.statement_entry.kind {
+            StatementType::Ballots => {
+                let ballots = Ballots::<C>::strand_deserialize(&bytes)?;
+                self.ballots.insert(ai, (hash, ballots));
+            },
+            StatementType::Mix => {
+                let mix = Mix::<C>::strand_deserialize(&bytes)?;
+                self.mixes.insert(ai, (hash, mix));
+            },
+            StatementType::DecryptionFactors => {
+                let decryption_factors = DecryptionFactors::<C>::strand_deserialize(&bytes)?;
+                self.decryption_factors.insert(ai, (hash, decryption_factors));
+            },
+            StatementType::Plaintexts => {
+                let plaintexts = Plaintexts::<C>::strand_deserialize(&bytes)?;
+                self.plaintexts.insert(ai, (hash, plaintexts));
+            },
+            _ => { self.artifacts.insert(ai, (hash, bytes)); },
+        };
+
+        Ok(())
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -324,7 +371,7 @@ impl<C: Ctx> LocalBoard<C> {
         b_h: &CiphertextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<Ballots<C>, ProtocolError> {
+    ) -> Result<&Ballots<C>, ProtocolError> {
         let aei = self.get_artifact_entry_identifier_ext(
             StatementType::Ballots,
             signer_position,
@@ -332,7 +379,7 @@ impl<C: Ctx> LocalBoard<C> {
             0,
         );
         let entry = self
-            .artifacts
+            .ballots
             .get(&aei)
             .ok_or(ProtocolError::MissingArtifact(StatementType::Ballots))?;
         if b_h.0 != entry.0 {
@@ -340,7 +387,8 @@ impl<C: Ctx> LocalBoard<C> {
                 StatementType::Ballots,
             ))
         } else {
-            Ok(Ballots::<C>::strand_deserialize(&entry.1)?)
+            // Ok(Ballots::<C>::strand_deserialize(&entry.1)?)
+            Ok(&entry.1)
         }
     }
 
@@ -349,17 +397,18 @@ impl<C: Ctx> LocalBoard<C> {
         m_h: &CiphertextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<Mix<C>, ProtocolError> {
+    ) -> Result<&Mix<C>, ProtocolError> {
         let aei =
             self.get_artifact_entry_identifier_ext(StatementType::Mix, signer_position, batch, 0);
         let entry = self
-            .artifacts
+            .mixes
             .get(&aei)
             .ok_or(ProtocolError::MissingArtifact(StatementType::Mix))?;
         if m_h.0 != entry.0 {
             Err(ProtocolError::MismatchedArtifactHash(StatementType::Mix))
         } else {
-            Ok(Mix::<C>::strand_deserialize(&entry.1)?)
+            // Ok(Mix::<C>::strand_deserialize(&entry.1)?)
+            Ok(&entry.1)
         }
     }
 
@@ -368,7 +417,7 @@ impl<C: Ctx> LocalBoard<C> {
         m_h: &DecryptionFactorsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<DecryptionFactors<C>, ProtocolError> {
+    ) -> Result<&DecryptionFactors<C>, ProtocolError> {
         let aei = self.get_artifact_entry_identifier_ext(
             StatementType::DecryptionFactors,
             signer_position,
@@ -376,7 +425,7 @@ impl<C: Ctx> LocalBoard<C> {
             0,
         );
         let entry = self
-            .artifacts
+            .decryption_factors
             .get(&aei)
             .ok_or(ProtocolError::MissingArtifact(
                 StatementType::DecryptionFactors,
@@ -386,7 +435,8 @@ impl<C: Ctx> LocalBoard<C> {
                 StatementType::DecryptionFactors,
             ))
         } else {
-            Ok(DecryptionFactors::<C>::strand_deserialize(&entry.1)?)
+            // Ok(DecryptionFactors::<C>::strand_deserialize(&entry.1)?)
+            Ok(&entry.1)
         }
     }
 
@@ -395,7 +445,7 @@ impl<C: Ctx> LocalBoard<C> {
         m_h: &PlaintextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<Plaintexts<C>, ProtocolError> {
+    ) -> Result<&Plaintexts<C>, ProtocolError> {
         let aei = self.get_artifact_entry_identifier_ext(
             StatementType::Plaintexts,
             signer_position,
@@ -403,7 +453,7 @@ impl<C: Ctx> LocalBoard<C> {
             0,
         );
         let entry = self
-            .artifacts
+            .plaintexts
             .get(&aei)
             .ok_or(ProtocolError::MissingArtifact(StatementType::Plaintexts))?;
         if m_h.0 != entry.0 {
@@ -411,7 +461,8 @@ impl<C: Ctx> LocalBoard<C> {
                 StatementType::Plaintexts,
             ))
         } else {
-            Ok(Plaintexts::<C>::strand_deserialize(&entry.1)?)
+            // Ok(Plaintexts::<C>::strand_deserialize(&entry.1)?)
+            Ok(&entry.1)
         }
     }
 
@@ -513,9 +564,8 @@ pub struct StatementEntryIdentifier {
     // will not be unique with the above fields only.
     // (mixes themselves are, since only one mix is produced by each trustee, so the signer position
     // is sufficient; on the other hand each trustee signs _all other mixes_).
-    // The need to make this distinction is only for the purposes of storage in the local board,
-    // without this field, the different signature statements would be rejected as duplicates.
-    // The field is not used explicitly besides this purpose.
+    // Without including this field in the hash key, the different signature statements
+    // would be rejected as duplicates.
     pub mix_number: usize,
 }
 

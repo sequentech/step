@@ -71,6 +71,16 @@ const catalanTranslation: TranslationType = {
                 action: "Crear una Àrea",
             },
         },
+        lookAndFeelScreen: {
+            common: {
+                helpLinks: "Enllaços d'Ajuda",
+                logoUrl: "URL del Logotip",
+                css: "CSS Personalitzat",
+            },
+            errors: {
+                invalidHelpLinks: "Format d'Enllaços d'Ajuda invàlid",
+            },
+        },
         electionTypeScreen: {
             noPermissions: "No tens permís per accedir a la configuració.",
             common: {
@@ -85,8 +95,6 @@ const catalanTranslation: TranslationType = {
                 createNew: "Crear un Tipus d'Elecció",
                 emptyHeader: "No hi ha Tipus d'Elecció encara.",
                 emptyBody: "Vols crear-ne un?",
-                logoUrl: "URL del Logotip",
-                css: "CSS personalitzat",
             },
             create: {
                 title: "Crear Tipus d'Elecció",
@@ -98,6 +106,7 @@ const catalanTranslation: TranslationType = {
                 votingChannels: "CANALS DE VOTACIÓ",
                 electionTypes: "TIPUS D'ELECCIÓ",
                 templates: "PLANTILLES",
+                localization: "LOCALITZACIÓ",
                 languages: "IDIOMES",
                 lookAndFeel: "PERSONALITZACIÓ D'APARENÇA",
                 schedules: "ESDEVENIMENTS PROGRAMATS",
@@ -145,6 +154,15 @@ const catalanTranslation: TranslationType = {
             votersByChannels: "Votants per canals",
             voterLoginURL: "URL d'inici de sessió dels votants",
             voterEnrollURL: "URL d'inscripció de votants",
+            ipAddress: {
+                emptyState: "Encara no hi ha vots.",
+                title: "IP Addresses",
+                ip: "IP",
+                country: "País",
+                VoteCount: "Nombre de vots",
+                ElectionName: "Nom de l'elecció",
+                VotersId: "Identificadors dels votants",
+            },
         },
         electionEventScreen: {
             common: {
@@ -338,8 +356,32 @@ const catalanTranslation: TranslationType = {
                     description:
                         "No va introduir el camp Verificació d'integritat (SHA-256). Confirmeu que està importanr el fitxer correcte i que desitja importar-lo.",
                 },
+                passwordDialog: {
+                    title: "Contrasenya de Desxifrat",
+                    description: "Introdueix la contrasenya per desxifrar l'arxiu",
+                    label: "Contrasenya",
+                    copyPassword: "Copiar Contrasenya",
+                    ok: "D'acord",
+                },
             },
-            exportError: "Error exportant l'esdeveniment electoral",
+            export: {
+                title: "Exportar Esdeveniment Electoral",
+                subtitle:
+                    "L'exportació pot ser una operació llarga. Estàs segur que vols exportar els registres?",
+                encryptWithPassword: "Xifrar amb Contrasenya",
+                includeVoters: "Incloure Votants",
+                activityLogs: "Registres d'Activitat",
+                bulletinBoard: "Tauler d'Anuncis",
+                publications: "Publicacions",
+                s3Files: "Fitxers S3",
+                scheduledEvents: "Esdeveniments Programats",
+                exportSuccess: "Esdeveniment Electoral exportat amb èxit",
+                exportError: "Error en exportar l'Esdeveniment Electoral",
+                passwordTitle: "Contrasenya",
+                passwordDescription: "Contrasenya per desxifrar el fitxer:",
+                copiedSuccess: "Contrasenya copiada al porta-retalls",
+                copiedError: "Error copiant la contrasenya",
+            },
             taskNotification:
                 "{{action}} ha començat. Podeu veure el seu estat a la taula d'Execució de Tasques.",
         },
@@ -712,6 +754,7 @@ const catalanTranslation: TranslationType = {
             usersAndRoles: "Usuaris i Rols",
             logs: "Bitàcora",
             settings: "Configuració",
+            help: "Ajuda",
             templates: "Plantilles",
             active: "Actius",
             archived: "Arxivats",
@@ -1188,7 +1231,7 @@ const catalanTranslation: TranslationType = {
                 richtext: "Cos de Text Enriquit",
             },
         },
-        sendTemplate: {
+        sendCommunication: {
             send: "Enviar",
             title: "Enviar Notificació",
             subtitle: "Enviar una notificació a usuaris/votants.",
@@ -1216,11 +1259,11 @@ const catalanTranslation: TranslationType = {
                 voters: "votants",
             },
             methodTitle: "Mètode de Comunicació",
-            templateMethod: {
+            communicationMethod: {
                 EMAIL: "Email",
                 SMS: "SMS",
             },
-            templateType: {
+            communicationType: {
                 CREDENTIALS: "Credencials",
                 BALLOT_RECEIPT: "Comprovant de Votació",
                 PARTICIPATION_REPORT: "Informe de Participació",

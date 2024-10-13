@@ -71,6 +71,16 @@ const spanishTranslation: TranslationType = {
                 action: "Crear un Área",
             },
         },
+        lookAndFeelScreen: {
+            common: {
+                helpLinks: "Enlaces de Ayuda",
+                logoUrl: "Logo URL",
+                css: "CSS Personalizado",
+            },
+            errors: {
+                invalidHelpLinks: "Formato de Enlaces de Ayuda inválido",
+            },
+        },
         electionTypeScreen: {
             noPermissions: "No tienes permiso para acceder a la configuración.",
             common: {
@@ -85,8 +95,6 @@ const spanishTranslation: TranslationType = {
                 createNew: "Crear un Tipo de Elección",
                 emptyHeader: "No hay Tipos de Elección aún.",
                 emptyBody: "¿Quieres crear uno?",
-                logoUrl: "Logo URL",
-                css: "CSS personalizado",
             },
             create: {
                 title: "Crear Tipo de Elección",
@@ -99,6 +107,7 @@ const spanishTranslation: TranslationType = {
                 electionTypes: "TIPOS DE ELECCIÓN",
                 templates: "PLANTILLAS",
                 languages: "IDIOMAS",
+                localization: "LOCALIZACIÓN",
                 lookAndFeel: "PERSONILIZACIÓN DE APARIENCIA",
                 schedules: "EVENTOS PROGRAMADOS",
                 trustees: "AUTORIDADES",
@@ -145,6 +154,15 @@ const spanishTranslation: TranslationType = {
             votersByChannels: "Votantes por canales",
             voterLoginURL: "URL de inicio de sesión de votantes",
             voterEnrollURL: "URL de inscripción de votantes",
+            ipAddress: {
+                emptyState: "Aún no hay votos.",
+                title: "IP Addresses",
+                ip: "IP",
+                country: "País",
+                VoteCount: "Número de votos",
+                ElectionName: "Nombre de la elección",
+                VotersId: "Identificadores de votantes",
+            },
         },
         electionEventScreen: {
             common: {
@@ -337,8 +355,32 @@ const spanishTranslation: TranslationType = {
                     description:
                         "No ingresó el campo Verificación de integridad (SHA-256). Confirme que está importando el archivo correcto y que desea importarlo.",
                 },
+                passwordDialog: {
+                    title: "Contraseña de Descifrado",
+                    description: "Introduce la contraseña para descifrar el archivo",
+                    label: "Contraseña",
+                    copyPassword: "Copiar Contraseña",
+                    ok: "Aceptar",
+                },
             },
-            exportError: "Error al exportar el Evento Electoral",
+            export: {
+                title: "Exportar Evento Electoral",
+                subtitle:
+                    "La exportación puede ser una operación larga. ¿Estás seguro de que deseas exportar los registros?",
+                encryptWithPassword: "Cifrar con Contraseña",
+                includeVoters: "Incluir Votantes",
+                activityLogs: "Registros de Actividad",
+                bulletinBoard: "Tablón de Anuncios",
+                publications: "Publicaciones",
+                s3Files: "Archivos S3",
+                scheduledEvents: "Eventos Programados",
+                exportSuccess: "Evento Electoral exportado con éxito",
+                exportError: "Error al exportar el Evento Electoral",
+                passwordTitle: "Contraseña",
+                passwordDescription: "Contraseña para descifrar el archivo:",
+                copiedSuccess: "Nakopya ang password sa clipboard",
+                copiedError: "Error al copiar la contraseña",
+            },
             taskNotification:
                 "{{action}} ha comenzado. Puedes ver su estado en la tabla de Ejecución de Tareas.",
         },
@@ -711,6 +753,7 @@ const spanishTranslation: TranslationType = {
             usersAndRoles: "Usuarios y Roles",
             logs: "Bitácora",
             settings: "Configuracion",
+            help: "Ayuda",
             templates: "Plantillas",
             active: "Activos",
             archived: "Archivados",
@@ -1187,7 +1230,7 @@ const spanishTranslation: TranslationType = {
                 richtext: "Cuerpo de Texto Enriquecido",
             },
         },
-        sendTemplate: {
+        sendCommunication: {
             send: "Enviar",
             title: "Enviar Notificación",
             subtitle: "Enviar una notificación a usuarios/votantes.",
@@ -1215,11 +1258,11 @@ const spanishTranslation: TranslationType = {
                 voters: "votantes",
             },
             methodTitle: "Método de Comunicación",
-            templateMethod: {
+            communicationMethod: {
                 EMAIL: "Email",
                 SMS: "SMS",
             },
-            templateType: {
+            communicationType: {
                 CREDENTIALS: "Credenciales",
                 BALLOT_RECEIPT: "Comprobante de Votación",
                 PARTICIPATION_REPORT: "Informe de Participación",

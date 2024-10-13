@@ -70,6 +70,16 @@ const englishTranslation = {
                 action: "Create Area",
             },
         },
+        lookAndFeelScreen: {
+            common: {
+                helpLinks: "Help Links",
+                logoUrl: "Logo URL",
+                css: "Custom CSS",
+            },
+            errors: {
+                invalidHelpLinks: "Invalid Help Links format",
+            },
+        },
         electionTypeScreen: {
             noPermissions: "You don't have permission to access settings.",
             common: {
@@ -84,8 +94,6 @@ const englishTranslation = {
                 createNew: "Create Election Type",
                 emptyHeader: "No Election Types yet.",
                 emptyBody: "Do you want to create one?",
-                logoUrl: "Logo URL",
-                css: "Custom CSS",
             },
             create: {
                 title: "Create Election Type",
@@ -98,6 +106,7 @@ const englishTranslation = {
                 electionTypes: "ELECTION TYPES",
                 templates: "TEMPLATES",
                 languages: "LANGUAGES",
+                localization: "LOCALIZATION",
                 lookAndFeel: "Look & Feel",
                 schedules: "SCHEDULED EVENTS",
                 trustees: "TRUSTEES",
@@ -144,6 +153,15 @@ const englishTranslation = {
             votersByChannels: "Voters by channel",
             voterLoginURL: "Voter Login URL",
             voterEnrollURL: "Voter Enroll URL",
+            ipAddress: {
+                emptyState: "No votes yet.",
+                title: "IP Addresses",
+                ip: "IP",
+                country: "Country",
+                VoteCount: "Vote Count",
+                ElectionName: "Election Name",
+                VotersId: "Voters Id",
+            },
         },
         electionEventScreen: {
             common: {
@@ -334,8 +352,32 @@ const englishTranslation = {
                     description:
                         "You didn't enter the Integrity Check (SHA-256) field. Please confirm  that you are importing the correct file and you want to import it.",
                 },
+                passwordDialog: {
+                    title: "Decryption Password",
+                    description: "Enter the password to decrypt the file",
+                    label: "Password",
+                    copyPassword: "Copy Password",
+                    ok: "Ok",
+                },
             },
-            exportError: "Error exporting Election Event",
+            export: {
+                title: "Export Election Event",
+                subtitle:
+                    "Export can be a long operation. Are you sure you want to export records?",
+                encryptWithPassword: "Encrypt with Password",
+                includeVoters: "Include Voters",
+                activityLogs: "Activity Logs",
+                bulletinBoard: "Bulletin Board",
+                publications: "Publications",
+                s3Files: "S3 Files",
+                scheduledEvents: "Scheduled Events",
+                exportSuccess: "Election Event exported successfully",
+                exportError: "Error exporting Election Event",
+                passwordTitle: "Password",
+                passwordDescription: "Password to decrypt the file:",
+                copiedSuccess: "Password copied to clipboard",
+                copiedError: "Error copying password",
+            },
             taskNotification:
                 "{{action}} has started. You can see its status at Tasks Execution table.",
         },
@@ -707,6 +749,7 @@ const englishTranslation = {
             usersAndRoles: "Users and Roles",
             logs: "Logs",
             settings: "Settings",
+            help: "Help",
             templates: "Templates",
             active: "Active",
             archived: "Archived",
@@ -1180,7 +1223,7 @@ const englishTranslation = {
                 richtext: "Rich Text Body",
             },
         },
-        sendTemplate: {
+        sendCommunication: {
             send: "Send",
             title: "Send Notification",
             subtitle: "Send a notification to voters.",
@@ -1208,11 +1251,11 @@ const englishTranslation = {
                 voters: "voters",
             },
             methodTitle: "Communication Template",
-            templateMethod: {
+            communicationMethod: {
                 EMAIL: "Email",
                 SMS: "SMS",
             },
-            templateType: {
+            communicationType: {
                 CREDENTIALS: "Credentials",
                 BALLOT_RECEIPT: "Ballot Receipt",
                 PARTICIPATION_REPORT: "Participation Report",

@@ -201,6 +201,7 @@ pub struct ListUsersFilter {
     pub enabled: Option<bool>,
     pub sort: Option<HashMap<String, String>>,
     pub has_voted: Option<bool>,
+    pub authorized_to_election_alias: Option<String>,
 }
 
 fn get_query_bool_condition(field: &str, value: Option<bool>) -> String {
@@ -275,6 +276,39 @@ pub async fn list_users(
     )
     .await?;
 
+    let mut params_count = 9;
+
+    if area_ids.is_some() {
+        params_count += 1;
+    }
+
+    let (election_alias, authorized_alias_join_clause, authorized_alias_where_clause) = match filter
+        .authorized_to_election_alias
+    {
+        Some(election_alias) => (
+            Some(election_alias),
+            format!(
+                r#"
+            LEFT JOIN 
+                user_attribute AS authorization_attr ON u.id = authorization_attr.user_id AND authorization_attr.name = '{AUTHORIZED_ELECTION_IDS_NAME}'
+            "#,
+            ),
+            format!(
+                r#"
+            AND (
+                authorization_attr.value = ${} OR authorization_attr.user_id IS NULL
+            )
+            "#,
+                params_count
+            ),
+        ),
+        None => (None, "".to_string(), "".to_string()),
+    };
+
+    if election_alias.is_some() {
+        params_count += 1;
+    }
+
     let enabled_condition = get_query_bool_condition("enabled", filter.enabled);
     let email_verified_condition =
         get_query_bool_condition("email_verified", filter.email_verified);
@@ -283,7 +317,8 @@ pub async fn list_users(
     let mut dynamic_attr_params: Vec<Option<String>> = vec![];
 
     if let Some(attributes) = &filter.attributes {
-        let mut attr_placeholder_count = 9;
+        let mut attr_placeholder_count = params_count;
+
         for (key, value) in attributes {
             dynamic_attr_conditions.push(format!(
                 "EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value ILIKE ${})",
@@ -329,49 +364,51 @@ pub async fn list_users(
         .prepare(
             format!(
                 r#"
-        SELECT
-            u.id,
-            u.email,
-            u.email_verified,
-            u.enabled,
-            u.first_name,
-            u.last_name,
-            u.realm_id,
-            u.username,
-            u.created_timestamp,
-            COALESCE(attr_json.attributes, '{{}}'::json) AS attributes,
-            COUNT(u.id) OVER() AS total_count
-        FROM
-            user_entity AS u
-        INNER JOIN
-            realm AS ra ON ra.id = u.realm_id
-        {area_ids_join_clause}
-        LEFT JOIN LATERAL (
             SELECT
-                json_object_agg(attr.name, attr.values_array) AS attributes
-            FROM (
+                u.id,
+                u.email,
+                u.email_verified,
+                u.enabled,
+                u.first_name,
+                u.last_name,
+                u.realm_id,
+                u.username,
+                u.created_timestamp,
+                COALESCE(attr_json.attributes, '{{}}'::json) AS attributes,
+                COUNT(u.id) OVER() AS total_count
+            FROM
+                user_entity AS u
+            INNER JOIN
+                realm AS ra ON ra.id = u.realm_id
+            {area_ids_join_clause}
+            {authorized_alias_join_clause}
+            LEFT JOIN LATERAL (
                 SELECT
-                    ua.name,
-                    json_agg(ua.value) AS values_array
-                FROM user_attribute ua
-                WHERE ua.user_id = u.id
-                GROUP BY ua.name
-            ) attr
-        ) attr_json ON true
-        WHERE
-            ra.name = $1 AND
-            ($4::VARCHAR IS NULL OR email ILIKE $4) AND
-            ($5::VARCHAR IS NULL OR first_name ILIKE $5) AND
-            ($6::VARCHAR IS NULL OR last_name ILIKE $6) AND
-            ($7::VARCHAR IS NULL OR username ILIKE $7) AND
-            (u.id = ANY($8) OR $8 IS NULL)
-            {area_ids_where_clause}
-            {enabled_condition}
-            {email_verified_condition}
-           AND ({dynamic_attr_clause})
-        ORDER BY {sort_clause}
-        LIMIT $2 OFFSET $3;
-    "#
+                    json_object_agg(attr.name, attr.values_array) AS attributes
+                FROM (
+                    SELECT
+                        ua.name,
+                        json_agg(ua.value) AS values_array
+                    FROM user_attribute ua
+                    WHERE ua.user_id = u.id
+                    GROUP BY ua.name
+                ) attr
+            ) attr_json ON true
+            WHERE
+                ra.name = $1 AND
+                ($4::VARCHAR IS NULL OR email ILIKE $4) AND
+                ($5::VARCHAR IS NULL OR first_name ILIKE $5) AND
+                ($6::VARCHAR IS NULL OR last_name ILIKE $6) AND
+                ($7::VARCHAR IS NULL OR username ILIKE $7) AND
+                (u.id = ANY($8) OR $8 IS NULL)
+                {area_ids_where_clause}
+                {authorized_alias_where_clause}
+                {enabled_condition}
+                {email_verified_condition}
+            AND ({dynamic_attr_clause})
+            ORDER BY {sort_clause}
+            LIMIT $2 OFFSET $3;
+            "#
             )
             .as_str(),
         )
@@ -390,6 +427,10 @@ pub async fn list_users(
 
     if area_ids.is_some() {
         params.push(&area_ids);
+    }
+
+    if election_alias.is_some() {
+        params.push(&election_alias)
     }
 
     for value in &dynamic_attr_params {

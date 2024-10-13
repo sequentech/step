@@ -5,65 +5,16 @@
 use super::*;
 use crepe::crepe;
 
-///////////////////////////////////////////////////////////////////////////
-// Logic
-///////////////////////////////////////////////////////////////////////////
+// Distributed decryption.
+//
+// Actions:                ComputeDecryptionFactors
+//                         ComputePlaintexts
+//                         SignPlaintexts
 crepe! {
 
-    @input
-    pub struct InP(Predicate);
-
-    // Input relations, used to convert from InP predicates to crepe relations
-
-    struct ConfigurationSignedAll(ConfigurationHash, TrusteePosition, TrusteeCount, Threshold);
-    struct PublicKeySignedAll(ConfigurationHash, PublicKeyHash, SharesHashes);
-    struct ChannelsAllSignedAll(ConfigurationHash, ChannelsHashes);
-    struct Ballots(ConfigurationHash, BatchNumber, CiphertextsHash, PublicKeyHash, TrusteeSet);
-    struct MixComplete(ConfigurationHash, BatchNumber, MixNumber, CiphertextsHash, TrusteePosition);
-    struct DecryptionFactors(ConfigurationHash, BatchNumber, DecryptionFactorsHash, CiphertextsHash, SharesHashes, TrusteePosition);
-    struct Plaintexts(ConfigurationHash, BatchNumber,PlaintextsHash, DecryptionFactorsHashes, CiphertextsHash, PublicKeyHash, TrusteePosition);
-    struct PlaintextsSigned(ConfigurationHash, BatchNumber, PlaintextsHash, DecryptionFactorsHashes, CiphertextsHash, PublicKeyHash, TrusteePosition);
-
-    ConfigurationSignedAll(config_hash, self_position, num_t, threshold) <- InP(p),
-    let Predicate::ConfigurationSignedAll(config_hash, self_position, num_t, threshold) = p;
-
-    PublicKeySignedAll(cfg_h, pk_h, shares_hs) <- InP(p),
-    let Predicate::PublicKeySignedAll(cfg_h, pk_h, shares_hs) = p;
-
-    ChannelsAllSignedAll(cfg_h, channels_hs) <- InP(p),
-    let Predicate::ChannelsAllSignedAll(cfg_h, channels_hs) = p;
-
-    Ballots(cfg_h, batch, ballots_h, pk_h, selected) <- InP(p),
-    let Predicate::Ballots(cfg_h, batch, ballots_h, pk_h, selected) = p;
-
-    MixComplete(cfg_h, batch, mix_number, ciphertexts_h, signer_t) <- InP(p),
-    let Predicate::MixComplete(cfg_h, batch, mix_number, ciphertexts_h, signer_t) = p;
-
-    DecryptionFactors(cfg_h, batch, dfactors_h, ciphertexts_h, shares_hs, signer_t) <- InP(p),
-    let Predicate::DecryptionFactors(cfg_h, batch, dfactors_h, ciphertexts_h, shares_hs, signer_t) = p;
-
-    Plaintexts(ch, batch, plaintexts_h, dfactors_hs, cipher_h, pk_h, signer_t) <- InP(p),
-    let Predicate::Plaintexts(ch, batch, plaintexts_h, dfactors_hs, cipher_h, pk_h, signer_t) = p;
-
-    PlaintextsSigned(ch, batch, plaintexts_h, df_hs, cipher_h, pk_h, signer_t) <- InP(p),
-    let Predicate::PlaintextsSigned(ch, batch, plaintexts_h, df_hs, cipher_h, pk_h, signer_t) = p;
-
-    // Intermediate relations
-
-    struct DecryptionFactorsAcc(ConfigurationHash, BatchNumber, DecryptionFactorsHashes, TrusteeSet, TrusteePosition);
-    struct DecryptionFactorsAll(ConfigurationHash, BatchNumber, DecryptionFactorsHashes, CiphertextsHash, TrusteePosition, TrusteeSet, TrusteeCount);
-
-    @output
-    #[derive(Debug)]
-    pub struct OutP(Predicate);
-
-    @output
-    #[derive(Debug)]
-    pub struct A(pub(crate) Action);
-
-    @output
-    #[derive(Debug)]
-    pub struct DErr(DatalogError);
+    ///////////////////////////////////////////////////////////////////////////
+    // Inference.
+    ///////////////////////////////////////////////////////////////////////////
 
     A(Action::ComputeDecryptionFactors(cfg_h, batch, channels_hs, ciphertexts_h, signer_t, pk_h, shares_hs, self_p, num_t, threshold, selected)) <-
     PublicKeySignedAll(cfg_h, pk_h, shares_hs),
@@ -121,6 +72,69 @@ crepe! {
     Plaintexts(cfg_h, batch, plaintexts_h, dfactors_hs, cipher_h, _pk_h, selected[0] - 1),
     !PlaintextsSigned(cfg_h, batch, plaintexts_h, dfactors_hs, cipher_h, _pk_h, self_p);
 
+    ///////////////////////////////////////////////////////////////////////////
+    // Input relations.
+    ///////////////////////////////////////////////////////////////////////////
+
+    struct ConfigurationSignedAll(ConfigurationHash, TrusteePosition, TrusteeCount, Threshold);
+    struct PublicKeySignedAll(ConfigurationHash, PublicKeyHash, SharesHashes);
+    struct ChannelsAllSignedAll(ConfigurationHash, ChannelsHashes);
+    struct Ballots(ConfigurationHash, BatchNumber, CiphertextsHash, PublicKeyHash, TrusteeSet);
+    struct MixComplete(ConfigurationHash, BatchNumber, MixNumber, CiphertextsHash, TrusteePosition);
+    struct DecryptionFactors(ConfigurationHash, BatchNumber, DecryptionFactorsHash, CiphertextsHash, SharesHashes, TrusteePosition);
+    struct Plaintexts(ConfigurationHash, BatchNumber,PlaintextsHash, DecryptionFactorsHashes, CiphertextsHash, PublicKeyHash, TrusteePosition);
+    struct PlaintextsSigned(ConfigurationHash, BatchNumber, PlaintextsHash, DecryptionFactorsHashes, CiphertextsHash, PublicKeyHash, TrusteePosition);
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Convert from InP predicates to crepe relations.
+    ///////////////////////////////////////////////////////////////////////////
+
+    ConfigurationSignedAll(config_hash, self_position, num_t, threshold) <- InP(p),
+    let Predicate::ConfigurationSignedAll(config_hash, self_position, num_t, threshold) = p;
+
+    PublicKeySignedAll(cfg_h, pk_h, shares_hs) <- InP(p),
+    let Predicate::PublicKeySignedAll(cfg_h, pk_h, shares_hs) = p;
+
+    ChannelsAllSignedAll(cfg_h, channels_hs) <- InP(p),
+    let Predicate::ChannelsAllSignedAll(cfg_h, channels_hs) = p;
+
+    Ballots(cfg_h, batch, ballots_h, pk_h, selected) <- InP(p),
+    let Predicate::Ballots(cfg_h, batch, ballots_h, pk_h, selected) = p;
+
+    MixComplete(cfg_h, batch, mix_number, ciphertexts_h, signer_t) <- InP(p),
+    let Predicate::MixComplete(cfg_h, batch, mix_number, ciphertexts_h, signer_t) = p;
+
+    DecryptionFactors(cfg_h, batch, dfactors_h, ciphertexts_h, shares_hs, signer_t) <- InP(p),
+    let Predicate::DecryptionFactors(cfg_h, batch, dfactors_h, ciphertexts_h, shares_hs, signer_t) = p;
+
+    Plaintexts(ch, batch, plaintexts_h, dfactors_hs, cipher_h, pk_h, signer_t) <- InP(p),
+    let Predicate::Plaintexts(ch, batch, plaintexts_h, dfactors_hs, cipher_h, pk_h, signer_t) = p;
+
+    PlaintextsSigned(ch, batch, plaintexts_h, df_hs, cipher_h, pk_h, signer_t) <- InP(p),
+    let Predicate::PlaintextsSigned(ch, batch, plaintexts_h, df_hs, cipher_h, pk_h, signer_t) = p;
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Intermediate relations.
+    ///////////////////////////////////////////////////////////////////////////
+
+    struct DecryptionFactorsAcc(ConfigurationHash, BatchNumber, DecryptionFactorsHashes, TrusteeSet, TrusteePosition);
+    struct DecryptionFactorsAll(ConfigurationHash, BatchNumber, DecryptionFactorsHashes, CiphertextsHash, TrusteePosition, TrusteeSet, TrusteeCount);
+
+    @input
+    pub struct InP(Predicate);
+
+    @output
+    #[derive(Debug)]
+    pub struct OutP(Predicate);
+
+    @output
+    #[derive(Debug)]
+    pub struct A(pub(crate) Action);
+
+    @output
+    #[derive(Debug)]
+    pub struct DErr(DatalogError);
+
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -128,9 +142,9 @@ crepe! {
 ///////////////////////////////////////////////////////////////////////////
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub(crate) struct S;
+pub(crate) struct D;
 
-impl S {
+impl D {
     pub(crate) fn run(
         &self,
         predicates: &Vec<Predicate>,

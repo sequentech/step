@@ -47,7 +47,6 @@ pub async fn get_private_key(
     keys_ceremony_id: String,
 ) -> Result<String> {
     let auth_headers = keycloak::get_client_credentials().await?;
-    let celery_app = get_celery_app().await;
 
     // The trustee name is simply the username of the user
     let trustee_name = claims.trustee.ok_or(anyhow!("trustee name not found"))?;
@@ -336,6 +335,7 @@ pub async fn check_private_key(
 #[instrument(err)]
 pub async fn create_keys_ceremony(
     tenant_id: String,
+    user_id: &str,
     election_event_id: String,
     threshold: usize,
     trustee_names: Vec<String>,
@@ -443,7 +443,8 @@ pub async fn create_keys_ceremony(
     let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
         .with_context(|| "missing bulletin board")?;
 
-    let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
+    // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
+    let electoral_log = ElectoralLog::for_admin_user(&board_name, &tenant_id, user_id).await?;
     electoral_log
         .post_keygen(election_event_id.clone())
         .await

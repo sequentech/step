@@ -149,18 +149,17 @@ mod tests {
     #[ignore]
     #[tokio::test]
     async fn test_probe() {
-        let mut ph = ProbeHandler::new("live", "ready", ([127, 0, 0, 1], 3030));
+        let ph = ProbeHandler::new("live", "ready", ([127, 0, 0, 1], 3030));
 
         let f = ph.future();
         let handle = tokio::spawn(f);
 
-        let t = true;
         sleep(Duration::from_secs(20)).await;
         // curl localhost:3030/live
-        ph.set_live(move || Box::pin(async { t })).await;
+        ph.set_live(move || Box::pin(async { true })).await;
         sleep(Duration::from_secs(20)).await;
         // curl localhost:3030/ready
-        ph.set_ready(move || Box::pin(async { t })).await;
+        ph.set_ready(move || Box::pin(async { true })).await;
         handle.await.unwrap()
     }
 }

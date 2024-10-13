@@ -20,7 +20,8 @@ COPY ./harvest ./harvest
 COPY ./immu-board ./immu-board
 COPY ./immudb-rs ./immudb-rs
 COPY ./strand ./strand
-COPY ./board-messages ./board-messages
+COPY ./b3 ./b3
+COPY ./electoral-log ./electoral-log
 COPY ./sequent-core ./sequent-core
 COPY ./windmill ./windmill
 COPY ./wrap-map-err ./wrap-map-err
