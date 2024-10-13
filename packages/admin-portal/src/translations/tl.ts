@@ -1232,7 +1232,7 @@ const tagalogTranslation: TranslationType = {
                 richtext: "Mayamang Teksto",
             },
         },
-        sendTemplate: {
+        sendCommunication: {
             send: "Ipadala",
             title: "Ipadala ang Abiso",
             subtitle: "Magpadala ng abiso sa mga botante.",
@@ -1260,11 +1260,11 @@ const tagalogTranslation: TranslationType = {
                 voters: "mga botante",
             },
             methodTitle: "Template ng Komunikasyon",
-            templateMethod: {
+            communicationMethod: {
                 EMAIL: "Email",
                 SMS: "SMS",
             },
-            templateType: {
+            communicationType: {
                 CREDENTIALS: "Credentials",
                 BALLOT_RECEIPT: "Resibo ng Balota",
                 PARTICIPATION_REPORT: "Ulat ng Paglahok",

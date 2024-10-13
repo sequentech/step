@@ -576,7 +576,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         }}
                     >
                         <ResourceListStyles.MailIcon />
-                        {t(`sendTemplate.send`)}
+                        {t(`sendCommunication.send`)}
                     </Button>
                 )}
 

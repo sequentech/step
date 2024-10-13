@@ -1237,7 +1237,7 @@ const frenchTranslation: TranslationType = {
                 richtext: "Corps de Texte Enrichi",
             },
         },
-        sendTemplate: {
+        sendCommunication: {
             send: "Envoyer",
             title: "Envoyer Notification",
             subtitle: "Envoyer une notification aux utilisateurs/électeurs.",
@@ -1265,11 +1265,11 @@ const frenchTranslation: TranslationType = {
                 voters: "électeurs",
             },
             methodTitle: "Méthode de Communication",
-            templateMethod: {
+            communicationMethod: {
                 EMAIL: "Email",
                 SMS: "SMS",
             },
-            templateType: {
+            communicationType: {
                 CREDENTIALS: "Identifiants",
                 BALLOT_RECEIPT: "Reçu de Vote",
                 PARTICIPATION_REPORT: "Rapport de Participation",
