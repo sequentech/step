@@ -76,6 +76,12 @@ jobs:
           cmd: lint
           dir: hasura/
 
+      - name: Prettify
+        uses: borales/actions-yarn@v4
+        with:
+          cmd: prettify
+          dir: hasura/
+
   rust-fmt:
     name: Check Rust format 
     runs-on: ubuntu-latest

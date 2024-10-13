@@ -1,27 +1,30 @@
 {
     "extends": [
-    // add more generic rulesets here, such as:
-      "plugin:yml/standard"
+        // add more generic rulesets here, such as:
+        "plugin:yml/standard"
     ],
+    "plugins": ["prettier"],
     "parser": "@typescript-eslint/parser",
     "parserOptions": {
-      "ecmaFeatures": {
-        "jsx": true
-      },
-      "ecmaVersion": "latest",
-      "sourceType": "module"
-    },  
+        "ecmaFeatures": {
+            "jsx": true
+        },
+        "ecmaVersion": "latest",
+        "sourceType": "module"
+    },
+    "rules": {
+        "prettier/prettier": ["error"]
+    },
     // Add an `overrides` section to add a parser configuration for YAML.
     "overrides": [
-      {
-        "files": ["*.yaml", "*.yml"],
-        "parser": "yaml-eslint-parser"
-      },
-      {
-        "files": ["*.graphql"],
-        "parser": "@graphql-eslint/eslint-plugin",
-        "plugins": ["@graphql-eslint"]
-      }
+        {
+            "files": ["*.yaml", "*.yml"],
+            "parser": "yaml-eslint-parser"
+        },
+        {
+            "files": ["*.graphql"],
+            "parser": "@graphql-eslint/eslint-plugin",
+            "plugins": ["@graphql-eslint"]
+        }
     ]
-  }
-  
+}

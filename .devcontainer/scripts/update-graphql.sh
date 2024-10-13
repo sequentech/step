@@ -32,4 +32,7 @@ yarn generate:voting-portal
 yarn generate:ballot-verifier
 
 # Format the generated source files
-yarn lint:fix && yarn prettify:fix && cd ../hasura && yarn lint:fix
+yarn lint:fix && yarn prettify:fix
+
+# Format the generated hasura files
+cd ../hasura && yarn lint:fix && yarn prettify:fix
