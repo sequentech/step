@@ -672,8 +672,6 @@ services:
       "${IMMUDB_USER}",
       "--password",
       "${IMMUDB_PASSWORD}",
-      "--index-dbname",
-      "${IMMUDB_INDEX_DB}",
       "--board-dbname",
       "${IMMUDB_BOARD_DB_NAME}",
       "--cache-dir",
