@@ -45,6 +45,7 @@ pub async fn create_tally_ceremony(
     )?;
     let input = body.into_inner();
     let tenant_id: String = claims.hasura_claims.tenant_id.clone();
+    let user_id = claims.hasura_claims.user_id;
 
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|err| {
@@ -65,6 +66,7 @@ pub async fn create_tally_ceremony(
     let tally_session_id = tally_ceremony::create_tally_ceremony(
         &hasura_transaction,
         tenant_id,
+        &user_id,
         input.election_event_id.clone(),
         input.election_ids,
         input.configuration,

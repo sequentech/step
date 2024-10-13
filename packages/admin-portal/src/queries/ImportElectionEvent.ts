@@ -5,10 +5,16 @@
 import {gql} from "@apollo/client"
 
 export const IMPORT_ELECTION_EVENT = gql`
-    mutation ImportElectionEvent($tenantId: String!, $documentId: String!, $checkOnly: Boolean) {
+    mutation ImportElectionEvent(
+        $tenantId: String!
+        $documentId: String!
+        $password: String
+        $checkOnly: Boolean
+    ) {
         import_election_event(
             tenant_id: $tenantId
             document_id: $documentId
+            password: $password
             check_only: $checkOnly
         ) {
             id

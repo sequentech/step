@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
-use board_messages::braid::newtypes::BatchNumber;
+use b3::messages::newtypes::BatchNumber;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::types::hasura::core::TallySessionContest;
 use tokio_postgres::row::Row;

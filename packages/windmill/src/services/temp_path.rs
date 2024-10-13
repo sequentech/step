@@ -50,7 +50,7 @@ pub fn write_into_named_temp_file(
     prefix: &str,
     suffix: &str,
 ) -> Result<(TempPath, String, u64)> {
-    let file =
+    let file: NamedTempFile =
         generate_temp_file(prefix, suffix).with_context(|| "Error creating named temp file")?;
     {
         let file2 = file

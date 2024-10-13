@@ -119,6 +119,8 @@ const englishTranslation = {
                     "Failed to validate your vote. Please try again later or contact support for assistance.",
                 CAST_VOTE_UuidParseFailed:
                     "An error occurred processing your request. Please try again later or contact support for assistance.",
+                CAST_VOTE_unexpected:
+                    "An unknown error occurred while casting the vote. Please try again later or contact support for assistance.",
                 CAST_VOTE_UnknownError:
                     "An unknown error occurred while casting the vote. Please try again later or contact support for assistance.",
                 NO_BALLOT_SELECTION:

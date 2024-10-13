@@ -41,10 +41,12 @@ pub async fn process_scheduled_event(
         EventProcessors::SEND_TEMPLATE => {
             let payload: SendTemplateBody =
                 deserialize_value(event.event_payload.clone())?;
+            let user_id = claims.hasura_claims.user_id;
             let task = celery_app
                 .send_task(send_template::new(
                     payload,
                     event.tenant_id,
+                    user_id,
                     event.election_event_id.clone(),
                 ))
                 .await?;
