@@ -33,3 +33,6 @@ yarn generate:ballot-verifier
 
 # Format the generated source files
 yarn lint:fix && yarn prettify:fix
+
+# Format the generated hasura files
+cd ../hasura && yarn prettify:fix

@@ -354,8 +354,32 @@ const englishTranslation = {
                     description:
                         "You didn't enter the Integrity Check (SHA-256) field. Please confirm  that you are importing the correct file and you want to import it.",
                 },
+                passwordDialog: {
+                    title: "Decryption Password",
+                    description: "Enter the password to decrypt the file",
+                    label: "Password",
+                    copyPassword: "Copy Password",
+                    ok: "Ok",
+                },
             },
-            exportError: "Error exporting Election Event",
+            export: {
+                title: "Export Election Event",
+                subtitle:
+                    "Export can be a long operation. Are you sure you want to export records?",
+                encryptWithPassword: "Encrypt with Password",
+                includeVoters: "Include Voters",
+                activityLogs: "Activity Logs",
+                bulletinBoard: "Bulletin Board",
+                publications: "Publications",
+                s3Files: "S3 Files",
+                scheduledEvents: "Scheduled Events",
+                exportSuccess: "Election Event exported successfully",
+                exportError: "Error exporting Election Event",
+                passwordTitle: "Password",
+                passwordDescription: "Password to decrypt the file:",
+                copiedSuccess: "Password copied to clipboard",
+                copiedError: "Error copying password",
+            },
             taskNotification:
                 "{{action}} has started. You can see its status at Tasks Execution table.",
         },
