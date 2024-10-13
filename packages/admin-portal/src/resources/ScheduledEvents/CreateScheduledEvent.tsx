@@ -43,8 +43,14 @@ interface CreateEventProps {
 }
 
 export enum EventProcessors {
+    ALLOW_INIT_REPORT = "ALLOW_INIT_REPORT",
     START_VOTING_PERIOD = "START_VOTING_PERIOD",
     END_VOTING_PERIOD = "END_VOTING_PERIOD",
+    ALLOW_VOTING_PERIOD_END = "ALLOW_VOTING_PERIOD_END",
+    START_ENROLLMENT_PERIOD = "START_ENROLLMENT_PERIOD",
+    END_ENROLLMENT_PERIOD = "END_ENROLLMENT_PERIOD",
+    START_LOCKDOWN_PERIOD = "START_LOCKDOWN_PERIOD",
+    END_LOCKDOWN_PERIOD = "END_LOCKDOWN_PERIOD",
 }
 
 const CreateEvent: FC<CreateEventProps> = ({
@@ -85,13 +91,32 @@ const CreateEvent: FC<CreateEventProps> = ({
                   EventProcessors.START_VOTING_PERIOD
             : EventProcessors.START_VOTING_PERIOD
     )
+    const targetsElection = (event_processor: EventProcessors) => {
+        switch (event_processor) {
+            case EventProcessors.ALLOW_INIT_REPORT:
+            case EventProcessors.START_VOTING_PERIOD:
+            case EventProcessors.END_VOTING_PERIOD:
+            case EventProcessors.ALLOW_VOTING_PERIOD_END:
+                return true
+            case EventProcessors.START_ENROLLMENT_PERIOD:
+            case EventProcessors.END_ENROLLMENT_PERIOD:
+            case EventProcessors.START_LOCKDOWN_PERIOD:
+            case EventProcessors.END_LOCKDOWN_PERIOD:
+                return false
+        }
+    }
 
     const onSubmit = async () => {
         setIsLoading(true)
         try {
             let variables: ManageElectionDatesMutationVariables = {
                 electionEventId: electionEventId,
-                electionId: electionId && electionId.length > 0 ? electionId : null,
+                electionId:
+                    targetsElection(eventType as EventProcessors) &&
+                    electionId &&
+                    electionId.length > 0
+                        ? electionId
+                        : null,
                 scheduledDate: scheduleDate,
                 eventProcessor: eventType,
             }
@@ -110,6 +135,8 @@ const CreateEvent: FC<CreateEventProps> = ({
             console.error(error)
         }
     }
+
+    const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
 
     return (
         <Create hasEdit={isEditEvent}>
@@ -140,11 +167,29 @@ const CreateEvent: FC<CreateEventProps> = ({
                         onChange={(e: any) => setEventType(e.target.value)}
                         disabled={isEditEvent || isLoading}
                     >
+                        <MenuItem value={EventProcessors.ALLOW_INIT_REPORT}>
+                            {t("eventsScreen.eventType.ALLOW_INIT_REPORT")}
+                        </MenuItem>
                         <MenuItem value={EventProcessors.START_VOTING_PERIOD}>
                             {t("eventsScreen.eventType.START_VOTING_PERIOD")}
                         </MenuItem>
                         <MenuItem value={EventProcessors.END_VOTING_PERIOD}>
                             {t("eventsScreen.eventType.END_VOTING_PERIOD")}
+                        </MenuItem>
+                        <MenuItem value={EventProcessors.ALLOW_VOTING_PERIOD_END}>
+                            {t("eventsScreen.eventType.ALLOW_VOTING_PERIOD_END")}
+                        </MenuItem>
+                        <MenuItem value={EventProcessors.START_ENROLLMENT_PERIOD}>
+                            {t("eventsScreen.eventType.START_ENROLLMENT_PERIOD")}
+                        </MenuItem>
+                        <MenuItem value={EventProcessors.END_ENROLLMENT_PERIOD}>
+                            {t("eventsScreen.eventType.END_ENROLLMENT_PERIOD")}
+                        </MenuItem>
+                        <MenuItem value={EventProcessors.START_LOCKDOWN_PERIOD}>
+                            {t("eventsScreen.eventType.START_LOCKDOWN_PERIOD")}
+                        </MenuItem>
+                        <MenuItem value={EventProcessors.END_LOCKDOWN_PERIOD}>
+                            {t("eventsScreen.eventType.END_LOCKDOWN_PERIOD")}
                         </MenuItem>
                     </Select>
                 </FormControl>
@@ -156,15 +201,17 @@ const CreateEvent: FC<CreateEventProps> = ({
                             value={selectedEvent ? getElectionName(selectedEvent) : "-"}
                         />
                     ) : (
-                        <SelectElection
-                            tenantId={tenantId}
-                            electionEventId={electionEventId}
-                            label={t("eventsScreen.election.label")}
-                            onSelectElection={(electionId) => setElectionId(electionId)}
-                            source="event_payload.election_id"
-                            disabled={isEditEvent || isLoading}
-                            value={electionId}
-                        />
+                        targetsElection(eventType as EventProcessors) && (
+                            <SelectElection
+                                tenantId={tenantId}
+                                electionEventId={electionEventId}
+                                label={t("eventsScreen.election.label")}
+                                onSelectElection={(electionId) => setElectionId(electionId)}
+                                source="event_payload.election_id"
+                                disabled={isEditEvent || isLoading}
+                                value={electionId}
+                            />
+                        )
                     )}
                 </FormControl>
                 <DateTimeInput
@@ -173,8 +220,12 @@ const CreateEvent: FC<CreateEventProps> = ({
                     source="cron_config.scheduled_date"
                     label={
                         eventType === EventProcessors.START_VOTING_PERIOD
-                            ? t("electionScreen.field.startDateTime")
-                            : t("electionScreen.field.endDateTime")
+                            ? t("electionScreen.field.startDateTimeWithTimezone", {
+                                  timezone: userTimeZone,
+                              })
+                            : t("electionScreen.field.endDateTimeWithTimezone", {
+                                  timezone: userTimeZone,
+                              })
                     }
                     defaultValue={
                         isEditEvent

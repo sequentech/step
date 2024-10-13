@@ -20,6 +20,7 @@ import {IPermissions} from "@/types/keycloak"
 import {EditElectionEventUsers} from "../ElectionEvent/EditElectionEventUsers"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {Typography} from "@mui/material"
+import {EElectionEventLockedDown} from "@sequentech/ui-core"
 
 export const ElectionTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
@@ -29,6 +30,10 @@ export const ElectionTabs: React.FC = () => {
     const showVoters = authContext.isAuthorized(true, authContext.tenantId, IPermissions.VOTER_READ)
     const usersPermissionLabels = authContext.permissionLabels
     const [hasPermissionToViewElection, setHasPermissionToViewElection] = useState<boolean>(true)
+
+    const isElectionEventLocked =
+        record?.presentation?.locked_down == EElectionEventLockedDown.LOCKED_DOWN
+
     const showDashboard = authContext.isAuthorized(
         true,
         authContext.tenantId,

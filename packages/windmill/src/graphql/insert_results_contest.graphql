@@ -22,6 +22,7 @@ mutation InsertResultsContest(
     $votingType: String,
     $countingAlgorithm: String,
     $name: String,
+    $annotations: jsonb,
 ) {
   insert_sequent_backend_results_contest(
     objects:
@@ -49,6 +50,7 @@ mutation InsertResultsContest(
         voting_type: $votingType,
         counting_algorithm: $countingAlgorithm,
         name: $name,
+        annotations: $annotations,
     }
   ) {
     returning {

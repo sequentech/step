@@ -142,3 +142,45 @@ pub async fn export_contests(
 
     Ok(election_events)
 }
+
+#[instrument(err, skip_all)]
+pub async fn get_contest_by_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    contest_id: &str,
+) -> Result<Contest> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT *
+                FROM
+                    sequent_backend.contest
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2;
+                    contest_id = $3;
+            "#,
+        )
+        .await?;
+
+    let row: Option<Row> = hasura_transaction
+        .query_opt(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+                &Uuid::parse_str(contest_id)?,
+            ],
+        )
+        .await?;
+
+    if let Some(row) = row {
+        let contest: Contest = row
+            .try_into()
+            .map(|res: ContestWrapper| -> Contest { res.0 })?;
+        Ok(contest as Contest)
+    } else {
+        Err(anyhow::anyhow!("No contest found with the provided id"))
+    }
+}

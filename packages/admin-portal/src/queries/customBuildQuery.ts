@@ -33,6 +33,7 @@ export const customBuildQuery =
             if (validFilters) {
                 Object.keys(params.filter).forEach((f) => {
                     if (!validFilters.includes(f)) {
+                        console.log(`removing ${resourceName}.filter.${f}`)
                         delete params.filter[f]
                     }
                 })

@@ -169,6 +169,8 @@ const spanishTranslation: TranslationType = {
                 subtitle: "Configuración del Evento Electoral.",
                 showMore: "Mostrar más",
                 showLess: "Mostrar menos",
+                adminPortal: "Portal de Administración",
+                allowPublishAfterLockdown: "Only allow election event publishing after lockdown",
             },
             edit: {
                 general: "General",
@@ -222,6 +224,13 @@ const spanishTranslation: TranslationType = {
                 css: "CSS personalizado",
                 skipElectionList: "Saltar pantalla para escoger elección",
                 showUserProfile: "Mostrar perfil de usuario",
+                lockdownState: {
+                    policyLabel: "Estado de Confinamiento",
+                    options: {
+                        "locked-down": "Confinado",
+                        "not-locked-down": "No Confinado",
+                    },
+                },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Sin cuenta regresiva",
                     COUNTDOWN: "Cuenta regresiva",
@@ -414,6 +423,8 @@ const spanishTranslation: TranslationType = {
                 votingChannels: "Canales de Voto",
                 startDateTime: "Fecha y hora de inicio",
                 endDateTime: "Fecha y hora de finalización",
+                startDateTimeWithTimezone: "Fecha y Hora de inicio ({{timezone}})",
+                endDateTimeWithTimezone: "Fecha y Hora de finalización ({{timezone}})",
                 scheduledOpening: "Apertura Programada",
                 scheduledClosing: "Cierre Programado",
                 alias: "Alias",
@@ -662,8 +673,14 @@ const spanishTranslation: TranslationType = {
             },
             eventType: {
                 label: "Tipo",
+                ALLOW_INIT_REPORT: "Allow Initialization Report",
                 START_VOTING_PERIOD: "Inicio del Período de Votación",
                 END_VOTING_PERIOD: "Fin del Período de Votación",
+                ALLOW_VOTING_PERIOD_END: "Allow Voting Period End",
+                START_ENROLLMENT_PERIOD: "Inicio del Período de Inscripción",
+                END_ENROLLMENT_PERIOD: "Fin del Período de Inscripción",
+                START_LOCKDOWN_PERIOD: "Inicio del Período de Bloqueo de Datos Censales",
+                END_LOCKDOWN_PERIOD: "Fin del Período de Bloqueo de Datos Censales",
             },
             election: {
                 label: "Elección",
@@ -1194,6 +1211,9 @@ const spanishTranslation: TranslationType = {
             empty: {
                 header: "Ninguna Publicación aún.",
                 action: "Generar Publicación",
+            },
+            forbidden: {
+                header: "No es posible Publicar hasta que la Ceremonia de Llaves haya terminado.",
             },
             dialog: {
                 title: "Confirmar Acción",

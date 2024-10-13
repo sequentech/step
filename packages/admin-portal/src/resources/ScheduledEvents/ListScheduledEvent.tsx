@@ -9,10 +9,12 @@ import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
 import {Button, styled, Typography} from "@mui/material"
 import React, {ReactElement, useContext, useState} from "react"
+import moment from "moment-timezone"
 import {
     DatagridConfigurable,
     FunctionField,
     List,
+    TextField,
     useGetList,
     useGetOne,
     useNotify,
@@ -39,7 +41,6 @@ import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {ICronConfig, IManageElectionDatePayload} from "@/types/scheduledEvents"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import ElectionHeader from "@/components/ElectionHeader"
-import {SidebarScreenStyles} from "@/components/styles/SidebarScreenStyles"
 
 export const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -104,6 +105,10 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
             filter: {
                 tenant_id: tenantId,
                 election_event_id: electionEventId,
+                archived_at: {
+                    format: "hasura-raw-query",
+                    value: {_is_null: true},
+                },
             },
         },
         {
@@ -127,7 +132,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
         IPermissions.SCHEDULED_EVENT_WRITE
     )
 
-    const OMIT_FIELDS: Array<string> = []
+    const OMIT_FIELDS: Array<string> = ["id"]
 
     const Filters: Array<ReactElement> = []
 
@@ -200,6 +205,8 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
         setOpenCreateEvent(!openCreateEvent)
     }
 
+    const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+
     const Empty = () => (
         <ResourceListStyles.EmptyBox>
             <Typography variant="h4" paragraph>
@@ -255,6 +262,8 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                     isOpenSideBar={isOpenSidebar}
                     omit={OMIT_FIELDS}
                 >
+                    <TextField source="id" />
+
                     <FunctionField
                         label={t("eventsScreen.fields.electionId")}
                         source="event_payload.election_id"
@@ -271,7 +280,10 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                         label={t("eventsScreen.fields.stoppedAt")}
                         source="stopped_at"
                         render={(record: Sequent_Backend_Scheduled_Event) =>
-                            (record.stopped_at && new Date(record.stopped_at).toLocaleString()) ||
+                            (record.stopped_at &&
+                                moment
+                                    .tz(new Date(record.stopped_at), userTimeZone)
+                                    .toLocaleString()) ||
                             "-"
                         }
                     />
@@ -280,7 +292,9 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                         source="cron_config.scheduled_date"
                         render={(record: Sequent_Backend_Scheduled_Event) =>
                             ((record.cron_config as ICronConfig | undefined)?.scheduled_date &&
-                                new Date(record.cron_config.scheduled_date).toLocaleString()) ||
+                                moment
+                                    .tz(new Date(record.cron_config.scheduled_date), userTimeZone)
+                                    .toLocaleString()) ||
                             "-"
                         }
                     />

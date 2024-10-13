@@ -17,5 +17,7 @@ pub mod pre_enrolled_ov_but_disapproved;
 pub mod ov_users_who_voted;
 pub mod ov_users;
 pub mod audit_logs;
+pub mod report_variables;
+pub mod statistical_report;
 pub mod template_renderer;
 pub mod utils;
