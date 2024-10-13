@@ -7,6 +7,8 @@ package sequent.keycloak.inetum_authenticator;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
+
+import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import java.io.IOException;
 import java.text.Collator;
@@ -39,6 +41,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
   private static final InetumAuthenticator SINGLETON = new InetumAuthenticator();
   private static final String AUTH_NOTE_ATTRIBUTE_ID = "equalAuthnoteAttributeId";
   private static final String INETUM_ATTRIBUTE_PATH = "inetumAttributePath";
+  private static final String USER_ATTRIBUTE = "UserAttribute";
   private static final String VALIDATION_ATTRIBUTE_TYPE = "type";
   private static final String VALIDATION_ATTRIBUTE_ERROR = "errorMsg";
   private static final String INTEGER_MIN_VALUE = "intMinValue";
@@ -52,8 +55,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
   public static final String ERROR_TO_CREATE_INETUM_TRANSCATION = "failedToCreateTransaction";
   public static final String ERROR_TO_GET_INETUM_STATUS_RESPONSE = "failedToGetInetumSatusResponse";
   public static final String ERROR_TO_GET_INETUM_RESPONSE = "failedToGetInetumResponse";
-  public static final String ERROR_TO_GET_INETUM_RESULTS_RESPONSE =
-      "failedToGetInetumResultsResponse";
+  public static final String ERROR_TO_GET_INETUM_RESULTS_RESPONSE = "failedToGetInetumResultsResponse";
   public static final String ERROR_INVALIDE_CODE = "invalideCode";
   public static final String ERROR_ATTRIBUTE_VALIDATION = "attributeValidationError";
 
@@ -100,21 +102,19 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       sessionModel.setAuthNote(Utils.FTL_TOKEN_DOB, transactionData.get(Utils.FTL_TOKEN_DOB));
       sessionModel.setAuthNote(Utils.FTL_USER_ID, transactionData.get(Utils.FTL_USER_ID));
 
-      Response challenge =
-          getBaseForm(context)
-              .setAttribute(Utils.FTL_USER_ID, transactionData.get(Utils.FTL_USER_ID))
-              .setAttribute(Utils.FTL_TOKEN_DOB, transactionData.get(Utils.FTL_TOKEN_DOB))
-              .createForm(Utils.INETUM_FORM);
+      Response challenge = getBaseForm(context)
+          .setAttribute(Utils.FTL_USER_ID, transactionData.get(Utils.FTL_USER_ID))
+          .setAttribute(Utils.FTL_TOKEN_DOB, transactionData.get(Utils.FTL_TOKEN_DOB))
+          .createForm(Utils.INETUM_FORM);
       context.challenge(challenge);
     } catch (IOException error) {
       context.getEvent().error(ERROR_FAILED_TO_LOAD_INETUM_FORM);
       context.failure(AuthenticationFlowError.INTERNAL_ERROR);
       context.attempted();
-      Response challenge =
-          getBaseForm(context)
-              .setAttribute(Utils.FTL_ERROR, Utils.FTL_ERROR_INTERNAL)
-              .setAttribute(Utils.CODE_ID, sessionId)
-              .createForm(Utils.INETUM_ERROR);
+      Response challenge = getBaseForm(context)
+          .setAttribute(Utils.FTL_ERROR, Utils.FTL_ERROR_INTERNAL)
+          .setAttribute(Utils.CODE_ID, sessionId)
+          .createForm(Utils.INETUM_ERROR);
       context.challenge(challenge);
     }
   }
@@ -136,12 +136,11 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
     while (attempt < maxRetries) {
       try {
-        SimpleHttp.Response response =
-            SimpleHttp.doPost(url, context.getSession())
-                .header("Content-Type", "application/json")
-                .header("Authorization", authorization)
-                .json(payload)
-                .asResponse();
+        SimpleHttp.Response response = SimpleHttp.doPost(url, context.getSession())
+            .header("Content-Type", "application/json")
+            .header("Authorization", authorization)
+            .json(payload)
+            .asResponse();
         return response;
 
       } catch (IOException e) {
@@ -180,11 +179,10 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
     while (attempt < maxRetries) {
       try {
-        SimpleHttp.Response response =
-            SimpleHttp.doGet(url, context.getSession())
-                .header("Content-Type", "application/json")
-                .header("Authorization", authorization)
-                .asResponse();
+        SimpleHttp.Response response = SimpleHttp.doGet(url, context.getSession())
+            .header("Content-Type", "application/json")
+            .header("Authorization", authorization)
+            .asResponse();
 
         return response;
 
@@ -229,8 +227,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     if (extraAttributes != null) {
       attributes.putAll(extraAttributes);
     }
-    String stringPayload =
-        Utils.processStringTemplate(attributes, configMap.get(Utils.TRANSACTION_NEW_ATTRIBUTE));
+    String stringPayload = Utils.processStringTemplate(attributes, configMap.get(Utils.TRANSACTION_NEW_ATTRIBUTE));
     JsonNode jsonPayload = mapper.readValue(stringPayload, JsonNode.class);
     return jsonPayload;
   }
@@ -255,9 +252,8 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     Map<String, String> authNotesMap = getAuthNotesMap(configMap, context);
 
     try {
-      jsonPayload =
-          renderJsonTemplate(
-              configMap.get(Utils.TRANSACTION_NEW_ATTRIBUTE), configMap, authNotesMap);
+      jsonPayload = renderJsonTemplate(
+          configMap.get(Utils.TRANSACTION_NEW_ATTRIBUTE), configMap, authNotesMap);
     } catch (Exception error) {
       log.error("newTransaction: Error rendering template", error);
       context.getEvent().error(ERROR_FAILED_TO_LOAD_INETUM_FORM);
@@ -265,8 +261,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     }
 
     try {
-      SimpleHttp.Response response =
-          doPost(configMap, context, jsonPayload, Utils.API_TRANSACTION_NEW);
+      SimpleHttp.Response response = doPost(configMap, context, jsonPayload, Utils.API_TRANSACTION_NEW);
 
       if (response.getStatus() != 200) {
         log.error(
@@ -304,6 +299,25 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
   @Override
   public void action(AuthenticationFlowContext context) {
     log.info("action(): start inetum-authenticator");
+
+    MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
+    String action = formData.getFirst("action");
+
+    log.infov("action(): Get action from request {0}", action);
+
+    // Check if user has confirmed data
+    if ("confirm".equals(action)) {
+      log.info("action(): success");
+      // valid
+      context
+          .getEvent()
+          .detail("action", "InetumAuthenticator: User validated successfully")
+          .success();
+
+      context.success();
+      return;
+    }
+
     UserModel user = context.getUser();
     Utils.buildEventDetails(
         context.getEvent(),
@@ -325,11 +339,10 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
         // );
         context.failure(AuthenticationFlowError.INVALID_CREDENTIALS);
         context.attempted();
-        Response challenge =
-            getBaseForm(context)
-                .setAttribute(Utils.FTL_ERROR, Utils.FTL_ERROR_AUTH_INVALID)
-                .setAttribute(Utils.CODE_ID, sessionId)
-                .createForm(Utils.INETUM_ERROR);
+        Response challenge = getBaseForm(context)
+            .setAttribute(Utils.FTL_ERROR, Utils.FTL_ERROR_AUTH_INVALID)
+            .setAttribute(Utils.CODE_ID, sessionId)
+            .createForm(Utils.INETUM_ERROR);
         context.challenge(challenge);
       } else if (execution.isConditional() || execution.isAlternative()) {
         context.attempted();
@@ -347,15 +360,50 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       if (execution.isRequired()) {
         context.failure(AuthenticationFlowError.INVALID_CREDENTIALS);
         context.attempted();
-        Response challenge =
-            getBaseForm(context)
-                .setAttribute(Utils.FTL_ERROR, error)
-                .setAttribute(Utils.CODE_ID, sessionId)
-                .createForm(Utils.INETUM_ERROR);
+        Response challenge = getBaseForm(context)
+            .setAttribute(Utils.FTL_ERROR, error)
+            .setAttribute(Utils.CODE_ID, sessionId)
+            .createForm(Utils.INETUM_ERROR);
         context.challenge(challenge);
       } else if (execution.isConditional() || execution.isAlternative()) {
         context.attempted();
       }
+      return;
+    }
+
+    Map<String, String> storedAttributes;
+    try {
+      storedAttributes = storeAttributes(context, result);
+    } catch (InetumException exception) {
+      exception.printStackTrace();
+
+      log.error(
+          "action(): The submitted form data does not correspond with the ones provided by Inetum.");
+      // invalid
+      AuthenticationExecutionModel execution = context.getExecution();
+      if (execution.isRequired()) {
+        context.failure(AuthenticationFlowError.INVALID_CREDENTIALS);
+        context.attempted();
+        Response challenge = getBaseForm(context)
+            .setAttribute(Utils.FTL_ERROR, exception.getError())
+            .setAttribute(Utils.CODE_ID, sessionId)
+            .createForm(Utils.INETUM_ERROR);
+        context.challenge(challenge);
+      } else if (execution.isConditional() || execution.isAlternative()) {
+        context.attempted();
+      }
+      return;
+    }
+    if (!storedAttributes.isEmpty()) {
+      log.infov("action(): SHOW CONFIRM!!!!", action);
+      // Manually construct the action URL for the form
+      String actionUrl = context.getActionUrl(context.generateAccessCode()).toString();
+
+      Response challenge = getBaseForm(context)
+          .setAttribute("actionUrl", actionUrl)
+          .setAttribute("storedAttributes", storedAttributes)
+          .createForm(Utils.INETUM_CONFIRM);
+      context.challenge(challenge);
       return;
     }
 
@@ -365,8 +413,68 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
         .getEvent()
         .detail("action", "InetumAuthenticator: User validated successfully")
         .success();
-    ;
     context.success();
+  }
+
+  private Map<String, String> storeAttributes(AuthenticationFlowContext context,
+      SimpleHttp.Response response) throws InetumException {
+    log.info("storeAttributes: start");
+
+    Map<String, String> storedAttributes = new HashMap<>();
+
+    AuthenticatorConfigModel config = context.getAuthenticatorConfig();
+    Map<String, String> configMap = config.getConfig();
+    AuthenticationSessionModel sessionModel = context.getAuthenticationSession();
+
+    String docIdTypeAttributeName = configMap.get(Utils.DOC_ID_TYPE_ATTRIBUTE);
+    String docIdType = context.getAuthenticationSession().getAuthNote(docIdTypeAttributeName);
+
+    String attributesToStore = configMap.get(Utils.ATTRIBUTES_TO_STORE);
+    log.infov(
+        "storeAttributes: attributes to store configuration: {0}", attributesToStore);
+    JsonNode attributesToCheck = null;
+
+    if (attributesToStore != null) {
+      log.infov("storeAttributes: docIdType {0}", docIdType);
+
+      try {
+        // Read the attributes to check from the configuration depending on the ID Type
+        attributesToCheck = new ObjectMapper().readTree(attributesToStore).get(docIdType);
+      } catch (Exception exception) {
+        throw new InetumException(Utils.FTL_ERROR_AUTH_INVALID);
+      }
+
+      if (attributesToCheck != null) {
+        for (JsonNode attributeToStore : attributesToCheck) {
+          // Get inetum path from config
+          String inetumField = attributeToStore.get(INETUM_ATTRIBUTE_PATH).asText();
+          log.infov("storeAttributes: inetumField {0}", inetumField);
+          
+          // Get OCR value from response
+          String inetumValue = getValueFromInetumResponse(response, inetumField);
+          log.infov("storeAttributes: inetumValue {0}", inetumField);
+
+          if (inetumValue == null) {
+            log.errorv(
+                "storeAttributes: could not find value in inetum response {0}", inetumField);
+            throw new InetumException(Utils.FTL_ERROR_AUTH_INVALID);
+          }
+
+          String attribute = attributeToStore.get(USER_ATTRIBUTE).asText();
+          log.infov("storeAttributes: attribute {0}", attribute);
+
+          sessionModel.setAuthNote(
+            attribute, inetumValue);
+          
+            storedAttributes.put(attribute, inetumValue);
+        }
+      } else {
+        log.info("storeAttributes: Empty configuration provided. No attributes checked.");
+      }
+    }
+
+    log.info("storeAttributes: success");
+    return storedAttributes;
   }
 
   /*
@@ -606,29 +714,24 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
           switch (type) {
             case AUTH_NOTE_ATTRIBUTE_ID:
-              validationError =
-                  checkAuthnoteEquals(
-                      context, attributeToCheck, attribute, typeError, inetumValue, inetumField);
+              validationError = checkAuthnoteEquals(
+                  context, attributeToCheck, attribute, typeError, inetumValue, inetumField);
               break;
             case INTEGER_MIN_VALUE:
-              validationError =
-                  integerMinValue(
-                      context, attributeToCheck, attribute, typeError, inetumValue, inetumField);
+              validationError = integerMinValue(
+                  context, attributeToCheck, attribute, typeError, inetumValue, inetumField);
               break;
             case EQUAL_VALUE:
-              validationError =
-                  equalValue(
-                      context, attributeToCheck, attribute, typeError, inetumValue, inetumField);
+              validationError = equalValue(
+                  context, attributeToCheck, attribute, typeError, inetumValue, inetumField);
               break;
             case EQUAL_DATE:
-              validationError =
-                  equalDate(
-                      context, attributeToCheck, attribute, typeError, inetumValue, inetumField);
+              validationError = equalDate(
+                  context, attributeToCheck, attribute, typeError, inetumValue, inetumField);
               break;
             case EXPIRED_DATE:
-              validationError =
-                  isBeforeDate(
-                      context, attributeToCheck, attribute, typeError, inetumValue, inetumField);
+              validationError = isBeforeDate(
+                  context, attributeToCheck, attribute, typeError, inetumValue, inetumField);
               break;
             default:
               log.warnv("validateAttributes: Unknow validation {0}. Ignoring validation.", type);
@@ -742,10 +845,9 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     collator.setStrength(0);
 
     if (collator.compare(attributeValue.trim(), inetumValue.trim()) != 0) {
-      String errorMessage =
-          String.format(
-              "attribute %s with value %s  does not match OCR value %s",
-              inetumField, attributeValue, inetumValue);
+      String errorMessage = String.format(
+          "attribute %s with value %s  does not match OCR value %s",
+          inetumField, attributeValue, inetumValue);
       log.errorv(
           "equalValue: FALSE; attribute: {0}, inetumField: {1}, attributeValue: {2}, inetumValue: {3}",
           attributeValue, inetumField, attributeValue, inetumValue);
@@ -811,10 +913,9 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     collator.setStrength(0);
 
     if (collator.compare(attributeValue.trim(), inetumValue.trim()) != 0) {
-      String errorMessage =
-          String.format(
-              "attribute %s with value %.100s does not match OCR value %s",
-              attributeId, attributeValue, inetumValue);
+      String errorMessage = String.format(
+          "attribute %s with value %.100s does not match OCR value %s",
+          attributeId, attributeValue, inetumValue);
       log.errorv(
           "checkAuthnoteEquals: FALSE; attribute: {0}, inetumField: {1}, attributeValue: {2}, inetumValue: {3}",
           attributeId, inetumField, attributeValue, inetumValue);
@@ -865,7 +966,8 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
   }
 
   @Override
-  public void setRequiredActions(KeycloakSession session, RealmModel realm, UserModel user) {}
+  public void setRequiredActions(KeycloakSession session, RealmModel realm, UserModel user) {
+  }
 
   @Override
   public String getId() {
@@ -898,9 +1000,9 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
   }
 
   private static AuthenticationExecutionModel.Requirement[] REQUIREMENT_CHOICES = {
-    AuthenticationExecutionModel.Requirement.REQUIRED,
-    AuthenticationExecutionModel.Requirement.ALTERNATIVE,
-    AuthenticationExecutionModel.Requirement.DISABLED
+      AuthenticationExecutionModel.Requirement.REQUIRED,
+      AuthenticationExecutionModel.Requirement.ALTERNATIVE,
+      AuthenticationExecutionModel.Requirement.DISABLED
   };
 
   @Override
@@ -936,67 +1038,102 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
             ProviderConfigProperty.STRING_TYPE,
             "sequent.read-only.id-card-number-validated"),
         new ProviderConfigProperty(
+            Utils.ATTRIBUTES_TO_STORE,
+            "Attributes to store from inetum data",
+            "A Json where it's fields represent every id available. For each id a list of attributes to store need to be provided. With UserAttribute to indicate the user profile attribute and inetumAttributePath to indicate the path to get the attribute from the inetum response.",
+            ProviderConfigProperty.TEXT_TYPE,
+            """
+                {
+                    "PhilSys ID": [
+                        {
+                            "UserAttribute": "sequent.read-only.id-card-number",
+                            "inetumAttributePath": "/response/mrz/personal_number"
+                        },
+                        {
+                            "UserAttribute": "firstName",
+                            "inetumAttributePath": "/response/mrz/given_names"
+                        },
+                        {
+                            "UserAttribute": "lastName",
+                            "inetumAttributePath": "/response/mrz/surname"
+                        }
+                    ],
+                    "Seaman Book": [
+                        {
+                            "UserAttribute": "sequent.read-only.id-card-number",
+                            "inetumAttributePath": "/response/mrz/personal_number"
+                        }
+                    ],
+                    "Philippine Passport": [
+                        {
+                            "UserAttribute": "sequent.read-only.id-card-number",
+                            "inetumAttributePath": "/response/mrz/personal_number"
+                        }
+                    ]
+                }
+                """),
+        new ProviderConfigProperty(
             Utils.ATTRIBUTES_TO_VALIDATE,
             "Attributes to validate using inetum data",
             "A Json where it's fields represent every id available. For each id a list of attributes to check need to be provided. With authnoteAttributeId to indicate the user profile attribute and inetumAttributePath to indicate the path to get the attribute from the inetum response.",
             ProviderConfigProperty.TEXT_TYPE,
             """
-            {
-                "PhilSys ID": [
-                    {
-                        "type": "equalAuthnoteAttributeId",
-                        "equalAuthnoteAttributeId": "sequent.read-only.id-card-number",
-                        "inetumAttributePath": "/response/mrz/personal_number",
-                        "errorMsg": "attributesInetumError"
-                    },
-                    {
-                        "type": "equalValue",
-                        "equalValue": "Maria",
-                        "inetumAttributePath": "/response/mrz/given_names",
-                        "errorMsg": "attributesInetumError"
-                    },
-                    {
-                        "type": "intMinValue",
-                        "intMinValue": "50",
-                        "inetumAttributePath": "/response/resultData/scoreDocumental",
-                        "errorMsg": "scoringInetumError"
-                    },
-                    {
-                        "type": "equalDateAuthnoteAttributeId",
-                        "equalDateAuthnoteAttributeId": "dateOfBirth",
-                        "valueDateFormat": "yyyy-MM-dd",
-                        "inetumAttributePath": "/response/mrz/date_of_birth",
-                        "inetumDateFormat": "dd/MM/yyyy",
-                        "errorMsg": "attributesInetumError"
-                    },
-                    {
-                        "type": "isBeforeDateValue",
-                        "isBeforeDateValue": "now",
-                        "valueDateFormat": "yyyy-MM-dd",
-                        "inetumAttributePath": "/response/mrz/date_of_expiry",
-                        "inetumDateFormat": "dd/MM/yyyy",
-                        "errorMsg": "attributesInetumError"
-                    }
-                ],
-                "Seaman Book": [
-                    {
-                        "type": "equalAuthnoteAttributeId",
-                        "equalAuthnoteAttributeId": "sequent.read-only.id-card-number",
-                        "inetumAttributePath": "/response/mrz/personal_number",
-                        "errorMsg": "attributesInetumError"
-                    }
-                ],
-                "Philippine Passport": [
-                    {
-                        "type": "equalAuthnoteAttributeId",
-                        "equalAuthnoteAttributeId": "sequent.read-only.id-card-number",
-                        "inetumAttributePath": "/response/mrz/personal_number",
-                        "errorMsg": "attributesInetumError"
+                {
+                    "PhilSys ID": [
+                        {
+                            "type": "equalAuthnoteAttributeId",
+                            "equalAuthnoteAttributeId": "sequent.read-only.id-card-number",
+                            "inetumAttributePath": "/response/mrz/personal_number",
+                            "errorMsg": "attributesInetumError"
+                        },
+                        {
+                            "type": "equalValue",
+                            "equalValue": "Maria",
+                            "inetumAttributePath": "/response/mrz/given_names",
+                            "errorMsg": "attributesInetumError"
+                        },
+                        {
+                            "type": "intMinValue",
+                            "intMinValue": "50",
+                            "inetumAttributePath": "/response/resultData/scoreDocumental",
+                            "errorMsg": "scoringInetumError"
+                        },
+                        {
+                            "type": "equalDateAuthnoteAttributeId",
+                            "equalDateAuthnoteAttributeId": "dateOfBirth",
+                            "valueDateFormat": "yyyy-MM-dd",
+                            "inetumAttributePath": "/response/mrz/date_of_birth",
+                            "inetumDateFormat": "dd/MM/yyyy",
+                            "errorMsg": "attributesInetumError"
+                        },
+                        {
+                            "type": "isBeforeDateValue",
+                            "isBeforeDateValue": "now",
+                            "valueDateFormat": "yyyy-MM-dd",
+                            "inetumAttributePath": "/response/mrz/date_of_expiry",
+                            "inetumDateFormat": "dd/MM/yyyy",
+                            "errorMsg": "attributesInetumError"
+                        }
+                    ],
+                    "Seaman Book": [
+                        {
+                            "type": "equalAuthnoteAttributeId",
+                            "equalAuthnoteAttributeId": "sequent.read-only.id-card-number",
+                            "inetumAttributePath": "/response/mrz/personal_number",
+                            "errorMsg": "attributesInetumError"
+                        }
+                    ],
+                    "Philippine Passport": [
+                        {
+                            "type": "equalAuthnoteAttributeId",
+                            "equalAuthnoteAttributeId": "sequent.read-only.id-card-number",
+                            "inetumAttributePath": "/response/mrz/personal_number",
+                            "errorMsg": "attributesInetumError"
 
-                    }
-                ]
-            }
-                """),
+                        }
+                    ]
+                }
+                    """),
         new ProviderConfigProperty(
             Utils.SDK_ATTRIBUTE,
             "Configuration for the SDK",
@@ -1081,11 +1218,14 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
   }
 
   @Override
-  public void init(Config.Scope config) {}
+  public void init(Config.Scope config) {
+  }
 
   @Override
-  public void postInit(KeycloakSessionFactory factory) {}
+  public void postInit(KeycloakSessionFactory factory) {
+  }
 
   @Override
-  public void close() {}
+  public void close() {
+  }
 }
