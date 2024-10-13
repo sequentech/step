@@ -44,7 +44,7 @@ const DiffViewStyled = {
         padding: 16px;
         height: 100%;
         width: 100%;
-        max-height: 500px;
+        max-height: 350px;
     `,
     Json: styled.div`
         width: 100%;
