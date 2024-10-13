@@ -728,7 +728,7 @@ const tagalogTranslation: TranslationType = {
                 delete: "Tanggalin",
                 edit: "I-edit",
                 preview: "I-preview",
-            }
+            },
         },
         common: {
             export: "Maaaring magtagal ang pag-export. Sigurado ka bang nais mong i-export ang mga rekord?",

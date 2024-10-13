@@ -730,7 +730,7 @@ const frenchTranslation: TranslationType = {
                 delete: "Supprimer",
                 edit: "Modifier",
                 preview: "Aperçu",
-            }
+            },
         },
         common: {
             export: "L'exportation peut être un processus long. Êtes-vous sûr de vouloir exporter ?",

@@ -71,7 +71,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
     }))
     useEffect(() => {
         setIsCronActive(report?.cron_config?.is_active || false)
-        setReportType(report?.report_type ? report.report_type as EReportType : undefined);
+        setReportType(report?.report_type ? (report.report_type as EReportType) : undefined)
     }, [report])
 
     useEffect(() => {
@@ -155,11 +155,11 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
         if (!reportType) {
             return false
         }
-            return reportTypeConfig[reportType].templateRequired ?? false
+        return reportTypeConfig[reportType].templateRequired ?? false
     }, [reportType])
 
     const isButtonDisabled = (): boolean => {
-        return (isTemplateRequired && !templateId || isElectionRequired && !electionId)
+        return (isTemplateRequired && !templateId) || (isElectionRequired && !electionId)
     }
 
     const isElectionRequired = useMemo((): boolean => {
@@ -177,7 +177,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                     onSubmit={handleSubmit}
                     toolbar={
                         <Toolbar>
-                            <SaveButton disabled={isButtonDisabled()}/>
+                            <SaveButton disabled={isButtonDisabled()} />
                         </Toolbar>
                     }
                 >

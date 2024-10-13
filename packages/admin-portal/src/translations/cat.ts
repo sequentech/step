@@ -728,7 +728,7 @@ const catalanTranslation: TranslationType = {
                 delete: "Eliminar",
                 edit: "Editar",
                 preview: "Previsualitzar",
-            }
+            },
         },
         common: {
             export: "L'exportació pot ser un procés llarg. Estàs segur que vols exportar?",

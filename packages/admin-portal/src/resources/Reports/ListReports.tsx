@@ -355,7 +355,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                         render={getElectionName}
                     />
 
-                
                     <FunctionField
                         label={t("common.label.actions")}
                         render={(record: Sequent_Backend_Report) => (

@@ -727,7 +727,7 @@ const spanishTranslation: TranslationType = {
                 delete: "Eliminar",
                 edit: "Editar",
                 preview: "Vista previa",
-            }
+            },
         },
         common: {
             export: "La exportación puede ser un proceso largo. ¿Estás seguro que quieres exportar?",

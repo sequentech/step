@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import { email } from "react-admin"
+import {email} from "react-admin"
 
 const englishTranslation = {
     translations: {
@@ -726,7 +726,7 @@ const englishTranslation = {
                 delete: "Delete",
                 edit: "Edit",
                 preview: "Preview",
-            }
+            },
         },
         common: {
             export: "Export can be a long operation. Are you sure you want to export records?",
