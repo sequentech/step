@@ -136,7 +136,7 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
             sort: {field: "created_at", order: "DESC"},
             filter: {
                 tenant_id: tenantId,
-                election_event_id: electionEvent.id,
+                election_event_id: electionEvent?.id ?? '',
             },
         },
         {
