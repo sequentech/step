@@ -205,6 +205,9 @@ impl StrandSignatureSk {
         Ok(StrandSignatureSk(sk))
     }
     /// Signs the message returning a signature.
+    ///
+    /// The bytes will be hashed using sha512.
+    /// https://docs.rs/ed25519-dalek/latest/ed25519_dalek/struct.SigningKey.html
     pub fn sign(&self, msg: &[u8]) -> Result<StrandSignature, StrandError> {
         Ok(StrandSignature(self.0.sign(msg)))
     }
@@ -269,7 +272,7 @@ impl StrandSignatureSk {
         Ok(csr_der)
     }
 
-    /// Signs a certificate git and returns a x509 der representation.
+    /// Signs a certificate csr and returns a x509 der representation.
     pub fn sign_csr(
         &self,
         self_der: &[u8],
@@ -320,15 +323,36 @@ impl BorshSerialize for StrandSignaturePk {
 }
 
 impl BorshDeserialize for StrandSignaturePk {
-    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
-        let bytes: [u8; 32] = BorshDeserialize::deserialize(buf)?;
+    fn deserialize_reader<R: std::io::Read>(
+        reader: &mut R,
+    ) -> Result<Self, std::io::Error> {
+        let bytes = <[u8; 32]>::deserialize_reader(reader)?;
 
         StrandSignaturePk::from_bytes(bytes)
             .map_err(|e| Error::new(ErrorKind::Other, e))
     }
 }
 
-// Implement Serialize for StrandSignaturePk
+impl BorshSerialize for StrandSignature {
+    fn serialize<W: std::io::Write>(
+        &self,
+        writer: &mut W,
+    ) -> std::io::Result<()> {
+        let bytes: [u8; 64] = self.0.into();
+        bytes.serialize(writer)
+    }
+}
+
+impl BorshDeserialize for StrandSignature {
+    fn deserialize_reader<R: std::io::Read>(
+        reader: &mut R,
+    ) -> Result<Self, std::io::Error> {
+        let bytes = <[u8; 64]>::deserialize_reader(reader)?;
+        StrandSignature::from_bytes(bytes)
+            .map_err(|e| Error::new(ErrorKind::Other, e))
+    }
+}
+
 impl Serialize for StrandSignaturePk {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -339,7 +363,6 @@ impl Serialize for StrandSignaturePk {
     }
 }
 
-// Implement Deserialize for StrandSignaturePk
 impl<'de> Deserialize<'de> for StrandSignaturePk {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -385,25 +408,6 @@ impl std::fmt::Debug for StrandSignature {
     }
 }
 
-impl BorshSerialize for StrandSignature {
-    fn serialize<W: std::io::Write>(
-        &self,
-        writer: &mut W,
-    ) -> std::io::Result<()> {
-        let bytes: [u8; 64] = self.0.into();
-        bytes.serialize(writer)
-    }
-}
-
-impl BorshDeserialize for StrandSignature {
-    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
-        let bytes = <[u8; 64]>::deserialize(buf)?;
-        StrandSignature::from_bytes(bytes)
-            .map_err(|e| Error::new(ErrorKind::Other, e))
-    }
-}
-
-// Implement Serialize for StrandSignature
 impl Serialize for StrandSignature {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -414,7 +418,6 @@ impl Serialize for StrandSignature {
     }
 }
 
-// Implement Deserialize for StrandSignature
 impl<'de> Deserialize<'de> for StrandSignature {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where

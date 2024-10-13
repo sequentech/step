@@ -162,6 +162,7 @@ pub async fn get_election_event_stats(
             email_verified: None,
             sort: None,
             has_voted: None,
+            authorized_to_election_alias: None,
         },
     )
     .await

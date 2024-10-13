@@ -20,10 +20,6 @@ pub async fn read_export_data(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<Vec<TasksExecution>> {
-    let client = KeycloakAdminClient::new().await?;
-    let other_client = KeycloakAdminClient::pub_new().await?;
-    let board_name = get_event_realm(tenant_id, election_event_id);
-    let realm = client.get_realm(&other_client, &board_name).await?;
     let tasks = get_tasks_by_election_event_id(&transaction, tenant_id, election_event_id).await?;
 
     Ok(tasks)
@@ -51,7 +47,7 @@ pub async fn write_export_document(
             file_size,
             "application/json",
             &first_task.tenant_id.to_string(),
-            &first_task.election_event_id.to_string(),
+            Some(first_task.election_event_id.to_string()),
             &name,
             Some(document_id.to_string()),
             false,

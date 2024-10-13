@@ -607,6 +607,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 label={getAttributeLabel(displayName)}
                                 onChange={handleChange}
                                 source={attr.name}
+                                required={attr.name === "username"}
                                 disabled={attr.name === "username" && !createMode}
                             />
                         )}

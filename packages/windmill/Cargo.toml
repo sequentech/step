@@ -16,7 +16,6 @@ default = ["fips_full"]
 fips_core = ["dep:postgres-openssl", "dep:openssl", "dep:ecies"]
 fips_full = ["dep:postgres-openssl", "dep:openssl", "dep:ecies"]
 
-
 [dependencies]
 rocket = { version = "0.5.0", features = ["json"] }
 serde = { version = "1.0.190", features = ["derive"] }
@@ -68,9 +67,9 @@ aws-sdk-s3 = "1.11.0"
 aws-smithy-types = "1.1.1"
 
 wrap-map-err = { path = "../wrap-map-err" }
-immu-board = { path="../immu-board" }
 immudb-rs = { path="../immudb-rs" }
-board-messages = { path="../board-messages" }
+b3 = { path="../b3", features = ["client"] }
+electoral-log = { path="../electoral-log" }
 strand = { path="../strand" }
 sequent-core = { path="../sequent-core", features = ["reports", "keycloak", "log", "probe", "areas"] }
 velvet = { path="../velvet" }

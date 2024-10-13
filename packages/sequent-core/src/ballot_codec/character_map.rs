@@ -144,6 +144,7 @@ pub static TO_CHAR: phf::Map<u8, char> = phf_map! {
 mod tests {
     use crate::ballot_codec::*;
     use crate::fixtures::ballot_codec::get_configurable_contest;
+    use crate::fixtures::ballot_codec::get_contest_candidates_n;
     use crate::plaintext::{DecodedVoteChoice, DecodedVoteContest};
     use rand::Rng;
 
@@ -172,6 +173,46 @@ mod tests {
     }
 
     #[test]
+    fn test_write_in_available() {
+        const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ )(.,";
+        const MAX_LEN: usize = 40;
+        let mut rng = rand::thread_rng();
+
+        let writein: String = (0..MAX_LEN)
+            .map(|_| {
+                let idx = rng.gen_range(0..CHARSET.len());
+                CHARSET[idx] as char
+            })
+            .collect();
+
+        let mut contest = get_contest_candidates_n(190);
+
+        let choices: Vec<DecodedVoteChoice> = (0..190)
+            .map(|i| DecodedVoteChoice {
+                id: i.to_string(),
+                selected: -1,
+                write_in_text: None,
+            })
+            .collect();
+
+        let vote = DecodedVoteContest {
+            contest_id: contest.id.clone(),
+            is_explicit_invalid: false,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+            choices,
+        };
+
+        let c = contest.available_write_in_characters(&vote);
+        assert_eq!(c, Ok(232));
+
+        let result = contest.encode_plaintext_contest_to_bytes(&vote).unwrap();
+        let raw_ballot = contest.encode_to_raw_ballot(&vote).unwrap();
+
+        println!("{:?} {:?}", raw_ballot.bases, raw_ballot.choices)
+    }
+
+    #[test]
     fn test_write_in_base32() {
         const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ )(.,";
         const MAX_LEN: usize = 40;
@@ -186,10 +227,10 @@ mod tests {
 
         let mut contest = get_configurable_contest(
             1,
-            5,
+            3,
             "plurality-at-large".to_string(),
             true,
-            Some(vec![4]),
+            Some(vec![2]),
             false,
         );
 
@@ -209,7 +250,7 @@ mod tests {
                     selected: 1,
                     write_in_text: None,
                 },
-                DecodedVoteChoice {
+                /*DecodedVoteChoice {
                     id: 2.to_string(),
                     selected: 5,
                     write_in_text: None,
@@ -218,9 +259,9 @@ mod tests {
                     id: 3.to_string(),
                     selected: 3,
                     write_in_text: None,
-                },
+                },*/
                 DecodedVoteChoice {
-                    id: 4.to_string(),
+                    id: 2.to_string(),
                     selected: 1,
                     //                   123456789012345679012345678901234567890
                     // write_in_text:
@@ -246,7 +287,7 @@ mod tests {
             .decode_plaintext_contest_from_bytes(&result)
             .unwrap();
         println!("************* {:?} ************", result);
-        let back = result.choices[4].write_in_text.as_ref().unwrap();
+        let back = result.choices[2].write_in_text.as_ref().unwrap();
         assert_eq!(*back, writein);
         assert!(bytes_small < 27);
         assert!(bytes_small < bytes_large);

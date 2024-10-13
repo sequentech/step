@@ -10,15 +10,16 @@ use serde::Serialize;
 use strum::Display;
 use tracing::info;
 
-use board_messages::braid::artifact::Configuration;
-use board_messages::braid::message::Message;
-use board_messages::braid::message::VerifiedMessage;
-use board_messages::braid::newtypes::*;
-use board_messages::braid::statement::StatementType;
+use b3::messages::artifact::Configuration;
+use b3::messages::message::Message;
+use b3::messages::message::VerifiedMessage;
+use b3::messages::newtypes::*;
+use b3::messages::statement::StatementType;
 
-use crate::protocol::board::immudb::ImmudbBoard;
+use crate::protocol::board::grpc_m::GrpcB3;
+use crate::protocol::board::Board;
 use crate::protocol::predicate::Predicate;
-use crate::protocol::trustee::Trustee;
+use crate::protocol::trustee2::Trustee;
 
 use crate::util::dbg_hash;
 use crate::verify::datalog::Target;
@@ -114,15 +115,20 @@ enum Check {
 
 pub struct Verifier<C: Ctx> {
     trustee: Trustee<C>,
-    board: ImmudbBoard,
+    board: GrpcB3,
+    board_name: String,
 }
 impl<C: Ctx> Verifier<C> {
-    pub fn new(trustee: Trustee<C>, board: ImmudbBoard) -> Verifier<C> {
-        Verifier { trustee, board }
+    pub fn new(trustee: Trustee<C>, board: GrpcB3, board_name: &str) -> Verifier<C> {
+        Verifier {
+            trustee,
+            board,
+            board_name: board_name.to_string(),
+        }
     }
 
     pub async fn run(&mut self) -> Result<()> {
-        let mut vr = VerificationResult::new(&self.board.board_dbname);
+        let mut vr = VerificationResult::new(&self.board_name);
         vr.add_target(Check::CONFIGURATION_VALID);
         vr.add_target(Check::MESSAGE_SIGNATURES_VALID);
         vr.add_target(Check::MESSAGES_CFG_VALID);
@@ -130,14 +136,21 @@ impl<C: Ctx> Verifier<C> {
 
         info!(
             "{}",
-            format!("Verifying board '{}'", self.board.board_dbname).bold()
+            format!("Verifying board '{}'", self.board_name).bold()
         );
 
-        let messages = self.board.get_messages(None).await?;
+        let messages = self.board.get_messages(&self.board_name, -1).await?;
+        let messages: Vec<(Message, i64)> = messages
+            .iter()
+            .map(|m| (Message::strand_deserialize(&m.message).unwrap(), m.id))
+            .collect();
+        // discard ids here
+        // let messages: Vec<Message> = messages.into_iter().map(|(m, id)| m).collect();
 
         let cfg_message: Vec<&Message> = messages
             .iter()
-            .filter(|m| m.statement.get_kind() == StatementType::Configuration)
+            .filter(|m| m.0.statement.get_kind() == StatementType::Configuration)
+            .map(|m| &m.0)
             .collect();
 
         assert_eq!(cfg_message.len(), 1);
@@ -159,23 +172,26 @@ impl<C: Ctx> Verifier<C> {
             &dbg_hash(&cfg_h),
         );
 
-        // Verify message signatures
-
-        info!("Verifying signatures for {} messages..", messages.len());
-        let vmessages: Result<Vec<VerifiedMessage>> =
-            messages.iter().map(|m| m.verify(&cfg)).collect();
-        let vmessages = vmessages?;
-        vr.add_result(Check::MESSAGE_SIGNATURES_VALID, true, &vmessages.len());
+        // Ensure that all messages refer to the correct configuration
 
         let correct_cfg = messages
             .iter()
-            .filter(|m| m.statement.get_cfg_h() == cfg_h)
+            .filter(|m| m.0.statement.get_cfg_h() == cfg_h)
             .count();
         vr.add_result(
             Check::MESSAGES_CFG_VALID,
             correct_cfg == messages.len(),
             &dbg_hash(&cfg_h),
         );
+
+        // Verify message signatures
+
+        info!("Verifying signatures for {} messages..", messages.len());
+
+        let vmessages: Result<Vec<VerifiedMessage>> =
+            messages.iter().map(|m| m.0.verify(&cfg)).collect();
+        let vmessages = vmessages?;
+        vr.add_result(Check::MESSAGE_SIGNATURES_VALID, true, &vmessages.len());
 
         // Derive per-batch verification targets
 
@@ -199,9 +215,10 @@ impl<C: Ctx> Verifier<C> {
         // Run verifying actions
 
         info!("{}", "Running verifying actions..".blue());
-        let messages = self.trustee.verify(messages)?;
+        // Trustee running in verifier mode
+        let output_messages = self.trustee.verify(messages)?;
         info!("{}", "Verifying actions complete".blue());
-        for message in messages {
+        for message in output_messages {
             let predicate =
                 Predicate::from_statement::<C>(&message.statement, VERIFIER_INDEX, &cfg)?;
             info!("Verifying action yields predicate [{}]", predicate);

@@ -55,9 +55,6 @@
     python3
     python3Packages.virtualenvwrapper
 
-    # for producing airgapped environment
-    xz
-
     # for parsing docker-compose.yml
     yq
   ];
@@ -68,6 +65,7 @@
   enterShell = ''
     set -a
     source .devcontainer/.env
+    export LD_LIBRARY_PATH=${pkgs.openssl.out}/lib:$LD_LIBRARY_PATH
     export PATH=/workspaces/step/packages/step-cli/rust-local-target/release:$PATH
     set +a
   '';

@@ -34,7 +34,7 @@ use crate::services::ceremonies::tally_ceremony::get_tally_session_by_id::{
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
 use anyhow::{anyhow, Context, Result};
-use board_messages::braid::newtypes::BatchNumber;
+use b3::messages::newtypes::BatchNumber;
 use deadpool_postgres::Transaction;
 use futures::try_join;
 use sequent_core::serialization::deserialize_with_path::*;
@@ -238,6 +238,7 @@ fn get_area_contests_for_election_ids(
 pub async fn create_tally_ceremony(
     transaction: &Transaction<'_>,
     tenant_id: String,
+    user_id: &str,
     election_event_id: String,
     election_ids: Vec<String>,
     configuration: Option<TallySessionConfiguration>,
@@ -336,7 +337,8 @@ pub async fn create_tally_ceremony(
     let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
         .with_context(|| "missing bulletin board")?;
 
-    let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
+    // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
+    let electoral_log = ElectoralLog::for_admin_user(&board_name, &tenant_id, user_id).await?;
     electoral_log
         .post_key_insertion_start(election_event_id.clone())
         .await
@@ -603,7 +605,10 @@ pub async fn set_private_key(
     let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
         .with_context(|| "missing bulletin board")?;
 
-    let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
+    let user_id = &claims.hasura_claims.user_id;
+
+    // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
+    let electoral_log = ElectoralLog::for_admin_user(&board_name, &tenant_id, user_id).await?;
     electoral_log
         .post_key_insertion(election_event_id.to_string(), found_trustee.name.clone())
         .await

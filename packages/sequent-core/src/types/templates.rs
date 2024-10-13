@@ -58,7 +58,7 @@ pub enum TemplateMethod {
 pub struct EmailConfig {
     pub subject: String,
     pub plaintext_body: String,
-    pub html_body: String,
+    pub html_body: Option<String>,
 }
 
 #[derive(Deserialize, Debug, Serialize, Clone)]

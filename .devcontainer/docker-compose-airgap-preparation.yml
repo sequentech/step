@@ -9,18 +9,12 @@ services:
     container_name: simplesamlphp
     ports:
       - "8083:8080"
-    volumes:
-      - ./simplesaml/authsources.php:/var/www/simplesamlphp/config/authsources.php
-      - ./simplesaml/saml20-sp-remote.php:/var/www/simplesamlphp/metadata/saml20-sp-remote.php
 
   # Needed to set up proper permissions for non root user in postgres
   postgres-volume-init:
     profiles: ["full", "base"]
     image: alpine:latest
     container_name: postgres-volume-init
-    volumes:
-      - db_logs:/logs
-      - keycloak_db_logs:/keycloak_logs
     user: root
     group_add:
       - '999'
@@ -31,9 +25,6 @@ services:
     image: ghcr.io/sequentech/step/postgres:latest
     container_name: postgres
     restart: unless-stopped
-    volumes:
-      - db_data:/var/lib/postgresql/data
-      - db_logs:/logs
     environment:
       POSTGRES_PASSWORD: ${HASURA_PG_PASSWORD}
     healthcheck:
@@ -53,8 +44,6 @@ services:
     ports:
       - "9000:9000"
       - "9001:9001"
-    volumes:
-      - minio_storage:/data
     environment:
       - MINIO_ROOT_USER=${AWS_S3_ROOT_USER}
       - MINIO_ROOT_PASSWORD=${AWS_S3_ROOT_PASSWORD}
@@ -69,8 +58,6 @@ services:
     image: nginx:latest
     ports:
       - "9002:9002"
-    volumes:
-      - ./minio/nginx:/etc/nginx/conf.d
     #image: minio/mc
     depends_on:
       - minio
@@ -79,9 +66,7 @@ services:
     profiles: ["full", "base"]
     container_name: configure-minio
     image: sequentech.local/configure-minio
-    build:
-      context: ./minio
-      dockerfile: Dockerfile
+    build: ./minio
     depends_on:
       - minio
     environment:
@@ -99,9 +84,7 @@ services:
     profiles: ["full", "base"]
     container_name: vault
     image: sequentech.local/vault
-    build:
-      context: ./vault
-      dockerfile: Dockerfile
+    build: ./vault
     restart: on-failure:10
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
@@ -114,8 +97,6 @@ services:
       VAULT_TOKEN: hvs.s0djsk0LLBI19K0DkW4Fajs7
     cap_add:
       - IPC_LOCK
-    volumes:
-      - vault-volume:/vault
     healthcheck:
       retries: 5
     entrypoint: /opt/vault/entrypoint.sh
@@ -127,9 +108,6 @@ services:
     ports:
       - "8080:8080"
     restart: always
-    volumes:
-      # FIXME: we need access to the migrations and metadata dir
-      - ../hasura:/workspaces/step/hasura
     environment:
       # applies migrations on start
       HASURA_GRAPHQL_MIGRATIONS_SERVER_TIMEOUT: 60
@@ -186,9 +164,6 @@ services:
     image: ghcr.io/sequentech/step/postgres:latest
     container_name: postgres-keycloak
     restart: unless-stopped
-    volumes:
-      - keycloak_db_data:/var/lib/postgresql/data
-      - keycloak_db_logs:/logs
     command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
     environment:
       POSTGRES_PASSWORD: ${KC_DB_PASSWORD}
@@ -227,9 +202,6 @@ services:
       APP_HASH: ${APP_HASH}
       KC_OTP_RESEND_INTERVAL: ${KC_OTP_RESEND_INTERVAL}
       HARVEST_DOMAIN: ${HARVEST_DOMAIN}
-    volumes:
-      # https://www.keycloak.org/server/containers#_importing_a_realm_on_startup
-      - ./keycloak/import:/opt/keycloak/data/import:z
     # Below we're using the dummy email email sender provider but that's just for
     # development, in production we should still use the default SMTP email provider
     #
@@ -295,9 +267,6 @@ services:
       - 3322:3322 # immudb service
       - 3324:9497 # prometheus
       - 3325:8080 # web console
-    volumes:
-      - immudb_data:/var/lib/immudb
-      - immudb_logs:/var/log/immudb
     depends_on:
       - immudb-init
     healthcheck:
@@ -384,8 +353,6 @@ services:
     stdin_open: true
     container_name: trustee1
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/braid:STEP_VERSION
-    volumes:
-      - ./trustees-data/trustee1/trustee1.toml:/opt/braid/trustee1.toml
     environment:
         IMMUDB_USER: ${IMMUDB_USER}
         IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
@@ -406,8 +373,6 @@ services:
     stdin_open: true
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/braid:STEP_VERSION
     container_name: trustee2
-    volumes:
-      - ./trustees-data/trustee2/trustee2.toml:/opt/braid/trustee2.toml
     depends_on:
       immudb:
         condition: service_healthy
@@ -428,8 +393,6 @@ services:
   #   stdin_open: true
   #   image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/braid:STEP_VERSION
   #   container_name: trustee3
-  #   volumes:
-  #     - ./trustees-data/trustee3/trustee3.toml:/opt/braid/trustee3.toml
   #   depends_on:
   #     immudb:
   #       condition: service_healthy
@@ -479,9 +442,6 @@ services:
       --immudb-host ${IMMUDB_HOST}
       --immudb-port ${IMMUDB_PORT}
       --immudb-database ${IMMUDB_LOGS_DB}
-    volumes:
-      - 'immudb_log_audit_data:/data'
-      - 'db_logs:/logs'
     environment:
       IMMUDB_LOG_AUDIT_PROBE_ADDR: ${IMMUDB_LOG_AUDIT_PROBE_ADDR}
       IMMUDB_LOG_AUDIT_PROBE_LIVE_PATH: ${IMMUDB_LOG_AUDIT_PROBE_LIVE_PATH}
@@ -521,9 +481,6 @@ services:
       --immudb-host ${IMMUDB_HOST}
       --immudb-port ${IMMUDB_PORT}
       --immudb-database ${IMMUDB_LOGS_DB}
-    volumes:
-      - 'keycloak_immudb_log_audit_data:/data'
-      - 'keycloak_db_logs:/logs'
 
   rabbitmq:
     profiles: ["full", "base"]
@@ -552,16 +509,12 @@ services:
       IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
       IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
       IMMUDB_BOARD_DB_NAME: ${IMMUDB_BOARD_DB_NAME}
-    volumes:
-      - ./keycloak/import:/import:z
     restart: always
 
   windmill:
     profiles: ["full", "base"]
     stdin_open: true
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/windmill:STEP_VERSION
-    volumes:
-      - ./keycloak/import:/workspaces/step/.devcontainer/keycloak/import
     restart: always
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
@@ -652,16 +605,3 @@ services:
       BEAT_PROBE_ADDR: ${BEAT_PROBE_ADDR}
       BEAT_PROBE_LIVE_PATH: ${BEAT_PROBE_LIVE_PATH}
       BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
-
-volumes:
-  db_data:
-  db_logs:
-  keycloak_db_logs:
-  immudb_log_audit_data:
-  keycloak_immudb_log_audit_data:
-  keycloak_db_data:
-  immudb_data:
-  immudb_logs:
-  minio_storage:
-  protocol_manager_data:
-  vault-volume:
