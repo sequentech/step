@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -20,7 +20,7 @@ use windmill::services::celery_app::get_celery_app;
 pub struct CreateStatisticalReportInput {
     tenant_id: String,
     election_event_id: String,
-    contest_id: String,
+    election_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -52,7 +52,8 @@ pub async fn create_statistical_report(
                 document_id.clone(),
                 input.tenant_id,
                 input.election_event_id,
-                input.contest_id,
+                input.election_id,
+                "contest_id".to_string(), //TODO: handle contest_id
             ),
         )
         .await

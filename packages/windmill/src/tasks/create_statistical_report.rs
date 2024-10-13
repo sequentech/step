@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -16,6 +16,7 @@ pub async fn generate_statistical_report(
     document_id: String,
     tenant_id: String,
     election_event_id: String,
+    election_id: String,
     contest_id: String,
 ) -> Result<()> {
     // Spawn the task using an async block
@@ -26,6 +27,7 @@ pub async fn generate_statistical_report(
                     &document_id,
                     &tenant_id,
                     &election_event_id,
+                    &election_id,
                     &contest_id,
                 )
                 .await

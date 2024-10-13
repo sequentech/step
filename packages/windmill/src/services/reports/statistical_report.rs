@@ -36,6 +36,7 @@ pub struct SystemData {
 pub struct StatisticalReportTemplate {
     tenant_id: String,
     election_event_id: String,
+    election_id: String,
     contest_id: String,
 }
 
@@ -95,12 +96,14 @@ pub async fn generate_statistical_report(
     document_id: &str,
     tenant_id: &str,
     election_event_id: &str,
+    election_id: &str,
     contest_id: &str,
 ) -> Result<()> {
     let template = StatisticalReportTemplate {
         tenant_id: tenant_id.to_string(),
         election_event_id: election_event_id.to_string(),
         contest_id: contest_id.to_string(),
+        election_id: election_id.to_string(),
     };
     template
         .execute_report(document_id, tenant_id, election_event_id)

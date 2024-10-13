@@ -1,17 +1,17 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::database::get_keycloak_pool;
+use crate::postgres::results_area_contest::ResultsAreaContest;
 use crate::services::users::count_keycloak_enabled_users_by_attr;
 use crate::{
     postgres::area_contest::get_areas_by_contest_id,
     services::users::count_keycloak_enabled_users_by_areas_id,
 };
-use anyhow::{anyhow, Context, Result};
-use deadpool_postgres::{Client as DbClient, Transaction};
-use sequent_core::services::keycloak::get_event_realm;
-use sequent_core::types::hasura::core::Contest;
-use serde_json::{from_value, Value};
+use anyhow::{anyhow, Result};
+use chrono::Local;
+use deadpool_postgres::Transaction;
+use sequent_core::types::hasura::core::{Contest, Election};
+use serde_json::Value;
 use tracing::instrument;
 
 pub const COUNTRY_ATTR_NAME: &str = "country";
@@ -74,27 +74,17 @@ pub async fn genereate_total_number_of_expected_votes_for_contest(
 
 #[instrument(err, skip_all)]
 pub async fn genereate_total_number_of_under_votes(
-    results_area_contest_annotations: &Value,
+    results_area_contest: &ResultsAreaContest,
 ) -> Result<(i64)> {
-    let annotitions = results_area_contest_annotations.clone();
-    let blank_votes = annotitions
-        .get("blank_votes")
-        .unwrap_or(&serde_json::Value::from(0))
-        .as_i64()
-        .unwrap_or(0);
-    let implicit_invalid_votes = annotitions
-        .get("implicit_invalid_votes")
-        .unwrap_or(&serde_json::Value::from(0))
-        .as_i64()
-        .unwrap_or(0);
-    let explicit_invalid_votes = annotitions
-        .get("explicit_invalid_votes")
-        .unwrap_or(&serde_json::Value::from(0))
-        .as_i64()
-        .unwrap_or(0);
+    let blank_votes = results_area_contest.blank_votes.unwrap_or(0);
+    let implicit_invalid_votes = results_area_contest.implicit_invalid_votes.unwrap_or(0);
+    let explicit_invalid_votes = results_area_contest.explicit_invalid_votes.unwrap_or(0);
+
+    let annotitions = results_area_contest.annotations.clone();
 
     let under_votes = annotitions
-        .get("extended_metrics")
+        .as_ref()
+        .and_then(|annotations| annotations.get("extended_metrics"))
         .and_then(|extended_metric| extended_metric.get("under_votes"))
         .and_then(|under_vote| under_vote.as_i64())
         .unwrap_or(0);
@@ -106,15 +96,10 @@ pub async fn genereate_total_number_of_under_votes(
 
 #[instrument(err, skip_all)]
 pub async fn genereate_fill_up_rate(
-    results_area_contest_annotations: &Value,
+    results_area_contest: &ResultsAreaContest,
     nun_of_expected_voters: &i64,
 ) -> Result<(i64)> {
-    let annotitions = results_area_contest_annotations.clone();
-    let total_votes = annotitions
-        .get("total_votes")
-        .unwrap_or(&serde_json::Value::from(0))
-        .as_i64()
-        .unwrap_or(0);
+    let total_votes = results_area_contest.total_votes.unwrap_or(0);
 
     let fill_up_rate = (total_votes / nun_of_expected_voters) * 100;
     Ok(fill_up_rate)
@@ -151,4 +136,68 @@ pub async fn get_total_number_of_registered_voters_for_country(
     .await
     .map_err(|err| anyhow!("Error getting count of enabeld users by country attribute: {err}"))?;
     Ok(num_of_registerd_voters_by_country)
+}
+pub struct ElectionData {
+    pub country: String,
+    pub geographical_region: String,
+    pub voting_center: String,
+    pub clustered_precinct_id: String,
+    pub post: String,
+}
+
+#[instrument(err, skip_all)]
+pub async fn extract_eleciton_data(election: &Election) -> Result<ElectionData> {
+    let annotitions = election.annotations.clone();
+    let mut geographical_region = "";
+    let mut voting_center = "";
+    let mut clustered_precinct_id = "";
+    let mut country = "";
+    match &annotitions {
+        Some(annotitions) => {
+            geographical_region = annotitions
+                .get("geographical_region")
+                .and_then(|geographical_region| geographical_region.as_str())
+                .unwrap_or("");
+            voting_center = annotitions
+                .get("voting_center")
+                .and_then(|voting_center| voting_center.as_str())
+                .unwrap_or("");
+            clustered_precinct_id = annotitions
+                .get("clustered_precinct_id")
+                .and_then(|clustered_precinct_id| clustered_precinct_id.as_str())
+                .unwrap_or("");
+            country = annotitions
+                .get("country")
+                .and_then(|country| country.as_str())
+                .unwrap_or("");
+        }
+        None => {}
+    }
+    let post = election
+        .name
+        .clone()
+        .split("-")
+        .next()
+        .unwrap_or("")
+        .trim_end()
+        .to_string();
+
+    Ok(ElectionData {
+        country: country.to_string(),
+        geographical_region: geographical_region.to_string(),
+        voting_center: voting_center.to_string(),
+        clustered_precinct_id: clustered_precinct_id.to_string(),
+        post,
+    })
+}
+
+#[instrument(err, skip_all)]
+pub async fn get_date_and_time() -> Result<(String, String)> {
+    let current_date_time = Local::now();
+    let date = current_date_time
+        .date_naive()
+        .format("%Y-%m-%d")
+        .to_string();
+    let time = current_date_time.time().format("%H:%M:%S").to_string();
+    Ok((date, time))
 }
