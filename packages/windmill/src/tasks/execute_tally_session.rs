@@ -903,13 +903,15 @@ pub async fn execute_tally_session_wrapped(
         return Ok(());
     };
 
-    let report_content_template_id:Option<String> = get_template_id_for_report(
+    let report_content_template_id: Option<String> = get_template_id_for_report(
         hasura_transaction,
         &tenant_id,
         &election_event_id,
         &ReportType::ELECTORAL_RESULTS,
-        None).await
-        .with_context(|| "Error finding template id from reports")?;
+        None,
+    )
+    .await
+    .with_context(|| "Error finding template id from reports")?;
 
     let report_content_template: Option<String> =
         if let Some(template_id) = report_content_template_id {

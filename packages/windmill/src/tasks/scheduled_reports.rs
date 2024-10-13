@@ -10,28 +10,28 @@ use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use chrono::{DateTime, Duration, Local, NaiveDateTime, Utc};
 use cron::Schedule;
-use uuid::Uuid;
 use std::str::FromStr;
-use tracing::{event, info, instrument, Level, error};
+use tracing::{error, event, info, instrument, Level};
+use uuid::Uuid;
 
 /// Parse the next scheduled time for the report using the cron expression.
 /// Returns the next run time if it is due within the current time window.
 #[instrument]
-pub fn get_next_scheduled_time(
-    report: &Report,
-) -> Option<DateTime<Local>> {
-
+pub fn get_next_scheduled_time(report: &Report) -> Option<DateTime<Local>> {
     let now = ISO8601::now();
     let Some(cron_config) = report.cron_config.clone() else {
         return None;
     };
- 
+
     let cron_expression = cron_config.cron_expression.clone();
 
     let schedule = match Schedule::from_str(&cron_expression) {
         Ok(schedule) => schedule,
         Err(err) => {
-            error!("Failed to parse cron expression for report id {}: {}", report.id, err);
+            error!(
+                "Failed to parse cron expression for report id {}: {}",
+                report.id, err
+            );
             return None; // Return early if there's a parsing error
         }
     };
@@ -39,8 +39,11 @@ pub fn get_next_scheduled_time(
         Some(date_str) => parse_last_document_produced(date_str),
         None => Some(report.created_at),
     };
-    
-    info!("last_document_produced_date: {:?}", last_document_produced_date);
+
+    info!(
+        "last_document_produced_date: {:?}",
+        last_document_produced_date
+    );
     let last_run = match last_document_produced_date {
         Some(last_run) => last_run,
         None => {
@@ -56,13 +59,13 @@ pub fn get_next_scheduled_time(
     if let Some(next_run) = next_run {
         // Return the next run if it's in the past or due within the next minute
         if next_run <= now {
-            return Some(next_run.with_timezone(&Local))
+            return Some(next_run.with_timezone(&Local));
         } else {
-            return None
+            return None;
         }
     } else {
         // No next run found
-       return None
+        return None;
     }
 }
 
@@ -71,7 +74,10 @@ fn parse_last_document_produced(date_str: &str) -> Option<DateTime<Utc>> {
     match NaiveDateTime::parse_from_str(date_str, format) {
         Ok(naive_dt) => Some(naive_dt.and_utc()),
         Err(e) => {
-            error!("Failed to parse last_document_produced '{}': {}", date_str, e);
+            error!(
+                "Failed to parse last_document_produced '{}': {}",
+                date_str, e
+            );
             None
         }
     }
@@ -90,13 +96,12 @@ pub async fn scheduled_reports() -> Result<()> {
     let one_minute_later = now + Duration::minutes(1);
 
     let mut hasura_db_client: DbClient = get_hasura_pool()
-    .await
-    .get()
-    .await
-    .map_err(|e| anyhow!("Error getting hasura client: {e}"))?;
+        .await
+        .get()
+        .await
+        .map_err(|e| anyhow!("Error getting hasura client: {e}"))?;
 
-    let hasura_transaction =
-        hasura_db_client.transaction().await?;
+    let hasura_transaction = hasura_db_client.transaction().await?;
 
     // Fetch all active reports from the database
     let active_reports = get_all_active_reports(&hasura_transaction).await?;
@@ -112,11 +117,10 @@ pub async fn scheduled_reports() -> Result<()> {
             formatted_date < one_minute_later
         })
         .collect::<Vec<_>>();
-    
+
     info!("Found {} reports to be run now", to_be_run_now.len());
     // Schedule the task for each report that needs to run
     for report in to_be_run_now {
-
         let Some(datetime) = get_next_scheduled_time(report) else {
             continue;
         };
@@ -130,17 +134,10 @@ pub async fn scheduled_reports() -> Result<()> {
             )
             .await?;
 
-        update_report_last_document_time(
-            &hasura_transaction,
-            &report.tenant_id,
-            &report.id,
-        ).await?;
-        
-        event!(
-            Level::INFO,
-            "Scheduled report task with id: {}",
-            report.id
-        );
+        update_report_last_document_time(&hasura_transaction, &report.tenant_id, &report.id)
+            .await?;
+
+        event!(Level::INFO, "Scheduled report task with id: {}", report.id);
     }
 
     let _commit = hasura_transaction.commit().await?;

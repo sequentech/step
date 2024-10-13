@@ -19,9 +19,8 @@ use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::fmt::Debug;
-use tracing::{info, instrument, warn};
 use strum_macros::{Display, EnumString};
-
+use tracing::{info, instrument, warn};
 
 /// Trait that defines the behavior for rendering templates
 #[async_trait]
@@ -68,9 +67,10 @@ pub trait TemplateRenderer: Debug {
             &self.get_tenant_id(),
             &self.get_election_event_id(),
             report_type,
-            None)
-            .await
-            .with_context(|| "Error getting template id for report")?;
+            None,
+        )
+        .await
+        .with_context(|| "Error getting template id for report")?;
 
         let template_id = match report_template_id {
             Some(id) => id,
@@ -81,13 +81,10 @@ pub trait TemplateRenderer: Debug {
         };
 
         // Get the template by ID and return its value:
-        let template_data_opt = template::get_template_by_id(
-            &transaction,
-            &self.get_tenant_id(),
-            &template_id,
-        )
-        .await
-        .with_context(|| "Error getting template by id")?;
+        let template_data_opt =
+            template::get_template_by_id(&transaction, &self.get_tenant_id(), &template_id)
+                .await
+                .with_context(|| "Error getting template by id")?;
 
         let tpl_document: Option<&str> = match &template_data_opt {
             Some(template_data) => template_data
@@ -200,7 +197,7 @@ pub trait TemplateRenderer: Debug {
         )
         .await
         .map_err(|err| anyhow!("Error uploading document: {err}"))?;
-      
+
         if self.should_send_email(is_scheduled_task) {
             let email_config = Self::get_email_config().clone();
             let email_receiever = self
@@ -208,9 +205,15 @@ pub trait TemplateRenderer: Debug {
                 .await
                 .map_err(|err| anyhow!("Error getting email receiver: {err}"))?;
             let email_sender = EmailSender::new().await?;
-            email_sender.send(email_receiever, email_config.subject, email_config.plaintext_body, rendered_system_template.clone())
-            .await
-            .map_err(|err| anyhow!("Error sending email: {err}"))?;
+            email_sender
+                .send(
+                    email_receiever,
+                    email_config.subject,
+                    email_config.plaintext_body,
+                    rendered_system_template.clone(),
+                )
+                .await
+                .map_err(|err| anyhow!("Error sending email: {err}"))?;
         }
 
         Ok(())
@@ -236,7 +239,9 @@ pub trait TemplateRenderer: Debug {
 
                 let realm = get_event_realm(tenant_id, election_event_id);
                 let voter = client.get_user(&realm, &voter_id).await?;
-                voter.email.ok_or_else(|| anyhow!("Error sending email: no email provided"))
+                voter
+                    .email
+                    .ok_or_else(|| anyhow!("Error sending email: no email provided"))
             }
         }
     }

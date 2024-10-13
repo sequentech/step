@@ -1,14 +1,13 @@
 use anyhow::{anyhow, Context, Result};
-use chrono::{DateTime, Utc, Local};
+use chrono::{DateTime, Local, Utc};
 use deadpool_postgres::Transaction;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tokio_postgres::row::Row;
-use uuid::Uuid;
-use tracing::{info, instrument};
 use strum_macros::{Display, EnumString};
-
+use tokio_postgres::row::Row;
+use tracing::{info, instrument};
+use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Clone)]
 pub struct ReportCronConfig {
@@ -46,18 +45,9 @@ pub struct Report {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(
-    Display,
-    Serialize,
-    Deserialize,
-    Debug,
-    PartialEq,
-    Eq,
-    Clone,
-    EnumString,
-)]
+#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
 pub enum ReportType {
-    MANUAL_VERIFICATION, 
+    MANUAL_VERIFICATION,
     BALLOT_RECEIPT,
     ELECTORAL_RESULTS,
 }
@@ -68,21 +58,17 @@ impl TryFrom<Row> for ReportWrapper {
     type Error = anyhow::Error;
 
     fn try_from(item: Row) -> Result<Self> {
-        let cron_config_js: Option<Value> = item.try_get("cron_config")
-        .map_err(|err| anyhow!("Error deserializing cron_config: {err}"))?;
+        let cron_config_js: Option<Value> = item
+            .try_get("cron_config")
+            .map_err(|err| anyhow!("Error deserializing cron_config: {err}"))?;
         info!("cron_config wrapper: {:?}", cron_config_js);
-        let cron_config: Option<ReportCronConfig> = cron_config_js.map(|val| serde_json::from_value(val).unwrap_or_default());
+        let cron_config: Option<ReportCronConfig> =
+            cron_config_js.map(|val| serde_json::from_value(val).unwrap_or_default());
         info!("cron_config wrapper: {:?}", cron_config);
         Ok(ReportWrapper(Report {
-            id: item
-                .try_get::<_, Uuid>("id")?
-                .to_string(),
-            election_event_id: item
-                .try_get::<_, Uuid>("election_event_id")?
-                .to_string(),
-            tenant_id: item
-                .try_get::<_, Uuid>("tenant_id")?
-                .to_string(),
+            id: item.try_get::<_, Uuid>("id")?.to_string(),
+            election_event_id: item.try_get::<_, Uuid>("election_event_id")?.to_string(),
+            tenant_id: item.try_get::<_, Uuid>("tenant_id")?.to_string(),
             election_id: item
                 .try_get::<_, Option<Uuid>>("election_id")?
                 .map(|val| val.to_string()),
@@ -95,9 +81,7 @@ impl TryFrom<Row> for ReportWrapper {
 }
 
 #[instrument(skip(hasura_transaction), err)]
-pub async fn get_all_active_reports(
-    hasura_transaction: &Transaction<'_>,
-) -> Result<Vec<Report>> {
+pub async fn get_all_active_reports(hasura_transaction: &Transaction<'_>) -> Result<Vec<Report>> {
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -116,8 +100,7 @@ pub async fn get_all_active_reports(
     let reports = rows
         .into_iter()
         .map(|row| -> Result<Report> {
-            row.try_into()
-                .map(|res: ReportWrapper| -> Report { res.0 })
+            row.try_into().map(|res: ReportWrapper| -> Report { res.0 })
         })
         .collect::<Result<Vec<Report>>>()
         .with_context(|| "Error converting rows into Report")?;
@@ -130,10 +113,9 @@ pub async fn update_report_last_document_time(
     tenant_id: &str,
     id: &str,
 ) -> Result<()> {
-    let tenant_uuid: Uuid = Uuid::parse_str(tenant_id)
-        .with_context(|| "Error parsing tenant_id as UUID")?;
-    let id_uuid: Uuid = Uuid::parse_str(id)
-        .with_context(|| "Error parsing id as UUID")?;
+    let tenant_uuid: Uuid =
+        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let id_uuid: Uuid = Uuid::parse_str(id).with_context(|| "Error parsing id as UUID")?;
 
     let statement = hasura_transaction
         .prepare(
@@ -171,8 +153,7 @@ pub async fn get_report_by_id(
 ) -> Result<Option<Report>> {
     let tenant_uuid: Uuid =
         Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
-    let id_uuid: Uuid =
-        Uuid::parse_str(id).with_context(|| "Error parsing id as UUID")?;
+    let id_uuid: Uuid = Uuid::parse_str(id).with_context(|| "Error parsing id as UUID")?;
 
     let statement = hasura_transaction
         .prepare(
@@ -193,8 +174,7 @@ pub async fn get_report_by_id(
     let reports = rows
         .into_iter()
         .map(|row| -> Result<Report> {
-            row.try_into()
-                .map(|res: ReportWrapper| -> Report { res.0 })
+            row.try_into().map(|res: ReportWrapper| -> Report { res.0 })
         })
         .collect::<Result<Vec<Report>>>()
         .with_context(|| "Error converting rows into Report")?;
@@ -210,13 +190,12 @@ pub async fn get_template_id_for_report(
     report_type: &ReportType,
     election_id: Option<&str>,
 ) -> Result<Option<String>> {
-    let tenant_uuid = Uuid::parse_str(tenant_id)
-        .with_context(|| "Error parsing tenant_id as UUID")?;
+    let tenant_uuid =
+        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
     let election_event_uuid = Uuid::parse_str(election_event_id)
         .with_context(|| "Error parsing election_event_id as UUID")?;
     let election_uuid = if let Some(election_id) = election_id {
-        Some(Uuid::parse_str(election_id)
-            .with_context(|| "Error parsing election_id as UUID")?)
+        Some(Uuid::parse_str(election_id).with_context(|| "Error parsing election_id as UUID")?)
     } else {
         None
     };

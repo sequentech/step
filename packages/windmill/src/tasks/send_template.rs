@@ -304,7 +304,6 @@ pub async fn send_template_email(
     sender: &EmailSender,
 ) -> Result<Option<String>> {
     if let (Some(receiver), Some(config)) = (receiver, template) {
-
         let subject = reports::render_template_text(config.subject.as_str(), variables.clone())
             .map_err(|err| anyhow!("Error rendering subject template: {err:?}"))?;
 

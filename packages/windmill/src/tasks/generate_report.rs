@@ -1,13 +1,13 @@
 use crate::postgres::reports::Report;
 use crate::services::celery_app::get_celery_app;
-use crate::services::pg_lock::PgLock;
 use crate::services::database::get_hasura_pool;
 use crate::services::date::ISO8601;
-use crate::services::reports::template_renderer::{TemplateRenderer};
-use celery::error::TaskError;
+use crate::services::pg_lock::PgLock;
+use crate::services::reports::template_renderer::TemplateRenderer;
 use crate::types::error::Error;
 use crate::types::error::Result;
 use anyhow::{anyhow, Context};
+use celery::error::TaskError;
 use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
@@ -50,10 +50,7 @@ use uuid::Uuid;
 //     }
 // }
 
-pub async fn generate_report(
-    report: Report,
-    document_id: String,
-) -> Result<()> {
+pub async fn generate_report(report: Report, document_id: String) -> Result<()> {
     return Ok(());
     // // Create the template renderer based on the report type
     // let template_renderer = create_template_renderer(
@@ -70,20 +67,14 @@ pub async fn generate_report(
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
-pub async fn generate_report(
-    report: Report,
-    document_id: String,
-) -> Result<()> {
+pub async fn generate_report(report: Report, document_id: String) -> Result<()> {
     // Spawn the task using an async block
     let handle = tokio::task::spawn_blocking({
         move || {
             tokio::runtime::Handle::current().block_on(async move {
-                generate_report(
-                    report,
-                    document_id,
-                )
-                .await
-                .map_err(|err| anyhow!("{}", err))
+                generate_report(report, document_id)
+                    .await
+                    .map_err(|err| anyhow!("{}", err))
             })
         }
     });
