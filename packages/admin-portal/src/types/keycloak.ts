@@ -72,4 +72,5 @@ export enum IPermissions {
     SCHEDULED_EVENT_WRITE = "scheduled-event-write",
     REPORT_READ = "report-read",
     REPORT_WRITE = "report-write",
+    CLOUDFLARE_WRITE = "cloudflare-write",
 }

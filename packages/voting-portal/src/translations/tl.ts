@@ -122,6 +122,8 @@ const tagalogTranslation: TranslationType = {
                     "Nabigo sa pag-validate ng iyong boto. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
                 CAST_VOTE_UuidParseFailed:
                     "Nagkaroon ng error sa pagproseso ng iyong kahilingan. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
+                CAST_VOTE_unexpected:
+                    "Nagkaroon ng hindi kilalang error habang bumoboto. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
                 CAST_VOTE_UnknownError:
                     "Nagkaroon ng hindi kilalang error habang bumoboto. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
                 NO_BALLOT_SELECTION:
@@ -283,6 +285,7 @@ const tagalogTranslation: TranslationType = {
             explicit: {
                 notAllowed:
                     "Ang balota ay tahasang minarkahan upang mapawalang-bisa ngunit hindi ito pinapayagan ng tanong",
+                alert: "An seleksyon na minarkahan ibibilang na bakong balidong boto.",
             },
             page: {
                 oopsWithStatus: "Oops! {{status}}",

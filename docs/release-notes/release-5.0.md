@@ -10,31 +10,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 A new keycloak user attribute has been added to specify which election is a user
 authorized.
 
-### Migration: Add in Keycloaka new mapper to voting-portal client for Hasura
+### Migration: Add in Keycloaka new mapper to voting-portal client for Hasura & Harvest
 
 It requires to add to change the configuration a bit:
 1. Go to the Realm of the election event you want to configure
 2. Go to `Clients` > `Voting Portal` > `Client scopes` >
    `voting-portal-dedicated`
-3. Click on `Add mapper` > `By configuration` > `Hasura Multivalue User Attribute`
+3. Click on `Add mapper` > `By configuration` > `Authorized Election User Attribute`
 4. Put the following values:
    - Name: `x-hasura-authorized-election-ids`
    - User Attribute: `authorized-election-ids`
    - Token Claim Name: `https://hasura\.io/jwt/claims.x-hasura-authorized-election-ids`
    - Claim JSON Type: `String`
-5. Click `Save`
-   
-### Migration: Add in Keycloak a new mapper to voting-portal client for Harvest
-
-It requires to add to change the configuration a bit:
-1. Go to the Realm of the election event you want to configure
-2. Go to `Clients` > `Voting Portal` > `Client scopes` > `voting-portal-dedicated`
-3. Click on `Add mapper` > By configuration > Hasura Multivalue User Attribute
-4. Put the following values:
-    Name: `authorized-election-ids`
-    User Attribute: `authorized-election-ids`
-    Token Claim Name: `https://hasura\.io/jwt/claims.authorized-election-ids`
-    Claim JSON Type: `String`
 5. Click `Save`
 
 ### Migration: Add in Keycloak a new User Profile Attribute

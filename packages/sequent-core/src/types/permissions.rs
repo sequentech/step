@@ -149,7 +149,8 @@ pub enum Permissions {
     REPORT_WRITE,
     #[strum(serialize = "report-read")]
     REPORT_READ,
-
+    #[strum(serialize = "cloudflare-write")]
+    CLOUDFLARE_WRITE,
 }
 
 #[allow(non_camel_case_types)]

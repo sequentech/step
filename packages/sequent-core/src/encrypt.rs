@@ -51,10 +51,6 @@ pub fn encrypt_plaintext_candidate<C: Ctx>(
     plaintext: <C>::P,
     label: &[u8],
 ) -> Result<(ReplicationChoice<C>, Schnorr<C>), BallotError> {
-    // Possible contexts:
-    // let ctx = RistrettoCtx;
-    // let ctx: BigintCtx<P2048> = Default::default();
-
     // construct a public key from a provided element
     let pk = PublicKey::from_element(&public_key_element, ctx);
 

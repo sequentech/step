@@ -71,6 +71,16 @@ const frenchTranslation: TranslationType = {
                 action: "Créer une Zone",
             },
         },
+        lookAndFeelScreen: {
+            common: {
+                helpLinks: "Liens d'Aide",
+                logoUrl: "URL du Logo",
+                css: "CSS Personnalisé",
+            },
+            errors: {
+                invalidHelpLinks: "Format des Liens d'Aide invalide",
+            },
+        },
         electionTypeScreen: {
             noPermissions: "Vous n'avez pas la permission d'accéder à la configuration.",
             common: {
@@ -85,8 +95,6 @@ const frenchTranslation: TranslationType = {
                 createNew: "Créer un Type d'Élection",
                 emptyHeader: "Aucun Type d'Élection pour l'instant.",
                 emptyBody: "Voulez-vous en créer un ?",
-                logoUrl: "URL du Logo",
-                css: "CSS personnalisé",
             },
             create: {
                 title: "Créer un Type d'Élection",
@@ -99,6 +107,7 @@ const frenchTranslation: TranslationType = {
                 electionTypes: "TYPES D'ÉLECTION",
                 templates: "MODÈLES",
                 languages: "LANGUES",
+                localization: "LOCALISATION",
                 lookAndFeel: "PERSONNALISATION DE L'APPARENCE",
                 schedules: "ÉVÉNEMENTS PROGRAMMÉS",
                 trustees: "AUTORITÉS",
@@ -145,6 +154,15 @@ const frenchTranslation: TranslationType = {
             votersByChannels: "Votants par canaux",
             voterLoginURL: "URL de connexion des électeurs",
             voterEnrollURL: "URL d'inscription des électeurs",
+            ipAddress: {
+                emptyState: "Pas encore de votes.",
+                title: "IP Addresses",
+                ip: "IP",
+                country: "Pays",
+                VoteCount: "Nombre de votes",
+                ElectionName: "Nom de l'élection",
+                VotersId: "Identifiants des votants",
+            },
         },
         electionEventScreen: {
             common: {
@@ -340,8 +358,32 @@ const frenchTranslation: TranslationType = {
                     description:
                         "Vous n'avez pas entré le champ de Vérification de l'Intégrité (SHA-256). Confirmez que vous importez le fichier correct et que vous souhaitez l'importer.",
                 },
+                passwordDialog: {
+                    title: "Mot de passe de déchiffrement",
+                    description: "Entrez le mot de passe pour déchiffrer le fichier",
+                    label: "Mot de passe",
+                    copyPassword: "Copier le Mot de Passe",
+                    ok: "OK",
+                },
             },
-            exportError: "Erreur lors de l'exportation de l'événement électoral",
+            export: {
+                title: "Exporter l'Événement Électoral",
+                subtitle:
+                    "L'exportation peut être une opération longue. Êtes-vous sûr de vouloir exporter les enregistrements ?",
+                encryptWithPassword: "Chiffrer avec Mot de Passe",
+                includeVoters: "Inclure les Électeurs",
+                activityLogs: "Journaux d'Activité",
+                bulletinBoard: "Tableau d'Affichage",
+                publications: "Publications",
+                s3Files: "Fichiers S3",
+                scheduledEvents: "Événements Planifiés",
+                exportSuccess: "Événement Électoral exporté avec succès",
+                exportError: "Erreur lors de l'exportation de l'Événement Électoral",
+                passwordTitle: "Mot de Passe",
+                passwordDescription: "Mot de passe pour déchiffrer le fichier :",
+                copiedSuccess: "Mot de passe copié dans le presse-papiers",
+                copiedError: "Erreur lors de la copie",
+            },
             taskNotification:
                 "{{action}} a commencé. Vous pouvez voir son statut dans le tableau d'Exécution des Tâches.",
         },
@@ -742,6 +784,7 @@ const frenchTranslation: TranslationType = {
             usersAndRoles: "Utilisateurs et Rôles",
             logs: "Journaux",
             settings: "Configuration",
+            help: "Aide",
             templates: "Modèles",
             active: "Actifs",
             archived: "Archivés",
@@ -1222,7 +1265,7 @@ const frenchTranslation: TranslationType = {
                 richtext: "Corps de Texte Enrichi",
             },
         },
-        sendTemplate: {
+        sendCommunication: {
             send: "Envoyer",
             title: "Envoyer Notification",
             subtitle: "Envoyer une notification aux utilisateurs/électeurs.",
@@ -1250,11 +1293,11 @@ const frenchTranslation: TranslationType = {
                 voters: "électeurs",
             },
             methodTitle: "Méthode de Communication",
-            templateMethod: {
+            communicationMethod: {
                 EMAIL: "Email",
                 SMS: "SMS",
             },
-            templateType: {
+            communicationType: {
                 CREDENTIALS: "Identifiants",
                 BALLOT_RECEIPT: "Reçu de Vote",
                 PARTICIPATION_REPORT: "Rapport de Participation",

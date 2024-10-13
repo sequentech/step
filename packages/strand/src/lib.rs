@@ -162,6 +162,8 @@ pub mod elgamal;
 /// Wikstrom proof of shuffle following [TW10](https://www.csc.kth.se/~dog/research/papers/TW10Conf.pdf). See also [HLDK17](https://arbor.bfh.ch/8269/1/HLKD17.pdf).
 #[cfg(any(test, not(feature = "wasm")))]
 pub mod shuffler;
+#[cfg(any(test, not(feature = "wasm")))]
+pub mod shuffler_product;
 /// Distributed ElGamal threshold cryptosystem following [Pedersen91](https://link.springer.com/chapter/10.1007/3-540-46766-1_9).
 /// See also [CGGI13](https://members.loria.fr/VCortier/files/Papers/WPES2013.pdf).
 #[cfg(any(test, not(feature = "wasm")))]

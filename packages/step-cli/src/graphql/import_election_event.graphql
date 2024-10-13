@@ -8,4 +8,4 @@ mutation ImportElectionEvent($tenantId: String!, $documentId: String!, $checkOnl
             message
             error
         }
-    }
+}

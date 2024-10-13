@@ -113,7 +113,7 @@ impl RenderTemplate {
 
         // Determine the system template content based on the template type
         let system_template = match &self.template_type {
-            TemplateType::Custom => "{{rendered_user_template}}".to_string(),
+            TemplateType::Custom => "{{{rendered_user_template}}}".to_string(),
             TemplateType::ManualVerification => {
                 if let Some(system_template) = &self.system_template {
                     fs::read_to_string(system_template).map_err(|e| {
