@@ -7,6 +7,7 @@ extern crate quick_error;
 extern crate cfg_if;
 
 pub mod ballot;
+pub mod multi_ballot;
 pub mod ballot_style;
 pub mod error;
 pub mod types;

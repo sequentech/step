@@ -17,14 +17,18 @@ use num_traits::{ToPrimitive, Zero};
 
 /// A multi contest ballot.
 ///
+/// A multi contest ballot can be encoded in to a
+/// 30 byte representation allowing encrypting
+/// choices from multiple contests into a single ciphertext, 
+/// provided there is sufficient space.
+/// 
+/// An upper bound on the bytes needed to encode a multi contest ballot 
+/// can be computed with BallotChoices::maximum_size_bytes, given a list
+/// of contests.
+/// 
 /// This ballot only supports plurality counting
 /// algorithms. It does not support write-ins.
 /// It does not support per-contest invalid flags.
-///
-/// A multi contest ballot can be encoded in to a
-/// 30 byte representation suitable for encrypting
-/// the ballot into a single ciphertext, provided
-/// there is sufficient space.
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct BallotChoices {
     pub is_explicit_invalid: bool,
@@ -42,7 +46,10 @@ impl BallotChoices {
     }
 }
 
-/// The choices for a contest
+/// The choices for a contest.
+/// 
+/// Does not support write-ins.
+/// Does not support invalid flags.
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct ContestChoices {
     pub contest_id: String,
@@ -51,7 +58,6 @@ pub struct ContestChoices {
 impl ContestChoices {
     pub fn new(
         contest_id: String,
-        // is_explicit_invalid: bool,
         choices: Vec<ContestChoice>,
     ) -> Self {
         ContestChoices {
@@ -65,18 +71,22 @@ impl ContestChoices {
     Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone, Hash,
 )]
 
-/// A single choices within a Contest.
+/// A single choice within a Contest.
+/// 
+/// Does not support write-ins.
 pub struct ContestChoice {
-    pub id: String,
+    pub candidate_id: String,
     pub selected: i64,
 }
 impl ContestChoice {
-    pub fn new(id: String, selected: i64) -> Self {
-        ContestChoice { id, selected }
+    pub fn new(candidate_id: String, selected: i64) -> Self {
+        ContestChoice { candidate_id, selected }
     }
+
+    // pub fn to_
 }
 
-/// The choices for a contest
+/// The choices for a contest returned when decoding.
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct DecodedContestChoices {
     pub contest_id: String,
@@ -253,7 +263,7 @@ impl BallotChoices {
         let mut marked = 0;
         for p in &plaintext.choices {
             let (position, _candidate) =
-                candidates_map.get(&p.id).ok_or_else(|| {
+                candidates_map.get(&p.candidate_id).ok_or_else(|| {
                     "choice id is not a valid candidate".to_string()
                 })?;
 
@@ -704,7 +714,7 @@ mod tests {
             assert_eq!(inc.choices.len(), outc.choices.len());
 
             let mut inc = inc.choices.clone();
-            inc.sort_by_key(|c| c.id.clone());
+            inc.sort_by_key(|c| c.candidate_id.clone());
 
             let mut outc = outc.choices.clone();
             outc.sort_by_key(|c| c.clone().0);
@@ -712,7 +722,7 @@ mod tests {
             for (j, ic) in inc.iter().enumerate() {
                 let oc = outc[j].clone();
 
-                assert_eq!(ic.id, oc.0);
+                assert_eq!(ic.candidate_id, oc.0);
             }
         }
     }
@@ -756,7 +766,7 @@ mod tests {
                     }
                 }
 
-                assert_eq!(choice.id, candidate_ids[value - 1]);
+                assert_eq!(choice.candidate_id, candidate_ids[value - 1]);
 
                 index += 1;
             }
@@ -798,7 +808,7 @@ mod tests {
 
     fn random_choice(id: String) -> ContestChoice {
         let mut rng = rand::thread_rng();
-        // we do not include -1 here as this will cause the test to fail due to
+        // we do not include -1 here as an unset choice will cause the test to fail due to
         // 1) mismatched number of choices (an unset value does not produce a
         //    choice when decoding)
         // 2) number of choices below min_votes
@@ -909,7 +919,7 @@ mod tests {
                 "{}",
                 style.paint(format!(
                     "candidate-{} (selected = {})",
-                    self.id, self.selected
+                    self.candidate_id, self.selected
                 ))
             )
         }

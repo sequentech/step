@@ -12,6 +12,7 @@ use strand::util::StrandError;
 use strand::zkp::{Schnorr, Zkp};
 
 use crate::ballot::*;
+use crate::multi_ballot::{AuditableMultiBallot, AuditableMultiBallotContests, HashableMultiBallot, RawHashableMultiBallot};
 use crate::ballot_codec::multi_ballot::BallotChoices;
 use crate::ballot_codec::PlaintextCodec;
 use crate::error::BallotError;

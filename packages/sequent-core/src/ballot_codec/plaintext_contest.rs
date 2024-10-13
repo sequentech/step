@@ -67,16 +67,6 @@ impl PlaintextCodec for Contest {
         encode_bigint_to_bytes(&bigint)
     }
 
-    /*fn compact_encode_plaintext_contests_to_bytes(
-        contests: &Vec<Contest>,
-        plaintexts: &Vec<DecodedVoteContest>,
-    ) -> Result<Vec<u8>, String> {
-        let bigint = Self::compact_encode_plaintext_contests_bigint(
-            contests, plaintexts,
-        )?;
-        encode_bigint_to_bytes(&bigint)
-    }*/
-
     fn decode_plaintext_contest_from_bytes(
         &self,
         bytes: &[u8],
