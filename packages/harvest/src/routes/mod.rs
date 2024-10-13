@@ -30,7 +30,6 @@ pub mod miru_plugin;
 pub mod permissions;
 pub mod roles;
 pub mod scheduled_event;
-pub mod statistical_report;
 pub mod tally_ceremony;
 pub mod tally_sheets;
 pub mod upload_document;
