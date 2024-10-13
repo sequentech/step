@@ -46,6 +46,7 @@ const englishTranslation = {
                 IMPORT_CANDIDATES: "Import Candidates",
                 EXPORT_VOTERS: "Export Voters",
                 CREATE_TRANSMISSION_PACKAGE: "Create Transmission Package",
+                EXPORT_BALLOT_PUBLICATION: "Export Ballot Publication",
             },
             widget: {
                 taskTitle: "Task: {{title}}",

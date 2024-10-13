@@ -47,6 +47,7 @@ const tagalogTranslation: TranslationType = {
                 IMPORT_CANDIDATES: "I-import ang mga Kandidato",
                 EXPORT_VOTERS: "I-export ang mga botante",
                 CREATE_TRANSMISSION_PACKAGE: "Lumikha ng Transmission Package",
+                EXPORT_BALLOT_PUBLICATION: "I-export ang Paglalathala ng Balota",
             },
             widget: {
                 taskTitle: "Gawain: {{title}}",
