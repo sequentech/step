@@ -120,13 +120,15 @@ const CreateEvent: FC<CreateEventProps> = ({
                 scheduledDate: scheduleDate,
                 eventProcessor: eventType,
             }
-            const {errors} = await manageElectionDates({
+            const {data, errors} = await manageElectionDates({
                 variables,
             })
             setIsLoading(false)
             setIsOpenDrawer(false)
             refresh()
-            if (errors) {
+            if (data?.manage_election_dates?.error_msg) {
+                notify(data?.manage_election_dates?.error_msg, {type: "error"})
+            } else if (errors) {
                 notify(t("eventsScreen.messages.createError"), {type: "error"})
             } else {
                 notify(t("eventsScreen.messages.editSuccess"), {type: "success"})

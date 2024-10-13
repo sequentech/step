@@ -515,7 +515,7 @@ export type LogEventOutput = {
 
 export type ManageElectionDatesOutput = {
     __typename?: "ManageElectionDatesOutput"
-    something?: Maybe<Scalars["String"]["output"]>
+    error_msg?: Maybe<Scalars["String"]["output"]>
 }
 
 export type OptionalId = {

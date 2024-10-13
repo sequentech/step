@@ -272,6 +272,9 @@ export const ElectionDataForm: React.FC = () => {
 
             // defaults
             temp.num_allowed_revotes = temp.num_allowed_revotes || 1
+            temp.presentation.initialization_report_policy =
+                temp.presentation.initialization_report_policy ||
+                EInitializeReportPolicy.NOT_REQUIRED
             temp.presentation.grace_period_policy =
                 temp.presentation.grace_period_policy || EGracePeriodPolicy.NO_GRACE_PERIOD
             temp.presentation.grace_period_secs = temp.presentation.grace_period_secs || 0
@@ -280,6 +283,7 @@ export const ElectionDataForm: React.FC = () => {
                 temp.presentation.grace_period_policy = EGracePeriodPolicy.NO_GRACE_PERIOD
                 temp.presentation.grace_period_secs = 0
             }
+
             return temp
         },
         [data, tenantData?.voting_channels]
@@ -426,13 +430,6 @@ export const ElectionDataForm: React.FC = () => {
                 notify(t("electionScreen.error.fileError"), {type: "error"})
             }
         }
-    }
-
-    const gracePeriodPolicyChoices = () => {
-        return (Object.values(EGracePeriodPolicy) as EGracePeriodPolicy[]).map((value) => ({
-            id: value,
-            name: t(`electionScreen.gracePeriodPolicy.${value.toLowerCase()}`),
-        }))
     }
 
     const templateMethodChoices = () => {
