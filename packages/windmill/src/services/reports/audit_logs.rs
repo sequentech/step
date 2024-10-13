@@ -267,7 +267,7 @@ impl TemplateRenderer for AuditLogsTemplate {
         let date_printed_parsed = NaiveDate::parse_from_str(&current_date.to_string(), "%Y-%m-%d").expect("Failed to parse date");
     
         // Format the date to the desired format
-        date_printed = date_printed_parsed.format("%B %d, %Y").to_string();
+        let date_printed = date_printed_parsed.format("%B %d, %Y").to_string();
     
         // Fetch necessary data (dummy placeholders for now)
         let chairperson_name = "John Doe".to_string();
@@ -282,7 +282,6 @@ impl TemplateRenderer for AuditLogsTemplate {
         let system_hash = "dummy_system_hash".to_string();
         let file_logo = "logo.png".to_string();
         let file_qrcode_lib = "qrcode_lib.png".to_string();
-        let mut date_printed = "2024-10-13".to_string();
         let time_printed = "12:10".to_string();
         let printing_code = "XYZ123".to_string();
 
