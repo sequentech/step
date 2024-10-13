@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{instrument, Level};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
+use windmill::services::reports::election_event_activity_logs::ReportFormat;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ExportElectionEventInput {
@@ -33,7 +34,12 @@ pub async fn export_election_event_logs_route(
 ) -> Result<Json<ExportElectionEventOutput>, (Status, String)> {
     let body = input.into_inner();
 
-    info!("Export election event logs into {}", body.format);
+    let report_fmt = ReportFormat::from_str(&body.format).map_err(|error| {
+        (
+            Status::InternalServerError,
+            format!("Error sending export_election_event task: {error:?}"),
+        )
+    })?;
 
     authorize(
         &claims,
@@ -49,7 +55,7 @@ pub async fn export_election_event_logs_route(
                 claims.hasura_claims.tenant_id.clone(),
                 body.election_event_id.clone(),
                 document_id.clone(),
-                body.format.clone(),
+                report_fmt,
             ),
         )
         .await

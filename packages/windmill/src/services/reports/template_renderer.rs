@@ -184,22 +184,28 @@ pub trait TemplateRenderer: Debug {
         is_scheduled_task: bool,
         receiver: Option<String>,
     ) -> Result<()> {
+        // Generate report in html
         let rendered_system_template = self
             .generate_report()
             .await
             .map_err(|err| anyhow!("Error rendering report: {}", err))?;
 
+        let extension_suffix = "pdf";
         // Generate PDF
-        let bytes_pdf = pdf::html_to_pdf(rendered_system_template.clone())
-            .map_err(|err| anyhow!("Error rendering report to pdf: {}", err))?;
+        let content_bytes = pdf::html_to_pdf(rendered_system_template.clone())
+            .map_err(|err| anyhow!("Error rendering report to {}: {}", extension_suffix, err))?;
 
         let base_name = Self::base_name();
-        let report_prefix = self.prefix();
+        let fmt_extension = format!(".{}", extension_suffix);
+        let report_name: String = format!("{}{}", self.prefix(), fmt_extension);
 
         // Write temp file and upload
-        let (_temp_path, temp_path_string, file_size) =
-            write_into_named_temp_file(&bytes_pdf, format!("{base_name}-").as_str(), ".pdf")
-                .map_err(|err| anyhow!("Error writing to file: {err}"))?;
+        let (_temp_path, temp_path_string, file_size) = write_into_named_temp_file(
+            &content_bytes,
+            format!("{base_name}-").as_str(),
+            fmt_extension.as_str(),
+        )
+        .map_err(|err| anyhow!("Error writing to file: {err}"))?;
 
         let auth_headers = keycloak::get_client_credentials()
             .await
@@ -207,11 +213,11 @@ pub trait TemplateRenderer: Debug {
         let _document = upload_and_return_document(
             temp_path_string,
             file_size,
-            "application/pdf".to_string(),
+            format!("application/{}", extension_suffix),
             auth_headers.clone(),
             tenant_id.to_string(),
             election_event_id.to_string(),
-            format!("{report_prefix}.pdf"),
+            report_name,
             Some(document_id.to_string()),
             true,
         )

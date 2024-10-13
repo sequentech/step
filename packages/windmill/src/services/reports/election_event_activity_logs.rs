@@ -24,6 +24,21 @@ use tempfile::NamedTempFile;
 use tracing::{info, instrument};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum ReportFormat {
+    CSV,
+    PDF,
+}
+
+impl ReportFormat {
+    pub fn from_str(format_str: &str) -> Result<ReportFormat> {
+        match format_str {
+            "PDF" => Ok(ReportFormat::PDF),
+            "CSV" => Ok(ReportFormat::CSV),
+            _ => Err(anyhow!("Invalid report format: {}", format_str)),
+        }
+    }
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ActivityLogRow {
     id: i64,
     created: String,
@@ -55,7 +70,6 @@ pub struct SystemData {
 pub struct ActivityLogsTemplate {
     tenant_id: String,
     election_event_id: String,
-    format: String,
 }
 
 #[async_trait]
@@ -160,52 +174,6 @@ impl TemplateRenderer for ActivityLogsTemplate {
     }
 }
 
-// IN-PROGRESS...
-
-pub async fn read_export_data(
-    tenant_id: &str,
-    election_event_id: &str,
-    name: &str,
-) -> Result<NamedTempFile> {
-    let mut offset = 0;
-    let limit = PgConfig::from_env()?.default_sql_batch_size as i64;
-
-    // Create a temporary file to write CSV data
-    let mut temp_file =
-        generate_temp_file(&name, ".csv").with_context(|| "Error creating named temp file")?;
-    let mut csv_writer = WriterBuilder::new().from_writer(temp_file.as_file_mut());
-
-    loop {
-        let electoral_logs = list_electoral_log(GetElectoralLogBody {
-            tenant_id: String::from(tenant_id),
-            election_event_id: String::from(election_event_id),
-            limit: Some(limit),
-            offset: Some(offset),
-            filter: None,
-            order_by: None,
-        })
-        .await?;
-
-        for item in &electoral_logs.items {
-            csv_writer.serialize(item)?; // Serialize each item to CSV
-        }
-
-        let total = electoral_logs.total.aggregate.count;
-
-        if electoral_logs.items.is_empty() || offset >= total {
-            break;
-        }
-
-        offset += limit;
-    }
-
-    // Flush and finish writing to the temporary file
-    csv_writer.flush()?;
-    drop(csv_writer);
-
-    Ok(temp_file)
-}
-
 pub async fn write_export_document(
     transaction: &Transaction<'_>,
     temp_file: NamedTempFile,
@@ -233,12 +201,19 @@ pub async fn write_export_document(
     .await
 }
 
-pub async fn generate_activity_logs_report(
+pub async fn generate_activity_logs_report_csv(
     tenant_id: &str,
     election_event_id: &str,
     document_id: &str,
-    format: &str,
+    template: &ActivityLogsTemplate,
 ) -> Result<()> {
+    // Prepare user data
+    let act_log = template
+        .prepare_user_data()
+        .await
+        .map_err(|e| anyhow!("Error preparing activity logs data into csv: {e:?}"))?
+        .act_log;
+
     provide_hasura_transaction(|hasura_transaction| {
         let document_id = document_id.to_string();
         let tenant_id = tenant_id.to_string();
@@ -246,7 +221,16 @@ pub async fn generate_activity_logs_report(
         Box::pin(async move {
             // Your async code here
             let name = format!("export-election-event-logs-{}", election_event_id);
-            let temp_file = read_export_data(&tenant_id, &election_event_id, &name).await?;
+            // Create a temporary file to write CSV data
+            let mut temp_file = generate_temp_file(&name, ".csv")
+                .with_context(|| "Error creating named temp file")?;
+            let mut csv_writer = WriterBuilder::new().from_writer(temp_file.as_file_mut());
+            for item in &act_log {
+                csv_writer.serialize(item)?; // Serialize each item to CSV
+            }
+            // Flush and finish writing to the temporary file
+            csv_writer.flush()?;
+            drop(csv_writer);
 
             write_export_document(
                 hasura_transaction,
@@ -261,4 +245,28 @@ pub async fn generate_activity_logs_report(
         })
     })
     .await
+}
+
+pub async fn generate_activity_logs_report(
+    tenant_id: &str,
+    election_event_id: &str,
+    document_id: &str,
+    format: ReportFormat,
+) -> Result<()> {
+    let template = ActivityLogsTemplate {
+        tenant_id: tenant_id.to_string(),
+        election_event_id: election_event_id.to_string(),
+    };
+
+    match format {
+        ReportFormat::CSV => {
+            generate_activity_logs_report_csv(tenant_id, election_event_id, document_id, &template)
+                .await
+        }
+        ReportFormat::PDF => {
+            template
+                .execute_report(document_id, tenant_id, election_event_id, false, None)
+                .await
+        }
+    }
 }
