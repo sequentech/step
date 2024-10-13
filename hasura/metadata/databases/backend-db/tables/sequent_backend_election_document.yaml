@@ -1,3 +1,3 @@
 table:
-  name: election_document
-  schema: sequent_backend
+    name: election_document
+    schema: sequent_backend
