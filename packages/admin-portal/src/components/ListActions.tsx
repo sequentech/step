@@ -106,15 +106,12 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
                     <Button onClick={doImport} label={t("common.label.import")}>
                         <UploadIcon />
                     </Button>
-                ) :
-                null}
+                ) : null}
 
-                {(withExport && exportWithOptions) ? (
+                {withExport && exportWithOptions ? (
                     <React.Fragment>
                         <Button
-                            onClick={(e: React.MouseEvent<HTMLElement>) =>
-                                openExportMenu(e)
-                            }
+                            onClick={(e: React.MouseEvent<HTMLElement>) => openExportMenu(e)}
                             label={t("common.label.export")}
                             disabled={isExportDisabled}
                         >
@@ -123,7 +120,7 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
                     </React.Fragment>
                 ) : null}
 
-                {(withExport && !exportWithOptions)? (
+                {withExport && !exportWithOptions ? (
                     !defaultExport ? (
                         <Button
                             onClick={doExport}
@@ -135,8 +132,7 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
                     ) : (
                         <ExportButton />
                     )
-                ) :
-                null}
+                ) : null}
 
                 {extraActions.length > 0 ? extraActions : null}
             </TopToolbar>

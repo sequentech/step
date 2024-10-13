@@ -27,7 +27,7 @@ import {IPermissions} from "@/types/keycloak"
 import {ElectionStyles} from "./styles/ElectionStyles"
 import {useLocation, useNavigate} from "react-router"
 import {ResetFilters} from "./ResetFilters"
-import { MenuItem, Menu} from "@mui/material"
+import {MenuItem, Menu} from "@mui/material"
 
 interface ExportWrapperProps {
     electionEventId: string
@@ -54,7 +54,7 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
 
     const confirmExportAction = async () => {
         try {
-            const {data: exportElectionEventData, errors} = await exportElectionEvent({ // TODO: send over the exportFormat
+            const {data: exportElectionEventData, errors} = await exportElectionEvent({
                 variables: {
                     electionEventId,
                     format: exportFormat,
@@ -178,7 +178,15 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
         <>
             <List
                 resource="electoral_log"
-                actions={showActions && <ListActions withImport={false} openExportMenu={(e) => setAnchorEl(e.currentTarget)} withExport={true}/>}
+                actions={
+                    showActions && (
+                        <ListActions
+                            withImport={false}
+                            openExportMenu={(e) => setAnchorEl(e.currentTarget)}
+                            withExport={true}
+                        />
+                    )
+                }
                 filters={filters}
                 filter={filterObject}
                 storeKey={false}
@@ -253,17 +261,13 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                     className="menu-export-CSV"
                     onClick={() => handleExportWithOptions("CSV")}
                 >
-                    <span className="help-menu-item-CSV">
-                        CSV
-                    </span>
+                    <span className="help-menu-item-CSV">CSV</span>
                 </MenuItem>
                 <MenuItem
                     className="menu-export-PDF"
                     onClick={() => handleExportWithOptions("PDF")}
                 >
-                    <span className="help-menu-item-PDF">
-                        PDF
-                    </span>
+                    <span className="help-menu-item-PDF">PDF</span>
                 </MenuItem>
             </Menu>
         </>
