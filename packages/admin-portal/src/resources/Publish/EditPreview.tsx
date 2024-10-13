@@ -5,13 +5,10 @@ import {
   SaveButton,
   SimpleForm,
   useNotify,
-  useRedirect,
 } from "react-admin";
 import {Preview} from "@mui/icons-material"
 import { useTranslation } from "react-i18next";
-import { useTenantStore } from "@/providers/TenantContextProvider";
 import { GetBallotPublicationChangesOutput } from "@/gql/graphql";
-import SelectArea from "@/components/area/SelectArea";
 import { SettingsContext } from "@/providers/SettingsContextProvider";
 import { useQuery } from "@apollo/client";
 import { GET_AREAS } from "@/queries/GetAreas";
@@ -27,10 +24,8 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
   const {id, close, electionEventId, ballotData} = props
   const { t } = useTranslation();
   const notify = useNotify();
-  const [tenantId] = useTenantStore();
   const {globalSettings} = useContext(SettingsContext);
-  const [sourceAreas, setSourceAreas] = useState([])
-  const redirect = useRedirect();
+  const [sourceAreas, setSourceAreas] = useState([]);
   
   const {data: areas} = useQuery(GET_AREAS, {
     variables: {
@@ -57,24 +52,26 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
   }, [areas, areaIds])
 
   const onPreviewClick = (res: any) => {
+    const previewUrl: string = previewUrlTemplate + res.area_id;
+    window.open(previewUrl, '_blank');
     notify(t("publish.previewSuccess"), { type: "success" });
     if (close) {
       close();
     }
   };
 
-  const previewUrl = useMemo(() => {
-    return globalSettings.VOTING_PORTAL_URL + "/preview/" + id;
+  const previewUrlTemplate = useMemo(() => {
+    return globalSettings.VOTING_PORTAL_URL + "/preview/" + id + "/";
   }, [globalSettings.VOTING_PORTAL_URL, id])
 
   return (
       <SimpleForm
+        onSubmit={onPreviewClick}
         toolbar={
           <SaveButton 
             icon={<Preview />}
             label={t("publish.preview")}
             sx={{marginInline: "1rem"}}
-            onClick={onPreviewClick}
           />
         }
       >
