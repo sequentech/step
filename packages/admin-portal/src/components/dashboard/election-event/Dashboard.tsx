@@ -19,8 +19,9 @@ import {
     GetElectionEventStatsQuery,
     ListKeysCeremonyQuery,
     Sequent_Backend_Election_Event,
+    Sequent_Backend_Tally_Session,
 } from "@/gql/graphql"
-import {useRecordContext} from "react-admin"
+import {useGetList, useRecordContext} from "react-admin"
 import {EVotingStatus, IElectionEventStatistics, IElectionEventStatus} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {GET_ELECTION_EVENT_STATS} from "@/queries/GetElectionEventStats"
@@ -84,6 +85,32 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
             },
         },
     })
+    const keysCeremonyIds = useMemo(
+        () => keysCeremonies?.list_keys_ceremony?.items?.map((ceremony) => ceremony.id) ?? [],
+        [keysCeremonies?.list_keys_ceremony?.items]
+    )
+
+    const {data: tallySessions} = useGetList<Sequent_Backend_Tally_Session>(
+        "sequent_backend_tally_session",
+        {
+            pagination: {page: 1, perPage: 9999},
+            sort: {field: "created_at", order: "DESC"},
+            filter: {
+                tenant_id: tenantId,
+                election_event_id: record?.id,
+                keys_ceremony_id: {
+                    format: "hasura-raw-query",
+                    value: {_in: keysCeremonyIds},
+                },
+            },
+        },
+        {
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
+        }
+    )
 
     const stats = dataStats?.election_event?.[0]?.statistics as IElectionEventStatistics | null
 
@@ -111,6 +138,9 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
                 (ceremony.execution_status as IKeysCeremonyExecutionStatus) ===
                 IKeysCeremonyExecutionStatus.SUCCESS
         )
+        let finishedTallySessions = tallySessions?.find(
+            (tallySession) => tallySession.is_execution_completed
+        )
         if (finishedKeysCeremonies) {
             data.push(1)
         }
@@ -123,11 +153,11 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
         if (EVotingStatus.CLOSED === status.voting_status) {
             data.push(4)
         }
-        /*if (status.tally_ceremony_finished) {
+        if (finishedTallySessions) {
             data.push(5)
-        }*/
+        }
         setSelected(Math.max(...data))
-    }, [record?.status, keysCeremonies?.list_keys_ceremony?.items])
+    }, [record?.status, keysCeremonies?.list_keys_ceremony?.items, tallySessions])
 
     const loginUrl = useMemo(() => {
         return getAuthUrl(
