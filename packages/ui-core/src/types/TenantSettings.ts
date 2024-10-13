@@ -17,6 +17,7 @@ export interface IHelpLink {
 }
 
 export interface ITenantSettings {
+    i18n?: Record<string, Record<string, string>>
     help_links?: Array<IHelpLink>
     language_conf?: ILanguageConf
     sms?: boolean

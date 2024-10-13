@@ -18,6 +18,7 @@ use windmill::hasura::election_event::insert_election_event::sequent_backend_ele
 use windmill::services;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::get_hasura_pool;
+use windmill::services::import_election_event::get_document;
 use windmill::services::tasks_execution::*;
 use windmill::tasks::import_election_event;
 use windmill::tasks::insert_election_event;
@@ -114,13 +115,30 @@ pub async fn import_election_event_f(
         },
     )?;
 
-    let document_result = services::import_election_event::get_document(
-        &hasura_transaction,
-        input.clone(),
-        None,
-        input.tenant_id.clone(),
-    )
-    .await;
+    let (temp_file_path, document, document_type) =
+        match get_document(&hasura_transaction, input.clone(), None).await {
+            Ok((temp_file_path, document, document_type)) => {
+                (temp_file_path, document, document_type)
+            }
+            Err(err) => {
+                return Ok(Json(ImportElectionEventOutput {
+                    id: None,
+                    message: None,
+                    error: Some(err.to_string()),
+                    task_execution: None,
+                }))
+            }
+        };
+
+    let document_result =
+        services::import_election_event::get_election_event_schema(
+            &document_type,
+            &temp_file_path,
+            input.clone(),
+            None,
+            tenant_id.clone(),
+        )
+        .await;
 
     if let Err(err) = document_result {
         return Ok(Json(ImportElectionEventOutput {
@@ -131,8 +149,18 @@ pub async fn import_election_event_f(
         }));
     }
 
-    let document = document_result.unwrap();
-    let id = document.election_event.id.clone();
+    let election_event_schema = document_result.unwrap();
+    let id = election_event_schema.election_event.id.clone();
+
+    let check_only = input.check_only.unwrap_or(false);
+    if check_only {
+        return Ok(Json(ImportElectionEventOutput {
+            id: Some(id),
+            message: Some(format!("Import document checked")),
+            error: None,
+            task_execution: None,
+        }));
+    }
 
     // Insert the task execution record
     let task_execution = post(
@@ -148,17 +176,6 @@ pub async fn import_election_event_f(
             format!("Failed to insert task execution record: {error:?}"),
         )
     })?;
-
-    let check_only = input.check_only.unwrap_or(false);
-
-    if check_only {
-        return Ok(Json(ImportElectionEventOutput {
-            id: Some(id),
-            message: Some(format!("Import document checked")),
-            error: None,
-            task_execution: Some(task_execution.clone()),
-        }));
-    }
 
     let celery_app = get_celery_app().await;
     let celery_task = match celery_app

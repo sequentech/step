@@ -24,7 +24,7 @@ impl TryFrom<Row> for ElectionHead {
         Ok(ElectionHead {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
             name: item.get("name"),
-            alias: item.get("name"),
+            alias: item.get("alias"),
         })
     }
 }

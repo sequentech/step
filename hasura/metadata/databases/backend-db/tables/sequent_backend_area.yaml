@@ -2,7 +2,7 @@ table:
     name: area
     schema: sequent_backend
 insert_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           check:
               tenant_id:
@@ -19,8 +19,8 @@ insert_permissions:
               - id
               - parent_id
               - tenant_id
-      comment: ""
-    - role: area-write
+      role: admin-user
+    - comment: ""
       permission:
           check:
               tenant_id:
@@ -37,8 +37,8 @@ insert_permissions:
               - id
               - parent_id
               - tenant_id
-      comment: ""
-    - role: service-account
+      role: area-write
+    - comment: ""
       permission:
           check: {}
           columns:
@@ -53,10 +53,11 @@ insert_permissions:
               - id
               - parent_id
               - tenant_id
-      comment: ""
+      role: service-account
 select_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - name
               - type
@@ -72,10 +73,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          allow_aggregations: true
-      comment: ""
-    - role: area-read
+      role: admin-user
+    - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - name
               - type
@@ -91,10 +92,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          allow_aggregations: true
-      comment: ""
-    - role: area-write
+      role: area-read
+    - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - name
               - type
@@ -110,10 +111,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          allow_aggregations: true
-      comment: ""
-    - role: service-account
+      role: area-write
+    - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - name
               - type
@@ -127,9 +128,8 @@ select_permissions:
               - parent_id
               - tenant_id
           filter: {}
-          allow_aggregations: true
-      comment: ""
-    - role: user
+      role: service-account
+    - comment: ""
       permission:
           columns:
               - name
@@ -149,10 +149,13 @@ select_permissions:
                         _eq: X-Hasura-Tenant-Id
                   - id:
                         _eq: X-Hasura-Area-Id
-      comment: ""
+      role: user
 update_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
           columns:
               - name
               - type
@@ -168,12 +171,12 @@ update_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: area-write
-      permission:
           columns:
               - name
               - type
@@ -189,41 +192,38 @@ update_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: service-account
+      role: area-write
+    - comment: ""
       permission:
-          columns:
-              - name
-              - type
-              - annotations
-              - labels
-              - description
-              - created_at
-              - last_updated_at
-              - election_event_id
-              - id
-              - parent_id
-              - tenant_id
-          filter: {}
           check: {}
-      comment: ""
+          columns:
+              - name
+              - type
+              - annotations
+              - labels
+              - description
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - id
+              - parent_id
+              - tenant_id
+          filter: {}
+      role: service-account
 delete_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: area-write
+      role: admin-user
+    - comment: ""
       permission:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: service-account
+      role: area-write
+    - comment: ""
       permission:
           filter: {}
-      comment: ""
+      role: service-account

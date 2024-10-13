@@ -13,7 +13,7 @@ public class CustomEventListenerProviderFactory implements EventListenerProvider
 
   @Override
   public EventListenerProvider create(KeycloakSession session) {
-    return new CustomEventListereProvider(session);
+    return new CustomEventListenerProvider(session);
   }
 
   @Override

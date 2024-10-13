@@ -238,6 +238,16 @@ export type ExportLogsOutput = {
   task_id: Scalars['String']['output'];
 };
 
+export type ExportOptions = {
+  activity_logs?: InputMaybe<Scalars['Boolean']['input']>;
+  bulletin_board?: InputMaybe<Scalars['Boolean']['input']>;
+  include_voters?: InputMaybe<Scalars['Boolean']['input']>;
+  password: Scalars['String']['input'];
+  publications?: InputMaybe<Scalars['Boolean']['input']>;
+  s3_files?: InputMaybe<Scalars['Boolean']['input']>;
+  scheduled_events?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
 export type ExportTasksExecutionOutput = {
   __typename?: 'ExportTasksExecutionOutput';
   document_id: Scalars['String']['output'];
@@ -248,6 +258,12 @@ export type ExportTasksOutput = {
   __typename?: 'ExportTasksOutput';
   document_id: Scalars['String']['output'];
   task_id: Scalars['String']['output'];
+};
+
+export type ExportTemplateOutput = {
+  __typename?: 'ExportTemplateOutput';
+  document_id: Scalars['String']['output'];
+  error_msg?: Maybe<Scalars['String']['output']>;
 };
 
 export type ExportTenantUsersOutput = {
@@ -346,6 +362,7 @@ export type GetUploadUrlOutput = {
 
 export type GetUsersInput = {
   attributes?: InputMaybe<Scalars['jsonb']['input']>;
+  authorized_to_election_alias?: InputMaybe<Scalars['String']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   election_id?: InputMaybe<Scalars['uuid']['input']>;
   email?: InputMaybe<Scalars['String']['input']>;
@@ -938,6 +955,7 @@ export type Mutation_Root = {
   export_election_event_logs?: Maybe<ExportLogsOutput>;
   export_election_event_tasks?: Maybe<ExportTasksOutput>;
   export_tasks_execution?: Maybe<ExportTasksExecutionOutput>;
+  export_template?: Maybe<ExportTemplateOutput>;
   export_tenant_users?: Maybe<ExportTenantUsersOutput>;
   export_users?: Maybe<ExportUsersOutput>;
   generate_ballot_publication?: Maybe<PublishBallotOutput>;
@@ -951,6 +969,7 @@ export type Mutation_Root = {
   import_candidates?: Maybe<DocumentTaskOutput>;
   /** import_election_event */
   import_election_event?: Maybe<OptionalImportEvent>;
+  import_templates?: Maybe<TemplateOutput>;
   import_users?: Maybe<TaskOutput>;
   insertElectionEvent?: Maybe<CreateElectionEventOutput>;
   /** insertTenant */
@@ -1869,6 +1888,7 @@ export type Mutation_RootEdit_UserArgs = {
 /** mutation root */
 export type Mutation_RootExport_Election_EventArgs = {
   election_event_id?: InputMaybe<Scalars['String']['input']>;
+  export_configurations?: InputMaybe<ExportOptions>;
 };
 
 
@@ -1887,6 +1907,14 @@ export type Mutation_RootExport_Election_Event_TasksArgs = {
 /** mutation root */
 export type Mutation_RootExport_Tasks_ExecutionArgs = {
   election_event_id: Scalars['String']['input'];
+  tenant_id: Scalars['String']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootExport_TemplateArgs = {
+  election_event_id?: InputMaybe<Scalars['String']['input']>;
+  election_id?: InputMaybe<Scalars['String']['input']>;
   tenant_id: Scalars['String']['input'];
 };
 
@@ -1968,6 +1996,14 @@ export type Mutation_RootImport_CandidatesArgs = {
 /** mutation root */
 export type Mutation_RootImport_Election_EventArgs = {
   check_only?: InputMaybe<Scalars['Boolean']['input']>;
+  document_id: Scalars['String']['input'];
+  password?: InputMaybe<Scalars['String']['input']>;
+  tenant_id: Scalars['String']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootImport_TemplatesArgs = {
   document_id: Scalars['String']['input'];
   tenant_id: Scalars['String']['input'];
 };
@@ -18319,6 +18355,12 @@ export type Tasks_Execution_Type = {
   start_at: Scalars['timestamptz']['output'];
   tenant_id: Scalars['uuid']['output'];
   type: Scalars['String']['output'];
+};
+
+export type TemplateOutput = {
+  __typename?: 'templateOutput';
+  document_id: Scalars['String']['output'];
+  error_msg?: Maybe<Scalars['String']['output']>;
 };
 
 /** Boolean expression to compare columns of type "timestamptz". All fields are combined with logical 'AND'. */

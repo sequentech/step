@@ -209,12 +209,13 @@ export const CreateElectionList: React.FC = () => {
         setErrors(null)
     }
 
-    const uploadCallback = async (documentId: string) => {
+    const uploadCallback = async (documentId: string, password: string = "") => {
         setErrors(null)
         let {data: importData, errors} = await importElectionEvent({
             variables: {
                 tenantId,
                 documentId,
+                password,
                 checkOnly: true,
             },
         })
@@ -225,16 +226,22 @@ export const CreateElectionList: React.FC = () => {
         }
     }
 
-    const handleImportElectionEvent = async (documentId: string, sha256: string) => {
+    const handleImportElectionEvent = async (
+        documentId: string,
+        sha256: string,
+        password?: string
+    ) => {
         closeImportDrawer()
         setErrors(null)
         const currWidget = addWidget(ETasksExecution.IMPORT_ELECTION_EVENT)
+        console.log({documentId})
 
         try {
             let {data, errors} = await importElectionEvent({
                 variables: {
                     tenantId,
                     documentId,
+                    password,
                 },
             })
             if (data?.import_election_event?.error) {

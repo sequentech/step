@@ -2,7 +2,7 @@ table:
     name: notification
     schema: sequent_backend
 insert_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           check:
               tenant_id:
@@ -20,9 +20,9 @@ insert_permissions:
               - id
               - template_id
               - tenant_id
-      comment: ""
+      role: admin-user
 select_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           columns:
               - alias
@@ -40,8 +40,8 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: notification-read
+      role: admin-user
+    - comment: ""
       permission:
           columns:
               - alias
@@ -59,34 +59,34 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
+      role: notification-read
 update_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
-          columns:
-              - alias
-              - name
-              - type
-              - annotations
-              - labels
-              - created_at
-              - updated_at
-              - election_event_id
-              - election_id
-              - id
-              - template_id
-              - tenant_id
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
+          columns:
+              - alias
+              - name
+              - type
+              - annotations
+              - labels
+              - created_at
+              - updated_at
+              - election_event_id
+              - election_id
+              - id
+              - template_id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
 delete_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
+      role: admin-user

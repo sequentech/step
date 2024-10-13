@@ -124,7 +124,10 @@ type Mutation {
 }
 
 type Mutation {
-    export_election_event(election_event_id: String): documentTaskOutput
+    export_election_event(
+        election_event_id: String
+        export_configurations: ExportOptions
+    ): documentTaskOutput
 }
 
 type Mutation {
@@ -140,6 +143,14 @@ type Mutation {
         tenant_id: String!
         election_event_id: String!
     ): ExportTasksExecutionOutput
+}
+
+type Mutation {
+    export_template(
+        tenant_id: String!
+        election_event_id: String
+        election_id: String
+    ): ExportTemplateOutput
 }
 
 type Mutation {
@@ -255,8 +266,13 @@ type Mutation {
     import_election_event(
         tenant_id: String!
         document_id: String!
+        password: String
         check_only: Boolean
     ): OptionalImportEvent
+}
+
+type Mutation {
+    import_templates(tenant_id: String!, document_id: String!): templateOutput
 }
 
 type Mutation {
@@ -529,6 +545,7 @@ input GetUsersInput {
     email_verified: Boolean
     sort: jsonb
     has_voted: Boolean
+    authorized_to_election_alias: String
 }
 
 input CreateKeysCeremonyInput {
@@ -676,6 +693,16 @@ input GetTopCastVotesByIpInput {
     ip: String
     country: String
     election_id: String
+}
+
+input ExportOptions {
+    password: String!
+    include_voters: Boolean
+    activity_logs: Boolean
+    bulletin_board: Boolean
+    publications: Boolean
+    s3_files: Boolean
+    scheduled_events: Boolean
 }
 
 type GetManualVerificationOutput {
@@ -1138,6 +1165,16 @@ type LimtIpByCountriesOutput {
 
 type LimitAccessByCountriesOutput {
     success: Boolean
+}
+
+type ExportTemplateOutput {
+    error_msg: String
+    document_id: String!
+}
+
+type templateOutput {
+    error_msg: String
+    document_id: String!
 }
 
 type GetTopCastVotesByIpOutput {

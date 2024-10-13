@@ -30,6 +30,21 @@ export interface IActiveTemplateIds {
     manual_verification?: string
 }
 
+export enum EElectionEventLockedDown {
+    LOCKED_DOWN = "locked-down",
+    NOT_LOCKED_DOWN = "not-locked-down",
+}
+
+export enum EElectionEventPublishPolicy {
+    ALWAYS = "always",
+    AFTER_LOCKDOWN = "after-lockdown",
+}
+
+export enum EElectionEventEnrollment {
+    ENABLED = "enabled",
+    DISABLED = "disabled",
+}
+
 export interface IElectionEventPresentation {
     i18n?: Record<string, Record<string, string>>
     materials?: IElectionEventMaterials
@@ -44,4 +59,7 @@ export interface IElectionEventPresentation {
     custom_urls?: ICustomUrls
     active_template_ids?: IActiveTemplateIds
     keys_ceremony_settings?: KeysCeremonySettings
+    locked_down: EElectionEventLockedDown
+    publish_policy: EElectionEventPublishPolicy
+    enrollment: EElectionEventEnrollment
 }

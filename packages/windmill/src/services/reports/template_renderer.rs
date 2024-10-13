@@ -24,6 +24,7 @@ pub enum ReportType {
     MANUAL_VERIFICATION,
     BALLOT_RECEIPT,
     ELECTORAL_RESULTS,
+    STATISTICAL_REPORT,
 }
 
 /// Trait that defines the behavior for rendering templates

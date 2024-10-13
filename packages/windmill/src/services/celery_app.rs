@@ -18,6 +18,7 @@ use crate::tasks::execute_tally_session::execute_tally_session;
 use crate::tasks::export_election_event::export_election_event;
 use crate::tasks::export_election_event_logs::export_election_event_logs;
 use crate::tasks::export_tasks_execution::export_tasks_execution;
+use crate::tasks::export_templates::export_templates;
 use crate::tasks::export_users::export_users;
 use crate::tasks::import_election_event::import_election_event;
 use crate::tasks::import_users::import_users;
@@ -25,6 +26,10 @@ use crate::tasks::insert_election_event::insert_election_event_t;
 use crate::tasks::insert_tenant::insert_tenant;
 use crate::tasks::manage_election_dates::manage_election_date;
 use crate::tasks::manage_election_event_date::manage_election_event_date;
+use crate::tasks::manage_election_event_enrollment::manage_election_event_enrollment;
+use crate::tasks::manage_election_event_lockdown::manage_election_event_lockdown;
+use crate::tasks::manage_election_init_report::manage_election_init_report;
+use crate::tasks::manage_election_voting_period_end::manage_election_voting_period_end;
 use crate::tasks::manual_verification_report::generate_manual_verification_report;
 use crate::tasks::miru_plugin_tasks::create_transmission_package_task;
 use crate::tasks::miru_plugin_tasks::send_transmission_package_task;
@@ -140,6 +145,10 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             generate_manual_verification_report,
             scheduled_events,
             manage_election_event_date,
+            manage_election_event_enrollment,
+            manage_election_event_lockdown,
+            manage_election_init_report,
+            manage_election_voting_period_end,
             manage_election_date,
             export_election_event,
             export_election_event_logs,
@@ -147,6 +156,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             send_transmission_package_task,
             delete_election_event_t,
             export_tasks_execution,
+            export_templates,
         ],
         // Route certain tasks to certain queues based on glob matching.
         task_routes = [
@@ -168,9 +178,14 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             export_election_event_logs::NAME => Queue::ImportExport.as_ref(),
             export_tasks_execution::NAME => Queue::ImportExport.as_ref(),
             import_election_event::NAME => Queue::ImportExport.as_ref(),
+            export_templates::NAME => Queue::ImportExport.as_ref(),
             scheduled_events::NAME => Queue::Beat.as_ref(),
             manage_election_date::NAME => Queue::Beat.as_ref(),
             manage_election_event_date::NAME => Queue::Beat.as_ref(),
+            manage_election_event_enrollment::NAME => Queue::Beat.as_ref(),
+            manage_election_event_lockdown::NAME => Queue::Beat.as_ref(),
+            manage_election_init_report::NAME => Queue::Beat.as_ref(),
+            manage_election_voting_period_end::NAME => Queue::Beat.as_ref(),
             create_transmission_package_task::NAME => Queue::Short.as_ref(),
             send_transmission_package_task::NAME => Queue::Short.as_ref(),
             delete_election_event_t::NAME => Queue::Short.as_ref(),

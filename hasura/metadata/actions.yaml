@@ -308,6 +308,21 @@ actions:
               version: 2
       permissions:
           - role: tasks-read
+    - name: export_template
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/export-template
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: |
+                      {{$body.input}}
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: communication-template-write
+          - role: admin-user
     - name: export_tenant_users
       definition:
           kind: synchronous
@@ -589,6 +604,21 @@ actions:
           - role: area-write
           - role: admin-user
       comment: import_election_event
+    - name: import_templates
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/import-templates
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: |
+                      {{$body.input}}
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: communication-template-write
+          - role: admin-user
     - name: import_users
       definition:
           kind: synchronous
@@ -983,6 +1013,7 @@ custom_types:
         - name: EventListFilter
         - name: EventListOrderBy
         - name: GetTopCastVotesByIpInput
+        - name: ExportOptions
     objects:
         - name: GetManualVerificationOutput
         - name: CreateKeysCeremonyOutput
@@ -1059,9 +1090,11 @@ custom_types:
         - name: CreateEventOutput
         - name: LimtIpByCountriesOutput
         - name: LimitAccessByCountriesOutput
-        - name: GetTopCastVotesByIpOutput
-        - name: CastVotesByIp
         - name: CreateElectionOutput
         - name: ListKeysCeremonyOutput
         - name: KeysCeremony
+        - name: ExportTemplateOutput
+        - name: templateOutput
+        - name: GetTopCastVotesByIpOutput
+        - name: CastVotesByIp
     scalars: []

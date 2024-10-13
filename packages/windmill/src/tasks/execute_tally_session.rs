@@ -33,6 +33,7 @@ use crate::services::ceremonies::velvet_tally::run_velvet_tally;
 use crate::services::ceremonies::velvet_tally::AreaContestDataType;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::date::ISO8601;
+use crate::services::election::get_election_event_elections;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
 use crate::services::pg_lock::PgLock;
@@ -248,9 +249,23 @@ async fn process_plaintexts(
 
     let mut data: Vec<AreaContestDataType> = vec![];
 
+    let election_ids_alias: HashMap<String, String> =
+        get_election_event_elections(&hasura_transaction, tenant_id, election_event_id)
+            .await?
+            .into_iter()
+            .filter_map(|election| election.alias.map(|x| (election.id.clone(), x)))
+            .collect();
+
     // fill in the eligible voters data
     for almost in filtered_area_contests {
         let mut area_contest = almost.clone();
+
+        let election_alias = match election_ids_alias.get(&area_contest.contest.election_id) {
+            Some(alias) => alias,
+            None => "",
+        }
+        .to_string();
+
         let eligible_voters = get_eligible_voters(
             auth_headers.clone(),
             &hasura_transaction,
@@ -259,6 +274,7 @@ async fn process_plaintexts(
             &area_contest.contest.election_event_id,
             &area_contest.contest.election_id,
             &area_contest.last_tally_session_execution.area_id,
+            &election_alias,
         )
         .await?;
         let auditable_votes = count_auditable_ballots(
@@ -338,8 +354,21 @@ pub async fn count_cast_votes_election_with_census(
     let mut cast_votes =
         count_cast_votes_election(&hasura_transaction, &tenant_id, &election_event_id).await?;
 
+    let election_ids_alias: HashMap<String, String> =
+        get_election_event_elections(&hasura_transaction, tenant_id, election_event_id)
+            .await?
+            .into_iter()
+            .filter_map(|election| election.alias.map(|x| (election.id.clone(), x)))
+            .collect();
+
     for cast_vote in &mut cast_votes {
         let realm = get_event_realm(tenant_id, election_event_id);
+
+        let election_alias = match election_ids_alias.get(&cast_vote.election_id) {
+            Some(alias) => alias,
+            None => "",
+        }
+        .to_string();
 
         let (_users, census) = list_users(
             &hasura_transaction,
@@ -363,6 +392,7 @@ pub async fn count_cast_votes_election_with_census(
                 email_verified: None,
                 sort: None,
                 has_voted: None,
+                authorized_to_election_alias: Some(election_alias.to_string()),
             },
         )
         .await?;
@@ -381,6 +411,7 @@ pub async fn get_eligible_voters(
     election_event_id: &str,
     election_id: &str,
     area_id: &str,
+    election_alias: &str,
 ) -> Result<u64> {
     let realm = get_event_realm(tenant_id, election_event_id);
 
@@ -406,6 +437,7 @@ pub async fn get_eligible_voters(
             email_verified: None,
             sort: None,
             has_voted: None,
+            authorized_to_election_alias: Some(election_alias.to_string()),
         },
     )
     .await?;

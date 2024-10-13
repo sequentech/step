@@ -388,6 +388,8 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             return
         }
         localStorage.removeItem("token")
+        sessionStorage.removeItem("selected-election-event-tally-id")
+
         keycloak.logout()
     }
 
