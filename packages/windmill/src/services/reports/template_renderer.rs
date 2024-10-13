@@ -41,6 +41,12 @@ pub enum ReportType {
     STATISTICAL_REPORT,
 }
 
+#[derive(Debug, Clone, PartialEq)] 
+pub enum GenerateReportMode {
+    Preview,
+    Real,
+}
+
 /// Trait that defines the behavior for rendering templates
 #[async_trait]
 pub trait TemplateRenderer: Debug {
@@ -67,6 +73,9 @@ pub trait TemplateRenderer: Debug {
         None // Default implementation, can be overridden in specific reports that have voterId
     }
 
+    async fn prepare_preview_data(&self) -> Result<Self::SystemData> {
+        Err(anyhow!("Default implementation not provided."))
+    }
     async fn prepare_user_data(&self) -> Result<Self::UserData>;
     async fn prepare_system_data(&self, rendered_user_template: String)
         -> Result<Self::SystemData>;
@@ -152,7 +161,31 @@ pub trait TemplateRenderer: Debug {
         get_public_asset_template(format!("{base_name}_system.hbs").as_str()).await
     }
 
-    async fn generate_report(&self) -> Result<String> {
+    async fn get_preview_data_file(&self) -> Result<String> {
+        let base_name = Self::base_name();
+        get_public_asset_template(format!("{base_name}.json").as_str()).await
+    }
+
+    async fn generate_report(&self, generate_mode: GenerateReportMode) -> Result<String> {
+    
+        if generate_mode == GenerateReportMode::Preview {
+            let data = self.prepare_preview_data()
+                    .await
+                    .map_err(|e| anyhow!("Error preparing preview user data: {e:?}"))?
+                    .to_map()
+                    .map_err(|e| anyhow!("Error converting preview user data to map: {e:?}"))?;
+
+            let system_template = self
+                .get_system_template()
+                .await
+                .map_err(|e| anyhow!("Error getting default user template: {e:?}"))?;
+        
+                let rendered_system_template = reports::render_template_text(&system_template, data)
+                    .map_err(|e| anyhow!("Error rendering system template: {e:?}"))?;
+        
+            return Ok(rendered_system_template)
+        }
+        
         // Get user template (custom or default)
         let user_template = match self
             .get_custom_user_template()
@@ -203,9 +236,10 @@ pub trait TemplateRenderer: Debug {
         election_event_id: &str,
         is_scheduled_task: bool,
         receiver: Option<String>,
+        generate_mode: GenerateReportMode
     ) -> Result<()> {
         let rendered_system_template = self
-            .generate_report()
+            .generate_report(generate_mode)
             .await
             .map_err(|err| anyhow!("Error rendering report: {}", err))?;
 
