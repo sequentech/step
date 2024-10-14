@@ -1080,7 +1080,6 @@
         "role-read",
         "admin-ceremony",
         "area-read",
-        "tenant-read",
         "tally-start",
         "admin-user",
         "voter-create",
