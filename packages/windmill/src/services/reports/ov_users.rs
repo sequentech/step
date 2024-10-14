@@ -9,6 +9,7 @@ use deadpool_postgres::Client as DbClient;
 use serde::{Deserialize, Serialize};
 use tracing::info;
 use sequent_core::types::templates::EmailConfig;
+use crate::postgres::reports::ReportType;
 
 /// Struct to represent each OV (Overseas Voter) user
 #[derive(Serialize, Deserialize, Debug, Clone)]

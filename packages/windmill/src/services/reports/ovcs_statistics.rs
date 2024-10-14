@@ -11,6 +11,7 @@ use deadpool_postgres::Client as DbClient;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 use sequent_core::types::templates::EmailConfig;
+use crate::postgres::reports::ReportType;
 
 // Struct to hold user data
 #[derive(Serialize, Deserialize, Debug, Clone)]

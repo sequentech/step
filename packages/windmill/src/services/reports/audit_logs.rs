@@ -8,6 +8,7 @@ use super::report_variables::{
     get_total_number_of_ballots
 };
 use super::template_renderer::*;
+use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use crate::services::database::{get_keycloak_pool, PgConfig};

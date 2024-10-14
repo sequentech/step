@@ -26,6 +26,7 @@ use sequent_core::{ballot::VotingStatus, types::templates::EmailConfig, ballot::
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use chrono::{NaiveDate, TimeZone, Utc, Local};
 use serde_json::value::Value;
+use crate::postgres::reports::ReportType;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {}

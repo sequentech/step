@@ -22,6 +22,7 @@ use std::fmt::Debug;
 use strum_macros::{Display, EnumString};
 use tracing::{info, instrument, warn};
 
+#[derive(PartialEq, EnumString, Display, Debug)]
 pub enum GenerateReportMode {
     Preview,
     Real,

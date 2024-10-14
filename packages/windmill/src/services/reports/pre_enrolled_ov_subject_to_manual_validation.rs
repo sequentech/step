@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 use rocket::http::Status;
 use sequent_core::types::templates::EmailConfig;
+use crate::postgres::reports::ReportType;
 
 /// Struct for User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]

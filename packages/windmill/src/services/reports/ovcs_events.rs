@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 use chrono::{DateTime, Utc};
 use sequent_core::types::templates::EmailConfig;
+use crate::postgres::reports::ReportType;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct Event {

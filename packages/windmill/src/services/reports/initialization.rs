@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use sequent_core::types::templates::EmailConfig;
+use crate::postgres::reports::ReportType;
 
 /// Struct for the initialization report
 #[derive(Serialize, Deserialize, Debug, Clone)]

@@ -13,6 +13,7 @@ use rocket::http::Status;
 use chrono::{DateTime, Utc};
 use chrono::offset::TimeZone;
 use sequent_core::types::templates::EmailConfig;
+use crate::postgres::reports::ReportType;
 
 
 /// Struct for Overseas Voter Data
