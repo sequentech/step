@@ -57,7 +57,9 @@ public class Utils {
   public final String TRANSACTION_NEW_ATTRIBUTE = "transaction-new";
   public final String INETUM_FORM = "inetum-authenticator.ftl";
   public final String INETUM_ERROR = "inetum-error.ftl";
+  public final String INETUM_CONFIRM = "inetum-confirmation.ftl";
   public final String ATTRIBUTES_TO_VALIDATE = "attributes-to-validate";
+  public final String ATTRIBUTES_TO_STORE = "attributes-to-store";
 
   public final String API_TRANSACTION_NEW = "/transaction/new";
 
