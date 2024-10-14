@@ -1,8 +1,8 @@
 import React, {useContext, useEffect, useMemo, useState} from "react"
-import {AutocompleteInput, Identifier, SaveButton, SimpleForm, useNotify} from "react-admin"
+import {AutocompleteInput, Identifier, SaveButton, SimpleForm, useGetList, useGetOne, useNotify} from "react-admin"
 import {Preview} from "@mui/icons-material"
 import {useTranslation} from "react-i18next"
-import {GetBallotPublicationChangesOutput, GetUploadUrlMutation} from "@/gql/graphql"
+import {GetBallotPublicationChangesOutput, GetUploadUrlMutation, Sequent_Backend_Election, Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useMutation, useQuery} from "@apollo/client"
 import {GET_AREAS} from "@/queries/GetAreas"
@@ -25,12 +25,43 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
     const [isUploading, setIsUploading] = React.useState<boolean>(false)
     const {tenantId} = useContext(TenantContext)
+    const [areaId, setAreaId] = useState<string | null>(null)
 
     const {data: areas} = useQuery(GET_AREAS, {
         variables: {
             electionEventId,
         },
     })
+
+    const {data: electionEvent} = useGetOne<Sequent_Backend_Election_Event>(
+        "sequent_backend_election_event",
+        {
+            id: electionEventId,
+        },
+        {
+            refetchIntervalInBackground: true,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
+        }
+    )
+
+    const {data: elections} = useGetList<Sequent_Backend_Election>(
+        "sequent_backend_election",
+        {
+            pagination: {page: 1, perPage: 9999},
+            sort: {field: "created_at", order: "DESC"},
+            filter: {
+                election_event_id: electionEventId,
+                tenant_id: tenantId,
+            },
+        },
+        {
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
+        }
+    )
 
     const uploadFile = async (url: string, file: File) => {
         await fetch(url, {
@@ -86,18 +117,33 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
         }
     }, [areas, areaIds])
 
-    const onPreviewClick = async (res: any) => {
-        const dataStr = JSON.stringify(ballotData, null, 2)
-        const file = new File([dataStr], `preview.json`, {type: "application/json"})
-        const documentId = await uploadFileToS3(file)
-
-        const previewUrl: string = `${previewUrlTemplate}/${documentId}/${res.area_id}`
-        window.open(previewUrl, "_blank")
-
-        notify(t("publish.previewSuccess"), {type: "success"})
-        if (close) {
-            close()
+    useEffect(() => {
+        const startUpload = async () => {
+            const fileData = {
+                ballot_styles: ballotData?.current?.ballot_styles,
+                election_event: electionEvent,
+                elections: elections,
+            }
+            const dataStr = JSON.stringify(fileData, null, 2)
+            const file = new File([dataStr], `preview.json`, {type: "application/json"})
+            const documentId = await uploadFileToS3(file)
+    
+            const previewUrl: string = `${previewUrlTemplate}/${documentId}/${areaId}`
+            window.open(previewUrl, "_blank")
+    
+            notify(t("publish.previewSuccess"), {type: "success"})
+            if (close) {
+                close()
+            }
         }
+        if (isUploading && electionEvent && elections && areaId) {
+            startUpload()
+        }
+    }, [isUploading, electionEvent, elections, areaId])
+
+    const onPreviewClick = async (res: any) => {
+        setAreaId(res.area_id)
+        setIsUploading(true)
     }
 
     const previewUrlTemplate = useMemo(() => {
