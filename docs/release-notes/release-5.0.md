@@ -3,7 +3,7 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-# Next Release
+# Release 5.0
 
 ## Authorize voters to election events
 
@@ -60,10 +60,10 @@ admin portal realm in Keycloak and it's multivalued.
 
 2. A new column `permission_label` was added to the `election` table in the DB.
 If the `permission_label` for an election is `null`, all admin users can access
-it, just like before. However, when `permission_label` is defined, then only 
+it, just like before. However, when `permission_label` is defined, then only
 admins matching this label will be able to list this election. This matching is
 performed using the `x-hasura-permission-labels` mapper from the user
-attribute in the user's JWT. 
+attribute in the user's JWT.
 
 A new group was added to keycloak called `admin-light` and a new role and
 permission in Hasura called `permission-label-write` which the new group does
@@ -72,7 +72,7 @@ user level.
 
 ### Migration notes
 
-1. A new user multi-value attribute called `permission_labels` needs to be 
+1. A new user multi-value attribute called `permission_labels` needs to be
    added to the Admin Portal realm.
 2. In the Admin Portal Realm, a new custom Mapper to handle multivalued
    attribute for Hasura to read it right.
@@ -90,7 +90,7 @@ with both edit and view permissions. Then click `Save`.
 #### Migration: Hasura multivalued mapper
 
 In the Admin Portal realm in keycloak, go to `Clients` > `admin-portal` > `Client scopes`
-, then click on `admin-portal-dedicated` and `Add mapper` > `By configuration`, then click on 
+, then click on `admin-portal-dedicated` and `Add mapper` > `By configuration`, then click on
 `Hasura Multivalue User Attribute`. Then configure:
 - Name: `x-hasura-permission-labels`.
 - User Attribute: `permission_labels`.
