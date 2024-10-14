@@ -14,5 +14,6 @@
   "report_hash": "a1b2c3d4e5",
   "software_version": "1.0.0",
   "ovcs_version": "2.3.4",
-  "system_hash": "z9y8x7w6v5"
+  "system_hash": "z9y8x7w6v5",
+  "qr_codes": ["code1", "code2", "code3"]
 }

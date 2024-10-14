@@ -29,6 +29,9 @@ pub struct UserData {}
 /// Struct for System Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SystemData {
+    pub date_printed: String,
+    pub time_printed: String,
+    pub copy_number: String,
     pub election_date: String,
     pub election_title: String,
     pub voting_period: String,
@@ -38,17 +41,11 @@ pub struct SystemData {
     pub voting_center: String,
     pub precinct_code: String,
     pub registered_voters: i64,
-    pub chairperson_name: String,
-    pub poll_clerk_name: String,
-    pub third_member_name: String,
     pub report_hash: String,
+    pub software_version: String,
     pub ovcs_version: String,
     pub system_hash: String,
-    pub file_logo: String,
-    pub file_qrcode_lib: String,
-    pub date_printed: String,
-    pub time_printed: String,
-    pub printing_code: String,
+    pub qr_codes: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -216,17 +213,32 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
             voting_center: election_general_data.voting_center,
             precinct_code: election_general_data.clustered_precinct_id,
             registered_voters: registered_voters,
-            chairperson_name: temp_val.to_string(),
-            poll_clerk_name: temp_val.to_string(),
-            third_member_name: temp_val.to_string(),
+            copy_number: temp_val.to_string(),
+            qr_codes: vec![],
+            software_version: "1.0".to_string(),
             report_hash: "hash123".to_string(),
             ovcs_version: "1.0".to_string(),
             system_hash: "sys_hash123".to_string(),
-            file_logo: "logo.png".to_string(),
-            file_qrcode_lib: "qrcode.png".to_string(),
             date_printed: date_printed,
             time_printed: time_printed,
-            printing_code: "print123".to_string(),
         })
     }
+}
+
+#[instrument]
+pub async fn generate_ovcs_informations_report(
+    document_id: &str,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    mode: GenerateReportMode,
+) -> Result<()> {
+    let template = OVCSInformaitionTemplate {
+        tenant_id: tenant_id.to_string(),
+        election_event_id: election_event_id.to_string(),
+        election_id: election_id.to_string(),
+    };
+    template
+        .execute_report(document_id, tenant_id, election_event_id, false, None, mode)
+        .await
 }
