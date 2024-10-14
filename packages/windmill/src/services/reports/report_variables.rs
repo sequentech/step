@@ -5,7 +5,8 @@ use crate::postgres::contest::get_contest_by_election_id;
 use crate::postgres::results_area_contest::{get_results_area_contest, ResultsAreaContest};
 use crate::services::users::count_keycloak_enabled_users_by_attr;
 use crate::{
-    postgres::area_contest::get_areas_by_contest_id,
+    postgres::area_contest::get_areas_by_contest_id, postgres::contest::get_contest_by_election_id,
+    postgres::results_area_contest::get_results_area_contest,
     services::users::count_keycloak_enabled_users_by_areas_id,
 };
 use anyhow::{anyhow, Context, Result};
@@ -236,7 +237,6 @@ pub async fn get_election_contests_area_results_and_total_ballot_counted(
             &contest.id.clone(),
         )
         .await?;
-
         // fetch the amount of ballot counted in the contest
         ballots_counted += get_total_number_of_ballots(&results_area_contest).await?;
         results_area_contests.push(results_area_contest.clone());
