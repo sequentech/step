@@ -11,9 +11,10 @@ use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction};
+use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::types::hasura::core::TasksExecution;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde_json::{json, Value};
 use tracing::{event, instrument, Level};
 
 #[instrument(err)]
@@ -99,9 +100,27 @@ pub async fn export_ballot_publication(
         }
     };
 
+    let ballot_emls = match ballot_styles
+        .into_iter()
+        .filter_map(|val| val.ballot_eml.as_ref().map(|eml| Ok(deserialize_str(eml)?)))
+        .collect::<Result<Vec<Value>>>()
+    {
+        Ok(ballot_emls) => ballot_emls,
+        Err(err) => {
+            update_fail(
+                &task_execution,
+                &format!("Error deserializing ballot eml: {err:?}"),
+            )
+            .await?;
+            return Err(Error::String(format!(
+                "Error deserializing ballot eml: {err:?}"
+            )));
+        }
+    };
+
     let ballot_design = json!({
         "ballot_publication_id": &ballot_publication_id,
-        "ballot_styles": ballot_styles,
+        "ballot_styles": ballot_emls,
     })
     .to_string();
 

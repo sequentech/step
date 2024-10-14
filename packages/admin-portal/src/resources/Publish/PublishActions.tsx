@@ -10,7 +10,14 @@ import {useTranslation} from "react-i18next"
 import {Dialog} from "@sequentech/ui-essentials"
 import {CircularProgress, Typography} from "@mui/material"
 import {Publish, RotateLeft, PlayCircle, PauseCircle, StopCircle} from "@mui/icons-material"
-import {Button, FilterButton, SelectColumnsButton, useRecordContext, useNotify} from "react-admin"
+import {
+    Button,
+    FilterButton,
+    SelectColumnsButton,
+    useRecordContext,
+    useNotify,
+    Identifier,
+} from "react-admin"
 
 import {EPublishActionsType} from "./EPublishType"
 import {PublishStatus, ElectionEventStatus, nextStatus} from "./EPublishStatus"
@@ -40,6 +47,7 @@ const PublishActionsStyled = {
 }
 
 export type PublishActionsProps = {
+    ballotPublicationId?: string | Identifier | null
     data?: any
     status: PublishStatus
     changingStatus: boolean
@@ -50,6 +58,7 @@ export type PublishActionsProps = {
 }
 
 export const PublishActions: React.FC<PublishActionsProps> = ({
+    ballotPublicationId,
     type,
     status,
     changingStatus,
@@ -156,7 +165,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                         ? record.election_event_id
                         : record.id,
                     electionId: record.election_event_id ? record.id : null,
-                    ballotPublicationId: record.id,
+                    ballotPublicationId: ballotPublicationId,
                 },
             })
 
@@ -176,6 +185,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                 : updateWidgetFail(currWidget.identifier)
         } catch (error) {
             console.log(error)
+            setExporting(false)
             currWidget && updateWidgetFail(currWidget.identifier)
         }
     }
