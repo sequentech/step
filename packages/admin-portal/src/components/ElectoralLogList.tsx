@@ -85,7 +85,7 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
             ok={t("common.label.export")}
             cancel={t("common.label.cancel")}
             title={t("common.label.exportFormat", {
-                item: "Activity Logs",
+                item: t("logsScreen.title"),
                 format: exportFormat,
             })}
             handleClose={(result: boolean) => {
@@ -105,7 +105,7 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
                         <DownloadDocument
                             documentId={exportDocumentId}
                             electionEventId={electionEventId ?? ""}
-                            fileName={`election-event-logs-${electionEventId}-export.${exportFormat}`}
+                            fileName={`election-event-logs-${electionEventId}-export.${exportFormat.toLowerCase()}`}
                             onDownload={() => {
                                 console.log("onDownload called")
                                 setExportDocumentId(undefined)
@@ -268,7 +268,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                 </MenuItem>
                 <MenuItem
                     className="menu-export-pdf"
-                    onClick={() => handleExportWithOptions(ExportFormat.CSV)}
+                    onClick={() => handleExportWithOptions(ExportFormat.PDF)}
                 >
                     <span className="help-menu-item-PDF">{t(`logsScreen.actions.pdf`)}</span>
                 </MenuItem>
