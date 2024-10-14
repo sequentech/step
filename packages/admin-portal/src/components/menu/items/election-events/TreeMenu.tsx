@@ -94,6 +94,12 @@ function TreeLeaves({
     }, [i18n, i18n.language, data])
 
     const {canCreateElectionEvent, canWriteCandidate, canWriteContest} = useActionPermissions()
+
+    const canShowMenu =
+        (treeResourceNames[0] === "sequent_backend_election_event" && canCreateElectionEvent)
+        || (treeResourceNames[0] === "sequent_backend_contest" && canWriteContest)
+        || (treeResourceNames[0] === "sequent_backend_candidate" && canWriteCandidate)
+
     return (
         <Box sx={{backgroundColor: adminTheme.palette.white}}>
             <MenuStyles.TreeLeavesContainer>
@@ -122,7 +128,7 @@ function TreeLeaves({
                         )
                     }
                 )}
-                {!isArchivedElectionEvents && canCreateElectionEvent && (
+                {!isArchivedElectionEvents && canShowMenu && (
                     <MenuStyles.CreateElectionContainer
                         style={{
                             justifyContent: i18n.dir(i18n.language) === "rtl" ? "end" : "start",
@@ -136,7 +142,9 @@ function TreeLeaves({
                         <MenuStyles.StyledNavLink
                             className={treeResourceNames[0]}
                             to={getNavLinkCreate(parentData, treeResourceNames[0])}
-                            style={{textAlign: i18n.dir(i18n.language) === "rtl" ? "end" : "start"}}
+                            style={{
+                                textAlign: i18n.dir(i18n.language) === "rtl" ? "end" : "start",
+                            }}
                         >
                             {t(mapAddResource[treeResourceNames[0] as ResourceName])}
                         </MenuStyles.StyledNavLink>
@@ -175,6 +183,8 @@ function TreeMenuItem({
     treeResourceNames,
     isArchivedElectionEvents,
     canCreateElectionEvent,
+    canWriteContest,
+    canWriteCandidate,
 }: TreeMenuItemProps) {
     const [isOpenSidebar] = useSidebarState()
     const {i18n} = useTranslation()
@@ -241,10 +251,12 @@ function TreeMenuItem({
         item = <p>{name}</p>
     }
 
+    const test = true // hasNext && canCreateElectionEvent
+
     return (
         <Box sx={{backgroundColor: adminTheme.palette.white}}>
             <TreeMenuItemContainer ref={menuItemRef} isClicked={isClicked}>
-                {hasNext && canCreateElectionEvent ? (
+                {test ? (
                     <MenuStyles.TreeMenuIconContaier onClick={onClick}>
                         {open ? (
                             <ExpandMoreIcon className="menu-item-expanded" />
