@@ -2,10 +2,9 @@ use super::report_variables::{
     extract_eleciton_data, get_election_contests_area_results_and_total_ballot_counted, get_total_number_of_ballots, get_total_number_of_registered_voters_for_country
 };
 use super::template_renderer::*;
-use crate::postgres::candidate::get_candidates_by_election_id;
+use crate::postgres::candidate::get_candidates_by_contest_id;
 use crate::postgres::contest::get_contest_by_election_id;
 use crate::postgres::election::get_election_by_id;
-use crate::postgres::results_area_contest::get_results_area_contest;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::postgres::reports::ReportType;
@@ -197,7 +196,7 @@ impl TemplateRenderer for InitializationTemplate {
             }
         };
 
-        // Parse the start date from voting period into a NaiveDate
+        // Parse the full start date from voting period into a NaiveDate
         let parsed_date_time = NaiveDateTime::parse_from_str(&voting_period_start_date, "%Y-%m-%dT%H:%M:%S%.fZ")
             .expect("Failed to parse date");
         // Extract only the date part (YYYY-MM-DD)
@@ -236,14 +235,10 @@ impl TemplateRenderer for InitializationTemplate {
         let chairperson_digital_signature = "DigitalSignatureABC".to_string();
         let poll_clerk_digital_signature = "DigitalSignatureDEF".to_string();
         let third_member_digital_signature = "DigitalSignatureGHI".to_string();
-        // let goverment_time = "18:00".to_string();
         let report_hash = "dummy_report_hash".to_string();
         let software_version = "1.0".to_string();
         let ovcs_version = "1.0".to_string();
         let system_hash = "dummy_system_hash".to_string();
-        // let file_logo = "logo.png".to_string();
-        // let time_printed = "12:10".to_string();
-        // let printing_code = "XYZ123".to_string();
 
         Ok(SystemData {
             file_qrcode_lib,
@@ -257,8 +252,7 @@ impl TemplateRenderer for InitializationTemplate {
             precinct_code: election_general_data.clustered_precinct_id,
             registered_voters,
             ballots_counted,
-            // voters_turnout: format!("{}%", voters_turnout),
-            contests: generate_cobtests_data(hasura_transaction, &self.tenant_id, &self.election_event_id, &self.election_id).await?,
+            contests: generate_contests_data(hasura_transaction, &self.tenant_id, &self.election_event_id, &self.election_id).await?,
             chairperson_name,
             chairperson_digital_signature,
             poll_clerk_name,
@@ -269,25 +263,12 @@ impl TemplateRenderer for InitializationTemplate {
             software_version,
             ovcs_version,
             system_hash,
-            // date_printed,
-            // time_printed,
-            // printing_code,
         })
     }
 }
 
-async fn generate_cobtests_data(hasura_transaction: Transaction<'_>, tenant_id: &str, election_event_id: &str, election_id: &str) -> Result<Vec<ContestData>> {
+async fn generate_contests_data(hasura_transaction: Transaction<'_>, tenant_id: &str, election_event_id: &str, election_id: &str) -> Result<Vec<ContestData>> {
     let contests = get_contest_by_election_id(
-        &hasura_transaction,
-        tenant_id,
-        election_event_id,
-        election_id,
-    )
-    .await
-    .with_context(|| "Error obtaining contests")?;
-
-    // All candidates for the election (several contests)
-    let election_candidates = get_candidates_by_election_id(
         &hasura_transaction,
         tenant_id,
         election_event_id,
@@ -303,15 +284,17 @@ async fn generate_cobtests_data(hasura_transaction: Transaction<'_>, tenant_id: 
         let contest_name = contest_name_parts.get(0).unwrap_or(&"").to_string();
         let position_name = contest_name_parts.get(1).unwrap_or(&"").to_string();
 
-        let filtered_candidates = election_candidates
-            .iter()
-            .filter(|candidate| {
-                candidate.contest_id.as_ref().unwrap_or(&String::new()) == &contest.id
-            })
-            .collect::<Vec<&Candidate>>();
+        // Candidates of the specific contest
+        let contest_candidates = get_candidates_by_contest_id(
+            &hasura_transaction,
+            tenant_id,
+            election_event_id,
+            contest.clone().id.as_str(),
+        )
+        .await
+        .with_context(|| "Error obtaining contests")?;
 
-        // Fetch candidates for the contest
-        let candidate_data: Vec<CandidateData> = filtered_candidates
+        let candidate_data: Vec<CandidateData> = contest_candidates
             .into_iter()
             .map(|candidate| CandidateData {
                 name_in_ballot: candidate.clone().name.unwrap_or_default(),

@@ -145,7 +145,6 @@ pub trait TemplateRenderer: Debug {
                 .to_map()
                 .map_err(|e| anyhow!("Error converting preview user data to map: {e:?}"))?;
 
-            println!("-------- before get_system_template");
             let system_template = self
                 .get_system_template()
                 .await
@@ -178,6 +177,7 @@ pub trait TemplateRenderer: Debug {
             .await
             .map_err(|e| anyhow!("Error preparing user data: {e:?}"))?;
 
+        // Render user template if user data is not None
         if let Some(data) = user_data {
             // Render the user template if user data is not None
             let user_data_map = data

@@ -228,17 +228,19 @@ pub async fn get_election_contests_area_results_and_total_ballot_counted(
     let mut results_area_contests: Vec<ResultsAreaContest> = vec![];
     for contest in contests.clone() {
         // fetch area contest for the contest of the election
-        let results_area_contest = get_results_area_contest(
+        if let Some(results_area_contest) = get_results_area_contest(
             &hasura_transaction,
             &tenant_id,
             &election_event_id,
             &election_id,
             &contest.id.clone(),
         )
-        .await?;
-        // fetch the amount of ballot counted in the contest
-        ballots_counted += get_total_number_of_ballots(&results_area_contest).await?;
-        results_area_contests.push(results_area_contest.clone());
+        .await?
+        {
+            // fetch the amount of ballot counted in the contest
+            ballots_counted += get_total_number_of_ballots(&results_area_contest).await?;
+            results_area_contests.push(results_area_contest.clone());
+        }
     }
     Ok((ballots_counted, results_area_contests, contests))
 }

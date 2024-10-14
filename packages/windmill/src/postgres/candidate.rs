@@ -129,11 +129,11 @@ pub async fn export_candidates(
 }
 
 #[instrument(skip(hasura_transaction), err)]
-pub async fn get_candidates_by_election_id(
+pub async fn get_candidates_by_contest_id(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    election_id: &str,
+    contest_id: &str,
 ) -> Result<Vec<Candidate>> {
     let statement = hasura_transaction
         .prepare(
@@ -145,7 +145,7 @@ pub async fn get_candidates_by_election_id(
             WHERE
                 tenant_id = $1 AND
                 election_event_id = $2 AND
-                election_id = $3;
+                contest_id = $3;
             "#,
         )
         .await?;
@@ -156,7 +156,7 @@ pub async fn get_candidates_by_election_id(
             &[
                 &Uuid::parse_str(tenant_id)?,
                 &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(election_id)?,
+                &Uuid::parse_str(contest_id)?,
             ],
         )
         .await?;
