@@ -125,7 +125,11 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
       * Incorporates re-authentication logic for actions that require Gold-level permissions.
       */
     const handleStartVotingPeriod = () => {
-        setDialogText(t("publish.dialog.startInfo"))
+
+        const actionText = t(`publish.action.startVotingPeriod`);
+        const dialogMessage = t("publish.dialog.confirmation", { action: actionText });
+
+        setDialogText(dialogMessage)
         setShowDialog(true)
         setCurrentCallback(() => async () => {
             try {
@@ -151,7 +155,9 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         if (isGoldUser()) {
             onGenerate(); // Proceed directly if the user has Gold permissions
         } else {
-            setDialogText(t("publish.dialog.publishInfo"));
+            setDialogText(t("publish.dialog.confirmation", {
+                action: t("publish.action.publish")
+            }));
             setShowDialog(true);
 
             setCurrentCallback(() => async () => {

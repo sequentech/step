@@ -60,47 +60,37 @@ export const PublishList: React.FC<TPublishList> = ({
     const authContext = useContext(AuthContext)
     const { isGoldUser, reauthWithGold } = authContext
 
-    const [showDialog, setShowDialog] = useState(false)
-    const [dialogText, setDialogText] = useState("")
-    const [currentCallback, setCurrentCallback] = useState<(() => Promise<void>) | null>(null);
-
-    const handleOpenDialog = (text: string, callback: () => Promise<void>) => {
-        setDialogText(text)
-        setShowDialog(true)
-        setCurrentCallback(() => callback)
-    }
-
-    const handleCloseDialog = (confirm: boolean) => {
-        if (confirm && currentCallback) {
-            currentCallback()
-        }
-        setShowDialog(false)
-    }
-
     const handleGenerateClick = async () => {
         if (isGoldUser()) {
-            onGenerate();
+            onGenerate()
         } else {
-            handleOpenDialog(t("publish.dialog.publishInfo"), async () => {
-                try {
-                    const baseUrl = new URL(window.location.href);
-                    baseUrl.searchParams.set("tabIndex", "7");
+            try {
+                const baseUrl = new URL(window.location.href)
+                baseUrl.searchParams.set("tabIndex", "7")
 
-                    sessionStorage.setItem(PENDING_PUBLISH_ACTION, "true");
+                sessionStorage.setItem(PENDING_PUBLISH_ACTION, "true")
+                await reauthWithGold(baseUrl.toString())
 
-
-                    await reauthWithGold(baseUrl.toString());
-
-                    console.log("Re-authentication successful. Proceeding to generate.");
-                    onGenerate();
-                } catch (error) {
-                    console.error("Re-authentication failed:", error);
-                    handleOpenDialog(t("publish.dialog.errorReauth"), async () => { });
-                }
-            });
+                console.log("Re-authentication successful. Proceeding to generate.")
+                onGenerate()
+            } catch (error) {
+                console.error("Re-authentication failed:", error)
+            }
         }
-    };
+    }
 
+    useEffect(() => {
+        const executePendingActions = async () => {
+            const pendingPublish = sessionStorage.getItem(PENDING_PUBLISH_ACTION)
+            if (pendingPublish) {
+                sessionStorage.removeItem(PENDING_PUBLISH_ACTION)
+                onGenerate()
+            }
+        }
+
+        executePendingActions()
+    }, [onGenerate])
+    
     /**
      * Checks for any pending actions after the component mounts.
      * If a pending action is found, it executes the action and removes the flag.
@@ -187,18 +177,6 @@ export const PublishList: React.FC<TPublishList> = ({
                     <ActionsColumn actions={actions} />
                 </DatagridConfigurable>
             </List>
-
-            <Dialog
-                open={showDialog}
-                variant="info"
-                handleClose={(confirm) => handleCloseDialog(confirm)}
-                title={t("publish.dialog.title")}
-                ok={t("publish.dialog.ok")}
-                cancel={t("publish.dialog.ko")}
-            >
-                <Typography variant="body1">{dialogText}</Typography>
-
-            </Dialog>
         </Box>
     )
 }
