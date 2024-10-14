@@ -96,9 +96,9 @@ function TreeLeaves({
     const {canCreateElectionEvent, canWriteCandidate, canWriteContest} = useActionPermissions()
 
     const canShowMenu =
-        (treeResourceNames[0] === "sequent_backend_election_event" && canCreateElectionEvent)
-        || (treeResourceNames[0] === "sequent_backend_contest" && canWriteContest)
-        || (treeResourceNames[0] === "sequent_backend_candidate" && canWriteCandidate)
+        (treeResourceNames[0] === "sequent_backend_election_event" && canCreateElectionEvent) ||
+        (treeResourceNames[0] === "sequent_backend_contest" && canWriteContest) ||
+        (treeResourceNames[0] === "sequent_backend_candidate" && canWriteCandidate)
 
     return (
         <Box sx={{backgroundColor: adminTheme.palette.white}}>
