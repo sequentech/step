@@ -544,7 +544,7 @@ export const TallyCeremony: React.FC = () => {
                             electionEventId={record?.id}
                             keysCeremonyId={keysCeremonyId}
                         />
-                        {/* <FormControl fullWidth>
+                        <FormControl fullWidth>
                             <ElectionHeader
                                 title={"tally.keysCeremonyTitle"}
                                 subtitle={"tally.keysCeremonySubTitle"}
@@ -568,6 +568,7 @@ export const TallyCeremony: React.FC = () => {
                                 )}
                             </Select>
                         </FormControl>
+                        {/* 
                         <FormControl fullWidth>
                             <ElectionHeader
                                 title={"tally.templateTitle"}
