@@ -9,10 +9,10 @@ import { useAppDispatch } from "../store/hooks"
 import { IBallotStyle, setBallotStyle } from "../store/ballotStyles/ballotStylesSlice"
 
 const PreviewPublicationScreen: React.FC = () => {
-    const {tenantId, documentId, areaId} = useParams<PreviewPublicationEventType>()
-    const [ballotStyleJson, setBballotStyleJson] = useState<GetBallotPublicationChangesOutput>() // State to store the JSON data
     const [loading, setLoading] = useState<boolean>(true) // State for loading
     const [error, setError] = useState<string | null>(null) // State for errors
+    const {tenantId, documentId, areaId, token} = useParams<PreviewPublicationEventType>()
+    const [ballotStyleJson, setBballotStyleJson] = useState<GetBallotPublicationChangesOutput>() // State to store the JSON data
     const dispatch = useAppDispatch();
 
     const previewUrl = useMemo(() => {
@@ -61,17 +61,10 @@ const PreviewPublicationScreen: React.FC = () => {
                     labels: null,
                     last_updated_at: "",
                 }
-                // dispatch(setElection({...election, image_document_id: ""}))
                 dispatch(setBallotStyle(formattedBallotStyle))
-                // dispatch(clearIsVoted())
-                // dispatch(
-                //     resetBallotSelection({
-                //         ballotStyle: formattedBallotStyle,
-                //     })
-                // )
                 
             } catch (error) {
-                console.log(`Error loading fake EML: ${error}`)
+                console.log(`Error loading EML: ${error}`)
                 // throw new VotingPortalError(VotingPortalErrorType.INTERNAL_ERROR)
             }
         }

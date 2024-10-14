@@ -95,8 +95,12 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
     const dataStr = JSON.stringify(ballotData, null, 2);
     const file = new File([dataStr], `preview.json`, { type: 'application/json' });
     const documentId = await uploadFileToS3(file);
-    const previewUrl: string = `${previewUrlTemplate}/${documentId}/${res.area_id}`;
+
+    const token = localStorage.getItem('token');
+    const previewUrl: string = `${previewUrlTemplate}/${documentId}/${res.area_id}/${encodeURIComponent(token || '')}`;
     window.open(previewUrl, '_blank');
+    
+    console.log({token})
     notify(t("publish.previewSuccess"), { type: "success" });
     if (close) {
       close();

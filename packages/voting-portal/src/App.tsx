@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useEffect, useContext, useMemo} from "react"
+import React, {useEffect, useContext, useMemo, useState} from "react"
 import {Outlet, ScrollRestoration, useLocation, useParams} from "react-router-dom"
 import {styled} from "@mui/material/styles"
 import {Footer, Header, PageBanner} from "@sequentech/ui-essentials"
@@ -15,15 +15,20 @@ import {SettingsContext} from "./providers/SettingsContextProvider"
 import {TenantEventType, PreviewPublicationEventType} from "."
 import {ApolloWrapper} from "./providers/ApolloContextProvider"
 import {VotingPortalError, VotingPortalErrorType} from "./services/VotingPortalError"
-import {useAppSelector} from "./store/hooks"
+import {useAppDispatch, useAppSelector} from "./store/hooks"
 import {selectElectionIds} from "./store/elections/electionsSlice"
 import {
+    IBallotStyle,
     selectBallotStyleByElectionId,
     selectFirstBallotStyle,
+    setBallotStyle,
 } from "./store/ballotStyles/ballotStylesSlice"
 import WatermarkBackground from "./components/WaterMark/Watermark"
 import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
 import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
+import { IBallotStyle as IElectionDTO }  from "@sequentech/ui-core"
+import { cloneDeep } from "lodash"
+import { GetBallotPublicationChangesOutput } from "./gql/graphql"
 
 const StyledApp = styled(Stack)<{css: string}>`
     min-height: 100vh;
@@ -82,19 +87,86 @@ const App = () => {
     const {globalSettings} = useContext(SettingsContext)
     const location = useLocation()
     const {tenantId, eventId} = useParams<TenantEventType>()
-    const {tenantId: documentTenant, documentId, areaId} = useParams<PreviewPublicationEventType>()
-    const {isAuthenticated, setTenantEvent} = useContext(AuthContext)
+    const {tenantId: documentTenant, documentId, areaId, token} = useParams<PreviewPublicationEventType>()
+    const {isAuthenticated, setTenantEvent, } = useContext(AuthContext)
 
     const electionIds = useAppSelector(selectElectionIds)
-    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionIds[0])))
     const isPreviewRoute = location.pathname.includes("/preview/");
+    const ballotStyle = useAppSelector(isPreviewRoute ? selectFirstBallotStyle : selectBallotStyleByElectionId(String(electionIds[0])))
+    const [ballotStyleJson, setBballotStyleJson] = useState<GetBallotPublicationChangesOutput>() // State to store the JSON data
+    const dispatch = useAppDispatch();
+
+    const previewUrl = useMemo(() => {
+        return `http://127.0.0.1:9000/public/tenant-${tenantId}/document-${documentId}/preview.json`;
+      }, [tenantId, documentId])
+
+    useEffect(() => {
+        const fetchPreviewData = async () => {
+            try {
+                const response = await fetch(previewUrl)
+                if (!response.ok) {
+                    throw new Error(`Error: ${response.statusText}`)
+                }
+                const data = await response.json()
+                setBballotStyleJson(data) 
+            } catch (err: any) {
+                console.log("error")
+            } 
+        }
+
+        if (documentTenant && documentId) {
+            fetchPreviewData()
+        }
+    }, [documentTenant, documentId])
+  
+    useEffect(() => {
+        if (ballotStyleJson && areaId && tenantId) {
+            try {
+                const ballotStyle = ballotStyleJson.current.ballot_styles.find(
+                    (style: any) => style.area_id === areaId
+                );
+                const eml: IElectionDTO = cloneDeep(ballotStyle);
+
+                const formattedBallotStyle: IBallotStyle = {
+                    id: ballotStyle.election_id,
+                    election_id: ballotStyle.election_id,
+                    election_event_id: ballotStyle.election_event_id,
+                    tenant_id: documentTenant || "",
+                    ballot_eml: eml,
+                    ballot_signature: null,
+                    created_at: "",
+                    area_id: areaId,
+                    annotations: null,
+                    labels: null,
+                    last_updated_at: "",
+                }
+                dispatch(setBallotStyle(formattedBallotStyle))
+                
+            } catch (error) {
+                console.log(`Error loading EML: ${error}`)
+                // throw new VotingPortalError(VotingPortalErrorType.INTERNAL_ERROR)
+            }
+        }
+        
+    }, [ballotStyleJson])
 
     useEffect(() => {
         if (location.pathname.includes('preview')) {
-            navigate(
-                `/preview/${documentTenant}/${documentId}/${areaId}/demo`
-                //TODO logic
-            )
+            if (ballotStyle && documentTenant) {
+                if (token) {
+                    console.log(token)
+                    localStorage.setItem('token', token);
+                }
+                // navigate(
+                //     `/tenant/${documentTenant}/event/${ballotStyle.election_event_id}/election-chooser${location.search}`    
+                // )
+                setTenantEvent(
+                    documentTenant,
+                    ballotStyle.election_event_id,
+                    "login"
+                )
+            } else return
+            //TODO logic
         }
         else if (globalSettings.DISABLE_AUTH) {
             navigate(
@@ -111,9 +183,8 @@ const App = () => {
         globalSettings.DISABLE_AUTH,
         navigate,
         location.pathname,
-        documentTenant,
-        documentId,
-        areaId
+        ballotStyle,
+        documentTenant
     ])
 
     useEffect(() => {
@@ -132,7 +203,6 @@ const App = () => {
             css={ballotStyle?.ballot_eml.election_event_presentation?.css ?? ""}
         >
             <ScrollRestoration />
-            {!isPreviewRoute ? (
                 <ApolloWrapper> 
                     {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
                     <PageBanner
@@ -143,15 +213,6 @@ const App = () => {
                         <Outlet />
                     </PageBanner>
                 </ApolloWrapper>
-            ) : (
-                <>
-                    <Header />
-                    <PageBanner marginBottom="auto" sx={{ display: "flex", position: "relative", flex: 1 }}>
-                        <WatermarkBackground />
-                        <Outlet />
-                    </PageBanner>
-                </>
-            )}
             <Footer />
         </StyledApp>
     );
