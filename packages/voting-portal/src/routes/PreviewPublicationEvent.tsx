@@ -20,7 +20,6 @@ export default function PreviewPublicationEvent() {
         if (noMatch) {
             navigate(path)
         }
-        console.log("found myself")
     }, [navigate, params, noMatch, path])
 
     return <Outlet />
