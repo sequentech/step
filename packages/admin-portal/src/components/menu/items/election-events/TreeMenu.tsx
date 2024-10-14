@@ -93,7 +93,7 @@ function TreeLeaves({
         document.documentElement.dir = dir
     }, [i18n, i18n.language, data])
 
-    const {canCreateElectionEvent} = useActionPermissions()
+    const {canCreateElectionEvent, canWriteCandidate, canWriteContest} = useActionPermissions()
     return (
         <Box sx={{backgroundColor: adminTheme.palette.white}}>
             <MenuStyles.TreeLeavesContainer>
@@ -116,6 +116,8 @@ function TreeLeaves({
                                 treeResourceNames={treeResourceNames}
                                 isArchivedElectionEvents={isArchivedElectionEvents}
                                 canCreateElectionEvent={canCreateElectionEvent}
+                                canWriteContest={canWriteContest}
+                                canWriteCandidate={canWriteCandidate}
                             />
                         )
                     }
@@ -160,6 +162,8 @@ interface TreeMenuItemProps {
     treeResourceNames: ResourceName[]
     isArchivedElectionEvents: boolean
     canCreateElectionEvent: boolean
+    canWriteContest: boolean
+    canWriteCandidate: boolean
 }
 
 function TreeMenuItem({
