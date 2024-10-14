@@ -246,7 +246,8 @@ pub async fn get_reports_by_election_event_id(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<Vec<Report>> {
-    let tenant_uuid = Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let tenant_uuid =
+        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
     let election_event_uuid = Uuid::parse_str(election_event_id)
         .with_context(|| "Error parsing election_event_id as UUID")?;
 
@@ -264,7 +265,9 @@ pub async fn get_reports_by_election_event_id(
     let rows: Vec<Row> = hasura_transaction
         .query(&statement, &[&tenant_uuid, &election_event_uuid])
         .await
-        .map_err(|err| anyhow!("Error running get_reports_by_tenant_and_election_event_id query: {err}"))?;
+        .map_err(|err| {
+            anyhow!("Error running get_reports_by_tenant_and_election_event_id query: {err}")
+        })?;
 
     let reports = rows
         .into_iter()
@@ -283,7 +286,8 @@ pub async fn insert_reports(
     election_event_id: &str,
     reports: &[Report],
 ) -> Result<()> {
-    let tenant_uuid = Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let tenant_uuid =
+        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
     let election_event_uuid = Uuid::parse_str(election_event_id)
         .with_context(|| "Error parsing election_event_id as UUID")?;
 
@@ -307,7 +311,11 @@ pub async fn insert_reports(
                     &Uuid::parse_str(&report.id)?,
                     &election_event_uuid,
                     &tenant_uuid,
-                    &report.election_id.as_ref().map(|id| Uuid::parse_str(id)).transpose()?,
+                    &report
+                        .election_id
+                        .as_ref()
+                        .map(|id| Uuid::parse_str(id))
+                        .transpose()?,
                     &report.report_type,
                     &report.template_id,
                     &serde_json::to_value(&report.cron_config)?,
