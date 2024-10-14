@@ -18,6 +18,7 @@ import {
     useGetList,
     useSidebarState,
     useDataProvider,
+    useNotify,
 } from "react-admin"
 import {useTranslation} from "react-i18next"
 import {AuthContext} from "@/providers/AuthContextProvider"
@@ -25,6 +26,7 @@ import {IPermissions} from "@/types/keycloak"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {CustomApolloContextProvider} from "@/providers/ApolloContextProvider"
 import {
+    FetchDocumentQuery,
     GenerateReportMutation,
     Sequent_Backend_Election,
     Sequent_Backend_Report,
@@ -39,7 +41,11 @@ import PreviewIcon from "@mui/icons-material/Preview"
 import {Dialog} from "@sequentech/ui-essentials"
 import {EGenerateReportMode, EReportType, ReportActions, reportTypeConfig} from "@/types/reports"
 import {GENERATE_REPORT} from "@/queries/GenerateReport"
-import {useMutation} from "@apollo/client"
+import {useMutation, useQuery} from "@apollo/client"
+import {FETCH_DOCUMENT} from "@/queries/FetchDocument"
+import {downloadUrl} from "@sequentech/ui-core"
+import {FormStyles} from "@/components/styles/FormStyles"
+import {DownloadDocument} from "../User/DownloadDocument"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -75,12 +81,15 @@ interface ActionsColumnProps {
 const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const {t} = useTranslation()
     const [openCreateReport, setOpenCreateReport] = useState<boolean>(false)
-    const [isEditReport, setIsEditReport] = useState(false)
     const [isOpenSidebar] = useSidebarState()
     const [selectedReportId, setSelectedReportId] = useState<Identifier | null>(null)
     const {globalSettings} = useContext(SettingsContext)
     const [tenantId] = useTenantStore()
+    const notify = useNotify()
     const authContext = useContext(AuthContext)
+    const fetchDocument = useQuery<FetchDocumentQuery>(FETCH_DOCUMENT)
+    const [documentId, setDocumentId] = useState<string | undefined>(undefined)
+    const [isGeneratingDocument, setIsGenerationDocument] = useState<boolean>(false)
     const [generateReport] = useMutation<GenerateReportMutation>(GENERATE_REPORT, {
         context: {
             headers: {
@@ -93,7 +102,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const dataProvider = useDataProvider()
     const handleClose = () => {
         setOpenCreateReport(false)
-        setIsEditReport(false)
         setSelectedReportId(null)
         setOpenDeleteModal(false)
     }
@@ -110,24 +118,27 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         setSelectedReportId(id)
     }
 
-    const handleGenerateReport = async (id: Identifier) => {
-        await generateReport({
-            variables: {
-                reportId: id,
-                tenantId: tenantId,
-                reportMode: EGenerateReportMode.REAL,
-            },
-        })
+    const handleCreateDrawer = () => {
+        setSelectedReportId(null)
+        setOpenCreateReport(true)
     }
 
-    const handleGeneratePreviewReport = async (id: Identifier) => {
-        await generateReport({
-            variables: {
-                reportId: id,
-                tenantId: tenantId,
-                reportMode: EGenerateReportMode.PREVIEW,
-            },
-        })
+    const handleGenerateReport = async (id: Identifier, mode: EGenerateReportMode) => {
+        setIsGenerationDocument(true)
+        try {
+            const documentId = await generateReport({
+                variables: {
+                    reportId: id,
+                    tenantId: tenantId,
+                    reportMode: mode,
+                },
+            })
+            setDocumentId(documentId.data?.generate_report?.document_id)
+        } catch (error) {
+            setIsGenerationDocument(false)
+            setDocumentId(undefined)
+            notify("Error generating report")
+        }
     }
 
     const {data: templates} = useGetList<Sequent_Backend_Template>(
@@ -185,22 +196,20 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         {
             key: ReportActions.GENERATE,
             icon: <DescriptionIcon />,
-            action: handleGenerateReport,
+            action: (id: Identifier) => {
+                handleGenerateReport(id, EGenerateReportMode.REAL)
+            },
             label: t("reportsScreen.actions.generate"),
         },
         {
             key: ReportActions.PREVIEW,
             icon: <PreviewIcon />,
-            action: handleGeneratePreviewReport,
+            action: (id: Identifier) => {
+                handleGenerateReport(id, EGenerateReportMode.PREVIEW)
+            },
             label: t("reportsScreen.actions.preview"),
         },
     ]
-
-    const handleCreateDrawer = () => {
-        setSelectedReportId(null)
-        // setOpenEditReport(false)
-        setOpenCreateReport(true)
-    }
 
     const CreateButton = () => (
         <Button onClick={handleCreateDrawer}>
@@ -306,6 +315,26 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         )
     }
 
+    const renderDownloadDocument = () => {
+        return (
+            <FormStyles.ReservedProgressSpace>
+                {isGeneratingDocument ? <FormStyles.ShowProgress /> : null}
+                {isGeneratingDocument && documentId ? (
+                    <DownloadDocument
+                        documentId={documentId}
+                        electionEventId={electionEventId || ""}
+                        fileName={`export-tasks-execution.json`}
+                        onDownload={() => {
+                            console.log("onDownload called")
+                            setDocumentId(undefined)
+                            setIsGenerationDocument(false)
+                        }}
+                    />
+                ) : null}
+            </FormStyles.ReservedProgressSpace>
+        )
+    }
+
     return (
         <>
             <ElectionHeader
@@ -388,6 +417,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                 </CustomApolloContextProvider>
             </Drawer>
             {renderDeleteModal()}
+            {renderDownloadDocument()}
         </>
     )
 }
