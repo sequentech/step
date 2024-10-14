@@ -732,12 +732,15 @@ const tagalogTranslation: TranslationType = {
                 STATUS: "Katayuan",
                 OVCS_INFORMATION: "Impormasyon ng OVCS",
                 OVERSEAS_VOTERS: "Listahan ng mga botanteng nasa ibang bansa",
-                ELECTION_RETURNS_FOR_NATIONAL_POSITIONS: "Mga Resulta ng Halalan para sa Pambansang Posisyon",
+                ELECTION_RETURNS_FOR_NATIONAL_POSITIONS:
+                    "Mga Resulta ng Halalan para sa Pambansang Posisyon",
                 OV_USERS_WHO_VOTED: "Listahan ng mga Botanteng Nasa Ibang Bansa na Bumoto",
                 OV_USERS: "Listahan ng mga Botanteng Nasa Ibang Bansa na may Katayuan sa Pagboto",
                 OVCS_STATISTICS: "Pagsubaybay ng Botohan sa Ibang Bansa - Estadistika ng OVCS",
-                PRE_ENROLLED_OV_BUT_DISAPPROVED: "Listahan ng mga Botanteng Nasa Ibang Bansa na Naka-pre-enroll pero Hindi Naaprubahan",
-                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION: "Listahan ng mga Botanteng Nasa Ibang Bansa na Naka-pre-enroll pero Kailangan ng Manwal na Pagpapatunay",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED:
+                    "Listahan ng mga Botanteng Nasa Ibang Bansa na Naka-pre-enroll pero Hindi Naaprubahan",
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
+                    "Listahan ng mga Botanteng Nasa Ibang Bansa na Naka-pre-enroll pero Kailangan ng Manwal na Pagpapatunay",
             },
             empty: {
                 header: "Wala pang mga ulat.",

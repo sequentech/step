@@ -734,7 +734,8 @@ const englishTranslation = {
                 OV_USERS: "List of Overseas Voters with Voting Status",
                 OVCS_STATISTICS: "Overseas Voting Monitoring - OVCS Statistics",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED: "List of OV who Pre-enrolled but Disapproved",
-                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION: "List of OV who Pre-enrolled but subject for Manual Validation",
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
+                    "List of OV who Pre-enrolled but subject for Manual Validation",
             },
             empty: {
                 header: "No Reports yet.",

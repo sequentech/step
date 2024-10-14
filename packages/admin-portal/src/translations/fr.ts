@@ -734,12 +734,15 @@ const frenchTranslation: TranslationType = {
                 STATUS: "Statut",
                 OVCS_INFORMATION: "Informations OVCS",
                 OVERSEAS_VOTERS: "Liste des Électeurs Résidant à l'Étranger",
-                ELECTION_RETURNS_FOR_NATIONAL_POSITIONS: "Résultats des Élections pour les Postes Nationaux",
+                ELECTION_RETURNS_FOR_NATIONAL_POSITIONS:
+                    "Résultats des Élections pour les Postes Nationaux",
                 OV_USERS_WHO_VOTED: "Liste des Électeurs Résidant à l'Étranger ayant Voté",
                 OV_USERS: "Liste des Électeurs Résidant à l'Étranger avec Statut de Vote",
                 OVCS_STATISTICS: "Suivi du Vote à l'Étranger - Statistiques OVCS",
-                PRE_ENROLLED_OV_BUT_DISAPPROVED: "Liste des Électeurs Résidant à l'Étranger Pré-inscrits mais Refusés",
-                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION: "Liste des Électeurs Résidant à l'Étranger Pré-inscrits mais Soumis à Validation Manuelle",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED:
+                    "Liste des Électeurs Résidant à l'Étranger Pré-inscrits mais Refusés",
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
+                    "Liste des Électeurs Résidant à l'Étranger Pré-inscrits mais Soumis à Validation Manuelle",
             },
             empty: {
                 header: "Pas encore de rapports.",
