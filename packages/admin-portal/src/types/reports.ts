@@ -2,8 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {ITemplateType} from "./templates"
-
 export enum ReportActions {
     EDIT = "edit",
     DELETE = "delete",
@@ -30,36 +28,33 @@ export const reportTypeConfig: {
         actions: ReportActions[]
         templateRequired?: boolean
         electionPolicy?: EReportElectionPolicy
-        associatedTemplateType?: ITemplateType
     }
 } = {
     [EReportType.BALLOT_RECEIPT]: {
-        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
+        actions: [
+            ReportActions.EDIT,
+            ReportActions.DELETE,
+            ReportActions.GENERATE,
+            ReportActions.PREVIEW,
+            ReportActions.GENERATE_SCHEDULED,
+        ],
         templateRequired: true,
         electionPolicy: EReportElectionPolicy.ELECTION_ALLOWED,
-        associatedTemplateType: ITemplateType.BALLOT_RECEIPT,
     },
     [EReportType.ELECTORAL_RESULTS]: {
         actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
         templateRequired: true,
         electionPolicy: EReportElectionPolicy.ELECTION_ALLOWED,
-        associatedTemplateType: ITemplateType.ELECTORAL_RESULTS,
     },
     [EReportType.MANUAL_VERIFICATION]: {
         actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
         templateRequired: true,
         electionPolicy: EReportElectionPolicy.ELECTION_NOT_ALLOWED,
-        associatedTemplateType: ITemplateType.MANUALLY_VERIFY_VOTER,
     },
     [EReportType.STATISTICAL_REPORT]: {
         actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
         templateRequired: true,
-        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
-    },
-    default: {
-        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
-        templateRequired: false,
-        electionPolicy: EReportElectionPolicy.ELECTION_ALLOWED,
+        electionPolicy: EReportElectionPolicy.ELECTION_NOT_ALLOWED,
     },
 }
 

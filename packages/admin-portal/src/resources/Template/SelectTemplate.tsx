@@ -6,11 +6,10 @@ import React from "react"
 import {SxProps} from "@mui/material"
 import {AutocompleteInput, Identifier, isRequired, ReferenceInput} from "react-admin"
 import {EReportType} from "@/types/reports"
-import {ITemplateType} from "@/types/templates"
 
 interface SelectTemplateProps {
     tenantId: string | null
-    templateType: ITemplateType | undefined
+    templateType: EReportType | undefined
     source: string
     label?: string
     onSelectTemplate?: (templateId: string) => void
