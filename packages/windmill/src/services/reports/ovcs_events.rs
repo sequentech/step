@@ -111,3 +111,20 @@ impl TemplateRenderer for OVCSEventsTemplate {
         Ok(data)
     }
 }
+
+
+#[instrument] 
+pub async fn generate_ovcs_report(
+    document_id: &str,
+    tenant_id: &str,
+    election_event_id: &str,
+    mode: GenerateReportMode,
+) -> Result<()> {
+    let template = OVCSEventsTemplate {
+        tenant_id: tenant_id.to_string(),
+        election_event_id: election_event_id.to_string(),
+    };
+    template
+        .execute_report(document_id, tenant_id, election_event_id, false, None, mode)
+        .await
+}
