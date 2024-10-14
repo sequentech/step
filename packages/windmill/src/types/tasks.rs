@@ -6,23 +6,27 @@ use strum_macros::{Display, EnumString, EnumVariantNames};
 
 #[derive(Display, Debug, PartialEq, Eq, Clone, EnumString, EnumVariantNames)]
 pub enum ETasksExecution {
-    EXPORT_ELECTION_EVENT,
-    IMPORT_CANDIDATES,
-    IMPORT_USERS,
-    IMPORT_ELECTION_EVENT,
-    EXPORT_VOTERS,
-    CREATE_TRANSMISSION_PACKAGE,
+    ImportCandidates,
+    ImportUsers,
+    ImportElectionEvent,
+    ExportElectionEvent,
+    ExportVoters,
+    ExportActivityLogsReport,
+    CreateTransmissionPackage,
 }
 
 impl ETasksExecution {
     pub fn to_name(&self) -> &str {
         match self {
-            ETasksExecution::EXPORT_ELECTION_EVENT => "Export Election Event",
-            ETasksExecution::IMPORT_CANDIDATES => "Import Candidates",
-            ETasksExecution::IMPORT_USERS => "Import Voters",
-            ETasksExecution::IMPORT_ELECTION_EVENT => "Import Election Event",
-            ETasksExecution::EXPORT_VOTERS => "Export Voters",
-            ETasksExecution::CREATE_TRANSMISSION_PACKAGE => "Create Transmission Package",
+            ETasksExecution::ImportCandidates => "Import Candidates",
+            ETasksExecution::ImportUsers => "Import Voters",
+            ETasksExecution::ImportElectionEvent => "Import Election Event",
+            ETasksExecution::ExportVoters => "Export Voters",
+            ETasksExecution::ExportElectionEvent => "Export Election Event",
+            ETasksExecution::ExportActivityLogsReport => {
+                "Export Election Event Activity Logs Report"
+            }
+            ETasksExecution::CreateTransmissionPackage => "Create Transmission Package",
         }
     }
 }

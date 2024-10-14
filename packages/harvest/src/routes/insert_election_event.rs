@@ -138,7 +138,7 @@ pub async fn import_election_event_f(
     let task_execution = post(
         &tenant_id,
         &id,
-        ETasksExecution::IMPORT_ELECTION_EVENT,
+        ETasksExecution::ImportElectionEvent,
         &executer_name,
     )
     .await

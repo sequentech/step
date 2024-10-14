@@ -501,7 +501,7 @@ pub async fn import_users_f(
     let task_execution = post(
         &tenant_id,
         &election_event_id,
-        ETasksExecution::IMPORT_USERS,
+        ETasksExecution::ImportUsers,
         &executer_name,
     )
     .await
@@ -574,7 +574,7 @@ pub async fn export_users_f(
                 post(
                     &tenant_id,
                     &election_event_id,
-                    ETasksExecution::EXPORT_VOTERS,
+                    ETasksExecution::ExportVoters,
                     &executer_name,
                 )
                 .await

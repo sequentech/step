@@ -57,7 +57,7 @@ pub async fn create_transmission_package(
     let task_execution = post(
         &tenant_id,
         &election_event_id,
-        ETasksExecution::CREATE_TRANSMISSION_PACKAGE,
+        ETasksExecution::CreateTransmissionPackage,
         &executer_name,
     )
     .await

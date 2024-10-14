@@ -48,7 +48,7 @@ pub async fn import_candidates_route(
     let task_execution = post(
         &tenant_id,
         &election_event_id,
-        ETasksExecution::IMPORT_CANDIDATES,
+        ETasksExecution::ImportCandidates,
         &executer_name,
     )
     .await
