@@ -154,16 +154,11 @@ const App = () => {
         if (location.pathname.includes('preview')) {
             if (ballotStyle && documentTenant) {
                 if (token) {
-                    console.log(token)
                     localStorage.setItem('token', token);
+                    document.cookie = `token=${token}; path=/; SameSite=Lax`;
                 }
-                // navigate(
-                //     `/tenant/${documentTenant}/event/${ballotStyle.election_event_id}/election-chooser${location.search}`    
-                // )
-                setTenantEvent(
-                    documentTenant,
-                    ballotStyle.election_event_id,
-                    "login"
+                navigate(
+                    `/tenant/${documentTenant}/event/${ballotStyle.election_event_id}/election-chooser${location.search}`    
                 )
             } else return
             //TODO logic

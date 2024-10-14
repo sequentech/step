@@ -26,7 +26,6 @@ const TenantEvent = lazy(() => import("./routes/TenantEvent"))
 const PreviewPublicationEvent = lazy(() => import("./routes/PreviewPublicationEvent"))
 const ElectionSelectionScreen = lazy(() => import("./routes/ElectionSelectionScreen"))
 const LoginScreen = lazy(() => import("./routes/LoginScreen"))
-const PreviewPublicationScreen = lazy(() => import("./routes/PreviewPublicationScreen"))
 const RegisterScreen = lazy(() => import("./routes/RegisterScreen"))
 const StartScreen = lazy(() => import("./routes/StartScreen"))
 const VotingScreen = lazy(() => import("./routes/VotingScreen"))
@@ -85,17 +84,7 @@ const router = createBrowserRouter(
                         <Suspense fallback={<Loader />}>
                             <PreviewPublicationEvent />
                         </Suspense>
-                    ),
-                    children: [
-                        {
-                            path: "demo",
-                            element: (
-                                <Suspense fallback={<Loader />}>
-                                    <PreviewPublicationScreen />
-                                </Suspense>
-                            ),
-                        }
-                    ]
+                    )
                 },
                 {
                     path: "/tenant/:tenantId/event/:eventId",
