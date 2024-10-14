@@ -20,6 +20,7 @@ use crate::tasks::export_election_event_logs::export_election_event_logs;
 use crate::tasks::export_tasks_execution::export_tasks_execution;
 use crate::tasks::export_templates::export_templates;
 use crate::tasks::export_users::export_users;
+use crate::tasks::generate_report::generate_report;
 use crate::tasks::import_election_event::import_election_event;
 use crate::tasks::import_users::import_users;
 use crate::tasks::insert_election_event::insert_election_event_t;

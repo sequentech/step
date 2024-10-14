@@ -38,7 +38,10 @@ pub fn authorize(
         perms_str.iter().all(|item| permissions_set.contains(&item));
 
     if !all_contained {
-        Err((Status::Unauthorized, format!("Unathorized: {perms_str:?} not in {permissions_set:?}")))
+        Err((
+            Status::Unauthorized,
+            format!("Unathorized: {perms_str:?} not in {permissions_set:?}"),
+        ))
     } else {
         Ok(())
     }

@@ -6,7 +6,7 @@ use rocket::http::Status;
 use rocket::request::{FromRequest, Outcome, Request};
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
-use tracing::{warn, instrument};
+use tracing::{instrument, warn};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AuthHeaders {
@@ -63,7 +63,7 @@ impl<'r> FromRequest<'r> for JwtClaims {
                     None => {
                         warn!("JwtClaims guard: not a bearer token: {authorization:?}");
                         Outcome::Error((Status::Unauthorized, ()))
-                    },
+                    }
                 }
             }
             None => {
