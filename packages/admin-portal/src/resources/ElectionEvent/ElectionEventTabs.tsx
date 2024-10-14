@@ -13,8 +13,8 @@ import {useLocation, useNavigate} from "react-router"
 import {v4 as uuidv4} from "uuid"
 import {EPublishType} from "../Publish/EPublishType"
 import {EElectionEventLockedDown} from "@sequentech/ui-core"
-import { Box } from "@mui/material"
-import { Tabs } from "@/components/Tabs"
+import {Box} from "@mui/material"
+import {Tabs} from "@/components/Tabs"
 
 // Lazy load the tab components
 const DashboardElectionEvent = lazy(() => import("@/components/dashboard/election-event/Dashboard"))
