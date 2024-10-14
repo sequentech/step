@@ -52,7 +52,7 @@ pub struct SystemData {
     pub registered_voters: i64,
     pub ballots_counted: i64,
     pub voters_turnout: i64,
-    pub contests_result: Vec<ReportContestData>,
+    pub elective_positions: Vec<ReportContestData>,
 }
 
 /// Struct for System Data
@@ -68,9 +68,9 @@ pub struct ReportContestData {
 /// Implementation of TemplateRenderer for Manual Verification
 #[derive(Debug)]
 pub struct StatisticalReportTemplate {
-    tenant_id: String,
-    election_event_id: String,
-    election_id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub election_id: String,
 }
 
 #[async_trait]
@@ -189,7 +189,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
 
         let voters_turnout = generate_voters_turnout(&ballots_counted, &registered_voters).await?;
 
-        let mut contests_result: Vec<ReportContestData> = vec![];
+        let mut elective_positions: Vec<ReportContestData> = vec![];
 
         for (contest) in contests.clone() {
             let results_area_contest = results_area_contests
@@ -212,7 +212,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
                     &contest.id
                 )
             })?;
-            contests_result.push(contest_result_data);
+            elective_positions.push(contest_result_data);
         }
 
         Ok(SystemData {
@@ -237,7 +237,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
             registered_voters,
             ballots_counted,
             voters_turnout,
-            contests_result,
+            elective_positions,
         })
     }
 }
