@@ -5,6 +5,7 @@
 
 use super::providers::transactions_provider::provide_hasura_transaction;
 use super::s3;
+use crate::postgres::reports::{get_template_id_for_report, ReportType};
 use crate::postgres::template;
 use crate::postgres::{self, election};
 use crate::services::database::get_hasura_pool;
@@ -69,25 +70,15 @@ pub async fn get_template(
     election_event_id: &str,
     election_id: &str,
 ) -> Result<Option<String>> {
-    let Some(election) = election::get_election_by_id(
+    let template_id = get_template_id_for_report(
         hasura_transaction,
         tenant_id,
         election_event_id,
-        election_id,
+        &ReportType::BALLOT_RECEIPT,
+        Some(election_id),
     )
     .await?
-    else {
-        return Ok(None);
-    };
-
-    let Some(receipts_json) = election.receipts else {
-        return Ok(None);
-    };
-
-    let receipts: ReceiptsRoot = deserialize_value(receipts_json)?;
-    let Some(template_id) = receipts.document.and_then(|document| document.template) else {
-        return Ok(None);
-    };
+    .with_context(|| "Error getting vote receipt template id")?;
 
     let Some(template) =
         template::get_template_by_id(hasura_transaction, tenant_id, &template_id).await?
@@ -338,7 +329,7 @@ pub async fn create_vote_receipt(
     let render = reports::render_template_text(&template_hbs, map)?;
 
     // Gen pdf
-    let bytes_pdf = pdf::html_to_pdf(render).map_err(|err| anyhow!("{}", err))?;
+    let bytes_pdf = pdf::html_to_pdf(render, None).map_err(|err| anyhow!("{}", err))?;
 
     let (_temp_path, temp_path_string, file_size) =
         write_into_named_temp_file(&bytes_pdf, "vote-receipt-", ".pdf")

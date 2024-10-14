@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::date::ISO8601;
 use anyhow::Result;
 use b3::messages::message::Message;
+use sequent_core::services::date::ISO8601;
 use sequent_core::types::ceremonies::Log;
 use tracing::{event, instrument, Level};
 

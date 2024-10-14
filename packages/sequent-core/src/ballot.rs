@@ -573,22 +573,6 @@ pub struct ElectionEventLanguageConf {
     Clone,
     Default,
 )]
-pub struct ActiveTemplateIds {
-    pub manual_verification: Option<String>,
-}
-
-#[derive(
-    BorshSerialize,
-    BorshDeserialize,
-    Serialize,
-    Deserialize,
-    JsonSchema,
-    PartialEq,
-    Eq,
-    Debug,
-    Clone,
-    Default,
-)]
 pub struct ElectionEventPresentation {
     pub i18n: Option<I18nContent<I18nContent<Option<String>>>>,
     pub materials: Option<ElectionEventMaterials>,
@@ -601,7 +585,6 @@ pub struct ElectionEventPresentation {
     pub elections_order: Option<ElectionsOrder>,
     pub voting_portal_countdown_policy: Option<VotingPortalCountdownPolicy>,
     pub custom_urls: Option<CustomUrls>,
-    pub active_template_ids: Option<ActiveTemplateIds>,
     pub locked_down: Option<LockedDown>,
     pub publish_policy: Option<Publish>,
     pub enrollment: Option<Enrollment>,
@@ -1163,6 +1146,17 @@ pub enum VotingStatus {
     OPEN,
     PAUSED,
     CLOSED,
+}
+
+impl VotingStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            VotingStatus::NOT_STARTED => "NOT_STARTED",
+            VotingStatus::OPEN => "OPEN",
+            VotingStatus::PAUSED => "PAUSED",
+            VotingStatus::CLOSED => "CLOSED",
+        }
+    }
 }
 
 #[derive(

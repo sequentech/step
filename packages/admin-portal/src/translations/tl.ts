@@ -10,6 +10,10 @@ const tagalogTranslation: TranslationType = {
             noPermissions: "Wala kang permiso upang ma-access ang mga log.",
             title: "Mga Log",
             subtitle: "Pangkalahatang mga log ng pangunahing at IAM na database",
+            actions: {
+                csv: "I-export sa CSV",
+                pdf: "I-export sa PDF",
+            },
             column: {
                 id: "Id",
                 statement: "Pahayag",
@@ -47,6 +51,7 @@ const tagalogTranslation: TranslationType = {
                 IMPORT_CANDIDATES: "I-import ang mga Kandidato",
                 EXPORT_VOTERS: "I-export ang mga botante",
                 CREATE_TRANSMISSION_PACKAGE: "Lumikha ng Transmission Package",
+                EXPORT_BALLOT_PUBLICATION: "I-export ang Paglalathala ng Balota",
             },
             widget: {
                 taskTitle: "Gawain: {{title}}",
@@ -300,6 +305,7 @@ const tagalogTranslation: TranslationType = {
                 tasks: "Mga Gawain",
                 events: "Naka-schedule na Kaganapan",
                 notifications: "Mga Abiso",
+                reports: "Ulat",
             },
             tally: {
                 emptyHeader: "Walang pang Tally.",
@@ -705,6 +711,67 @@ const tagalogTranslation: TranslationType = {
                 eventProcessor: "Uri",
                 stoppedAt: "Huminto Noong",
                 scheduledDate: "Naka-schedule Noong",
+            },
+        },
+        reportsScreen: {
+            title: "Mga Ulat",
+            subtitle: "Lumikha ng mga ulat para sa mga kaganapan ng halalan",
+            messages: {
+                createSuccess: "Matagumpay na nalikha ang ulat",
+                createError: "Nagkaroon ng error sa paglikha ng ulat",
+                submitError: "Error sa pagsusumite ng Ulat",
+                updateSuccess: "Matagumpay na na-update ang Ulat",
+            },
+            reportType: {
+                BALLOT_RECEIPT: "Resibo ng Balota",
+                ELECTORAL_RESULTS: "Mga Resulta ng Eleksyon",
+                MANUAL_VERIFICATION: "Manwal na Pag-verify",
+                STATISTICAL_REPORT: "Ulat ng Istatistika",
+                OVCS_EVENTS: "Pagsubaybay ng Botohan sa Ibang Bansa - Mga Kaganapan ng OVCS",
+                AUDIT_LOGS: "Mga Talaan ng Awdit",
+                STATUS: "Katayuan",
+                OVCS_INFORMATION: "Impormasyon ng OVCS",
+                OVERSEAS_VOTERS: "Listahan ng mga botanteng nasa ibang bansa",
+                ELECTION_RETURNS_FOR_NATIONAL_POSITIONS:
+                    "Mga Resulta ng Halalan para sa Pambansang Posisyon",
+                OV_USERS_WHO_VOTED: "Listahan ng mga Botanteng Nasa Ibang Bansa na Bumoto",
+                OV_USERS: "Listahan ng mga Botanteng Nasa Ibang Bansa na may Katayuan sa Pagboto",
+                OVCS_STATISTICS: "Pagsubaybay ng Botohan sa Ibang Bansa - Estadistika ng OVCS",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED:
+                    "Listahan ng mga Botanteng Nasa Ibang Bansa na Naka-pre-enroll pero Hindi Naaprubahan",
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
+                    "Listahan ng mga Botanteng Nasa Ibang Bansa na Naka-pre-enroll pero Kailangan ng Manwal na Pagpapatunay",
+            },
+            empty: {
+                header: "Wala pang mga ulat.",
+                body: "Gusto mo bang lumikha ng isa?",
+                button: "Lumikha ng Ulat",
+            },
+            create: {
+                title: "Lumikha ng Ulat",
+                subtitle: "Lumikha ng bagong konfigurasyon ng ulat.",
+            },
+            edit: {
+                title: "I-edit ang Ulat",
+                subtitle: "I-edit ang konfigurasyon ng ulat.",
+                delete: "Sigurado ka bang nais mong tanggalin ang ulat na ito?",
+            },
+            fields: {
+                electionId: "Halalan",
+                template: "Template",
+                reportType: "Uri ng Ulat",
+                repeatable: "Nauulit",
+                cronExpression: "Cron Expression",
+                emailRecipients: "Mga Tatanggap ng Email",
+            },
+            delete: {
+                body: "Sigurado ka bang nais mong tanggalin ang ulat na ito?",
+            },
+            actions: {
+                generate: "Gumawa",
+                delete: "Tanggalin",
+                edit: "I-edit",
+                preview: "I-preview",
             },
         },
         common: {
@@ -1232,12 +1299,16 @@ const tagalogTranslation: TranslationType = {
                     "Malapit mo nang itigil ang panahon ng pagboto. Sigurado ka bang nais mong magpatuloy?",
                 pauseInfo:
                     "Malapit mo nang i-pause ang panahon ng pagboto. Sigurado ka bang nais mong magpatuloy?",
+                publishInfo:
+                    "Malapit ka nang gumawa ng publikasyon. Sigurado ka bang gusto mong magpatuloy?",
                 ok: "Kumpirmahin",
                 ko: "Kanselahin",
                 error: "Error sa pag-load ng paglalathala ng balota",
                 error_publish: "Error sa paglalathala ng balota",
                 error_status: "Error sa pagbabago ng katayuan ng paglalathala ng balota",
                 diff: "Ang pag-render ng lahat ng mga pagbabago ay maaaring magdulot ng pagka-antala sa pahina. Sigurado ka bang nais mong magpatuloy?",
+                confirmation:
+                    "Ang aksyong gagawin mo ay sensitibo at nangangailangan ng kumpirmasyon. Paki-enter ang iyong password para magpatuloy sa {{action}}.",
             },
             notifications: {
                 generated: "Balota nilikha",

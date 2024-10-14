@@ -14,6 +14,10 @@ const spanishTranslation: TranslationType = {
                 id: "Id",
                 statement: "Statement",
             },
+            actions: {
+                csv: "Exportar en CSV",
+                pdf: "Exportar en PDF",
+            },
             main: {
                 title: "Bitácora de Base de Datos Principal",
             },
@@ -47,6 +51,7 @@ const spanishTranslation: TranslationType = {
                 IMPORT_CANDIDATES: "Importar candidatos",
                 EXPORT_VOTERS: "Exportar votantes",
                 CREATE_TRANSMISSION_PACKAGE: "Crear paquete de transmisión",
+                EXPORT_BALLOT_PUBLICATION: "Exportar Publicación de Boleta",
             },
             widget: {
                 taskTitle: "Tarea: {{title}}",
@@ -301,6 +306,7 @@ const spanishTranslation: TranslationType = {
                 tasks: "Tareas",
                 events: "Eventos Programados",
                 notifications: "Notificaciones",
+                reports: "Informe",
             },
             tally: {
                 emptyHeader: "Ningún Recuento aún.",
@@ -704,6 +710,67 @@ const spanishTranslation: TranslationType = {
                 eventProcessor: "Tipo",
                 stoppedAt: "Detenido En",
                 scheduledDate: "Programado En",
+            },
+        },
+        reportsScreen: {
+            title: "Informes",
+            subtitle: "Generar informes para los eventos electorales",
+            messages: {
+                createSuccess: "Informe creado con éxito",
+                createError: "Error al crear el informe",
+                submitError: "Error al enviar el Informe",
+                updateSuccess: "Informe actualizado con éxito",
+            },
+            reportType: {
+                BALLOT_RECEIPT: "Recibo de Voto",
+                ELECTORAL_RESULTS: "Resultados Electorales",
+                MANUAL_VERIFICATION: "Verificación Manual",
+                STATISTICAL_REPORT: "Informe Estadístico",
+                OVCS_EVENTS: "Monitoreo de Votación en el Extranjero - Eventos OVCS",
+                AUDIT_LOGS: "Registros de Auditoría",
+                STATUS: "Estado",
+                OVCS_INFORMATION: "Información de OVCS",
+                OVERSEAS_VOTERS: "Lista de Votantes en el Extranjero",
+                ELECTION_RETURNS_FOR_NATIONAL_POSITIONS:
+                    "Resultados Electorales de los Cargos Nacionales",
+                OV_USERS_WHO_VOTED: "Lista de Votantes en el Extranjero que Votaron",
+                OV_USERS: "Lista de Votantes en el Extranjero con Estado de Votación",
+                OVCS_STATISTICS: "Monitoreo de Votación en el Extranjero - Estadísticas OVCS",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED:
+                    "Lista de Votantes en el Extranjero que se Preinscribieron pero Fueron Rechazados",
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
+                    "Lista de Votantes en el Extranjero que se Preinscribieron pero Requieren Validación Manual",
+            },
+            empty: {
+                header: "No hay informes todavía.",
+                body: "¿Quieres crear uno?",
+                button: "Crear informe",
+            },
+            create: {
+                title: "Crear informe",
+                subtitle: "Crear una nueva configuración de informe.",
+            },
+            edit: {
+                title: "Editar informe",
+                subtitle: "Editar configuración del informe.",
+                delete: "¿Estás seguro de que quieres eliminar este informe?",
+            },
+            fields: {
+                electionId: "Elección",
+                template: "Plantilla",
+                reportType: "Tipo de informe",
+                repeatable: "Repetible",
+                cronExpression: "Expresión Cron",
+                emailRecipients: "Destinatarios de correo electrónico",
+            },
+            delete: {
+                body: "¿Estás seguro de que quieres eliminar este informe?",
+            },
+            actions: {
+                generate: "Generar",
+                delete: "Eliminar",
+                edit: "Editar",
+                preview: "Vista previa",
             },
         },
         common: {
@@ -1224,12 +1291,16 @@ const spanishTranslation: TranslationType = {
                     "Está a punto de detener el período de votación. ¿Está seguro de que desea continuar?",
                 pauseInfo:
                     "Está a punto de pausar el período de votación. ¿Está seguro de que desea continuar?",
+                publishInfo:
+                    "Estás a punto de generar una publicación. ¿Estás seguro de que deseas continuar?",
                 ok: "Confirmar",
                 ko: "Cancelar",
                 error: "Error al cargar las papeletas publicadas",
                 error_publish: "Error al publicar la papeleta",
                 error_status: "Error al cambiar el estado de la publicación",
                 diff: "Renderizar todos los cambios podría hacer que la página no responda. ¿Estás seguro de que quieres continuar?",
+                confirmation:
+                    "La acción que estás a punto de realizar es sensible y requiere confirmación. Por favor, introduce tu contraseña para continuar con {{action}}.",
             },
             label: {
                 current: "Actual",

@@ -2016,6 +2016,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "cron"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6f8c3e73077b4b4a6ab1ea5047c37c57aee77657bc8ecd6f29b0af082d0b0c07"
+dependencies = [
+ "chrono",
+ "nom",
+ "once_cell",
+]
+
+[[package]]
 name = "crossbeam"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6636,6 +6647,7 @@ dependencies = [
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "tempfile",
+ "time",
  "tokio",
  "tokio-postgres",
  "tracing",
@@ -8682,6 +8694,7 @@ dependencies = [
  "cfg-if",
  "chrono",
  "config",
+ "cron",
  "csv",
  "deadpool",
  "deadpool-postgres",
@@ -8695,6 +8708,7 @@ dependencies = [
  "futures",
  "graphql_client",
  "handlebars 4.5.0",
+ "headless_chrome",
  "immudb-rs",
  "keycloak",
  "lazy_static",

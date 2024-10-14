@@ -13,6 +13,8 @@ use crate::hasura::tally_session_execution::{
 };
 use crate::postgres::area::get_event_areas;
 use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::reports::get_template_id_for_report;
+use crate::postgres::reports::ReportType;
 use crate::postgres::tally_sheet::get_published_tally_sheets_by_event;
 use crate::postgres::template::get_template_by_id;
 use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
@@ -30,7 +32,6 @@ use crate::services::ceremonies::tally_session_error::handle_tally_session_error
 use crate::services::ceremonies::velvet_tally::run_velvet_tally;
 use crate::services::ceremonies::velvet_tally::AreaContestDataType;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
-use crate::services::date::ISO8601;
 use crate::services::election::get_election_event_elections;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
@@ -60,6 +61,7 @@ use sequent_core::services::area_tree::TreeNode;
 use sequent_core::services::area_tree::TreeNodeArea;
 use sequent_core::services::connection;
 use sequent_core::services::connection::AuthHeaders;
+use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::ceremonies::TallyCeremonyStatus;
@@ -900,13 +902,17 @@ pub async fn execute_tally_session_wrapped(
         event!(Level::INFO, "Can't find last execution status, skipping");
         return Ok(());
     };
-    let configuration: Option<TallySessionConfiguration> = tally_session
-        .configuration
-        .map(|value| deserialize_value(value))
-        .transpose()?;
-    let report_content_template_id: Option<String> = configuration
-        .map(|value| value.report_content_template_id)
-        .flatten();
+
+    let report_content_template_id: Option<String> = get_template_id_for_report(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &ReportType::ELECTORAL_RESULTS,
+        None,
+    )
+    .await
+    .with_context(|| "Error finding template id from reports")?;
+
     let report_content_template: Option<String> =
         if let Some(template_id) = report_content_template_id {
             let template = get_template_by_id(hasura_transaction, &tenant_id, &template_id).await?;

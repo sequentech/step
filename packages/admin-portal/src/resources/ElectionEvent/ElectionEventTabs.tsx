@@ -55,6 +55,12 @@ const EditNotifications = lazy(() =>
     }))
 )
 
+const Reports = lazy(() =>
+    import("../Reports/EditReportsTab").then((module) => ({
+        default: module.EditReportsTab,
+    }))
+)
+
 export const ElectionEventTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const authContext = useContext(AuthContext)
@@ -111,6 +117,12 @@ export const ElectionEventTabs: React.FC = () => {
         IPermissions.NOTIFICATION_READ
     )
 
+    const showReports = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.REPORT_READ
+    )
+
     const [loadedChildren, setLoadedChildren] = React.useState<number>(0)
     const [value, setValue] = React.useState(0)
 
@@ -133,6 +145,21 @@ export const ElectionEventTabs: React.FC = () => {
             refreshRef.current?.click()
         }
     }, [loadedChildren])
+
+    // This useEffect handles the 'tabIndex' search parameter from the URL.
+    // It reads the parameter, parses it, and sets the active tab based on the index.
+    // If the 'tabIndex' parameter is present and valid, the corresponding tab will be selected.
+    useEffect(() => {
+        const params = new URLSearchParams(location.search)
+        const tabIndexParam = params.get("tabIndex")
+
+        if (tabIndexParam) {
+            const tabIndex = parseInt(tabIndexParam, 10)
+            if (!isNaN(tabIndex)) {
+                setValue(tabIndex)
+            }
+        }
+    }, [location.search])
 
     const renderTabContent = () => {
         switch (value) {
@@ -185,7 +212,7 @@ export const ElectionEventTabs: React.FC = () => {
                     </Suspense>
                 ) : null
             case 7:
-                return showPublish ? (
+                return showPublish && record?.id ? (
                     <Suspense fallback={<div>Loading Publish...</div>}>
                         <Publish electionEventId={record?.id} type={EPublishType.Event} />
                     </Suspense>
@@ -212,6 +239,12 @@ export const ElectionEventTabs: React.FC = () => {
                 return showNotifications ? (
                     <Suspense fallback={<div>Loading Notifications...</div>}>
                         <EditNotifications electionEventId={record?.id} />
+                    </Suspense>
+                ) : null
+            case 12:
+                return showReports ? (
+                    <Suspense fallback={<div>Loading Reports...</div>}>
+                        <Reports electionEventId={record?.id} />
                     </Suspense>
                 ) : null
             default:
@@ -257,6 +290,9 @@ export const ElectionEventTabs: React.FC = () => {
                     {showLogs ? <Tab label={t("electionEventScreen.tabs.logs")} value={9} /> : null}
                     {showEvents ? (
                         <Tab label={t("electionEventScreen.tabs.events")} value={10} />
+                    ) : null}
+                    {showReports ? (
+                        <Tab label={t("electionEventScreen.tabs.reports")} value={12} />
                     ) : null}
                     {/*showNotifications ? (
                         <Tab label={t("electionEventScreen.tabs.notifications")} value={11} />

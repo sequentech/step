@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useEffect, useState} from "react"
-
 import {Drawer} from "@mui/material"
 import {Add} from "@mui/icons-material"
 import {useTranslation} from "react-i18next"
@@ -19,6 +18,7 @@ interface ListActionsProps {
     doImport?: () => void
     withExport?: boolean
     doExport?: () => void
+    openExportMenu?: (e: React.MouseEvent<HTMLElement>) => void
     isExportDisabled?: boolean
     withFilter?: boolean
     withAction?: boolean
@@ -39,6 +39,7 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
         doImport = () => {},
         withExport = true,
         doExport = () => {},
+        openExportMenu = () => {},
         isExportDisabled = false,
         withFilter = true,
         withAction = false,
@@ -51,6 +52,8 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
         extraActions = [],
         defaultExport = false,
     } = props
+
+    const exportWithOptions = props.openExportMenu !== undefined
 
     const {t} = useTranslation()
 
@@ -103,27 +106,21 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
                     <Button onClick={doImport} label={t("common.label.import")}>
                         <UploadIcon />
                     </Button>
-                ) : // <ImportButton
-                //     sx={{
-                //         color: "#0F054C",
-                //         textAlign: "center",
-                //         fontSize: "14px",
-                //         fontStyle: "normal",
-                //         fontWeight: "500",
-                //         lineHeight: "normal",
-                //         letterSpacing: "normal",
-                //         textTransform: "uppercase",
-                //         border: "1px solid #0F054C",
-                //         borderRadius: "0px",
-                //         padding: "6px 12px",
-                //     }}
-                //     className="test-import-button"
-                //     {...props}
-                //     {...config}
-                // />
-                null}
+                ) : null}
 
-                {withExport ? (
+                {withExport && exportWithOptions ? (
+                    <React.Fragment>
+                        <Button
+                            onClick={(e: React.MouseEvent<HTMLElement>) => openExportMenu(e)}
+                            label={t("common.label.export")}
+                            disabled={isExportDisabled}
+                        >
+                            <DownloadIcon />
+                        </Button>
+                    </React.Fragment>
+                ) : null}
+
+                {withExport && !exportWithOptions ? (
                     !defaultExport ? (
                         <Button
                             onClick={doExport}

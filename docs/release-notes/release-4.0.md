@@ -4,7 +4,7 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-# Next Release
+# Release 4.0
 
 ## ✨ Support limiting IP by country
 
@@ -104,4 +104,3 @@ It is required to upload the default templates to the S3 public-assets folder:
 ENV var `PUBLIC_ASSETS_PATH=public-assets` in this case. The rest of ENV
 variables starting by `PUBLIC_ASSETS_` that have been removed, used to name the
 files and other assets but they are no longer needed by the system.
-

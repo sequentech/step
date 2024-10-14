@@ -156,6 +156,8 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                     throw "Publication Generation Error"
                 }
             } catch (e) {
+                console.log("publish error:")
+                console.log(e)
                 notify(t("publish.dialog.error"), {
                     type: "error",
                 })
@@ -359,6 +361,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                 )}
                 {(viewMode === ViewMode.Edit || viewMode === ViewMode.View) && (
                     <PublishGenerate
+                        ballotPublicationId={ballotPublicationId}
                         status={publishStatus}
                         changingStatus={changingStatus}
                         readOnly={viewMode === ViewMode.View}

@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {email} from "react-admin"
+
 const englishTranslation = {
     translations: {
         loadingDataProvider: "Loading data provider...",
@@ -9,6 +11,10 @@ const englishTranslation = {
             noPermissions: "You don't have permission to access logs.",
             title: "Logs",
             subtitle: "General logs of the main and IAM databases",
+            actions: {
+                csv: "Export in CSV",
+                pdf: "Export in PDF",
+            },
             column: {
                 id: "Id",
                 statement: "Statement",
@@ -46,6 +52,7 @@ const englishTranslation = {
                 IMPORT_CANDIDATES: "Import Candidates",
                 EXPORT_VOTERS: "Export Voters",
                 CREATE_TRANSMISSION_PACKAGE: "Create Transmission Package",
+                EXPORT_BALLOT_PUBLICATION: "Export Ballot Publication",
             },
             widget: {
                 taskTitle: "Task: {{title}}",
@@ -298,6 +305,7 @@ const englishTranslation = {
                 tasks: "Tasks",
                 events: "Scheduled Events",
                 notifications: "Notifications",
+                reports: "Reports",
             },
             tally: {
                 emptyHeader: "No Tally yet.",
@@ -700,6 +708,66 @@ const englishTranslation = {
                 eventProcessor: "Type",
                 stoppedAt: "Stopped At",
                 scheduledDate: "Scheduled At",
+            },
+        },
+        reportsScreen: {
+            title: "Reports",
+            subtitle: "Generate reports for the election events",
+            messages: {
+                createSuccess: "Report created successfully",
+                createError: "Error creating Report",
+                submitError: "Error submitting Report",
+                updateSuccess: "Report updated successfully",
+            },
+            reportType: {
+                BALLOT_RECEIPT: "Ballot Receipt",
+                ELECTORAL_RESULTS: "Electoral Results",
+                MANUAL_VERIFICATION: "Manual Verification",
+                STATISTICAL_REPORT: "Statistical Report",
+                OVCS_EVENTS: "Overseas Voting Monitoring - OVCS Events",
+                AUDIT_LOGS: "Audit Logs",
+                STATUS: "Status",
+                OVCS_INFORMATION: "OVCS Information",
+                OVERSEAS_VOTERS: "List of overseas voters",
+                ELECTION_RETURNS_FOR_NATIONAL_POSITIONS: "Election Returns of National Positions",
+                OV_USERS_WHO_VOTED: "List of Overseas Voters who Voted",
+                OV_USERS: "List of Overseas Voters with Voting Status",
+                OVCS_STATISTICS: "Overseas Voting Monitoring - OVCS Statistics",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED: "List of OV who Pre-enrolled but Disapproved",
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
+                    "List of OV who Pre-enrolled but subject for Manual Validation",
+            },
+            empty: {
+                header: "No Reports yet.",
+                body: "Do you want to create one?",
+                button: "Create Report",
+            },
+            create: {
+                title: "Create Report",
+                subtitle: "Create a new Report configuration.",
+            },
+            edit: {
+                title: "Edit Report",
+                subtitle: "Edit Report configuration.",
+                delete: "Are you sure you want delete this Report?",
+            },
+            fields: {
+                electionId: "Election",
+                template: "Template",
+                reportType: "Report Type",
+                repeatable: "Repeatable",
+                cronExpression: "Cron Expression",
+                emailRecipients: "Email Recipients",
+            },
+
+            delete: {
+                body: "Are you sure you want delete this Report?",
+            },
+            actions: {
+                generate: "Generate",
+                delete: "Delete",
+                edit: "Edit",
+                preview: "Preview",
             },
         },
         common: {
@@ -1223,12 +1291,16 @@ const englishTranslation = {
                 stopInfo: "You are about to stop voting period. Are you sure you want to continue?",
                 pauseInfo:
                     "You are about to pause voting period. Are you sure you want to continue?",
+                publishInfo:
+                    "You are about to generate a publication. Are you sure you want to continue?",
                 ok: "Confirm",
                 ko: "Cancel",
                 error: "Error loading ballot publication",
                 error_publish: "Error publishing ballot publication",
                 error_status: "Error change ballot publication status",
                 diff: "Rendering all changes might make the page unresponsive. Are you sure you want to continue?",
+                confirmation:
+                    "The action you are about to perform is sensitive and requires confirmation. Please enter your password to proceed with {{action}}.",
             },
             notifications: {
                 generated: "Ballot generated",

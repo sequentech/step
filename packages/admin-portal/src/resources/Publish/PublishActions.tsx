@@ -2,15 +2,22 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 
 import styled from "@emotion/styled"
 
-import {useTranslation} from "react-i18next"
-import {Dialog} from "@sequentech/ui-essentials"
 import {CircularProgress, Typography} from "@mui/material"
 import {Publish, RotateLeft, PlayCircle, PauseCircle, StopCircle} from "@mui/icons-material"
-import {Button, FilterButton, SelectColumnsButton} from "react-admin"
+import {useTranslation} from "react-i18next"
+import {Dialog} from "@sequentech/ui-essentials"
+import {
+    Button,
+    FilterButton,
+    SelectColumnsButton,
+    useRecordContext,
+    useNotify,
+    Identifier,
+} from "react-admin"
 
 import {EPublishActionsType} from "./EPublishType"
 import {PublishStatus, ElectionEventStatus, nextStatus} from "./EPublishStatus"
@@ -18,6 +25,16 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import SvgIcon from "@mui/material/SvgIcon"
+import {EPublishActions} from "@/types/publishActions"
+import DownloadIcon from "@mui/icons-material/Download"
+import {FormStyles} from "@/components/styles/FormStyles"
+import {DownloadDocument} from "../User/DownloadDocument"
+import {useMutation} from "@apollo/client"
+import {EXPORT_BALLOT_PUBLICATION} from "@/queries/ExportBallotPublication"
+import {ExportBallotPublicationMutation} from "@/gql/graphql"
+import {WidgetProps} from "@/components/Widget"
+import {ETasksExecution} from "@/types/tasksExecution"
+import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 
 type SvgIconComponent = typeof SvgIcon
 
@@ -31,6 +48,8 @@ const PublishActionsStyled = {
 }
 
 export type PublishActionsProps = {
+    ballotPublicationId?: string | Identifier | null
+    data?: any
     status: PublishStatus
     changingStatus: boolean
     onPublish?: () => void
@@ -40,27 +59,45 @@ export type PublishActionsProps = {
 }
 
 export const PublishActions: React.FC<PublishActionsProps> = ({
+    ballotPublicationId,
     type,
     status,
     changingStatus,
     onGenerate,
     onPublish = () => null,
     onChangeStatus = () => null,
+    data,
 }) => {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
+    const {isGoldUser, reauthWithGold} = authContext
+    const record = useRecordContext()
     const canWrite = authContext.isAuthorized(true, tenantId, IPermissions.PUBLISH_WRITE)
     const canRead = authContext.isAuthorized(true, tenantId, IPermissions.PUBLISH_READ)
+    const [openExport, setOpenExport] = useState(false)
+    const [exporting, setExporting] = useState(false)
+    const [exportDocumentId, setExportDocumentId] = useState<string | undefined>()
     const canChangeStatus = authContext.isAuthorized(
         true,
         tenantId,
         IPermissions.ELECTION_STATE_WRITE
     )
-
+    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const [showDialog, setShowDialog] = useState(false)
     const [dialogText, setDialogText] = useState("")
     const [currentCallback, setCurrentCallback] = useState<any>(null)
+
+    const [ExportBallotPublication] = useMutation<ExportBallotPublicationMutation>(
+        EXPORT_BALLOT_PUBLICATION,
+        {
+            context: {
+                headers: {
+                    "x-hasura-role": IPermissions.PUBLISH_WRITE,
+                },
+            },
+        }
+    )
 
     const IconOrProgress = ({st, Icon}: {st: PublishStatus; Icon: SvgIconComponent}) => {
         return nextStatus(st) === status && status !== PublishStatus.Void ? (
@@ -104,14 +141,141 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         </Button>
     )
 
+    /**
+     * General Handler for Events:
+     * Shows a confirmation dialog without involving re-authentication.
+     * Used by buttons that don't require Gold-level permissions.
+     */
     const handleEvent = (callback: (status?: number) => void, dialogText: string) => {
         setDialogText(dialogText)
         setShowDialog(true)
         setCurrentCallback(() => callback)
     }
 
+    /**
+     * Specific Handler for "Start Voting" Button:
+     * Incorporates re-authentication logic for actions that require Gold-level permissions.
+     */
+    const handleStartVotingPeriod = () => {
+        const actionText = t(`publish.action.startVotingPeriod`)
+        const dialogMessage = isGoldUser()
+            ? t("publish.dialog.startInfo", {action: actionText})
+            : t("publish.dialog.confirmation", {action: actionText})
+
+        setDialogText(dialogMessage)
+        setShowDialog(true)
+        setCurrentCallback(() => async () => {
+            try {
+                if (!isGoldUser()) {
+                    const baseUrl = new URL(window.location.href)
+                    baseUrl.searchParams.set("tabIndex", "7")
+                    sessionStorage.setItem(EPublishActions.PENDING_START_VOTING, "true")
+                    await reauthWithGold(baseUrl.toString())
+                } else {
+                    onChangeStatus(ElectionEventStatus.Open)
+                }
+            } catch (error) {
+                console.error("Re-authentication failed:", error)
+            }
+        })
+    }
+
+    /**
+     * Specific Handler for "Publish Changes" Button: Incorporates
+     * re-authentication logic for actions that require Gold-level permissions.
+     */
+    const handlePublish = () => {
+        const dialogMessage = isGoldUser()
+            ? t("publish.dialog.publishInfo", {action: t("publish.action.publish")})
+            : t("publish.dialog.confirmation", {action: t("publish.action.publish")})
+        setDialogText(dialogMessage)
+        setShowDialog(true)
+
+        setCurrentCallback(() => async () => {
+            try {
+                if (!isGoldUser()) {
+                    const baseUrl = new URL(window.location.href)
+                    baseUrl.searchParams.set("tabIndex", "7")
+                    sessionStorage.setItem(EPublishActions.PENDING_PUBLISH_ACTION, "true")
+
+                    await reauthWithGold(baseUrl.toString())
+                } else {
+                    onGenerate()
+                }
+            } catch (error) {
+                console.error("Re-authentication failed:", error)
+                setDialogText(t("publish.dialog.errorReauth"))
+                setShowDialog(true)
+            }
+        })
+    }
+
+    /**
+     * Checks for any pending actions after the component mounts.
+     * If a pending action is found, it executes the action and removes the flag.
+     */
+    useEffect(() => {
+        const executePendingActions = async () => {
+            const pendingStart = sessionStorage.getItem(EPublishActions.PENDING_START_VOTING)
+            if (pendingStart) {
+                sessionStorage.removeItem(EPublishActions.PENDING_START_VOTING)
+                onChangeStatus(ElectionEventStatus.Open)
+            }
+
+            const pendingPublish = sessionStorage.getItem(EPublishActions.PENDING_PUBLISH_ACTION)
+            if (pendingPublish) {
+                sessionStorage.removeItem(EPublishActions.PENDING_PUBLISH_ACTION)
+                onGenerate()
+            }
+        }
+
+        executePendingActions()
+    }, [onChangeStatus, onGenerate])
+
     const handleOnChange = (status: ElectionEventStatus) => () => onChangeStatus(status)
 
+    const handleExport = async () => {
+        setExporting(false)
+        setExportDocumentId(undefined)
+        setOpenExport(true)
+    }
+
+    const confirmExportAction = async () => {
+        let currWidget: WidgetProps | undefined
+        try {
+            currWidget = addWidget(ETasksExecution.EXPORT_BALLOT_PUBLICATION)
+
+            const {data: ballotResponse, errors} = await ExportBallotPublication({
+                variables: {
+                    tenantId,
+                    electionEventId: record.election_event_id
+                        ? record.election_event_id
+                        : record.id,
+                    electionId: record.election_event_id ? record.id : null,
+                    ballotPublicationId: ballotPublicationId,
+                },
+            })
+
+            setExporting(true)
+            if (errors) {
+                setExporting(false)
+                updateWidgetFail(currWidget.identifier)
+
+                return
+            }
+            const documentId = ballotResponse?.export_ballot_publication?.document_id
+            setExportDocumentId(documentId)
+            const task_id = ballotResponse?.export_ballot_publication?.task_execution?.id
+            setExportDocumentId(documentId)
+            task_id
+                ? setWidgetTaskId(currWidget.identifier, task_id)
+                : updateWidgetFail(currWidget.identifier)
+        } catch (error) {
+            console.log(error)
+            setExporting(false)
+            currWidget && updateWidgetFail(currWidget.identifier)
+        }
+    }
     return (
         <>
             <PublishActionsStyled.Container>
@@ -122,12 +286,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                             <FilterButton />
                             {canChangeStatus && (
                                 <ButtonDisabledOrNot
-                                    onClick={() =>
-                                        handleEvent(
-                                            handleOnChange(ElectionEventStatus.Open),
-                                            t("publish.dialog.startInfo")
-                                        )
-                                    }
+                                    onClick={handleStartVotingPeriod}
                                     label={t("publish.action.startVotingPeriod")}
                                     st={PublishStatus.Started}
                                     Icon={PlayCircle}
@@ -183,7 +342,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                             {canWrite && (
                                 <ButtonDisabledOrNot
                                     Icon={Publish}
-                                    onClick={onGenerate}
+                                    onClick={handlePublish}
                                     st={PublishStatus.Generated}
                                     label={t("publish.action.publish")}
                                     disabledStatus={[PublishStatus.Stopped]}
@@ -193,15 +352,24 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                     ) : (
                         <>
                             {canWrite && (
-                                <ButtonDisabledOrNot
-                                    Icon={RotateLeft}
-                                    disabledStatus={[]}
-                                    st={PublishStatus.Generated}
-                                    label={t("publish.action.generate")}
-                                    onClick={() =>
-                                        handleEvent(onGenerate, t("publish.dialog.info"))
-                                    }
-                                />
+                                <>
+                                    <ButtonDisabledOrNot
+                                        Icon={RotateLeft}
+                                        disabledStatus={[]}
+                                        st={PublishStatus.Generated}
+                                        label={t("publish.action.generate")}
+                                        onClick={() =>
+                                            handleEvent(onGenerate, t("publish.dialog.info"))
+                                        }
+                                    />
+                                    <ButtonDisabledOrNot
+                                        Icon={DownloadIcon}
+                                        disabledStatus={[]}
+                                        st={PublishStatus.Exported}
+                                        label={t("common.label.export")}
+                                        onClick={handleExport}
+                                    />
+                                </>
                             )}
                         </>
                     )}
@@ -210,12 +378,11 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
 
             <Dialog
                 handleClose={(flag) => {
-                    if (flag) {
-                        currentCallback()
+                    if (flag && currentCallback) {
+                        currentCallback() // Execute the saved callback
                     }
-
-                    setShowDialog(false)
-                    setCurrentCallback(null)
+                    setShowDialog(false) // Close the dialog
+                    setCurrentCallback(null) // Reset the callback
                 }}
                 open={showDialog}
                 title={t("publish.dialog.title")}
@@ -224,6 +391,40 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                 variant="info"
             >
                 <Typography variant="body1">{dialogText}</Typography>
+            </Dialog>
+
+            <Dialog
+                variant="info"
+                open={openExport}
+                ok={t("common.label.export")}
+                okEnabled={() => !exporting}
+                cancel={t("common.label.cancel")}
+                title={t("common.label.export")}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        confirmExportAction()
+                    } else {
+                        setExportDocumentId(undefined)
+                        setExporting(false)
+                        setOpenExport(false)
+                    }
+                }}
+            >
+                {t("common.export")}
+                <FormStyles.ReservedProgressSpace>
+                    {exporting ? <FormStyles.ShowProgress /> : null}
+                    {exporting && exportDocumentId ? (
+                        <DownloadDocument
+                            documentId={exportDocumentId}
+                            fileName={`ballot-publication-export.csv`}
+                            onDownload={() => {
+                                setExportDocumentId(undefined)
+                                setExporting(false)
+                                setOpenExport(false)
+                            }}
+                        />
+                    ) : null}
+                </FormStyles.ReservedProgressSpace>
             </Dialog>
         </>
     )

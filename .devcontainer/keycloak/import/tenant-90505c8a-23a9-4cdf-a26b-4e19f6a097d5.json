@@ -287,15 +287,14 @@
       "clientRole" : false,
       "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
       "attributes" : { }
-    },
-    {
-      "id": "375caae7-dd36-4667-8ffd-6f3399edc5c4",
-      "name": "election-event-delete",
-      "description": "",
-      "composite": false,
-      "clientRole": false,
-      "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-      "attributes": {}
+    }, {
+      "id" : "375caae7-dd36-4667-8ffd-6f3399edc5c4",
+      "name" : "election-event-delete",
+      "description" : "",
+      "composite" : false,
+      "clientRole" : false,
+      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+      "attributes" : { }
     }, {
       "id" : "44d713dc-4c3c-44bb-b597-8d718063871a",
       "name" : "keys-read",
@@ -489,8 +488,24 @@
       "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
       "attributes" : { }
     }, {
+      "id" : "48ac8c75-b282-4beb-8f60-006fd70961e7",
+      "name" : "report-write",
+      "description" : "",
+      "composite" : false,
+      "clientRole" : false,
+      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+      "attributes" : { }
+    }, {
       "id" : "0c63d668-fe97-4da6-b654-ace5e4e41b24",
       "name" : "voter-read",
+      "description" : "",
+      "composite" : false,
+      "clientRole" : false,
+      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+      "attributes" : { }
+    }, {
+      "id" : "3f3472be-8ef9-4ce1-bbfb-3b8176ffcad6",
+      "name" : "report-read",
       "description" : "",
       "composite" : false,
       "clientRole" : false,
@@ -906,7 +921,7 @@
     "path" : "/admin",
     "subGroups" : [ ],
     "attributes" : { },
-    "realmRoles" : [ "admin-dashboard-view", "permission-label-write", "support-material-write", "tally-write", "trustee-write", "user-write", "election-event-write", "notification-send", "user-permission-write", "tally-sheet-create", "role-write", "logs-read", "communication-template-create", "election-state-write", "role-create", "election-type-read", "scheduled-event-write", "tally-read", "tasks-read", "voter-write", "role-assign", "voting-channel-read", "tally-sheet-publish", "document-upload", "user-permission-read", "election-event-create", "notification-write", "trustee-read", "keys-read", "election-event-delete", "user-read", "create-election-event", "document-read", "notification-read", "area-write", "trustee-create", "election-event-read", "user-permission-create", "communication-template-write", "cast-vote-read", "tally-results-read", "voting-channel-write", "tally-sheet-view", "role-read", "admin-ceremony", "area-read", "tenant-read", "tally-start", "admin-user", "voter-create", "user-create", "tally-sheet-delete", "voter-read", "tenant-create", "election-type-write", "publish-write", "support-material-read", "communication-template-read", "document-write", "tenant-write", "resource-write", "document-download", "election-type-create", "publish-read" ],
+    "realmRoles" : [ "admin-dashboard-view", "permission-label-write", "support-material-write", "tally-write", "trustee-write", "user-write", "election-event-write", "notification-send", "user-permission-write", "tally-sheet-create", "role-write", "logs-read", "communication-template-create", "election-state-write", "role-create", "election-type-read", "scheduled-event-write", "tally-read", "tasks-read", "voter-write", "role-assign", "voting-channel-read", "tally-sheet-publish", "document-upload", "user-permission-read", "election-event-create", "notification-write", "trustee-read", "keys-read", "election-event-delete", "user-read", "create-election-event", "document-read", "notification-read", "area-write", "trustee-create", "election-event-read", "user-permission-create", "communication-template-write", "cast-vote-read", "tally-results-read", "voting-channel-write", "tally-sheet-view", "role-read", "admin-ceremony", "area-read", "tenant-read", "tally-start", "admin-user", "voter-create", "user-create", "tally-sheet-delete", "report-write", "voter-read", "report-read", "tenant-create", "election-type-write", "publish-write", "support-material-read", "communication-template-read", "document-write", "tenant-write", "resource-write", "document-download", "election-type-create", "publish-read" ],
     "clientRoles" : { }
   }, {
     "id" : "dbc85f9a-a33d-4b3f-9bf1-20282931130b",
@@ -1704,7 +1719,9 @@
     "id" : "9552d9d1-5962-429d-ba71-d9d4bb74973f",
     "clientId" : "security-admin-console",
     "name" : "${client_security-admin-console}",
+    "description" : "",
     "rootUrl" : "${authAdminUrl}",
+    "adminUrl" : "",
     "baseUrl" : "/admin/electoral-process/console/",
     "surrogateAuthRequired" : false,
     "enabled" : true,
@@ -1724,7 +1741,20 @@
     "protocol" : "openid-connect",
     "attributes" : {
       "post.logout.redirect.uris" : "+",
-      "pkce.code.challenge.method" : "S256"
+      "oauth2.device.authorization.grant.enabled" : "false",
+      "backchannel.logout.revoke.offline.tokens" : "false",
+      "use.refresh.tokens" : "true",
+      "oidc.ciba.grant.enabled" : "false",
+      "client.use.lightweight.access.token.enabled" : "false",
+      "backchannel.logout.session.required" : "true",
+      "client_credentials.use_refresh_token" : "false",
+      "tls.client.certificate.bound.access.tokens" : "false",
+      "require.pushed.authorization.requests" : "false",
+      "acr.loa.map" : "{}",
+      "display.on.consent.screen" : "false",
+      "pkce.code.challenge.method" : "S256",
+      "token.response.type.bearer.lower-case" : "false",
+      "dpop.bound.access.tokens" : "false"
     },
     "authenticationFlowBindingOverrides" : { },
     "fullScopeAllowed" : false,
@@ -1889,7 +1919,15 @@
       }
     } ],
     "defaultClientScopes" : [ "web-origins", "acr", "profile", "roles", "email" ],
-    "optionalClientScopes" : [ "address", "phone", "offline_access", "microprofile-jwt" ]
+    "optionalClientScopes" : [ "address", "phone", "offline_access", "microprofile-jwt" ],
+    "authorizationSettings" : {
+      "allowRemoteResourceManagement" : true,
+      "policyEnforcementMode" : "ENFORCING",
+      "resources" : [ ],
+      "policies" : [ ],
+      "scopes" : [ ],
+      "decisionStrategy" : "UNANIMOUS"
+    }
   }, {
     "id" : "ffb437ac-f79a-452a-8ebb-fc872e76851f",
     "clientId" : "voting-portal",
@@ -2505,7 +2543,7 @@
       "subType" : "anonymous",
       "subComponents" : { },
       "config" : {
-        "allowed-protocol-mapper-types" : [ "saml-user-property-mapper", "saml-role-list-mapper", "oidc-full-name-mapper", "oidc-usermodel-attribute-mapper", "oidc-usermodel-property-mapper", "oidc-sha256-pairwise-sub-mapper", "saml-user-attribute-mapper", "oidc-address-mapper" ]
+        "allowed-protocol-mapper-types" : [ "oidc-usermodel-attribute-mapper", "saml-role-list-mapper", "oidc-full-name-mapper", "saml-user-attribute-mapper", "oidc-address-mapper", "oidc-usermodel-property-mapper", "saml-user-property-mapper", "oidc-sha256-pairwise-sub-mapper" ]
       }
     }, {
       "id" : "563febd2-5ea9-4258-bc2d-a4e9f2fcac38",
@@ -2558,7 +2596,7 @@
       "subType" : "authenticated",
       "subComponents" : { },
       "config" : {
-        "allowed-protocol-mapper-types" : [ "saml-user-attribute-mapper", "oidc-usermodel-attribute-mapper", "oidc-full-name-mapper", "saml-user-property-mapper", "oidc-address-mapper", "oidc-usermodel-property-mapper", "oidc-sha256-pairwise-sub-mapper", "saml-role-list-mapper" ]
+        "allowed-protocol-mapper-types" : [ "oidc-address-mapper", "oidc-usermodel-property-mapper", "saml-user-attribute-mapper", "saml-user-property-mapper", "saml-role-list-mapper", "oidc-sha256-pairwise-sub-mapper", "oidc-usermodel-attribute-mapper", "oidc-full-name-mapper" ]
       }
     } ],
     "org.keycloak.userprofile.UserProfileProvider" : [ {
@@ -2776,7 +2814,7 @@
       "userSetupAllowed" : false
     } ]
   }, {
-    "id" : "e341874b-5d60-4444-a8ec-50174596b6ad",
+    "id" : "14312dc7-73f8-4ff3-8da4-b90d7d15f885",
     "alias" : "Message OTP Subflow",
     "description" : "Flow to determine if the Message OTP is required for the authentication",
     "providerId" : "basic-flow",
@@ -2785,29 +2823,29 @@
     "authenticationExecutions" : [ {
       "authenticator" : "conditional-user-configured",
       "authenticatorFlow" : false,
-      "requirement" : "REQUIRED",
-      "priority" : 10,
+      "requirement" : "DISABLED",
+      "priority" : 0,
       "autheticatorFlow" : false,
       "userSetupAllowed" : false
     }, {
       "authenticatorConfig" : "voting-client",
       "authenticator" : "conditional-client",
       "authenticatorFlow" : false,
-      "requirement" : "REQUIRED",
-      "priority" : 13,
+      "requirement" : "DISABLED",
+      "priority" : 1,
       "autheticatorFlow" : false,
       "userSetupAllowed" : false
     }, {
       "authenticatorConfig" : "email-sms",
       "authenticator" : "message-otp-authenticator",
       "authenticatorFlow" : false,
-      "requirement" : "REQUIRED",
-      "priority" : 14,
+      "requirement" : "DISABLED",
+      "priority" : 1,
       "autheticatorFlow" : false,
       "userSetupAllowed" : false
     } ]
   }, {
-    "id" : "d2e3daea-22d0-4e24-8c6e-c9228ac74f07",
+    "id" : "0b21c741-ea5f-4657-8d3a-d5e1e1961422",
     "alias" : "Normal OTP Subflow",
     "description" : "",
     "providerId" : "basic-flow",
@@ -2816,7 +2854,14 @@
     "authenticationExecutions" : [ {
       "authenticator" : "conditional-user-configured",
       "authenticatorFlow" : false,
-      "requirement" : "REQUIRED",
+      "requirement" : "DISABLED",
+      "priority" : 0,
+      "autheticatorFlow" : false,
+      "userSetupAllowed" : false
+    }, {
+      "authenticator" : "auth-otp-form",
+      "authenticatorFlow" : false,
+      "requirement" : "DISABLED",
       "priority" : 0,
       "autheticatorFlow" : false,
       "userSetupAllowed" : false
@@ -2824,15 +2869,8 @@
       "authenticatorConfig" : "otp-voting-client",
       "authenticator" : "conditional-client",
       "authenticatorFlow" : false,
-      "requirement" : "REQUIRED",
+      "requirement" : "DISABLED",
       "priority" : 1,
-      "autheticatorFlow" : false,
-      "userSetupAllowed" : false
-    }, {
-      "authenticator" : "auth-otp-form",
-      "authenticatorFlow" : false,
-      "requirement" : "REQUIRED",
-      "priority" : 2,
       "autheticatorFlow" : false,
       "userSetupAllowed" : false
     } ]
@@ -2901,6 +2939,82 @@
       "priority" : 20,
       "autheticatorFlow" : true,
       "flowAlias" : "First broker login - Conditional OTP",
+      "userSetupAllowed" : false
+    } ]
+  }, {
+    "id" : "9a160590-bae1-4d2e-9cab-ccdac5098451",
+    "alias" : "advanced / gold condition",
+    "description" : "",
+    "providerId" : "basic-flow",
+    "topLevel" : false,
+    "builtIn" : false,
+    "authenticationExecutions" : [ {
+      "authenticatorConfig" : "gold",
+      "authenticator" : "conditional-level-of-authentication",
+      "authenticatorFlow" : false,
+      "requirement" : "REQUIRED",
+      "priority" : 0,
+      "autheticatorFlow" : false,
+      "userSetupAllowed" : false
+    }, {
+      "authenticator" : "auth-password-form",
+      "authenticatorFlow" : false,
+      "requirement" : "REQUIRED",
+      "priority" : 1,
+      "autheticatorFlow" : false,
+      "userSetupAllowed" : false
+    } ]
+  }, {
+    "id" : "9e885c09-fc4c-49c3-a5ee-327d73423540",
+    "alias" : "basic / silver condition",
+    "description" : "",
+    "providerId" : "basic-flow",
+    "topLevel" : false,
+    "builtIn" : false,
+    "authenticationExecutions" : [ {
+      "authenticatorConfig" : "silver",
+      "authenticator" : "conditional-level-of-authentication",
+      "authenticatorFlow" : false,
+      "requirement" : "REQUIRED",
+      "priority" : 0,
+      "autheticatorFlow" : false,
+      "userSetupAllowed" : false
+    }, {
+      "authenticator" : "auth-username-password-form",
+      "authenticatorFlow" : false,
+      "requirement" : "REQUIRED",
+      "priority" : 1,
+      "autheticatorFlow" : false,
+      "userSetupAllowed" : false
+    }, {
+      "authenticatorConfig" : "only 1 session per user",
+      "authenticator" : "user-session-limits",
+      "authenticatorFlow" : false,
+      "requirement" : "DISABLED",
+      "priority" : 2,
+      "autheticatorFlow" : false,
+      "userSetupAllowed" : false
+    }, {
+      "authenticatorConfig" : "security-question-auth",
+      "authenticator" : "security-question-authenticator",
+      "authenticatorFlow" : false,
+      "requirement" : "DISABLED",
+      "priority" : 3,
+      "autheticatorFlow" : false,
+      "userSetupAllowed" : false
+    }, {
+      "authenticatorFlow" : true,
+      "requirement" : "DISABLED",
+      "priority" : 4,
+      "autheticatorFlow" : true,
+      "flowAlias" : "Message OTP Subflow",
+      "userSetupAllowed" : false
+    }, {
+      "authenticatorFlow" : true,
+      "requirement" : "DISABLED",
+      "priority" : 5,
+      "autheticatorFlow" : true,
+      "flowAlias" : "Normal OTP Subflow",
       "userSetupAllowed" : false
     } ]
   }, {
@@ -3293,41 +3407,18 @@
     "topLevel" : false,
     "builtIn" : false,
     "authenticationExecutions" : [ {
-      "authenticator" : "auth-username-password-form",
-      "authenticatorFlow" : false,
-      "requirement" : "REQUIRED",
-      "priority" : 10,
-      "autheticatorFlow" : false,
-      "userSetupAllowed" : false
-    }, {
-      "authenticatorConfig" : "only 1 session per user",
-      "authenticator" : "user-session-limits",
-      "authenticatorFlow" : false,
-      "requirement" : "REQUIRED",
+      "authenticatorFlow" : true,
+      "requirement" : "CONDITIONAL",
       "priority" : 20,
-      "autheticatorFlow" : false,
+      "autheticatorFlow" : true,
+      "flowAlias" : "basic / silver condition",
       "userSetupAllowed" : false
     }, {
-      "authenticatorConfig" : "security-question-auth",
-      "authenticator" : "security-question-authenticator",
-      "authenticatorFlow" : false,
-      "requirement" : "DISABLED",
+      "authenticatorFlow" : true,
+      "requirement" : "CONDITIONAL",
       "priority" : 21,
-      "autheticatorFlow" : false,
-      "userSetupAllowed" : false
-    }, {
-      "authenticatorFlow" : true,
-      "requirement" : "DISABLED",
-      "priority" : 23,
       "autheticatorFlow" : true,
-      "flowAlias" : "Message OTP Subflow",
-      "userSetupAllowed" : false
-    }, {
-      "authenticatorFlow" : true,
-      "requirement" : "DISABLED",
-      "priority" : 24,
-      "autheticatorFlow" : true,
-      "flowAlias" : "Normal OTP Subflow",
+      "flowAlias" : "advanced / gold condition",
       "userSetupAllowed" : false
     } ]
   }, {
@@ -3405,6 +3496,17 @@
       "require.password.update.after.registration" : "false"
     }
   }, {
+    "id" : "0495d7fa-718e-42ed-9208-d1fba496c8f1",
+    "alias" : "email-sms",
+    "config" : {
+      "senderId" : "Keycloak",
+      "simulation" : "true",
+      "telUserAttribute" : "sequent.read-only.mobile-number",
+      "emailUserAttribute" : "sequent.read-only.email-address",
+      "length" : "6",
+      "ttl" : "300"
+    }
+  }, {
     "id" : "31b33e7f-781d-4b4f-b8cf-23987c87ea56",
     "alias" : "email-sms",
     "config" : {
@@ -3414,6 +3516,13 @@
       "emailUserAttribute" : "sequent.read-only.email-address",
       "length" : "6",
       "ttl" : "300"
+    }
+  }, {
+    "id" : "a1fdc346-5764-4d08-9762-6f03f7d10b5f",
+    "alias" : "gold",
+    "config" : {
+      "loa-condition-level" : "2",
+      "loa-max-age" : "0"
     }
   }, {
     "id" : "1804dd46-135e-4f00-995c-59d9cd66e802",
@@ -3432,7 +3541,22 @@
       "userRealmLimit" : "1"
     }
   }, {
+    "id" : "2191e649-677b-4ee6-9d59-b2dc40c0704c",
+    "alias" : "only 1 session per user",
+    "config" : {
+      "userClientLimit" : "0",
+      "behavior" : "Deny new session",
+      "userRealmLimit" : "10"
+    }
+  }, {
     "id" : "1b526221-2182-404a-aeca-0e202427ea47",
+    "alias" : "otp-voting-client",
+    "config" : {
+      "negate" : "false",
+      "conditional-client" : "admin-portal"
+    }
+  }, {
+    "id" : "94fc2f91-048f-4502-9c43-d89e0ff2a930",
     "alias" : "otp-voting-client",
     "config" : {
       "negate" : "false",
@@ -3452,6 +3576,20 @@
       "num-last-chars" : "4"
     }
   }, {
+    "id" : "5595b009-8ada-4a73-b184-8a688f170e08",
+    "alias" : "security-question-auth",
+    "config" : {
+      "user-attribute" : "sequent.read-only.mobile-number",
+      "num-last-chars" : "4"
+    }
+  }, {
+    "id" : "d81ac2a9-bb4c-4b73-8b93-469e1a0f0542",
+    "alias" : "silver",
+    "config" : {
+      "loa-condition-level" : "1",
+      "loa-max-age" : "36000"
+    }
+  }, {
     "id" : "14301189-f3d6-4e1e-babb-44b71d5abb2b",
     "alias" : "user session count limiter config",
     "config" : {
@@ -3459,6 +3597,13 @@
       "userClientLimit" : "0",
       "behavior" : "Deny new session",
       "userRealmLimit" : "1"
+    }
+  }, {
+    "id" : "2acdf300-1d7e-405e-b26b-ff94c843c9e3",
+    "alias" : "voting-client",
+    "config" : {
+      "negate" : "false",
+      "conditional-client" : "admin-portal"
     }
   }, {
     "id" : "8f26c989-cc8d-4dff-ab39-66217b7f5e72",
@@ -3610,7 +3755,7 @@
     "parRequestUriLifespan" : "60",
     "clientSessionMaxLifespan" : "0",
     "frontendUrl" : "",
-    "acr.loa.map" : "{}"
+    "acr.loa.map" : "{\"silver\":\"1\",\"gold\":\"2\"}"
   },
   "keycloakVersion" : "24.0.5",
   "userManagedAccessAllowed" : false,

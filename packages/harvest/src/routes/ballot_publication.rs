@@ -9,7 +9,7 @@ use rocket::serde::json::Json;
 use sequent_core::types::permissions::Permissions;
 use sequent_core::{
     ballot::{ElectionEventPresentation, LockedDown},
-    services::jwt::JwtClaims,
+    services::jwt::{has_gold_permission, JwtClaims},
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -42,6 +42,10 @@ pub async fn generate_ballot_publication(
     body: Json<GenerateBallotPublicationInput>,
     claims: JwtClaims,
 ) -> Result<Json<GenerateBallotPublicationOutput>, (Status, String)> {
+    if !has_gold_permission(&claims) {
+        return Err((Status::Forbidden, "Insufficient privileges".into()));
+    }
+
     authorize(
         &claims,
         true,

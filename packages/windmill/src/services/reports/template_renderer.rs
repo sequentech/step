@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::utils::{get_public_asset_template, ToMap};
+use crate::postgres::reports::{get_template_id_for_report, ReportType};
 use crate::postgres::{election_event, template};
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document;
@@ -12,26 +13,28 @@ use crate::tasks::send_template::{send_template_email, EmailSender};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Client as DbClient;
+use headless_chrome::types::PrintToPdfOptions;
 use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
 use sequent_core::services::{pdf, reports};
 use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::fmt::Debug;
+use strum_macros::{Display, EnumString};
 use tracing::{info, instrument, warn};
 
-pub enum ReportType {
-    MANUAL_VERIFICATION,
-    BALLOT_RECEIPT,
-    ELECTORAL_RESULTS,
-    STATISTICAL_REPORT,
+#[allow(non_camel_case_types)]
+#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
+pub enum GenerateReportMode {
+    PREVIEW,
+    REAL,
 }
 
 /// Trait that defines the behavior for rendering templates
 #[async_trait]
 pub trait TemplateRenderer: Debug {
-    type UserData: Serialize + ToMap;
-    type SystemData: Serialize + ToMap;
+    type UserData: Serialize + ToMap + Send;
+    type SystemData: Serialize + ToMap + for<'de> Deserialize<'de>;
 
     fn base_name() -> String;
     fn prefix(&self) -> String;
@@ -40,6 +43,9 @@ pub trait TemplateRenderer: Debug {
 
     fn get_tenant_id(&self) -> String;
     fn get_election_event_id(&self) -> String;
+    fn get_election_id(&self) -> Option<String> {
+        None // Default implementation, can be overridden in specific reports that have election_id
+    }
 
     fn should_send_email(&self, is_scheduled_task: bool) -> bool {
         // Send email if it's a cron job (scheduled task) or if a voterId is present
@@ -50,7 +56,15 @@ pub trait TemplateRenderer: Debug {
         None // Default implementation, can be overridden in specific reports that have voterId
     }
 
-    async fn prepare_user_data(&self) -> Result<Self::UserData>;
+    async fn prepare_preview_data(&self) -> Result<Self::SystemData> {
+        let json_data = self.get_preview_data_file().await?;
+        let data: Self::SystemData = serde_json::from_str(&json_data)?;
+
+        Ok(data)
+    }
+    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>> {
+        Ok(None)
+    }
     async fn prepare_system_data(&self, rendered_user_template: String)
         -> Result<Self::SystemData>;
 
@@ -65,47 +79,31 @@ pub trait TemplateRenderer: Debug {
             .transaction()
             .await
             .with_context(|| "Error starting hasura transaction")?;
+        let report_type = &Self::get_report_type();
 
-        let election_event = election_event::get_election_event_by_id(
+        let report_template_id = get_template_id_for_report(
             &transaction,
             &self.get_tenant_id(),
             &self.get_election_event_id(),
+            report_type,
+            None,
         )
         .await
-        .with_context(|| "Error getting the election event by id")?;
+        .with_context(|| "Error getting template id for report")?;
 
-        let presentation = match election_event.presentation {
-            Some(val) => val,
-            None => return Err(anyhow!("Election event has no presentation")),
-        };
-
-        let active_template_ids = match presentation.get("active_template_ids") {
-            Some(val) => val,
+        let template_id = match report_template_id {
+            Some(id) => id,
             None => {
-                warn!("No active_template_ids in presentation");
-                return Ok(None);
-            }
-        };
-
-        let usr_verification_tpl_id = match active_template_ids
-            .get("manual_verification")
-            .and_then(Value::as_str)
-        {
-            Some(id) if !id.is_empty() => id.to_string(),
-            _ => {
-                info!("manual_verification id not found or empty");
+                warn!("No template id found for report type: {report_type}");
                 return Ok(None);
             }
         };
 
         // Get the template by ID and return its value:
-        let template_data_opt = template::get_template_by_id(
-            &transaction,
-            &self.get_tenant_id(),
-            &usr_verification_tpl_id,
-        )
-        .await
-        .with_context(|| "Error getting template by id")?;
+        let template_data_opt =
+            template::get_template_by_id(&transaction, &self.get_tenant_id(), &template_id)
+                .await
+                .with_context(|| "Error getting template by id")?;
 
         let tpl_document: Option<&str> = match &template_data_opt {
             Some(template_data) => template_data
@@ -113,7 +111,7 @@ pub trait TemplateRenderer: Debug {
                 .get("document")
                 .and_then(Value::as_str),
             None => {
-                warn!("No manual verification template was found by id");
+                warn!("No {} template was found by id", Self::base_name());
                 return Ok(None);
             }
         };
@@ -134,7 +132,31 @@ pub trait TemplateRenderer: Debug {
         get_public_asset_template(format!("{base_name}_system.hbs").as_str()).await
     }
 
-    async fn generate_report(&self) -> Result<String> {
+    async fn get_preview_data_file(&self) -> Result<String> {
+        let base_name = Self::base_name();
+        get_public_asset_template(format!("{base_name}.json").as_str()).await
+    }
+
+    async fn generate_report(&self, generate_mode: GenerateReportMode) -> Result<String> {
+        if generate_mode == GenerateReportMode::PREVIEW {
+            let data = self
+                .prepare_preview_data()
+                .await
+                .map_err(|e| anyhow!("Error preparing preview user data: {e:?}"))?
+                .to_map()
+                .map_err(|e| anyhow!("Error converting preview user data to map: {e:?}"))?;
+
+            let system_template = self
+                .get_system_template()
+                .await
+                .map_err(|e| anyhow!("Error getting default user template: {e:?}"))?;
+
+            let rendered_system_template = reports::render_template_text(&system_template, data)
+                .map_err(|e| anyhow!("Error rendering system template: {e:?}"))?;
+
+            return Ok(rendered_system_template);
+        }
+
         // Get user template (custom or default)
         let user_template = match self
             .get_custom_user_template()
@@ -148,16 +170,26 @@ pub trait TemplateRenderer: Debug {
                 .map_err(|e| anyhow!("Error getting default user template: {e:?}"))?,
         };
 
-        // Prepare user data
+        let mut rendered_user_template = String::new();
+
+        // Prepare user data if self.prepare_user_data() != None
         let user_data = self
             .prepare_user_data()
             .await
-            .map_err(|e| anyhow!("Error preparing user data: {e:?}"))?
-            .to_map()
-            .map_err(|e| anyhow!("Error converting user data to map: {e:?}"))?;
+            .map_err(|e| anyhow!("Error preparing user data: {e:?}"))?;
 
-        let rendered_user_template = reports::render_template_text(&user_template, user_data)
-            .map_err(|e| anyhow!("Error rendering user template: {e:?}"))?;
+        if let Some(data) = user_data {
+            // Render the user template if user data is not None
+            let user_data_map = data
+                .to_map()
+                .map_err(|e| anyhow!("Error converting user data to map: {e:?}"))?;
+
+            info!("user data in template renderer: {:?}", user_data_map);
+
+            rendered_user_template =
+                reports::render_template_text(&user_template, user_data_map)
+                    .map_err(|e| anyhow!("Error rendering user template: {e:?}"))?;
+        }
 
         // Prepare system data
         let system_data = self
@@ -166,6 +198,7 @@ pub trait TemplateRenderer: Debug {
             .map_err(|e| anyhow!("Error preparing system data: {e:?}"))?
             .to_map()
             .map_err(|e| anyhow!("Error converting system data to map: {e:?}"))?;
+
         let system_template = self
             .get_system_template()
             .await
@@ -184,23 +217,32 @@ pub trait TemplateRenderer: Debug {
         election_event_id: &str,
         is_scheduled_task: bool,
         receiver: Option<String>,
+        pdf_options: Option<PrintToPdfOptions>,
+        generate_mode: GenerateReportMode,
     ) -> Result<()> {
+        // Generate report in html
         let rendered_system_template = self
-            .generate_report()
+            .generate_report(generate_mode)
             .await
             .map_err(|err| anyhow!("Error rendering report: {}", err))?;
 
+        info!("Report generated: {rendered_system_template}");
+        let extension_suffix = "pdf";
         // Generate PDF
-        let bytes_pdf = pdf::html_to_pdf(rendered_system_template.clone())
-            .map_err(|err| anyhow!("Error rendering report to pdf: {}", err))?;
+        let content_bytes = pdf::html_to_pdf(rendered_system_template.clone(), pdf_options)
+            .map_err(|err| anyhow!("Error rendering report to {}: {}", extension_suffix, err))?;
 
         let base_name = Self::base_name();
-        let report_prefix = self.prefix();
+        let fmt_extension = format!(".{}", extension_suffix);
+        let report_name: String = format!("{}{}", self.prefix(), fmt_extension);
 
         // Write temp file and upload
-        let (_temp_path, temp_path_string, file_size) =
-            write_into_named_temp_file(&bytes_pdf, format!("{base_name}-").as_str(), ".pdf")
-                .map_err(|err| anyhow!("Error writing to file: {err}"))?;
+        let (_temp_path, temp_path_string, file_size) = write_into_named_temp_file(
+            &content_bytes,
+            format!("{base_name}-").as_str(),
+            fmt_extension.as_str(),
+        )
+        .map_err(|err| anyhow!("Error writing to file: {err}"))?;
 
         let auth_headers = keycloak::get_client_credentials()
             .await
@@ -208,11 +250,11 @@ pub trait TemplateRenderer: Debug {
         let _document = upload_and_return_document(
             temp_path_string,
             file_size,
-            "application/pdf".to_string(),
+            format!("application/{}", extension_suffix),
             auth_headers.clone(),
             tenant_id.to_string(),
             election_event_id.to_string(),
-            format!("{report_prefix}.pdf"),
+            report_name,
             Some(document_id.to_string()),
             true,
         )
