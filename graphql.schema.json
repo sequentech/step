@@ -1806,6 +1806,16 @@
             "defaultValue": null
           },
           {
+            "name": "reports",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "s3_files",
             "description": null,
             "type": {

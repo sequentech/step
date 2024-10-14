@@ -243,6 +243,7 @@ export type ExportOptions = {
   include_voters?: InputMaybe<Scalars['Boolean']['input']>;
   password: Scalars['String']['input'];
   publications?: InputMaybe<Scalars['Boolean']['input']>;
+  reports?: InputMaybe<Scalars['Boolean']['input']>;
   s3_files?: InputMaybe<Scalars['Boolean']['input']>;
   scheduled_events?: InputMaybe<Scalars['Boolean']['input']>;
 };
