@@ -156,6 +156,8 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                     throw "Publication Generation Error"
                 }
             } catch (e) {
+                console.log("publish error:")
+                console.log(e)
                 notify(t("publish.dialog.error"), {
                     type: "error",
                 })

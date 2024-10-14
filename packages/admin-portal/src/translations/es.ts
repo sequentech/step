@@ -1277,6 +1277,8 @@ const spanishTranslation: TranslationType = {
                     "Está a punto de detener el período de votación. ¿Está seguro de que desea continuar?",
                 pauseInfo:
                     "Está a punto de pausar el período de votación. ¿Está seguro de que desea continuar?",
+                publishInfo:
+                    "Estás a punto de generar una publicación. ¿Estás seguro de que deseas continuar?",
                 ok: "Confirmar",
                 ko: "Cancelar",
                 error: "Error al cargar las papeletas publicadas",

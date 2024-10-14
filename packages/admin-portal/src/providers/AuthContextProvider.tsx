@@ -180,9 +180,21 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         return fetchGraphQL(operation, "GetTenant", {})
     }
 
+    /**
+     * Returns true only if the JWT has gold permissions and the JWT
+     * authentication is fresh, i.e. performed less than 60 seconds ago.
+     */
+    // TODO: This is duplicated from jwt.rs in sequent-core, we should just use
+    // the same WASM function if possible
     const isGoldUser = () => {
-        const acr = keycloak?.tokenParsed?.acr
-        return acr === IPermissions.GOLD_PERMISSION
+        const acr = keycloak?.tokenParsed?.acr ?? null
+        const isGold = acr === IPermissions.GOLD_PERMISSION
+
+        const authTimeTimestamp = keycloak?.tokenParsed?.auth_time ?? 0
+        const authTime = new Date(authTimeTimestamp * 1000)
+        const freshnessLimit = new Date(Date.now().valueOf() - 60 * 1000)
+        const isFresh = authTime > freshnessLimit
+        return isGold && isFresh
     }
 
     const reauthWithGold = async (redirectUri: string): Promise<void> => {

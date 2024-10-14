@@ -1284,6 +1284,8 @@ const frenchTranslation: TranslationType = {
                     "Vous êtes sur le point d'arrêter la période de vote. Êtes-vous sûr de vouloir continuer?",
                 pauseInfo:
                     "Vous êtes sur le point de mettre en pause la période de vote. Êtes-vous sûr de vouloir continuer?",
+                publishInfo:
+                    "Vous êtes sur le point de générer une publication. Êtes-vous sûr de vouloir continuer ?",
                 ok: "Confirmer",
                 ko: "Annuler",
                 error: "Erreur lors du chargement des bulletins publiés",

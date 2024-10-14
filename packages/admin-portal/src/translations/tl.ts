@@ -1285,6 +1285,8 @@ const tagalogTranslation: TranslationType = {
                     "Malapit mo nang itigil ang panahon ng pagboto. Sigurado ka bang nais mong magpatuloy?",
                 pauseInfo:
                     "Malapit mo nang i-pause ang panahon ng pagboto. Sigurado ka bang nais mong magpatuloy?",
+                publishInfo:
+                    "Malapit ka nang gumawa ng publikasyon. Sigurado ka bang gusto mong magpatuloy?",
                 ok: "Kumpirmahin",
                 ko: "Kanselahin",
                 error: "Error sa pag-load ng paglalathala ng balota",

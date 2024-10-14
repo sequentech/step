@@ -6,12 +6,12 @@ use crate::types::permissions::Permissions;
 use anyhow::{anyhow, Result};
 use base64::engine::general_purpose;
 use base64::Engine;
-use chrono::{DateTime, Duration, Local, NaiveDateTime, Utc};
+use chrono::{DateTime, Duration, Local};
 use serde;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::collections::HashMap;
-use tracing::{debug, event, info, instrument};
+use tracing::{info, instrument, warn};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct JwtRolesAccess {
@@ -100,20 +100,21 @@ pub fn has_gold_permission(claims: &JwtClaims) -> bool {
         claims.auth_time
     {
         if let Ok(auth_time_parsed) =
-            ISO8601::timestamp_ms_utc_to_date_opt(auth_time_int)
+            ISO8601::timestamp_ms_utc_to_date_opt(auth_time_int * 1000)
         {
             auth_time_parsed
         } else {
-            debug!("ISO8601::timestamp_ms_utc_to_date_opt(auth_time_int={auth_time_int:?}) failed");
+            warn!("ISO8601::timestamp_ms_utc_to_date_opt(auth_time_int={auth_time_int:?}) failed");
             return false;
         }
     } else {
-        debug!("claims.auth_time is None");
+        warn!("claims.auth_time is None");
         return false;
     };
     // Let's asume fresh means token has at most 1 minute since authentication
     let freshness_limit = ISO8601::now() - Duration::seconds(60);
     let is_fresh = auth_time_local > freshness_limit;
+    warn!("is_fresh={is_fresh:?}, auth_time_local={auth_time_local:?}, freshness_limit={freshness_limit:?}");
     let is_gold = claims.acr == Permissions::GOLD.to_string();
 
     is_fresh && is_gold

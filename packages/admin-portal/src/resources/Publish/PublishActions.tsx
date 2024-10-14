@@ -158,7 +158,9 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
      */
     const handleStartVotingPeriod = () => {
         const actionText = t(`publish.action.startVotingPeriod`)
-        const dialogMessage = t("publish.dialog.confirmation", {action: actionText})
+        const dialogMessage = isGoldUser()
+            ? t("publish.dialog.startInfo", {action: actionText})
+            : t("publish.dialog.confirmation", {action: actionText})
 
         setDialogText(dialogMessage)
         setShowDialog(true)
@@ -179,34 +181,33 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     }
 
     /**
-     * Specific Handler for "Publish Changes" Button:
-     * Incorporates re-authentication logic for actions that require Gold-level permissions.
+     * Specific Handler for "Publish Changes" Button: Incorporates
+     * re-authentication logic for actions that require Gold-level permissions.
      */
     const handlePublish = () => {
-        if (isGoldUser()) {
-            onGenerate() // Proceed directly if the user has Gold permissions
-        } else {
-            setDialogText(
-                t("publish.dialog.confirmation", {
-                    action: t("publish.action.publish"),
-                })
-            )
-            setShowDialog(true)
+        const dialogMessage = isGoldUser()
+            ? t("publish.dialog.publishInfo", {action: t("publish.action.publish")})
+            : t("publish.dialog.confirmation", {action: t("publish.action.publish")})
+        setDialogText(dialogMessage)
+        setShowDialog(true)
 
-            setCurrentCallback(() => async () => {
-                try {
+        setCurrentCallback(() => async () => {
+            try {
+                if (!isGoldUser()) {
                     const baseUrl = new URL(window.location.href)
                     baseUrl.searchParams.set("tabIndex", "7")
                     sessionStorage.setItem(EPublishActions.PENDING_PUBLISH_ACTION, "true")
 
                     await reauthWithGold(baseUrl.toString())
-                } catch (error) {
-                    console.error("Re-authentication failed:", error)
-                    setDialogText(t("publish.dialog.errorReauth"))
-                    setShowDialog(true)
+                } else {
+                    onGenerate()
                 }
-            })
-        }
+            } catch (error) {
+                console.error("Re-authentication failed:", error)
+                setDialogText(t("publish.dialog.errorReauth"))
+                setShowDialog(true)
+            }
+        })
     }
 
     /**
