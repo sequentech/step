@@ -70,5 +70,7 @@ export enum IPermissions {
     MIRU_SIGN = "miru-sign",
     PERMISSION_LABEL_WRITE = "permission-label-write",
     SCHEDULED_EVENT_WRITE = "scheduled-event-write",
+    REPORT_READ = "report-read",
+    REPORT_WRITE = "report-write",
     CLOUDFLARE_WRITE = "cloudflare-write",
 }

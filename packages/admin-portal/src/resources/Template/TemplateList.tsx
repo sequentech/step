@@ -221,7 +221,6 @@ export const TemplateList: React.FC = () => {
                     <ListActions
                         custom
                         withFilter
-                        /* TODO: */
                         doImport={handleImport}
                         withExport={true}
                         doExport={handleExport}
@@ -236,7 +235,7 @@ export const TemplateList: React.FC = () => {
                 <DatagridConfigurable omit={OMIT_FIELDS}>
                     <TextField source="id" />
                     <TextField source="template.alias" label="Alias" />
-                    <TextField source="template.name" label="name" />
+                    <TextField source="template.name" label="Name" />
                     <TextField source="type" />
                     <WrapperField source="actions" label="Actions">
                         <ActionsColumn actions={actions} />

@@ -10,10 +10,11 @@ use super::report_variables::{
 };
 use super::template_renderer::*;
 use crate::postgres::election::get_election_by_id;
+use crate::postgres::reports::ReportType;
 use crate::postgres::results_area_contest::ResultsAreaContest;
-use crate::services::database::get_hasura_pool;
+use crate::services::database::{get_hasura_pool, get_keycloak_pool};
+use crate::services::s3::get_minio_url;
 use crate::services::temp_path::*;
-use crate::services::{database::get_keycloak_pool, s3::get_minio_url};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::{Client as DbClient, Transaction};

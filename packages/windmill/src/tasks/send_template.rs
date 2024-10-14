@@ -353,7 +353,6 @@ struct MetricsUnit {
     num_emails_sent: i64,
     num_sms_sent: i64,
 }
-
 #[derive(Default, Debug)]
 struct Metrics {
     election_event: MetricsUnit,
