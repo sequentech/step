@@ -10,6 +10,10 @@ const frenchTranslation: TranslationType = {
             noPermissions: "Vous n'avez pas la permission d'accéder aux journaux.",
             title: "Journaux",
             subtitle: "Journaux généraux des bases de données principale et IAM.",
+            actions: {
+                csv: "Exporter en CSV",
+                pdf: "Exporter en PDF",
+            },
             column: {
                 id: "Id",
                 statement: "Déclaration",

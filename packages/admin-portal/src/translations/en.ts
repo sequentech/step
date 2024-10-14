@@ -9,6 +9,10 @@ const englishTranslation = {
             noPermissions: "You don't have permission to access logs.",
             title: "Logs",
             subtitle: "General logs of the main and IAM databases",
+            actions: {
+                csv: "Export in CSV",
+                pdf: "Export in PDF",
+            },
             column: {
                 id: "Id",
                 statement: "Statement",

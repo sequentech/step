@@ -29,6 +29,11 @@ import {useLocation, useNavigate} from "react-router"
 import {ResetFilters} from "./ResetFilters"
 import {MenuItem, Menu} from "@mui/material"
 
+enum ExportFormat {
+    CSV = "CSV",
+    PDF = "PDF",
+}
+
 interface ExportWrapperProps {
     electionEventId: string
     openExport: boolean
@@ -156,10 +161,9 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
     }
 
     const [openExport, setOpenExport] = React.useState(false)
-    const [exportFormat, setExportFormat] = React.useState("CSV")
+    const [exportFormat, setExportFormat] = React.useState(ExportFormat.CSV)
 
-    const handleExportWithOptions = (format: string) => {
-        console.log("EXPORT format: ", format)
+    const handleExportWithOptions = (format: ExportFormat) => {
         setExportFormat(format)
         setOpenExport(true)
     }
@@ -258,16 +262,16 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                 onClose={() => setAnchorEl(null)}
             >
                 <MenuItem
-                    className="menu-export-CSV"
-                    onClick={() => handleExportWithOptions("CSV")}
+                    className="menu-export-csv"
+                    onClick={() => handleExportWithOptions(ExportFormat.CSV)}
                 >
-                    <span className="help-menu-item-CSV">CSV</span>
+                    <span className="help-menu-item-CSV">{t(`logsScreen.actions.csv`)}</span>
                 </MenuItem>
                 <MenuItem
-                    className="menu-export-PDF"
-                    onClick={() => handleExportWithOptions("PDF")}
+                    className="menu-export-pdf"
+                    onClick={() => handleExportWithOptions(ExportFormat.CSV)}
                 >
-                    <span className="help-menu-item-PDF">PDF</span>
+                    <span className="help-menu-item-PDF">{t(`logsScreen.actions.pdf`)}</span>
                 </MenuItem>
             </Menu>
         </>

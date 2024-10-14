@@ -14,6 +14,10 @@ const spanishTranslation: TranslationType = {
                 id: "Id",
                 statement: "Statement",
             },
+            actions: {
+                csv: "Exportar en CSV",
+                pdf: "Exportar en PDF",
+            },
             main: {
                 title: "Bitácora de Base de Datos Principal",
             },
