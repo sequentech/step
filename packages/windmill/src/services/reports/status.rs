@@ -94,10 +94,6 @@ impl TemplateRenderer for StatusTemplate {
         }
     }
 
-    async fn prepare_user_data(&self) -> Result<Self::UserData> {
-        Ok(UserData {})
-    }
-
     async fn prepare_system_data(
         &self,
         _rendered_user_template: String,

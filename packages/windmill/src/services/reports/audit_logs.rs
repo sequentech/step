@@ -112,10 +112,6 @@ impl TemplateRenderer for AuditLogsTemplate {
     }
 
     #[instrument]
-    async fn prepare_user_data(&self) -> Result<Self::UserData> {
-
-        Ok(UserData {})
-    }
 
     async fn prepare_system_data(
         &self,

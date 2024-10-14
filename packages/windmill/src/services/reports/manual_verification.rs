@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::template_renderer::*;
+use super::{ovcs_events::OVCSEventsTemplate, template_renderer::*};
 use crate::services::s3::get_minio_url;
 use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
@@ -78,17 +78,17 @@ impl TemplateRenderer for ManualVerificationTemplate {
         }
     }
 
-    async fn prepare_user_data(&self) -> Result<Self::UserData> {
+    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>> {
         let manual_verification_url =
             get_manual_verification_url(&self.tenant_id, &self.election_event_id, &self.voter_id)
                 .await
                 .with_context(|| "Error getting manual verification URL")?;
 
-        Ok(UserData {
+        Ok(Some(UserData {
             manual_verification_url,
             qrcode: QR_CODE_TEMPLATE.to_string(),
             logo: LOGO_TEMPLATE.to_string(),
-        })
+        }))
     }
 
     async fn prepare_system_data(
@@ -127,10 +127,10 @@ pub async fn generate_manual_verification_report(
     election_event_id: &str,
     voter_id: &str,
 ) -> Result<()> {
-    let template = ManualVerificationTemplate {
+    let template = OVCSEventsTemplate {
         tenant_id: tenant_id.to_string(),
         election_event_id: election_event_id.to_string(),
-        voter_id: voter_id.to_string(),
+        
     };
     template
         .execute_report(document_id, tenant_id, election_event_id, false, None, GenerateReportMode::Real)

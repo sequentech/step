@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
 use crate::services::database::get_hasura_pool;
 use crate::services::s3::get_minio_url;
@@ -99,7 +102,7 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
 
     // TODO: replace mock data with actual data
     // Fetch and prepare user data
-    async fn prepare_user_data(&self) -> Result<Self::UserData> {
+    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>>{
         // Mock data for pre_enrolled_users
         let pre_enrolled_users = vec![
             PreEnrolledUserData {
@@ -149,7 +152,7 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
         let number_of_ovs_approved_by = "OFOV".to_string();
         let temp_val: &str = "test";
 
-        Ok(UserData {
+        Ok(Some(UserData {
             election_start_date: "2024-01-01".to_string(),
             election_title: "National Election 2024".to_string(),
             geograpic_region: "Region 1".to_string(),
@@ -164,7 +167,7 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
             chairperson_name: temp_val.to_string(),
             poll_clerk_name: temp_val.to_string(),
             third_member_name: temp_val.to_string(),
-        })
+        }))
     }
 
     // Fetch and prepare SystemData with mock data

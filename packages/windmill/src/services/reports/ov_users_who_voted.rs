@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
 use crate::services::database::get_hasura_pool;
 use anyhow::{Context, Result};
@@ -92,7 +95,7 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
     }
 
     // Prepare user data with statistics and mock data
-    async fn prepare_user_data(&self) -> Result<Self::UserData> {
+    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>>{
         // Fetch the Hasura database client from the pool
         let mut hasura_db_client: DbClient = get_hasura_pool()
             .await
@@ -140,7 +143,7 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
             third_member_name: temp_val.to_string(),
         };
 
-        Ok(user_data)
+        Ok(Some(user_data))
     }
 
     // Prepare system data

@@ -74,11 +74,11 @@ impl TemplateRenderer for StatisticalReportTemplate {
         }
     }
 
-    async fn prepare_user_data(&self) -> Result<Self::UserData> {
-        Ok(UserData {
+    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>>{
+        Ok(Some(UserData {
             qrcode: QR_CODE_TEMPLATE.to_string(),
             logo: LOGO_TEMPLATE.to_string(),
-        })
+        }))
     }
 
     async fn prepare_system_data(

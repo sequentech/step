@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
 use crate::services::database::get_hasura_pool;
 use crate::{postgres::election_event::get_election_event_by_id};
@@ -96,7 +99,7 @@ impl TemplateRenderer for OverseasVotersReport {
 
     // TODO: replace mock data with actual data
     /// Prepare user data for the report
-    async fn prepare_user_data(&self) -> Result<Self::UserData> {
+    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>>{
         let mut db_client: DbClient = get_hasura_pool().await.get().await.with_context(|| "Error getting hasura db pool")?;
         let transaction = db_client.transaction().await.with_context(|| "Error starting transaction")?;
 
@@ -151,7 +154,7 @@ impl TemplateRenderer for OverseasVotersReport {
             third_member_name: temp_val.to_string(),
         };
 
-        Ok(user_data)
+        Ok(Some(user_data))
     }
 
     /// Prepare system metadata for the report
