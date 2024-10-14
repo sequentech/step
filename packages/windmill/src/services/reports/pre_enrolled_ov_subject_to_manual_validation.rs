@@ -31,12 +31,7 @@ pub struct Voter {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SystemData {
     pub report_hash: String,
-    pub version: String,
     pub system_hash: String,
-    pub file_logo: String,
-    pub file_qrcode_lib: String,
-    pub date_time_printed: String,
-    pub printing_code: String,
     pub election_title: String,
     pub election_date: String,
     pub voting_period: String,
