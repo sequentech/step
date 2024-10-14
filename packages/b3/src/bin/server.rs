@@ -22,28 +22,28 @@ const BIND: &'static str = "127.0.0.1:50051";
 
 #[derive(Parser)]
 struct Cli {
-    #[arg(long, default_value_t = PG_HOST.to_string())]
+    #[arg(long, env="B3_PG_HOST", default_value_t = PG_HOST.to_string())]
     host: String,
 
-    #[arg(long, default_value_t = PG_PORT)]
+    #[arg(long, env="B3_PG_PORT", default_value_t = PG_PORT)]
     port: u32,
 
-    #[arg(short, long, default_value_t = PG_USER.to_string())]
+    #[arg(short, long, env="B3_PG_USER", default_value_t = PG_USER.to_string())]
     username: String,
 
-    #[arg(long, default_value_t = PG_PASSW.to_string())]
+    #[arg(long, env="B3_PG_PASSWORD", default_value_t = PG_PASSW.to_string())]
     password: String,
 
-    #[arg(long, default_value_t = PG_DATABASE.to_string())]
+    #[arg(long, env="B3_PG_DATABASE", default_value_t = PG_DATABASE.to_string())]
     database: String,
 
-    #[arg(long, default_value_t = BIND.to_string())]
+    #[arg(long, env="B3_BIND", default_value_t = BIND.to_string())]
     bind: String,
 
-    #[arg(long)]
+    #[arg(long, env="B3_BLOB_ROOT")]
     blob_root: Option<PathBuf>,
 
-    #[arg(long, default_value_t = MAX_MESSAGE_SIZE)]
+    #[arg(long, env="B3_MAX_MESSAGE_SIZE_BYTES", default_value_t = MAX_MESSAGE_SIZE)]
     max_message_size_bytes: usize,
 }
 
