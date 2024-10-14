@@ -2,12 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, { useContext, useEffect, useState } from "react"
+import React, {useContext, useEffect, useState} from "react"
 
 import styled from "@emotion/styled"
 
-import { CircularProgress, Typography } from "@mui/material"
-import { Publish, RotateLeft, PlayCircle, PauseCircle, StopCircle } from "@mui/icons-material"
+import {CircularProgress, Typography} from "@mui/material"
+import {Publish, RotateLeft, PlayCircle, PauseCircle, StopCircle} from "@mui/icons-material"
 import {useTranslation} from "react-i18next"
 import {Dialog} from "@sequentech/ui-essentials"
 import {
@@ -19,13 +19,13 @@ import {
     Identifier,
 } from "react-admin"
 
-import { EPublishActionsType } from "./EPublishType"
-import { PublishStatus, ElectionEventStatus, nextStatus } from "./EPublishStatus"
-import { useTenantStore } from "@/providers/TenantContextProvider"
-import { AuthContext } from "@/providers/AuthContextProvider"
-import { IPermissions } from "@/types/keycloak"
+import {EPublishActionsType} from "./EPublishType"
+import {PublishStatus, ElectionEventStatus, nextStatus} from "./EPublishStatus"
+import {useTenantStore} from "@/providers/TenantContextProvider"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {IPermissions} from "@/types/keycloak"
 import SvgIcon from "@mui/material/SvgIcon"
-import { EPublishActions } from "@/types/publishActions"
+import {EPublishActions} from "@/types/publishActions"
 import DownloadIcon from "@mui/icons-material/Download"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {DownloadDocument} from "../User/DownloadDocument"
@@ -68,10 +68,10 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     onChangeStatus = () => null,
     data,
 }) => {
-    const { t } = useTranslation()
+    const {t} = useTranslation()
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
-    const { isGoldUser, reauthWithGold } = authContext
+    const {isGoldUser, reauthWithGold} = authContext
     const record = useRecordContext()
     const canWrite = authContext.isAuthorized(true, tenantId, IPermissions.PUBLISH_WRITE)
     const canRead = authContext.isAuthorized(true, tenantId, IPermissions.PUBLISH_READ)
@@ -87,7 +87,6 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     const [showDialog, setShowDialog] = useState(false)
     const [dialogText, setDialogText] = useState("")
     const [currentCallback, setCurrentCallback] = useState<any>(null)
-
 
     const [ExportBallotPublication] = useMutation<ExportBallotPublicationMutation>(
         EXPORT_BALLOT_PUBLICATION,
@@ -130,10 +129,10 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
             style={
                 changingStatus || disabledStatus?.includes(status)
                     ? {
-                        color: "#ccc",
-                        cursor: "not-allowed",
-                        backgroundColor: "#eee",
-                    }
+                          color: "#ccc",
+                          cursor: "not-allowed",
+                          backgroundColor: "#eee",
+                      }
                     : {}
             }
             disabled={disabledStatus?.includes(status) || st === status + 0.1}
@@ -154,22 +153,21 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     }
 
     /**
-      * Specific Handler for "Start Voting" Button:
-      * Incorporates re-authentication logic for actions that require Gold-level permissions.
-      */
+     * Specific Handler for "Start Voting" Button:
+     * Incorporates re-authentication logic for actions that require Gold-level permissions.
+     */
     const handleStartVotingPeriod = () => {
-
-        const actionText = t(`publish.action.startVotingPeriod`);
-        const dialogMessage = t("publish.dialog.confirmation", { action: actionText });
+        const actionText = t(`publish.action.startVotingPeriod`)
+        const dialogMessage = t("publish.dialog.confirmation", {action: actionText})
 
         setDialogText(dialogMessage)
         setShowDialog(true)
         setCurrentCallback(() => async () => {
             try {
                 if (!isGoldUser()) {
-                    const baseUrl = new URL(window.location.href);
-                    baseUrl.searchParams.set("tabIndex", "7");
-                    sessionStorage.setItem(EPublishActions.PENDING_START_VOTING, 'true')
+                    const baseUrl = new URL(window.location.href)
+                    baseUrl.searchParams.set("tabIndex", "7")
+                    sessionStorage.setItem(EPublishActions.PENDING_START_VOTING, "true")
                     await reauthWithGold(baseUrl.toString())
                 } else {
                     onChangeStatus(ElectionEventStatus.Open)
@@ -181,35 +179,35 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     }
 
     /**
-      * Specific Handler for "Publish Changes" Button:
-      * Incorporates re-authentication logic for actions that require Gold-level permissions.
-      */
+     * Specific Handler for "Publish Changes" Button:
+     * Incorporates re-authentication logic for actions that require Gold-level permissions.
+     */
     const handlePublish = () => {
         if (isGoldUser()) {
-            onGenerate(); // Proceed directly if the user has Gold permissions
+            onGenerate() // Proceed directly if the user has Gold permissions
         } else {
-            setDialogText(t("publish.dialog.confirmation", {
-                action: t("publish.action.publish")
-            }));
-            setShowDialog(true);
+            setDialogText(
+                t("publish.dialog.confirmation", {
+                    action: t("publish.action.publish"),
+                })
+            )
+            setShowDialog(true)
 
             setCurrentCallback(() => async () => {
                 try {
-                    const baseUrl = new URL(window.location.href);
-                    baseUrl.searchParams.set("tabIndex", "7");
-                    sessionStorage.setItem(EPublishActions.PENDING_PUBLISH_ACTION, "true");
+                    const baseUrl = new URL(window.location.href)
+                    baseUrl.searchParams.set("tabIndex", "7")
+                    sessionStorage.setItem(EPublishActions.PENDING_PUBLISH_ACTION, "true")
 
-                    await reauthWithGold(baseUrl.toString());
+                    await reauthWithGold(baseUrl.toString())
                 } catch (error) {
-                    console.error("Re-authentication failed:", error);
-                    setDialogText(t("publish.dialog.errorReauth"));
-                    setShowDialog(true);
+                    console.error("Re-authentication failed:", error)
+                    setDialogText(t("publish.dialog.errorReauth"))
+                    setShowDialog(true)
                 }
-            });
+            })
         }
-    };
-
-
+    }
 
     /**
      * Checks for any pending actions after the component mounts.
@@ -217,24 +215,21 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
      */
     useEffect(() => {
         const executePendingActions = async () => {
-            const pendingStart = sessionStorage.getItem(EPublishActions.PENDING_START_VOTING);
+            const pendingStart = sessionStorage.getItem(EPublishActions.PENDING_START_VOTING)
             if (pendingStart) {
-                sessionStorage.removeItem(EPublishActions.PENDING_START_VOTING);
-                onChangeStatus(ElectionEventStatus.Open);
+                sessionStorage.removeItem(EPublishActions.PENDING_START_VOTING)
+                onChangeStatus(ElectionEventStatus.Open)
             }
 
-            const pendingPublish = sessionStorage.getItem(EPublishActions.PENDING_PUBLISH_ACTION);
+            const pendingPublish = sessionStorage.getItem(EPublishActions.PENDING_PUBLISH_ACTION)
             if (pendingPublish) {
-                sessionStorage.removeItem(EPublishActions.PENDING_PUBLISH_ACTION);
-                onGenerate();
+                sessionStorage.removeItem(EPublishActions.PENDING_PUBLISH_ACTION)
+                onGenerate()
             }
-        };
+        }
 
-        executePendingActions();
-    }, [onChangeStatus, onGenerate]);
-
-
-
+        executePendingActions()
+    }, [onChangeStatus, onGenerate])
 
     const handleOnChange = (status: ElectionEventStatus) => () => onChangeStatus(status)
 

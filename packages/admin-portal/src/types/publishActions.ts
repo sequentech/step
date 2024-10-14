@@ -3,6 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 export enum EPublishActions {
-    PENDING_PUBLISH_ACTION = 'pendingPublishAction',
+    PENDING_PUBLISH_ACTION = "pendingPublishAction",
     PENDING_START_VOTING = "pendingStartVotingPeriod",
 }

@@ -74,5 +74,5 @@ export enum IPermissions {
     REPORT_WRITE = "report-write",
     CLOUDFLARE_WRITE = "cloudflare-write",
     GOLD_PERMISSION = "gold",
-    SILVER_PERMISSION = "silver"
+    SILVER_PERMISSION = "silver",
 }

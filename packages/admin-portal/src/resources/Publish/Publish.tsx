@@ -2,23 +2,23 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, { ComponentType, useCallback, useContext, useEffect, useState } from "react"
+import React, {ComponentType, useCallback, useContext, useEffect, useState} from "react"
 
-import { Box } from "@mui/material"
-import { useMutation } from "@apollo/client"
-import { useTranslation } from "react-i18next"
-import { useGetOne, useNotify, useRecordContext, Identifier, useRefresh } from "react-admin"
+import {Box} from "@mui/material"
+import {useMutation} from "@apollo/client"
+import {useTranslation} from "react-i18next"
+import {useGetOne, useNotify, useRecordContext, Identifier, useRefresh} from "react-admin"
 
-import { EPublishType } from "./EPublishType"
-import { PUBLISH_BALLOT } from "@/queries/PublishBallot"
+import {EPublishType} from "./EPublishType"
+import {PUBLISH_BALLOT} from "@/queries/PublishBallot"
 import {
     PublishStatus,
     ElectionEventStatus,
     MAP_ELECTION_EVENT_STATUS_PUBLISH,
     nextStatus,
 } from "./EPublishStatus"
-import { GENERATE_BALLOT_PUBLICATION } from "@/queries/GenerateBallotPublication"
-import { GET_BALLOT_PUBLICATION_CHANGE } from "@/queries/GetBallotPublicationChanges"
+import {GENERATE_BALLOT_PUBLICATION} from "@/queries/GenerateBallotPublication"
+import {GET_BALLOT_PUBLICATION_CHANGE} from "@/queries/GetBallotPublicationChanges"
 
 import {
     PublishBallotMutation,
@@ -31,16 +31,16 @@ import {
     Sequent_Backend_Ballot_Publication,
 } from "@/gql/graphql"
 
-import { PublishList } from "./PublishList"
-import { PublishGenerate } from "./PublishGenerate"
-import { UPDATE_EVENT_VOTING_STATUS } from "@/queries/UpdateEventVotingStatus"
-import { UPDATE_ELECTION_VOTING_STATUS } from "@/queries/UpdateElectionVotingStatus"
-import { IPermissions } from "@/types/keycloak"
-import { AuthContext } from "@/providers/AuthContextProvider"
-import { useTenantStore } from "@/providers/TenantContextProvider"
-import { IElectionEventStatus } from "@sequentech/ui-core"
-import { SettingsContext } from "@/providers/SettingsContextProvider"
-import { convertToNumber } from "@/lib/helpers"
+import {PublishList} from "./PublishList"
+import {PublishGenerate} from "./PublishGenerate"
+import {UPDATE_EVENT_VOTING_STATUS} from "@/queries/UpdateEventVotingStatus"
+import {UPDATE_ELECTION_VOTING_STATUS} from "@/queries/UpdateElectionVotingStatus"
+import {IPermissions} from "@/types/keycloak"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {useTenantStore} from "@/providers/TenantContextProvider"
+import {IElectionEventStatus} from "@sequentech/ui-core"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {convertToNumber} from "@/lib/helpers"
 
 enum ViewMode {
     Edit,
@@ -55,10 +55,10 @@ type TPublish = {
 }
 
 const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.memo(
-    ({ electionEventId, electionId, type }: TPublish): React.JSX.Element => {
+    ({electionEventId, electionId, type}: TPublish): React.JSX.Element => {
         const MAX_DIFF_LINES = convertToNumber(process.env.MAX_DIFF_LINES) ?? 500
         const notify = useNotify()
-        const { t } = useTranslation()
+        const {t} = useTranslation()
         const [tenantId] = useTenantStore()
         const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.List)
         const [changingStatus, setChangingStatus] = useState<boolean>(false)
@@ -67,7 +67,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             null
         )
         const authContext = useContext(AuthContext)
-        const { globalSettings } = useContext(SettingsContext)
+        const {globalSettings} = useContext(SettingsContext)
         const canWrite = authContext.isAuthorized(true, tenantId, IPermissions.PUBLISH_WRITE)
         const canRead = authContext.isAuthorized(true, tenantId, IPermissions.PUBLISH_READ)
 
@@ -85,13 +85,13 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         const [generateBallotPublication] = useMutation<GenerateBallotPublicationMutation>(
             GENERATE_BALLOT_PUBLICATION
         )
-        const [updateStatusEvent, { error: updateStatusEventError }] =
+        const [updateStatusEvent, {error: updateStatusEventError}] =
             useMutation<UpdateEventVotingStatusOutput>(UPDATE_EVENT_VOTING_STATUS)
         const [updateStatusElection] = useMutation<UpdateElectionVotingStatusOutput>(
             UPDATE_ELECTION_VOTING_STATUS
         )
 
-        const { data: ballotPublication, refetch } = useGetOne<Sequent_Backend_Ballot_Publication>(
+        const {data: ballotPublication, refetch} = useGetOne<Sequent_Backend_Ballot_Publication>(
             "sequent_backend_ballot_publication",
             {
                 id: ballotPublicationId,
@@ -110,7 +110,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 
                 handleSetPublishStatus(PublishStatus.PublishedLoading)
 
-                const { data } = await publishBallot({
+                const {data} = await publishBallot({
                     variables: {
                         electionEventId,
                         ballotPublicationId,
@@ -142,7 +142,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                 setViewMode(ViewMode.Edit)
                 handleSetPublishStatus(PublishStatus.GeneratedLoading)
 
-                const { data } = await generateBallotPublication({
+                const {data} = await generateBallotPublication({
                     variables: {
                         electionId,
                         electionEventId,
@@ -228,7 +228,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         const fetchAllPublishChanges = useCallback(async () => {
             try {
                 const {
-                    data: { get_ballot_publication_changes: data },
+                    data: {get_ballot_publication_changes: data},
                 } = (await getBallotPublicationChanges({
                     variables: {
                         electionEventId,
@@ -249,7 +249,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         const getPublishChanges = useCallback(async () => {
             try {
                 const {
-                    data: { get_ballot_publication_changes: data },
+                    data: {get_ballot_publication_changes: data},
                 } = (await getBallotPublicationChanges({
                     variables: {
                         electionEventId,
@@ -340,7 +340,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         }, [record, handleSetPublishStatus])
 
         return (
-            <Box sx={{ flexGrow: 2, flexShrink: 0 }}>
+            <Box sx={{flexGrow: 2, flexShrink: 0}}>
                 {viewMode === ViewMode.List && (
                     <PublishList
                         status={publishStatus}

@@ -2,13 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, { ReactElement, useState, useContext, useEffect, useCallback } from "react"
-import { useTranslation } from "react-i18next"
-import { Visibility } from "@mui/icons-material"
-import { IconButton, Dialog } from "@sequentech/ui-essentials"
-import { Box, Typography, Button, DialogContent, DialogActions } from "@mui/material"
-import { faPlus } from "@fortawesome/free-solid-svg-icons"
-import { EPublishActions } from "@/types/publishActions"
+import React, {ReactElement, useState, useContext, useEffect, useCallback} from "react"
+import {useTranslation} from "react-i18next"
+import {Visibility} from "@mui/icons-material"
+import {IconButton, Dialog} from "@sequentech/ui-essentials"
+import {Box, Typography, Button, DialogContent, DialogActions} from "@mui/material"
+import {faPlus} from "@fortawesome/free-solid-svg-icons"
+import {EPublishActions} from "@/types/publishActions"
 
 import {
     List,
@@ -20,14 +20,14 @@ import {
     DatagridConfigurable,
 } from "react-admin"
 
-import { ElectionEventStatus, PublishStatus } from "./EPublishStatus"
-import { PublishActions } from "./PublishActions"
-import { EPublishActionsType } from "./EPublishType"
-import { HeaderTitle } from "@/components/HeaderTitle"
-import { ResourceListStyles } from "@/components/styles/ResourceListStyles"
-import { Action, ActionsColumn } from "@/components/ActionButons"
-import { ResetFilters } from "@/components/ResetFilters"
-import { AuthContext } from "@/providers/AuthContextProvider"
+import {ElectionEventStatus, PublishStatus} from "./EPublishStatus"
+import {PublishActions} from "./PublishActions"
+import {EPublishActionsType} from "./EPublishType"
+import {HeaderTitle} from "@/components/HeaderTitle"
+import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
+import {Action, ActionsColumn} from "@/components/ActionButons"
+import {ResetFilters} from "@/components/ResetFilters"
+import {AuthContext} from "@/providers/AuthContextProvider"
 
 const OMIT_FIELDS: string[] = []
 
@@ -48,7 +48,6 @@ type TPublishList = {
     setBallotPublicationId: (id: string | Identifier) => void
 }
 
-
 export const PublishList: React.FC<TPublishList> = ({
     status,
     electionId,
@@ -60,9 +59,9 @@ export const PublishList: React.FC<TPublishList> = ({
     onChangeStatus = () => null,
     setBallotPublicationId = () => null,
 }) => {
-    const { t } = useTranslation()
+    const {t} = useTranslation()
     const authContext = useContext(AuthContext)
-    const { isGoldUser, reauthWithGold } = authContext
+    const {isGoldUser, reauthWithGold} = authContext
 
     const handleGenerateClick = async () => {
         if (isGoldUser()) {
@@ -83,24 +82,21 @@ export const PublishList: React.FC<TPublishList> = ({
         }
     }
 
-
     /**
      * Checks for any pending actions after the component mounts.
      * If a pending action is found, it executes the action and removes the flag.
      */
     useEffect(() => {
         const executePendingActions = async () => {
-            const pendingPublish = sessionStorage.getItem(EPublishActions.PENDING_PUBLISH_ACTION);
+            const pendingPublish = sessionStorage.getItem(EPublishActions.PENDING_PUBLISH_ACTION)
             if (pendingPublish) {
-                sessionStorage.removeItem(EPublishActions.PENDING_PUBLISH_ACTION);
-                onGenerate();
+                sessionStorage.removeItem(EPublishActions.PENDING_PUBLISH_ACTION)
+                onGenerate()
             }
-        };
+        }
 
-        executePendingActions();
-    }, [onGenerate]);
-
-
+        executePendingActions()
+    }, [onGenerate])
 
     const Empty = () => (
         <ResourceListStyles.EmptyBox>
@@ -148,16 +144,16 @@ export const PublishList: React.FC<TPublishList> = ({
                 filter={
                     electionId
                         ? {
-                            election_event_id: electionEventId,
-                            election_id: electionId,
-                        }
+                              election_event_id: electionEventId,
+                              election_id: electionId,
+                          }
                         : {
-                            election_event_id: electionEventId,
-                        }
+                              election_event_id: electionEventId,
+                          }
                 }
-                sort={{ field: "created_at", order: "DESC" }}
+                sort={{field: "created_at", order: "DESC"}}
                 filters={filters}
-                sx={{ flexGrow: 2 }}
+                sx={{flexGrow: 2}}
                 empty={<Empty />}
             >
                 <ResetFilters />
