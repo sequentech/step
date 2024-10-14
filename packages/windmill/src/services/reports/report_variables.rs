@@ -1,11 +1,11 @@
+use crate::postgres::contest::get_contest_by_election_id;
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::postgres::results_area_contest::ResultsAreaContest;
+use crate::postgres::results_area_contest::{get_results_area_contest, ResultsAreaContest};
 use crate::services::users::count_keycloak_enabled_users_by_attr;
 use crate::{
-    postgres::area_contest::get_areas_by_contest_id, postgres::contest::get_contest_by_election_id,
-    postgres::results_area_contest::get_results_area_contest,
+    postgres::area_contest::get_areas_by_contest_id,
     services::users::count_keycloak_enabled_users_by_areas_id,
 };
 use anyhow::{anyhow, Context, Result};
@@ -225,6 +225,7 @@ pub async fn get_election_contests_area_results_and_total_ballot_counted(
     )
     .await
     .with_context(|| "Error obtaining contests")?;
+
     let mut ballots_counted = 0;
     let mut results_area_contests: Vec<ResultsAreaContest> = vec![];
     for contest in contests.clone() {

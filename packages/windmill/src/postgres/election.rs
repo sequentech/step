@@ -42,7 +42,7 @@ impl TryFrom<Row> for ElectionWrapper {
             statistics: item.try_get("statistics")?,
             receipts: item.try_get("receipts")?,
             permission_label: item.try_get("permission_label")?,
-            initialization_report_generated: item.try_get("initializion_report_generated")?,
+            initialization_report_generated: item.try_get("initialization_report_generated")?,
         }))
     }
 }

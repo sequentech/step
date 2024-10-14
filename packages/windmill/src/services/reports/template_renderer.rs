@@ -145,6 +145,7 @@ pub trait TemplateRenderer: Debug {
                 .to_map()
                 .map_err(|e| anyhow!("Error converting preview user data to map: {e:?}"))?;
 
+            println!("-------- before get_system_template");
             let system_template = self
                 .get_system_template()
                 .await
