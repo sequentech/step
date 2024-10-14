@@ -152,6 +152,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
         variables: {
             electionIds: ballotStyleElectionIds,
         },
+        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
     })
 
     const isAnyVotingStatusOpen = dataElections?.sequent_backend_election.some(
@@ -159,7 +160,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     )
 
     const onClickToScreen = useCallback(() => {
-        if (isAnyVotingStatusOpen && canVote) {
+        if ((isAnyVotingStatusOpen && canVote) || globalSettings.DISABLE_AUTH) {
             navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser${location.search}`)
         } else {
             logout(presentation?.redirect_finish_url ?? undefined)
