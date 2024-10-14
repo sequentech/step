@@ -226,7 +226,7 @@ pub trait TemplateRenderer: Debug {
             .await
             .map_err(|err| anyhow!("Error rendering report: {}", err))?;
 
-        debug!("Report generated: {rendered_system_template}");
+        info!("Report generated: {rendered_system_template}");
         let extension_suffix = "pdf";
         // Generate PDF
         let content_bytes = pdf::html_to_pdf(rendered_system_template.clone(), pdf_options)

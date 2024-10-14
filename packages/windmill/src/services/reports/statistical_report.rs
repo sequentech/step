@@ -258,6 +258,7 @@ pub async fn generate_statistical_report(
             election_event_id,
             false,
             None,
+            None,
             GenerateReportMode::REAL,
         )
         .await

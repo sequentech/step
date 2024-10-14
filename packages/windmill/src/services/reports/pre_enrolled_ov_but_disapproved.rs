@@ -112,6 +112,6 @@ pub async fn generate_pre_enrolled_ov_but_disapproved_report(
         election_event_id: election_event_id.to_string(),
     };
     template
-        .execute_report(document_id, tenant_id, election_event_id, false, None, mode)
+        .execute_report(document_id, tenant_id, election_event_id, false, None, None, mode)
         .await
 }

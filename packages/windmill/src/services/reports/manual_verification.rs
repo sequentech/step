@@ -139,6 +139,7 @@ pub async fn generate_manual_verification_report(
             election_event_id,
             false,
             None,
+            None,
             GenerateReportMode::REAL,
         )
         .await
