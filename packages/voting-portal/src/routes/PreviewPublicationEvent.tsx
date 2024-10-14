@@ -8,7 +8,12 @@ import {SettingsContext} from "../providers/SettingsContextProvider"
 import {PageLimit} from "@sequentech/ui-essentials"
 import {Box, CircularProgress} from "@mui/material"
 import {PreviewPublicationEventType} from ".."
-import {GetBallotPublicationChangesOutput} from "../gql/graphql"
+import {
+    GetBallotPublicationChangesOutput,
+    Sequent_Backend_Ballot_Style,
+    Sequent_Backend_Election,
+    Sequent_Backend_Election_Event,
+} from "../gql/graphql"
 import {IBallotStyle as IElectionDTO} from "@sequentech/ui-core"
 import {cloneDeep} from "lodash"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
@@ -20,14 +25,34 @@ import {
 } from "../store/ballotStyles/ballotStylesSlice"
 import {AppDispatch} from "../store/store"
 import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
+import {setElection} from "../store/elections/electionsSlice"
+import {setElectionEvent} from "../store/electionEvents/electionEventsSlice"
+
+interface PreviewDocument {
+    ballot_styles: Array<IElectionDTO>
+    elections: Array<Sequent_Backend_Election>
+    election_event: Sequent_Backend_Election_Event
+}
 
 export const updateBallotStyleAndSelection = (
-    ballotStyleJson: GetBallotPublicationChangesOutput,
+    ballotStyleJson: PreviewDocument,
     tenantId: string,
     areaId: string,
     dispatch: AppDispatch
 ) => {
-    for (let ballotStyle of ballotStyleJson.current.ballot_styles) {
+    dispatch(setElectionEvent(ballotStyleJson.election_event as any))
+    for (let election of ballotStyleJson.elections) {
+        dispatch(
+            setElection({
+                ...election,
+                image_document_id: "",
+                contests: [],
+                description: election.description ?? undefined,
+                alias: election.alias ?? undefined,
+            })
+        )
+    }
+    for (let ballotStyle of ballotStyleJson.ballot_styles) {
         if (ballotStyle.area_id !== areaId) {
             continue
         }
@@ -66,7 +91,7 @@ export const PreviewPublicationEvent: React.FC = () => {
     const {globalSettings, setDisableAuth} = useContext(SettingsContext)
     const navigate = useNavigate()
     const {tenantId, documentId, areaId} = useParams<PreviewPublicationEventType>()
-    const [ballotStyleJson, setballotStyleJson] = useState<GetBallotPublicationChangesOutput>() // State to store the JSON data
+    const [ballotStyleJson, setballotStyleJson] = useState<PreviewDocument>() // State to store the JSON data
     const dispatch = useAppDispatch()
     const ballotStyle = useAppSelector(selectFirstBallotStyle)
     const location = useLocation()
@@ -85,7 +110,7 @@ export const PreviewPublicationEvent: React.FC = () => {
                 if (!response.ok) {
                     throw new Error(`Error: ${response.statusText}`)
                 }
-                const ballotStyleJson = (await response.json()) as GetBallotPublicationChangesOutput
+                const ballotStyleJson = (await response.json()) as PreviewDocument
                 updateBallotStyleAndSelection(ballotStyleJson, tenantId, areaId, dispatch)
             } catch (err) {
                 console.log(`Error loading preview: ${err}`)

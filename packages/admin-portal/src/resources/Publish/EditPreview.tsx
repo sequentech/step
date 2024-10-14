@@ -1,8 +1,21 @@
 import React, {useContext, useEffect, useMemo, useState} from "react"
-import {AutocompleteInput, Identifier, SaveButton, SimpleForm, useGetList, useGetOne, useNotify} from "react-admin"
+import {
+    AutocompleteInput,
+    Identifier,
+    SaveButton,
+    SimpleForm,
+    useGetList,
+    useGetOne,
+    useNotify,
+} from "react-admin"
 import {Preview} from "@mui/icons-material"
 import {useTranslation} from "react-i18next"
-import {GetBallotPublicationChangesOutput, GetUploadUrlMutation, Sequent_Backend_Election, Sequent_Backend_Election_Event} from "@/gql/graphql"
+import {
+    GetBallotPublicationChangesOutput,
+    GetUploadUrlMutation,
+    Sequent_Backend_Election,
+    Sequent_Backend_Election_Event,
+} from "@/gql/graphql"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useMutation, useQuery} from "@apollo/client"
 import {GET_AREAS} from "@/queries/GetAreas"
@@ -127,10 +140,10 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
             const dataStr = JSON.stringify(fileData, null, 2)
             const file = new File([dataStr], `preview.json`, {type: "application/json"})
             const documentId = await uploadFileToS3(file)
-    
+
             const previewUrl: string = `${previewUrlTemplate}/${documentId}/${areaId}`
             window.open(previewUrl, "_blank")
-    
+
             notify(t("publish.previewSuccess"), {type: "success"})
             if (close) {
                 close()
