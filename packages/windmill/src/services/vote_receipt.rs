@@ -338,7 +338,7 @@ pub async fn create_vote_receipt(
     let render = reports::render_template_text(&template_hbs, map)?;
 
     // Gen pdf
-    let bytes_pdf = pdf::html_to_pdf(render).map_err(|err| anyhow!("{}", err))?;
+    let bytes_pdf = pdf::html_to_pdf(render, None).map_err(|err| anyhow!("{}", err))?;
 
     let (_temp_path, temp_path_string, file_size) =
         write_into_named_temp_file(&bytes_pdf, "vote-receipt-", ".pdf")

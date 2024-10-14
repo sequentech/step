@@ -18,6 +18,7 @@ use chrono::NaiveDateTime;
 use chrono::{DateTime, Utc};
 use csv::WriterBuilder;
 use deadpool_postgres::{Client as DbClient, Transaction};
+use headless_chrome::types::PrintToPdfOptions;
 use sequent_core::types::hasura::core::Document;
 use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
@@ -287,8 +288,34 @@ pub async fn generate_activity_logs_report(
                 .await
         }
         ReportFormat::PDF => {
+            // Set landscape to make more space for the columns
+            let pdf_options = PrintToPdfOptions {
+                landscape: Some(true),
+                display_header_footer: None,
+                print_background: Some(true),
+                scale: None,
+                paper_width: None,
+                paper_height: None,
+                margin_top: None,
+                margin_bottom: None,
+                margin_left: None,
+                margin_right: None,
+                page_ranges: None,
+                ignore_invalid_page_ranges: None,
+                header_template: None,
+                footer_template: None,
+                prefer_css_page_size: None,
+                transfer_mode: None,
+            };
             template
-                .execute_report(document_id, tenant_id, election_event_id, false, None)
+                .execute_report(
+                    document_id,
+                    tenant_id,
+                    election_event_id,
+                    false,
+                    None,
+                    Some(pdf_options),
+                )
                 .await
         }
     }

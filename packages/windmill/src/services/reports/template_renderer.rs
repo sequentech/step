@@ -12,13 +12,14 @@ use crate::tasks::send_template::{send_template_email, EmailSender};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Client as DbClient;
+use headless_chrome::types::PrintToPdfOptions;
 use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
 use sequent_core::services::{pdf, reports};
 use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::fmt::Debug;
-use tracing::{info, instrument, warn};
+use tracing::{debug, info, instrument, warn};
 
 pub enum ReportType {
     ManualVerification,
@@ -183,6 +184,7 @@ pub trait TemplateRenderer: Debug {
         election_event_id: &str,
         is_scheduled_task: bool,
         receiver: Option<String>,
+        pdf_options: Option<PrintToPdfOptions>,
     ) -> Result<()> {
         // Generate report in html
         let rendered_system_template = self
@@ -190,9 +192,10 @@ pub trait TemplateRenderer: Debug {
             .await
             .map_err(|err| anyhow!("Error rendering report: {}", err))?;
 
+        debug!("Report generated: {rendered_system_template}");
         let extension_suffix = "pdf";
         // Generate PDF
-        let content_bytes = pdf::html_to_pdf(rendered_system_template.clone())
+        let content_bytes = pdf::html_to_pdf(rendered_system_template.clone(), pdf_options)
             .map_err(|err| anyhow!("Error rendering report to {}: {}", extension_suffix, err))?;
 
         let base_name = Self::base_name();
