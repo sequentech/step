@@ -24,6 +24,7 @@ export interface Action {
     label?: string
     className?: string
     saveRecordAction?: (record: RaRecord<Identifier>) => void
+    key?: string
 }
 
 interface ActionsColumnProps {
