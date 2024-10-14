@@ -199,7 +199,7 @@ impl GenerateReports {
                     },
                 )?;
 
-            let bytes_pdf = pdf::html_to_pdf(render_pdf.clone()).map_err(|e| {
+            let bytes_pdf = pdf::html_to_pdf(render_pdf.clone(), None).map_err(|e| {
                 Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
             })?;
             Some(bytes_pdf)

@@ -98,4 +98,5 @@ sha2 = "0.10"
 ring = "0.17"
 
 walkdir = "2.3"
+headless_chrome = { version = "1.0.12", default-features = false}
 cron = "0.12.1"

@@ -10,6 +10,10 @@ const tagalogTranslation: TranslationType = {
             noPermissions: "Wala kang permiso upang ma-access ang mga log.",
             title: "Mga Log",
             subtitle: "Pangkalahatang mga log ng pangunahing at IAM na database",
+            actions: {
+                csv: "I-export sa CSV",
+                pdf: "I-export sa PDF",
+            },
             column: {
                 id: "Id",
                 statement: "Pahayag",

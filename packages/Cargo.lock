@@ -8707,6 +8707,7 @@ dependencies = [
  "futures",
  "graphql_client",
  "handlebars 4.5.0",
+ "headless_chrome",
  "immudb-rs",
  "keycloak",
  "lazy_static",

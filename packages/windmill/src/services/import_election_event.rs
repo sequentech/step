@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::postgres::reports::insert_reports;
+use crate::postgres::reports::Report;
 use crate::services::protocol_manager::get_event_board;
 use crate::services::tasks_execution::update_fail;
 use ::keycloak::types::RealmRepresentation;
@@ -78,6 +80,7 @@ pub struct ImportElectionEventSchema {
     pub areas: Vec<Area>,
     pub area_contests: Vec<AreaContest>,
     pub scheduled_events: Vec<ScheduledEvent>,
+    pub reports: Vec<Report>,
 }
 
 #[instrument(err)]
@@ -461,6 +464,15 @@ pub async fn process_election_event_file(
     )
     .await
     .with_context(|| "Error inserting area contests")?;
+
+    insert_reports(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &data.reports,
+    )
+    .await
+    .with_context(|| "Error inserting reports")?;
 
     Ok(data)
 }
