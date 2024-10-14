@@ -117,6 +117,7 @@ B3_PG_DATABASE=b3
 # Where B3 listens for GRPC connections
 B3_BIND=0.0.0.0:50051
 ```
+
 #### Braid
 
 Braid has the following environment variables --they also correspond
