@@ -9,14 +9,10 @@ export default function PreviewPublicationEvent() {
     const navigate = useNavigate()
     const params = useParams()
 
-    const noMatch = useMatch("/preview/:documentId/:areaId/:token");
-    const path = `/preview/${params.tenantId}/${params.documentId}/${params.areaId}/${params.token}`
+    const noMatch = useMatch("/preview/:documentId/:areaId");
+    const path = `/preview/${params.tenantId}/${params.documentId}/${params.areaId}`
 
     useEffect(() => {
-        console.log(params.token)
-        if (params.token) {
-            localStorage.setItem('token', params.token);
-        }
         if (noMatch) {
             navigate(path)
         }

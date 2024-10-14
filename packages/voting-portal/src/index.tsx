@@ -48,7 +48,6 @@ export type PreviewPublicationEventType = {
     tenantId: string
     documentId: string
     areaId: string
-    token: string
 }
 
 export interface KeycloakProviderProps extends React.PropsWithChildren {
@@ -79,7 +78,7 @@ const router = createBrowserRouter(
             errorElement: <ErrorPage />,
             children: [
                 {
-                    path: "/preview/:tenantId/:documentId/:areaId/:token",
+                    path: "/preview/:tenantId/:documentId/:areaId",
                     element: (
                         <Suspense fallback={<Loader />}>
                             <PreviewPublicationEvent />

@@ -96,11 +96,9 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
     const file = new File([dataStr], `preview.json`, { type: 'application/json' });
     const documentId = await uploadFileToS3(file);
 
-    const token = localStorage.getItem('token');
-    const previewUrl: string = `${previewUrlTemplate}/${documentId}/${res.area_id}/${encodeURIComponent(token || '')}`;
+    const previewUrl: string = `${previewUrlTemplate}/${documentId}/${res.area_id}`;
     window.open(previewUrl, '_blank');
     
-    console.log({token})
     notify(t("publish.previewSuccess"), { type: "success" });
     if (close) {
       close();

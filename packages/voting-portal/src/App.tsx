@@ -87,7 +87,7 @@ const App = () => {
     const {globalSettings} = useContext(SettingsContext)
     const location = useLocation()
     const {tenantId, eventId} = useParams<TenantEventType>()
-    const {tenantId: documentTenant, documentId, areaId, token} = useParams<PreviewPublicationEventType>()
+    const {tenantId: documentTenant, documentId, areaId} = useParams<PreviewPublicationEventType>()
     const {isAuthenticated, setTenantEvent, } = useContext(AuthContext)
 
     const electionIds = useAppSelector(selectElectionIds)
@@ -153,10 +153,6 @@ const App = () => {
     useEffect(() => {
         if (location.pathname.includes('preview')) {
             if (ballotStyle && documentTenant) {
-                if (token) {
-                    localStorage.setItem('token', token);
-                    document.cookie = `token=${token}; path=/; SameSite=Lax`;
-                }
                 navigate(
                     `/tenant/${documentTenant}/event/${ballotStyle.election_event_id}/election-chooser${location.search}`    
                 )
