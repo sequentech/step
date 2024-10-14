@@ -25,7 +25,7 @@ use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use sequent_core::{ballot::ElectionStatus, ballot::VotingStatus, types::templates::EmailConfig};
 use serde::{Deserialize, Serialize};
 use serde_json::value::Value;
-use tracing::info;
+use tracing::{info, instrument};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {}
@@ -49,11 +49,8 @@ pub struct SystemData {
     pub report_hash: String,
     pub ovcs_version: String,
     pub system_hash: String,
-    pub file_logo: String,
-    pub file_qrcode_lib: String,
     pub date_printed: String,
     pub time_printed: String,
-    pub printing_code: String,
 }
 
 #[derive(Debug)]
@@ -73,11 +70,11 @@ impl TemplateRenderer for StatusTemplate {
     }
 
     fn base_name() -> String {
-        "ovcs_information".to_string()
+        "status".to_string()
     }
 
     fn prefix(&self) -> String {
-        format!("ovcs_information_{}", self.election_event_id)
+        format!("status_{}", self.election_event_id)
     }
 
     fn get_tenant_id(&self) -> String {
@@ -243,15 +240,30 @@ impl TemplateRenderer for StatusTemplate {
             report_hash: "hash123".to_string(),
             ovcs_version: "1.0".to_string(),
             system_hash: "sys_hash123".to_string(),
-            file_logo: "logo.png".to_string(),
-            file_qrcode_lib: "qrcode.png".to_string(),
             date_printed: date_printed,
             time_printed: time_printed,
-            printing_code: "print123".to_string(),
         })
     }
 }
 
 pub fn get_election_status(status_json_opt: Option<Value>) -> Option<ElectionStatus> {
     status_json_opt.and_then(|status_json| deserialize_value(status_json).ok())
+}
+
+#[instrument]
+pub async fn generate_status_report(
+    document_id: &str,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    mode: GenerateReportMode,
+) -> Result<()> {
+    let template = StatusTemplate {
+        tenant_id: tenant_id.to_string(),
+        election_event_id: election_event_id.to_string(),
+        election_id: election_id.to_string(),
+    };
+    template
+        .execute_report(document_id, tenant_id, election_event_id, false, None, mode)
+        .await
 }

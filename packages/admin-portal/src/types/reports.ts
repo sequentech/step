@@ -19,6 +19,7 @@ export enum EReportType {
     STATISTICAL_REPORT = "STATISTICAL_REPORT",
     OVCS_EVENTS = "OVCS_EVENTS",
     AUDIT_LOGS = "AUDIT_LOGS",
+    STATUS = "STATUS",
 }
 
 export enum EReportElectionPolicy {
@@ -64,6 +65,11 @@ export const reportTypeConfig: {
         electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
     },
     [EReportType.AUDIT_LOGS]: {
+        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
+        templateRequired: false,
+        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
+    },
+    [EReportType.STATUS]: {
         actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
         templateRequired: false,
         electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
