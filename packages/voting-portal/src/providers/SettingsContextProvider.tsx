@@ -81,7 +81,7 @@ const SettingsContextProvider = (props: SettingsContextProviderProps) => {
     const setDisableAuth = (disable: boolean) => {
         setSettings({
             ...globalSettings,
-            DISABLE_AUTH: disable
+            DISABLE_AUTH: disable,
         })
     }
 

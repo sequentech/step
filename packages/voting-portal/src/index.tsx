@@ -79,11 +79,8 @@ const router = createBrowserRouter(
             errorElement: <ErrorPage />,
             children: [
                 {
-                    //path: "/preview/:tenantId/:documentId/:areaId",
-                    path: "preview2",
-                    element: (
-                        <PreviewPublicationEvent />
-                    )
+                    path: "/preview/:tenantId/:documentId/:areaId",
+                    element: <PreviewPublicationEvent />,
                 },
                 {
                     path: "/tenant/:tenantId/event/:eventId",

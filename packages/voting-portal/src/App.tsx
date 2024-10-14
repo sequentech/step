@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useEffect, useContext, useMemo, useState} from "react"
+import React, {useEffect, useContext, useMemo} from "react"
 import {Outlet, ScrollRestoration, useLocation, useParams} from "react-router-dom"
 import {styled} from "@mui/material/styles"
 import {Footer, Header, PageBanner} from "@sequentech/ui-essentials"
@@ -12,23 +12,18 @@ import Stack from "@mui/material/Stack"
 import {useNavigate} from "react-router-dom"
 import {AuthContext} from "./providers/AuthContextProvider"
 import {SettingsContext} from "./providers/SettingsContextProvider"
-import {TenantEventType, PreviewPublicationEventType} from "."
+import {TenantEventType} from "."
 import {ApolloWrapper} from "./providers/ApolloContextProvider"
 import {VotingPortalError, VotingPortalErrorType} from "./services/VotingPortalError"
-import {useAppDispatch, useAppSelector} from "./store/hooks"
+import {useAppSelector} from "./store/hooks"
 import {selectElectionIds} from "./store/elections/electionsSlice"
 import {
-    IBallotStyle,
     selectBallotStyleByElectionId,
     selectFirstBallotStyle,
-    setBallotStyle,
 } from "./store/ballotStyles/ballotStylesSlice"
 import WatermarkBackground from "./components/WaterMark/Watermark"
 import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
 import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
-import { IBallotStyle as IElectionDTO }  from "@sequentech/ui-core"
-import { cloneDeep } from "lodash"
-import { GetBallotPublicationChangesOutput } from "./gql/graphql"
 
 const StyledApp = styled(Stack)<{css: string}>`
     min-height: 100vh;
@@ -87,96 +82,21 @@ const App = () => {
     const {globalSettings} = useContext(SettingsContext)
     const location = useLocation()
     const {tenantId, eventId} = useParams<TenantEventType>()
-    const {tenantId: documentTenant, documentId, areaId} = useParams<PreviewPublicationEventType>()
-    const {isAuthenticated, setTenantEvent, } = useContext(AuthContext)
+    const {isAuthenticated, setTenantEvent} = useContext(AuthContext)
 
     const electionIds = useAppSelector(selectElectionIds)
-    const isPreviewRoute = location.pathname.includes("/preview/");
-    const ballotStyle = useAppSelector(isPreviewRoute ? selectFirstBallotStyle : selectBallotStyleByElectionId(String(electionIds[0])))
-    const [ballotStyleJson, setBballotStyleJson] = useState<GetBallotPublicationChangesOutput>() // State to store the JSON data
-    const dispatch = useAppDispatch();
-
-    const previewUrl = useMemo(() => {
-        return `http://127.0.0.1:9000/public/tenant-${tenantId}/document-${documentId}/preview.json`;
-      }, [tenantId, documentId])
+    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionIds[0])))
 
     useEffect(() => {
-        const fetchPreviewData = async () => {
-            try {
-                const response = await fetch(previewUrl)
-                if (!response.ok) {
-                    throw new Error(`Error: ${response.statusText}`)
-                }
-                const data = await response.json()
-                setBballotStyleJson(data) 
-            } catch (err: any) {
-                console.log("error")
-            } 
+        if (location.pathname === "/") {
+            throw new VotingPortalError(VotingPortalErrorType.NO_ELECTION_EVENT)
         }
-
-        if (documentTenant && documentId) {
-            fetchPreviewData()
-        }
-    }, [documentTenant, documentId])
-  
-    useEffect(() => {
-        if (ballotStyleJson && areaId && tenantId) {
-            try {
-                const ballotStyle = ballotStyleJson.current.ballot_styles.find(
-                    (style: any) => style.area_id === areaId
-                );
-                const eml: IElectionDTO = cloneDeep(ballotStyle);
-
-                const formattedBallotStyle: IBallotStyle = {
-                    id: ballotStyle.election_id,
-                    election_id: ballotStyle.election_id,
-                    election_event_id: ballotStyle.election_event_id,
-                    tenant_id: documentTenant || "",
-                    ballot_eml: eml,
-                    ballot_signature: null,
-                    created_at: "",
-                    area_id: areaId,
-                    annotations: null,
-                    labels: null,
-                    last_updated_at: "",
-                }
-                dispatch(setBallotStyle(formattedBallotStyle))
-                
-            } catch (error) {
-                console.log(`Error loading EML: ${error}`)
-                // throw new VotingPortalError(VotingPortalErrorType.INTERNAL_ERROR)
-            }
-        }
-        
-    }, [ballotStyleJson])
-
-    useEffect(() => {
-        /*if (location.pathname.includes('preview')) {
-            if (ballotStyle && documentTenant) {
-                navigate(
-                    `/tenant/${documentTenant}/event/${ballotStyle.election_event_id}/election-chooser${location.search}`    
-                )
-            } else return
-            //TODO logic
-        }
-        else if (globalSettings.DISABLE_AUTH) {
-            navigate(
-                `/tenant/${globalSettings.DEFAULT_TENANT_ID}/event/${globalSettings.DEFAULT_EVENT_ID}/election-chooser${location.search}`
-            )
-        } else {
-            if (location.pathname === "/") {
-                throw new VotingPortalError(VotingPortalErrorType.NO_ELECTION_EVENT)
-            }
-        }*/
-        //console.log("Felix was here")
     }, [
         globalSettings.DEFAULT_TENANT_ID,
         globalSettings.DEFAULT_EVENT_ID,
         globalSettings.DISABLE_AUTH,
         navigate,
         location.pathname,
-        ballotStyle,
-        documentTenant
     ])
 
     useEffect(() => {
@@ -195,7 +115,7 @@ const App = () => {
             css={ballotStyle?.ballot_eml.election_event_presentation?.css ?? ""}
         >
             <ScrollRestoration />
-            <ApolloWrapper> 
+            <ApolloWrapper>
                 {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
                 <PageBanner
                     marginBottom="auto"
@@ -207,7 +127,7 @@ const App = () => {
             </ApolloWrapper>
             <Footer />
         </StyledApp>
-    );
+    )
 }
 
 export default App

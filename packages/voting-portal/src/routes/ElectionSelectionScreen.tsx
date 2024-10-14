@@ -332,7 +332,7 @@ const ElectionSelectionScreen: React.FC = () => {
         isPublished,
         hasNoElections,
         dataElectionEvent,
-        globalSettings.DISABLE_AUTH
+        globalSettings.DISABLE_AUTH,
     ])
 
     useEffect(() => {
@@ -345,7 +345,7 @@ const ElectionSelectionScreen: React.FC = () => {
                 )
             }
         } else if (globalSettings.DISABLE_AUTH) {
-            fakeUpdateBallotStyleAndSelection(dispatch)
+            //fakeUpdateBallotStyleAndSelection(dispatch)
         }
     }, [globalSettings.DISABLE_AUTH, dataBallotStyles, dispatch])
 
