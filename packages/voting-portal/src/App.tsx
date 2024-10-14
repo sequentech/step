@@ -151,7 +151,7 @@ const App = () => {
     }, [ballotStyleJson])
 
     useEffect(() => {
-        if (location.pathname.includes('preview')) {
+        /*if (location.pathname.includes('preview')) {
             if (ballotStyle && documentTenant) {
                 navigate(
                     `/tenant/${documentTenant}/event/${ballotStyle.election_event_id}/election-chooser${location.search}`    
@@ -167,7 +167,8 @@ const App = () => {
             if (location.pathname === "/") {
                 throw new VotingPortalError(VotingPortalErrorType.NO_ELECTION_EVENT)
             }
-        }
+        }*/
+        //console.log("Felix was here")
     }, [
         globalSettings.DEFAULT_TENANT_ID,
         globalSettings.DEFAULT_EVENT_ID,

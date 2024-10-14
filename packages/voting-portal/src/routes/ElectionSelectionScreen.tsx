@@ -243,7 +243,7 @@ const ElectionSelectionScreen: React.FC = () => {
         data: dataBallotStyles,
         loading: loadingBallotStyles,
     } = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES, {
-        skip: isDemo, // Skip query if in demo mode
+        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
     })
 
     const {
@@ -254,7 +254,7 @@ const ElectionSelectionScreen: React.FC = () => {
         variables: {
             electionIds: ballotStyleElectionIds,
         },
-        skip: isDemo, // Skip query if in demo mode
+        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
     })
 
     const {
@@ -266,7 +266,7 @@ const ElectionSelectionScreen: React.FC = () => {
             electionEventId: eventId,
             tenantId,
         },
-        skip: isDemo, // Skip query if in demo mode
+        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
     })
 
     const {data: castVotes, error: errorCastVote} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES)
@@ -283,6 +283,9 @@ const ElectionSelectionScreen: React.FC = () => {
 
     // Errors handling
     useEffect(() => {
+        if (globalSettings.DISABLE_AUTH) {
+            return
+        }
         if (errorElections || errorElectionEvent || errorBallotStyles || errorCastVote) {
             if (errorBallotStyles?.message.includes("x-hasura-area-id")) {
                 setErrorMsg(t(`electionSelectionScreen.errors.${ElectionScreenErrorType.NO_AREA}`))
@@ -329,6 +332,7 @@ const ElectionSelectionScreen: React.FC = () => {
         isPublished,
         hasNoElections,
         dataElectionEvent,
+        globalSettings.DISABLE_AUTH
     ])
 
     useEffect(() => {

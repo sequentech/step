@@ -23,6 +23,7 @@ export interface GlobalSettings {
 interface SettingsContextValues {
     loaded: boolean
     globalSettings: GlobalSettings
+    setDisableAuth: (disable: boolean) => void
 }
 
 const defaultSettingsValues: SettingsContextValues = {
@@ -42,6 +43,7 @@ const defaultSettingsValues: SettingsContextValues = {
         KEYCLOAK_ACCESS_TOKEN_LIFESPAN_SECS: 900,
         POLLING_DURATION_TIMEOUT: 12000,
     },
+    setDisableAuth: () => {},
 }
 
 export const SettingsContext = createContext<SettingsContextValues>(defaultSettingsValues)
@@ -59,6 +61,12 @@ const SettingsContextProvider = (props: SettingsContextProviderProps) => {
         defaultSettingsValues.globalSettings
     )
 
+    useEffect(() => {
+        if (!loaded) {
+            loadSettings()
+        }
+    }, [loaded])
+
     const loadSettings = async () => {
         try {
             let value = await fetch("/global-settings.json")
@@ -70,11 +78,12 @@ const SettingsContextProvider = (props: SettingsContextProviderProps) => {
         }
     }
 
-    useEffect(() => {
-        if (!loaded) {
-            loadSettings()
-        }
-    }, [loaded])
+    const setDisableAuth = (disable: boolean) => {
+        setSettings({
+            ...globalSettings,
+            DISABLE_AUTH: disable
+        })
+    }
 
     // Setup the context provider
     return (
@@ -82,6 +91,7 @@ const SettingsContextProvider = (props: SettingsContextProviderProps) => {
             value={{
                 loaded,
                 globalSettings,
+                setDisableAuth,
             }}
         >
             {props.children}
