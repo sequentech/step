@@ -28,6 +28,7 @@ pub mod limit_access_by_countries;
 pub mod manual_verification_pdf;
 pub mod miru_plugin;
 pub mod permissions;
+pub mod reports;
 pub mod roles;
 pub mod scheduled_event;
 pub mod tally_ceremony;

@@ -371,6 +371,20 @@ actions:
       permissions:
           - role: publish-write
           - role: admin-user
+    - name: generate_report
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/generate-report
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: report-write
+          - role: report-read
     - name: getElectionEventStats
       definition:
           kind: ""
@@ -1064,4 +1078,5 @@ custom_types:
         - name: templateOutput
         - name: GetTopCastVotesByIpOutput
         - name: CastVotesByIp
+        - name: generateReportOutput
     scalars: []

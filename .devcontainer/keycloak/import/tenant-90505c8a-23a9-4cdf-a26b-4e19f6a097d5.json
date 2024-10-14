@@ -287,15 +287,14 @@
       "clientRole" : false,
       "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
       "attributes" : { }
-    },
-    {
-      "id": "375caae7-dd36-4667-8ffd-6f3399edc5c4",
-      "name": "election-event-delete",
-      "description": "",
-      "composite": false,
-      "clientRole": false,
-      "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-      "attributes": {}
+    }, {
+      "id" : "375caae7-dd36-4667-8ffd-6f3399edc5c4",
+      "name" : "election-event-delete",
+      "description" : "",
+      "composite" : false,
+      "clientRole" : false,
+      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+      "attributes" : { }
     }, {
       "id" : "44d713dc-4c3c-44bb-b597-8d718063871a",
       "name" : "keys-read",
@@ -489,8 +488,24 @@
       "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
       "attributes" : { }
     }, {
+      "id" : "48ac8c75-b282-4beb-8f60-006fd70961e7",
+      "name" : "report-write",
+      "description" : "",
+      "composite" : false,
+      "clientRole" : false,
+      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+      "attributes" : { }
+    }, {
       "id" : "0c63d668-fe97-4da6-b654-ace5e4e41b24",
       "name" : "voter-read",
+      "description" : "",
+      "composite" : false,
+      "clientRole" : false,
+      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+      "attributes" : { }
+    }, {
+      "id" : "3f3472be-8ef9-4ce1-bbfb-3b8176ffcad6",
+      "name" : "report-read",
       "description" : "",
       "composite" : false,
       "clientRole" : false,
@@ -906,7 +921,7 @@
     "path" : "/admin",
     "subGroups" : [ ],
     "attributes" : { },
-    "realmRoles" : [ "admin-dashboard-view", "permission-label-write", "support-material-write", "tally-write", "trustee-write", "user-write", "election-event-write", "notification-send", "user-permission-write", "tally-sheet-create", "role-write", "logs-read", "communication-template-create", "election-state-write", "role-create", "election-type-read", "scheduled-event-write", "tally-read", "tasks-read", "voter-write", "role-assign", "voting-channel-read", "tally-sheet-publish", "document-upload", "user-permission-read", "election-event-create", "notification-write", "trustee-read", "keys-read", "election-event-delete", "user-read", "create-election-event", "document-read", "notification-read", "area-write", "trustee-create", "election-event-read", "user-permission-create", "communication-template-write", "cast-vote-read", "tally-results-read", "voting-channel-write", "tally-sheet-view", "role-read", "admin-ceremony", "area-read", "tenant-read", "tally-start", "admin-user", "voter-create", "user-create", "tally-sheet-delete", "voter-read", "tenant-create", "election-type-write", "publish-write", "support-material-read", "communication-template-read", "document-write", "tenant-write", "resource-write", "document-download", "election-type-create", "publish-read" ],
+    "realmRoles" : [ "admin-dashboard-view", "permission-label-write", "support-material-write", "tally-write", "trustee-write", "user-write", "election-event-write", "notification-send", "user-permission-write", "tally-sheet-create", "role-write", "logs-read", "communication-template-create", "election-state-write", "role-create", "election-type-read", "scheduled-event-write", "tally-read", "tasks-read", "voter-write", "role-assign", "voting-channel-read", "tally-sheet-publish", "document-upload", "user-permission-read", "election-event-create", "notification-write", "trustee-read", "keys-read", "election-event-delete", "user-read", "create-election-event", "document-read", "notification-read", "area-write", "trustee-create", "election-event-read", "user-permission-create", "communication-template-write", "cast-vote-read", "tally-results-read", "voting-channel-write", "tally-sheet-view", "role-read", "admin-ceremony", "area-read", "tenant-read", "tally-start", "admin-user", "voter-create", "user-create", "tally-sheet-delete", "report-write", "voter-read", "report-read", "tenant-create", "election-type-write", "publish-write", "support-material-read", "communication-template-read", "document-write", "tenant-write", "resource-write", "document-download", "election-type-create", "publish-read" ],
     "clientRoles" : { }
   }, {
     "id" : "dbc85f9a-a33d-4b3f-9bf1-20282931130b",
@@ -1889,7 +1904,15 @@
       }
     } ],
     "defaultClientScopes" : [ "web-origins", "acr", "profile", "roles", "email" ],
-    "optionalClientScopes" : [ "address", "phone", "offline_access", "microprofile-jwt" ]
+    "optionalClientScopes" : [ "address", "phone", "offline_access", "microprofile-jwt" ],
+    "authorizationSettings" : {
+      "allowRemoteResourceManagement" : true,
+      "policyEnforcementMode" : "ENFORCING",
+      "resources" : [ ],
+      "policies" : [ ],
+      "scopes" : [ ],
+      "decisionStrategy" : "UNANIMOUS"
+    }
   }, {
     "id" : "ffb437ac-f79a-452a-8ebb-fc872e76851f",
     "clientId" : "voting-portal",

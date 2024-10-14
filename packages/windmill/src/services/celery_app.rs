@@ -20,6 +20,7 @@ use crate::tasks::export_election_event_logs::export_election_event_logs;
 use crate::tasks::export_tasks_execution::export_tasks_execution;
 use crate::tasks::export_templates::export_templates;
 use crate::tasks::export_users::export_users;
+use crate::tasks::generate_report::generate_report;
 use crate::tasks::import_election_event::import_election_event;
 use crate::tasks::import_users::import_users;
 use crate::tasks::insert_election_event::insert_election_event_t;
@@ -37,6 +38,7 @@ use crate::tasks::process_board::process_board;
 use crate::tasks::render_report::render_report;
 use crate::tasks::review_boards::review_boards;
 use crate::tasks::scheduled_events::scheduled_events;
+use crate::tasks::scheduled_reports::scheduled_reports;
 use crate::tasks::send_template::send_template;
 use crate::tasks::set_public_key::set_public_key;
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
@@ -132,6 +134,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             review_boards,
             process_board,
             render_report,
+            generate_report,
             create_vote_receipt,
             set_public_key,
             execute_tally_session,
@@ -156,6 +159,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             send_transmission_package_task,
             delete_election_event_t,
             export_tasks_execution,
+            scheduled_reports,
             export_templates,
         ],
         // Route certain tasks to certain queues based on glob matching.
@@ -166,6 +170,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             generate_manual_verification_report::NAME => Queue::Reports.as_ref(),
             render_report::NAME => Queue::Reports.as_ref(),
             create_vote_receipt::NAME => Queue::Reports.as_ref(),
+            generate_report::NAME => Queue::Reports.as_ref(),
             set_public_key::NAME => Queue::Short.as_ref(),
             execute_tally_session::NAME => Queue::Tally.as_ref(),
             update_election_event_ballot_styles::NAME => Queue::Short.as_ref(),
@@ -180,6 +185,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             import_election_event::NAME => Queue::ImportExport.as_ref(),
             export_templates::NAME => Queue::ImportExport.as_ref(),
             scheduled_events::NAME => Queue::Beat.as_ref(),
+            scheduled_reports::NAME => Queue::Beat.as_ref(),
             manage_election_date::NAME => Queue::Beat.as_ref(),
             manage_election_event_date::NAME => Queue::Beat.as_ref(),
             manage_election_event_enrollment::NAME => Queue::Beat.as_ref(),
