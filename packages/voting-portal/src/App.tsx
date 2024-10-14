@@ -198,16 +198,16 @@ const App = () => {
             css={ballotStyle?.ballot_eml.election_event_presentation?.css ?? ""}
         >
             <ScrollRestoration />
-                <ApolloWrapper> 
-                    {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
-                    <PageBanner
-                        marginBottom="auto"
-                        sx={{display: "flex", position: "relative", flex: 1}}
-                    >
-                        <WatermarkBackground />
-                        <Outlet />
-                    </PageBanner>
-                </ApolloWrapper>
+            <ApolloWrapper> 
+                {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
+                <PageBanner
+                    marginBottom="auto"
+                    sx={{display: "flex", position: "relative", flex: 1}}
+                >
+                    <WatermarkBackground />
+                    <Outlet />
+                </PageBanner>
+            </ApolloWrapper>
             <Footer />
         </StyledApp>
     );
