@@ -113,29 +113,7 @@ pub async fn get_election_by_id(
         .prepare(
             r#"
             SELECT
-                id,
-                tenant_id,
-                election_event_id,
-                created_at,
-                last_updated_at,
-                labels,
-                annotations,
-                name,
-                description,
-                presentation,
-                status,
-                eml,
-                num_allowed_revotes,
-                is_consolidated_ballot_encoding,
-                spoil_ballot_option,
-                alias,
-                voting_channels,
-                is_kiosk,
-                image_document_id,
-                statistics,
-                receipts,
-                permission_label,
-                initialization_report_generated
+                *
             FROM
                 sequent_backend.election
             WHERE
