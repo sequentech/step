@@ -17,7 +17,6 @@ import {
     TextField,
     useGetList,
     useSidebarState,
-    WrapperField,
     useDataProvider,
 } from "react-admin"
 import {useTranslation} from "react-i18next"
@@ -213,7 +212,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const ReportEmpty = () => {
         return (
             <TemplateEmpty>
-                <Typography variant="h5">{t("reportsScreen.empty.header")}</Typography>
+                <Typography variant="h4">{t("reportsScreen.empty.header")}</Typography>
                 {canWriteReport && (
                     <>
                         <Typography variant="body1" paragraph>
