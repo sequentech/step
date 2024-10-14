@@ -162,14 +162,11 @@ export const EditElectionEventDataForm: React.FC = () => {
             return []
         }
         const template_names = (verifyVoterTemplates as Sequent_Backend_Template[]).map((entry) => {
-            console.log("id: ", entry.id)
-            console.log("name: ", entry.template?.name)
             return {
                 id: entry.id,
                 name: entry.template?.name,
             }
         })
-        console.log("template_names: ", template_names)
         return template_names
     }
 
@@ -273,12 +270,6 @@ export const EditElectionEventDataForm: React.FC = () => {
         }
         if (!temp.presentation.custom_urls) {
             temp.presentation.custom_urls = {}
-        }
-
-        if (!(temp.presentation as IElectionEventPresentation | undefined)?.active_template_ids) {
-            temp.presentation.active_template_ids = {
-                manual_verification: "",
-            }
         }
 
         return temp
@@ -748,44 +739,6 @@ export const EditElectionEventDataForm: React.FC = () => {
                                         multiline={true}
                                         source={"presentation.css"}
                                         label={t("electionEventScreen.field.css")}
-                                    />
-                                </AccordionDetails>
-                            </Accordion>
-
-                            <Accordion
-                                sx={{width: "100%"}}
-                                expanded={expanded === "election-event-data-user-templates"}
-                                onChange={() => setExpanded("election-event-data-user-templates")}
-                            >
-                                <AccordionSummary
-                                    expandIcon={
-                                        <ExpandMoreIcon id="election-event-data-user-templates" />
-                                    }
-                                >
-                                    <ElectionHeaderStyles.Wrapper>
-                                        <ElectionHeaderStyles.Title>
-                                            {t("electionEventScreen.edit.templates")}
-                                        </ElectionHeaderStyles.Title>
-                                    </ElectionHeaderStyles.Wrapper>
-                                </AccordionSummary>
-                                <AccordionDetails>
-                                    <Typography
-                                        variant="body1"
-                                        component="span"
-                                        sx={{
-                                            fontWeight: "bold",
-                                            margin: 0,
-                                            display: {xs: "none", sm: "block"},
-                                        }}
-                                    >
-                                        {t("electionEventScreen.field.userVerification")}
-                                    </Typography>
-                                    <SelectInput
-                                        source={`presentation.active_template_ids.manual_verification`}
-                                        choices={manuallyVerifyVoterTemplates()}
-                                        label={t("template.form.name")}
-                                        translateChoice={false}
-                                        emptyText={t("template.default")}
                                     />
                                 </AccordionDetails>
                             </Accordion>

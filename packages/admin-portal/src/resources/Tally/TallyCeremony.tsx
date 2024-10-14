@@ -258,15 +258,15 @@ export const TallyCeremony: React.FC = () => {
         }
     )
 
-    const {data: tallyTemplates} = useGetList<Sequent_Backend_Template>(
-        "sequent_backend_template",
-        {
-            filter: {
-                tenant_id: tenantId,
-                type: ITemplateType.TALLY_REPORT,
-            },
-        }
-    )
+    // const {data: tallyTemplates} = useGetList<Sequent_Backend_Template>(
+    //     "sequent_backend_template",
+    //     {
+    //         filter: {
+    //             tenant_id: tenantId,
+    //             type: ITemplateType.TALLY_REPORT,
+    //         },
+    //     }
+    // )
 
     useEffect(() => {
         if (data) {
@@ -335,9 +335,6 @@ export const TallyCeremony: React.FC = () => {
                     election_event_id: record?.id,
                     keys_ceremony_id: keysCeremonyId,
                     election_ids: selectedElections,
-                    configuration: {
-                        report_content_template_id: templateId,
-                    },
                 },
             })
 
@@ -547,7 +544,7 @@ export const TallyCeremony: React.FC = () => {
                             electionEventId={record?.id}
                             keysCeremonyId={keysCeremonyId}
                         />
-                        <FormControl fullWidth>
+                        {/* <FormControl fullWidth>
                             <ElectionHeader
                                 title={"tally.keysCeremonyTitle"}
                                 subtitle={"tally.keysCeremonySubTitle"}
@@ -590,7 +587,7 @@ export const TallyCeremony: React.FC = () => {
                                     </MenuItem>
                                 ))}
                             </Select>
-                        </FormControl>
+                        </FormControl> */}
                     </>
                 )}
 

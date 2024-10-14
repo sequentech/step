@@ -47,6 +47,7 @@ const frenchTranslation: TranslationType = {
                 IMPORT_CANDIDATES: "Importer des candidats",
                 EXPORT_VOTERS: "Exporter les électeurs",
                 CREATE_TRANSMISSION_PACKAGE: "Créer un paquet de transmission",
+                EXPORT_BALLOT_PUBLICATION: "Exporter Publication de Bulletin",
             },
             widget: {
                 taskTitle: "Tâche: {{title}}",
@@ -301,6 +302,7 @@ const frenchTranslation: TranslationType = {
                 tasks: "Tâches",
                 events: "Événement Planifié",
                 notifications: "Notifications",
+                reports: "Rapport",
             },
             tally: {
                 emptyHeader: "Aucun Comptage pour l'instant.",
@@ -707,6 +709,53 @@ const frenchTranslation: TranslationType = {
                 eventProcessor: "Type",
                 stoppedAt: "Arrêté Le",
                 scheduledDate: "Planifié Le",
+            },
+        },
+        reportsScreen: {
+            title: "Rapports",
+            subtitle: "Générer des rapports pour les événements électoraux",
+            messages: {
+                createSuccess: "Rapport créé avec succès",
+                createError: "Erreur lors de la création du rapport",
+                submitError: "Erreur lors de la soumission du Rapport",
+                updateSuccess: "Rapport mis à jour avec succès",
+            },
+            reportType: {
+                BALLOT_RECEIPT: "Reçu de Bulletin",
+                ELECTORAL_RESULTS: "Résultats Électoraux",
+                MANUAL_VERIFICATION: "Vérification Manuelle",
+                STATISTICAL_REPORT: "Rapport Statistique",
+            },
+            empty: {
+                header: "Pas encore de rapports.",
+                body: "Voulez-vous en créer un?",
+                button: "Créer un rapport",
+            },
+            create: {
+                title: "Créer un rapport",
+                subtitle: "Créer une nouvelle configuration de rapport.",
+            },
+            edit: {
+                title: "Modifier le rapport",
+                subtitle: "Modifier la configuration du rapport.",
+                delete: "Êtes-vous sûr de vouloir supprimer ce rapport?",
+            },
+            fields: {
+                electionId: "Élection",
+                template: "Modèle",
+                reportType: "Type de rapport",
+                repeatable: "Répétable",
+                cronExpression: "Expression Cron",
+                emailRecipients: "Destinataires de courriel",
+            },
+            delete: {
+                body: "Êtes-vous sûr de vouloir supprimer ce rapport?",
+            },
+            actions: {
+                generate: "Générer",
+                delete: "Supprimer",
+                edit: "Modifier",
+                preview: "Aperçu",
             },
         },
         common: {

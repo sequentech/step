@@ -47,6 +47,7 @@ const tagalogTranslation: TranslationType = {
                 IMPORT_CANDIDATES: "I-import ang mga Kandidato",
                 EXPORT_VOTERS: "I-export ang mga botante",
                 CREATE_TRANSMISSION_PACKAGE: "Lumikha ng Transmission Package",
+                EXPORT_BALLOT_PUBLICATION: "I-export ang Paglalathala ng Balota",
             },
             widget: {
                 taskTitle: "Gawain: {{title}}",
@@ -300,6 +301,7 @@ const tagalogTranslation: TranslationType = {
                 tasks: "Mga Gawain",
                 events: "Naka-schedule na Kaganapan",
                 notifications: "Mga Abiso",
+                reports: "Ulat",
             },
             tally: {
                 emptyHeader: "Walang pang Tally.",
@@ -705,6 +707,53 @@ const tagalogTranslation: TranslationType = {
                 eventProcessor: "Uri",
                 stoppedAt: "Huminto Noong",
                 scheduledDate: "Naka-schedule Noong",
+            },
+        },
+        reportsScreen: {
+            title: "Mga Ulat",
+            subtitle: "Lumikha ng mga ulat para sa mga kaganapan ng halalan",
+            messages: {
+                createSuccess: "Matagumpay na nalikha ang ulat",
+                createError: "Nagkaroon ng error sa paglikha ng ulat",
+                submitError: "Error sa pagsusumite ng Ulat",
+                updateSuccess: "Matagumpay na na-update ang Ulat",
+            },
+            reportType: {
+                BALLOT_RECEIPT: "Resibo ng Balota",
+                ELECTORAL_RESULTS: "Mga Resulta ng Eleksyon",
+                MANUAL_VERIFICATION: "Manwal na Pag-verify",
+                STATISTICAL_REPORT: "Ulat ng Istatistika",
+            },
+            empty: {
+                header: "Wala pang mga ulat.",
+                body: "Gusto mo bang lumikha ng isa?",
+                button: "Lumikha ng Ulat",
+            },
+            create: {
+                title: "Lumikha ng Ulat",
+                subtitle: "Lumikha ng bagong konfigurasyon ng ulat.",
+            },
+            edit: {
+                title: "I-edit ang Ulat",
+                subtitle: "I-edit ang konfigurasyon ng ulat.",
+                delete: "Sigurado ka bang nais mong tanggalin ang ulat na ito?",
+            },
+            fields: {
+                electionId: "Halalan",
+                template: "Template",
+                reportType: "Uri ng Ulat",
+                repeatable: "Nauulit",
+                cronExpression: "Cron Expression",
+                emailRecipients: "Mga Tatanggap ng Email",
+            },
+            delete: {
+                body: "Sigurado ka bang nais mong tanggalin ang ulat na ito?",
+            },
+            actions: {
+                generate: "Gumawa",
+                delete: "Tanggalin",
+                edit: "I-edit",
+                preview: "I-preview",
             },
         },
         common: {

@@ -57,7 +57,6 @@ export interface IElectionEventPresentation {
     elections_order?: ElectionsOrder
     voting_portal_countdown_policy?: IVotingPortalCountdownPolicy
     custom_urls?: ICustomUrls
-    active_template_ids?: IActiveTemplateIds
     keys_ceremony_policy?: KeysCeremonyPolicy
     locked_down: EElectionEventLockedDown
     publish_policy: EElectionEventPublishPolicy

@@ -14,6 +14,8 @@ use crate::hasura::tally_session_execution::{
 use crate::postgres::area::get_event_areas;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
+use crate::postgres::reports::get_template_id_for_report;
+use crate::postgres::reports::ReportType;
 use crate::postgres::tally_sheet::get_published_tally_sheets_by_event;
 use crate::postgres::template::get_template_by_id;
 use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
@@ -907,13 +909,16 @@ pub async fn execute_tally_session_wrapped(
         &tally_session.keys_ceremony_id,
     )
     .await?;
-    let configuration: Option<TallySessionConfiguration> = tally_session
-        .configuration
-        .map(|value| deserialize_value(value))
-        .transpose()?;
-    let report_content_template_id: Option<String> = configuration
-        .map(|value| value.report_content_template_id)
-        .flatten();
+    let report_content_template_id: Option<String> = get_template_id_for_report(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &ReportType::ELECTORAL_RESULTS,
+        None,
+    )
+    .await
+    .with_context(|| "Error finding template id from reports")?;
+
     let report_content_template: Option<String> =
         if let Some(template_id) = report_content_template_id {
             let template = get_template_by_id(hasura_transaction, &tenant_id, &template_id).await?;
