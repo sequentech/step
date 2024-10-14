@@ -18,8 +18,7 @@ use std::env;
 use tracing::{info, instrument};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct UserData {
-}
+pub struct UserData {}
 
 /// Struct for each candidate's data
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -139,14 +138,14 @@ impl TemplateRenderer for ElectionReturnsForNationalPostionTemplate {
         // TODO: replace mock data with actual data
         // Extract candidate names and acronyms
         let candidates: Vec<Candidate> = Vec::new(); // Assuming the structure has candidates array
-        // let mut candidate_data: Vec<CandidateData> = Vec::new();
-        // for candidate in candidates {
-        //     candidate_data.push(CandidateData {
-        //         name_appearing_on_ballot: candidate.name_appearing_on_ballot.clone(),
-        //         acronym: candidate.acronym.clone(), // Assuming acronym is part of the candidate structure
-        //         votes_garnered: 0, // Default value since no votes have been cast yet
-        //     });
-        // }
+                                                     // let mut candidate_data: Vec<CandidateData> = Vec::new();
+                                                     // for candidate in candidates {
+                                                     //     candidate_data.push(CandidateData {
+                                                     //         name_appearing_on_ballot: candidate.name_appearing_on_ballot.clone(),
+                                                     //         acronym: candidate.acronym.clone(), // Assuming acronym is part of the candidate structure
+                                                     //         votes_garnered: 0, // Default value since no votes have been cast yet
+                                                     //     });
+                                                     // }
 
         let election_title = election_event.name.clone();
 
@@ -200,6 +199,14 @@ pub async fn generate_election_returns_for_national_positions_report(
         election_event_id: election_event_id.to_string(),
     };
     template
-        .execute_report(document_id, tenant_id, election_event_id, false, None, None, mode)
+        .execute_report(
+            document_id,
+            tenant_id,
+            election_event_id,
+            false,
+            None,
+            None,
+            mode,
+        )
         .await
 }

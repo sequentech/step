@@ -2,17 +2,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
+use crate::postgres::reports::ReportType;
+use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id_and_event_processor;
 use crate::services::database::get_hasura_pool;
-use crate::{postgres::election_event::get_election_event_by_id, services::s3::get_minio_url};
-use crate::{postgres::scheduled_event::find_scheduled_event_by_election_event_id_and_event_processor};
 use crate::services::temp_path::*;
+use crate::{postgres::election_event::get_election_event_by_id, services::s3::get_minio_url};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use sequent_core::types::templates::EmailConfig;
-use crate::postgres::reports::ReportType;
+use serde::{Deserialize, Serialize};
 
 /// Struct for the initialization report
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -106,18 +106,21 @@ impl TemplateRenderer for InitializationTemplate {
 
         // Fetch election event data
         let election_event = get_election_event_by_id(
-            &hasura_transaction, 
-            &self.tenant_id, 
-            &self.election_event_id
+            &hasura_transaction,
+            &self.tenant_id,
+            &self.election_event_id,
         )
         .await
         .with_context(|| "Error obtaining election event")?;
 
         // Split elective position name before the '/'
-        let elective_position_name = election_event.name.split('/').next()
+        let elective_position_name = election_event
+            .name
+            .split('/')
+            .next()
             .unwrap_or("Unknown Position")
             .to_string();
-        
+
         // TODO: replace mock data with actual data
         // Extract candidate names and acronyms
         let candidates: Vec<CandidateData> = Vec::new(); // Assuming the structure has candidates array

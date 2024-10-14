@@ -14,8 +14,7 @@ use tracing::{info, instrument};
 
 /// Struct for User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct UserData {
-}
+pub struct UserData {}
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Voter {
     pub number: u32,
@@ -83,9 +82,9 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
         }
     }
 
-     /// Prepare system metadata for the report
-     /// TODO: fetch the real data
-     async fn prepare_system_data(
+    /// Prepare system metadata for the report
+    /// TODO: fetch the real data
+    async fn prepare_system_data(
         &self,
         _rendered_user_template: String,
     ) -> Result<Self::SystemData> {
@@ -106,6 +105,14 @@ pub async fn generate_pre_enrolled_ov_subject_to_manual_validation_report(
         election_event_id: election_event_id.to_string(),
     };
     template
-        .execute_report(document_id, tenant_id, election_event_id, false, None, None, mode)
+        .execute_report(
+            document_id,
+            tenant_id,
+            election_event_id,
+            false,
+            None,
+            None,
+            mode,
+        )
         .await
 }

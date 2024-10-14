@@ -42,7 +42,7 @@ import {Dialog} from "@sequentech/ui-essentials"
 import {EGenerateReportMode, EReportType, ReportActions, reportTypeConfig} from "@/types/reports"
 import {GENERATE_REPORT} from "@/queries/GenerateReport"
 import {useMutation} from "@apollo/client"
-import { DownloadDocument } from "../User/DownloadDocument"
+import {DownloadDocument} from "../User/DownloadDocument"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -86,9 +86,10 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
     const notify = useNotify()
-    const {data: report} =  useGetOne<Sequent_Backend_Report>("sequent_backend_report",
-            {id: selectedReportId},)
-    
+    const {data: report} = useGetOne<Sequent_Backend_Report>("sequent_backend_report", {
+        id: selectedReportId,
+    })
+
     const [generateReport] = useMutation<GenerateReportMutation>(GENERATE_REPORT, {
         context: {
             headers: {
@@ -106,7 +107,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     }
 
     const fileName = useMemo(() => {
-        if(report) {
+        if (report) {
             const electionId = report.election_id
             const electionEventId = report.election_event_id
             const reportType = report.report_type
@@ -140,8 +141,8 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                 },
             })
             let generated_document_id = documentId.data?.generate_report?.document_id
-            if(generated_document_id) {
-                setDocumentId(documentId.data?.generate_report?.document_id);
+            if (generated_document_id) {
+                setDocumentId(documentId.data?.generate_report?.document_id)
             } else {
                 setIsGeneratingDocument(false)
                 notify("reportsScreen.messages.createError")
@@ -151,7 +152,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             setDocumentId(undefined)
             notify("reportsScreen.messages.createError")
         }
-     
     }
 
     const {data: templates} = useGetList<Sequent_Backend_Template>(
@@ -209,13 +209,17 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         {
             key: ReportActions.GENERATE,
             icon: <DescriptionIcon />,
-            action: (id: Identifier) => {handleGenerateReport(id, EGenerateReportMode.REAL)},
+            action: (id: Identifier) => {
+                handleGenerateReport(id, EGenerateReportMode.REAL)
+            },
             label: t("reportsScreen.actions.generate"),
         },
         {
             key: ReportActions.PREVIEW,
             icon: <PreviewIcon />,
-            action: (id: Identifier) => {handleGenerateReport(id, EGenerateReportMode.PREVIEW)},
+            action: (id: Identifier) => {
+                handleGenerateReport(id, EGenerateReportMode.PREVIEW)
+            },
             label: t("reportsScreen.actions.preview"),
         },
     ]
@@ -330,20 +334,20 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     }
 
     const renderDownloadDocumentHelper = () => {
-        if(!documentId || !isGeneratingDocument) {
+        if (!documentId || !isGeneratingDocument) {
             return null
         }
         return (
             <DownloadDocument
-                        onDownload={() => {
-                            setDocumentId(undefined)
-                            setIsGeneratingDocument(false)
-                        }}
-                        fileName={fileName}
-                        documentId={documentId}
-                        electionEventId={electionEventId}
-                        withProgress={true}
-                    />
+                onDownload={() => {
+                    setDocumentId(undefined)
+                    setIsGeneratingDocument(false)
+                }}
+                fileName={fileName}
+                documentId={documentId}
+                electionEventId={electionEventId}
+                withProgress={true}
+            />
         )
     }
 

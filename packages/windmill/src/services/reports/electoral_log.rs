@@ -353,7 +353,7 @@ pub async fn generate_report(
                     /* is_scheduled_task */ false,
                     /* receiver */ None,
                     /* pdf_options */ Some(pdf_options),
-                    GenerateReportMode::REAL
+                    GenerateReportMode::REAL,
                 )
                 .await
         }

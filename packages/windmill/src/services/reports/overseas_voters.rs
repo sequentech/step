@@ -40,12 +40,12 @@ pub struct SystemData {
     pub voting_period: String,
     pub post: String,
     pub country: String,
-    pub voters: Vec<Voter>,              // Voter list field
-    pub ov_voted: u32,                   // Number of overseas voters who voted
-    pub ov_not_voted: u32,               // Number of overseas voters who did not vote
-    pub ov_not_pre_enrolled: u32,        // Number of overseas voters not pre-enrolled
-    pub eb_voted: u32,                   // Election board voted count
-    pub ov_total: u32,                   // Total overseas voters
+    pub voters: Vec<Voter>,       // Voter list field
+    pub ov_voted: u32,            // Number of overseas voters who voted
+    pub ov_not_voted: u32,        // Number of overseas voters who did not vote
+    pub ov_not_pre_enrolled: u32, // Number of overseas voters not pre-enrolled
+    pub eb_voted: u32,            // Election board voted count
+    pub ov_total: u32,            // Total overseas voters
     pub precinct_code: String,
     pub goverment_time: String,
     pub local_time: String,
@@ -59,9 +59,8 @@ pub struct SystemData {
     pub software_version: String,
     pub ovcs_version: String,
     pub system_hash: String,
-    pub qr_code: String,                 // Single QR code field
+    pub qr_code: String, // Single QR code field
 }
-
 
 /// Main struct for generating Overseas Voters Report
 #[derive(Debug)]
@@ -126,6 +125,14 @@ pub async fn generate_overseas_voters_report(
         election_event_id: election_event_id.to_string(),
     };
     template
-        .execute_report(document_id, tenant_id, election_event_id, false, None, None,  mode)
+        .execute_report(
+            document_id,
+            tenant_id,
+            election_event_id,
+            false,
+            None,
+            None,
+            mode,
+        )
         .await
 }
