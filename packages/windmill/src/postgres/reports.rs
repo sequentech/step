@@ -239,3 +239,92 @@ pub async fn get_template_id_for_report(
         Ok(None)
     }
 }
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_reports_by_election_event_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Vec<Report>> {
+    let tenant_uuid =
+        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid = Uuid::parse_str(election_event_id)
+        .with_context(|| "Error parsing election_event_id as UUID")?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            SELECT *
+            FROM "sequent_backend".report
+            WHERE tenant_id = $1
+              AND election_event_id = $2
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(&statement, &[&tenant_uuid, &election_event_uuid])
+        .await
+        .map_err(|err| {
+            anyhow!("Error running get_reports_by_tenant_and_election_event_id query: {err}")
+        })?;
+
+    let reports = rows
+        .into_iter()
+        .map(|row| -> Result<Report> {
+            row.try_into().map(|res: ReportWrapper| -> Report { res.0 })
+        })
+        .collect::<Result<Vec<Report>>>()
+        .with_context(|| "Error converting rows into Report")?;
+    Ok(reports)
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn insert_reports(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    reports: &[Report],
+) -> Result<()> {
+    let tenant_uuid =
+        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid = Uuid::parse_str(election_event_id)
+        .with_context(|| "Error parsing election_event_id as UUID")?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            INSERT INTO "sequent_backend".report (
+                id, election_event_id, tenant_id, election_id, report_type, template_id, cron_config, created_at
+            ) VALUES (
+                $1, $2, $3, $4, $5, $6, $7, $8
+            )
+            "#,
+        )
+        .await?;
+
+    for report in reports {
+        hasura_transaction
+            .execute(
+                &statement,
+                &[
+                    &Uuid::parse_str(&report.id)?,
+                    &election_event_uuid,
+                    &tenant_uuid,
+                    &report
+                        .election_id
+                        .as_ref()
+                        .map(|id| Uuid::parse_str(id))
+                        .transpose()?,
+                    &report.report_type,
+                    &report.template_id,
+                    &serde_json::to_value(&report.cron_config)?,
+                    &report.created_at,
+                ],
+            )
+            .await
+            .map_err(|err| anyhow!("Error inserting report: {err}"))?;
+    }
+
+    Ok(())
+}
