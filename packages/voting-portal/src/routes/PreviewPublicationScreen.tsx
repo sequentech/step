@@ -7,7 +7,6 @@ import { IBallotStyle as IElectionDTO }  from "@sequentech/ui-core"
 import {cloneDeep} from "lodash"
 import { useAppDispatch } from "../store/hooks"
 import { IBallotStyle, setBallotStyle } from "../store/ballotStyles/ballotStylesSlice"
-import ElectionSelectionScreen from "./ElectionSelectionScreen"
 
 const PreviewPublicationScreen: React.FC = () => {
     const {tenantId, documentId, areaId} = useParams<PreviewPublicationEventType>()
@@ -80,7 +79,9 @@ const PreviewPublicationScreen: React.FC = () => {
     }, [ballotStyleJson])
 
     return (
-        <ElectionSelectionScreen/>
+        <Box>
+            Cookies
+        </Box>
     )
 }
 
