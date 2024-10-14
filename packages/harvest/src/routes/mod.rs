@@ -11,6 +11,7 @@ pub mod election_event_stats;
 pub mod election_stats;
 pub mod electoral_log;
 pub mod error_catchers;
+pub mod export_ballot_publication;
 pub mod export_election_event;
 pub mod export_election_event_logs;
 pub mod export_tasks_execution;

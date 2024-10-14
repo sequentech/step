@@ -372,6 +372,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                 )}
                 {(viewMode === ViewMode.Edit || viewMode === ViewMode.View) && (
                     <PublishGenerate
+                        ballotPublicationId={ballotPublicationId}
                         status={publishStatus}
                         changingStatus={changingStatus}
                         readOnly={viewMode === ViewMode.View}

@@ -47,6 +47,7 @@ const spanishTranslation: TranslationType = {
                 IMPORT_CANDIDATES: "Importar candidatos",
                 EXPORT_VOTERS: "Exportar votantes",
                 CREATE_TRANSMISSION_PACKAGE: "Crear paquete de transmisión",
+                EXPORT_BALLOT_PUBLICATION: "Exportar Publicación de Boleta",
             },
             widget: {
                 taskTitle: "Tarea: {{title}}",
