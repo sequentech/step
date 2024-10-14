@@ -16,23 +16,7 @@ use tracing::{info, instrument};
 // Struct to hold user data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
-    pub election_start_date: String,
-    pub election_title: String,
-    pub geograpic_region: String,
-    pub area: String,
-    pub country: String,
-    pub voting_center: String,
-    pub num_of_rovs: u32,
-    pub none_enrolled_rov: u32,
-    pub enrolled_ov: u32,
-    pub enrolled_did_not_vote: u32,
-    pub enrolled_voted: u32,
-    pub voted: u32,
-    pub num_password_resets: u32,
-    pub remarks: String,
-    pub chairperson_name: String,
-    pub poll_clerk_name: String,
-    pub third_member_name: String,
+
 }
 
 // Struct to hold system data
@@ -45,6 +29,34 @@ pub struct SystemData {
     pub file_qrcode_lib: String,
     pub date_time_printed: String,
     pub printing_code: String,
+    pub election_date: String,
+    pub election_title: String,
+    pub voting_period: String,
+    pub regions: Vec<Region>,
+    pub ofov_disapproved: u32,
+    pub sbei_disapproved: u32,
+    pub system_disapproved: u32,
+    pub qr_codes: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct RegionData {
+    pub post: String,
+    pub country: String,
+    pub total: u32,
+    pub not_pre_enrolled: u32,
+    pub pre_enrolled: u32,
+    pub pre_enrolled_not_voted: u32,
+    pub pre_enrolled_voted: u32,
+    pub voted: u32,
+    pub password_reset_request: u32,
+    pub remarks: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Region {
+    pub name: String,
+    pub data: Vec<RegionData>,
 }
 
 #[derive(Debug)]
@@ -86,61 +98,29 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
         }
     }
 
-    // TODO: replace mock data with actual data
-    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>> {
-        // Fetch the Hasura database client from the pool
-        let mut hasura_db_client: DbClient = get_hasura_pool()
-            .await
-            .get()
-            .await
-            .with_context(|| "Error getting hasura db pool")?;
-
-        let hasura_transaction = hasura_db_client
-            .transaction()
-            .await
-            .with_context(|| "Error starting hasura transaction")?;
-
-        // Fetch the relevant statistics from the database (dummy values for now)
-        let temp_val: &str = "test";
-        let user_data = UserData {
-            election_start_date: temp_val.to_string(),
-            election_title: temp_val.to_string(),
-            geograpic_region: "Asia".to_string(), // Replace with actual data
-            area: "Region 1".to_string(),         // Replace with actual data
-            country: "Philippines".to_string(),   // Replace with actual data
-            voting_center: "Manila".to_string(),  // Replace with actual data
-            num_of_rovs: 1000,
-            none_enrolled_rov: 200,
-            enrolled_ov: 800,
-            enrolled_did_not_vote: 300,
-            enrolled_voted: 500,
-            voted: 400,
-            num_password_resets: 50,
-            remarks: "Smooth voting process".to_string(),
-            chairperson_name: temp_val.to_string(),
-            third_member_name: temp_val.to_string(),
-            poll_clerk_name: temp_val.to_string(),
-        };
-
-        Ok(Some(user_data))
-    }
-
-    async fn prepare_system_data(
+     /// Prepare system metadata for the report
+     /// TODO: fetch the real data
+     async fn prepare_system_data(
         &self,
-        rendered_user_template: String,
+        _rendered_user_template: String,
     ) -> Result<Self::SystemData> {
-        let public_asset_path = get_public_assets_path_env_var()?;
-        let minio_endpoint_base =
-            get_minio_url().with_context(|| "Error getting minio endpoint")?;
-
-        Ok(SystemData {
-            report_hash: String::new(),
-            ovcs_version: String::new(),
-            system_hash: String::new(),
-            file_logo: String::new(),
-            file_qrcode_lib: String::new(),
-            date_time_printed: String::new(),
-            printing_code: String::new(),
-        })
+        let data: SystemData = self.prepare_preview_data().await?;
+        Ok(data)
     }
+}
+
+#[instrument]
+pub async fn generate_ovcs_statistics_report(
+    document_id: &str,
+    tenant_id: &str,
+    election_event_id: &str,
+    mode: GenerateReportMode,
+) -> Result<()> {
+    let template = OVCSStatisticsTemplate {
+        tenant_id: tenant_id.to_string(),
+        election_event_id: election_event_id.to_string(),
+    };
+    template
+        .execute_report(document_id, tenant_id, election_event_id, false, None, mode)
+        .await
 }

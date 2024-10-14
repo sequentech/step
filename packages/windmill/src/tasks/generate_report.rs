@@ -11,7 +11,17 @@ use crate::services::pg_lock::PgLock;
 use crate::services::reports::audit_logs;
 use crate::services::reports::manual_verification::ManualVerificationTemplate;
 use crate::services::reports::ovcs_events;
-use crate::services::reports::{status, ovcs_information, overseas_voters};
+use crate::services::reports::{
+    status, 
+    ovcs_information, 
+    overseas_voters, 
+    election_returns_for_national_positions,
+    ov_users,
+    ov_users_who_voted,
+    ovcs_statistics,
+    pre_enrolled_ov_but_disapproved,
+    pre_enrolled_ov_subject_to_manual_validation
+};
 use crate::services::reports::ovcs_events::OVCSEventsTemplate;
 use crate::services::reports::template_renderer::GenerateReportMode;
 use crate::services::reports::template_renderer::TemplateRenderer;
@@ -86,6 +96,66 @@ pub async fn generate_report(
         }
         Ok(ReportType::OVERSEAS_VOTERS) => {
             return overseas_voters::generate_overseas_voters_report(
+                &document_id,
+                &tenant_id,
+                &election_event_id,
+                report_mode,
+            )
+            .await
+            .map_err(|err| anyhow!("{}", err))
+        }
+        Ok(ReportType::ELECTION_RETURNS_FOR_NATIONAL_POSITIONS) => {
+            return election_returns_for_national_positions::generate_election_returns_for_national_positions_report(
+                &document_id,
+                &tenant_id,
+                &election_event_id,
+                report_mode,
+            )
+            .await
+            .map_err(|err| anyhow!("{}", err))
+        }
+        Ok(ReportType::OV_USERS_WHO_VOTED) => {
+            return ov_users_who_voted::generate_ov_users_who_voted_report(
+                &document_id,
+                &tenant_id,
+                &election_event_id,
+                report_mode,
+            )
+            .await
+            .map_err(|err| anyhow!("{}", err))
+        }
+        Ok(ReportType::OV_USERS) => {
+            return ov_users::generate_ov_users_report(
+                &document_id,
+                &tenant_id,
+                &election_event_id,
+                report_mode,
+            )
+            .await
+            .map_err(|err| anyhow!("{}", err))
+        }
+        Ok(ReportType::OVCS_STATISTICS) => {
+            return ovcs_statistics::generate_ovcs_statistics_report(
+                &document_id,
+                &tenant_id,
+                &election_event_id,
+                report_mode,
+            )
+            .await
+            .map_err(|err| anyhow!("{}", err))
+        }
+        Ok(ReportType::PRE_ENROLLED_OV_BUT_DISAPPROVED) => {
+            return pre_enrolled_ov_but_disapproved::generate_pre_enrolled_ov_but_disapproved_report(
+                &document_id,
+                &tenant_id,
+                &election_event_id,
+                report_mode,
+            )
+            .await
+            .map_err(|err| anyhow!("{}", err))
+        }
+        Ok(ReportType::PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION) => {
+            return pre_enrolled_ov_subject_to_manual_validation::generate_pre_enrolled_ov_subject_to_manual_validation_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
