@@ -375,6 +375,7 @@ actions:
       definition:
           kind: synchronous
           handler: http://{{HARVEST_DOMAIN}}/generate-report
+          forward_client_headers: true
           request_transform:
               body:
                   action: transform

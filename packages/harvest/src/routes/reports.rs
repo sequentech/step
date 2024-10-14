@@ -46,7 +46,7 @@ pub async fn generate_report(
     body: Json<GenerateReportBody>,
 ) -> Result<Json<GenerateReportResponse>, (Status, String)> {
     let input = body.into_inner();
-    info!("Generating report: {:?}", input);
+    info!("Generating report: {input:?}");
     authorize(
         &claims,
         true,

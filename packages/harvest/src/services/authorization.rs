@@ -26,7 +26,7 @@ pub fn authorize(
     if !((check_super_admin && is_super_admin)
         || (tenant_id_opt.is_some() && is_valid_tenant))
     {
-        return Err((Status::Unauthorized, "".into()));
+        return Err((Status::Unauthorized, format!("Unathorized: not a super admin or invalid tenant_id {tenant_id_opt:?}")));
     }
     let perms_str: Vec<String> = permissions
         .into_iter()
@@ -38,7 +38,7 @@ pub fn authorize(
         perms_str.iter().all(|item| permissions_set.contains(&item));
 
     if !all_contained {
-        Err((Status::Unauthorized, "".into()))
+        Err((Status::Unauthorized, format!("Unathorized: {perms_str:?} not in {permissions_set:?}")))
     } else {
         Ok(())
     }
