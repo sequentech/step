@@ -14,6 +14,7 @@ export enum PublishStatus {
     PublishedLoading = "PUBLISHED_LOADING",
     Generated = "GENERATED",
     GeneratedLoading = "GENERATED_LOADING",
+    Exported = "EXPORTED",
 }
 
 export const nextStatus = (statusValue: PublishStatus): PublishStatus => {
