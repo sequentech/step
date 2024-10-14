@@ -124,7 +124,7 @@ export const ElectionEventTabs: React.FC = () => {
     )
 
     const [loadedChildren, setLoadedChildren] = React.useState<number>(0)
-	const [value, setValue] = React.useState(showDashboard ? 0 : 5)//trustees dont have access to dashboard hence initial tab skips from 0 to 5
+    const [value, setValue] = React.useState(showDashboard ? 0 : 5) //trustees dont have access to dashboard hence initial tab skips from 0 to 5
 
     const handleChange = (event: React.SyntheticEvent, newValue: number) => {
         setValue(newValue)
