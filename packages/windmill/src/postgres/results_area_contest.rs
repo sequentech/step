@@ -80,6 +80,7 @@ pub async fn update_results_area_contest_documents(
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ResultsAreaContest {
     pub id: String,
     pub tenant_id: String,

@@ -726,6 +726,20 @@ const spanishTranslation: TranslationType = {
                 ELECTORAL_RESULTS: "Resultados Electorales",
                 MANUAL_VERIFICATION: "Verificación Manual",
                 STATISTICAL_REPORT: "Informe Estadístico",
+                OVCS_EVENTS: "Monitoreo de Votación en el Extranjero - Eventos OVCS",
+                AUDIT_LOGS: "Registros de Auditoría",
+                STATUS: "Estado",
+                OVCS_INFORMATION: "Información de OVCS",
+                OVERSEAS_VOTERS: "Lista de Votantes en el Extranjero",
+                ELECTION_RETURNS_FOR_NATIONAL_POSITIONS:
+                    "Resultados Electorales de los Cargos Nacionales",
+                OV_USERS_WHO_VOTED: "Lista de Votantes en el Extranjero que Votaron",
+                OV_USERS: "Lista de Votantes en el Extranjero con Estado de Votación",
+                OVCS_STATISTICS: "Monitoreo de Votación en el Extranjero - Estadísticas OVCS",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED:
+                    "Lista de Votantes en el Extranjero que se Preinscribieron pero Fueron Rechazados",
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
+                    "Lista de Votantes en el Extranjero que se Preinscribieron pero Requieren Validación Manual",
             },
             empty: {
                 header: "No hay informes todavía.",

@@ -385,8 +385,8 @@ impl TryFrom<Row> for CastVoteCountByIp {
     fn try_from(item: Row) -> Result<Self> {
         Ok(CastVoteCountByIp {
             id: item.try_get::<_, i64>("id")?.to_string(),
-            ip: item.get("ip"),
-            country: item.get("country"),
+            ip: item.try_get("ip").unwrap_or("null".to_string()),
+            country: item.try_get("country").unwrap_or("null".to_string()),
             vote_count: item.try_get("vote_count")?,
             election_name: item.try_get("election_name")?,
             election_id: item.try_get::<_, Uuid>("election_id")?.to_string(),
