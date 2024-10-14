@@ -719,6 +719,12 @@ const frenchTranslation: TranslationType = {
                 submitError: "Erreur lors de la soumission du Rapport",
                 updateSuccess: "Rapport mis à jour avec succès",
             },
+            reportType: {
+                BALLOT_RECEIPT: "Reçu de Bulletin",
+                ELECTORAL_RESULTS: "Résultats Électoraux",
+                MANUAL_VERIFICATION: "Vérification Manuelle",
+                STATISTICAL_REPORT: "Rapport Statistique",
+            },
             empty: {
                 header: "Pas encore de rapports.",
                 body: "Voulez-vous en créer un?",

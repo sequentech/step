@@ -716,6 +716,12 @@ const spanishTranslation: TranslationType = {
                 submitError: "Error al enviar el Informe",
                 updateSuccess: "Informe actualizado con éxito",
             },
+            reportType: {
+                BALLOT_RECEIPT: "Recibo de Voto",
+                ELECTORAL_RESULTS: "Resultados Electorales",
+                MANUAL_VERIFICATION: "Verificación Manual",
+                STATISTICAL_REPORT: "Informe Estadístico",
+            },
             empty: {
                 header: "No hay informes todavía.",
                 body: "¿Quieres crear uno?",

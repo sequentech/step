@@ -25,14 +25,12 @@ export enum EReportElectionPolicy {
 
 export const reportTypeConfig: {
     [key: string]: {
-        tranlationKey: string
         actions: ReportActions[]
         templateRequired?: boolean
         electionPolicy?: EReportElectionPolicy
     }
 } = {
     [EReportType.BALLOT_RECEIPT]: {
-        tranlationKey: "Ballot Receipt",
         actions: [
             ReportActions.EDIT,
             ReportActions.DELETE,
@@ -44,19 +42,16 @@ export const reportTypeConfig: {
         electionPolicy: EReportElectionPolicy.ELECTION_ALLOWED,
     },
     [EReportType.ELECTORAL_RESULTS]: {
-        tranlationKey: "Electoral Results",
         actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
         templateRequired: true,
         electionPolicy: EReportElectionPolicy.ELECTION_ALLOWED,
     },
     [EReportType.MANUAL_VERIFICATION]: {
-        tranlationKey: "Manual Verification",
         actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
         templateRequired: true,
         electionPolicy: EReportElectionPolicy.ELECTION_NOT_ALLOWED,
     },
     [EReportType.STATISTICAL_REPORT]: {
-        tranlationKey: "Statistical Report",
         actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
         templateRequired: true,
         electionPolicy: EReportElectionPolicy.ELECTION_NOT_ALLOWED,

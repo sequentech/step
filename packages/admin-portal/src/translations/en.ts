@@ -714,6 +714,12 @@ const englishTranslation = {
                 submitError: "Error submitting Report",
                 updateSuccess: "Report updated successfully",
             },
+            reportType: {
+                BALLOT_RECEIPT: "Ballot Receipt",
+                ELECTORAL_RESULTS: "Electoral Results",
+                MANUAL_VERIFICATION: "Manual Verification",
+                STATISTICAL_REPORT: "Statistical Report",
+            },
             empty: {
                 header: "No Reports yet.",
                 body: "Do you want to create one?",

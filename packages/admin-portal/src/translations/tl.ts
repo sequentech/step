@@ -717,6 +717,12 @@ const tagalogTranslation: TranslationType = {
                 submitError: "Error sa pagsusumite ng Ulat",
                 updateSuccess: "Matagumpay na na-update ang Ulat",
             },
+            reportType: {
+                BALLOT_RECEIPT: "Resibo ng Balota",
+                ELECTORAL_RESULTS: "Mga Resulta ng Eleksyon",
+                MANUAL_VERIFICATION: "Manwal na Pag-verify",
+                STATISTICAL_REPORT: "Ulat ng Istatistika",
+            },
             empty: {
                 header: "Wala pang mga ulat.",
                 body: "Gusto mo bang lumikha ng isa?",

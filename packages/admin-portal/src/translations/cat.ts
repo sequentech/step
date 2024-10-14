@@ -717,6 +717,12 @@ const catalanTranslation: TranslationType = {
                 submitError: "Error en enviar l'Informe",
                 updateSuccess: "Informe actualitzat amb èxit",
             },
+            reportType: {
+                BALLOT_RECEIPT: "Rebut de la Papereta",
+                ELECTORAL_RESULTS: "Resultats Electorals",
+                MANUAL_VERIFICATION: "Verificació Manual",
+                STATISTICAL_REPORT: "Informe Estadístic",
+            },
             empty: {
                 header: "Encara no hi ha informes.",
                 body: "Vols crear-ne un?",

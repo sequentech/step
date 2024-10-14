@@ -73,7 +73,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
     )
     const reportTypeChoices = Object.values(EReportType).map((reportType) => ({
         id: reportType,
-        name: t(reportTypeConfig[reportType].tranlationKey),
+        name: t(`reportsScreen.reportType.${reportType}`),
     }))
     useEffect(() => {
         setIsCronActive(report?.cron_config?.is_active || false)
