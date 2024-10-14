@@ -266,19 +266,22 @@ pub async fn list_keys_ceremony(
         .prepare(
             r#"
                 SELECT
-                     keys_ceremony.*
+                    keys_ceremony.*
                 FROM
                     sequent_backend.keys_ceremony AS keys_ceremony
-                INNER JOIN
-                    sequent_backend.election AS election
-                ON
-                    election.keys_ceremony_id = keys_ceremony.id
                 WHERE
                     keys_ceremony.tenant_id = $1 AND
-                    election.tenant_id = $1 AND
                     keys_ceremony.election_event_id = $2 AND
-                    election.election_event_id = $2 AND
-                    (cardinality($3::text[]) = 0 OR election.permission_label = ANY($3::text[]));
+                    EXISTS (
+                        SELECT 1
+                        FROM
+                            sequent_backend.election AS election
+                        WHERE
+                            election.keys_ceremony_id = keys_ceremony.id AND
+                            election.tenant_id = $1 AND
+                            election.election_event_id = $2 AND
+                            (cardinality($3::text[]) = 0 OR election.permission_label = ANY($3::text[]))
+                    );
             "#,
         )
         .await?;

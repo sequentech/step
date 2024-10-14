@@ -71,7 +71,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
     const [errors, setErrors] = useState<String | null>(null)
     const [threshold, setThreshold] = useState<number>(2)
     const [name, setName] = useState<string>("")
-    const [electionId, setElectionId] = useState<string | null>(null)
+    const [electionId, setElectionId] = useState<string | null>(ALL_ELECTIONS)
     const [trusteeNames, setTrusteeNames] = useState<string[]>([])
     const refresh = useRefresh()
     const aliasRenderer = useAliasRenderer()
@@ -147,7 +147,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                 threshold,
                 trusteeNames,
                 electionId: (ALL_ELECTIONS !== electionId && electionId) || null,
-                name: name,
+                name: name ?? t("keysGeneration.configureStep.name"),
             },
         })
         if (errors) {

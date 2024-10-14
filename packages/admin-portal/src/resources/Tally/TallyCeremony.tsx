@@ -112,6 +112,7 @@ export const TallyCeremony: React.FC = () => {
     const [openCeremonyModal, setOpenCeremonyModal] = useState(false)
     const [transmissionLoading, setTransmissionLoading] = useState<boolean>(false)
     const [page, setPage] = useState<number>(WizardSteps.Start)
+    const [pristine, setPristine] = useState<boolean>(true)
     const [tally, setTally] = useState<Sequent_Backend_Tally_Session>()
     const [isButtonDisabled, setIsButtonDisabled] = useState<boolean>(true)
     const [templateId, setTemplateId] = useState<string | undefined>(undefined)
@@ -311,6 +312,14 @@ export const TallyCeremony: React.FC = () => {
             setIsButtonDisabled(tally?.execution_status !== ITallyExecutionStatus.SUCCESS)
         }
     }, [tally])
+
+    useEffect(() => {
+        let singleKeysCeremony = keysCeremonies?.list_keys_ceremony?.items?.[0]
+        if (!pristine || keysCeremonyId || !singleKeysCeremony) {
+            return
+        }
+        setKeysCeremonyId(singleKeysCeremony.id)
+    }, [pristine, keysCeremonies?.list_keys_ceremony?.items, keysCeremonyId])
 
     const handleNext = () => {
         if (page === WizardSteps.Start) {
@@ -552,12 +561,16 @@ export const TallyCeremony: React.FC = () => {
 
                             <Select
                                 id="keys-ceremony-for-tally"
-                                value={templateId}
+                                value={keysCeremonyId}
                                 label={t("tally.keysCeremonyTitle")}
                                 placeholder={t("tally.keysCeremonyTitle")}
-                                onChange={(props) =>
-                                    props?.target?.value && setKeysCeremonyId(props?.target?.value)
-                                }
+                                onChange={(props) => {
+                                    if (!props?.target?.value) {
+                                        return
+                                    }
+                                    setPristine(false)
+                                    setKeysCeremonyId(props?.target?.value)
+                                }}
                             >
                                 {(keysCeremonies?.list_keys_ceremony?.items ?? []).map(
                                     (keysCeremony) => (
