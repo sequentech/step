@@ -5,8 +5,7 @@ use crate::postgres::contest::get_contest_by_election_id;
 use crate::postgres::results_area_contest::{get_results_area_contest, ResultsAreaContest};
 use crate::services::users::count_keycloak_enabled_users_by_attr;
 use crate::{
-    postgres::area_contest::get_areas_by_contest_id, postgres::contest::get_contest_by_election_id,
-    postgres::results_area_contest::get_results_area_contest,
+    postgres::area_contest::get_areas_by_contest_id,
     services::users::count_keycloak_enabled_users_by_areas_id,
 };
 use anyhow::{anyhow, Context, Result};
