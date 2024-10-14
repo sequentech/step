@@ -153,136 +153,167 @@ export const ElectionEventTabs: React.FC = () => {
         <>
             <ElectionHeader title={record?.name} subtitle="electionEventScreen.common.subtitle" />
             <Box sx={{maxWidth: {xs: 360, sm: 420, m: 680, lg: 1100}, bgcolor: "background.paper"}}>
-				<Tabs
-					elements={[
-						...(showDashboard ? [
-							{
-								label: t("electionEventScreen.tabs.dashboard"),
-								component: () => (
-									<Suspense fallback={<div>Loading Dashboard...</div>}>
-										<DashboardElectionEvent
-											refreshRef={refreshRef}
-											onMount={handleChildMount}
-										/>
-									</Suspense>
-								),
-							}
-						] : []),
-						...(showData ? [
-							{
-								label: t("electionEventScreen.tabs.data"),
-								component: () => (
-									<Suspense fallback={<div>Loading Data...</div>}>
-										<EditElectionEventData />
-									</Suspense>
-								),
-							}
-						] : []),
-						...(showTextData ? [
-							{
-								label: t("electionEventScreen.tabs.localization"),
-								component: () => (
-									<Suspense fallback={<div>Loading Text Data...</div>}>
-										<EditElectionEventTextData />
-									</Suspense>
-								),
-							}
-						] : []),
-						...(showVoters ? [
-							{
-								label: t("electionEventScreen.tabs.voters"),
-								component: () => (
-									<Suspense fallback={<div>Loading Voters...</div>}>
-										<EditElectionEventUsers electionEventId={record?.id} />
-									</Suspense>
-								),
-							}
-						] : []),
-						...(showAreas ? [
-							{
-								label: t("electionEventScreen.tabs.areas"),
-								component: () => (
-									<Suspense fallback={<div>Loading Areas...</div>}>
-										<EditElectionEventAreas />
-									</Suspense>
-								),
-							}
-						] : []),
-						...(showKeys ? [
-							{
-								label: t("electionEventScreen.tabs.keys"),
-								component: () => (
-									<Suspense fallback={<div>Loading Keys...</div>}>
-										<EditElectionEventKeys
-											isShowCeremony={showKeysList}
-											isShowTrusteeCeremony={showKeysList}
-										/>
-									</Suspense>
-								),
-							}
-						] : []),
-						...(showTally ? [
-							{
-								label: t("electionEventScreen.tabs.tally"),
-								component: () => (
-									<Suspense fallback={<div>Loading Tally...</div>}>
-										<EditElectionEventTally />
-									</Suspense>
-								),
-							}
-						] : []),
-						...(showPublish ? [
-							{
-								label: t("electionEventScreen.tabs.publish"),
-								component: () => (
-									<Suspense fallback={<div>Loading Publish...</div>}>
-										<Publish electionEventId={record?.id} type={EPublishType.Event} />
-									</Suspense>
-								),
-							}
-						] : []),
-						...(showTasksExecution ? [
-							{
-								label: t("electionEventScreen.tabs.tasks"),
-								component: () => (
-									<Suspense fallback={<div>Loading Tasks...</div>}>
-										<EditElectionEventTasks />
-									</Suspense>
-								),
-							}
-						] : []),
-						...(showLogs ? [
-							{
-								label: t("electionEventScreen.tabs.logs"),
-								component: () => (
-									<Suspense fallback={<div>Loading Logs...</div>}>
-										<ElectoralLog />
-									</Suspense>
-								),
-							}
-						] : []),
-						...(showEvents ? [
-								{
-								label: t("electionEventScreen.tabs.events"),
-									component: () => (
-										<Suspense fallback={<div>Loading Events...</div>}>
-											<EditElectionEventEvents electionEventId={record?.id} />
-										</Suspense>
-									),
-								}
-							] : []),
-						...(showNotifications ? [
-							{
-								label: t("electionEventScreen.tabs.notifications"),
-								component: () => (
-									<Suspense fallback={<div>Loading Notifications...</div>}>
-										<EditNotifications electionEventId={record?.id} />
-									</Suspense>
-								),
-							}
-						] : []),
-					]}
-				/>
+                <Tabs
+                    elements={[
+                        ...(showDashboard
+                            ? [
+                                  {
+                                      label: t("electionEventScreen.tabs.dashboard"),
+                                      component: () => (
+                                          <Suspense fallback={<div>Loading Dashboard...</div>}>
+                                              <DashboardElectionEvent
+                                                  refreshRef={refreshRef}
+                                                  onMount={handleChildMount}
+                                              />
+                                          </Suspense>
+                                      ),
+                                  },
+                              ]
+                            : []),
+                        ...(showData
+                            ? [
+                                  {
+                                      label: t("electionEventScreen.tabs.data"),
+                                      component: () => (
+                                          <Suspense fallback={<div>Loading Data...</div>}>
+                                              <EditElectionEventData />
+                                          </Suspense>
+                                      ),
+                                  },
+                              ]
+                            : []),
+                        ...(showTextData
+                            ? [
+                                  {
+                                      label: t("electionEventScreen.tabs.localization"),
+                                      component: () => (
+                                          <Suspense fallback={<div>Loading Text Data...</div>}>
+                                              <EditElectionEventTextData />
+                                          </Suspense>
+                                      ),
+                                  },
+                              ]
+                            : []),
+                        ...(showVoters
+                            ? [
+                                  {
+                                      label: t("electionEventScreen.tabs.voters"),
+                                      component: () => (
+                                          <Suspense fallback={<div>Loading Voters...</div>}>
+                                              <EditElectionEventUsers
+                                                  electionEventId={record?.id}
+                                              />
+                                          </Suspense>
+                                      ),
+                                  },
+                              ]
+                            : []),
+                        ...(showAreas
+                            ? [
+                                  {
+                                      label: t("electionEventScreen.tabs.areas"),
+                                      component: () => (
+                                          <Suspense fallback={<div>Loading Areas...</div>}>
+                                              <EditElectionEventAreas />
+                                          </Suspense>
+                                      ),
+                                  },
+                              ]
+                            : []),
+                        ...(showKeys
+                            ? [
+                                  {
+                                      label: t("electionEventScreen.tabs.keys"),
+                                      component: () => (
+                                          <Suspense fallback={<div>Loading Keys...</div>}>
+                                              <EditElectionEventKeys
+                                                  isShowCeremony={showKeysList}
+                                                  isShowTrusteeCeremony={showKeysList}
+                                              />
+                                          </Suspense>
+                                      ),
+                                  },
+                              ]
+                            : []),
+                        ...(showTally
+                            ? [
+                                  {
+                                      label: t("electionEventScreen.tabs.tally"),
+                                      component: () => (
+                                          <Suspense fallback={<div>Loading Tally...</div>}>
+                                              <EditElectionEventTally />
+                                          </Suspense>
+                                      ),
+                                  },
+                              ]
+                            : []),
+                        ...(showPublish
+                            ? [
+                                  {
+                                      label: t("electionEventScreen.tabs.publish"),
+                                      component: () => (
+                                          <Suspense fallback={<div>Loading Publish...</div>}>
+                                              <Publish
+                                                  electionEventId={record?.id}
+                                                  type={EPublishType.Event}
+                                              />
+                                          </Suspense>
+                                      ),
+                                  },
+                              ]
+                            : []),
+                        ...(showTasksExecution
+                            ? [
+                                  {
+                                      label: t("electionEventScreen.tabs.tasks"),
+                                      component: () => (
+                                          <Suspense fallback={<div>Loading Tasks...</div>}>
+                                              <EditElectionEventTasks />
+                                          </Suspense>
+                                      ),
+                                  },
+                              ]
+                            : []),
+                        ...(showLogs
+                            ? [
+                                  {
+                                      label: t("electionEventScreen.tabs.logs"),
+                                      component: () => (
+                                          <Suspense fallback={<div>Loading Logs...</div>}>
+                                              <ElectoralLog />
+                                          </Suspense>
+                                      ),
+                                  },
+                              ]
+                            : []),
+                        ...(showEvents
+                            ? [
+                                  {
+                                      label: t("electionEventScreen.tabs.events"),
+                                      component: () => (
+                                          <Suspense fallback={<div>Loading Events...</div>}>
+                                              <EditElectionEventEvents
+                                                  electionEventId={record?.id}
+                                              />
+                                          </Suspense>
+                                      ),
+                                  },
+                              ]
+                            : []),
+                        ...(showNotifications
+                            ? [
+                                  {
+                                      label: t("electionEventScreen.tabs.notifications"),
+                                      component: () => (
+                                          <Suspense fallback={<div>Loading Notifications...</div>}>
+                                              <EditNotifications electionEventId={record?.id} />
+                                          </Suspense>
+                                      ),
+                                  },
+                              ]
+                            : []),
+                    ]}
+                />
             </Box>
         </>
     )
