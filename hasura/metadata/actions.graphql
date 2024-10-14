@@ -171,6 +171,14 @@ type Mutation {
     ): PublishBallotOutput
 }
 
+type Mutation {
+    generate_report(
+        report_id: String!
+        report_mode: String!
+        tenant_id: String!
+    ): generateReportOutput
+}
+
 type Query {
     getElectionEventStats(
         object: ElectionEventStatsInput!
@@ -1176,4 +1184,8 @@ type CastVotesByIp {
     election_name: String
     election_id: String
     voters_id: [String]
+}
+
+type generateReportOutput {
+    document_id: String!
 }

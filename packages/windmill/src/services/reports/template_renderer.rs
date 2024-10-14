@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::utils::{get_public_asset_template, ToMap};
+use crate::postgres::reports::{get_template_id_for_report, ReportType};
 use crate::postgres::{election_event, template};
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document;
@@ -18,30 +19,9 @@ use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::fmt::Debug;
+use strum_macros::{Display, EnumString};
 use tracing::{info, instrument, warn};
 
-pub enum ReportType {
-    MANUAL_VERIFICATION,
-    BALLOT_RECEIPT,
-    ELECTORAL_RESULTS,
-    TRANSITIONS,
-    STATUS,
-    PRE_ENROLLED_USERS,
-    PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION,
-    PRE_ENROLLED_OV_BUT_DISAPPROVED,
-    OVERSEAS_VOTERS,
-    OVCS_STATISTICS,
-    OVCS_INFORMATION,
-    OVCS_EVENTS,
-    OV_USERS,
-    OV_USERS_WHO_VOTED,
-    INITIALIZATION,
-    AUDIT_LOGS,
-    ELECTION_RETURNS_FOR_NATIONAL_POSITIONS,
-    STATISTICAL_REPORT,
-}
-
-#[derive(Debug, Clone, PartialEq)] 
 pub enum GenerateReportMode {
     Preview,
     Real,
@@ -96,48 +76,31 @@ pub trait TemplateRenderer: Debug {
             .transaction()
             .await
             .with_context(|| "Error starting hasura transaction")?;
+        let report_type = &Self::get_report_type();
 
-        let election_event = election_event::get_election_event_by_id(
+        let report_template_id = get_template_id_for_report(
             &transaction,
             &self.get_tenant_id(),
             &self.get_election_event_id(),
+            report_type,
+            None,
         )
         .await
-        .with_context(|| "Error getting the election event by id")?;
+        .with_context(|| "Error getting template id for report")?;
 
-        let presentation = match election_event.presentation {
-            Some(val) => val,
-            // None => return Err(anyhow!("Election event has no presentation")),
-            None => return Ok(None),
-        };
-
-        let active_template_ids = match presentation.get("active_template_ids") {
-            Some(val) => val,
+        let template_id = match report_template_id {
+            Some(id) => id,
             None => {
-                warn!("No active_template_ids in presentation");
-                return Ok(None);
-            }
-        };
-
-        let usr_verification_tpl_id = match active_template_ids
-            .get("manual_verification")
-            .and_then(Value::as_str)
-        {
-            Some(id) if !id.is_empty() => id.to_string(),
-            _ => {
-                info!("manual_verification id not found or empty");
+                warn!("No template id found for report type: {report_type}");
                 return Ok(None);
             }
         };
 
         // Get the template by ID and return its value:
-        let template_data_opt = template::get_template_by_id(
-            &transaction,
-            &self.get_tenant_id(),
-            &usr_verification_tpl_id,
-        )
-        .await
-        .with_context(|| "Error getting template by id")?;
+        let template_data_opt =
+            template::get_template_by_id(&transaction, &self.get_tenant_id(), &template_id)
+                .await
+                .with_context(|| "Error getting template by id")?;
 
         let tpl_document: Option<&str> = match &template_data_opt {
             Some(template_data) => template_data

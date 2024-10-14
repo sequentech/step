@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::{ovcs_events::OVCSEventsTemplate, template_renderer::*};
-use crate::services::s3::get_minio_url;
+use super::template_renderer::*;
 use crate::services::temp_path::*;
+use crate::{postgres::reports::ReportType, services::s3::get_minio_url};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use sequent_core::types::templates::EmailConfig;
@@ -127,10 +127,10 @@ pub async fn generate_manual_verification_report(
     election_event_id: &str,
     voter_id: &str,
 ) -> Result<()> {
-    let template = OVCSEventsTemplate {
+    let template = ManualVerificationTemplate {
         tenant_id: tenant_id.to_string(),
         election_event_id: election_event_id.to_string(),
-        
+        voter_id: voter_id.to_string(),
     };
     template
         .execute_report(document_id, tenant_id, election_event_id, false, None, GenerateReportMode::Real)

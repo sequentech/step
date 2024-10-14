@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
+use crate::postgres::reports::ReportType;
 use crate::services::s3::get_minio_url;
 use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
