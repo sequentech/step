@@ -15,6 +15,8 @@ use tracing::instrument;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::{election_event_status, voting_status};
 
+use super::ballot_publication::has_gold_permission;
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateEventVotingStatusInput {
     pub election_event_id: String,
@@ -24,10 +26,6 @@ pub struct UpdateEventVotingStatusInput {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateEventVotingStatusOutput {
     pub election_event_id: String,
-}
-
-fn has_gold_permission(claims: &JwtClaims) -> bool {
-    claims.acr == Permissions::GOLD.to_string()
 }
 
 #[instrument(skip(claims))]

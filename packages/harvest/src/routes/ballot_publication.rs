@@ -36,12 +36,20 @@ pub struct GenerateBallotPublicationOutput {
     ballot_publication_id: String,
 }
 
+pub fn has_gold_permission(claims: &JwtClaims) -> bool {
+    claims.acr == Permissions::GOLD.to_string()
+}
+
 #[instrument(skip(claims))]
 #[post("/generate-ballot-publication", format = "json", data = "<body>")]
 pub async fn generate_ballot_publication(
     body: Json<GenerateBallotPublicationInput>,
     claims: JwtClaims,
 ) -> Result<Json<GenerateBallotPublicationOutput>, (Status, String)> {
+    if !has_gold_permission(&claims) {
+        return Err((Status::Forbidden, "Insufficient privileges".into()));
+    }
+
     authorize(
         &claims,
         true,

@@ -157,14 +157,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
             setCurrentCallback(() => async () => {
                 try {
                     const baseUrl = new URL(window.location.href);
-
-                    // Add 'tabIndex' to the query parameters
                     baseUrl.searchParams.set("tabIndex", "7");
-
-                    console.log("Saving full URL:", baseUrl.toString());
-
-                    // Save the full URL to sessionStorage
-                    // sessionStorage.setItem("redirectUrl", baseUrl.toString());
                     sessionStorage.setItem(PENDING_PUBLISH_ACTION, "true");
 
                     await reauthWithGold(baseUrl.toString());
