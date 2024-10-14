@@ -7,7 +7,7 @@ import React from "react"
 import styled from "@emotion/styled"
 
 import {Box} from "@mui/material"
-import {Button} from "react-admin"
+import {Button, Identifier} from "react-admin"
 import {useTranslation} from "react-i18next"
 import {ArrowBackIosNew, Publish} from "@mui/icons-material"
 
@@ -47,6 +47,7 @@ const PublishGenerateStyled = {
 }
 
 export type TPublishGenerate = {
+    ballotPublicationId?: string | Identifier | null
     data: any
     readOnly: boolean
     status: PublishStatus
@@ -60,6 +61,7 @@ export type TPublishGenerate = {
 }
 
 export const PublishGenerate: React.FC<TPublishGenerate> = ({
+    ballotPublicationId,
     data,
     status,
     changingStatus,
@@ -75,10 +77,12 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
         <Box sx={{flexGrow: 2, flexShrink: 0}}>
             {!readOnly && (
                 <PublishActions
+                    ballotPublicationId={ballotPublicationId}
                     status={status}
                     changingStatus={changingStatus}
                     onPublish={onPublish}
                     onGenerate={onGenerate}
+                    data={data}
                     type={EPublishActionsType.Generate}
                 />
             )}

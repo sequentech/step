@@ -1,4 +1,13 @@
 type Mutation {
+    export_ballot_publication(
+        tenant_id: String!
+        election_event_id: String!
+        election_id: String
+        ballot_publication_id: String!
+    ): ExportBallotPublicationOutput
+}
+
+type Mutation {
     check_private_key(object: CheckPrivateKeyInput!): CheckPrivateKeyOutput
 }
 
@@ -169,6 +178,14 @@ type Mutation {
         election_event_id: uuid!
         election_id: uuid
     ): PublishBallotOutput
+}
+
+type Mutation {
+    generate_report(
+        report_id: String!
+        report_mode: String!
+        tenant_id: String!
+    ): generateReportOutput
 }
 
 type Query {
@@ -1176,4 +1193,13 @@ type CastVotesByIp {
     election_name: String
     election_id: String
     voters_id: [String]
+}
+
+type generateReportOutput {
+    document_id: String!
+}
+
+type ExportBallotPublicationOutput {
+    document_id: String!
+    task_execution: tasks_execution_type
 }
