@@ -1060,10 +1060,6 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
                 {
                     "PhilSys ID": [
                         {
-                            "UserAttribute": "sequent.read-only.id-card-number",
-                            "inetumAttributePath": "/response/mrz/personal_number"
-                        },
-                        {
                             "UserAttribute": "firstName",
                             "inetumAttributePath": "/response/mrz/given_names"
                         },
