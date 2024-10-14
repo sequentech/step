@@ -518,16 +518,15 @@ pub struct ElectoralLogRow {
     message: String,
     user_id: Option<String>,
 }
-
-// #[derive(Serialize, Deserialize, Debug)]
-// pub struct Message {
-//     pub sender: serde_json::Value,
-//     pub sender_signature: String,
-//     pub system_signature: String,
-//     pub statement: serde_json::Value,
-//     pub artifact: Option<serde_json::Value>,
-//     pub user_id: Option<String>,
-// }
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct StatementHeadDataString {
+    pub event: String,
+    pub kind: String,
+    pub timestamp: i64,
+    pub event_type: String,
+    pub log_type: String,
+    pub description: String,
+}
 
 impl ElectoralLogRow {
     pub fn id(&self) -> i64 {
@@ -554,21 +553,32 @@ impl ElectoralLogRow {
         self.user_id.as_ref().map(|s| s.as_str())
     }
 
-    pub fn statement_head(&self) -> Result<StatementHead, serde_json::Error> {
-        let message: Message = serde_json::from_str(&self.message)?;
-        Ok(message.statement.head.clone())
-    }
+    pub fn statement_head_data(&self) -> Result<StatementHeadDataString> {
+        let message: serde_json::Value = serde_json::from_str(&self.message).map_err(|err| {
+            anyhow!(format!(
+                "{:?}, Failed to parse message: {}",
+                err, self.message
+            ))
+        })?;
 
-    pub fn log_type(&self) -> Result<String, serde_json::Error> {
-        Ok(self.statement_head()?.log_type.to_string())
-    }
+        let Some(statement) = message.get("statement") else {
+            return Err(anyhow!(
+                "Failed to get statement from message: {}",
+                self.message
+            ));
+        };
 
-    pub fn event_type(&self) -> Result<String, serde_json::Error> {
-        Ok(self.statement_head()?.event_type.to_string())
-    }
+        let Some(head) = statement.get("head") else {
+            return Err(anyhow!(
+                "Failed to get head from statement: {}",
+                self.message
+            ));
+        };
 
-    pub fn description(&self) -> Result<String, serde_json::Error> {
-        Ok(self.statement_head()?.description.to_string())
+        let data: StatementHeadDataString = serde_json::from_value(head.clone())
+            .map_err(|err| anyhow!(format!("{:?}, Failed to parse head: {}", err, head)))?;
+
+        Ok(data)
     }
 }
 

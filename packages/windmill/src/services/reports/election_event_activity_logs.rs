@@ -5,7 +5,7 @@ use super::template_renderer::*;
 use crate::services::database::{get_hasura_pool, PgConfig};
 use crate::services::documents::upload_and_return_document_postgres;
 use crate::services::electoral_log::{
-    list_electoral_log, ElectoralLogRow, GetElectoralLogBody, OrderField,
+    list_electoral_log, ElectoralLogRow, GetElectoralLogBody, StatementHeadDataString,
 };
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::s3::get_minio_url;
@@ -110,7 +110,9 @@ impl TemplateRenderer for ActivityLogsTemplate {
     async fn prepare_user_data(&self) -> Result<Self::UserData> {
         let mut act_log: Vec<ActivityLogRow> = vec![];
         let mut offset = 0;
-        let limit = PgConfig::from_env()?.default_sql_batch_size as i64;
+        let limit = PgConfig::from_env()
+            .with_context(|| "Error obtaining Pg config from env.")?
+            .default_sql_batch_size as i64;
 
         loop {
             let electoral_logs: DataList<ElectoralLogRow> =
@@ -143,15 +145,21 @@ impl TemplateRenderer for ActivityLogsTemplate {
                     Utc,
                 );
                 let created = dt.format("%Y-%m-%d").to_string();
+                let head_data = electoral_log
+                    .statement_head_data()
+                    .with_context(|| "Error to get head data.")?;
+                let event_type = head_data.event_type;
+                let log_type = head_data.log_type;
+                let description = head_data.description;
 
                 act_log.push(ActivityLogRow {
                     id: electoral_log.id(),
                     created,
                     statement_timestamp,
                     statement_kind: electoral_log.statement_kind().to_string(),
-                    event_type: electoral_log.event_type()?,
-                    log_type: electoral_log.log_type()?,
-                    description: electoral_log.description()?,
+                    event_type,
+                    log_type,
+                    description,
                     message: electoral_log.message().to_string(),
                     user_id: user_id,
                 });
