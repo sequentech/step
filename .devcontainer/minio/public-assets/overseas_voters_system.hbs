@@ -125,18 +125,18 @@
                 </tr>
                 <!-- Subtitle header block -->
 
-                <!-- Main title -->
+                <!-- Main itle -->
                 <tr>
                   <td
                     align="center"
                     style="font-family: serif; font-size: 18px"
                   >
-                    <p style="margin-bottom: 0">
+                    <p>
                       <strong>LIST OF OVERSEAS VOTERS</strong>
                     </p>
                   </td>
                 </tr>
-                <!-- Main title -->
+                <!-- Main itle -->
 
                 <!-- Additional sections -->
                 <tr>
@@ -193,7 +193,7 @@
                                 border: 1px solid black;
                               "
                             >
-                              <strong>ID</strong>
+                              <strong>Status</strong>
                             </td>
                             <td
                               style="
@@ -202,7 +202,16 @@
                                 border: 1px solid black;
                               "
                             >
-                              <strong>Date voted (Ph date)</strong>
+                              <strong>Date voted</strong>
+                            </td>
+                            <td
+                              style="
+                                text-align: center;
+                                vertical-align: top;
+                                border: 1px solid black;
+                              "
+                            >
+                              <strong>Time voted</strong>
                             </td>
                           </tr>
                         </thead>
@@ -235,7 +244,7 @@
                                 border: 1px solid black;
                               "
                             >
-                              {{id}}
+                              {{status}}
                             </td>
                             <td
                               style="
@@ -245,6 +254,15 @@
                               "
                             >
                               {{date_voted}}
+                            </td>
+                            <td
+                              style="
+                                text-align: center;
+                                vertical-align: top;
+                                border: 1px solid black;
+                              "
+                            >
+                              {{time_voted}}
                             </td>
                           </tr>
                           {{/each}}
@@ -264,19 +282,21 @@
                           <td style="text-align: left; vertical-align: top">
                             <strong>No. of OV who voted:</strong>
                           </td>
-                          <td style="text-align: left">{{voted}}</td>
+                          <td style="text-align: left">{{ov_voted}}</td>
                         </tr>
                         <tr>
                           <td style="text-align: left; vertical-align: top">
                             <strong>No. of OV who did not vote:</strong>
                           </td>
-                          <td style="text-align: left">{{not_voted}}</td>
+                          <td style="text-align: left">{{ov_not_voted}}</td>
                         </tr>
                         <tr>
                           <td style="text-align: left; vertical-align: top">
-                            <strong>No. of OV who did not pre-enrolled:</strong>
+                            <strong>No. of OV who did not pre-enroll:</strong>
                           </td>
-                          <td style="text-align: left">{{not_pre_enrolled}}</td>
+                          <td style="text-align: left">
+                            {{ov_not_pre_enrolled}}
+                          </td>
                         </tr>
                         <tr>
                           <td style="text-align: left; vertical-align: top">
@@ -285,15 +305,13 @@
                               voted:</strong
                             >
                           </td>
-                          <td style="text-align: left">
-                            {{voting_privilege_voted}}
-                          </td>
+                          <td style="text-align: left">{{eb_voted}}</td>
                         </tr>
                         <tr>
                           <td style="text-align: left; vertical-align: top">
                             <strong>Total No. of OVs:</strong>
                           </td>
-                          <td style="text-align: left">{{total}}</td>
+                          <td style="text-align: left">{{ov_total}}</td>
                         </tr>
                       </table>
                     </div>
@@ -301,11 +319,116 @@
                 </tr>
                 <!-- END of additional sections -->
 
+                <!-- Paragraph section -->
+                <tr>
+                  <td align="left">
+                    <div
+                      style="
+                        margin-top: 12px;
+                        margin-bottom: 12px;
+                        text-align: left;
+                      "
+                    >
+                      <strong
+                        >WE, THE UNDERSIGNED MEMBERS OF THE SPECIAL BOARD OF
+                        ELECTION INSPECTORS</strong
+                      >
+
+                      of {{post}}, do hereby certify under oath that we
+                      witnessed the voting of the Clustered Precinct ID
+                      {{precinct_code}}, and that the votes obtained by each
+                      candidate appearing in the
+                      <strong>ELECTION RETURNS FOR NATIONAL POSITIONS</strong>
+                      are true as generated by the Online Voting and Counting
+                      System for {{country }} on {{goverment_time}} (host’s
+                      government time) ({{local_time}} in the Philippines).
+                    </div>
+                  </td>
+                </tr>
+                <!-- END Paragraph section -->
+
                 <!-- Title secondary section -->
                 <tr>
                   <td align="center" style="padding: 15px">
                     <div style="text-align: center; padding: 15px">
-                      <div id="qrcode"></div>
+                      <p style="font-family: serif; font-size: 12pt">
+                        <strong
+                          >THE SPECIAL BOARD OF ELECTION INSPECTORS</strong
+                        >
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+                <!-- END Title secondary section -->
+
+                <!-- Signature simple section -->
+                <tr>
+                  <td align="center" style="margin-top: 24px">
+                    <div style="margin-top: 24px">
+                      <hr
+                        style="margin: 0 120px; border-top: 1px solid #000000"
+                      />
+                      <p style="margin: 0">{{chairperson_name}}</p>
+                      <p style="margin: 0"><strong>CHAIRPERSON</strong></p>
+                      <p style="margin: 0">
+                        (Signature above printed full name)
+                      </p>
+                      <p style="margin: 0">{{chairperson_digital_signature}}</p>
+                    </div>
+                  </td>
+                </tr>
+                <!-- END Signature simple section -->
+                <!-- Signature simple section -->
+                <tr>
+                  <td align="center" style="margin-top: 24px">
+                    <div style="margin-top: 24px">
+                      <hr
+                        style="margin: 0 120px; border-top: 1px solid #000000"
+                      />
+                      <p style="margin: 0">{{poll_clerk_name}}</p>
+                      <p style="margin: 0"><strong>POLL CLERK</strong></p>
+                      <p style="margin: 0">
+                        (Signature above printed full name)
+                      </p>
+                      <p style="margin: 0">{{poll_clerk_digital_signature}}</p>
+                    </div>
+                  </td>
+                </tr>
+                <!-- END Signature simple section -->
+                <!-- Signature simple section -->
+                <tr>
+                  <td align="center" style="margin-top: 24px">
+                    <div style="margin-top: 24px">
+                      <hr
+                        style="margin: 0 120px; border-top: 1px solid #000000"
+                      />
+                      <p style="margin: 0">{{third_member_name}}</p>
+                      <p style="margin: 0"><strong>THIRD MEMEBER</strong></p>
+                      <p style="margin: 0">
+                        (Signature above printed full name)
+                      </p>
+                      <p style="margin: 0">
+                        {{third_member_digital_signature}}
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+                <!-- END Signature simple section -->
+
+                <!-- Title secondary section -->
+                <tr>
+                  <td align="center" style="padding: 15px">
+                    <div style="text-align: center; padding: 15px">
+                      <div
+                        id="qrcode"
+                        style="
+                          width: 100%;
+                          display: flex;
+                          flex-direction: column;
+                          justify-content: center;
+                          align-items: center;
+                        "
+                      ></div>
                     </div>
                   </td>
                 </tr>
@@ -348,8 +471,8 @@
   <script>
     const qrcode = new QRCode(document.getElementById("qrcode"), {
       text: "{{qr_code}}",
-      width: 480,
-      height: 480,
+      width: 80,
+      height: 80,
       colorDark: "#000000",
       colorLight: "#ffffff",
       correctLevel: QRCode.CorrectLevel.M,
