@@ -51,13 +51,13 @@ pub struct SystemData {
 }
 
 #[derive(Debug)]
-pub struct TransitionsReport {
+pub struct TransmissionReport {
     tenant_id: String,
     election_event_id: String,
 }
 
 #[async_trait]
-impl TemplateRenderer for TransitionsReport {
+impl TemplateRenderer for TransmissionReport {
     type UserData = UserData;
     type SystemData = SystemData;
 
