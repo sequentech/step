@@ -46,6 +46,7 @@ export type TenantEventType = {
 }
 
 export type PreviewPublicationEventType = {
+    tenantId: string
     documentId: string
     areaId: string
 }
@@ -78,7 +79,7 @@ const router = createBrowserRouter(
             errorElement: <ErrorPage />,
             children: [
                 {
-                    path: "/preview/:documentId/:areaId",
+                    path: "/preview/:tenantId/:documentId/:areaId",
                     element: (
                         <Suspense fallback={<Loader />}>
                             <PreviewPublicationEvent />

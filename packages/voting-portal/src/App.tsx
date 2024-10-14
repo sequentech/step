@@ -82,16 +82,17 @@ const App = () => {
     const {globalSettings} = useContext(SettingsContext)
     const location = useLocation()
     const {tenantId, eventId} = useParams<TenantEventType>()
-    const {documentId, areaId} = useParams<PreviewPublicationEventType>()
+    const {tenantId: documentTenant, documentId, areaId} = useParams<PreviewPublicationEventType>()
     const {isAuthenticated, setTenantEvent} = useContext(AuthContext)
 
     const electionIds = useAppSelector(selectElectionIds)
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionIds[0])))
+    const isPreviewRoute = location.pathname.includes("/preview/");
 
     useEffect(() => {
         if (location.pathname.includes('preview')) {
             navigate(
-                `/preview/${documentId}/${areaId}/demo`
+                `/preview/${documentTenant}/${documentId}/${areaId}/demo`
                 //TODO logic
             )
         }
@@ -110,6 +111,9 @@ const App = () => {
         globalSettings.DISABLE_AUTH,
         navigate,
         location.pathname,
+        documentTenant,
+        documentId,
+        areaId
     ])
 
     useEffect(() => {
@@ -128,19 +132,29 @@ const App = () => {
             css={ballotStyle?.ballot_eml.election_event_presentation?.css ?? ""}
         >
             <ScrollRestoration />
-            <ApolloWrapper>
-                {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
-                <PageBanner
-                    marginBottom="auto"
-                    sx={{display: "flex", position: "relative", flex: 1}}
-                >
-                    <WatermarkBackground />
-                    <Outlet />
-                </PageBanner>
-            </ApolloWrapper>
+            {!isPreviewRoute ? (
+                <ApolloWrapper> 
+                    {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
+                    <PageBanner
+                        marginBottom="auto"
+                        sx={{display: "flex", position: "relative", flex: 1}}
+                    >
+                        <WatermarkBackground />
+                        <Outlet />
+                    </PageBanner>
+                </ApolloWrapper>
+            ) : (
+                <>
+                    <Header />
+                    <PageBanner marginBottom="auto" sx={{ display: "flex", position: "relative", flex: 1 }}>
+                        <WatermarkBackground />
+                        <Outlet />
+                    </PageBanner>
+                </>
+            )}
             <Footer />
         </StyledApp>
-    )
+    );
 }
 
 export default App

@@ -10,7 +10,7 @@ export default function PreviewPublicationEvent() {
     const params = useParams()
 
     const noMatch = useMatch("/preview/:documentId/:areaId/");
-    const path = `/preview/${params.documentId}/${params.areaId}/`
+    const path = `/preview/${params.tenantId}/${params.documentId}/${params.areaId}/`
 
     useEffect(() => {
         if (noMatch) {

@@ -13,6 +13,7 @@ import { SettingsContext } from "@/providers/SettingsContextProvider";
 import { useMutation, useQuery } from "@apollo/client";
 import { GET_AREAS } from "@/queries/GetAreas";
 import { GET_UPLOAD_URL } from "@/queries/GetUploadUrl";
+import { TenantContext } from "@/providers/TenantContextProvider";
 
 interface EditPreviewProps {
   id?: string | Identifier | null
@@ -29,7 +30,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
   const [sourceAreas, setSourceAreas] = useState([]);
   const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
   const [isUploading, setIsUploading] = React.useState<boolean>(false)
-  const [documentId, setDocumentId] = React.useState<string | null>(null)
+  const {tenantId} = useContext(TenantContext)
   
   const {data: areas} = useQuery(GET_AREAS, {
     variables: {
@@ -65,8 +66,8 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
         }
 
         await uploadFile(data.get_upload_url.url, theFile);
-        setDocumentId(data.get_upload_url.document_id);
         notify(t("electionEventScreen.import.fileUploadSuccess"), {type: "success"})
+        return data.get_upload_url.document_id;
     } catch (_error) {
         setIsUploading(false)
         notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
@@ -90,11 +91,10 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
     }
   }, [areas, areaIds])
 
-  const onPreviewClick = (res: any) => {
+  const onPreviewClick = async (res: any) => {
     const dataStr = JSON.stringify(ballotData, null, 2);
-    const file = new File([dataStr], `${id}.json`, { type: 'application/json' });
-    uploadFileToS3(file);
-
+    const file = new File([dataStr], `preview.json`, { type: 'application/json' });
+    const documentId = await uploadFileToS3(file);
     const previewUrl: string = `${previewUrlTemplate}/${documentId}/${res.area_id}`;
     window.open(previewUrl, '_blank');
     notify(t("publish.previewSuccess"), { type: "success" });
@@ -104,7 +104,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
   };
 
   const previewUrlTemplate = useMemo(() => {
-    return `${globalSettings.VOTING_PORTAL_URL}/preview`;
+    return `${globalSettings.VOTING_PORTAL_URL}/preview/${tenantId}`;
   }, [globalSettings.VOTING_PORTAL_URL, id])
 
   return (
