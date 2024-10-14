@@ -234,7 +234,6 @@ const ElectionSelectionScreen: React.FC = () => {
     const isDemo = useMemo(() => {
         return oneBallotStyle?.ballot_eml.public_key?.is_demo
     }, [oneBallotStyle])
-
     const bypassChooser = useAppSelector(selectBypassChooser())
     const [errorMsg, setErrorMsg] = useState<VotingPortalErrorType | ElectionScreenErrorType>()
     const [alertMsg, setAlertMsg] = useState<ElectionScreenMsgType>()
@@ -243,7 +242,9 @@ const ElectionSelectionScreen: React.FC = () => {
         error: errorBallotStyles,
         data: dataBallotStyles,
         loading: loadingBallotStyles,
-    } = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
+    } = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES, {
+        skip: isDemo, // Skip query if in demo mode
+    })
 
     const {
         error: errorElections,
@@ -253,6 +254,7 @@ const ElectionSelectionScreen: React.FC = () => {
         variables: {
             electionIds: ballotStyleElectionIds,
         },
+        skip: isDemo, // Skip query if in demo mode
     })
 
     const {
@@ -264,6 +266,7 @@ const ElectionSelectionScreen: React.FC = () => {
             electionEventId: eventId,
             tenantId,
         },
+        skip: isDemo, // Skip query if in demo mode
     })
 
     const {data: castVotes, error: errorCastVote} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES)
