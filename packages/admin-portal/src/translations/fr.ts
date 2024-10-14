@@ -1284,12 +1284,16 @@ const frenchTranslation: TranslationType = {
                     "Vous êtes sur le point d'arrêter la période de vote. Êtes-vous sûr de vouloir continuer?",
                 pauseInfo:
                     "Vous êtes sur le point de mettre en pause la période de vote. Êtes-vous sûr de vouloir continuer?",
+                publishInfo:
+                    "Vous êtes sur le point de générer une publication. Êtes-vous sûr de vouloir continuer ?",
                 ok: "Confirmer",
                 ko: "Annuler",
                 error: "Erreur lors du chargement des bulletins publiés",
                 error_publish: "Erreur lors de la publication du bulletin",
                 error_status: "Erreur lors du changement d'état de la publication",
                 diff: "Afficher tous les changements pourrait rendre la page non réactive. Êtes-vous sûr de vouloir continuer ?",
+                confirmation:
+                    "L'action que vous êtes sur le point d'effectuer est sensible et nécessite une confirmation. Veuillez entrer votre mot de passe pour continuer avec {{action}}.",
             },
             label: {
                 current: "Actuel",

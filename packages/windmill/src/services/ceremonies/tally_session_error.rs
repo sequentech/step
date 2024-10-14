@@ -4,10 +4,10 @@ use crate::postgres::tally_session_execution::insert_tally_session_execution;
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::database::get_hasura_pool;
-use crate::services::date::ISO8601;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
+use sequent_core::services::date::ISO8601;
 use sequent_core::types::ceremonies::Log;
 use tracing::{event, info, instrument, Level};
 

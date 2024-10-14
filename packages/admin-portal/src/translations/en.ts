@@ -1279,12 +1279,16 @@ const englishTranslation = {
                 stopInfo: "You are about to stop voting period. Are you sure you want to continue?",
                 pauseInfo:
                     "You are about to pause voting period. Are you sure you want to continue?",
+                publishInfo:
+                    "You are about to generate a publication. Are you sure you want to continue?",
                 ok: "Confirm",
                 ko: "Cancel",
                 error: "Error loading ballot publication",
                 error_publish: "Error publishing ballot publication",
                 error_status: "Error change ballot publication status",
                 diff: "Rendering all changes might make the page unresponsive. Are you sure you want to continue?",
+                confirmation:
+                    "The action you are about to perform is sensitive and requires confirmation. Please enter your password to proceed with {{action}}.",
             },
             notifications: {
                 generated: "Ballot generated",

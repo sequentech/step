@@ -1285,12 +1285,16 @@ const tagalogTranslation: TranslationType = {
                     "Malapit mo nang itigil ang panahon ng pagboto. Sigurado ka bang nais mong magpatuloy?",
                 pauseInfo:
                     "Malapit mo nang i-pause ang panahon ng pagboto. Sigurado ka bang nais mong magpatuloy?",
+                publishInfo:
+                    "Malapit ka nang gumawa ng publikasyon. Sigurado ka bang gusto mong magpatuloy?",
                 ok: "Kumpirmahin",
                 ko: "Kanselahin",
                 error: "Error sa pag-load ng paglalathala ng balota",
                 error_publish: "Error sa paglalathala ng balota",
                 error_status: "Error sa pagbabago ng katayuan ng paglalathala ng balota",
                 diff: "Ang pag-render ng lahat ng mga pagbabago ay maaaring magdulot ng pagka-antala sa pahina. Sigurado ka bang nais mong magpatuloy?",
+                confirmation:
+                    "Ang aksyong gagawin mo ay sensitibo at nangangailangan ng kumpirmasyon. Paki-enter ang iyong password para magpatuloy sa {{action}}.",
             },
             notifications: {
                 generated: "Balota nilikha",

@@ -12,7 +12,6 @@ pub mod compress;
 pub mod consolidation;
 pub mod custom_url;
 pub mod database;
-pub mod date;
 pub mod delete_election_event;
 pub mod documents;
 pub mod election;
