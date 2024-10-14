@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {Suspense, lazy, useContext} from "react"
+import React, {Suspense, lazy, useContext, useEffect} from "react"
 import ReactDOM from "react-dom/client"
 import {Provider} from "react-redux"
 import {store} from "./store/store"
@@ -16,7 +16,7 @@ import {theme} from "@sequentech/ui-essentials"
 import {initCore} from "@sequentech/ui-core"
 import AuthContextProvider from "./providers/AuthContextProvider"
 import {SettingsContext, SettingsWrapper} from "./providers/SettingsContextProvider"
-import {createBrowserRouter, RouterProvider} from "react-router-dom"
+import {createBrowserRouter, RouterProvider, useLocation, useMatch} from "react-router-dom"
 import {ErrorPage} from "./routes/ErrorPage"
 import {action as votingAction} from "./routes/VotingScreen"
 import {action as castBallotAction} from "./routes/ReviewScreen"
@@ -66,7 +66,13 @@ const KeycloakProvider: React.FC<KeycloakProviderProps> = ({disable, children}) 
 }
 
 export const KeycloakProviderContainer: React.FC<React.PropsWithChildren> = ({children}) => {
-    const {globalSettings} = useContext(SettingsContext)
+    const {globalSettings, setDisableAuth} = useContext(SettingsContext)
+    const isPreviewMatch = window.location.pathname.includes("preview/") && !window.location.pathname.includes("tenant/")
+    useEffect(() => {
+        if (!globalSettings.DISABLE_AUTH && isPreviewMatch) {
+            setDisableAuth(true)
+        }
+    }, [isPreviewMatch])
 
     return <KeycloakProvider disable={globalSettings.DISABLE_AUTH}>{children}</KeycloakProvider>
 }
