@@ -107,8 +107,7 @@ impl TemplateRenderer for OVCSEventsTemplate {
     }
 }
 
-
-#[instrument] 
+#[instrument]
 pub async fn generate_ovcs_report(
     document_id: &str,
     tenant_id: &str,

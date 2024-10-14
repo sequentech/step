@@ -133,7 +133,14 @@ pub async fn generate_manual_verification_report(
         voter_id: voter_id.to_string(),
     };
     template
-        .execute_report(document_id, tenant_id, election_event_id, false, None, GenerateReportMode::REAL)
+        .execute_report(
+            document_id,
+            tenant_id,
+            election_event_id,
+            false,
+            None,
+            GenerateReportMode::REAL,
+        )
         .await
 }
 

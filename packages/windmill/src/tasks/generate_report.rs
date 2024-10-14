@@ -2,15 +2,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::reports::ovcs_events;
-use crate::services::reports::audit_logs;
 use crate::postgres::reports::Report;
 use crate::postgres::reports::ReportType;
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::get_hasura_pool;
 use crate::services::date::ISO8601;
 use crate::services::pg_lock::PgLock;
+use crate::services::reports::audit_logs;
 use crate::services::reports::manual_verification::ManualVerificationTemplate;
+use crate::services::reports::ovcs_events;
 use crate::services::reports::ovcs_events::OVCSEventsTemplate;
 use crate::services::reports::template_renderer::GenerateReportMode;
 use crate::services::reports::template_renderer::TemplateRenderer;
@@ -23,13 +23,10 @@ use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use tracing::instrument;
 use tracing::{event, info, Level};
 use uuid::Uuid;
-use std::str::FromStr;
-
-
-
 
 pub async fn generate_report(
     report: Report,
@@ -71,11 +68,14 @@ pub async fn generate_report(
     Ok(())
 }
 
-
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
-pub async fn generate_report(report: Report, document_id: String, report_mode: GenerateReportMode) -> Result<()> {
+pub async fn generate_report(
+    report: Report,
+    document_id: String,
+    report_mode: GenerateReportMode,
+) -> Result<()> {
     // Spawn the task using an async block
     let handle = tokio::task::spawn_blocking({
         move || {

@@ -2,14 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
+use crate::postgres::reports::ReportType;
 use crate::services::database::get_hasura_pool;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Client as DbClient;
+use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use tracing::info;
-use sequent_core::types::templates::EmailConfig;
-use crate::postgres::reports::ReportType;
 
 /// Struct for OV User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -22,7 +22,6 @@ pub struct OVUserData {
     pub id: String,
     pub date_voted: String,
 }
-
 
 /// Struct for User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -96,7 +95,7 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
     }
 
     // Prepare user data with statistics and mock data
-    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>>{
+    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>> {
         // Fetch the Hasura database client from the pool
         let mut hasura_db_client: DbClient = get_hasura_pool()
             .await
@@ -128,17 +127,17 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
 
         let temp_val: &str = "test";
         let user_data = UserData {
-            election_start_date: "2024-05-01".to_string(),  // Placeholder value, replace with real data
-            election_title: "2024 National Elections".to_string(),  // Placeholder value
+            election_start_date: "2024-05-01".to_string(), // Placeholder value, replace with real data
+            election_title: "2024 National Elections".to_string(), // Placeholder value
             geograpic_region: "Asia Pacific".to_string(),  // Placeholder value
-            area: "Metro Manila".to_string(),  // Placeholder value
-            country: "Philippines".to_string(),  // Placeholder value
-            voting_center: "Manila Voting Center".to_string(),  // Placeholder value
+            area: "Metro Manila".to_string(),              // Placeholder value
+            country: "Philippines".to_string(),            // Placeholder value
+            voting_center: "Manila Voting Center".to_string(), // Placeholder value
             total_voted: 0,
             total_not_voted: 0,
             total_eb_with_privileges: 0,
             total_ov_users: 0,
-            ov_users_who_voted: mock_ov_users_who_voted,  // Using mock data for now
+            ov_users_who_voted: mock_ov_users_who_voted, // Using mock data for now
             chairperson_name: temp_val.to_string(),
             poll_clerk_name: temp_val.to_string(),
             third_member_name: temp_val.to_string(),
@@ -148,7 +147,10 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
     }
 
     // Prepare system data
-    async fn prepare_system_data(&self, _rendered_user_template: String) -> Result<Self::SystemData> {
+    async fn prepare_system_data(
+        &self,
+        _rendered_user_template: String,
+    ) -> Result<Self::SystemData> {
         // Placeholder system data, adjust based on your actual environment
         Ok(SystemData {
             report_hash: "abc123".to_string(),

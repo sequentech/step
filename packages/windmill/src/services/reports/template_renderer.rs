@@ -23,9 +23,7 @@ use strum_macros::{Display, EnumString};
 use tracing::{info, instrument, warn};
 
 #[allow(non_camel_case_types)]
-#[derive(
-    Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
-)]
+#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
 pub enum GenerateReportMode {
     PREVIEW,
     REAL,
@@ -46,7 +44,7 @@ pub trait TemplateRenderer: Debug {
     fn get_election_event_id(&self) -> String;
     fn get_election_id(&self) -> Option<String> {
         None // Default implementation, can be overridden in specific reports that have election_id
-    } 
+    }
 
     fn should_send_email(&self, is_scheduled_task: bool) -> bool {
         // Send email if it's a cron job (scheduled task) or if a voterId is present
@@ -63,7 +61,7 @@ pub trait TemplateRenderer: Debug {
 
         Ok(data)
     }
-    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>>{
+    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>> {
         Ok(None)
     }
     async fn prepare_system_data(&self, rendered_user_template: String)
@@ -140,23 +138,24 @@ pub trait TemplateRenderer: Debug {
 
     async fn generate_report(&self, generate_mode: GenerateReportMode) -> Result<String> {
         if generate_mode == GenerateReportMode::PREVIEW {
-            let data = self.prepare_preview_data()
-                    .await
-                    .map_err(|e| anyhow!("Error preparing preview user data: {e:?}"))?
-                    .to_map()
-                    .map_err(|e| anyhow!("Error converting preview user data to map: {e:?}"))?;
+            let data = self
+                .prepare_preview_data()
+                .await
+                .map_err(|e| anyhow!("Error preparing preview user data: {e:?}"))?
+                .to_map()
+                .map_err(|e| anyhow!("Error converting preview user data to map: {e:?}"))?;
 
             let system_template = self
                 .get_system_template()
                 .await
                 .map_err(|e| anyhow!("Error getting default user template: {e:?}"))?;
-        
-                let rendered_system_template = reports::render_template_text(&system_template, data)
-                    .map_err(|e| anyhow!("Error rendering system template: {e:?}"))?;
-        
-            return Ok(rendered_system_template)
+
+            let rendered_system_template = reports::render_template_text(&system_template, data)
+                .map_err(|e| anyhow!("Error rendering system template: {e:?}"))?;
+
+            return Ok(rendered_system_template);
         }
-        
+
         // Get user template (custom or default)
         let user_template = match self
             .get_custom_user_template()
@@ -185,19 +184,19 @@ pub trait TemplateRenderer: Debug {
                 .map_err(|e| anyhow!("Error converting user data to map: {e:?}"))?;
 
             info!("user data in template renderer: {:?}", user_data_map);
-            
-            rendered_user_template = reports::render_template_text(&user_template, user_data_map)
-                .map_err(|e| anyhow!("Error rendering user template: {e:?}"))?;
 
+            rendered_user_template =
+                reports::render_template_text(&user_template, user_data_map)
+                    .map_err(|e| anyhow!("Error rendering user template: {e:?}"))?;
         }
 
         // Prepare system data
         let system_data = self
-        .prepare_system_data(rendered_user_template)
-        .await
-        .map_err(|e| anyhow!("Error preparing system data: {e:?}"))?
-        .to_map()
-        .map_err(|e| anyhow!("Error converting system data to map: {e:?}"))?;
+            .prepare_system_data(rendered_user_template)
+            .await
+            .map_err(|e| anyhow!("Error preparing system data: {e:?}"))?
+            .to_map()
+            .map_err(|e| anyhow!("Error converting system data to map: {e:?}"))?;
 
         let system_template = self
             .get_system_template()
@@ -217,7 +216,7 @@ pub trait TemplateRenderer: Debug {
         election_event_id: &str,
         is_scheduled_task: bool,
         receiver: Option<String>,
-        generate_mode: GenerateReportMode
+        generate_mode: GenerateReportMode,
     ) -> Result<()> {
         let rendered_system_template = self
             .generate_report(generate_mode)

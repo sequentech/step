@@ -305,7 +305,7 @@ impl TemplateRenderer for AuditLogsTemplate {
     }
 }
 
-#[instrument] 
+#[instrument]
 pub async fn generate_audit_logs_report(
     document_id: &str,
     tenant_id: &str,
@@ -322,4 +322,3 @@ pub async fn generate_audit_logs_report(
         .execute_report(document_id, tenant_id, election_event_id, false, None, mode)
         .await
 }
-

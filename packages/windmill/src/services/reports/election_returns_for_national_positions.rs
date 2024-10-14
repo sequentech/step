@@ -2,20 +2,20 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
+use crate::postgres::reports::ReportType;
+use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id_and_event_processor;
 use crate::services::database::get_hasura_pool;
-use crate::{postgres::election_event::get_election_event_by_id, services::s3::get_minio_url};
-use crate::{postgres::scheduled_event::find_scheduled_event_by_election_event_id_and_event_processor};
 use crate::services::temp_path::*;
+use crate::{postgres::election_event::get_election_event_by_id, services::s3::get_minio_url};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use chrono::{Local, TimeZone};
-use serde::{Deserialize, Serialize};
-use std::env;
-use tracing::{info, instrument};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use sequent_core::types::templates::EmailConfig;
-use crate::postgres::reports::ReportType;
+use serde::{Deserialize, Serialize};
+use std::env;
+use tracing::{info, instrument};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
@@ -83,7 +83,10 @@ impl TemplateRenderer for ElectionReturnsForNationalPostionTemplate {
     }
 
     fn prefix(&self) -> String {
-        format!("election_returns_for_national_positions_{}", self.election_event_id)
+        format!(
+            "election_returns_for_national_positions_{}",
+            self.election_event_id
+        )
     }
 
     fn get_email_config() -> EmailConfig {
@@ -94,7 +97,7 @@ impl TemplateRenderer for ElectionReturnsForNationalPostionTemplate {
         }
     }
 
-    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>>{
+    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>> {
         let mut hasura_db_client: DbClient = get_hasura_pool()
             .await
             .get()
@@ -107,12 +110,21 @@ impl TemplateRenderer for ElectionReturnsForNationalPostionTemplate {
             .with_context(|| "Error starting Hasura transaction")?;
 
         // Fetch election event data
-        let election_event = get_election_event_by_id(&hasura_transaction, &self.tenant_id, &self.election_event_id)
-            .await
-            .with_context(|| "Error obtaining election event")?;
+        let election_event = get_election_event_by_id(
+            &hasura_transaction,
+            &self.tenant_id,
+            &self.election_event_id,
+        )
+        .await
+        .with_context(|| "Error obtaining election event")?;
 
         // Extract the elective position before "/"
-        let elective_position_name = self.elective_position.split('/').next().unwrap_or("").to_string();
+        let elective_position_name = self
+            .elective_position
+            .split('/')
+            .next()
+            .unwrap_or("")
+            .to_string();
 
         // Fetch total registered voters and ballots counted
         let total_registered_voters: u32 = 10000; // Replace with DB query
@@ -134,7 +146,7 @@ impl TemplateRenderer for ElectionReturnsForNationalPostionTemplate {
         }
 
         let election_title = election_event.name.clone();
-        
+
         let temp_val: &str = "test";
         Ok(Some(UserData {
             election_start_date: temp_val.to_string(),
@@ -155,7 +167,10 @@ impl TemplateRenderer for ElectionReturnsForNationalPostionTemplate {
     }
 
     async fn prepare_system_data(&self, _: String) -> Result<Self::SystemData> {
-        let date_time_printed = Local::now().with_timezone(&chrono::FixedOffset::east(8 * 3600)).format("%Y-%m-%d %H:%M:%S").to_string();
+        let date_time_printed = Local::now()
+            .with_timezone(&chrono::FixedOffset::east(8 * 3600))
+            .format("%Y-%m-%d %H:%M:%S")
+            .to_string();
         let printing_code = "XYZ123".to_string(); // Example placeholder for a real printing code
 
         Ok(SystemData {

@@ -2,27 +2,24 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    extract_eleciton_data, get_date_and_time,
-    get_total_number_of_registered_voters_for_country,
+    extract_eleciton_data, get_date_and_time, get_total_number_of_registered_voters_for_country,
 };
-use sequent_core::services::keycloak::get_event_realm;
-use crate::services::database::{get_keycloak_pool, PgConfig};
 use super::template_renderer::*;
-use crate::postgres::reports::ReportType;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::postgres::scheduled_event::{
-    find_scheduled_event_by_election_event_id
-};
+use crate::postgres::reports::ReportType;
+use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::database::get_hasura_pool;
-use sequent_core::types::scheduled_event::generate_voting_period_dates;
+use crate::services::database::{get_keycloak_pool, PgConfig};
 use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Ok, Result};
 use async_trait::async_trait;
+use chrono::NaiveDate;
 use deadpool_postgres::Client as DbClient;
+use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
-use chrono::{NaiveDate};
 use tracing::{info, instrument};
 
 /// Struct for User Data
@@ -122,8 +119,8 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
             .await
             .with_context(|| "Error starting Keycloak transaction")?;
 
-          // Fetch election event data
-          let election_event = get_election_event_by_id(
+        // Fetch election event data
+        let election_event = get_election_event_by_id(
             &hasura_transaction,
             &self.get_tenant_id(),
             &self.get_election_event_id(),
@@ -153,8 +150,9 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
         .await?;
 
         // get election instace's general data (post, country, etc...)
-        let election_general_data =  extract_eleciton_data(&election).await
-        .map_err(|err| anyhow!("cant extract election data: {err}"))?;
+        let election_general_data = extract_eleciton_data(&election)
+            .await
+            .map_err(|err| anyhow!("cant extract election data: {err}"))?;
 
         // Fetch election's voting periods
         let voting_period_dates = generate_voting_period_dates(

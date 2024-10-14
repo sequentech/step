@@ -17,7 +17,10 @@ use tracing::instrument;
 use uuid::Uuid;
 use windmill::{
     postgres::reports::get_report_by_id,
-    services::{celery_app::get_celery_app, database::get_hasura_pool, reports::template_renderer::GenerateReportMode},
+    services::{
+        celery_app::get_celery_app, database::get_hasura_pool,
+        reports::template_renderer::GenerateReportMode,
+    },
 };
 
 #[derive(Serialize, Deserialize, Debug)]
