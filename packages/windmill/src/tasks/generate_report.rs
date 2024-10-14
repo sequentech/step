@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::reports::ovcs_events::generate_ovcs_report;
+use crate::services::reports::ovcs_events;
+use crate::services::reports::audit_logs;
 use crate::postgres::reports::Report;
 use crate::postgres::reports::ReportType;
 use crate::services::celery_app::get_celery_app;
@@ -10,7 +11,6 @@ use crate::services::database::get_hasura_pool;
 use crate::services::date::ISO8601;
 use crate::services::pg_lock::PgLock;
 use crate::services::reports::manual_verification::ManualVerificationTemplate;
-use crate::services::reports::ovcs_events;
 use crate::services::reports::ovcs_events::OVCSEventsTemplate;
 use crate::services::reports::template_renderer::GenerateReportMode;
 use crate::services::reports::template_renderer::TemplateRenderer;
@@ -39,6 +39,8 @@ pub async fn generate_report(
     let tenant_id = report.tenant_id.clone();
     let election_event_id = report.election_event_id.clone();
     let report_type_str = report.report_type.clone();
+    // Clone the election id if it exists
+    let election_id = report.election_id.as_deref().unwrap_or("");
     // Create the template renderer based on the report type
     match ReportType::from_str(&report_type_str) {
         Ok(ReportType::OVCS_EVENTS) => {
@@ -51,11 +53,12 @@ pub async fn generate_report(
             .await
             .map_err(|err| anyhow!("{}", err))
         }
-        Ok(ReportType::MANUAL_VERIFICATION) => {
-            return ovcs_events::generate_ovcs_report(
+        Ok(ReportType::AUDIT_LOGS) => {
+            return audit_logs::generate_audit_logs_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
+                &election_id,
                 report_mode,
             )
             .await
