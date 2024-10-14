@@ -25,7 +25,11 @@ In the Admin Portal Realm:
     - key: `gold`
       value: `2`
 4. Click `Authentication` in the sidebar
-5. Click `sequent browser blow` and ensure it has a new conditional subflow
-   called `advanced / gold condition` with a required conndition of type
+5. Click `sequent browser blow` and ensure that:
+   1. All the normal authentication flow is under a `normal / silver`
+      connditional subflow with a required condition of type
+   `Condition - Level of Authentication` and value `1`.
+   2. it has a new conditional subflow
+   called `advanced / gold condition` with a required condition of type
    `Condition - Level of Authentication` and value `2` and a Required
    `Password Form` step.
