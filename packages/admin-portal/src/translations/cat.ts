@@ -455,6 +455,11 @@ const catalanTranslation: TranslationType = {
                 "grace-period-without-alert": "Període de gràcia sense avís",
                 "gracePeriodSecs": "Període de gràcia (segons)",
             },
+            initializeReportPolicy: {
+                "label": "Inicialitzar política d'informes",
+                "not-required": "No requereix",
+                "required": "Requerit",
+            },
         },
         tenantScreen: {
             common: {

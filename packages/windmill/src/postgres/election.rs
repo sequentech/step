@@ -42,6 +42,7 @@ impl TryFrom<Row> for ElectionWrapper {
             statistics: item.try_get("statistics")?,
             receipts: item.try_get("receipts")?,
             permission_label: item.try_get("permission_label")?,
+            initialization_report_generated: item.try_get("initializion_report_generated")?,
         }))
     }
 }
@@ -133,7 +134,8 @@ pub async fn get_election_by_id(
                 image_document_id,
                 statistics,
                 receipts,
-                permission_label
+                permission_label,
+                initialization_report_generated
             FROM
                 sequent_backend.election
             WHERE
@@ -287,7 +289,8 @@ pub async fn insert_election(
                     image_document_id,
                     statistics,
                     receipts,
-                    permission_label
+                    permission_label,
+                    initialization_report_generated
                 )
                 VALUES
                 (
@@ -384,7 +387,8 @@ pub async fn export_elections(
                     image_document_id,
                     statistics,
                     receipts,
-                    permission_label
+                    permission_label,
+                    initialization_report_generated
                 FROM
                     sequent_backend.election
                 WHERE

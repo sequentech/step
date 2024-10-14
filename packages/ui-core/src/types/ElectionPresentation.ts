@@ -37,3 +37,8 @@ export enum EGracePeriodPolicy {
     NO_GRACE_PERIOD = "no-grace-period",
     GRACE_PERIOD_WITHOUT_ALERT = "grace-period-without-alert",
 }
+
+export enum EInitializeReportPolicy {
+    REQUIRED = "required",
+    NOT_REQUIRED = "not-required",
+}

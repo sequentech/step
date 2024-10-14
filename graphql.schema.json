@@ -49204,7 +49204,7 @@
             "deprecationReason": null
           },
           {
-            "name": "initializion_report_generated",
+            "name": "initialization_report_generated",
             "description": null,
             "args": [],
             "type": {
@@ -50350,7 +50350,7 @@
             "defaultValue": null
           },
           {
-            "name": "initializion_report_generated",
+            "name": "initialization_report_generated",
             "description": null,
             "type": {
               "kind": "INPUT_OBJECT",
@@ -54007,7 +54007,7 @@
             "defaultValue": null
           },
           {
-            "name": "initializion_report_generated",
+            "name": "initialization_report_generated",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -54938,7 +54938,7 @@
             "defaultValue": null
           },
           {
-            "name": "initializion_report_generated",
+            "name": "initialization_report_generated",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -57182,7 +57182,7 @@
             "deprecationReason": null
           },
           {
-            "name": "initializion_report_generated",
+            "name": "initialization_report_generated",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -57283,7 +57283,7 @@
         "interfaces": null,
         "enumValues": [
           {
-            "name": "initializion_report_generated",
+            "name": "initialization_report_generated",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -57318,7 +57318,7 @@
         "interfaces": null,
         "enumValues": [
           {
-            "name": "initializion_report_generated",
+            "name": "initialization_report_generated",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -57431,7 +57431,7 @@
             "defaultValue": null
           },
           {
-            "name": "initializion_report_generated",
+            "name": "initialization_report_generated",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -57839,7 +57839,7 @@
             "defaultValue": null
           },
           {
-            "name": "initializion_report_generated",
+            "name": "initialization_report_generated",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -59512,7 +59512,7 @@
             "deprecationReason": null
           },
           {
-            "name": "initializion_report_generated",
+            "name": "initialization_report_generated",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null

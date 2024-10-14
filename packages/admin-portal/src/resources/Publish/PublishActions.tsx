@@ -10,14 +10,7 @@ import {useTranslation} from "react-i18next"
 import {Dialog} from "@sequentech/ui-essentials"
 import {CircularProgress, Typography} from "@mui/material"
 import {Publish, RotateLeft, PlayCircle, PauseCircle, StopCircle} from "@mui/icons-material"
-import {
-    Button,
-    FilterButton,
-    SelectColumnsButton,
-    useRecordContext,
-    useNotify,
-    Identifier,
-} from "react-admin"
+import {Button, FilterButton, SelectColumnsButton, useRecordContext, Identifier} from "react-admin"
 
 import {EPublishActionsType} from "./EPublishType"
 import {PublishStatus, ElectionEventStatus, nextStatus} from "./EPublishStatus"
@@ -34,6 +27,8 @@ import {ExportBallotPublicationMutation} from "@/gql/graphql"
 import {WidgetProps} from "@/components/Widget"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
+import {Sequent_Backend_Election} from "@/gql/graphql"
+import {EInitializeReportPolicy} from "@sequentech/ui-core"
 
 type SvgIconComponent = typeof SvgIcon
 
@@ -70,9 +65,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
-    const record = useRecordContext()
     const canWrite = authContext.isAuthorized(true, tenantId, IPermissions.PUBLISH_WRITE)
-    const canRead = authContext.isAuthorized(true, tenantId, IPermissions.PUBLISH_READ)
+    const record = useRecordContext<Sequent_Backend_Election>()
     const [openExport, setOpenExport] = useState(false)
     const [exporting, setExporting] = useState(false)
     const [exportDocumentId, setExportDocumentId] = useState<string | undefined>()
@@ -111,6 +105,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         onClick,
         Icon,
         disabledStatus,
+        disabled = false,
         className,
     }: {
         st: PublishStatus
@@ -118,6 +113,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         onClick: () => void
         Icon: SvgIconComponent
         disabledStatus: Array<PublishStatus>
+        disabled?: boolean
         className?: string
     }) => (
         <Button
@@ -133,7 +129,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                       }
                     : {}
             }
-            disabled={disabledStatus?.includes(status) || st === status + 0.1}
+            disabled={disabled || disabledStatus?.includes(status) || st === status + 0.1}
         >
             <IconOrProgress st={st} Icon={Icon} />
         </Button>
@@ -213,6 +209,11 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                         PublishStatus.Started,
                                         PublishStatus.GeneratedLoading,
                                     ]}
+                                    disabled={
+                                        record?.presentation?.initialize_report_policy ===
+                                            EInitializeReportPolicy.REQUIRED &&
+                                        !record?.initialization_report_generated
+                                    }
                                 />
                             )}
 

@@ -56,7 +56,7 @@ import {
     EGracePeriodPolicy,
     EVotingPortalAuditButtonCfg,
     IContestPresentation,
-    IElectionDates,
+    EInitializeReportPolicy,
     IElectionEventPresentation,
     IElectionPresentation,
 } from "@sequentech/ui-core"
@@ -462,6 +462,13 @@ export const ElectionDataForm: React.FC = () => {
         }))
     }
 
+    const initializationReportChoices = (): Array<EnumChoice<EInitializeReportPolicy>> => {
+        return Object.values(EInitializeReportPolicy).map((value) => ({
+            id: value,
+            name: t(`electionScreen.initializeReportPolicy.${value.toLowerCase()}`),
+        }))
+    }
+
     return data ? (
         <RecordContext.Consumer>
             {(incoming) => {
@@ -709,6 +716,12 @@ export const ElectionDataForm: React.FC = () => {
                                     parsedValue={parsedValue}
                                     fileSource="configuration"
                                     jsonSource="presentation"
+                                />
+                                <SelectInput
+                                    source={`presentation.initialize_report_policy`}
+                                    choices={initializationReportChoices()}
+                                    label={t("electionScreen.initializeReportPolicy.label")}
+                                    validate={required()}
                                 />
                             </AccordionDetails>
                         </Accordion>
