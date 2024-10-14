@@ -39,7 +39,6 @@ use crate::tasks::render_report::render_report;
 use crate::tasks::review_boards::review_boards;
 use crate::tasks::scheduled_events::scheduled_events;
 use crate::tasks::scheduled_reports::scheduled_reports;
-use crate::tasks::generate_report::generate_report;
 use crate::tasks::send_template::send_template;
 use crate::tasks::set_public_key::set_public_key;
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
