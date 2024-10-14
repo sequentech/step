@@ -9,49 +9,46 @@ use async_trait::async_trait;
 use deadpool_postgres::Client as DbClient;
 use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
-use tracing::info;
+use tracing::{info, instrument};
 
-/// Struct for OV User Data
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct OVUserData {
-    pub no: u32,
-    pub first_name: String,
-    pub last_name: String,
-    pub middle_name: Option<String>,
-    pub suffix: Option<String>,
-    pub id: String,
-    pub date_voted: String,
-}
+
 
 /// Struct for User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
-    pub election_start_date: String,
-    pub election_title: String,
-    pub geograpic_region: String,
-    pub area: String,
-    pub country: String,
-    pub voting_center: String,
-    pub total_voted: u32,
-    pub total_not_voted: u32,
-    pub total_eb_with_privileges: u32,
-    pub total_ov_users: u32,
-    pub ov_users_who_voted: Vec<OVUserData>,
-    pub chairperson_name: String,
-    pub poll_clerk_name: String,
-    pub third_member_name: String,
 }
 
-/// Struct for System Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SystemData {
-    pub report_hash: String,
-    pub version: String,
-    pub system_hash: String,
-    pub file_logo: String,
-    pub file_qrcode_lib: String,
-    pub date_time_printed: String,
-    pub printing_code: String,
+    pub date_printed: String,           
+    pub time_printed: String,           
+    pub election_date: String,          
+    pub election_title: String,         
+    pub voting_period: String,          
+    pub post: String,                   
+    pub country: String,                
+    pub voters: Vec<Voter>,             
+    pub voted: u32,                     
+    pub not_voted: u32,                 
+    pub voting_privilege_voted: u32,    
+    pub total: u32,                     
+    pub report_hash: String,            
+    pub software_version: String,       
+    pub ovcs_version: String,           
+    pub system_hash: String,            
+    pub qr_code: String,                
+}
+
+/// Struct for each voter
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Voter {
+    pub number: u32,                    // Voter number
+    pub last_name: String,              // Last name
+    pub first_name: String,             // First name
+    pub middle_name: String,            // Middle name
+    pub suffix: String,                 // Suffix (if any)
+    pub id: String,                     // Voter ID
+    pub date_voted: String,             // Date the voter voted
 }
 
 /// Struct for OVUsersWhoVotedTemplate
@@ -93,73 +90,77 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
             html_body: None,
         }
     }
-
-    // Prepare user data with statistics and mock data
-    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>> {
-        // Fetch the Hasura database client from the pool
-        let mut hasura_db_client: DbClient = get_hasura_pool()
-            .await
-            .get()
-            .await
-            .with_context(|| "Error getting hasura db pool")?;
-
-        // Mock OVUsers data for now, can replace with actual database fetching later
-        let mock_ov_users_who_voted = vec![
-            OVUserData {
-                no: 1,
-                first_name: "Juan".to_string(),
-                last_name: "Dela Cruz".to_string(),
-                middle_name: Some("Garcia".to_string()),
-                suffix: None,
-                id: "OV12345".to_string(),
-                date_voted: "2024-05-09 10:00:00".to_string(),
-            },
-            OVUserData {
-                no: 2,
-                first_name: "Maria".to_string(),
-                last_name: "Santos".to_string(),
-                middle_name: Some("Reyes".to_string()),
-                suffix: Some("Jr.".to_string()),
-                id: "OV67890".to_string(),
-                date_voted: "2024-05-09 11:00:00".to_string(),
-            },
-        ];
-
-        let temp_val: &str = "test";
-        let user_data = UserData {
-            election_start_date: "2024-05-01".to_string(), // Placeholder value, replace with real data
-            election_title: "2024 National Elections".to_string(), // Placeholder value
-            geograpic_region: "Asia Pacific".to_string(),  // Placeholder value
-            area: "Metro Manila".to_string(),              // Placeholder value
-            country: "Philippines".to_string(),            // Placeholder value
-            voting_center: "Manila Voting Center".to_string(), // Placeholder value
-            total_voted: 0,
-            total_not_voted: 0,
-            total_eb_with_privileges: 0,
-            total_ov_users: 0,
-            ov_users_who_voted: mock_ov_users_who_voted, // Using mock data for now
-            chairperson_name: temp_val.to_string(),
-            poll_clerk_name: temp_val.to_string(),
-            third_member_name: temp_val.to_string(),
-        };
-
-        Ok(Some(user_data))
-    }
-
     // Prepare system data
     async fn prepare_system_data(
         &self,
         _rendered_user_template: String,
     ) -> Result<Self::SystemData> {
         // Placeholder system data, adjust based on your actual environment
+         // Fetch the Hasura database client from the pool
+         let mut hasura_db_client: DbClient = get_hasura_pool()
+         .await
+         .get()
+         .await
+         .with_context(|| "Error getting hasura db pool")?;
+
+        // Mock OVUsers data for now, can replace with actual database fetching later
+        let voters = vec![
+            Voter {
+                number: 1,                                
+                first_name: "Juan".to_string(),           
+                last_name: "Dela Cruz".to_string(),       
+                middle_name: "Garcia".to_string(),        
+                suffix: "".to_string(),                   
+                id: "OV12345".to_string(),                
+                date_voted: "2024-05-09".to_string(),     
+            },
+            Voter {
+                number: 2,                                
+                first_name: "Maria".to_string(),          
+                last_name: "Santos".to_string(),          
+                middle_name: "Reyes".to_string(),         
+                suffix: "Jr.".to_string(),                
+                id: "OV67890".to_string(),                
+                date_voted: "2024-05-09".to_string(),     
+            },
+        ];
+
+        let temp_val: &str = "test";
+
         Ok(SystemData {
+            election_date: "2024-05-01".to_string(), 
+            election_title: "2024 National Elections".to_string(), 
+            post: "Metro Manila".to_string(),              
+            country: "Philippines".to_string(),           
+            voting_period: temp_val.to_string(),
+            voted: 0,
+            not_voted: 0,
+            voters,
+            voting_privilege_voted: 0,
+            total: 0,
             report_hash: "abc123".to_string(),
-            version: "1.0".to_string(),
+            ovcs_version: "1.0".to_string(),
             system_hash: "def456".to_string(),
-            file_logo: "logo.png".to_string(),
-            file_qrcode_lib: "qrcode.png".to_string(),
-            date_time_printed: "2024-10-09 14:00:00".to_string(),
-            printing_code: "PRT789".to_string(),
+            date_printed: "2024-10-09 14:00:00".to_string(),
+            time_printed: "2024-10-09 14:00:00".to_string(),
+            software_version: String::new(),
+            qr_code: "code1".to_string()
         })
     }
+}
+
+#[instrument]
+pub async fn generate_ov_users_who_voted_report(
+    document_id: &str,
+    tenant_id: &str,
+    election_event_id: &str,
+    mode: GenerateReportMode,
+) -> Result<()> {
+    let template = OVUsersWhoVotedTemplate {
+        tenant_id: tenant_id.to_string(),
+        election_event_id: election_event_id.to_string(),
+    };
+    template
+        .execute_report(document_id, tenant_id, election_event_id, false, None, mode)
+        .await
 }

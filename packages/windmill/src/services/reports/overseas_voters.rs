@@ -14,48 +14,54 @@ use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
+use tracing::{info, instrument};
 
-/// Struct for Overseas Voter Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct VoterData {
-    pub index: u32,
-    pub first_name: String,
+pub struct UserData {}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Voter {
+    pub number: u32,
     pub last_name: String,
-    pub middle_name: Option<String>,
-    pub voted: bool,
-    pub date_time_voted: Option<DateTime<Utc>>,
-}
-
-/// Struct for Report Metadata
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct UserData {
-    pub election_start_date: String,
-    pub election_title: String,
-    pub geograpic_region: String,
-    pub area: String,
-    pub country: String,
-    pub voting_center: String,
-    pub total_voted: u32,
-    pub total_not_voted: u32,
-    pub total_not_enrolled: u32,
-    pub total_eb_voted: u32,
-    pub total_ov: u32,
-    pub voters_list: Vec<VoterData>,
-    pub chairperson_name: String,
-    pub poll_clerk_name: String,
-    pub third_member_name: String,
+    pub first_name: String,
+    pub middle_name: String,
+    pub suffix: String,
+    pub status: String,
+    pub date_voted: String,
+    pub time_voted: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SystemData {
+    pub date_printed: String,
+    pub time_printed: String,
+    pub election_date: String,
+    pub election_title: String,
+    pub voting_period: String,
+    pub post: String,
+    pub country: String,
+    pub voters: Vec<Voter>,              // Voter list field
+    pub ov_voted: u32,                   // Number of overseas voters who voted
+    pub ov_not_voted: u32,               // Number of overseas voters who did not vote
+    pub ov_not_pre_enrolled: u32,        // Number of overseas voters not pre-enrolled
+    pub eb_voted: u32,                   // Election board voted count
+    pub ov_total: u32,                   // Total overseas voters
+    pub precinct_code: String,
+    pub goverment_time: String,
+    pub local_time: String,
+    pub chairperson_name: String,
+    pub chairperson_digital_signature: String,
+    pub poll_clerk_name: String,
+    pub poll_clerk_digital_signature: String,
+    pub third_member_name: String,
+    pub third_member_digital_signature: String,
     pub report_hash: String,
+    pub software_version: String,
     pub ovcs_version: String,
     pub system_hash: String,
-    pub file_logo: String,
-    pub file_qrcode_lib: String,
-    pub date_time_printed: String,
-    pub printing_code: String,
+    pub qr_code: String,                 // Single QR code field
 }
+
 
 /// Main struct for generating Overseas Voters Report
 #[derive(Debug)]
@@ -82,11 +88,11 @@ impl TemplateRenderer for OverseasVotersReport {
     }
 
     fn base_name() -> String {
-        "overseas_voters_report".to_string()
+        "overseas_voters".to_string()
     }
 
     fn prefix(&self) -> String {
-        format!("overseas_voters_report_{}", self.election_event_id)
+        format!("overseas_voters_{}", self.election_event_id)
     }
 
     fn get_email_config() -> EmailConfig {
@@ -97,93 +103,29 @@ impl TemplateRenderer for OverseasVotersReport {
         }
     }
 
-    // TODO: replace mock data with actual data
-    /// Prepare user data for the report
-    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>> {
-        let mut db_client: DbClient = get_hasura_pool()
-            .await
-            .get()
-            .await
-            .with_context(|| "Error getting hasura db pool")?;
-        let transaction = db_client
-            .transaction()
-            .await
-            .with_context(|| "Error starting transaction")?;
-
-        // Fetch election event data
-        let election_event =
-            get_election_event_by_id(&transaction, &self.tenant_id, &self.election_event_id)
-                .await
-                .with_context(|| "Error getting election event")?;
-
-        // Example Voters list (should be fetched from the database or external service)
-        let voters_list = vec![
-            VoterData {
-                index: 1,
-                first_name: "John".to_string(),
-                last_name: "Doe".to_string(),
-                middle_name: Some("M".to_string()),
-                voted: true,
-                date_time_voted: Some(Utc::now()), // Replace with actual DB data
-            },
-            VoterData {
-                index: 2,
-                first_name: "Jane".to_string(),
-                last_name: "Smith".to_string(),
-                middle_name: None,
-                voted: false,
-                date_time_voted: None, // Replace with actual DB data
-            },
-        ];
-
-        // Aggregate voter statistics
-        let total_voted = voters_list.iter().filter(|v| v.voted).count() as u32;
-        let total_not_voted = voters_list.len() as u32 - total_voted;
-        let total_not_enrolled = 10; // Replace with actual data
-        let total_eb_voted = 5; // Replace with actual data
-        let total_ov = voters_list.len() as u32 + total_not_enrolled; // Total OV = registered + not enrolled
-
-        let temp_val: &str = "test";
-        let user_data = UserData {
-            election_start_date: temp_val.to_string(),
-            election_title: temp_val.to_string(),
-            geograpic_region: "Asia".to_string(), // Replace with actual data
-            area: "Region 1".to_string(),         // Replace with actual data
-            country: "Philippines".to_string(),   // Replace with actual data
-            voting_center: "Manila".to_string(),  // Replace with actual data
-            total_voted,
-            total_not_voted,
-            total_not_enrolled,
-            total_eb_voted,
-            total_ov,
-            voters_list,
-            chairperson_name: temp_val.to_string(),
-            poll_clerk_name: temp_val.to_string(),
-            third_member_name: temp_val.to_string(),
-        };
-
-        Ok(Some(user_data))
-    }
-
     /// Prepare system metadata for the report
     async fn prepare_system_data(
         &self,
         _rendered_user_template: String,
     ) -> Result<Self::SystemData> {
-        let now = Utc::now();
-        let date_printed = now.format("%Y-%m-%d").to_string();
-        let time_printed = now.format("%H:%M:%S").to_string();
-
-        let system_data = SystemData {
-            report_hash: String::new(),      // Placeholder, should be computed
-            ovcs_version: "1.0".to_string(), // Replace with actual version
-            system_hash: String::new(),      // Placeholder, should be computed
-            file_logo: String::new(),        // Placeholder for file logo path
-            file_qrcode_lib: String::new(),  // Placeholder for QR code file path
-            date_time_printed: format!("{} {}", date_printed, time_printed),
-            printing_code: String::new(), // Placeholder, should be computed
-        };
-
-        Ok(system_data)
+        let data: SystemData = self.prepare_preview_data().await?;
+        Ok(data)
     }
+}
+
+/// Generate Overseas Voters Report
+#[instrument]
+pub async fn generate_overseas_voters_report(
+    document_id: &str,
+    tenant_id: &str,
+    election_event_id: &str,
+    mode: GenerateReportMode,
+) -> Result<()> {
+    let template = OverseasVotersReport {
+        tenant_id: tenant_id.to_string(),
+        election_event_id: election_event_id.to_string(),
+    };
+    template
+        .execute_report(document_id, tenant_id, election_event_id, false, None, mode)
+        .await
 }

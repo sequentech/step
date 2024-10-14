@@ -19,6 +19,16 @@ export enum EReportType {
     STATISTICAL_REPORT = "STATISTICAL_REPORT",
     OVCS_EVENTS = "OVCS_EVENTS",
     AUDIT_LOGS = "AUDIT_LOGS",
+    STATUS = "STATUS",
+    OVCS_INFORMATION = "OVCS_INFORMATION",
+    OVERSEAS_VOTERS = "OVERSEAS_VOTERS",
+    ELECTION_RETURNS_FOR_NATIONAL_POSITIONS = 'ELECTION_RETURNS_FOR_NATIONAL_POSITIONS',
+    OV_USERS_WHO_VOTED = "OV_USERS_WHO_VOTED",
+    OV_USERS = "OV_USERS",
+    OVCS_STATISTICS = "OVCS_STATISTICS",
+    PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION = "PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION",
+    PRE_ENROLLED_OV_BUT_DISAPPROVED = "PRE_ENROLLED_OV_BUT_DISAPPROVED"
+    
 }
 
 export enum EReportElectionPolicy {
@@ -67,6 +77,51 @@ export const reportTypeConfig: {
         actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
         templateRequired: false,
         electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
+    },
+    [EReportType.STATUS]: {
+        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
+        templateRequired: false,
+        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
+    },
+    [EReportType.OVCS_INFORMATION]: {
+        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
+        templateRequired: false,
+        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
+    },
+    [EReportType.OVERSEAS_VOTERS]: {
+        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
+        templateRequired: false,
+        electionPolicy: EReportElectionPolicy.ELECTION_ALLOWED,
+    },
+    [EReportType.ELECTION_RETURNS_FOR_NATIONAL_POSITIONS]: {
+        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
+        templateRequired: false,
+        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
+    },
+    [EReportType.OV_USERS_WHO_VOTED]: {
+        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
+        templateRequired: false,
+        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
+    },
+    [EReportType.OV_USERS]: {
+        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
+        templateRequired: false,
+        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
+    },
+    [EReportType.OVCS_STATISTICS]: {
+        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
+        templateRequired: false,
+        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
+    },
+    [EReportType.PRE_ENROLLED_OV_BUT_DISAPPROVED]: {
+        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
+        templateRequired: false,
+        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
+    },
+    [EReportType.PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION]: {
+        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
+        templateRequired: false,
+        electionPolicy: EReportElectionPolicy.ELECTION_ALLOWED,
     },
     default: {
         actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],

@@ -1,7 +1,7 @@
-use crate::postgres::contest::get_contest_by_election_id;
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::postgres::contest::get_contest_by_election_id;
 use crate::postgres::results_area_contest::{get_results_area_contest, ResultsAreaContest};
 use crate::services::users::count_keycloak_enabled_users_by_attr;
 use crate::{
@@ -52,7 +52,6 @@ pub async fn generate_total_number_of_expected_votes_for_contest(
     realm: &str,
     tenant_id: &str,
     election_event_id: &str,
-    contest_id: &str,
     contest: &Contest,
 ) -> Result<i64> {
     let total_number_of_expected_votes: i64 =
@@ -62,7 +61,7 @@ pub async fn generate_total_number_of_expected_votes_for_contest(
             &realm,
             tenant_id,
             election_event_id,
-            contest_id,
+            &contest.id.clone(),
         )
         .await
         .map_err(|err| anyhow!("Error getting total number of expected votes: {err}"))?;
@@ -77,9 +76,9 @@ pub async fn generate_total_number_of_expected_votes_for_contest(
 pub async fn generate_total_number_of_under_votes(
     results_area_contest: &ResultsAreaContest,
 ) -> Result<(i64)> {
-    let blank_votes = results_area_contest.blank_votes.unwrap_or(0);
-    let implicit_invalid_votes = results_area_contest.implicit_invalid_votes.unwrap_or(0);
-    let explicit_invalid_votes = results_area_contest.explicit_invalid_votes.unwrap_or(0);
+    let blank_votes = results_area_contest.blank_votes.unwrap_or(-1);
+    let implicit_invalid_votes = results_area_contest.implicit_invalid_votes.unwrap_or(-1);
+    let explicit_invalid_votes = results_area_contest.explicit_invalid_votes.unwrap_or(-1);
 
     let annotitions = results_area_contest.annotations.clone();
 
@@ -100,8 +99,7 @@ pub async fn generate_fill_up_rate(
     results_area_contest: &ResultsAreaContest,
     nun_of_expected_voters: &i64,
 ) -> Result<(i64)> {
-    let total_votes = results_area_contest.total_votes.unwrap_or(0);
-
+    let total_votes = results_area_contest.total_votes.unwrap_or(-1);
     let fill_up_rate = (total_votes / nun_of_expected_voters) * 100;
     Ok(fill_up_rate)
 }
@@ -116,8 +114,8 @@ pub async fn get_total_number_of_ballots(
             .get("extended_metrics")
             .and_then(|extended_metric| extended_metric.get("ballots"))
             .and_then(|under_vote| under_vote.as_i64())
-            .unwrap_or(0)),
-        None => Ok(0),
+            .unwrap_or(-1)),
+        None => Ok(-1),
     }
 }
 
@@ -156,7 +154,7 @@ pub struct ElectionData {
 
 #[instrument(err, skip_all)]
 pub async fn extract_eleciton_data(election: &Election) -> Result<ElectionData> {
-    let annotitions = election.annotations.clone();
+    let annotitions: Option<Value> = election.annotations.clone();
     let mut geographical_region = "";
     let mut voting_center = "";
     let mut clustered_precinct_id = "";

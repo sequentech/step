@@ -16,43 +16,38 @@ use tracing::{info, instrument};
 
 /// Struct for User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct DisapprovedOVData {
-    pub no: u32,
-    pub first_name: String,
-    pub last_name: String,
-    pub middle_name: Option<String>,
-    pub suffix: Option<String>,
-    pub date_disapproved: String,
-    pub disapproved_by: String, // OFOV, SBEI, SYSTEM
-    pub reason: String,
+pub struct UserData {
 }
 
-/// Struct for User Data
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct UserData {
-    pub election_start_date: String,
-    pub election_title: String,
-    pub geograpic_region: String,
-    pub area: String,
-    pub country: String,
-    pub voting_center: String,
-    pub pre_enrolled_users: Vec<DisapprovedOVData>,
-    pub chairperson_name: String,
-    pub poll_clerk_name: String,
-    pub third_member_name: String,
+pub struct Voter {
+    pub number: u32,
+    pub last_name: String,
+    pub first_name: String,
+    pub middle_name: String,
+    pub suffix: String,
+    pub date_disapproved: String,
+    pub disapproved_by: String,
+    pub reason: String,
 }
 
 /// Struct for System Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SystemData {
     pub report_hash: String,
-    pub version: String,
     pub system_hash: String,
-    pub file_logo: String,
-    pub file_qrcode_lib: String,
-    pub date_time_printed: String,
-    pub printing_code: String,
+    pub date_printed: String,
+    pub time_printed: String,
+    pub election_date: String,
+    pub election_title: String,
+    pub voting_period: String,
+    pub post: String,
+    pub country: String,
+    pub voters: Vec<Voter>,
+    pub ovcs_version: String,
 }
+
 
 #[derive(Debug)]
 pub struct PreEnrolledDisapprovedTemplate {
@@ -78,11 +73,11 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
     }
 
     fn base_name() -> String {
-        "pre_enrolled_ov_disapproved".to_string()
+        "pre_enrolled_ov_but_disapproved".to_string()
     }
 
     fn prefix(&self) -> String {
-        format!("pre_enrolled_disapproved_{}", self.election_event_id)
+        format!("pre_enrolled_ov_but_disapproved_{}", self.election_event_id)
     }
 
     fn get_email_config() -> EmailConfig {
@@ -93,61 +88,30 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
         }
     }
 
-    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>> {
-        // Mock data for pre_enrolled_users
-        let mock_users = vec![
-            DisapprovedOVData {
-                no: 1,
-                first_name: "Juan".to_string(),
-                last_name: "Dela Cruz".to_string(),
-                middle_name: Some("Santos".to_string()),
-                suffix: None,
-                date_disapproved: "2024-10-01T12:34:56".to_string(),
-                disapproved_by: "OFOV".to_string(),
-                reason: "Incomplete documents".to_string(),
-            },
-            DisapprovedOVData {
-                no: 2,
-                first_name: "Maria".to_string(),
-                last_name: "Santiago".to_string(),
-                middle_name: None,
-                suffix: Some("Jr.".to_string()),
-                date_disapproved: "2024-10-02T08:23:45".to_string(),
-                disapproved_by: "SBEI".to_string(),
-                reason: "Not eligible".to_string(),
-            },
-        ];
-        let temp_val: &str = "test";
-        Ok(Some(UserData {
-            election_start_date: "2024-09-30".to_string(),
-            election_title: "2024 National Elections".to_string(),
-            geograpic_region: "Luzon".to_string(),
-            area: "Metro Manila".to_string(),
-            country: "Philippines".to_string(),
-            voting_center: "Voting Center 1".to_string(),
-            pre_enrolled_users: mock_users,
-            chairperson_name: temp_val.to_string(),
-            poll_clerk_name: temp_val.to_string(),
-            third_member_name: temp_val.to_string(),
-        }))
-    }
-
-    async fn prepare_system_data(
+      /// Prepare system metadata for the report
+     /// TODO: fetch the real data
+     async fn prepare_system_data(
         &self,
-        rendered_user_template: String,
+        _rendered_user_template: String,
     ) -> Result<Self::SystemData> {
-        let public_asset_path = get_public_assets_path_env_var()?;
-        let minio_endpoint_base =
-            get_minio_url().with_context(|| "Error getting minio endpoint")?;
-
-        Ok(SystemData {
-            report_hash: String::new(),
-            version: "1.0".to_string(),
-            system_hash: String::new(),
-            file_logo: String::new(),
-            file_qrcode_lib: String::new(),
-            date_time_printed: "2024-10-10T10:00:00".to_string(),
-            printing_code: "ABC123".to_string(),
-        })
+        let data: SystemData = self.prepare_preview_data().await?;
+        Ok(data)
     }
+}
+
+
+#[instrument]
+pub async fn generate_pre_enrolled_ov_but_disapproved_report(
+    document_id: &str,
+    tenant_id: &str,
+    election_event_id: &str,
+    mode: GenerateReportMode,
+) -> Result<()> {
+    let template = PreEnrolledDisapprovedTemplate {
+        tenant_id: tenant_id.to_string(),
+        election_event_id: election_event_id.to_string(),
+    };
+    template
+        .execute_report(document_id, tenant_id, election_event_id, false, None, mode)
+        .await
 }

@@ -19,46 +19,51 @@ use tracing::{info, instrument};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
-    pub election_start_date: String,
-    pub election_title: String,
-    pub geograpic_region: String,
-    pub area: String,
-    pub country: String,
-    pub voting_center: String,
-    pub elective_position_name: String,
-    pub total_registered_voters: u32,
-    pub total_ballots_counted: u32,
-    pub voter_turnout: f32,
-    pub candidate_data: Vec<CandidateData>,
-    pub chairperson_name: String,
-    pub poll_clerk_name: String,
-    pub third_member_name: String,
 }
 
 /// Struct for each candidate's data
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct CandidateData {
-    pub name_appearing_on_ballot: String,
-    pub acronym: String,
-    pub votes_garnered: u32,
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Candidate {
+    pub position: String,
+    pub position_name: String,
+    pub name_in_ballot: String,
+    pub votes_garnered: i64,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SystemData {
+    pub date_printed: String,
+    pub time_printed: String,
+    pub election_date: String,
+    pub election_title: String,
+    pub voting_period: String,
+    pub geographical_region: String,
+    pub post: String,
+    pub country: String,
+    pub voting_center: String,
+    pub precinct_code: String,
+    pub registered_voters: i64,
+    pub ballots_counted: i64,
+    pub voters_turnout: String,
+    pub candidates: Vec<Candidate>,
+    pub chairperson_name: String,
+    pub chairperson_digital_signature: String,
+    pub poll_clerk_name: String,
+    pub poll_clerk_digital_signature: String,
+    pub third_member_name: String,
+    pub third_member_digital_signature: String,
     pub report_hash: String,
+    pub software_version: String,
     pub ovcs_version: String,
     pub system_hash: String,
-    pub file_logo: String,
-    pub file_qrcode_lib: String,
-    pub date_time_printed: String,
-    pub printing_code: String,
+    pub qr_codes: Vec<String>,
+    pub goverment_time: String,
 }
 
 #[derive(Debug)]
 pub struct ElectionReturnsForNationalPostionTemplate {
     tenant_id: String,
     election_event_id: String,
-    elective_position: String,
 }
 
 #[async_trait]
@@ -97,7 +102,13 @@ impl TemplateRenderer for ElectionReturnsForNationalPostionTemplate {
         }
     }
 
-    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>> {
+    async fn prepare_system_data(&self, _: String) -> Result<Self::SystemData> {
+        let date_time_printed = Local::now()
+            .with_timezone(&chrono::FixedOffset::east(8 * 3600))
+            .format("%Y-%m-%d %H:%M:%S")
+            .to_string();
+        let printing_code = "XYZ123".to_string(); // Example placeholder for a real printing code
+
         let mut hasura_db_client: DbClient = get_hasura_pool()
             .await
             .get()
@@ -118,69 +129,77 @@ impl TemplateRenderer for ElectionReturnsForNationalPostionTemplate {
         .await
         .with_context(|| "Error obtaining election event")?;
 
-        // Extract the elective position before "/"
-        let elective_position_name = self
-            .elective_position
-            .split('/')
-            .next()
-            .unwrap_or("")
-            .to_string();
-
         // Fetch total registered voters and ballots counted
-        let total_registered_voters: u32 = 10000; // Replace with DB query
-        let total_ballots_counted: u32 = 8000; // Replace with DB query
+        let registered_voters: i64 = 10000; // Replace with DB query
+        let ballots_counted: i64 = 8000; // Replace with DB query
 
         // Calculate voter turnout percentage
-        let voter_turnout = (total_ballots_counted as f32 / total_registered_voters as f32) * 100.0;
+        let voters_turnout = (ballots_counted as f64 / registered_voters as f64) * 100.0;
 
         // TODO: replace mock data with actual data
         // Extract candidate names and acronyms
-        let candidates: Vec<CandidateData> = Vec::new(); // Assuming the structure has candidates array
-        let mut candidate_data: Vec<CandidateData> = Vec::new();
-        for candidate in candidates {
-            candidate_data.push(CandidateData {
-                name_appearing_on_ballot: candidate.name_appearing_on_ballot.clone(),
-                acronym: candidate.acronym.clone(), // Assuming acronym is part of the candidate structure
-                votes_garnered: 0, // Default value since no votes have been cast yet
-            });
-        }
+        let candidates: Vec<Candidate> = Vec::new(); // Assuming the structure has candidates array
+        // let mut candidate_data: Vec<CandidateData> = Vec::new();
+        // for candidate in candidates {
+        //     candidate_data.push(CandidateData {
+        //         name_appearing_on_ballot: candidate.name_appearing_on_ballot.clone(),
+        //         acronym: candidate.acronym.clone(), // Assuming acronym is part of the candidate structure
+        //         votes_garnered: 0, // Default value since no votes have been cast yet
+        //     });
+        // }
 
         let election_title = election_event.name.clone();
 
         let temp_val: &str = "test";
-        Ok(Some(UserData {
-            election_start_date: temp_val.to_string(),
-            election_title,
-            elective_position_name,
-            total_registered_voters,
-            total_ballots_counted,
-            voter_turnout,
-            candidate_data,
-            geograpic_region: temp_val.to_string(),
-            area: temp_val.to_string(),
-            country: temp_val.to_string(),
-            voting_center: temp_val.to_string(),
-            chairperson_name: temp_val.to_string(),
-            poll_clerk_name: temp_val.to_string(),
-            third_member_name: temp_val.to_string(),
-        }))
-    }
-
-    async fn prepare_system_data(&self, _: String) -> Result<Self::SystemData> {
-        let date_time_printed = Local::now()
-            .with_timezone(&chrono::FixedOffset::east(8 * 3600))
-            .format("%Y-%m-%d %H:%M:%S")
-            .to_string();
-        let printing_code = "XYZ123".to_string(); // Example placeholder for a real printing code
 
         Ok(SystemData {
+            election_date: temp_val.to_string(),
+            election_title,
+            registered_voters,
+            ballots_counted,
+            voters_turnout: voters_turnout.to_string(),
+            candidates,
+            geographical_region: temp_val.to_string(),
+            post: temp_val.to_string(),
+            country: temp_val.to_string(),
+            voting_center: temp_val.to_string(),
+            voting_period: temp_val.to_string(),
+            precinct_code: temp_val.to_string(),
+            software_version: temp_val.to_string(),
+            chairperson_name: temp_val.to_string(),
+            chairperson_digital_signature: temp_val.to_string(),
+            poll_clerk_name: temp_val.to_string(),
+            poll_clerk_digital_signature: temp_val.to_string(),
+            third_member_name: temp_val.to_string(),
+            third_member_digital_signature: temp_val.to_string(),
             report_hash: String::new(),
             ovcs_version: String::new(),
             system_hash: String::new(),
-            file_logo: String::new(),
-            file_qrcode_lib: String::new(),
-            date_time_printed: String::new(),
-            printing_code: String::new(),
+            date_printed: String::new(),
+            time_printed: String::new(),
+            qr_codes: vec![
+                "String 1".to_string(),
+                "String 2".to_string(),
+                "String 3".to_string(),
+                "String 4".to_string(),
+            ],
+            goverment_time: "18:00".to_string(),
         })
     }
+}
+
+#[instrument]
+pub async fn generate_election_returns_for_national_positions_report(
+    document_id: &str,
+    tenant_id: &str,
+    election_event_id: &str,
+    mode: GenerateReportMode,
+) -> Result<()> {
+    let template = ElectionReturnsForNationalPostionTemplate {
+        tenant_id: tenant_id.to_string(),
+        election_event_id: election_event_id.to_string(),
+    };
+    template
+        .execute_report(document_id, tenant_id, election_event_id, false, None, mode)
+        .await
 }
