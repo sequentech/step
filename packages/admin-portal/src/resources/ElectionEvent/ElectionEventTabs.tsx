@@ -13,6 +13,7 @@ import {useLocation, useNavigate} from "react-router"
 import {v4 as uuidv4} from "uuid"
 import {Box, Tabs, Tab} from "@mui/material"
 import {EPublishType} from "../Publish/EPublishType"
+import {EElectionEventLockedDown} from "@sequentech/ui-core"
 
 // Lazy load the tab components
 const DashboardElectionEvent = lazy(() => import("@/components/dashboard/election-event/Dashboard"))
@@ -54,6 +55,12 @@ const EditNotifications = lazy(() =>
     }))
 )
 
+const Reports = lazy(() =>
+    import("../Reports/EditReportsTab").then((module) => ({
+        default: module.EditReportsTab,
+    }))
+)
+
 export const ElectionEventTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const authContext = useContext(AuthContext)
@@ -65,51 +72,55 @@ export const ElectionEventTabs: React.FC = () => {
     const refreshRef = React.useRef<HTMLButtonElement>()
     const {t} = useTranslation()
     const {setTallyId, setCreatingFlag, setSelectedTallySessionData} = useElectionEventTallyStore()
+    const isElectionEventLocked =
+        record?.presentation?.locked_down == EElectionEventLockedDown.LOCKED_DOWN
 
     const showDashboard = authContext.isAuthorized(
         true,
         authContext.tenantId,
         IPermissions.ADMIN_DASHBOARD_VIEW
     )
-    const showData = authContext.isAuthorized(
-        true,
-        authContext.tenantId,
-        IPermissions.ELECTION_EVENT_WRITE
-    )
-    const showTextData = authContext.isAuthorized(
-        true,
-        authContext.tenantId,
-        IPermissions.ELECTION_EVENT_WRITE
-    )
-    const showAreas = authContext.isAuthorized(true, authContext.tenantId, IPermissions.AREA_READ)
-    const showKeys = authContext.isAuthorized(true, authContext.tenantId, [
-        IPermissions.ADMIN_CEREMONY,
-        IPermissions.TRUSTEE_CEREMONY,
-    ])
-    const showTally = authContext.isAuthorized(true, authContext.tenantId, [
-        IPermissions.TALLY_READ,
-        IPermissions.TALLY_START,
-    ])
-    const showPublish = authContext.isAuthorized(
-        true,
-        authContext.tenantId,
-        IPermissions.PUBLISH_READ
-    )
+    const showData =
+        !isElectionEventLocked &&
+        authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_WRITE)
+    const showTextData =
+        !isElectionEventLocked &&
+        authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_WRITE)
+    const showAreas =
+        !isElectionEventLocked &&
+        authContext.isAuthorized(true, authContext.tenantId, IPermissions.AREA_READ)
+    const showKeys =
+        !isElectionEventLocked &&
+        authContext.isAuthorized(true, authContext.tenantId, [
+            IPermissions.ADMIN_CEREMONY,
+            IPermissions.TRUSTEE_CEREMONY,
+        ])
+    const showTally =
+        !isElectionEventLocked &&
+        authContext.isAuthorized(true, authContext.tenantId, [
+            IPermissions.TALLY_READ,
+            IPermissions.TALLY_START,
+        ])
+    const showPublish =
+        !isElectionEventLocked &&
+        authContext.isAuthorized(true, authContext.tenantId, IPermissions.PUBLISH_READ)
     const showLogs = authContext.isAuthorized(true, authContext.tenantId, IPermissions.LOGS_READ)
-    const showTasksExecution = authContext.isAuthorized(
-        true,
-        authContext.tenantId,
-        IPermissions.TASKS_READ
-    )
-    const showEvents = authContext.isAuthorized(
-        true,
-        authContext.tenantId,
-        IPermissions.SCHEDULED_EVENT_WRITE
-    )
+    const showTasksExecution =
+        !isElectionEventLocked &&
+        authContext.isAuthorized(true, authContext.tenantId, IPermissions.TASKS_READ)
+    const showEvents =
+        !isElectionEventLocked &&
+        authContext.isAuthorized(true, authContext.tenantId, IPermissions.SCHEDULED_EVENT_WRITE)
     const showNotifications = authContext.isAuthorized(
         true,
         authContext.tenantId,
         IPermissions.NOTIFICATION_READ
+    )
+
+    const showReports = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.REPORT_READ
     )
 
     const [loadedChildren, setLoadedChildren] = React.useState<number>(0)
@@ -215,6 +226,12 @@ export const ElectionEventTabs: React.FC = () => {
                         <EditNotifications electionEventId={record?.id} />
                     </Suspense>
                 ) : null
+            case 12:
+                return showReports ? (
+                    <Suspense fallback={<div>Loading Reports...</div>}>
+                        <Reports electionEventId={record?.id} />
+                    </Suspense>
+                ) : null
             default:
                 return null
         }
@@ -258,6 +275,9 @@ export const ElectionEventTabs: React.FC = () => {
                     {showLogs ? <Tab label={t("electionEventScreen.tabs.logs")} value={9} /> : null}
                     {showEvents ? (
                         <Tab label={t("electionEventScreen.tabs.events")} value={10} />
+                    ) : null}
+                    {showReports ? (
+                        <Tab label={t("electionEventScreen.tabs.reports")} value={12} />
                     ) : null}
                     {/*showNotifications ? (
                         <Tab label={t("electionEventScreen.tabs.notifications")} value={11} />

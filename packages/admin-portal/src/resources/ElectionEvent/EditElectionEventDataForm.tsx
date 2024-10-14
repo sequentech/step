@@ -46,6 +46,7 @@ import {
     IElectionPresentation,
     ITenantSettings,
     EVotingPortalCountdownPolicy,
+    EElectionEventLockedDown,
 } from "@sequentech/ui-core"
 import {ListActions} from "@/components/ListActions"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
@@ -161,14 +162,11 @@ export const EditElectionEventDataForm: React.FC = () => {
             return []
         }
         const template_names = (verifyVoterTemplates as Sequent_Backend_Template[]).map((entry) => {
-            console.log("id: ", entry.id)
-            console.log("name: ", entry.template?.name)
             return {
                 id: entry.id,
                 name: entry.template?.name,
             }
         })
-        console.log("template_names: ", template_names)
         return template_names
     }
 
@@ -532,6 +530,14 @@ export const EditElectionEventDataForm: React.FC = () => {
         let sortOrderB = presentationB?.sort_order ?? -1
         return sortOrderA - sortOrderB
     })
+
+    const lockdownStateChoices = () => {
+        return Object.values(EElectionEventLockedDown).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.lockdownState.options.${value}`),
+        }))
+    }
+
     const votingPortalCountDownPolicies = () => {
         return Object.values(EVotingPortalCountdownPolicy).map((value) => ({
             id: value,
@@ -739,44 +745,6 @@ export const EditElectionEventDataForm: React.FC = () => {
                                         multiline={true}
                                         source={"presentation.css"}
                                         label={t("electionEventScreen.field.css")}
-                                    />
-                                </AccordionDetails>
-                            </Accordion>
-
-                            <Accordion
-                                sx={{width: "100%"}}
-                                expanded={expanded === "election-event-data-user-templates"}
-                                onChange={() => setExpanded("election-event-data-user-templates")}
-                            >
-                                <AccordionSummary
-                                    expandIcon={
-                                        <ExpandMoreIcon id="election-event-data-user-templates" />
-                                    }
-                                >
-                                    <ElectionHeaderStyles.Wrapper>
-                                        <ElectionHeaderStyles.Title>
-                                            {t("electionEventScreen.edit.templates")}
-                                        </ElectionHeaderStyles.Title>
-                                    </ElectionHeaderStyles.Wrapper>
-                                </AccordionSummary>
-                                <AccordionDetails>
-                                    <Typography
-                                        variant="body1"
-                                        component="span"
-                                        sx={{
-                                            fontWeight: "bold",
-                                            margin: 0,
-                                            display: {xs: "none", sm: "block"},
-                                        }}
-                                    >
-                                        {t("electionEventScreen.field.userVerification")}
-                                    </Typography>
-                                    <SelectInput
-                                        source={`presentation.active_template_ids.manual_verification`}
-                                        choices={manuallyVerifyVoterTemplates()}
-                                        label={t("template.form.name")}
-                                        translateChoice={false}
-                                        emptyText={t("template.default")}
                                     />
                                 </AccordionDetails>
                             </Accordion>
@@ -1016,6 +984,16 @@ export const EditElectionEventDataForm: React.FC = () => {
                                     </ElectionHeaderStyles.Wrapper>
                                 </AccordionSummary>
                                 <AccordionDetails>
+                                    <SelectInput
+                                        source={"presentation.presentation.locked_down"}
+                                        choices={lockdownStateChoices()}
+                                        label={t(
+                                            "electionEventScreen.field.lockdownState.policyLabel"
+                                        )}
+                                        defaultValue={EElectionEventLockedDown.NOT_LOCKED_DOWN}
+                                        emptyText={undefined}
+                                        validate={required()}
+                                    />
                                     <Typography
                                         variant="body1"
                                         component="span"

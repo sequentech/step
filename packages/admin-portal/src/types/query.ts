@@ -527,6 +527,7 @@ export const sequent_backend_scheduled_event: Sequent_Backend_Scheduled_Event = 
     __typename: undefined,
     annotations: undefined,
     created_at: undefined,
+    archived_at: undefined,
     created_by: undefined,
     cron_config: undefined,
     election_event_id: undefined,
