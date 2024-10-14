@@ -62,11 +62,8 @@ pub struct SystemData {
     pub report_hash: String,
     pub ovcs_version: String,
     pub system_hash: String,
-    pub file_logo: String,
-    pub file_qrcode_lib: String,
     pub time_printed: String,
     pub date_printed: String,
-    pub printing_code: String,
 }
 #[derive(Debug)]
 pub struct AuditLogsTemplate {
@@ -278,9 +275,6 @@ impl TemplateRenderer for AuditLogsTemplate {
         let report_hash = "dummy_report_hash".to_string();
         let ovcs_version = "1.0".to_string();
         let system_hash = "dummy_system_hash".to_string();
-        let file_logo = "logo.png".to_string();
-        let file_qrcode_lib = "qrcode_lib.png".to_string();
-        let printing_code = "XYZ123".to_string();
 
         Ok(SystemData {
             election_date,
@@ -305,11 +299,26 @@ impl TemplateRenderer for AuditLogsTemplate {
             report_hash,
             ovcs_version,
             system_hash,
-            file_logo,
-            file_qrcode_lib,
             date_printed,
             time_printed,
-            printing_code,
         })
     }
+}
+
+#[instrument]
+pub async fn generate_audit_logs_report(
+    document_id: &str,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    mode: GenerateReportMode,
+) -> Result<()> {
+    let template = AuditLogsTemplate {
+        tenant_id: tenant_id.to_string(),
+        election_event_id: election_event_id.to_string(),
+        election_id: election_id.to_string(),
+    };
+    template
+        .execute_report(document_id, tenant_id, election_event_id, false, None, mode)
+        .await
 }

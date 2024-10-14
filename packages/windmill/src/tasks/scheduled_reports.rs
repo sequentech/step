@@ -133,9 +133,13 @@ pub async fn scheduled_reports() -> Result<()> {
         let document_id = Uuid::new_v4().to_string();
         let task = celery_app
             .send_task(
-                generate_report::new(report.clone(), document_id.clone(),  GenerateReportMode::REAL)
-                    .with_eta(datetime.with_timezone(&Utc))
-                    .with_expires_in(120),
+                generate_report::new(
+                    report.clone(),
+                    document_id.clone(),
+                    GenerateReportMode::REAL,
+                )
+                .with_eta(datetime.with_timezone(&Utc))
+                .with_expires_in(120),
             )
             .await?;
 

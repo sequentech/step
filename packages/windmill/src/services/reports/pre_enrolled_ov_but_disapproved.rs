@@ -2,17 +2,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
+use crate::postgres::reports::ReportType;
 use crate::services::database::get_hasura_pool;
 use crate::services::s3::get_minio_url;
+use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use crate::services::temp_path::*;
 use deadpool_postgres::Client as DbClient;
-use serde::{Deserialize, Serialize};
 use rocket::http::Status;
-use tracing::{info, instrument};
 use sequent_core::types::templates::EmailConfig;
-use crate::postgres::reports::ReportType;
+use serde::{Deserialize, Serialize};
+use tracing::{info, instrument};
 
 /// Struct for User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -41,7 +41,6 @@ pub struct UserData {
     pub poll_clerk_name: String,
     pub third_member_name: String,
 }
-
 
 /// Struct for System Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -94,7 +93,7 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
         }
     }
 
-    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>>{
+    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>> {
         // Mock data for pre_enrolled_users
         let mock_users = vec![
             DisapprovedOVData {
@@ -138,7 +137,8 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
         rendered_user_template: String,
     ) -> Result<Self::SystemData> {
         let public_asset_path = get_public_assets_path_env_var()?;
-        let minio_endpoint_base = get_minio_url().with_context(|| "Error getting minio endpoint")?;
+        let minio_endpoint_base =
+            get_minio_url().with_context(|| "Error getting minio endpoint")?;
 
         Ok(SystemData {
             report_hash: String::new(),

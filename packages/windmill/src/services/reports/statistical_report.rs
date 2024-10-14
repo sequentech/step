@@ -75,7 +75,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
         }
     }
 
-    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>>{
+    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>> {
         Ok(Some(UserData {
             qrcode: QR_CODE_TEMPLATE.to_string(),
             logo: LOGO_TEMPLATE.to_string(),
@@ -120,6 +120,13 @@ pub async fn generate_statistical_report(
         election_id: election_id.to_string(),
     };
     template
-        .execute_report(document_id, tenant_id, election_event_id, false, None, GenerateReportMode::REAL)
+        .execute_report(
+            document_id,
+            tenant_id,
+            election_event_id,
+            false,
+            None,
+            GenerateReportMode::REAL,
+        )
         .await
 }

@@ -2,15 +2,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
+use crate::postgres::reports::ReportType;
 use crate::services::database::get_hasura_pool;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Client as DbClient;
-use serde::{Deserialize, Serialize};
-use tracing::{info, instrument};
 use rocket::http::Status;
 use sequent_core::types::templates::EmailConfig;
-use crate::postgres::reports::ReportType;
+use serde::{Deserialize, Serialize};
+use tracing::{info, instrument};
 
 /// Struct for User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -86,7 +86,8 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
 
     fn get_email_config() -> EmailConfig {
         EmailConfig {
-            subject: "Sequent Online Voting - Pre Enrolled OV Subject To Manual Validation".to_string(),
+            subject: "Sequent Online Voting - Pre Enrolled OV Subject To Manual Validation"
+                .to_string(),
             plaintext_body: "".to_string(),
             html_body: None,
         }
@@ -94,7 +95,7 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
 
     /// Fetches pre-enrolled users and prepares user data
     #[instrument]
-    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>>{
+    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>> {
         // Mock pre-enrolled users
         let pre_enrolled_users = vec![
             PreEnrolledUserData {
