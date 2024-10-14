@@ -35,6 +35,9 @@ curve25519-dalek = { version = "=4.1.2", features = [] }
 # time
 chrono = { version = "0.4", features = ["serde"] }
 
+# time
+time = { version = "0.3.31", optional = true }
+
 # serializing
 hex = "0.4"
 base64 = "0.21.0"
@@ -102,6 +105,6 @@ wasm = ["wasm-bindgen", "areas", "serde-wasm-bindgen"]
 default = []
 areas = []
 reports = ["dep:handlebars", "dep:headless_chrome", "dep:tracing", "dep:tempfile", "dep:num-format"]
-keycloak = ["dep:openid", "dep:reqwest", "dep:reqwest-retry", "dep:reqwest-middleware", "dep:serde_urlencoded", "dep:rocket", "dep:keycloak", "dep:tracing", "dep:uuid", "dep:regex", "dep:jsonwebtoken", "dep:tokio-postgres"]
+keycloak = ["dep:openid", "dep:reqwest", "dep:reqwest-retry", "dep:reqwest-middleware", "dep:serde_urlencoded", "dep:rocket", "dep:keycloak", "dep:tracing", "dep:uuid", "dep:regex", "dep:jsonwebtoken", "dep:tokio-postgres", "dep:time"]
 log = ["dep:tracing", "dep:tracing-subscriber", "dep:tracing-tree", "dep:tracing-log"]
 probe = ["dep:tokio", "dep:warp"]

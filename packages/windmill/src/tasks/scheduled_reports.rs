@@ -9,6 +9,7 @@ use crate::services::date::ISO8601;
 use crate::services::reports::template_renderer::GenerateReportMode;
 use crate::tasks::generate_report::generate_report;
 use deadpool_postgres::Client as DbClient;
+use sequent_core::services::date::ISO8601;
 // use crate::tasks::process_report::process_report_task;
 use crate::types::error::Result;
 use anyhow::{anyhow, Context};

@@ -1288,12 +1288,16 @@ const spanishTranslation: TranslationType = {
                     "Está a punto de detener el período de votación. ¿Está seguro de que desea continuar?",
                 pauseInfo:
                     "Está a punto de pausar el período de votación. ¿Está seguro de que desea continuar?",
+                publishInfo:
+                    "Estás a punto de generar una publicación. ¿Estás seguro de que deseas continuar?",
                 ok: "Confirmar",
                 ko: "Cancelar",
                 error: "Error al cargar las papeletas publicadas",
                 error_publish: "Error al publicar la papeleta",
                 error_status: "Error al cambiar el estado de la publicación",
                 diff: "Renderizar todos los cambios podría hacer que la página no responda. ¿Estás seguro de que quieres continuar?",
+                confirmation:
+                    "La acción que estás a punto de realizar es sensible y requiere confirmación. Por favor, introduce tu contraseña para continuar con {{action}}.",
             },
             label: {
                 current: "Actual",
