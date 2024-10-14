@@ -89,7 +89,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             },
         },
     })
-    const canWrtieReport = authContext.isAuthorized(true, tenantId, IPermissions.REPORT_WRITE)
+    const canWriteReport = authContext.isAuthorized(true, tenantId, IPermissions.REPORT_WRITE)
     const [openDeleteModal, setOpenDeleteModal] = useState<boolean>(false)
     const dataProvider = useDataProvider()
     const handleClose = () => {
@@ -214,7 +214,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         return (
             <TemplateEmpty>
                 <Typography variant="h5">{t("reportsScreen.empty.header")}</Typography>
-                {canWrtieReport && (
+                {canWriteReport && (
                     <>
                         <Typography variant="body1" paragraph>
                             {t("reportsScreen.empty.body")}
@@ -363,7 +363,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                             <ActionsColumn
                                 actions={actions}
                                 record={record}
-                                canWriteReport={canWrtieReport}
+                                canWriteReport={canWriteReport}
                             />
                         )}
                     />

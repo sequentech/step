@@ -168,8 +168,8 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
     const isButtonDisabled = (): boolean => {
         return (
             (isTemplateRequired && !templateId) ||
-            (EReportElectionPolicy.ELECTION_REQUIRED && !electionId) ||
-            (EReportElectionPolicy.ELECTION_NOT_ALLOWED && !!electionId)
+            (electionPolicy === EReportElectionPolicy.ELECTION_REQUIRED && !electionId) ||
+            (electionPolicy === EReportElectionPolicy.ELECTION_NOT_ALLOWED && !!electionId)
         )
     }
 
