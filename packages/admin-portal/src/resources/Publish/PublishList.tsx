@@ -27,7 +27,6 @@ import {HeaderTitle} from "@/components/HeaderTitle"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {Action, ActionsColumn} from "@/components/ActionButons"
 import {ResetFilters} from "@/components/ResetFilters"
-import { EditPreview } from "./EditPreview"
 
 const OMIT_FIELDS: string[] = []
 

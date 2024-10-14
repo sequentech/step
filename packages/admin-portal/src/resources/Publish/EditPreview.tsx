@@ -8,10 +8,11 @@ import {
 } from "react-admin";
 import {Preview} from "@mui/icons-material"
 import { useTranslation } from "react-i18next";
-import { GetBallotPublicationChangesOutput } from "@/gql/graphql";
+import { GetBallotPublicationChangesOutput, GetUploadUrlMutation } from "@/gql/graphql";
 import { SettingsContext } from "@/providers/SettingsContextProvider";
-import { useQuery } from "@apollo/client";
+import { useMutation, useQuery } from "@apollo/client";
 import { GET_AREAS } from "@/queries/GetAreas";
+import { GET_UPLOAD_URL } from "@/queries/GetUploadUrl";
 
 interface EditPreviewProps {
   id?: string | Identifier | null
@@ -26,12 +27,51 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
   const notify = useNotify();
   const {globalSettings} = useContext(SettingsContext);
   const [sourceAreas, setSourceAreas] = useState([]);
+  const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
+  const [isUploading, setIsUploading] = React.useState<boolean>(false)
+  const [documentId, setDocumentId] = React.useState<string | null>(null)
   
   const {data: areas} = useQuery(GET_AREAS, {
     variables: {
         electionEventId,
     },
   })
+
+  const uploadFile = async (url: string, file: File) => {
+    await fetch(url, {
+        method: "PUT",
+        headers: {
+            "Content-Type": file.type,
+        },
+        body: file,
+    })
+    setIsUploading(false)
+  }
+
+  const uploadFileToS3 = async (theFile: File) => {
+    try {
+        let {data} = await getUploadUrl({
+            variables: {
+                name: theFile.name,
+                media_type: theFile.type,
+                size: theFile.size,
+                is_public: true,
+            },
+        })
+
+        if (!data?.get_upload_url?.url) {
+            notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
+            return
+        }
+
+        await uploadFile(data.get_upload_url.url, theFile);
+        setDocumentId(data.get_upload_url.document_id);
+        notify(t("electionEventScreen.import.fileUploadSuccess"), {type: "success"})
+    } catch (_error) {
+        setIsUploading(false)
+        notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
+    }
+  }
 
   const areaIds = useMemo(() => {
     const areaIds = ballotData?.current?.ballot_styles?.map((style: any) => ({
@@ -40,7 +80,6 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
 
     return areaIds;
   }, [ballotData]);
-
 
   useEffect(() => {
     if (areas) {
@@ -52,7 +91,11 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
   }, [areas, areaIds])
 
   const onPreviewClick = (res: any) => {
-    const previewUrl: string = previewUrlTemplate + res.area_id;
+    const dataStr = JSON.stringify(ballotData, null, 2);
+    const file = new File([dataStr], `${id}.json`, { type: 'application/json' });
+    uploadFileToS3(file);
+
+    const previewUrl: string = `${previewUrlTemplate}/${documentId}/${res.area_id}`;
     window.open(previewUrl, '_blank');
     notify(t("publish.previewSuccess"), { type: "success" });
     if (close) {
@@ -61,7 +104,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
   };
 
   const previewUrlTemplate = useMemo(() => {
-    return globalSettings.VOTING_PORTAL_URL + "/preview/" + id + "/";
+    return `${globalSettings.VOTING_PORTAL_URL}/preview`;
   }, [globalSettings.VOTING_PORTAL_URL, id])
 
   return (
@@ -82,7 +125,6 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
           label={t("publis.publicationAreas")}
           fullWidth={true}
           debounce={100}>
-            
         </AutocompleteInput>
         
       </SimpleForm>

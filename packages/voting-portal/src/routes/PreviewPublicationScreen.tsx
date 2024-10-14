@@ -8,7 +8,7 @@ import {CircularProgress} from "@mui/material"
 import {PreviewPublicationEventType} from ".."
 
 const PreviewPublicationScreen: React.FC = () => {
-    const {publicationId, areaId} = useParams<PreviewPublicationEventType>()
+    const {documentId, areaId} = useParams<PreviewPublicationEventType>()
 
     useEffect(() => {
         

@@ -82,7 +82,7 @@ const App = () => {
     const {globalSettings} = useContext(SettingsContext)
     const location = useLocation()
     const {tenantId, eventId} = useParams<TenantEventType>()
-    const {publicationId, areaId} = useParams<PreviewPublicationEventType>()
+    const {documentId, areaId} = useParams<PreviewPublicationEventType>()
     const {isAuthenticated, setTenantEvent} = useContext(AuthContext)
 
     const electionIds = useAppSelector(selectElectionIds)
@@ -91,7 +91,8 @@ const App = () => {
     useEffect(() => {
         if (location.pathname.includes('preview')) {
             navigate(
-                `/preview/${publicationId}/${areaId}/demo`
+                `/preview/${documentId}/${areaId}/demo`
+                //TODO logic
             )
         }
         else if (globalSettings.DISABLE_AUTH) {

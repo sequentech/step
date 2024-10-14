@@ -9,8 +9,8 @@ export default function PreviewPublicationEvent() {
     const navigate = useNavigate()
     const params = useParams()
 
-    const noMatch = useMatch("/preview/:publicationId/:areaId/");
-    const path = `/preview/${params.publicationId}/${params.areaId}/demo`
+    const noMatch = useMatch("/preview/:documentId/:areaId/");
+    const path = `/preview/${params.documentId}/${params.areaId}/`
 
     useEffect(() => {
         if (noMatch) {
