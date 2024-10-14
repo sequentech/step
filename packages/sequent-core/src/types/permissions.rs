@@ -155,7 +155,6 @@ pub enum Permissions {
     GOLD,
     #[strum(serialize = "silver")]
     SILVER,
-    
 }
 
 #[allow(non_camel_case_types)]
