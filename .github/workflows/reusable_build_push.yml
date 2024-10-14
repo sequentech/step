@@ -25,12 +25,12 @@ jobs:
           - service: keycloak
             context: packages
             file: packages/Dockerfile.keycloak
-            
+
           - service: voting-portal
             context: packages
             file: packages/Dockerfile.prod
             spa_name: "voting-portal"
-            
+
           - service: admin-portal
             context: packages
             file: packages/Dockerfile.prod
@@ -44,11 +44,15 @@ jobs:
           - service: harvest
             context: packages
             file: packages/harvest/Dockerfile.prod
-            
+
+          - service: b3
+            context: packages
+            file: packages/b3/Dockerfile.prod
+
           - service: braid
             context: packages
             file: packages/braid/Dockerfile.prod
-            
+
           - service: windmill
             context: packages
             file: packages/windmill/Dockerfile.prod
@@ -60,7 +64,7 @@ jobs:
           - service: immudb
             context: packages
             file: packages/Dockerfile.immudb
-            
+
       fail-fast: false
 
     steps:

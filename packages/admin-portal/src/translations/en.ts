@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {email} from "react-admin"
+
 const englishTranslation = {
     translations: {
         loadingDataProvider: "Loading data provider...",
@@ -46,6 +48,7 @@ const englishTranslation = {
                 IMPORT_CANDIDATES: "Import Candidates",
                 EXPORT_VOTERS: "Export Voters",
                 CREATE_TRANSMISSION_PACKAGE: "Create Transmission Package",
+                EXPORT_BALLOT_PUBLICATION: "Export Ballot Publication",
             },
             widget: {
                 taskTitle: "Task: {{title}}",
@@ -298,6 +301,7 @@ const englishTranslation = {
                 tasks: "Tasks",
                 events: "Scheduled Events",
                 notifications: "Notifications",
+                reports: "Reports",
             },
             tally: {
                 emptyHeader: "No Tally yet.",
@@ -700,6 +704,54 @@ const englishTranslation = {
                 eventProcessor: "Type",
                 stoppedAt: "Stopped At",
                 scheduledDate: "Scheduled At",
+            },
+        },
+        reportsScreen: {
+            title: "Reports",
+            subtitle: "Generate reports for the election events",
+            messages: {
+                createSuccess: "Report created successfully",
+                createError: "Error creating Report",
+                submitError: "Error submitting Report",
+                updateSuccess: "Report updated successfully",
+            },
+            reportType: {
+                BALLOT_RECEIPT: "Ballot Receipt",
+                ELECTORAL_RESULTS: "Electoral Results",
+                MANUAL_VERIFICATION: "Manual Verification",
+                STATISTICAL_REPORT: "Statistical Report",
+            },
+            empty: {
+                header: "No Reports yet.",
+                body: "Do you want to create one?",
+                button: "Create Report",
+            },
+            create: {
+                title: "Create Report",
+                subtitle: "Create a new Report configuration.",
+            },
+            edit: {
+                title: "Edit Report",
+                subtitle: "Edit Report configuration.",
+                delete: "Are you sure you want delete this Report?",
+            },
+            fields: {
+                electionId: "Election",
+                template: "Template",
+                reportType: "Report Type",
+                repeatable: "Repeatable",
+                cronExpression: "Cron Expression",
+                emailRecipients: "Email Recipients",
+            },
+
+            delete: {
+                body: "Are you sure you want delete this Report?",
+            },
+            actions: {
+                generate: "Generate",
+                delete: "Delete",
+                edit: "Edit",
+                preview: "Preview",
             },
         },
         common: {
