@@ -1,10 +1,10 @@
 type Mutation {
-  export_ballot_publication (
-    tenant_id: String!
-    election_event_id: String!
-    election_id: String
-    ballot_design: String!
-  ): ExportBallotPublicationOutput
+    export_ballot_publication(
+        tenant_id: String!
+        election_event_id: String!
+        election_id: String
+        ballot_design: String!
+    ): ExportBallotPublicationOutput
 }
 
 type Mutation {
