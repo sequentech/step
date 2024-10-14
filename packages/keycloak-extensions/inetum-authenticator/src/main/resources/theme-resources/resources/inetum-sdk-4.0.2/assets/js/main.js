@@ -23,7 +23,9 @@ let design = DesignType.capture;
 
 let isPassportFlow = (
   (window.DOB_DOC_ID_TYPE === 'Philippine Passport') ||
-  (window.DOB_DOC_ID_TYPE === 'Seaman Book')
+  (window.DOB_DOC_ID_TYPE === 'Seaman Book') ||
+  (window.DOB_DOC_ID_TYPE === 'IBP') ||
+  (window.DOB_DOC_ID_TYPE === 'Drivers License')
 );
 /*
   // Ejemplo con pasaporte (revisar tambien estilos de ejemplo en dob-style.css y descomentarlos)
