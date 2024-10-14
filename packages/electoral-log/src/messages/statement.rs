@@ -20,47 +20,126 @@ impl Statement {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Debug, Clone)]
 pub struct StatementHead {
     pub event: EventIdString,
     pub kind: StatementType,
     pub timestamp: Timestamp,
+    pub event_type: StatementEventType,
+    pub log_type: StatementLogType,
+    pub description: String,
 }
 impl StatementHead {
     pub fn from_body(event: EventIdString, body: &StatementBody) -> Self {
-        let kind = match body {
-            StatementBody::CastVote(_, _, _, _, _) => StatementType::CastVote,
-            StatementBody::CastVoteError(_, _, _, _, _) => StatementType::CastVoteError,
-            StatementBody::ElectionPublish(_, _) => StatementType::ElectionPublish,
-            StatementBody::ElectionVotingPeriodOpen(_) => StatementType::ElectionVotingPeriodOpen,
-            StatementBody::ElectionVotingPeriodPause(_) => StatementType::ElectionVotingPeriodPause,
-            StatementBody::ElectionVotingPeriodClose(_) => StatementType::ElectionVotingPeriodClose,
-            StatementBody::ElectionEventVotingPeriodOpen(_, _) => {
-                StatementType::ElectionEventVotingPeriodOpen
-            }
-            StatementBody::ElectionEventVotingPeriodPause(_) => {
-                StatementType::ElectionEventVotingPeriodPause
-            }
-            StatementBody::ElectionEventVotingPeriodClose(_, _) => {
-                StatementType::ElectionEventVotingPeriodClose
-            }
-            StatementBody::KeyGeneration => StatementType::KeyGeneration,
-            StatementBody::KeyInsertionStart => StatementType::KeyInsertionStart,
-            StatementBody::KeyInsertionCeremony(_) => StatementType::KeyInsertionCeremony,
-            StatementBody::TallyOpen(_) => StatementType::TallyOpen,
-            StatementBody::TallyClose(_) => StatementType::TallyClose,
-            StatementBody::SendTemplate => StatementType::SendTemplate,
-            StatementBody::SendCommunications(_) => StatementType::SendCommunications,
-            StatementBody::KeycloakUserEvent(_, _) => StatementType::KeycloakUserEvent,
-            StatementBody::VoterPublicKey(_, _, _, _) => StatementType::VoterPublicKey,
-            StatementBody::AdminPublicKey(_, _, _) => StatementType::AdminPublicKey,
-        };
         let timestamp = crate::timestamp();
-
-        StatementHead {
+        let default_head = StatementHead {
             event,
-            kind,
+            kind: StatementType::Unknown,
             timestamp,
+            event_type: StatementEventType::SYSTEM,
+            log_type: StatementLogType::INFO,
+            description: "".to_string(),
+        };
+
+        match body {
+            StatementBody::CastVote(_, _, _, _, _) => StatementHead {
+                kind: StatementType::CastVote,
+                description: "Inserted cast vote.".to_string(),
+                ..default_head
+            },
+            StatementBody::CastVoteError(_, _, _, _, _) => StatementHead {
+                kind: StatementType::CastVoteError,
+                log_type: StatementLogType::ERROR,
+                description: "Error inserting cast vote.".to_string(),
+                ..default_head
+            },
+            StatementBody::ElectionPublish(_, _) => StatementHead {
+                kind: StatementType::ElectionPublish,
+                description: "Election published.".to_string(),
+                ..default_head
+            },
+            StatementBody::ElectionVotingPeriodOpen(_) => StatementHead {
+                kind: StatementType::ElectionVotingPeriodOpen,
+                description: "Election voting period openned.".to_string(),
+                ..default_head
+            },
+            StatementBody::ElectionVotingPeriodPause(_) => StatementHead {
+                kind: StatementType::ElectionVotingPeriodPause,
+                description: "Election voting period paused.".to_string(),
+                ..default_head
+            },
+            StatementBody::ElectionVotingPeriodClose(_) => StatementHead {
+                kind: StatementType::ElectionVotingPeriodClose,
+                description: "Election voting period closed.".to_string(),
+                ..default_head
+            },
+            StatementBody::ElectionEventVotingPeriodOpen(_, _) => StatementHead {
+                kind: StatementType::ElectionEventVotingPeriodOpen,
+                description: "Election-event voting period openned".to_string(),
+                ..default_head
+            },
+            StatementBody::ElectionEventVotingPeriodPause(_) => StatementHead {
+                kind: StatementType::ElectionEventVotingPeriodPause,
+                description: "Election-event voting period paused".to_string(),
+                ..default_head
+            },
+            StatementBody::ElectionEventVotingPeriodClose(_, _) => StatementHead {
+                kind: StatementType::ElectionEventVotingPeriodClose,
+                description: "Election-event voting period closed".to_string(),
+                ..default_head
+            },
+            StatementBody::KeyGeneration => StatementHead {
+                kind: StatementType::KeyGeneration,
+                description: "Creating keys ceremony.".to_string(),
+                ..default_head
+            },
+            StatementBody::KeyInsertionStart => StatementHead {
+                kind: StatementType::KeyInsertionStart,
+                description: "Tally ceremony created.".to_string(),
+                ..default_head
+            },
+            StatementBody::KeyInsertionCeremony(_) => StatementHead {
+                kind: StatementType::KeyInsertionCeremony,
+                description: "Trustees key restored.".to_string(),
+                ..default_head
+            },
+            StatementBody::TallyOpen(_) => StatementHead {
+                kind: StatementType::TallyOpen,
+                description: "Tally session openned.".to_string(),
+                ..default_head
+            },
+            StatementBody::TallyClose(_) => StatementHead {
+                kind: StatementType::TallyClose,
+                description: "Tally closed, session completed.".to_string(),
+                ..default_head
+            },
+            StatementBody::SendTemplate => StatementHead {
+                kind: StatementType::SendTemplate,
+                description: "Template sent to user.".to_string(),
+                ..default_head
+            },
+            StatementBody::SendCommunications(_) => StatementHead {
+                kind: StatementType::SendCommunications,
+                description: "Communication sent to user.".to_string(),
+                ..default_head
+            },
+            StatementBody::KeycloakUserEvent(_, _) => StatementHead {
+                kind: StatementType::KeycloakUserEvent,
+                event_type: StatementEventType::USER,
+                description: "Electoral log created.".to_string(),
+                ..default_head
+            },
+            StatementBody::VoterPublicKey(_, _, _, _) => StatementHead {
+                kind: StatementType::VoterPublicKey,
+                event_type: StatementEventType::USER,
+                description: "Voter has public key.".to_string(),
+                ..default_head
+            },
+            StatementBody::AdminPublicKey(_, _, _) => StatementHead {
+                kind: StatementType::AdminPublicKey,
+                description: "Admin has public key.".to_string(),
+                ..default_head
+            },
         }
     }
 }
@@ -144,8 +223,9 @@ pub enum StatementBody {
     AdminPublicKey(TenantIdString, AdminUserIdString, PublicKeyDerB64),
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug, Clone)]
 pub enum StatementType {
+    Unknown,
     CastVote,
     CastVoteError,
     ElectionPublish,
@@ -165,4 +245,16 @@ pub enum StatementType {
     KeycloakUserEvent,
     VoterPublicKey,
     AdminPublicKey,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug, Clone)]
+pub enum StatementEventType {
+    USER,
+    SYSTEM,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug, Clone)]
+pub enum StatementLogType {
+    INFO,
+    ERROR,
 }

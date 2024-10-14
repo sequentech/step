@@ -9,14 +9,16 @@ use rocket::serde::json::Json;
 use sequent_core::services::jwt;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use tracing::{instrument, Level};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
-use windmill::tasks::export_election_event_logs;
+use windmill::services::reports::electoral_log::ReportFormat;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ExportElectionEventInput {
     election_event_id: String,
+    format: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -32,6 +34,14 @@ pub async fn export_election_event_logs_route(
     input: Json<ExportElectionEventInput>,
 ) -> Result<Json<ExportElectionEventOutput>, (Status, String)> {
     let body = input.into_inner();
+
+    let report_fmt = ReportFormat::from_str(&body.format).map_err(|error| {
+        (
+            Status::InternalServerError,
+            format!("Error sending export_election_event task: {error:?}"),
+        )
+    })?;
+
     authorize(
         &claims,
         true,
@@ -41,11 +51,14 @@ pub async fn export_election_event_logs_route(
     let document_id = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
     let task = celery_app
-        .send_task(export_election_event_logs::export_election_event_logs::new(
-            claims.hasura_claims.tenant_id.clone(),
-            body.election_event_id.clone(),
-            document_id.clone(),
-        ))
+        .send_task(
+            windmill::tasks::activity_logs_report::generate_activity_logs_report::new(
+                claims.hasura_claims.tenant_id.clone(),
+                body.election_event_id.clone(),
+                document_id.clone(),
+                report_fmt,
+            ),
+        )
         .await
         .map_err(|error| {
             (
