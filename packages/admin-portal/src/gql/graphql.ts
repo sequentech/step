@@ -7810,6 +7810,7 @@ export type Sequent_Backend_Election = {
   eml?: Maybe<Scalars['String']['output']>;
   id: Scalars['uuid']['output'];
   image_document_id?: Maybe<Scalars['String']['output']>;
+  initializion_report_generated?: Maybe<Scalars['Boolean']['output']>;
   is_consolidated_ballot_encoding?: Maybe<Scalars['Boolean']['output']>;
   is_kiosk?: Maybe<Scalars['Boolean']['output']>;
   labels?: Maybe<Scalars['jsonb']['output']>;
@@ -8004,6 +8005,7 @@ export type Sequent_Backend_Election_Bool_Exp = {
   eml?: InputMaybe<String_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
   image_document_id?: InputMaybe<String_Comparison_Exp>;
+  initializion_report_generated?: InputMaybe<Boolean_Comparison_Exp>;
   is_consolidated_ballot_encoding?: InputMaybe<Boolean_Comparison_Exp>;
   is_kiosk?: InputMaybe<Boolean_Comparison_Exp>;
   labels?: InputMaybe<Jsonb_Comparison_Exp>;
@@ -8542,6 +8544,7 @@ export type Sequent_Backend_Election_Insert_Input = {
   eml?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   image_document_id?: InputMaybe<Scalars['String']['input']>;
+  initializion_report_generated?: InputMaybe<Scalars['Boolean']['input']>;
   is_consolidated_ballot_encoding?: InputMaybe<Scalars['Boolean']['input']>;
   is_kiosk?: InputMaybe<Scalars['Boolean']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
@@ -8651,6 +8654,7 @@ export type Sequent_Backend_Election_Order_By = {
   eml?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   image_document_id?: InputMaybe<Order_By>;
+  initializion_report_generated?: InputMaybe<Order_By>;
   is_consolidated_ballot_encoding?: InputMaybe<Order_By>;
   is_kiosk?: InputMaybe<Order_By>;
   labels?: InputMaybe<Order_By>;
@@ -9013,6 +9017,8 @@ export enum Sequent_Backend_Election_Select_Column {
   /** column name */
   ImageDocumentId = 'image_document_id',
   /** column name */
+  InitializionReportGenerated = 'initializion_report_generated',
+  /** column name */
   IsConsolidatedBallotEncoding = 'is_consolidated_ballot_encoding',
   /** column name */
   IsKiosk = 'is_kiosk',
@@ -9045,6 +9051,8 @@ export enum Sequent_Backend_Election_Select_Column {
 /** select "sequent_backend_election_aggregate_bool_exp_bool_and_arguments_columns" columns of table "sequent_backend.election" */
 export enum Sequent_Backend_Election_Select_Column_Sequent_Backend_Election_Aggregate_Bool_Exp_Bool_And_Arguments_Columns {
   /** column name */
+  InitializionReportGenerated = 'initializion_report_generated',
+  /** column name */
   IsConsolidatedBallotEncoding = 'is_consolidated_ballot_encoding',
   /** column name */
   IsKiosk = 'is_kiosk',
@@ -9054,6 +9062,8 @@ export enum Sequent_Backend_Election_Select_Column_Sequent_Backend_Election_Aggr
 
 /** select "sequent_backend_election_aggregate_bool_exp_bool_or_arguments_columns" columns of table "sequent_backend.election" */
 export enum Sequent_Backend_Election_Select_Column_Sequent_Backend_Election_Aggregate_Bool_Exp_Bool_Or_Arguments_Columns {
+  /** column name */
+  InitializionReportGenerated = 'initializion_report_generated',
   /** column name */
   IsConsolidatedBallotEncoding = 'is_consolidated_ballot_encoding',
   /** column name */
@@ -9072,6 +9082,7 @@ export type Sequent_Backend_Election_Set_Input = {
   eml?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   image_document_id?: InputMaybe<Scalars['String']['input']>;
+  initializion_report_generated?: InputMaybe<Scalars['Boolean']['input']>;
   is_consolidated_ballot_encoding?: InputMaybe<Scalars['Boolean']['input']>;
   is_kiosk?: InputMaybe<Scalars['Boolean']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
@@ -9139,6 +9150,7 @@ export type Sequent_Backend_Election_Stream_Cursor_Value_Input = {
   eml?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   image_document_id?: InputMaybe<Scalars['String']['input']>;
+  initializion_report_generated?: InputMaybe<Scalars['Boolean']['input']>;
   is_consolidated_ballot_encoding?: InputMaybe<Scalars['Boolean']['input']>;
   is_kiosk?: InputMaybe<Scalars['Boolean']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
@@ -9427,6 +9439,8 @@ export enum Sequent_Backend_Election_Update_Column {
   Id = 'id',
   /** column name */
   ImageDocumentId = 'image_document_id',
+  /** column name */
+  InitializionReportGenerated = 'initializion_report_generated',
   /** column name */
   IsConsolidatedBallotEncoding = 'is_consolidated_ballot_encoding',
   /** column name */
