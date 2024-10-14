@@ -86,11 +86,9 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
     const notify = useNotify()
-    const {data: report} = useMemo(() => {
-        return useGetOne<Sequent_Backend_Report>("sequent_backend_report",
-            {id: selectedReportId},
-        )
-    }, [selectedReportId]);
+    const {data: report} =  useGetOne<Sequent_Backend_Report>("sequent_backend_report",
+            {id: selectedReportId},)
+    
     const [generateReport] = useMutation<GenerateReportMutation>(GENERATE_REPORT, {
         context: {
             headers: {
