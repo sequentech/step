@@ -227,6 +227,12 @@ export type ElectoralLogRow = {
     user_id: Scalars["String"]["output"]
 }
 
+export type ExportBallotPublicationOutput = {
+    __typename?: "ExportBallotPublicationOutput"
+    document_id: Scalars["String"]["output"]
+    task_execution?: Maybe<Tasks_Execution_Type>
+}
+
 export type ExportLogsOutput = {
     __typename?: "ExportLogsOutput"
     document_id: Scalars["String"]["output"]
@@ -930,6 +936,7 @@ export type Mutation_Root = {
     /** delete users */
     delete_users?: Maybe<DeleteUsersOutput>
     edit_user: KeycloakUser
+    export_ballot_publication?: Maybe<ExportBallotPublicationOutput>
     export_election_event?: Maybe<DocumentTaskOutput>
     export_election_event_logs?: Maybe<ExportLogsOutput>
     export_election_event_tasks?: Maybe<ExportTasksOutput>
@@ -1855,6 +1862,14 @@ export type Mutation_RootDelete_UsersArgs = {
 /** mutation root */
 export type Mutation_RootEdit_UserArgs = {
     body: EditUsersInput
+}
+
+/** mutation root */
+export type Mutation_RootExport_Ballot_PublicationArgs = {
+    ballot_publication_id: Scalars["String"]["input"]
+    election_event_id: Scalars["String"]["input"]
+    election_id?: InputMaybe<Scalars["String"]["input"]>
+    tenant_id: Scalars["String"]["input"]
 }
 
 /** mutation root */
