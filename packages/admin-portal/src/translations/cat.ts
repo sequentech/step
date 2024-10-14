@@ -301,6 +301,7 @@ const catalanTranslation: TranslationType = {
                 tasks: "Tasques",
                 events: "Esdeveniment Programat",
                 notifications: "Notificacions",
+                reports: "Informe",
             },
             tally: {
                 emptyHeader: "Encara no hi ha Recompte.",
@@ -705,6 +706,53 @@ const catalanTranslation: TranslationType = {
                 eventProcessor: "Tipus",
                 stoppedAt: "Aturat A",
                 scheduledDate: "Programat A",
+            },
+        },
+        reportsScreen: {
+            title: "Informes",
+            subtitle: "Generar informes per als esdeveniments electorals",
+            messages: {
+                createSuccess: "Informe creat amb èxit",
+                createError: "Error en crear l'informe",
+                submitError: "Error en enviar l'Informe",
+                updateSuccess: "Informe actualitzat amb èxit",
+            },
+            reportType: {
+                BALLOT_RECEIPT: "Rebut de la Papereta",
+                ELECTORAL_RESULTS: "Resultats Electorals",
+                MANUAL_VERIFICATION: "Verificació Manual",
+                STATISTICAL_REPORT: "Informe Estadístic",
+            },
+            empty: {
+                header: "Encara no hi ha informes.",
+                body: "Vols crear-ne un?",
+                button: "Crear informe",
+            },
+            create: {
+                title: "Crear informe",
+                subtitle: "Crear una nova configuració d'informe.",
+            },
+            edit: {
+                title: "Editar informe",
+                subtitle: "Editar la configuració de l'informe.",
+                delete: "Estàs segur que vols eliminar aquest informe?",
+            },
+            fields: {
+                electionId: "Elecció",
+                template: "Plantilla",
+                reportType: "Tipus d'informe",
+                repeatable: "Repetible",
+                cronExpression: "Expressió Cron",
+                emailRecipients: "Destinataris de correu electrònic",
+            },
+            delete: {
+                body: "Estàs segur que vols eliminar aquest informe?",
+            },
+            actions: {
+                generate: "Generar",
+                delete: "Eliminar",
+                edit: "Editar",
+                preview: "Previsualitzar",
             },
         },
         common: {

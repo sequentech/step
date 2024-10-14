@@ -573,22 +573,6 @@ pub struct ElectionEventLanguageConf {
     Clone,
     Default,
 )]
-pub struct ActiveTemplateIds {
-    pub manual_verification: Option<String>,
-}
-
-#[derive(
-    BorshSerialize,
-    BorshDeserialize,
-    Serialize,
-    Deserialize,
-    JsonSchema,
-    PartialEq,
-    Eq,
-    Debug,
-    Clone,
-    Default,
-)]
 pub struct ElectionEventPresentation {
     pub i18n: Option<I18nContent<I18nContent<Option<String>>>>,
     pub materials: Option<ElectionEventMaterials>,
@@ -601,7 +585,6 @@ pub struct ElectionEventPresentation {
     pub elections_order: Option<ElectionsOrder>,
     pub voting_portal_countdown_policy: Option<VotingPortalCountdownPolicy>,
     pub custom_urls: Option<CustomUrls>,
-    pub active_template_ids: Option<ActiveTemplateIds>,
     pub locked_down: Option<LockedDown>,
     pub publish_policy: Option<Publish>,
     pub enrollment: Option<Enrollment>,
@@ -819,7 +802,16 @@ impl Default for ElectionPresentation {
             manual_start_voting_period: Some(ManualStartVotingPeriod::ALLOWED),
             voting_period_end: Some(VotingPeriodEnd::DISALLOWED),
             tally: Some(Tally::ALWAYS_ALLOW),
-            ..Default::default()
+            i18n: None,
+            dates: None,
+            language_conf: None,
+            contests_order: None,
+            audit_button_cfg: None,
+            sort_order: None,
+            cast_vote_confirm: None,
+            is_grace_priod: None,
+            grace_period_policy: None,
+            grace_period_secs: None,
         }
     }
 }

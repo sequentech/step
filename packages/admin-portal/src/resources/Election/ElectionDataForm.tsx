@@ -132,13 +132,6 @@ export const ElectionDataForm: React.FC = () => {
         }
     )
 
-    const {data: receipts} = useGetList<Sequent_Backend_Template>("sequent_backend_template", {
-        filter: {
-            tenant_id: record.tenant_id || tenantId,
-            type: ITemplateType.BALLOT_RECEIPT,
-        },
-    })
-
     const [updateImage] = useUpdate()
 
     useEffect(() => {
@@ -633,60 +626,6 @@ export const ElectionDataForm: React.FC = () => {
                                         ) : null
                                     }}
                                 </FormDataConsumer>
-                            </AccordionDetails>
-                        </Accordion>
-
-                        <Accordion
-                            sx={{width: "100%"}}
-                            expanded={expanded === "election-data-receipts"}
-                            onChange={() =>
-                                setExpanded((prev) =>
-                                    prev === "election-data-receipts"
-                                        ? ""
-                                        : "election-data-receipts"
-                                )
-                            }
-                        >
-                            <AccordionSummary
-                                expandIcon={<ExpandMoreIcon id="election-data-receipts" />}
-                            >
-                                <ElectionStyles.Wrapper>
-                                    <ElectionStyles.Title>
-                                        {t("electionScreen.edit.receipts")}
-                                    </ElectionStyles.Title>
-                                </ElectionStyles.Wrapper>
-                            </AccordionSummary>
-                            <AccordionDetails>
-                                <ElectionStyles.AccordionContainer>
-                                    {templateMethodChoices().map((choice) => (
-                                        <ElectionStyles.AccordionWrapper
-                                            alignment="center"
-                                            key={choice.id}
-                                        >
-                                            <BooleanInput
-                                                source={`allowed.${choice.id}`}
-                                                label={choice.name}
-                                                defaultValue={true}
-                                            />
-                                            <SelectInput
-                                                source={`template.${choice.id}`}
-                                                label={choice.name}
-                                                choices={
-                                                    receipts
-                                                        ?.filter(
-                                                            (item) =>
-                                                                item.communication_method ===
-                                                                choice.id
-                                                        )
-                                                        .map((type) => ({
-                                                            id: type.id,
-                                                            name: type.template.alias,
-                                                        })) ?? []
-                                                }
-                                            />
-                                        </ElectionStyles.AccordionWrapper>
-                                    ))}
-                                </ElectionStyles.AccordionContainer>
                             </AccordionDetails>
                         </Accordion>
 
