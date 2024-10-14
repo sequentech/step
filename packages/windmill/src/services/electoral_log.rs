@@ -7,6 +7,8 @@ use crate::services::protocol_manager::get_protocol_manager;
 use crate::services::protocol_manager::{create_named_param, get_board_client, get_immudb_client};
 use crate::types::resources::{Aggregate, DataList, OrderDirection, TotalAggregate};
 use anyhow::{anyhow, Context, Result};
+use base64::engine::general_purpose;
+use base64::Engine;
 
 use electoral_log::messages::message::Message;
 use electoral_log::messages::message::SigningData;
@@ -22,15 +24,16 @@ use crate::services::vault;
 use b3::messages::message::{self, Signer as _};
 use electoral_log::assign_value;
 use electoral_log::ElectoralLogMessage;
-use immudb_rs::{sql_value::Value, Client, NamedParam, Row};
+use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue};
+use sequent_core::serialization::base64::{Base64Deserialize, Base64Serialize};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::serialization::StrandDeserialize;
 use strand::signature::StrandSignatureSk;
-use strum_macros::{Display, EnumString};
+use strum_macros::{Display, EnumString, ToString};
+use tempfile::NamedTempFile;
 use tracing::{event, info, instrument, Level};
-
 pub struct ElectoralLog {
     pub(crate) sd: SigningData,
     pub(crate) elog_database: String,
@@ -414,6 +417,37 @@ impl ElectoralLog {
             .insert_electoral_log_messages(self.elog_database.as_str(), &ms)
             .await
     }
+
+    #[instrument(skip(self))]
+    pub async fn import_from_csv(&self, logs_file: &NamedTempFile) -> Result<()> {
+        let mut client = get_board_client().await?;
+        let mut rows = Vec::new();
+
+        let mut rdr = csv::Reader::from_reader(logs_file);
+
+        for result in rdr.deserialize() {
+            let row: ElectoralLogRow =
+                result.map_err(|err| anyhow::Error::new(err).context("Failed to read CSV row"))?;
+            rows.push(row);
+        }
+
+        for log in rows {
+            let message: &Message =
+                &Message::strand_deserialize(&general_purpose::STANDARD_NO_PAD.decode(&log.data)?)
+                    .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
+            let electoral_log_message: ElectoralLogMessage = message.try_into()?;
+
+            client
+                .insert_electoral_log_messages(
+                    self.elog_database.as_str(),
+                    &vec![electoral_log_message],
+                )
+                .await
+                .map_err(|err| anyhow!("Failed to insert log message: {:?}", err))?;
+        }
+
+        Ok(())
+    }
 }
 
 // Enumeration for the valid fields in the immudb table
@@ -516,6 +550,7 @@ pub struct ElectoralLogRow {
     statement_timestamp: i64,
     statement_kind: String,
     message: String,
+    data: String,
     user_id: Option<String>,
 }
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -623,16 +658,17 @@ impl TryFrom<&Row> for ElectoralLogRow {
                 _ => return Err(anyhow!("invalid column found '{}'", column.as_str())),
             }
         }
+        let deserialized_message =
+            Message::strand_deserialize(&message).with_context(|| "Error deserializing message")?;
+        let serialized = general_purpose::STANDARD_NO_PAD.encode(message);
         Ok(ElectoralLogRow {
             id,
             created,
             statement_timestamp,
             statement_kind,
-            message: serde_json::to_string_pretty(
-                &Message::strand_deserialize(&message)
-                    .with_context(|| "Error deserializing message")?,
-            )
-            .with_context(|| "Error serializing message to json")?,
+            message: serde_json::to_string_pretty(&deserialized_message)
+                .with_context(|| "Error serializing message to json")?,
+            data: serialized,
             user_id,
         })
     }

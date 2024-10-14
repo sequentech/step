@@ -353,7 +353,6 @@ struct MetricsUnit {
     num_emails_sent: i64,
     num_sms_sent: i64,
 }
-
 #[derive(Default, Debug)]
 struct Metrics {
     election_event: MetricsUnit,
@@ -603,6 +602,7 @@ pub async fn send_template(
             email_verified: None,
             sort: None,
             has_voted: None,
+            authorized_to_election_alias: None,
         };
 
         let (users, total_count) = match audience_selection {

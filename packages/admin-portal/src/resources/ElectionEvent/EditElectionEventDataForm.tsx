@@ -46,15 +46,14 @@ import {
     IElectionPresentation,
     ITenantSettings,
     EVotingPortalCountdownPolicy,
+    EElectionEventLockedDown,
 } from "@sequentech/ui-core"
-import {Dialog} from "@sequentech/ui-essentials"
 import {ListActions} from "@/components/ListActions"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {ListSupportMaterials} from "../SupportMaterials/ListSuportMaterial"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {TVotingSetting} from "@/types/settings"
 import {
-    ExportElectionEventMutation,
     ImportCandidatesMutation,
     Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
@@ -62,13 +61,11 @@ import {
     Sequent_Backend_Template,
 } from "@/gql/graphql"
 import {ElectionStyles} from "@/components/styles/ElectionStyles"
-import {FormStyles} from "@/components/styles/FormStyles"
-import {DownloadDocument} from "../User/DownloadDocument"
-import {EXPORT_ELECTION_EVENT} from "@/queries/ExportElectionEvent"
 import {FetchResult, useMutation} from "@apollo/client"
 import {IMPORT_CANDIDTATES} from "@/queries/ImportCandidates"
 import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
 import {convertToNumber} from "@/lib/helpers"
+import {ExportElectionEventDrawer} from "../../components/election-event/export-data/ExportElectionEventDrawer"
 import {ManagedNumberInput} from "@/components/managed-inputs/ManagedNumberInput"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
@@ -94,90 +91,6 @@ const ElectionRows = styled.div`
     padding: 1rem;
 `
 
-interface ExportWrapperProps {
-    electionEventId: string
-    openExport: boolean
-    setOpenExport: (val: boolean) => void
-    exportDocumentId: string | undefined
-    setExportDocumentId: (val: string | undefined) => void
-}
-
-const ExportWrapper: React.FC<ExportWrapperProps> = ({
-    electionEventId,
-    openExport,
-    setOpenExport,
-    exportDocumentId,
-    setExportDocumentId,
-}) => {
-    const {t} = useTranslation()
-    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
-
-    const [exportElectionEvent] = useMutation<ExportElectionEventMutation>(EXPORT_ELECTION_EVENT, {
-        context: {
-            headers: {
-                "x-hasura-role": IPermissions.ELECTION_EVENT_READ,
-            },
-        },
-    })
-
-    const confirmExportAction = async () => {
-        console.log("CONFIRM EXPORT")
-        setOpenExport(false)
-        const currWidget = addWidget(ETasksExecution.EXPORT_ELECTION_EVENT)
-        const {data: exportElectionEventData, errors} = await exportElectionEvent({
-            variables: {electionEventId},
-        })
-
-        const documentId = exportElectionEventData?.export_election_event?.document_id
-        if (errors || !documentId) {
-            updateWidgetFail(currWidget.identifier)
-            console.log(`Error exporting users: ${errors}`)
-            return
-        }
-
-        const task_id = exportElectionEventData?.export_election_event?.task_execution.id
-        setWidgetTaskId(currWidget.identifier, task_id)
-        setExportDocumentId(documentId)
-    }
-
-    const onDownloadDocument = () => {
-        console.log("onDownload called")
-        setExportDocumentId(undefined)
-    }
-
-    return (
-        <>
-            <Dialog
-                variant="info"
-                open={openExport}
-                ok={t("common.label.export")}
-                cancel={t("common.label.cancel")}
-                title={t("common.label.export")}
-                handleClose={(result: boolean) => {
-                    if (result) {
-                        confirmExportAction()
-                    } else {
-                        setOpenExport(false)
-                    }
-                }}
-            >
-                {t("common.export")}
-            </Dialog>
-            {exportDocumentId ? (
-                <>
-                    <FormStyles.ShowProgress />
-                    <DownloadDocument
-                        documentId={exportDocumentId}
-                        electionEventId={electionEventId ?? ""}
-                        fileName={`election-event-${electionEventId}-export.json`}
-                        onDownload={onDownloadDocument}
-                    />
-                </>
-            ) : null}
-        </>
-    )
-}
-
 export const EditElectionEventDataForm: React.FC = () => {
     const {t} = useTranslation()
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
@@ -198,6 +111,7 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [expanded, setExpanded] = useState("election-event-data-general")
     const [languageSettings, setLanguageSettings] = useState<Array<string>>(["en"])
     const [openExport, setOpenExport] = useState(false)
+    const [loadingExport, setLoadingExport] = useState(false)
     const [exportDocumentId, setExportDocumentId] = useState<string | undefined>()
     const [openDrawer, setOpenDrawer] = useState<boolean>(false)
     const [openImportCandidates, setOpenImportCandidates] = useState(false)
@@ -248,14 +162,11 @@ export const EditElectionEventDataForm: React.FC = () => {
             return []
         }
         const template_names = (verifyVoterTemplates as Sequent_Backend_Template[]).map((entry) => {
-            console.log("id: ", entry.id)
-            console.log("name: ", entry.template?.name)
             return {
                 id: entry.id,
                 name: entry.template?.name,
             }
         })
-        console.log("template_names: ", template_names)
         return template_names
     }
 
@@ -619,6 +530,14 @@ export const EditElectionEventDataForm: React.FC = () => {
         let sortOrderB = presentationB?.sort_order ?? -1
         return sortOrderA - sortOrderB
     })
+
+    const lockdownStateChoices = () => {
+        return Object.values(EElectionEventLockedDown).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.lockdownState.options.${value}`),
+        }))
+    }
+
     const votingPortalCountDownPolicies = () => {
         return Object.values(EVotingPortalCountdownPolicy).map((value) => ({
             id: value,
@@ -640,7 +559,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                     withImport={false}
                     withExport
                     doExport={handleExport}
-                    isExportDisabled={openExport}
+                    isExportDisabled={openExport || loadingExport}
                     withColumns={false}
                     withFilter={false}
                     extraActions={[
@@ -826,44 +745,6 @@ export const EditElectionEventDataForm: React.FC = () => {
                                         multiline={true}
                                         source={"presentation.css"}
                                         label={t("electionEventScreen.field.css")}
-                                    />
-                                </AccordionDetails>
-                            </Accordion>
-
-                            <Accordion
-                                sx={{width: "100%"}}
-                                expanded={expanded === "election-event-data-user-templates"}
-                                onChange={() => setExpanded("election-event-data-user-templates")}
-                            >
-                                <AccordionSummary
-                                    expandIcon={
-                                        <ExpandMoreIcon id="election-event-data-user-templates" />
-                                    }
-                                >
-                                    <ElectionHeaderStyles.Wrapper>
-                                        <ElectionHeaderStyles.Title>
-                                            {t("electionEventScreen.edit.templates")}
-                                        </ElectionHeaderStyles.Title>
-                                    </ElectionHeaderStyles.Wrapper>
-                                </AccordionSummary>
-                                <AccordionDetails>
-                                    <Typography
-                                        variant="body1"
-                                        component="span"
-                                        sx={{
-                                            fontWeight: "bold",
-                                            margin: 0,
-                                            display: {xs: "none", sm: "block"},
-                                        }}
-                                    >
-                                        {t("electionEventScreen.field.userVerification")}
-                                    </Typography>
-                                    <SelectInput
-                                        source={`presentation.active_template_ids.manual_verification`}
-                                        choices={manuallyVerifyVoterTemplates()}
-                                        label={t("template.form.name")}
-                                        translateChoice={false}
-                                        emptyText={t("template.default")}
                                     />
                                 </AccordionDetails>
                             </Accordion>
@@ -1103,6 +984,16 @@ export const EditElectionEventDataForm: React.FC = () => {
                                     </ElectionHeaderStyles.Wrapper>
                                 </AccordionSummary>
                                 <AccordionDetails>
+                                    <SelectInput
+                                        source={"presentation.presentation.locked_down"}
+                                        choices={lockdownStateChoices()}
+                                        label={t(
+                                            "electionEventScreen.field.lockdownState.policyLabel"
+                                        )}
+                                        defaultValue={EElectionEventLockedDown.NOT_LOCKED_DOWN}
+                                        emptyText={undefined}
+                                        validate={required()}
+                                    />
                                     <Typography
                                         variant="body1"
                                         component="span"
@@ -1192,12 +1083,13 @@ export const EditElectionEventDataForm: React.FC = () => {
                 errors={null}
             />
 
-            <ExportWrapper
+            <ExportElectionEventDrawer
                 electionEventId={record.id}
                 openExport={openExport}
                 setOpenExport={setOpenExport}
                 exportDocumentId={exportDocumentId}
                 setExportDocumentId={setExportDocumentId}
+                setLoadingExport={setLoadingExport}
             />
         </>
     )

@@ -9,10 +9,11 @@ use rocket::serde::json::Json;
 use sequent_core::services::jwt;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use tracing::{instrument, Level};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
-use windmill::services::reports::election_event_activity_logs::ReportFormat;
+use windmill::services::reports::electoral_log::ReportFormat;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ExportElectionEventInput {

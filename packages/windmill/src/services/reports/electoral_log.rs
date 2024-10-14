@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
+use crate::postgres::reports::ReportType;
 use crate::services::database::{get_hasura_pool, PgConfig};
 use crate::services::documents::upload_and_return_document_postgres;
 use crate::services::electoral_log::{
@@ -23,24 +24,16 @@ use sequent_core::types::hasura::core::Document;
 use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use std::env;
+use strum_macros::{Display, EnumString};
 use tempfile::NamedTempFile;
 use tracing::{info, instrument};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, EnumString)]
 pub enum ReportFormat {
     CSV,
     PDF,
 }
 
-impl ReportFormat {
-    pub fn from_str(format_str: &str) -> Result<ReportFormat> {
-        match format_str {
-            "PDF" => Ok(ReportFormat::PDF),
-            "CSV" => Ok(ReportFormat::CSV),
-            _ => Err(anyhow!("Invalid report format: {}", format_str)),
-        }
-    }
-}
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ActivityLogRow {
     id: i64,
@@ -81,8 +74,9 @@ impl TemplateRenderer for ActivityLogsTemplate {
     type SystemData = SystemData;
 
     fn get_report_type() -> ReportType {
-        ReportType::ManualVerification
+        ReportType::ACTIVITY_LOG
     }
+
     fn get_tenant_id(&self) -> String {
         self.tenant_id.clone()
     }
@@ -198,6 +192,50 @@ impl TemplateRenderer for ActivityLogsTemplate {
     }
 }
 
+pub async fn generate_export_data(
+    tenant_id: &str,
+    election_event_id: &str,
+    name: &str,
+) -> Result<NamedTempFile> {
+    let mut offset = 0;
+    let limit = PgConfig::from_env()?.default_sql_batch_size as i64;
+
+    // Create a temporary file to write CSV data
+    let mut temp_file =
+        generate_temp_file(&name, ".csv").with_context(|| "Error creating named temp file")?;
+    let mut csv_writer = WriterBuilder::new().from_writer(temp_file.as_file_mut());
+
+    loop {
+        let electoral_logs = list_electoral_log(GetElectoralLogBody {
+            tenant_id: String::from(tenant_id),
+            election_event_id: String::from(election_event_id),
+            limit: Some(limit),
+            offset: Some(offset),
+            filter: None,
+            order_by: None,
+        })
+        .await?;
+
+        for item in &electoral_logs.items {
+            csv_writer.serialize(item)?; // Serialize each item to CSV
+        }
+
+        let total = electoral_logs.total.aggregate.count;
+
+        if electoral_logs.items.is_empty() || offset >= total {
+            break;
+        }
+
+        offset += limit;
+    }
+
+    // Flush and finish writing to the temporary file
+    csv_writer.flush()?;
+    drop(csv_writer);
+
+    Ok(temp_file)
+}
+
 pub async fn write_export_document(
     transaction: &Transaction<'_>,
     temp_file: NamedTempFile,
@@ -217,7 +255,7 @@ pub async fn write_export_document(
         file_size,
         "text/csv",
         tenant_id,
-        election_event_id,
+        Some(election_event_id.to_string()),
         &name,
         Some(document_id.to_string()),
         false, // is_public: bool,
@@ -225,7 +263,7 @@ pub async fn write_export_document(
     .await
 }
 
-pub async fn generate_activity_logs_report_csv(
+pub async fn generate_csv_report(
     tenant_id: &str,
     election_event_id: &str,
     document_id: &str,
@@ -271,7 +309,7 @@ pub async fn generate_activity_logs_report_csv(
     .await
 }
 
-pub async fn generate_activity_logs_report(
+pub async fn generate_report(
     tenant_id: &str,
     election_event_id: &str,
     document_id: &str,
@@ -284,8 +322,7 @@ pub async fn generate_activity_logs_report(
 
     match format {
         ReportFormat::CSV => {
-            generate_activity_logs_report_csv(tenant_id, election_event_id, document_id, &template)
-                .await
+            generate_csv_report(tenant_id, election_event_id, document_id, &template).await
         }
         ReportFormat::PDF => {
             // Set landscape to make more space for the columns
@@ -312,9 +349,9 @@ pub async fn generate_activity_logs_report(
                     document_id,
                     tenant_id,
                     election_event_id,
-                    false,
-                    None,
-                    Some(pdf_options),
+                    /* is_scheduled_task */ false,
+                    /* receiver */ None,
+                    /* pdf_options */ Some(pdf_options),
                 )
                 .await
         }

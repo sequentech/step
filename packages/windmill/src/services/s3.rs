@@ -11,7 +11,9 @@ use aws_sdk_s3 as s3;
 use aws_smithy_types::byte_stream::ByteStream;
 use core::time::Duration;
 use s3::presigning::PresigningConfig;
+use std::fs::File;
 use std::io::Write;
+use std::path::{Path, PathBuf};
 use std::{env, error::Error};
 use tempfile::NamedTempFile;
 use tokio::io::AsyncReadExt;
@@ -289,4 +291,50 @@ pub async fn delete_files_from_s3(
     }
 
     Ok(())
+}
+
+#[instrument(err)]
+pub async fn get_files_from_s3(s3_bucket: String, prefix: String) -> Result<Vec<PathBuf>> {
+    let config = get_s3_aws_config(true)
+        .await
+        .with_context(|| "Error getting s3 aws config")?;
+    let client = get_s3_client(config.clone())
+        .await
+        .with_context(|| "Error getting s3 client")?;
+
+    let mut file_paths = Vec::new();
+
+    let result = client
+        .list_objects_v2()
+        .bucket(s3_bucket.clone())
+        .prefix(prefix.clone())
+        .send()
+        .await?;
+
+    for object in result.contents().iter() {
+        let key = object.key().unwrap();
+
+        if !key.contains("export") {
+            // Get the object from S3
+            let s3_object = client
+                .get_object()
+                .bucket(s3_bucket.clone())
+                .key(key)
+                .send()
+                .await?;
+
+            let stream = s3_object.body;
+            let file_data = ByteStream::collect(stream).await?.into_bytes();
+
+            // Create a temporary file to store the downloaded S3 file
+            let file_name = key.split('/').last().unwrap();
+            let file_path = Path::new(&env::temp_dir()).join(file_name);
+            let mut temp_file = File::create(&file_path)?;
+
+            temp_file.write_all(&file_data)?;
+            file_paths.push(file_path);
+        }
+    }
+
+    Ok(file_paths)
 }

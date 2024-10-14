@@ -16,7 +16,7 @@ use sequent_core::ballot::{BallotStyle, Contest};
 use sequent_core::ballot_codec::PlaintextCodec;
 use sequent_core::services::area_tree::TreeNodeArea;
 use sequent_core::services::translations::Name;
-use sequent_core::types::hasura::core::{Area, Election, TallySessionConfiguration, TallySheet};
+use sequent_core::types::hasura::core::{Area, Election, TallySheet};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fs::{self, File};
