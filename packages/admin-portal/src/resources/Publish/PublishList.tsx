@@ -4,6 +4,7 @@ import { Visibility } from "@mui/icons-material"
 import { IconButton, Dialog } from "@sequentech/ui-essentials"
 import { Box, Typography, Button, DialogContent, DialogActions } from "@mui/material"
 import { faPlus } from "@fortawesome/free-solid-svg-icons"
+import { EPublishActions } from "@/types/publishActions"
 
 import {
     List,
@@ -43,7 +44,6 @@ type TPublishList = {
     setBallotPublicationId: (id: string | Identifier) => void
 }
 
-const PENDING_PUBLISH_ACTION = 'pendingPublishAction';
 
 export const PublishList: React.FC<TPublishList> = ({
     status,
@@ -68,7 +68,7 @@ export const PublishList: React.FC<TPublishList> = ({
                 const baseUrl = new URL(window.location.href)
                 baseUrl.searchParams.set("tabIndex", "7")
 
-                sessionStorage.setItem(PENDING_PUBLISH_ACTION, "true")
+                sessionStorage.setItem(EPublishActions.PENDING_PUBLISH_ACTION, "true")
                 await reauthWithGold(baseUrl.toString())
 
                 console.log("Re-authentication successful. Proceeding to generate.")
@@ -79,27 +79,16 @@ export const PublishList: React.FC<TPublishList> = ({
         }
     }
 
-    useEffect(() => {
-        const executePendingActions = async () => {
-            const pendingPublish = sessionStorage.getItem(PENDING_PUBLISH_ACTION)
-            if (pendingPublish) {
-                sessionStorage.removeItem(PENDING_PUBLISH_ACTION)
-                onGenerate()
-            }
-        }
 
-        executePendingActions()
-    }, [onGenerate])
-    
     /**
      * Checks for any pending actions after the component mounts.
      * If a pending action is found, it executes the action and removes the flag.
      */
     useEffect(() => {
         const executePendingActions = async () => {
-            const pendingPublish = sessionStorage.getItem(PENDING_PUBLISH_ACTION);
+            const pendingPublish = sessionStorage.getItem(EPublishActions.PENDING_PUBLISH_ACTION);
             if (pendingPublish) {
-                sessionStorage.removeItem(PENDING_PUBLISH_ACTION);
+                sessionStorage.removeItem(EPublishActions.PENDING_PUBLISH_ACTION);
                 onGenerate();
             }
         };

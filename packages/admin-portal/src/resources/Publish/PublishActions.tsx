@@ -18,6 +18,7 @@ import { useTenantStore } from "@/providers/TenantContextProvider"
 import { AuthContext } from "@/providers/AuthContextProvider"
 import { IPermissions } from "@/types/keycloak"
 import SvgIcon from "@mui/material/SvgIcon"
+import { EPublishActions } from "@/types/publishActions"
 
 type SvgIconComponent = typeof SvgIcon
 
@@ -63,9 +64,6 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     const [showDialog, setShowDialog] = useState(false)
     const [dialogText, setDialogText] = useState("")
     const [currentCallback, setCurrentCallback] = useState<any>(null)
-
-    const PENDING_PUBLISH_ACTION = 'pendingPublishAction';
-
 
     const IconOrProgress = ({ st, Icon }: { st: PublishStatus; Icon: SvgIconComponent }) => {
         return nextStatus(st) === status && status !== PublishStatus.Void ? (
@@ -136,7 +134,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                 if (!isGoldUser()) {
                     const baseUrl = new URL(window.location.href);
                     baseUrl.searchParams.set("tabIndex", "7");
-                    sessionStorage.setItem('pendingStartVotingPeriod', 'true')
+                    sessionStorage.setItem(EPublishActions.PENDING_START_VOTING, 'true')
                     await reauthWithGold(baseUrl.toString())
                 } else {
                     onChangeStatus(ElectionEventStatus.Open)
@@ -164,7 +162,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                 try {
                     const baseUrl = new URL(window.location.href);
                     baseUrl.searchParams.set("tabIndex", "7");
-                    sessionStorage.setItem(PENDING_PUBLISH_ACTION, "true");
+                    sessionStorage.setItem(EPublishActions.PENDING_PUBLISH_ACTION, "true");
 
                     await reauthWithGold(baseUrl.toString());
                 } catch (error) {
@@ -184,15 +182,15 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
      */
     useEffect(() => {
         const executePendingActions = async () => {
-            const pendingStart = sessionStorage.getItem('pendingStartVotingPeriod');
+            const pendingStart = sessionStorage.getItem(EPublishActions.PENDING_START_VOTING);
             if (pendingStart) {
-                sessionStorage.removeItem('pendingStartVotingPeriod');
+                sessionStorage.removeItem(EPublishActions.PENDING_START_VOTING);
                 onChangeStatus(ElectionEventStatus.Open);
             }
 
-            const pendingPublish = sessionStorage.getItem(PENDING_PUBLISH_ACTION);
+            const pendingPublish = sessionStorage.getItem(EPublishActions.PENDING_PUBLISH_ACTION);
             if (pendingPublish) {
-                sessionStorage.removeItem(PENDING_PUBLISH_ACTION);
+                sessionStorage.removeItem(EPublishActions.PENDING_PUBLISH_ACTION);
                 onGenerate();
             }
         };
