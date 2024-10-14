@@ -200,7 +200,7 @@ export const ElectionEventTabs: React.FC = () => {
                     </Suspense>
                 ) : null
             case 7:
-                return showPublish ? (
+                return showPublish && record?.id ? (
                     <Suspense fallback={<div>Loading Publish...</div>}>
                         <Publish electionEventId={record?.id} type={EPublishType.Event} />
                     </Suspense>

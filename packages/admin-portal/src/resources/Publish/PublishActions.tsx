@@ -64,6 +64,9 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     const [dialogText, setDialogText] = useState("")
     const [currentCallback, setCurrentCallback] = useState<any>(null)
 
+    const PENDING_PUBLISH_ACTION = 'pendingPublishAction';
+
+
     const IconOrProgress = ({ st, Icon }: { st: PublishStatus; Icon: SvgIconComponent }) => {
         return nextStatus(st) === status && status !== PublishStatus.Void ? (
             <CircularProgress size={16} />
@@ -118,7 +121,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     }
 
     /**
-      * Specific Handler for "Start Voting Period" Button:
+      * Specific Handler for "Start Voting" Button:
       * Incorporates re-authentication logic for actions that require Gold-level permissions.
       */
     const handleStartVotingPeriod = () => {
@@ -141,16 +144,65 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     }
 
     /**
+      * Specific Handler for "Publish Changes" Button:
+      * Incorporates re-authentication logic for actions that require Gold-level permissions.
+      */
+    const handlePublish = () => {
+        if (isGoldUser()) {
+            onGenerate(); // Proceed directly if the user has Gold permissions
+        } else {
+            setDialogText(t("publish.dialog.publishInfo"));
+            setShowDialog(true);
+
+            setCurrentCallback(() => async () => {
+                try {
+                    const baseUrl = new URL(window.location.href);
+
+                    // Add 'tabIndex' to the query parameters
+                    baseUrl.searchParams.set("tabIndex", "7");
+
+                    console.log("Saving full URL:", baseUrl.toString());
+
+                    // Save the full URL to sessionStorage
+                    // sessionStorage.setItem("redirectUrl", baseUrl.toString());
+                    sessionStorage.setItem(PENDING_PUBLISH_ACTION, "true");
+
+                    await reauthWithGold(baseUrl.toString());
+                } catch (error) {
+                    console.error("Re-authentication failed:", error);
+                    setDialogText(t("publish.dialog.errorReauth"));
+                    setShowDialog(true);
+                }
+            });
+        }
+    };
+
+
+
+    /**
      * Checks for any pending actions after the component mounts.
      * If a pending action is found, it executes the action and removes the flag.
      */
     useEffect(() => {
-        const pending = sessionStorage.getItem('pendingStartVotingPeriod')
-        if (pending) {
-            sessionStorage.removeItem('pendingStartVotingPeriod')
-            onChangeStatus(ElectionEventStatus.Open)
-        }
-    }, [onChangeStatus])
+        const executePendingActions = async () => {
+            const pendingStart = sessionStorage.getItem('pendingStartVotingPeriod');
+            if (pendingStart) {
+                sessionStorage.removeItem('pendingStartVotingPeriod');
+                onChangeStatus(ElectionEventStatus.Open);
+            }
+
+            const pendingPublish = sessionStorage.getItem(PENDING_PUBLISH_ACTION);
+            if (pendingPublish) {
+                sessionStorage.removeItem(PENDING_PUBLISH_ACTION);
+                onGenerate();
+            }
+        };
+
+        executePendingActions();
+    }, [onChangeStatus, onGenerate]);
+
+
+
 
     const handleOnChange = (status: ElectionEventStatus) => () => onChangeStatus(status)
 
@@ -220,7 +272,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                             {canWrite && (
                                 <ButtonDisabledOrNot
                                     Icon={Publish}
-                                    onClick={onGenerate}
+                                    onClick={handlePublish}
                                     st={PublishStatus.Generated}
                                     label={t("publish.action.publish")}
                                     disabledStatus={[PublishStatus.Stopped]}
