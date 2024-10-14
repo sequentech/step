@@ -16,7 +16,7 @@ export const MANAGE_ELECTION_DATES = gql`
             scheduled_date: $scheduledDate
             event_processor: $eventProcessor
         ) {
-            something
+            error_msg
         }
     }
 `

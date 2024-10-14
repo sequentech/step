@@ -4119,7 +4119,7 @@
         "description": null,
         "fields": [
           {
-            "name": "something",
+            "name": "error_msg",
             "description": null,
             "args": [],
             "type": {
