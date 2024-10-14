@@ -60,6 +60,9 @@ const SettingsContextProvider = (props: SettingsContextProviderProps) => {
     const [globalSettings, setSettings] = useState<GlobalSettings>(
         defaultSettingsValues.globalSettings
     )
+    const isPreviewMatch =
+        window.location.pathname.includes("preview/") &&
+        !window.location.pathname.includes("tenant/")
 
     useEffect(() => {
         if (!loaded) {
@@ -70,7 +73,10 @@ const SettingsContextProvider = (props: SettingsContextProviderProps) => {
     const loadSettings = async () => {
         try {
             let value = await fetch("/global-settings.json")
-            let json = await value.json()
+            let json = (await value.json()) as GlobalSettings
+            if (isPreviewMatch) {
+                json.DISABLE_AUTH = true
+            }
             setSettings(json)
             setLoaded(true)
         } catch (e) {

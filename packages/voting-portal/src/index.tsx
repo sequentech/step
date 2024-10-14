@@ -67,12 +67,6 @@ const KeycloakProvider: React.FC<KeycloakProviderProps> = ({disable, children}) 
 
 export const KeycloakProviderContainer: React.FC<React.PropsWithChildren> = ({children}) => {
     const {globalSettings, setDisableAuth} = useContext(SettingsContext)
-    const isPreviewMatch = window.location.pathname.includes("preview/") && !window.location.pathname.includes("tenant/")
-    useEffect(() => {
-        if (!globalSettings.DISABLE_AUTH && isPreviewMatch) {
-            setDisableAuth(true)
-        }
-    }, [isPreviewMatch])
 
     return <KeycloakProvider disable={globalSettings.DISABLE_AUTH}>{children}</KeycloakProvider>
 }

@@ -26,7 +26,7 @@ import {updateBallotStyleAndSelection} from "../services/BallotStyles"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {selectFirstBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
 import useLanguage from "../hooks/useLanguage"
-import { SettingsContext } from "../providers/SettingsContextProvider"
+import {SettingsContext} from "../providers/SettingsContextProvider"
 
 const StyledLink = styled(Link)`
     text-decoration: none;

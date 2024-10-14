@@ -32,7 +32,7 @@ import {
     setElectionEvent,
 } from "../store/electionEvents/electionEventsSlice"
 import Stepper from "../components/Stepper"
-import { SettingsContext } from "../providers/SettingsContextProvider"
+import {SettingsContext} from "../providers/SettingsContextProvider"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;

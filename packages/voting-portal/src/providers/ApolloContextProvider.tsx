@@ -8,6 +8,7 @@ import {AuthContext} from "./AuthContextProvider"
 import {ApolloProvider} from "@apollo/client"
 import {SettingsContext} from "./SettingsContextProvider"
 import {Box, CircularProgress} from "@mui/material"
+import {useMatch} from "react-router-dom"
 
 export const ApolloWrapper: React.FC<PropsWithChildren> = ({children}) => {
     const {globalSettings} = useContext(SettingsContext)
