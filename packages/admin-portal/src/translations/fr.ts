@@ -716,6 +716,8 @@ const frenchTranslation: TranslationType = {
             messages: {
                 createSuccess: "Rapport créé avec succès",
                 createError: "Erreur lors de la création du rapport",
+                submitError: "Erreur lors de la soumission du Rapport",
+                updateSuccess: "Rapport mis à jour avec succès",
             },
             empty: {
                 header: "Pas encore de rapports.",
@@ -737,7 +739,7 @@ const frenchTranslation: TranslationType = {
                 reportType: "Type de rapport",
                 repeatable: "Répétable",
                 cronExpression: "Expression Cron",
-                emailRecepient: "Destinataire de courriel",
+                emailRecipients: "Destinataires de courriel",
             },
             delete: {
                 body: "Êtes-vous sûr de vouloir supprimer ce rapport?",

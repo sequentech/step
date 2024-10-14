@@ -713,6 +713,8 @@ const spanishTranslation: TranslationType = {
             messages: {
                 createSuccess: "Informe creado con éxito",
                 createError: "Error al crear el informe",
+                submitError: "Error al enviar el Informe",
+                updateSuccess: "Informe actualizado con éxito",
             },
             empty: {
                 header: "No hay informes todavía.",
@@ -734,7 +736,7 @@ const spanishTranslation: TranslationType = {
                 reportType: "Tipo de informe",
                 repeatable: "Repetible",
                 cronExpression: "Expresión Cron",
-                emailRecepient: "Destinatario de correo electrónico",
+                emailRecipients: "Destinatarios de correo electrónico",
             },
             delete: {
                 body: "¿Estás seguro de que quieres eliminar este informe?",

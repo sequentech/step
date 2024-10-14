@@ -714,6 +714,8 @@ const tagalogTranslation: TranslationType = {
             messages: {
                 createSuccess: "Matagumpay na nalikha ang ulat",
                 createError: "Nagkaroon ng error sa paglikha ng ulat",
+                submitError: "Error sa pagsusumite ng Ulat",
+                updateSuccess: "Matagumpay na na-update ang Ulat",
             },
             empty: {
                 header: "Wala pang mga ulat.",
@@ -735,7 +737,7 @@ const tagalogTranslation: TranslationType = {
                 reportType: "Uri ng Ulat",
                 repeatable: "Nauulit",
                 cronExpression: "Cron Expression",
-                emailRecepient: "Email na Tatanggap",
+                emailRecipients: "Mga Tatanggap ng Email",
             },
             delete: {
                 body: "Sigurado ka bang nais mong tanggalin ang ulat na ito?",

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import SelectElection from "@/components/election/SelectElection"
-import {EReportType, ReportActions, reportTypeConfig} from "@/types/reports"
+import {EReportElectionPolicy, EReportType, ReportActions, reportTypeConfig} from "@/types/reports"
 import {Typography} from "@mui/material"
 import React, {useEffect, useMemo, useState} from "react"
 import {
@@ -29,7 +29,7 @@ import {UPDATE_REPORT} from "@/queries/UpdateReport"
 interface CronConfig {
     isActive?: boolean
     cronExpression?: string
-    emailRecepient?: string
+    emailRecipient?: string
 }
 
 interface CreateReportProps {
@@ -94,7 +94,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                 cron_conig_js = {
                     isActive: values.cron_config.is_active,
                     cronExpression: values.cron_config.cron_expression,
-                    emailRecepient: values.cron_config.email_recepient,
+                    emailRecipient: values.cron_config.email_recipients,
                 }
             }
         }
@@ -106,7 +106,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
             cron_config: {
                 is_active: cron_conig_js.isActive,
                 cron_expression: cron_conig_js.cronExpression,
-                email_recepient: cron_conig_js.emailRecepient,
+                email_recipients: cron_conig_js.emailRecipient,
             },
         }
 
@@ -118,21 +118,21 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                         set: formData,
                     },
                 })
-                notify("Report updated successfully", {type: "success"})
+                notify(t(`reportsScreen.messages.updateSuccess`), {type: "success"})
             } else {
                 await createReport({
                     variables: {
                         object: formData,
                     },
                 })
-                notify("Report created successfully", {type: "success"})
+                notify(t(`reportsScreen.messages.createSuccess`), {type: "success"})
             }
 
             if (close) {
                 close()
             }
         } catch (error) {
-            notify("Error submitting report", {type: "error"})
+            notify(t(`reportsScreen.messages.submitError`), {type: "error"})
         }
     }
 
@@ -166,14 +166,18 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
     }, [reportType])
 
     const isButtonDisabled = (): boolean => {
-        return (isTemplateRequired && !templateId) || (isElectionRequired && !electionId)
+        return (
+            (isTemplateRequired && !templateId) ||
+            (EReportElectionPolicy.ELECTION_REQUIRED && !electionId) ||
+            (EReportElectionPolicy.ELECTION_NOT_ALLOWED && !!electionId)
+        )
     }
 
-    const isElectionRequired = useMemo((): boolean => {
+    const electionPolicy = useMemo((): EReportElectionPolicy => {
         if (!reportType) {
-            return false
+            return EReportElectionPolicy.ELECTION_ALLOWED
         }
-        return reportTypeConfig[reportType].isElectionRequired ?? false
+        return reportTypeConfig[reportType].electionPolicy ?? EReportElectionPolicy.ELECTION_ALLOWED
     }, [reportType])
 
     return (
@@ -214,6 +218,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                         onSelectElection={(electionId) => setElectionId(electionId)}
                         source="election_id"
                         value={electionId}
+                        disabled={electionPolicy == EReportElectionPolicy.ELECTION_NOT_ALLOWED}
                     />
 
                     <SelectTemplate
@@ -245,8 +250,8 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                                 required={isCronActive}
                             />
                             <TextInput
-                                source="cron_config.emailRecepient"
-                                label={t("reportsScreen.fields.emailRecepient")}
+                                source="cron_config.email_recipients"
+                                label={t("reportsScreen.fields.emailRecipients")}
                                 required={isCronActive}
                             />
                         </>

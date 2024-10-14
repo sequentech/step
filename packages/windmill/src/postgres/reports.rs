@@ -22,7 +22,7 @@ pub struct ReportCronConfig {
     #[serde(default)]
     pub cron_expression: String,
     #[serde(default)]
-    pub email_recepient: Option<String>,
+    pub email_recipients: Option<String>,
 }
 
 impl Default for ReportCronConfig {
@@ -30,8 +30,8 @@ impl Default for ReportCronConfig {
         ReportCronConfig {
             is_active: false,
             last_document_produced: None,
-            cron_expression: String::new(),
-            email_recepient: None,
+            cron_expression: Default::default(),
+            email_recipients: None,
         }
     }
 }

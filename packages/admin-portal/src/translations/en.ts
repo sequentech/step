@@ -711,6 +711,8 @@ const englishTranslation = {
             messages: {
                 createSuccess: "Report created successfully",
                 createError: "Error creating Report",
+                submitError: "Error submitting Report",
+                updateSuccess: "Report updated successfully",
             },
             empty: {
                 header: "No Reports yet.",
@@ -732,7 +734,7 @@ const englishTranslation = {
                 reportType: "Report Type",
                 repeatable: "Repeatable",
                 cronExpression: "Cron Expression",
-                emailRecepient: "Email Recepient",
+                emailRecipients: "Email Recipients",
             },
 
             delete: {

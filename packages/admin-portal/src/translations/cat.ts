@@ -714,6 +714,8 @@ const catalanTranslation: TranslationType = {
             messages: {
                 createSuccess: "Informe creat amb èxit",
                 createError: "Error en crear l'informe",
+                submitError: "Error en enviar l'Informe",
+                updateSuccess: "Informe actualitzat amb èxit",
             },
             empty: {
                 header: "Encara no hi ha informes.",
@@ -735,7 +737,7 @@ const catalanTranslation: TranslationType = {
                 reportType: "Tipus d'informe",
                 repeatable: "Repetible",
                 cronExpression: "Expressió Cron",
-                emailRecepient: "Destinatari de correu electrònic",
+                emailRecipients: "Destinataris de correu electrònic",
             },
             delete: {
                 body: "Estàs segur que vols eliminar aquest informe?",
