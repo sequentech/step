@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::date::ISO8601;
 use chrono::{DateTime, Local};
+use sequent_core::services::date::ISO8601;
 use sequent_core::types::ceremonies::Log;
 use tracing::{info, instrument};
 

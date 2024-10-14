@@ -5,7 +5,6 @@
 use crate::postgres::reports::Report;
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::get_hasura_pool;
-use crate::services::date::ISO8601;
 use crate::services::pg_lock::PgLock;
 use crate::services::reports::template_renderer::TemplateRenderer;
 use crate::types::error::Error;
@@ -15,6 +14,7 @@ use celery::error::TaskError;
 use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
+use sequent_core::services::date::ISO8601;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use tracing::{event, info, Level};

@@ -1,14 +1,17 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::date::ISO8601;
+use crate::types::permissions::Permissions;
 use anyhow::{anyhow, Result};
 use base64::engine::general_purpose;
 use base64::Engine;
+use chrono::{DateTime, Duration, Local, NaiveDateTime, Utc};
 use serde;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::collections::HashMap;
-use tracing::{event, info, instrument, Level};
+use tracing::{debug, event, info, instrument};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct JwtRolesAccess {
@@ -85,6 +88,35 @@ pub fn decode_jwt(token: &str) -> Result<JwtClaims> {
     })?;
 
     Ok(claims)
+}
+
+/**
+ * Returns true only if the JWT has gold permissions and the JWT
+ * authentication is fresh, i.e. performed less than 60 seconds ago.
+ */
+#[instrument(skip_all)]
+pub fn has_gold_permission(claims: &JwtClaims) -> bool {
+    let auth_time_local: DateTime<Local> = if let Some(auth_time_int) =
+        claims.auth_time
+    {
+        if let Ok(auth_time_parsed) =
+            ISO8601::timestamp_ms_utc_to_date_opt(auth_time_int)
+        {
+            auth_time_parsed
+        } else {
+            debug!("ISO8601::timestamp_ms_utc_to_date_opt(auth_time_int={auth_time_int:?}) failed");
+            return false;
+        }
+    } else {
+        debug!("claims.auth_time is None");
+        return false;
+    };
+    // Let's asume fresh means token has at most 1 minute since authentication
+    let freshness_limit = ISO8601::now() - Duration::seconds(60);
+    let is_fresh = auth_time_local > freshness_limit;
+    let is_gold = claims.acr == Permissions::GOLD.to_string();
+
+    is_fresh && is_gold
 }
 
 #[cfg(test)]

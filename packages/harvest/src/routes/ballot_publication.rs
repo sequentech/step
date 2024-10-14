@@ -9,7 +9,7 @@ use rocket::serde::json::Json;
 use sequent_core::types::permissions::Permissions;
 use sequent_core::{
     ballot::{ElectionEventPresentation, LockedDown},
-    services::jwt::JwtClaims,
+    services::jwt::{has_gold_permission, JwtClaims},
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -34,10 +34,6 @@ pub struct GenerateBallotPublicationInput {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GenerateBallotPublicationOutput {
     ballot_publication_id: String,
-}
-
-pub fn has_gold_permission(claims: &JwtClaims) -> bool {
-    claims.acr == Permissions::GOLD.to_string()
 }
 
 #[instrument(skip(claims))]
