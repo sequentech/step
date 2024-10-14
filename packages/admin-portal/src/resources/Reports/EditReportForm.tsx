@@ -223,7 +223,11 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
 
                     <SelectTemplate
                         tenantId={tenantId}
-                        templateType={reportType}
+                        templateType={
+                            reportType
+                                ? reportTypeConfig[reportType]?.associatedTemplateType
+                                : undefined
+                        }
                         source={"template_id"}
                         label={t("reportsScreen.fields.template")}
                         onSelectTemplate={(templateId) => setTemplateId(templateId)}
