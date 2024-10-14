@@ -28,6 +28,8 @@ import {ElectionStyles} from "./styles/ElectionStyles"
 import {useLocation, useNavigate} from "react-router"
 import {ResetFilters} from "./ResetFilters"
 import {MenuItem, Menu} from "@mui/material"
+import {useWidgetStore} from "@/providers/WidgetsContextProvider"
+import {ETasksExecution} from "@/types/tasksExecution"
 
 interface ExportWrapperProps {
     electionEventId: string
@@ -51,9 +53,11 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
     })
     const notify = useNotify()
     const {t} = useTranslation()
-
+    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const confirmExportAction = async () => {
         try {
+            setOpenExport(false)
+            const currWidget = addWidget(ETasksExecution.EXPORT_ELECTION_EVENT)
             const {data: exportElectionEventData, errors} = await exportElectionEvent({
                 variables: {
                     electionEventId,
@@ -62,11 +66,13 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
             })
             let documentId = exportElectionEventData?.export_election_event_logs?.document_id
             if (errors || !documentId) {
-                setOpenExport(false)
-                notify(t(`electionEventScreen.exportError`), {type: "error"})
+                updateWidgetFail(currWidget.identifier)
                 console.log(`Error exporting: ${errors}`)
                 return
             }
+
+            const task_id = exportElectionEventData?.export_election_event?.task_execution.id
+            setWidgetTaskId(currWidget.identifier, task_id)
             setExportDocumentId(documentId)
         } catch (error) {
             notify(t(`electionEventScreen.exportError`), {type: "error"})
@@ -89,7 +95,6 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
                     confirmExportAction()
                 } else {
                     setOpenExport(false)
-                    setExportDocumentId(undefined)
                 }
             }}
         >
@@ -105,7 +110,6 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
                             onDownload={() => {
                                 console.log("onDownload called")
                                 setExportDocumentId(undefined)
-                                setOpenExport(false)
                             }}
                         />
                     </>
