@@ -62,11 +62,7 @@ pub struct Voter {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SystemData {
     pub report_hash: String,
-    pub version: String,
     pub system_hash: String,
-    pub file_logo: String,
-    pub file_qrcode_lib: String,
-    pub printing_code: String,
     pub date_printed: String,
     pub time_printed: String,
     pub election_date: String,
@@ -108,11 +104,11 @@ impl TemplateRenderer for OVUserTemplate {
     }
 
     fn base_name() -> String {
-        "ov_users_information".to_string()
+        "ov_users".to_string()
     }
 
     fn prefix(&self) -> String {
-        format!("ov_users_information_{}", self.tenant_id)
+        format!("ov_users_{}", self.tenant_id)
     }
 
     fn get_email_config() -> EmailConfig {
@@ -206,13 +202,9 @@ impl TemplateRenderer for OVUserTemplate {
             voting_privilege_voted,
             total,
             report_hash: "abc123".to_string(),
-            version: "1.0".to_string(),
             system_hash: "def456".to_string(),
-            file_logo: "logo.png".to_string(),
-            file_qrcode_lib: "qrcode.png".to_string(),
             date_printed: "2024-10-09 14:00:00".to_string(),
             time_printed: "2024-10-09 14:00:00".to_string(),
-            printing_code: "PRT789".to_string(),
             ovcs_version: String::new(),
             qr_code: String::new(),
         })

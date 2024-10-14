@@ -36,12 +36,7 @@ pub struct Voter {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SystemData {
     pub report_hash: String,
-    pub version: String,
     pub system_hash: String,
-    pub file_logo: String,
-    pub file_qrcode_lib: String,
-    pub date_time_printed: String,
-    pub printing_code: String,
     pub date_printed: String,
     pub time_printed: String,
     pub election_date: String,
@@ -51,7 +46,6 @@ pub struct SystemData {
     pub country: String,
     pub voters: Vec<Voter>,
     pub ovcs_version: String,
-    pub qr_code: String,
 }
 
 
@@ -79,11 +73,11 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
     }
 
     fn base_name() -> String {
-        "pre_enrolled_ov_disapproved".to_string()
+        "pre_enrolled_ov_but_disapproved".to_string()
     }
 
     fn prefix(&self) -> String {
-        format!("pre_enrolled_disapproved_{}", self.election_event_id)
+        format!("pre_enrolled_ov_but_disapproved_{}", self.election_event_id)
     }
 
     fn get_email_config() -> EmailConfig {
