@@ -3,7 +3,7 @@ type Mutation {
         tenant_id: String!
         election_event_id: String!
         election_id: String
-        ballot_design: String!
+        ballot_publication_id: String!
     ): ExportBallotPublicationOutput
 }
 

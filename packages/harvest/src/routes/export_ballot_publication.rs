@@ -24,7 +24,7 @@ pub struct ExportBallotPublicationInput {
     tenant_id: String,
     election_event_id: String,
     election_id: Option<String>,
-    ballot_design: String,
+    ballot_publication_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -42,12 +42,12 @@ pub async fn export_ballot_publication_route(
     let body = input.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let election_event_id = body.election_event_id.clone();
-    let ballot_design = body.ballot_design.clone();
+    let ballot_publication_id = body.ballot_publication_id.clone();
     let executer_name = claims
         .name
         .clone()
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
-    // let export_config = body.export_configurations.clone();
+
     // Insert the task execution record
     let task_execution = post(
         &tenant_id,
@@ -62,39 +62,49 @@ pub async fn export_ballot_publication_route(
             format!("Failed to insert task execution record: {error:?}"),
         )
     })?;
-    info!("ballot design !!! {:?}", body.ballot_design);
-    authorize(
+
+    if let Err(error) = authorize(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::PUBLISH_WRITE],
-    )?;
+    ) {
+        update_fail(
+            &task_execution,
+            &format!("Failed to authorize executing the task: {error:?}"),
+        )
+        .await;
+        return Err(error);
+    };
 
     let document_id = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
 
-    let celery_task = celery_app
-        .send_task(windmill::tasks::export_ballot_publication::export_ballot_publication::new(
-            tenant_id,
-            election_event_id,
-            document_id.clone(),
-            ballot_design,
-            task_execution.clone(),
-        ))
-        .await
-        .map_err(|error| {
-            (
+    let celery_task = match celery_app
+    .send_task(windmill::tasks::export_ballot_publication::export_ballot_publication::new(
+        tenant_id,
+        election_event_id,
+        document_id.clone(),
+        ballot_publication_id.clone(),
+        task_execution.clone(),
+    ))
+    .await {
+        Err(error) =>  {
+            update_fail(&task_execution, &format!("Failed to send task to the queue: {error:?}")).await;
+            return Err((
                 Status::InternalServerError,
-                format!("Error sending export_election_event task:
-    {error:?}"),         )
-        })?;
+                format!("Error sending export_election_event task: {error:?}")
+            ));
+        },
+        Ok(task) => task,
+    };
 
     let output = ExportBallotPublicationOutput {
         document_id,
         task_execution: task_execution.clone(),
     };
 
-    info!("Sent EXPORT_ELECTION_EVENT task  {:?}", &task_execution);
+    info!("Sent EXPORT_ELECTION_EVENT task {task_execution:?}");
 
     Ok(Json(output))
 }

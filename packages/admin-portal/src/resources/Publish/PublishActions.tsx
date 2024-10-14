@@ -148,7 +148,6 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         let currWidget: WidgetProps | undefined
         try {
             currWidget = addWidget(ETasksExecution.EXPORT_BALLOT_PUBLICATION)
-            const ballotData = JSON.stringify(data?.current)
 
             const {data: ballotResponse, errors} = await ExportBallotPublication({
                 variables: {
@@ -157,7 +156,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                         ? record.election_event_id
                         : record.id,
                     electionId: record.election_event_id ? record.id : null,
-                    ballotDesign: ballotData,
+                    ballotPublicationId: record.id,
                 },
             })
 

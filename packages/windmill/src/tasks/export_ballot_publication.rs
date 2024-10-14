@@ -1,6 +1,8 @@
+use crate::postgres::ballot_style::get_ballot_styles_by_ballot_publication_by_id;
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::postgres::ballot_publication::get_ballot_publication_by_id;
 use crate::services::database::get_hasura_pool;
 use crate::services::export_ballot_publication::process_export_json_to_csv;
 use crate::services::export_election_event::process_export_zip;
@@ -11,6 +13,7 @@ use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::types::hasura::core::TasksExecution;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use tracing::{event, instrument, Level};
 
 #[instrument(err)]
@@ -20,7 +23,7 @@ pub async fn export_ballot_publication(
     tenant_id: String,
     election_event_id: String,
     document_id: String,
-    ballot_design: String,
+    ballot_publication_id: String,
     task_execution: TasksExecution,
 ) -> Result<()> {
     let mut hasura_db_client: DbClient = match get_hasura_pool().await.get().await {
@@ -44,14 +47,73 @@ pub async fn export_ballot_publication(
         }
     };
 
+    let ballot_publication = match get_ballot_publication_by_id(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &ballot_publication_id,
+    )
+    .await
+    {
+        Ok(Some(ballot_publication)) => ballot_publication,
+        Ok(None) => {
+            update_fail(
+                &task_execution,
+                &format!("Ballot Publication not found by id={ballot_publication_id:?}"),
+            )
+            .await?;
+            return Err(Error::String(format!(
+                "Ballot Publication not found by id={ballot_publication_id:?}"
+            )));
+        }
+        Err(err) => {
+            update_fail(
+                &task_execution,
+                &format!("Error obtaining ballot by id: {err:?}"),
+            )
+            .await?;
+            return Err(Error::String(format!(
+                "Error obtaining ballot by id: {err:?}"
+            )));
+        }
+    };
+
+    let ballot_styles = match get_ballot_styles_by_ballot_publication_by_id(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &ballot_publication_id,
+    )
+    .await
+    {
+        Ok(ballot_styles) => ballot_styles,
+        Err(err) => {
+            update_fail(
+                &task_execution,
+                &format!("Error obtaining ballot styles: {err:?}"),
+            )
+            .await?;
+            return Err(Error::String(format!(
+                "Error obtaining ballot styles: {err:?}"
+            )));
+        }
+    };
+
+    let ballot_design = json!({
+        "ballot_publication_id": &ballot_publication_id,
+        "ballot_styles": ballot_styles,
+    })
+    .to_string();
+
     // Process the export
-    match process_export_json_to_csv(&tenant_id, &election_event_id, &document_id, &ballot_design).await {
+    match process_export_json_to_csv(&tenant_id, &election_event_id, &document_id, &ballot_design)
+        .await
+    {
         Ok(_) => (),
         Err(err) => {
             update_fail(&task_execution, &err.to_string()).await?;
             return Err(Error::String(format!(
-                "Failed to export ballot publication data: {}",
-                err
+                "Failed to export ballot publication data: {err:?}"
             )));
         }
     }

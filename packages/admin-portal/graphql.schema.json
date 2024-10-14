@@ -10976,7 +10976,7 @@
             "description": null,
             "args": [
               {
-                "name": "ballot_design",
+                "name": "ballot_publication_id",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",

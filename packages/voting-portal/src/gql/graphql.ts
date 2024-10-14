@@ -1886,7 +1886,7 @@ export type Mutation_RootEdit_UserArgs = {
 
 /** mutation root */
 export type Mutation_RootExport_Ballot_PublicationArgs = {
-  ballot_design: Scalars['String']['input'];
+  ballot_publication_id: Scalars['String']['input'];
   election_event_id: Scalars['String']['input'];
   election_id?: InputMaybe<Scalars['String']['input']>;
   tenant_id: Scalars['String']['input'];

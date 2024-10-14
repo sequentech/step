@@ -8,13 +8,13 @@ export const EXPORT_BALLOT_PUBLICATION = gql`
         $tenantId: String!
         $electionEventId: String!
         $electionId: String
-        $ballotDesign: String!
+        $ballotPublicationId: String!
     ) {
         export_ballot_publication(
             tenant_id: $tenantId
             election_event_id: $electionEventId
             election_id: $electionId
-            ballot_design: $ballotDesign
+            ballot_publication_id: $ballotPublicationId
         ) {
             document_id
             task_execution {
