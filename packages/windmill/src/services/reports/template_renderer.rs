@@ -3,19 +3,23 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::utils::{get_public_asset_template, ToMap};
+use crate::postgres::reports::{get_template_id_for_report, ReportType};
 use crate::postgres::{election_event, template};
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document;
 use crate::services::s3::get_minio_url;
 use crate::services::temp_path::write_into_named_temp_file;
+use crate::tasks::send_template::{send_template_email, EmailSender};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Client as DbClient;
-use sequent_core::services::keycloak;
+use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
 use sequent_core::services::{pdf, reports};
+use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::fmt::Debug;
+use strum_macros::{Display, EnumString};
 use tracing::{info, instrument, warn};
 
 /// Trait that defines the behavior for rendering templates
@@ -26,9 +30,20 @@ pub trait TemplateRenderer: Debug {
 
     fn base_name() -> String;
     fn prefix(&self) -> String;
+    fn get_report_type() -> ReportType;
+    fn get_email_config() -> EmailConfig;
 
     fn get_tenant_id(&self) -> String;
     fn get_election_event_id(&self) -> String;
+
+    fn should_send_email(&self, is_scheduled_task: bool) -> bool {
+        // Send email if it's a cron job (scheduled task) or if a voterId is present
+        is_scheduled_task || self.get_voter_id().is_some()
+    }
+
+    fn get_voter_id(&self) -> Option<String> {
+        None // Default implementation, can be overridden in specific reports that have voterId
+    }
 
     async fn prepare_user_data(&self) -> Result<Self::UserData>;
     async fn prepare_system_data(&self, rendered_user_template: String)
@@ -45,47 +60,31 @@ pub trait TemplateRenderer: Debug {
             .transaction()
             .await
             .with_context(|| "Error starting hasura transaction")?;
+        let report_type = &Self::get_report_type();
 
-        let election_event = election_event::get_election_event_by_id(
+        let report_template_id = get_template_id_for_report(
             &transaction,
             &self.get_tenant_id(),
             &self.get_election_event_id(),
+            report_type,
+            None,
         )
         .await
-        .with_context(|| "Error getting the election event by id")?;
+        .with_context(|| "Error getting template id for report")?;
 
-        let presentation = match election_event.presentation {
-            Some(val) => val,
-            None => return Err(anyhow!("Election event has no presentation")),
-        };
-
-        let active_template_ids = match presentation.get("active_template_ids") {
-            Some(val) => val,
+        let template_id = match report_template_id {
+            Some(id) => id,
             None => {
-                warn!("No active_template_ids in presentation");
-                return Ok(None);
-            }
-        };
-
-        let usr_verification_tpl_id = match active_template_ids
-            .get("manual_verification")
-            .and_then(Value::as_str)
-        {
-            Some(id) if !id.is_empty() => id.to_string(),
-            _ => {
-                info!("manual_verification id not found or empty");
+                warn!("No template id found for report type: {report_type}");
                 return Ok(None);
             }
         };
 
         // Get the template by ID and return its value:
-        let template_data_opt = template::get_template_by_id(
-            &transaction,
-            &self.get_tenant_id(),
-            &usr_verification_tpl_id,
-        )
-        .await
-        .with_context(|| "Error getting template by id")?;
+        let template_data_opt =
+            template::get_template_by_id(&transaction, &self.get_tenant_id(), &template_id)
+                .await
+                .with_context(|| "Error getting template by id")?;
 
         let tpl_document: Option<&str> = match &template_data_opt {
             Some(template_data) => template_data
@@ -162,6 +161,8 @@ pub trait TemplateRenderer: Debug {
         document_id: &str,
         tenant_id: &str,
         election_event_id: &str,
+        is_scheduled_task: bool,
+        receiver: Option<String>,
     ) -> Result<()> {
         let rendered_system_template = self
             .generate_report()
@@ -169,7 +170,7 @@ pub trait TemplateRenderer: Debug {
             .map_err(|err| anyhow!("Error rendering report: {}", err))?;
 
         // Generate PDF
-        let bytes_pdf = pdf::html_to_pdf(rendered_system_template)
+        let bytes_pdf = pdf::html_to_pdf(rendered_system_template.clone())
             .map_err(|err| anyhow!("Error rendering report to pdf: {}", err))?;
 
         let base_name = Self::base_name();
@@ -197,6 +198,51 @@ pub trait TemplateRenderer: Debug {
         .await
         .map_err(|err| anyhow!("Error uploading document: {err}"))?;
 
+        if self.should_send_email(is_scheduled_task) {
+            let email_config = Self::get_email_config().clone();
+            let email_receiever = self
+                .get_email_receiver(receiver, tenant_id, election_event_id)
+                .await
+                .map_err(|err| anyhow!("Error getting email receiver: {err}"))?;
+            let email_sender = EmailSender::new().await?;
+            email_sender
+                .send(
+                    email_receiever,
+                    email_config.subject,
+                    email_config.plaintext_body,
+                    rendered_system_template.clone(),
+                )
+                .await
+                .map_err(|err| anyhow!("Error sending email: {err}"))?;
+        }
+
         Ok(())
+    }
+
+    async fn get_email_receiver(
+        &self,
+        receiver: Option<String>,
+        tenant_id: &str,
+        election_event_id: &str,
+    ) -> Result<String> {
+        match receiver {
+            Some(receiver) => Ok(receiver), // If receiver is provided, use it
+            None => {
+                // Fetch email via voter_id if receiver is not provided
+                let voter_id = self
+                    .get_voter_id()
+                    .ok_or_else(|| anyhow!("Error sending email: no receiver provided"))?;
+
+                let client = KeycloakAdminClient::new()
+                    .await
+                    .map_err(|err| anyhow!("Error initializing Keycloak client: {err}"))?;
+
+                let realm = get_event_realm(tenant_id, election_event_id);
+                let voter = client.get_user(&realm, &voter_id).await?;
+                voter
+                    .email
+                    .ok_or_else(|| anyhow!("Error sending email: no email provided"))
+            }
+        }
     }
 }

@@ -13,6 +13,7 @@ use tokio::time::{sleep, Duration};
 const IMMUDB_DEFAULT_LIMIT: usize = 900;
 const IMMUDB_DEFAULT_ENTRIES_TX_LIMIT: usize = 50;
 const IMMUDB_DEFAULT_OFFSET: usize = 0;
+const ELECTORAL_LOG_TABLE: &'static str = "electoral_log_messages";
 
 #[derive(Debug, Clone)]
 enum Table {
@@ -109,7 +110,7 @@ pub struct BoardMessage {
     pub message: Vec<u8>,
     pub version: String,
 }
-
+/*
 #[derive(Debug, Clone)]
 pub struct Board {
     pub id: i64,
@@ -185,16 +186,17 @@ impl TryFrom<&Row> for Board {
         })
     }
 }
+*/
 
 impl BoardClient {
-    #[instrument(skip(password))]
+    #[instrument(skip(password), level = "trace")]
     pub async fn new(server_url: &str, username: &str, password: &str) -> Result<BoardClient> {
         let mut client = Client::new(&server_url, username, password).await?;
         client.login().await?;
 
         Ok(BoardClient { client: client })
     }
-
+    /*
     /// Get all braid messages whose id is bigger than `last_id`
     pub async fn get_messages(
         &mut self,
@@ -235,7 +237,7 @@ impl BoardClient {
         id: i64,
     ) -> Result<Option<BoardMessage>> {
         self.get_one(board_db, Table::BraidMessages, id).await
-    }
+    }*/
 
     /// Get all electoral log messages whose id is bigger than `last_id`
     pub async fn get_electoral_log_messages(
@@ -316,7 +318,7 @@ impl BoardClient {
     }
 
     /// Get all messages whose id is bigger than `last_id`
-    async fn get(
+    /*async fn get(
         &mut self,
         board_db: &str,
         table: Table,
@@ -403,9 +405,9 @@ impl BoardClient {
         } else {
             Ok(None)
         }
-    }
+    }*/
 
-    pub async fn get_messages_filtered(
+    /*pub async fn get_messages_filtered(
         &mut self,
         board_db: &str,
         kind: &str,
@@ -422,8 +424,8 @@ impl BoardClient {
             max_ts,
         )
         .await
-    }
-
+    }*/
+    /*
     pub async fn get_electoral_log_messages_filtered(
         &mut self,
         board_db: &str,
@@ -441,9 +443,9 @@ impl BoardClient {
             max_ts,
         )
         .await
-    }
+    }*/
 
-    async fn get_filtered(
+    /*async fn get_filtered(
         &mut self,
         board_db: &str,
         table: Table,
@@ -559,7 +561,7 @@ impl BoardClient {
             }
         }
         Ok(())
-    }
+    }*/
 
     pub async fn insert_electoral_log_messages(
         &mut self,
@@ -668,7 +670,7 @@ impl BoardClient {
 
         Ok(())
     }
-
+    /*
     async fn insert(
         &mut self,
         board_db: &str,
@@ -819,13 +821,14 @@ impl BoardClient {
         } else {
             Err(anyhow!("board name '{}' not found", board_db))
         }
-    }
+    }*/
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self), level = "trace")]
     pub async fn has_database(&mut self, database_name: &str) -> Result<bool> {
         self.client.has_database(database_name).await
     }
 
+    /*
     /// Creates the requested board immudb database and adds it to the requested index.
     #[instrument(skip(self))]
     pub async fn create_board(&mut self, index_db: &str, board_db: &str) -> Result<Board> {
@@ -858,8 +861,9 @@ impl BoardClient {
         let _ = self.client.sql_exec(&message_sql, params).await?;
 
         self.get_board(index_db, board_db).await
-    }
+    }*/
 
+    /*
     /// Deletes the requested board immudb database removes it from the requested index.
     #[instrument(skip(self))]
     pub async fn delete_board(&mut self, index_db: &str, board_db: &str) -> Result<()> {
@@ -867,8 +871,8 @@ impl BoardClient {
         self.client.use_database(index_db).await?;
 
         let message_sql = r#"
-            DELETE from bulletin_boards where 
-            database_name = @database_name 
+            DELETE from bulletin_boards where
+            database_name = @database_name
             AND
             is_archived = @is_archived;
         "#;
@@ -889,9 +893,11 @@ impl BoardClient {
         let _ = self.client.sql_exec(&message_sql, params).await?;
 
         Ok(())
-    }
+    }*/
 
+    /*
     /// Creates the index immudb database if it doesn't exist.
+    #[instrument(skip(self))]
     pub async fn upsert_index_db(&mut self, index_dbname: &str) -> Result<()> {
         self.upsert_database(
             index_dbname,
@@ -906,11 +912,12 @@ impl BoardClient {
             "#,
         )
         .await
-    }
+    }*/
 
     /// Creates the requested board immudb database if it doesnt exist.
     /// Also creates the and the electoral log and braid tables.
-    pub async fn upsert_board_db(&mut self, board_dbname: &str) -> Result<()> {
+    #[instrument(skip(self))]
+    pub async fn upsert_electoral_log_db(&mut self, board_dbname: &str) -> Result<()> {
         let sql = format!(
             r#"
         CREATE TABLE IF NOT EXISTS {} (
@@ -923,25 +930,15 @@ impl BoardClient {
             version VARCHAR,
             PRIMARY KEY id
         );
-        CREATE TABLE IF NOT EXISTS {} (
-            id INTEGER AUTO_INCREMENT,
-            created TIMESTAMP,
-            sender_pk VARCHAR,
-            statement_timestamp TIMESTAMP,
-            statement_kind VARCHAR,
-            message BLOB,
-            version VARCHAR,
-            user_id VARCHAR,
-            PRIMARY KEY id
-        );
         "#,
-            Table::BraidMessages.as_str(),
+            // Table::BraidMessages.as_str(),
             Table::ElectoralLogMessages.as_str()
         );
         self.upsert_database(board_dbname, &sql).await
     }
 
     /// Deletes the immudb database.
+    #[instrument(skip(self))]
     pub async fn delete_database(&mut self, database_name: &str) -> Result<()> {
         if self.client.has_database(database_name).await? {
             self.client.delete_database(database_name).await?;
@@ -965,117 +962,5 @@ impl BoardClient {
             self.client.sql_exec(&tables, vec![]).await?;
         }
         Ok(())
-    }
-}
-
-// Run ignored tests with
-// cargo test <test_name> -- --include-ignored
-#[cfg(test)]
-pub(crate) mod tests {
-    use super::*;
-    use serial_test::serial;
-
-    const INDEX_DB: &'static str = "testindexdb";
-    const BOARD_DB: &'static str = "testdb";
-
-    async fn set_up() -> BoardClient {
-        let mut b = BoardClient::new("http://immudb:3322", "immudb", "immudb")
-            .await
-            .unwrap();
-
-        // In case the previous test did not clean up properly
-        b.delete_database(INDEX_DB).await.unwrap();
-        b.delete_database(BOARD_DB).await.unwrap();
-
-        b.upsert_index_db(INDEX_DB).await.unwrap();
-        b.upsert_board_db(BOARD_DB).await.unwrap();
-        b.create_board(INDEX_DB, BOARD_DB).await.unwrap();
-
-        b
-    }
-
-    async fn tear_down(mut b: BoardClient) {
-        b.delete_board(INDEX_DB, BOARD_DB).await.unwrap();
-        b.delete_database(INDEX_DB).await.unwrap();
-    }
-
-    #[tokio::test]
-    #[ignore]
-    #[serial]
-    pub async fn test_create_delete() {
-        let mut b = set_up().await;
-
-        assert!(b.has_database(INDEX_DB).await.unwrap());
-        assert!(b.has_database(BOARD_DB).await.unwrap());
-        let board = b.get_board(INDEX_DB, BOARD_DB).await.unwrap();
-        assert_eq!(board.database_name, BOARD_DB);
-        let board = b.get_board(INDEX_DB, "NOT FOUND").await;
-        assert!(board.is_err());
-        tear_down(b).await;
-    }
-
-    #[tokio::test]
-    #[ignore]
-    #[serial]
-    pub async fn test_message_create_retrieve() {
-        let mut b = set_up().await;
-        let board = b.get_board(INDEX_DB, BOARD_DB).await.unwrap();
-        assert_eq!(board.database_name, BOARD_DB);
-        let board_message = BoardMessage {
-            id: 1,
-            created: 555,
-            sender_pk: "".to_string(),
-            statement_timestamp: 0,
-            statement_kind: "".to_string(),
-            message: vec![],
-            version: "".to_string(),
-        };
-        let electoral_board_messages = ElectoralLogMessage {
-            id: 1,
-            created: 555,
-            sender_pk: "".to_string(),
-            statement_timestamp: 0,
-            statement_kind: "".to_string(),
-            message: vec![],
-            version: "".to_string(),
-            user_id: None,
-        };
-        let messages = vec![board_message];
-        let electoral_board_messages = vec![electoral_board_messages];
-        b.insert_messages(BOARD_DB, &messages).await.unwrap();
-        // b.insert_electoral_log_messages(BOARD_DB, &messages)
-        //     .await
-        //     .unwrap();
-        let ret = b.get_messages(BOARD_DB, 0).await.unwrap();
-        assert_eq!(messages, ret);
-        let ret = b.get_electoral_log_messages(BOARD_DB).await.unwrap();
-        assert_eq!(electoral_board_messages, ret);
-        let ret = b
-            .get_electoral_log_messages_filtered(BOARD_DB, "", "", None, None)
-            .await
-            .unwrap();
-        assert_eq!(messages, ret);
-        let ret = b
-            .get_electoral_log_messages_filtered(BOARD_DB, "", "", Some(1i64), None)
-            .await
-            .unwrap();
-        assert_eq!(messages, ret);
-        let ret = b
-            .get_electoral_log_messages_filtered(BOARD_DB, "", "", None, Some(556i64))
-            .await
-            .unwrap();
-        assert_eq!(messages, ret);
-        let ret = b
-            .get_electoral_log_messages_filtered(BOARD_DB, "", "", Some(1i64), Some(556i64))
-            .await
-            .unwrap();
-        assert_eq!(messages, ret);
-        let ret = b
-            .get_electoral_log_messages_filtered(BOARD_DB, "", "", Some(556i64), Some(666i64))
-            .await
-            .unwrap();
-        assert_eq!(ret.len(), 0);
-
-        tear_down(b).await;
     }
 }

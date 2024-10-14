@@ -58,6 +58,15 @@
         "attributes": {}
       },
       {
+        "id": "44d57f2c-fa4d-4817-9d74-951198f3f98c",
+        "name": "permission-label-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "57a42bb2-2db5-4022-a5ba-d5e8982a9e42",
         "name": "support-material-write",
         "description": "",
@@ -177,6 +186,15 @@
       {
         "id": "a0da31bf-de53-4e39-bd23-92ee2ad32af2",
         "name": "election-type-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "f9bdca59-0d6c-43bc-b8ca-b0c58882f97d",
+        "name": "scheduled-event-write",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -526,8 +544,26 @@
         "attributes": {}
       },
       {
+        "id": "48ac8c75-b282-4beb-8f60-006fd70961e7",
+        "name": "report-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "0c63d668-fe97-4da6-b654-ace5e4e41b24",
         "name": "voter-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "3f3472be-8ef9-4ce1-bbfb-3b8176ffcad6",
+        "name": "report-read",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -581,6 +617,15 @@
       {
         "id": "d07f0c85-7a5a-4930-ad10-8049a6a5eec1",
         "name": "document-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "419d1117-a143-49bc-b050-f39e49add5ab",
+        "name": "resource-write",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -933,6 +978,14 @@
       ],
       "service-account": [
         {
+          "id": "1443a2be-0f9b-48db-8062-81d811bb6427",
+          "name": "uma_protection",
+          "composite": false,
+          "clientRole": true,
+          "containerId": "a003e8ef-b683-4a59-91bb-e19446b676f2",
+          "attributes": {}
+        },
+        {
           "id": "d19587ed-ffbc-4e55-88c1-f3c4f15e8efb",
           "name": "service-role",
           "description": "",
@@ -1037,6 +1090,7 @@
       "attributes": {},
       "realmRoles": [
         "admin-dashboard-view",
+        "permission-label-write",
         "support-material-write",
         "tally-write",
         "trustee-write",
@@ -1051,6 +1105,7 @@
         "election-state-write",
         "role-create",
         "election-type-read",
+        "scheduled-event-write",
         "tally-read",
         "tasks-read",
         "voter-write",
@@ -1080,12 +1135,15 @@
         "role-read",
         "admin-ceremony",
         "area-read",
+        "tenant-read",
         "tally-start",
         "admin-user",
         "voter-create",
         "user-create",
         "tally-sheet-delete",
+        "report-write",
         "voter-read",
+        "report-read",
         "tenant-create",
         "election-type-write",
         "publish-write",
@@ -1093,6 +1151,7 @@
         "communication-template-read",
         "document-write",
         "tenant-write",
+        "resource-write",
         "document-download",
         "election-type-create",
         "publish-read",
@@ -1100,6 +1159,80 @@
         "contest-read",
         "candidate-write",
         "candidate-read"
+      ],
+      "clientRoles": {}
+    },
+    {
+      "id": "dbc85f9a-a33d-4b3f-9bf1-20282931130b",
+      "name": "admin-light",
+      "path": "/admin-light",
+      "subGroups": [],
+      "attributes": {},
+      "realmRoles": [
+        "admin-dashboard-view",
+        "support-material-write",
+        "tally-write",
+        "user-write",
+        "election-event-write",
+        "notification-send",
+        "user-permission-write",
+        "tally-sheet-create",
+        "role-write",
+        "logs-read",
+        "communication-template-create",
+        "election-state-write",
+        "role-create",
+        "election-type-read",
+        "scheduled-event-write",
+        "tally-read",
+        "tasks-read",
+        "uma_authorization",
+        "voter-write",
+        "role-assign",
+        "voting-channel-read",
+        "tally-sheet-publish",
+        "document-upload",
+        "user-permission-read",
+        "election-event-create",
+        "notification-write",
+        "trustee-read",
+        "keys-read",
+        "election-event-delete",
+        "user-read",
+        "create-election-event",
+        "document-read",
+        "notification-read",
+        "area-write",
+        "trustee-create",
+        "election-event-read",
+        "offline_access",
+        "user-permission-create",
+        "communication-template-write",
+        "cast-vote-read",
+        "tally-results-read",
+        "tally-sheet-view",
+        "voting-channel-write",
+        "role-read",
+        "admin-ceremony",
+        "area-read",
+        "tenant-read",
+        "tally-start",
+        "voter-create",
+        "tally-sheet-delete",
+        "user-create",
+        "voter-read",
+        "tenant-create",
+        "election-type-write",
+        "publish-write",
+        "support-material-read",
+        "communication-template-read",
+        "document-write",
+        "resource-write",
+        "tenant-write",
+        "document-download",
+        "default-roles-electoral-process",
+        "election-type-create",
+        "publish-read"
       ],
       "clientRoles": {}
     },
@@ -1176,6 +1309,11 @@
       "attributes": {
         "sequent.read-only.otp-method": ["email-or-sms"],
         "sequent.read-only.mobile-number": ["+34666000222"],
+        "permission_labels": [
+          "election-real",
+          "election-test",
+          "different-permission-label"
+        ],
         "tenant-id": ["90505c8a-23a9-4cdf-a26b-4e19f6a097d5"]
       },
       "createdTimestamp": 1692312554121,
@@ -1193,7 +1331,10 @@
       ],
       "disableableCredentialTypes": [],
       "requiredActions": [],
-      "realmRoles": ["default-roles-electoral-process"],
+      "realmRoles": [
+        "permission-label-write",
+        "default-roles-electoral-process"
+      ],
       "notBefore": 1712715173,
       "groups": ["/admin"]
     },
@@ -1234,7 +1375,6 @@
       "attributes": {
         "sequent.read-only.otp-method": ["email-or-sms"],
         "sequent.read-only.email-address": ["edu@sequentech.io"],
-        "sequent.read-only.mobile-number": ["+34634571634"],
         "area-id": ["2f312a36-f39c-46e4-9670-1d1ce4625745"],
         "locale": ["en"],
         "tenant-id": ["90505c8a-23a9-4cdf-a26b-4e19f6a097d5"]
@@ -1259,6 +1399,57 @@
       },
       "notBefore": 0,
       "groups": []
+    },
+    {
+      "id": "f3ea1cd2-2eca-4b83-87d5-a013a4c12618",
+      "username": "omrio2@moveo.co.il",
+      "firstName": "Omri2",
+      "lastName": "Ovadia2",
+      "email": "omrio2@moveo.co.il",
+      "emailVerified": false,
+      "attributes": {
+        "tenant-id": ["90505c8a-23a9-4cdf-a26b-4e19f6a097d5"],
+        "permission_label": ["test3"]
+      },
+      "createdTimestamp": 1727800035203,
+      "enabled": true,
+      "totp": false,
+      "credentials": [],
+      "disableableCredentialTypes": [],
+      "requiredActions": [],
+      "realmRoles": ["default-roles-electoral-process"],
+      "notBefore": 0,
+      "groups": ["/admin-light"]
+    },
+    {
+      "id": "0a305107-2309-4ae7-b4d1-11829d6aa01a",
+      "username": "omrio@moveo.co.il",
+      "firstName": "Omri",
+      "lastName": "Ovadia",
+      "email": "omrio@moveo.co.il",
+      "emailVerified": false,
+      "attributes": {
+        "permission_labels": ["election-test"],
+        "tenant-id": ["90505c8a-23a9-4cdf-a26b-4e19f6a097d5"]
+      },
+      "createdTimestamp": 1727346268199,
+      "enabled": true,
+      "totp": false,
+      "credentials": [
+        {
+          "id": "8a7dc465-5578-42a9-993a-c56b25b8aa01",
+          "type": "password",
+          "userLabel": "My password",
+          "createdDate": 1727346283276,
+          "secretData": "{\"value\":\"egUjZq10BhUpvN557QNLOKAtT5w7ojfY6nk0dAHEAzhU6NXH5QAwBBZ+cq2dM0fLwUiHMmTxNrrcyHLXPOuNjg==\",\"salt\":\"+uZXi0yq2zWEJD5+0YPlaw==\",\"additionalParameters\":{}}",
+          "credentialData": "{\"hashIterations\":210000,\"algorithm\":\"pbkdf2-sha512\",\"additionalParameters\":{}}"
+        }
+      ],
+      "disableableCredentialTypes": [],
+      "requiredActions": ["UPDATE_PASSWORD"],
+      "realmRoles": ["default-roles-electoral-process"],
+      "notBefore": 0,
+      "groups": ["/admin-light"]
     },
     {
       "id": "f3bb9d41-eff4-4014-a2ac-d8fc750d9390",
@@ -1288,7 +1479,7 @@
       "requiredActions": [],
       "realmRoles": ["admin-user", "default-roles-electoral-process"],
       "clientRoles": {
-        "service-account": ["service-role"]
+        "service-account": ["uma_protection", "service-role"]
       },
       "notBefore": 0,
       "groups": []
@@ -1638,6 +1829,23 @@
             "id.token.claim": "true",
             "access.token.claim": "true",
             "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-allowed-roles",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "id": "c12bf8e4-b419-4230-a2f0-fa9972d8c732",
+          "name": "x-hasura-permission-labels",
+          "protocol": "openid-connect",
+          "protocolMapper": "hasura-multivalued-oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "introspection.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "user.attribute": "permission_labels",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-permission-labels",
             "jsonType.label": "String"
           }
         }
@@ -2060,6 +2268,7 @@
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": true,
       "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": true,
       "publicClient": false,
       "frontchannelLogout": true,
       "protocol": "openid-connect",
@@ -2069,6 +2278,7 @@
         "backchannel.logout.session.required": "true",
         "post.logout.redirect.uris": "+",
         "oauth2.device.authorization.grant.enabled": "false",
+        "display.on.consent.screen": "false",
         "backchannel.logout.revoke.offline.tokens": "false"
       },
       "authenticationFlowBindingOverrides": {},
@@ -2198,7 +2408,15 @@
         "phone",
         "offline_access",
         "microprofile-jwt"
-      ]
+      ],
+      "authorizationSettings": {
+        "allowRemoteResourceManagement": true,
+        "policyEnforcementMode": "ENFORCING",
+        "resources": [],
+        "policies": [],
+        "scopes": [],
+        "decisionStrategy": "UNANIMOUS"
+      }
     },
     {
       "id": "ffb437ac-f79a-452a-8ebb-fc872e76851f",
@@ -2975,13 +3193,13 @@
         "subComponents": {},
         "config": {
           "allowed-protocol-mapper-types": [
-            "saml-user-attribute-mapper",
             "saml-user-property-mapper",
             "saml-role-list-mapper",
-            "oidc-usermodel-attribute-mapper",
             "oidc-full-name-mapper",
+            "oidc-usermodel-attribute-mapper",
             "oidc-usermodel-property-mapper",
             "oidc-sha256-pairwise-sub-mapper",
+            "saml-user-attribute-mapper",
             "oidc-address-mapper"
           ]
         }
@@ -3043,14 +3261,14 @@
         "subComponents": {},
         "config": {
           "allowed-protocol-mapper-types": [
-            "oidc-address-mapper",
-            "oidc-sha256-pairwise-sub-mapper",
-            "oidc-full-name-mapper",
             "saml-user-attribute-mapper",
-            "saml-role-list-mapper",
+            "oidc-usermodel-attribute-mapper",
+            "oidc-full-name-mapper",
             "saml-user-property-mapper",
+            "oidc-address-mapper",
             "oidc-usermodel-property-mapper",
-            "oidc-usermodel-attribute-mapper"
+            "oidc-sha256-pairwise-sub-mapper",
+            "saml-role-list-mapper"
           ]
         }
       }
@@ -3062,7 +3280,7 @@
         "subComponents": {},
         "config": {
           "kc.user.profile.config": [
-            "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.otp-method\",\"displayName\":\"OTP Method\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.mobile-number\",\"displayName\":\"Phone Number\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"trustee\",\"displayName\":\"trustee\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false}],\"groups\":[]}"
+            "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.otp-method\",\"displayName\":\"OTP Method\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.mobile-number\",\"displayName\":\"Phone Number\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"trustee\",\"displayName\":\"trustee\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"permission_labels\",\"displayName\":\"Permission Labels\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":true}],\"groups\":[]}"
           ]
         }
       }

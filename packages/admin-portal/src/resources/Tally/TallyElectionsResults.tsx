@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useMemo, useState} from "react"
 import {useGetMany, useGetList} from "react-admin"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 import {Sequent_Backend_Election, Sequent_Backend_Results_Election} from "../../gql/graphql"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
@@ -35,6 +36,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
     const {globalSettings} = useContext(SettingsContext)
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Election_Extended>>([])
     const tallyData = useAtomValue(tallyQueryData)
+    const aliasRenderer = useAliasRenderer()
 
     const elections: Array<Sequent_Backend_Election> | undefined = useMemo(
         () =>
@@ -78,6 +80,9 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
             headerName: t("tally.table.elections"),
             flex: 1,
             editable: false,
+            valueGetter(params) {
+                return aliasRenderer(params.row)
+            },
         },
         {
             field: "elegible_census",

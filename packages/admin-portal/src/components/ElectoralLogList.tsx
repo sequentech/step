@@ -8,7 +8,6 @@ import {
     List,
     TextField,
     FunctionField,
-    TextInput,
     NumberField,
     useRecordContext,
     useNotify,
@@ -26,6 +25,7 @@ import {useMutation} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
 import {ElectionStyles} from "./styles/ElectionStyles"
 import {useLocation, useNavigate} from "react-router"
+import {ResetFilters} from "./ResetFilters"
 
 interface ExportWrapperProps {
     electionEventId: string
@@ -58,13 +58,13 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
             let documentId = exportElectionEventData?.export_election_event_logs?.document_id
             if (errors || !documentId) {
                 setOpenExport(false)
-                notify(t(`electionEventScreen.exportError`), {type: "error"})
+                notify(t(`electionEventScreen.export.exportError`), {type: "error"})
                 console.log(`Error exporting: ${errors}`)
                 return
             }
             setExportDocumentId(documentId)
         } catch (error) {
-            notify(t(`electionEventScreen.exportError`), {type: "error"})
+            notify(t(`electionEventScreen.export.exportError`), {type: "error"})
             setOpenExport(false)
         }
     }
@@ -134,41 +134,6 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
     const user_id = params.get("user_id")
     const filters: Array<ReactElement> = []
 
-    // Avoid error when coming from filtered list in other tabs
-    const listContext = useListController({
-        resource: "electoral_log",
-        filter: {
-            election_event_id: record?.id || undefined,
-        },
-    })
-
-    const navigate = useNavigate()
-
-    useEffect(() => {
-        for (const filter of Object.values(ElectoralLogFilters)) {
-            filters.push(<TextInput key={filter} source={filter} />)
-        }
-
-        // navigate to self but without search params
-        navigate(
-            {
-                pathname: location.pathname,
-                search: "",
-            },
-            {replace: true}
-        )
-
-        // Reset filters when the component mounts
-        if (listContext && listContext.setFilters) {
-            listContext.setFilters(
-                {
-                    election_event_id: record?.id || undefined,
-                },
-                {}
-            )
-        }
-    }, [record?.id])
-
     const [openExport, setOpenExport] = React.useState(false)
 
     const handleExport = () => {
@@ -198,6 +163,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                 }}
                 aside={aside}
             >
+                <ResetFilters />
                 <DatagridConfigurable bulkActionButtons={<></>}>
                     <NumberField source="id" />
                     <FunctionField

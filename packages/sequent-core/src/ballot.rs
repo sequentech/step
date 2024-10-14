@@ -573,22 +573,6 @@ pub struct ElectionEventLanguageConf {
     Clone,
     Default,
 )]
-pub struct ActiveTemplateIds {
-    pub manual_verification: Option<String>,
-}
-
-#[derive(
-    BorshSerialize,
-    BorshDeserialize,
-    Serialize,
-    Deserialize,
-    JsonSchema,
-    PartialEq,
-    Eq,
-    Debug,
-    Clone,
-    Default,
-)]
 pub struct ElectionEventPresentation {
     pub i18n: Option<I18nContent<I18nContent<Option<String>>>>,
     pub materials: Option<ElectionEventMaterials>,
@@ -601,7 +585,9 @@ pub struct ElectionEventPresentation {
     pub elections_order: Option<ElectionsOrder>,
     pub voting_portal_countdown_policy: Option<VotingPortalCountdownPolicy>,
     pub custom_urls: Option<CustomUrls>,
-    pub active_template_ids: Option<ActiveTemplateIds>,
+    pub locked_down: Option<LockedDown>,
+    pub publish_policy: Option<Publish>,
+    pub enrollment: Option<Enrollment>,
 }
 
 #[allow(non_camel_case_types)]
@@ -791,7 +777,6 @@ pub enum EOverVotePolicy {
     Eq,
     Debug,
     Clone,
-    Default,
 )]
 pub struct ElectionPresentation {
     pub i18n: Option<I18nContent<I18nContent<Option<String>>>>,
@@ -804,6 +789,31 @@ pub struct ElectionPresentation {
     pub is_grace_priod: Option<bool>,
     pub grace_period_policy: Option<EGracePeriodPolicy>,
     pub grace_period_secs: Option<u64>,
+    pub init_report: Option<InitReport>,
+    pub manual_start_voting_period: Option<ManualStartVotingPeriod>,
+    pub voting_period_end: Option<VotingPeriodEnd>,
+    pub tally: Option<Tally>,
+}
+
+impl Default for ElectionPresentation {
+    fn default() -> ElectionPresentation {
+        ElectionPresentation {
+            init_report: Some(InitReport::ALLOWED),
+            manual_start_voting_period: Some(ManualStartVotingPeriod::ALLOWED),
+            voting_period_end: Some(VotingPeriodEnd::DISALLOWED),
+            tally: Some(Tally::ALWAYS_ALLOW),
+            i18n: None,
+            dates: None,
+            language_conf: None,
+            contests_order: None,
+            audit_button_cfg: None,
+            sort_order: None,
+            cast_vote_confirm: None,
+            is_grace_priod: None,
+            grace_period_policy: None,
+            grace_period_secs: None,
+        }
+    }
 }
 
 #[derive(
@@ -964,16 +974,17 @@ impl Contest {
             .unwrap_or(true)
     }
 
-    pub fn allow_explicit_invalid(&self) -> bool {
-        let invalid_vote_policy = self
+    /// Get the invalid vote policy configuration value from the presentation.
+    /// If the value or the parent object is not set, return the default value.
+    pub fn get_invalid_vote_policy(&self) -> InvalidVotePolicy {
+        match self
             .presentation
-            .clone()
-            .unwrap_or(ContestPresentation::new())
-            .invalid_vote_policy
-            .unwrap_or(InvalidVotePolicy::default());
-
-        [InvalidVotePolicy::ALLOWED, InvalidVotePolicy::WARN]
-            .contains(&invalid_vote_policy)
+            .as_ref()
+            .map(|presentation| &presentation.invalid_vote_policy)
+        {
+            Some(policy) => policy.clone().unwrap_or_default(),
+            _ => InvalidVotePolicy::default(),
+        }
     }
 
     pub fn cumulative_number_of_checkboxes(&self) -> u64 {
@@ -1002,6 +1013,81 @@ impl Contest {
             .map(|candidate| candidate.id.clone())
             .collect()
     }
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum Enrollment {
+    #[default]
+    #[strum(serialize = "enabled")]
+    #[serde(rename = "enabled")]
+    ENABLED,
+    #[strum(serialize = "disabled")]
+    #[serde(rename = "disabled")]
+    DISABLED,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum LockedDown {
+    #[strum(serialize = "locked-down")]
+    #[serde(rename = "locked-down")]
+    LOCKED_DOWN,
+    #[default]
+    #[strum(serialize = "not-locked-down")]
+    #[serde(rename = "not-locked-down")]
+    NOT_LOCKED_DOWN,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum Publish {
+    #[default]
+    #[strum(serialize = "always")]
+    #[serde(rename = "always")]
+    ALWAYS,
+    #[strum(serialize = "after-lockdown")]
+    #[serde(rename = "after-lockdown")]
+    AFTER_LOCKDOWN,
 }
 
 #[derive(
@@ -1108,6 +1194,106 @@ impl Default for ElectionStatistics {
             num_sms_sent: Some(0),
         }
     }
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum InitReport {
+    #[default]
+    #[strum(serialize = "allowed")]
+    #[serde(rename = "allowed")]
+    ALLOWED,
+    #[strum(serialize = "disallowed")]
+    #[serde(rename = "disallowed")]
+    DISALLOWED,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum ManualStartVotingPeriod {
+    #[default]
+    #[strum(serialize = "allowed")]
+    #[serde(rename = "allowed")]
+    ALLOWED,
+    #[strum(serialize = "only-when-initialization-report-has-been-performed")]
+    #[serde(rename = "only-when-initialization-report-has-been-performed")]
+    ONLY_WHEN_INITIALIZATION_REPORT_HAS_BEEN_PERFORMED,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum VotingPeriodEnd {
+    #[default]
+    #[strum(serialize = "allowed")]
+    #[serde(rename = "allowed")]
+    ALLOWED,
+    #[strum(serialize = "disallowed")]
+    #[serde(rename = "disallowed")]
+    DISALLOWED,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum Tally {
+    #[default]
+    #[strum(serialize = "always-allow")]
+    #[serde(rename = "always-allow")]
+    ALWAYS_ALLOW,
+    #[strum(serialize = "allow-when-voting-period-ends")]
+    #[serde(rename = "allow-when-voting-period-ends")]
+    ONLY_WHEN_VOTING_PERIOD_ENDS,
 }
 
 #[derive(

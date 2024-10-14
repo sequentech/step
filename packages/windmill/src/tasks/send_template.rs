@@ -170,14 +170,14 @@ enum EmailTransport {
     Console,
 }
 
-struct EmailSender {
+pub struct EmailSender {
     transport: EmailTransport,
     email_from: String,
 }
 
 impl EmailSender {
     #[instrument(err)]
-    async fn new() -> Result<Self> {
+    pub async fn new() -> Result<Self> {
         let email_from =
             std::env::var("EMAIL_FROM").map_err(|err| anyhow!("EMAIL_FROM env var missing"))?;
         let email_transport_name = std::env::var("EMAIL_TRANSPORT_NAME")
@@ -201,7 +201,7 @@ impl EmailSender {
     }
 
     #[instrument(skip(self), err)]
-    async fn send(
+    pub async fn send(
         &self,
         receiver: String,
         subject: String,
@@ -277,41 +277,75 @@ async fn send_template_sms(
     template: &Option<SmsConfig>,
     variables: &Map<String, Value>,
     sender: &SmsSender,
-) -> Result<()> {
+) -> Result<Option<String>> {
     if let (Some(receiver), Some(config)) = (receiver, template) {
         let message = reports::render_template_text(config.message.as_str(), variables.clone())
             .map_err(|err| anyhow!("{}", err))?;
 
-        sender.send(receiver.into(), message).await?;
+        sender.send(receiver.into(), message.clone()).await?;
+        return Ok(Some(
+            json!({
+                "receiver": receiver,
+                "message": message
+            })
+            .to_string(),
+        ));
     } else {
         event!(Level::INFO, "Receiver empty, ignoring..");
     }
-    Ok(())
+    Ok(None)
 }
 
 #[instrument(skip(sender), err)]
-async fn send_template_email(
+pub async fn send_template_email(
     receiver: &Option<String>,
     template: &Option<EmailConfig>,
     variables: &Map<String, Value>,
     sender: &EmailSender,
-) -> Result<()> {
+) -> Result<Option<String>> {
     if let (Some(receiver), Some(config)) = (receiver, template) {
         let subject = reports::render_template_text(config.subject.as_str(), variables.clone())
-            .map_err(|err| anyhow!("{}", err))?;
+            .map_err(|err| anyhow!("Error rendering subject template: {err:?}"))?;
+
         let plaintext_body =
             reports::render_template_text(config.plaintext_body.as_str(), variables.clone())
-                .map_err(|err| anyhow!("{}", err))?;
-        let html_body = reports::render_template_text(config.html_body.as_str(), variables.clone())
-            .map_err(|err| anyhow!("{}", err))?;
+                .map_err(|err| anyhow!("Error rendering plaintext body: {err:?}"))?;
+
+        let html_body = config
+            .html_body
+            .as_ref()
+            .ok_or_else(|| anyhow!("html_body missing"))?; // Error if html_body is None
+
+        let html_body = reports::render_template_text(&html_body, variables.clone())
+            .map_err(|err| anyhow!("error rendering html body: {err:?}"))?;
 
         sender
-            .send(receiver.to_string(), subject, plaintext_body, html_body)
-            .await?;
+            .send(
+                receiver.to_string(),
+                subject.clone(),
+                plaintext_body.clone(),
+                html_body.clone(),
+            )
+            .await
+            .map_err(|err| anyhow!("error sending email: {err:?}"))?;
+
+        return Ok(Some(
+            json!({
+                "receiver": receiver,
+                "subject": subject,
+                "html_body": html_body,
+                "plaintext_body": plaintext_body
+            })
+            .to_string(),
+        ));
     } else {
-        event!(Level::INFO, "Receiver empty, ignoring..");
+        // Log the event if the receiver or template is missing
+        event!(
+            Level::INFO,
+            "Receiver or template is empty, email not sent."
+        );
     }
-    Ok(())
+    Ok(None)
 }
 
 #[derive(Default, Debug)]
@@ -319,7 +353,6 @@ struct MetricsUnit {
     num_emails_sent: i64,
     num_sms_sent: i64,
 }
-
 #[derive(Default, Debug)]
 struct Metrics {
     election_event: MetricsUnit,
@@ -421,12 +454,47 @@ async fn update_stats(
     Ok(())
 }
 
+async fn on_success_send_message(
+    election_event: Option<GetElectionEventSequentBackendElectionEvent>,
+    user_id: Option<String>,
+    message: &str,
+    tenant_id: &str,
+    admin_id: &str,
+) -> Result<()> {
+    if let Some(election_event) = election_event {
+        let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
+            .with_context(|| "missing bulletin board")?;
+
+        let electoral_log = ElectoralLog::for_admin_user(&board_name, tenant_id, admin_id)
+            .await
+            .map_err(|e| anyhow!("Error obtaining the electoral log: {e:?}"))?;
+
+        electoral_log
+            .post_send_template(
+                Some(message.into()),
+                election_event.id.clone(),
+                user_id,
+                None,
+            )
+            .await
+            .map_err(|e| anyhow!("error posting to the electoral log: {e:?}"))?;
+    } else {
+        event!(
+            Level::WARN,
+            "No election event provided for user: {user_id:?}"
+        );
+    }
+
+    Ok(())
+}
+
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn send_template(
     body: SendTemplateBody,
     tenant_id: String,
+    user_id: String,
     election_event_id: Option<String>,
 ) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
@@ -534,6 +602,7 @@ pub async fn send_template(
             email_verified: None,
             sort: None,
             has_voted: None,
+            authorized_to_election_alias: None,
         };
 
         let (users, total_count) = match audience_selection {
@@ -599,11 +668,29 @@ pub async fn send_template(
                         /* sender */ &email_sender,
                     )
                     .await;
-                    if let Err(error) = sending_result {
-                        event!(Level::ERROR, "error sending email: {error:?}, continuing..");
-                        Err(())
-                    } else {
-                        Ok(())
+                    match sending_result {
+                        Ok(Some(message)) => {
+                            if let Err(e) = on_success_send_message(
+                                election_event.clone(),
+                                user.id.clone(),
+                                &message,
+                                &tenant_id,
+                                &user_id,
+                            )
+                            .await
+                            {
+                                event!(Level::ERROR, "Error processing success message: {e:?}");
+                            }
+                            Ok(())
+                        }
+                        Ok(None) => {
+                            event!(Level::WARN, "No email was sent.");
+                            Ok(())
+                        }
+                        Err(error) => {
+                            event!(Level::ERROR, "error sending email: {error:?}, continuing..");
+                            Err(())
+                        }
                     }
                 }
                 TemplateMethod::SMS => {
@@ -614,11 +701,29 @@ pub async fn send_template(
                         /* sender */ &sms_sender,
                     )
                     .await;
-                    if let Err(error) = sending_result {
-                        event!(Level::ERROR, "error sending sms: {error:?}, continuing..");
-                        Err(())
-                    } else {
-                        Ok(())
+                    match sending_result {
+                        Ok(Some(message)) => {
+                            if let Err(e) = on_success_send_message(
+                                election_event.clone(),
+                                user.id.clone(),
+                                &message,
+                                &tenant_id,
+                                &user_id,
+                            )
+                            .await
+                            {
+                                event!(Level::ERROR, "Error processing success message: {e:?}");
+                            }
+                            Ok(())
+                        }
+                        Ok(None) => {
+                            event!(Level::WARN, "No sms was sent.");
+                            Ok(())
+                        }
+                        Err(error) => {
+                            event!(Level::ERROR, "error sending sms: {error:?}, continuing..");
+                            Err(())
+                        }
                     }
                 }
                 TemplateMethod::DOCUMENT => {
@@ -626,6 +731,7 @@ pub async fn send_template(
                     Ok(())
                 }
             };
+
             update_metrics(
                 &mut metrics,
                 &elections_by_area,
@@ -660,18 +766,6 @@ pub async fn send_template(
         .commit()
         .await
         .with_context(|| "error comitting transaction")?;
-
-    if let Some(election_event) = election_event {
-        let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
-            .with_context(|| "missing bulletin board")?;
-
-        let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
-
-        electoral_log
-            .post_send_template(election_event.id, None)
-            .await
-            .with_context(|| "error posting to the electoral log")?;
-    }
 
     Ok(())
 }

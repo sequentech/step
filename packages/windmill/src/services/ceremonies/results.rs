@@ -13,6 +13,7 @@ use deadpool_postgres::Transaction;
 use sequent_core::services::connection;
 use sequent_core::services::keycloak;
 use sequent_core::types::hasura::core::Area;
+use serde_json::json;
 use std::cmp;
 use std::path::PathBuf;
 use tracing::{event, instrument, Level};
@@ -64,6 +65,18 @@ pub async fn save_results(
                 contest.contest_result.percentage_invalid_votes_implicit / 100.0;
             let total_blank_votes_percent: f64 =
                 contest.contest_result.percentage_total_blank_votes / 100.0;
+
+            let extended_metrics_value = serde_json::to_value(
+                contest
+                    .contest_result
+                    .extended_metrics
+                    .clone()
+                    .unwrap_or_default(),
+            )
+            .expect("Failed to convert to JSON");
+            let mut annotations = json!({});
+            annotations["extended_metrics"] = extended_metrics_value;
+
             if let Some(area) = &contest.area {
                 idx += 1;
                 if idx % 200 == 0 {
@@ -92,6 +105,7 @@ pub async fn save_results(
                     Some(implicit_invalid_votes_percent.clamp(0.0, 1.0)),
                     Some(contest.contest_result.total_blank_votes as i64),
                     Some(total_blank_votes_percent.clamp(0.0, 1.0)),
+                    Some(annotations),
                 )
                 .await?;
 
@@ -154,6 +168,7 @@ pub async fn save_results(
                     contest.contest.voting_type.clone(),
                     contest.contest.counting_algorithm.clone(),
                     contest.contest.name.clone(),
+                    Some(annotations),
                 )
                 .await?;
 

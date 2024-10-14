@@ -21,6 +21,7 @@ Files:
   yarn.lock
   packages/.ignore
   packages/admin-portal/.ignore
+  packages/step-cli/.ignore
   packages/ballot-verifier/.ignore
   packages/braid/.ignore
   packages/sequent-core/.ignore
@@ -47,6 +48,7 @@ Files:
 Copyright: 2024 Sequent Tech <legal@sequentech.io>
 License: AGPL-3.0-only
 
+
 Files:
   vendor/immudb-log-audit/*
 Copyright:
@@ -55,6 +57,15 @@ Copyright:
 License: Apache-2.0
 
 Files:
+  packages/admin-portal/public/roboto/*
+Copyright:
+  Copyright 2015 Google Inc
+License: Apache-2.0
+
+
+
+Files:
+  packages/admin-portal/public/intl-tel-input/*
   packages/keycloak-extensions/sequent-theme/src/main/resources/theme/sequent.admin-portal/login/resources/intl-tel-input-23.3.2/*
 Copyright:
   2014-2016 Jack O'Connor

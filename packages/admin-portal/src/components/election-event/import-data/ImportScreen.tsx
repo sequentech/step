@@ -13,8 +13,8 @@ import {useMutation} from "@apollo/client"
 import {useNotify} from "react-admin"
 
 interface ImportScreenProps {
-    doImport: (documentId: string, sha256: string) => Promise<void>
-    uploadCallback?: (documentId: string) => Promise<void>
+    doImport: (documentId: string, sha256: string, password?: string) => Promise<void>
+    uploadCallback?: (documentId: string, password?: string) => Promise<void>
     doCancel: () => void
     errors: string | null
     disableImport?: boolean
@@ -36,7 +36,6 @@ export const ImportStyles = {
 export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenProps>> = memo(
     (props: ImportScreenProps): React.JSX.Element => {
         const {doCancel, uploadCallback, doImport, disableImport, refresh, errors} = props
-
         const {t} = useTranslation()
         const notify = useNotify()
         const [loading, setLoading] = useState<boolean>(false)
@@ -45,59 +44,82 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
         const [isUploading, setIsUploading] = React.useState<boolean>(false)
         const [documentId, setDocumentId] = React.useState<string | null>(null)
         const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
+        const [isEncrypted, setIsEncrypted] = useState<boolean>(false)
+        const [passwordDialogOpen, setPasswordDialogOpen] = useState<boolean>(false)
+        const [password, setPassword] = useState<string>("")
+        const [theFile, setTheFile] = useState<File | undefined>()
 
-        const handleFiles = async (files: FileList | null) => {
-            // https://fullstackdojo.medium.com/s3-upload-with-presigned-url-react-and-nodejs-b77f348d54cc
-            setIsUploading(true)
-            const theFile = files?.[0]
+        useEffect(() => {
+            setShaField("")
+            setDocumentId(null)
+        }, [refresh])
 
-            if (theFile) {
+        const uploadFile = async (url: string, file: File) => {
+            await fetch(url, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": file.type,
+                },
+                body: file,
+            })
+            setIsUploading(false)
+        }
+
+        const uploadFileToS3 = async (theFile: File) => {
+            try {
                 // Get the Upload URL
                 let {data} = await getUploadUrl({
                     variables: {
                         name: theFile.name,
-                        media_type: theFile.type,
+                        media_type: isEncrypted ? "application/ezip" : theFile.type,
                         size: theFile.size,
                         is_public: false,
                     },
                 })
 
-                try {
-                    if (!data?.get_upload_url?.url) {
-                        notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
-
-                        return
-                    }
-
-                    // Actually upload the CSV file
-                    await fetch(data.get_upload_url.url, {
-                        method: "PUT",
-                        headers: {
-                            "Content-Type": theFile.type,
-                        },
-                        body: theFile,
-                    })
-
-                    setIsUploading(false)
-                    setDocumentId(data.get_upload_url.document_id)
-                    if (uploadCallback) {
-                        await uploadCallback?.(data.get_upload_url.document_id)
-                    }
-                    notify(t("electionEventScreen.import.fileUploadSuccess"), {type: "success"})
-                } catch (_error) {
-                    setIsUploading(false)
+                if (!data?.get_upload_url?.url) {
                     notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
+                    return
                 }
+
+                await uploadFile(data.get_upload_url.url, theFile)
+                setDocumentId(data.get_upload_url.document_id)
+                if (uploadCallback) {
+                    await uploadCallback?.(data.get_upload_url.document_id, password)
+                }
+                notify(t("electionEventScreen.import.fileUploadSuccess"), {type: "success"})
+            } catch (_error) {
+                setIsUploading(false)
+                notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
+            }
+        }
+
+        const handleFiles = async (files: FileList | null) => {
+            // https://fullstackdojo.medium.com/s3-upload-with-presigned-url-react-and-nodejs-b77f348d54cc
+            setPassword("")
+            const theFile = files?.[0]
+            setTheFile(theFile)
+            const isEncrypted = theFile?.name.endsWith(".ezip") || false
+            setIsEncrypted(isEncrypted)
+            if (isEncrypted) {
+                setPasswordDialogOpen(true)
+                return
+            }
+
+            if (theFile) {
+                setIsUploading(true)
+                await uploadFileToS3(theFile)
             } else {
                 setIsUploading(false)
                 notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
             }
         }
 
-        useEffect(() => {
-            setShaField("")
-            setDocumentId(null)
-        }, [refresh])
+        const handlePasswordSubmit = async () => {
+            if (!theFile) return
+            await uploadFileToS3(theFile)
+            setPasswordDialogOpen(false)
+        }
 
         const onImportButtonClick = async () => {
             if (!shaField) {
@@ -106,7 +128,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             }
 
             setLoading(true)
-            await doImport(documentId as string, shaField)
+            await doImport(documentId as string, shaField, password)
             setLoading(false)
         }
 
@@ -161,13 +183,30 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                     title={t("electionEventScreen.import.shaDialog.title")}
                     handleClose={(result: boolean) => {
                         if (result) {
-                            doImport(documentId as string, shaField)
+                            doImport(documentId as string, shaField, password)
                         }
 
                         setShowShaDialog(false)
                     }}
                 >
                     {t("electionEventScreen.import.shaDialog.description")}
+                </Dialog>
+
+                <Dialog
+                    open={passwordDialogOpen}
+                    handleClose={handlePasswordSubmit}
+                    title={t("electionEventScreen.import.passwordDialog.title")}
+                    ok={"Ok"}
+                    variant="info"
+                >
+                    <div>{t("electionEventScreen.import.passwordDialog.description")}</div>
+                    <TextField
+                        fullWidth
+                        label={t("electionEventScreen.import.passwordDialog.label")}
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                    />
                 </Dialog>
             </Box>
         )

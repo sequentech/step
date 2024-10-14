@@ -47,6 +47,7 @@ const frenchTranslation: TranslationType = {
                 IMPORT_CANDIDATES: "Importer des candidats",
                 EXPORT_VOTERS: "Exporter les électeurs",
                 CREATE_TRANSMISSION_PACKAGE: "Créer un paquet de transmission",
+                EXPORT_BALLOT_PUBLICATION: "Exporter Publication de Bulletin",
             },
             widget: {
                 taskTitle: "Tâche: {{title}}",
@@ -71,6 +72,16 @@ const frenchTranslation: TranslationType = {
                 action: "Créer une Zone",
             },
         },
+        lookAndFeelScreen: {
+            common: {
+                helpLinks: "Liens d'Aide",
+                logoUrl: "URL du Logo",
+                css: "CSS Personnalisé",
+            },
+            errors: {
+                invalidHelpLinks: "Format des Liens d'Aide invalide",
+            },
+        },
         electionTypeScreen: {
             noPermissions: "Vous n'avez pas la permission d'accéder à la configuration.",
             common: {
@@ -85,8 +96,6 @@ const frenchTranslation: TranslationType = {
                 createNew: "Créer un Type d'Élection",
                 emptyHeader: "Aucun Type d'Élection pour l'instant.",
                 emptyBody: "Voulez-vous en créer un ?",
-                logoUrl: "URL du Logo",
-                css: "CSS personnalisé",
             },
             create: {
                 title: "Créer un Type d'Élection",
@@ -99,6 +108,7 @@ const frenchTranslation: TranslationType = {
                 electionTypes: "TYPES D'ÉLECTION",
                 templates: "MODÈLES",
                 languages: "LANGUES",
+                localization: "LOCALISATION",
                 lookAndFeel: "PERSONNALISATION DE L'APPARENCE",
                 schedules: "ÉVÉNEMENTS PROGRAMMÉS",
                 trustees: "AUTORITÉS",
@@ -145,12 +155,23 @@ const frenchTranslation: TranslationType = {
             votersByChannels: "Votants par canaux",
             voterLoginURL: "URL de connexion des électeurs",
             voterEnrollURL: "URL d'inscription des électeurs",
+            ipAddress: {
+                emptyState: "Pas encore de votes.",
+                title: "IP Addresses",
+                ip: "IP",
+                country: "Pays",
+                VoteCount: "Nombre de votes",
+                ElectionName: "Nom de l'élection",
+                VotersId: "Identifiants des votants",
+            },
         },
         electionEventScreen: {
             common: {
                 subtitle: "Configuration de l'Événement Électoral.",
                 showMore: "Afficher plus",
                 showLess: "Afficher moins",
+                adminPortal: "Portail d'administration",
+                allowPublishAfterLockdown: "Only allow election event publishing after lockdown",
             },
             edit: {
                 general: "Général",
@@ -204,6 +225,13 @@ const frenchTranslation: TranslationType = {
                 css: "CSS personnalisé",
                 skipElectionList: "Passer l'écran pour choisir l'élection",
                 showUserProfile: "Afficher le profil utilisateur",
+                lockdownState: {
+                    policyLabel: "État de Confinement",
+                    options: {
+                        "locked-down": "Confiné",
+                        "not-locked-down": "Non Confiné",
+                    },
+                },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Pas de compte à rebours",
                     COUNTDOWN: "Compte à rebours",
@@ -274,6 +302,7 @@ const frenchTranslation: TranslationType = {
                 tasks: "Tâches",
                 events: "Événement Planifié",
                 notifications: "Notifications",
+                reports: "Rapport",
             },
             tally: {
                 emptyHeader: "Aucun Comptage pour l'instant.",
@@ -339,8 +368,32 @@ const frenchTranslation: TranslationType = {
                     description:
                         "Vous n'avez pas entré le champ de Vérification de l'Intégrité (SHA-256). Confirmez que vous importez le fichier correct et que vous souhaitez l'importer.",
                 },
+                passwordDialog: {
+                    title: "Mot de passe de déchiffrement",
+                    description: "Entrez le mot de passe pour déchiffrer le fichier",
+                    label: "Mot de passe",
+                    copyPassword: "Copier le Mot de Passe",
+                    ok: "OK",
+                },
             },
-            exportError: "Erreur lors de l'exportation de l'événement électoral",
+            export: {
+                title: "Exporter l'Événement Électoral",
+                subtitle:
+                    "L'exportation peut être une opération longue. Êtes-vous sûr de vouloir exporter les enregistrements ?",
+                encryptWithPassword: "Chiffrer avec Mot de Passe",
+                includeVoters: "Inclure les Électeurs",
+                activityLogs: "Journaux d'Activité",
+                bulletinBoard: "Tableau d'Affichage",
+                publications: "Publications",
+                s3Files: "Fichiers S3",
+                scheduledEvents: "Événements Planifiés",
+                exportSuccess: "Événement Électoral exporté avec succès",
+                exportError: "Erreur lors de l'exportation de l'Événement Électoral",
+                passwordTitle: "Mot de Passe",
+                passwordDescription: "Mot de passe pour déchiffrer le fichier :",
+                copiedSuccess: "Mot de passe copié dans le presse-papiers",
+                copiedError: "Erreur lors de la copie",
+            },
             taskNotification:
                 "{{action}} a commencé. Vous pouvez voir son statut dans le tableau d'Exécution des Tâches.",
         },
@@ -374,6 +427,8 @@ const frenchTranslation: TranslationType = {
                 votingChannels: "Canaux de Vote",
                 startDateTime: "Date et heure de début",
                 endDateTime: "Date et heure de fin",
+                startDateTimeWithTimezone: "Date et heure de début ({{timezone}})",
+                endDateTimeWithTimezone: "Date et heure de fin ({{timezone}})",
                 scheduledOpening: "Ouverture Prévue",
                 scheduledClosing: "Fermeture Prévue",
                 alias: "Alias",
@@ -627,8 +682,14 @@ const frenchTranslation: TranslationType = {
             },
             eventType: {
                 label: "Type",
+                ALLOW_INIT_REPORT: "Allow Initialization Report",
                 START_VOTING_PERIOD: "Début de la Période de Vote",
                 END_VOTING_PERIOD: "Fin de la Période de Vote",
+                ALLOW_VOTING_PERIOD_END: "Allow Voting Period End",
+                START_ENROLLMENT_PERIOD: "Début de la période d'inscription",
+                END_ENROLLMENT_PERIOD: "Fin de la période d'inscription",
+                START_LOCKDOWN_PERIOD: "Début de la période de blocage des données du recensement",
+                END_LOCKDOWN_PERIOD: "Fin de la période de blocage des données du recensement",
             },
             election: {
                 label: "Élection",
@@ -652,6 +713,53 @@ const frenchTranslation: TranslationType = {
                 eventProcessor: "Type",
                 stoppedAt: "Arrêté Le",
                 scheduledDate: "Planifié Le",
+            },
+        },
+        reportsScreen: {
+            title: "Rapports",
+            subtitle: "Générer des rapports pour les événements électoraux",
+            messages: {
+                createSuccess: "Rapport créé avec succès",
+                createError: "Erreur lors de la création du rapport",
+                submitError: "Erreur lors de la soumission du Rapport",
+                updateSuccess: "Rapport mis à jour avec succès",
+            },
+            reportType: {
+                BALLOT_RECEIPT: "Reçu de Bulletin",
+                ELECTORAL_RESULTS: "Résultats Électoraux",
+                MANUAL_VERIFICATION: "Vérification Manuelle",
+                STATISTICAL_REPORT: "Rapport Statistique",
+            },
+            empty: {
+                header: "Pas encore de rapports.",
+                body: "Voulez-vous en créer un?",
+                button: "Créer un rapport",
+            },
+            create: {
+                title: "Créer un rapport",
+                subtitle: "Créer une nouvelle configuration de rapport.",
+            },
+            edit: {
+                title: "Modifier le rapport",
+                subtitle: "Modifier la configuration du rapport.",
+                delete: "Êtes-vous sûr de vouloir supprimer ce rapport?",
+            },
+            fields: {
+                electionId: "Élection",
+                template: "Modèle",
+                reportType: "Type de rapport",
+                repeatable: "Répétable",
+                cronExpression: "Expression Cron",
+                emailRecipients: "Destinataires de courriel",
+            },
+            delete: {
+                body: "Êtes-vous sûr de vouloir supprimer ce rapport?",
+            },
+            actions: {
+                generate: "Générer",
+                delete: "Supprimer",
+                edit: "Modifier",
+                preview: "Aperçu",
             },
         },
         common: {
@@ -718,6 +826,7 @@ const frenchTranslation: TranslationType = {
             usersAndRoles: "Utilisateurs et Rôles",
             logs: "Journaux",
             settings: "Configuration",
+            help: "Aide",
             templates: "Modèles",
             active: "Actifs",
             archived: "Archivés",
@@ -1163,6 +1272,9 @@ const frenchTranslation: TranslationType = {
                 header: "Aucune Publication pour l'instant.",
                 action: "Générer Publication",
             },
+            forbidden: {
+                header: "Impossible de publier tant que la cérémonie des clés n'est pas terminée.",
+            },
             dialog: {
                 title: "Confirmer Action",
                 info: "Vous avez cliqué sur une action sensible, nous avons donc besoin que vous la confirmiez pour pouvoir continuer.",
@@ -1198,7 +1310,7 @@ const frenchTranslation: TranslationType = {
                 richtext: "Corps de Texte Enrichi",
             },
         },
-        sendTemplate: {
+        sendCommunication: {
             send: "Envoyer",
             title: "Envoyer Notification",
             subtitle: "Envoyer une notification aux utilisateurs/électeurs.",
@@ -1226,11 +1338,11 @@ const frenchTranslation: TranslationType = {
                 voters: "électeurs",
             },
             methodTitle: "Méthode de Communication",
-            templateMethod: {
+            communicationMethod: {
                 EMAIL: "Email",
                 SMS: "SMS",
             },
-            templateType: {
+            communicationType: {
                 CREDENTIALS: "Identifiants",
                 BALLOT_RECEIPT: "Reçu de Vote",
                 PARTICIPATION_REPORT: "Rapport de Participation",

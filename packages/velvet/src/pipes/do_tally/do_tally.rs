@@ -355,6 +355,8 @@ pub struct ExtendedMetricsContest {
     // (no under-votes, no over-votes) (valid-ballots X number of
     // votes possible in the contest)
     pub expected_votes: u64,
+    //Total counted ballots
+    pub total_ballots: u64,
 }
 
 impl ExtendedMetricsContest {
@@ -365,6 +367,7 @@ impl ExtendedMetricsContest {
         result.under_votes += other.under_votes;
         result.votes_actually += other.votes_actually;
         result.expected_votes += other.expected_votes;
+        result.total_ballots += other.total_ballots;
 
         result
     }

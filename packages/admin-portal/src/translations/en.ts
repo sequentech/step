@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {email} from "react-admin"
+
 const englishTranslation = {
     translations: {
         loadingDataProvider: "Loading data provider...",
@@ -46,6 +48,7 @@ const englishTranslation = {
                 IMPORT_CANDIDATES: "Import Candidates",
                 EXPORT_VOTERS: "Export Voters",
                 CREATE_TRANSMISSION_PACKAGE: "Create Transmission Package",
+                EXPORT_BALLOT_PUBLICATION: "Export Ballot Publication",
             },
             widget: {
                 taskTitle: "Task: {{title}}",
@@ -70,6 +73,16 @@ const englishTranslation = {
                 action: "Create Area",
             },
         },
+        lookAndFeelScreen: {
+            common: {
+                helpLinks: "Help Links",
+                logoUrl: "Logo URL",
+                css: "Custom CSS",
+            },
+            errors: {
+                invalidHelpLinks: "Invalid Help Links format",
+            },
+        },
         electionTypeScreen: {
             noPermissions: "You don't have permission to access settings.",
             common: {
@@ -84,8 +97,6 @@ const englishTranslation = {
                 createNew: "Create Election Type",
                 emptyHeader: "No Election Types yet.",
                 emptyBody: "Do you want to create one?",
-                logoUrl: "Logo URL",
-                css: "Custom CSS",
             },
             create: {
                 title: "Create Election Type",
@@ -98,6 +109,7 @@ const englishTranslation = {
                 electionTypes: "ELECTION TYPES",
                 templates: "TEMPLATES",
                 languages: "LANGUAGES",
+                localization: "LOCALIZATION",
                 lookAndFeel: "Look & Feel",
                 schedules: "SCHEDULED EVENTS",
                 trustees: "TRUSTEES",
@@ -144,12 +156,23 @@ const englishTranslation = {
             votersByChannels: "Voters by channel",
             voterLoginURL: "Voter Login URL",
             voterEnrollURL: "Voter Enroll URL",
+            ipAddress: {
+                emptyState: "No votes yet.",
+                title: "IP Addresses",
+                ip: "IP",
+                country: "Country",
+                VoteCount: "Vote Count",
+                ElectionName: "Election Name",
+                VotersId: "Voters Id",
+            },
         },
         electionEventScreen: {
             common: {
                 subtitle: "Election event configuration.",
                 showMore: "Show More",
                 showLess: "Show Less",
+                adminPortal: "Admin Portal",
+                allowPublishAfterLockdown: "Only allow election event publishing after lockdown",
             },
             edit: {
                 general: "General",
@@ -203,6 +226,13 @@ const englishTranslation = {
                 css: "Custom CSS",
                 skipElectionList: "Skip Election List Screen",
                 showUserProfile: "Show User Profile",
+                lockdownState: {
+                    policyLabel: "Lockdown Status",
+                    options: {
+                        "locked-down": "Locked Down",
+                        "not-locked-down": "Not Locked Down",
+                    },
+                },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "No Countdown",
                     COUNTDOWN: "Countdown",
@@ -271,6 +301,7 @@ const englishTranslation = {
                 tasks: "Tasks",
                 events: "Scheduled Events",
                 notifications: "Notifications",
+                reports: "Reports",
             },
             tally: {
                 emptyHeader: "No Tally yet.",
@@ -334,8 +365,32 @@ const englishTranslation = {
                     description:
                         "You didn't enter the Integrity Check (SHA-256) field. Please confirm  that you are importing the correct file and you want to import it.",
                 },
+                passwordDialog: {
+                    title: "Decryption Password",
+                    description: "Enter the password to decrypt the file",
+                    label: "Password",
+                    copyPassword: "Copy Password",
+                    ok: "Ok",
+                },
             },
-            exportError: "Error exporting Election Event",
+            export: {
+                title: "Export Election Event",
+                subtitle:
+                    "Export can be a long operation. Are you sure you want to export records?",
+                encryptWithPassword: "Encrypt with Password",
+                includeVoters: "Include Voters",
+                activityLogs: "Activity Logs",
+                bulletinBoard: "Bulletin Board",
+                publications: "Publications",
+                s3Files: "S3 Files",
+                scheduledEvents: "Scheduled Events",
+                exportSuccess: "Election Event exported successfully",
+                exportError: "Error exporting Election Event",
+                passwordTitle: "Password",
+                passwordDescription: "Password to decrypt the file:",
+                copiedSuccess: "Password copied to clipboard",
+                copiedError: "Error copying password",
+            },
             taskNotification:
                 "{{action}} has started. You can see its status at Tasks Execution table.",
         },
@@ -369,6 +424,8 @@ const englishTranslation = {
                 votingChannels: "Voting Channels",
                 startDateTime: "Start Date and Time",
                 endDateTime: "End Date and Time",
+                startDateTimeWithTimezone: "Start Date and Time ({{timezone}})",
+                endDateTimeWithTimezone: "End Date and Time ({{timezone}})",
                 scheduledOpening: "Scheduled Opening",
                 scheduledClosing: "Scheduled Closing",
                 alias: "Alias",
@@ -620,8 +677,14 @@ const englishTranslation = {
             },
             eventType: {
                 label: "Type",
+                ALLOW_INIT_REPORT: "Allow Initialization Report",
                 START_VOTING_PERIOD: "Start Voting Period",
                 END_VOTING_PERIOD: "End Voting Period",
+                ALLOW_VOTING_PERIOD_END: "Allow Voting Period End",
+                START_ENROLLMENT_PERIOD: "Start Enrollment Period",
+                END_ENROLLMENT_PERIOD: "End Enrollment Period",
+                START_LOCKDOWN_PERIOD: "Start Lockdown Period",
+                END_LOCKDOWN_PERIOD: "End Lockdown Period",
             },
             election: {
                 label: "Election",
@@ -645,6 +708,54 @@ const englishTranslation = {
                 eventProcessor: "Type",
                 stoppedAt: "Stopped At",
                 scheduledDate: "Scheduled At",
+            },
+        },
+        reportsScreen: {
+            title: "Reports",
+            subtitle: "Generate reports for the election events",
+            messages: {
+                createSuccess: "Report created successfully",
+                createError: "Error creating Report",
+                submitError: "Error submitting Report",
+                updateSuccess: "Report updated successfully",
+            },
+            reportType: {
+                BALLOT_RECEIPT: "Ballot Receipt",
+                ELECTORAL_RESULTS: "Electoral Results",
+                MANUAL_VERIFICATION: "Manual Verification",
+                STATISTICAL_REPORT: "Statistical Report",
+            },
+            empty: {
+                header: "No Reports yet.",
+                body: "Do you want to create one?",
+                button: "Create Report",
+            },
+            create: {
+                title: "Create Report",
+                subtitle: "Create a new Report configuration.",
+            },
+            edit: {
+                title: "Edit Report",
+                subtitle: "Edit Report configuration.",
+                delete: "Are you sure you want delete this Report?",
+            },
+            fields: {
+                electionId: "Election",
+                template: "Template",
+                reportType: "Report Type",
+                repeatable: "Repeatable",
+                cronExpression: "Cron Expression",
+                emailRecipients: "Email Recipients",
+            },
+
+            delete: {
+                body: "Are you sure you want delete this Report?",
+            },
+            actions: {
+                generate: "Generate",
+                delete: "Delete",
+                edit: "Edit",
+                preview: "Preview",
             },
         },
         common: {
@@ -711,6 +822,7 @@ const englishTranslation = {
             usersAndRoles: "Users and Roles",
             logs: "Logs",
             settings: "Settings",
+            help: "Help",
             templates: "Templates",
             active: "Active",
             archived: "Archived",
@@ -1156,6 +1268,9 @@ const englishTranslation = {
                 header: "No Publication Yet.",
                 action: "Generate Publication",
             },
+            forbidden: {
+                header: "Cannot Publish until the Keys Ceremony is completed.",
+            },
             dialog: {
                 title: "Confirm Action",
                 info: "You have clicked on a sensitive action, so we need you to confirm in order to continue",
@@ -1184,7 +1299,7 @@ const englishTranslation = {
                 richtext: "Rich Text Body",
             },
         },
-        sendTemplate: {
+        sendCommunication: {
             send: "Send",
             title: "Send Notification",
             subtitle: "Send a notification to voters.",
@@ -1212,11 +1327,11 @@ const englishTranslation = {
                 voters: "voters",
             },
             methodTitle: "Communication Template",
-            templateMethod: {
+            communicationMethod: {
                 EMAIL: "Email",
                 SMS: "SMS",
             },
-            templateType: {
+            communicationType: {
                 CREDENTIALS: "Credentials",
                 BALLOT_RECEIPT: "Ballot Receipt",
                 PARTICIPATION_REPORT: "Participation Report",

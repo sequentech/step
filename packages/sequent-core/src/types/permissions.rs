@@ -153,6 +153,12 @@ pub enum Permissions {
     PERMISSION_LABEL_WRITE,
     #[strum(serialize = "scheduled-event-write")]
     SCHEDULED_EVENT_WRITE,
+    #[strum(serialize = "report-write")]
+    REPORT_WRITE,
+    #[strum(serialize = "report-read")]
+    REPORT_READ,
+    #[strum(serialize = "cloudflare-write")]
+    CLOUDFLARE_WRITE,
 }
 
 #[allow(non_camel_case_types)]

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useEffect} from "react"
+import React from "react"
 import {EditBase, Identifier, RaRecord, useUpdate} from "react-admin"
 import {
     EditElectionEventDataForm,
@@ -14,25 +14,9 @@ import {
     IElectionEventPresentation,
     IElectionPresentation,
 } from "@sequentech/ui-core"
-import {useNavigate, useLocation} from "react-router-dom"
 
 export const EditElectionEventData: React.FC = () => {
     const [update] = useUpdate()
-
-    const navigate = useNavigate()
-    const location = useLocation()
-
-    useEffect(() => {
-        // Check if the search part of the URL exists
-        // Navigate to the current pathname but reset the query params
-        navigate(
-            {
-                pathname: location.pathname,
-                search: "", // This clears the query parameters
-            },
-            {replace: true}
-        ) // Optional: use `replace: true` to prevent adding to browser history
-    }, [])
 
     function updateElectionsOrder(data: Sequent_Backend_Election_Event_Extended) {
         data.electionsOrder?.map((election: Sequent_Backend_Election, index: number) => {

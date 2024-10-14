@@ -40,25 +40,26 @@ pub async fn manage_election_event_date_wrapped(
         ));
     };
 
-    let mut status: ElectionStatus = Default::default();
-
     let Some(event_processor) = scheduled_manage_date.event_processor.clone() else {
         return Err(anyhow!("Missing event processor"));
     };
 
-    status.voting_status = match event_processor {
-        EventProcessors::START_VOTING_PERIOD => VotingStatus::OPEN,
-        EventProcessors::END_VOTING_PERIOD => VotingStatus::CLOSED,
-        _ => {
-            info!("Invalid scheduled event type: {:?}", event_processor);
-            stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id)
-                .await?;
-            return Ok(());
-        }
+    let status = ElectionStatus {
+        voting_status: (match event_processor {
+            EventProcessors::START_VOTING_PERIOD => VotingStatus::OPEN,
+            EventProcessors::END_VOTING_PERIOD => VotingStatus::CLOSED,
+            _ => {
+                info!("Invalid scheduled event type: {:?}", event_processor);
+                stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id)
+                    .await?;
+                return Ok(());
+            }
+        }),
     };
     update_event_voting_status(
         &hasura_transaction,
         &tenant_id,
+        None,
         &election_event_id,
         &status.voting_status,
     )

@@ -98,6 +98,11 @@ async fn rocket() -> _ {
                 routes::miru_plugin::upload_signature,
                 routes::export_tasks_execution::export_tasks_execution_route,
                 routes::limit_access_by_countries::limit_access_by_countries,
+                routes::export_template::export_template,
+                routes::import_templates::import_templates_route,
+                routes::election_event_stats::get_election_event_top_votes_by_ip,
+                routes::export_ballot_publication::export_ballot_publication_route,
+                routes::reports::generate_report,
             ],
         )
 }
