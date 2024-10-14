@@ -47,6 +47,10 @@ const catalanTranslation: TranslationType = {
             noPermissions: "No tens permís per accedir a les bitàcoles.",
             title: "Bitàcoles",
             subtitle: "Bitàcoles generals de les bases de dades principal i de IAM.",
+            actions: {
+                csv: "Exportar en CSV",
+                pdf: "Exportar en PDF",
+            },
             column: {
                 id: "Id",
                 statement: "Declaració",

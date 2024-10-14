@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+pub mod electoral_log;
 pub mod manual_verification;
 pub mod report_variables;
 pub mod statistical_report;

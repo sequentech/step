@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement, useEffect} from "react"
+import React, {ReactElement, useEffect, useState} from "react"
 import {
     DatagridConfigurable,
     List,
@@ -26,16 +26,24 @@ import {IPermissions} from "@/types/keycloak"
 import {ElectionStyles} from "./styles/ElectionStyles"
 import {useLocation, useNavigate} from "react-router"
 import {ResetFilters} from "./ResetFilters"
+import {MenuItem, Menu} from "@mui/material"
+
+enum ExportFormat {
+    CSV = "CSV",
+    PDF = "PDF",
+}
 
 interface ExportWrapperProps {
     electionEventId: string
     openExport: boolean
     setOpenExport: (val: boolean) => void
+    exportFormat: string
 }
 const ExportWrapper: React.FC<ExportWrapperProps> = ({
     electionEventId,
     openExport,
     setOpenExport,
+    exportFormat,
 }) => {
     const [exportDocumentId, setExportDocumentId] = React.useState<string | undefined>()
     const [exportElectionEvent] = useMutation(EXPORT_ELECTION_EVENT_LOGS, {
@@ -53,6 +61,7 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
             const {data: exportElectionEventData, errors} = await exportElectionEvent({
                 variables: {
                     electionEventId,
+                    format: exportFormat,
                 },
             })
             let documentId = exportElectionEventData?.export_election_event_logs?.document_id
@@ -75,7 +84,10 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
             open={openExport}
             ok={t("common.label.export")}
             cancel={t("common.label.cancel")}
-            title={t("common.label.export")}
+            title={t("common.label.exportFormat", {
+                item: t("logsScreen.title"),
+                format: exportFormat,
+            })}
             handleClose={(result: boolean) => {
                 if (result) {
                     confirmExportAction()
@@ -93,7 +105,7 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
                         <DownloadDocument
                             documentId={exportDocumentId}
                             electionEventId={electionEventId ?? ""}
-                            fileName={`election-event-logs-${electionEventId}-export.csv`}
+                            fileName={`election-event-logs-${electionEventId}-export.${exportFormat.toLowerCase()}`}
                             onDownload={() => {
                                 console.log("onDownload called")
                                 setExportDocumentId(undefined)
@@ -134,10 +146,24 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
     const user_id = params.get("user_id")
     const filters: Array<ReactElement> = []
 
-    const [openExport, setOpenExport] = React.useState(false)
+    const getHeadField = (record: any, field: string) => {
+        const message = JSON.parse(record?.message)
+        if (
+            !message ||
+            !message.statement ||
+            !message.statement.head ||
+            !message.statement.head[field]
+        ) {
+            return <span>-</span>
+        }
+        return message.statement.head[field]
+    }
 
-    const handleExport = () => {
-        console.log("EXPORT")
+    const [openExport, setOpenExport] = React.useState(false)
+    const [exportFormat, setExportFormat] = React.useState(ExportFormat.CSV)
+
+    const handleExportWithOptions = (format: ExportFormat) => {
+        setExportFormat(format)
         setOpenExport(true)
     }
 
@@ -149,11 +175,21 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
         filterObject[filterToShow] = filterValue || undefined
     }
 
+    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
+
     return (
         <>
             <List
                 resource="electoral_log"
-                actions={showActions && <ListActions withImport={false} doExport={handleExport} />}
+                actions={
+                    showActions && (
+                        <ListActions
+                            withImport={false}
+                            openExportMenu={(e) => setAnchorEl(e.currentTarget)}
+                            withExport={true}
+                        />
+                    )
+                }
                 filters={filters}
                 filter={filterObject}
                 storeKey={false}
@@ -188,15 +224,55 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                         }
                     />
                     <TextField source="statement_kind" />
+                    <FunctionField
+                        label="Event Type"
+                        render={(record: any) => getHeadField(record, "event_type")}
+                    />
+                    <FunctionField
+                        label="Log Type"
+                        render={(record: any) => getHeadField(record, "log_type")}
+                    />
+                    <FunctionField
+                        label="Description"
+                        render={(record: any) => getHeadField(record, "description")}
+                    />
                     <TextField source="message" sx={{wordBreak: "break-word"}} />
                 </DatagridConfigurable>
             </List>
-
             <ExportWrapper
                 electionEventId={record.id}
                 openExport={openExport}
                 setOpenExport={setOpenExport}
+                exportFormat={exportFormat}
             />
+            <Menu
+                id="menu-export-logs"
+                anchorEl={anchorEl}
+                anchorOrigin={{
+                    vertical: "bottom",
+                    horizontal: "right",
+                }}
+                keepMounted
+                transformOrigin={{
+                    vertical: "top",
+                    horizontal: "right",
+                }}
+                open={Boolean(anchorEl)}
+                onClose={() => setAnchorEl(null)}
+            >
+                <MenuItem
+                    className="menu-export-csv"
+                    onClick={() => handleExportWithOptions(ExportFormat.CSV)}
+                >
+                    <span className="help-menu-item-CSV">{t(`logsScreen.actions.csv`)}</span>
+                </MenuItem>
+                <MenuItem
+                    className="menu-export-pdf"
+                    onClick={() => handleExportWithOptions(ExportFormat.PDF)}
+                >
+                    <span className="help-menu-item-PDF">{t(`logsScreen.actions.pdf`)}</span>
+                </MenuItem>
+            </Menu>
         </>
     )
 }

@@ -55,6 +55,7 @@ pub enum ReportType {
     BALLOT_RECEIPT,
     ELECTORAL_RESULTS,
     STATISTICAL_REPORT,
+    ACTIVITY_LOG,
 }
 
 pub struct ReportWrapper(pub Report);
