@@ -13,6 +13,7 @@ use crate::tasks::send_template::{send_template_email, EmailSender};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Client as DbClient;
+use headless_chrome::types::PrintToPdfOptions;
 use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
 use sequent_core::services::{pdf, reports};
 use sequent_core::types::templates::EmailConfig;
@@ -110,7 +111,7 @@ pub trait TemplateRenderer: Debug {
                 .get("document")
                 .and_then(Value::as_str),
             None => {
-                warn!("No manual verification template was found by id");
+                warn!("No {} template was found by id", Self::base_name());
                 return Ok(None);
             }
         };
@@ -216,24 +217,32 @@ pub trait TemplateRenderer: Debug {
         election_event_id: &str,
         is_scheduled_task: bool,
         receiver: Option<String>,
+        pdf_options: Option<PrintToPdfOptions>,
         generate_mode: GenerateReportMode,
     ) -> Result<()> {
+        // Generate report in html
         let rendered_system_template = self
             .generate_report(generate_mode)
             .await
             .map_err(|err| anyhow!("Error rendering report: {}", err))?;
 
+        debug!("Report generated: {rendered_system_template}");
+        let extension_suffix = "pdf";
         // Generate PDF
-        let bytes_pdf = pdf::html_to_pdf(rendered_system_template.clone())
-            .map_err(|err| anyhow!("Error rendering report to pdf: {}", err))?;
+        let content_bytes = pdf::html_to_pdf(rendered_system_template.clone(), pdf_options)
+            .map_err(|err| anyhow!("Error rendering report to {}: {}", extension_suffix, err))?;
 
         let base_name = Self::base_name();
-        let report_prefix = self.prefix();
+        let fmt_extension = format!(".{}", extension_suffix);
+        let report_name: String = format!("{}{}", self.prefix(), fmt_extension);
 
         // Write temp file and upload
-        let (_temp_path, temp_path_string, file_size) =
-            write_into_named_temp_file(&bytes_pdf, format!("{base_name}-").as_str(), ".pdf")
-                .map_err(|err| anyhow!("Error writing to file: {err}"))?;
+        let (_temp_path, temp_path_string, file_size) = write_into_named_temp_file(
+            &content_bytes,
+            format!("{base_name}-").as_str(),
+            fmt_extension.as_str(),
+        )
+        .map_err(|err| anyhow!("Error writing to file: {err}"))?;
 
         let auth_headers = keycloak::get_client_credentials()
             .await
@@ -241,11 +250,11 @@ pub trait TemplateRenderer: Debug {
         let _document = upload_and_return_document(
             temp_path_string,
             file_size,
-            "application/pdf".to_string(),
+            format!("application/{}", extension_suffix),
             auth_headers.clone(),
             tenant_id.to_string(),
             election_event_id.to_string(),
-            format!("{report_prefix}.pdf"),
+            report_name,
             Some(document_id.to_string()),
             true,
         )

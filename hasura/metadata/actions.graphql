@@ -132,7 +132,10 @@ type Mutation {
 }
 
 type Mutation {
-    export_election_event_logs(election_event_id: String): ExportLogsOutput
+    export_election_event_logs(
+        election_event_id: String!
+        format: String!
+    ): ExportLogsOutput
 }
 
 type Mutation {
