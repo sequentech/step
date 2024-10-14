@@ -987,7 +987,7 @@ type OptionalImportEvent {
 }
 
 type ManageElectionDatesOutput {
-    something: String
+    error_msg: String
 }
 
 type ExportLogsOutput {
