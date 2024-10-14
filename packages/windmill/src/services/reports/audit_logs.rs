@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
     extract_eleciton_data, 
     get_total_number_of_registered_voters_for_country, 
