@@ -120,6 +120,6 @@ pub async fn generate_statistical_report(
         election_id: election_id.to_string(),
     };
     template
-        .execute_report(document_id, tenant_id, election_event_id, false, None, GenerateReportMode::Real)
+        .execute_report(document_id, tenant_id, election_event_id, false, None, GenerateReportMode::REAL)
         .await
 }

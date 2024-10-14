@@ -22,10 +22,13 @@ use std::fmt::Debug;
 use strum_macros::{Display, EnumString};
 use tracing::{info, instrument, warn};
 
-#[derive(PartialEq, EnumString, Display, Debug)]
+#[allow(non_camel_case_types)]
+#[derive(
+    Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
+)]
 pub enum GenerateReportMode {
-    Preview,
-    Real,
+    PREVIEW,
+    REAL,
 }
 
 /// Trait that defines the behavior for rendering templates
@@ -136,7 +139,7 @@ pub trait TemplateRenderer: Debug {
     }
 
     async fn generate_report(&self, generate_mode: GenerateReportMode) -> Result<String> {
-        if generate_mode == GenerateReportMode::Preview {
+        if generate_mode == GenerateReportMode::PREVIEW {
             let data = self.prepare_preview_data()
                     .await
                     .map_err(|e| anyhow!("Error preparing preview user data: {e:?}"))?
