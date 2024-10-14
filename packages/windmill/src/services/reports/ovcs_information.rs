@@ -84,7 +84,7 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
         }
     }
 
-    async fn prepare_user_data(&self) -> Result<Self::UserData> {
+    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>>{
         // Fetch the Hasura database client from the pool
         let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
@@ -126,7 +126,7 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
         
 
         let temp_val: &str = "test";
-        Ok(UserData{
+        Ok(Some(UserData{
             election_start_date: temp_val.to_string(),
             // election_title: election_event.name.clone(),
             election_title: temp_val.to_string(),
@@ -138,7 +138,7 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
             chairperson_name: temp_val.to_string(),
             poll_clerk_name: temp_val.to_string(),
             third_member_name: temp_val.to_string(),
-        })
+        }))
     }
 
 

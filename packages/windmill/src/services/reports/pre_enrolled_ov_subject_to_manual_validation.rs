@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
 use crate::services::database::get_hasura_pool;
 use anyhow::{anyhow, Context, Result};
@@ -90,7 +93,7 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
 
     /// Fetches pre-enrolled users and prepares user data
     #[instrument]
-    async fn prepare_user_data(&self) -> Result<Self::UserData> {
+    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>>{
         // Mock pre-enrolled users
         let pre_enrolled_users = vec![
             PreEnrolledUserData {
@@ -125,7 +128,7 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
             },
         ];
         let temp_val: &str = "test";
-        Ok(UserData {
+        Ok(Some(UserData {
             election_start_date: "2024-11-01".to_string(),
             election_title: "National Elections".to_string(),
             geograpic_region: "Luzon".to_string(),
@@ -136,7 +139,7 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
             chairperson_name: temp_val.to_string(),
             poll_clerk_name: temp_val.to_string(),
             third_member_name: temp_val.to_string(),
-        })
+        }))
     }
 
     /// Prepares system data

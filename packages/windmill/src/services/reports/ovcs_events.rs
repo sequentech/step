@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
 use anyhow::{anyhow, Context, Ok, Result};
 use async_trait::async_trait;
@@ -97,20 +100,13 @@ impl TemplateRenderer for OVCSEventsTemplate {
     }
 
     // TODO: replace mock data with actual data
-    async fn prepare_user_data(&self) -> Result<Self::UserData> {
-        Ok(UserData {})
+    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>> {
+        Ok(None)
     }
 
     /// Prepare system metadata for the report
     async fn prepare_system_data(&self, _rendered_user_template: String) -> Result<Self::SystemData> {
         let data: SystemData = self.prepare_preview_data().await?;
-        Ok(data)
-    }
-
-    async fn prepare_preview_data(&self) -> Result<SystemData> {
-        let json_data = self.get_preview_data_file().await?;
-        let data: SystemData = serde_json::from_str(&json_data)?;
-
         Ok(data)
     }
 }

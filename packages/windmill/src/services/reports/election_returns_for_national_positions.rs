@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
 use crate::services::database::get_hasura_pool;
 use crate::{postgres::election_event::get_election_event_by_id, services::s3::get_minio_url};
@@ -90,7 +93,7 @@ impl TemplateRenderer for ElectionReturnsForNationalPostionTemplate {
         }
     }
 
-    async fn prepare_user_data(&self) -> Result<Self::UserData> {
+    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>>{
         let mut hasura_db_client: DbClient = get_hasura_pool()
             .await
             .get()
@@ -132,7 +135,7 @@ impl TemplateRenderer for ElectionReturnsForNationalPostionTemplate {
         let election_title = election_event.name.clone();
         
         let temp_val: &str = "test";
-        Ok(UserData {
+        Ok(Some(UserData {
             election_start_date: temp_val.to_string(),
             election_title,
             elective_position_name,
@@ -147,7 +150,7 @@ impl TemplateRenderer for ElectionReturnsForNationalPostionTemplate {
             chairperson_name: temp_val.to_string(),
             poll_clerk_name: temp_val.to_string(),
             third_member_name: temp_val.to_string(),
-        })
+        }))
     }
 
     async fn prepare_system_data(&self, _: String) -> Result<Self::SystemData> {

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
 use super::report_variables::{
     extract_eleciton_data, 
@@ -92,10 +95,6 @@ impl TemplateRenderer for StatusTemplate {
             plaintext_body: "".to_string(),
             html_body: None,
         }
-    }
-
-    async fn prepare_user_data(&self) -> Result<Self::UserData> {
-        Ok(UserData {})
     }
 
     async fn prepare_system_data(

@@ -50,8 +50,8 @@ pub enum GenerateReportMode {
 /// Trait that defines the behavior for rendering templates
 #[async_trait]
 pub trait TemplateRenderer: Debug {
-    type UserData: Serialize + ToMap;
-    type SystemData: Serialize + ToMap;
+    type UserData: Serialize + ToMap + Send;
+    type SystemData: Serialize + ToMap + for<'de> Deserialize<'de>;
 
     fn base_name() -> String;
     fn prefix(&self) -> String;
@@ -74,9 +74,14 @@ pub trait TemplateRenderer: Debug {
     }
 
     async fn prepare_preview_data(&self) -> Result<Self::SystemData> {
-        Err(anyhow!("Default implementation not provided."))
+        let json_data = self.get_preview_data_file().await?;
+        let data: Self::SystemData = serde_json::from_str(&json_data)?;
+
+        Ok(data)
     }
-    async fn prepare_user_data(&self) -> Result<Self::UserData>;
+    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>>{
+        Ok(None)
+    }
     async fn prepare_system_data(&self, rendered_user_template: String)
         -> Result<Self::SystemData>;
 
@@ -167,7 +172,6 @@ pub trait TemplateRenderer: Debug {
     }
 
     async fn generate_report(&self, generate_mode: GenerateReportMode) -> Result<String> {
-    
         if generate_mode == GenerateReportMode::Preview {
             let data = self.prepare_preview_data()
                     .await
@@ -199,25 +203,35 @@ pub trait TemplateRenderer: Debug {
                 .map_err(|e| anyhow!("Error getting default user template: {e:?}"))?,
         };
 
-        // Prepare user data
+        let mut rendered_user_template = String::new();
+
+        // Prepare user data if self.prepare_user_data() != None
         let user_data = self
             .prepare_user_data()
             .await
-            .map_err(|e| anyhow!("Error preparing user data: {e:?}"))?
-            .to_map()
-            .map_err(|e| anyhow!("Error converting user data to map: {e:?}"))?;
+            .map_err(|e| anyhow!("Error preparing user data: {e:?}"))?;
 
-        info!("user data in template renderer: {:?}", user_data);
-        let rendered_user_template = reports::render_template_text(&user_template, user_data)
-            .map_err(|e| anyhow!("Error rendering user template: {e:?}"))?;
+        if let Some(data) = user_data {
+            // Render the user template if user data is not None
+            let user_data_map = data
+                .to_map()
+                .map_err(|e| anyhow!("Error converting user data to map: {e:?}"))?;
+
+            info!("user data in template renderer: {:?}", user_data_map);
+            
+            rendered_user_template = reports::render_template_text(&user_template, user_data_map)
+                .map_err(|e| anyhow!("Error rendering user template: {e:?}"))?;
+
+        }
 
         // Prepare system data
         let system_data = self
-            .prepare_system_data(rendered_user_template)
-            .await
-            .map_err(|e| anyhow!("Error preparing system data: {e:?}"))?
-            .to_map()
-            .map_err(|e| anyhow!("Error converting system data to map: {e:?}"))?;
+        .prepare_system_data(rendered_user_template)
+        .await
+        .map_err(|e| anyhow!("Error preparing system data: {e:?}"))?
+        .to_map()
+        .map_err(|e| anyhow!("Error converting system data to map: {e:?}"))?;
+
         let system_template = self
             .get_system_template()
             .await

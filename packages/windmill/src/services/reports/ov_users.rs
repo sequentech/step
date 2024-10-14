@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
 use crate::services::database::get_hasura_pool;
 use anyhow::{Context, Result};
@@ -93,7 +96,7 @@ impl TemplateRenderer for OVUserTemplate {
     }
 
     // Fetch user data
-    async fn prepare_user_data(&self) -> Result<Self::UserData> {
+    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>>{
         // Mock OV user data
         let ov_users = vec![
             OVUserData {
@@ -158,7 +161,7 @@ impl TemplateRenderer for OVUserTemplate {
             third_member_name: temp_val.to_string(),
         };
 
-        Ok(user_data)
+        Ok(Some(user_data))
     }
 
     // Prepare system data

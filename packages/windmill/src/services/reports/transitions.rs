@@ -89,7 +89,7 @@ impl TemplateRenderer for TransitionsReport {
     }
 
     /// Prepare user data by fetching the relevant details
-    async fn prepare_user_data(&self) -> Result<Self::UserData> {
+    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>>{
         let mut hasura_db_client: DbClient = get_hasura_pool()
             .await
             .get()
@@ -145,7 +145,7 @@ impl TemplateRenderer for TransitionsReport {
         let received_datetime = Some("2024-10-09T12:05:00Z".to_string());
 
         let temp_val: &str = "test";
-        Ok(UserData {
+        Ok(Some(UserData {
             num_of_registered_voters: total_registered_voters,
             num_of_ballots_counted: total_ballots_counted,
             voter_turnout,
@@ -163,7 +163,7 @@ impl TemplateRenderer for TransitionsReport {
             chairperson_name: temp_val.to_string(),
             poll_clerk_name: temp_val.to_string(),
             third_member_name: temp_val.to_string(),
-        })
+        }))
     }
 
     async fn prepare_system_data(
