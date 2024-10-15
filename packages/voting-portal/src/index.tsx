@@ -21,10 +21,9 @@ import {ErrorPage} from "./routes/ErrorPage"
 import {action as votingAction} from "./routes/VotingScreen"
 import {action as castBallotAction} from "./routes/ReviewScreen"
 import Loader from "./components/Loader"
-import PreviewPublicationEvent from "./routes/PreviewPublicationEvent"
 
 const TenantEvent = lazy(() => import("./routes/TenantEvent"))
-//const PreviewPublicationEvent = lazy(() => import("./routes/PreviewPublicationEvent"))
+const PreviewPublicationEvent = lazy(() => import("./routes/PreviewPublicationEvent"))
 const ElectionSelectionScreen = lazy(() => import("./routes/ElectionSelectionScreen"))
 const LoginScreen = lazy(() => import("./routes/LoginScreen"))
 const RegisterScreen = lazy(() => import("./routes/RegisterScreen"))

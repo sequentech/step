@@ -18,8 +18,10 @@ import {
     GetBallotPublicationChangesOutput,
     GetDocumentByNameQuery,
     GetUploadUrlMutation,
+    Sequent_Backend_Document,
     Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
+    Sequent_Backend_Support_Material,
 } from "@/gql/graphql"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useLazyQuery, useMutation, useQuery} from "@apollo/client"
@@ -69,6 +71,41 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
 
     const {data: elections} = useGetList<Sequent_Backend_Election>(
         "sequent_backend_election",
+        {
+            pagination: {page: 1, perPage: 9999},
+            sort: {field: "created_at", order: "DESC"},
+            filter: {
+                election_event_id: electionEventId,
+                tenant_id: tenantId,
+            },
+        },
+        {
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
+        }
+    )
+
+    const {data: supportMaterials} = useGetList<Sequent_Backend_Support_Material>(
+        "sequent_backend_support_material",
+        {
+            pagination: {page: 1, perPage: 9999},
+            sort: {field: "created_at", order: "DESC"},
+            filter: {
+                is_hidden: false,
+                election_event_id: electionEventId,
+                tenant_id: tenantId,
+            },
+        },
+        {
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
+        }
+    )
+
+    const {data: documents} = useGetList<Sequent_Backend_Document>(
+        "sequent_backend_document",
         {
             pagination: {page: 1, perPage: 9999},
             sort: {field: "created_at", order: "DESC"},
@@ -176,6 +213,8 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
                 ballot_styles: ballotData?.current?.ballot_styles,
                 election_event: electionEvent,
                 elections: openElections,
+                support_materials: supportMaterials,
+                documents: documents,
             }
             const dataStr = JSON.stringify(fileData, null, 2)
             const file = new File([dataStr], `${id}.json`, {type: "application/json"})
@@ -195,10 +234,17 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
             }
         }
 
-        if (isUploading && electionEvent && elections && areaId) {
+        if (
+            isUploading &&
+            electionEvent &&
+            elections &&
+            areaId &&
+            undefined !== supportMaterials &&
+            undefined !== documents
+        ) {
             handleDocumentProcess()
         }
-    }, [isUploading, electionEvent, elections, areaId])
+    }, [isUploading, electionEvent, elections, areaId, supportMaterials, documents])
 
     const openPreview = (documentId: string | undefined | null) => {
         if (documentId) {
