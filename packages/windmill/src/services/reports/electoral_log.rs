@@ -19,6 +19,7 @@ use chrono::{DateTime, Utc};
 use csv::WriterBuilder;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use headless_chrome::types::PrintToPdfOptions;
+use sequent_core::services::reports::{format_datetime, timestamp_to_rfc2822};
 use sequent_core::types::hasura::core::Document;
 use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
@@ -128,15 +129,11 @@ impl TemplateRenderer for ActivityLogsTemplate {
                     None => "-".to_string(),
                 };
 
-                let timestamp = electoral_log.statement_timestamp();
-                let dt = DateTime::<Utc>::from_timestamp(timestamp, 0)
-                    .with_context(|| "Error parsing timestamp")?;
-                let statement_timestamp = dt.to_rfc2822();
+                let statement_timestamp = timestamp_to_rfc2822(electoral_log.statement_timestamp())
+                    .with_context(|| "Error formatting timestamp.")?;
 
-                let creation_timestamp = electoral_log.created();
-                let dt = DateTime::<Utc>::from_timestamp(creation_timestamp, 0)
-                    .with_context(|| "Error parsing creation timestamp")?;
-                let created = dt.format("%Y-%m-%d").to_string();
+                let created = format_datetime(electoral_log.created(), "%Y-%m-%d")
+                    .with_context(|| "Error formatting created date.")?;
 
                 let head_data = electoral_log
                     .statement_head_data()
