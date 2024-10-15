@@ -552,6 +552,69 @@ pub struct ElectoralLogRow {
     pub data: String,
     pub user_id: Option<String>,
 }
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct StatementHeadDataString {
+    pub event: String,
+    pub kind: String,
+    pub timestamp: i64,
+    pub event_type: String,
+    pub log_type: String,
+    pub description: String,
+}
+
+impl ElectoralLogRow {
+    pub fn id(&self) -> i64 {
+        self.id
+    }
+
+    pub fn created(&self) -> i64 {
+        self.created
+    }
+
+    pub fn statement_timestamp(&self) -> i64 {
+        self.statement_timestamp
+    }
+
+    pub fn statement_kind(&self) -> &str {
+        &self.statement_kind
+    }
+
+    pub fn message(&self) -> &str {
+        &self.message
+    }
+
+    pub fn user_id(&self) -> Option<&str> {
+        self.user_id.as_ref().map(|s| s.as_str())
+    }
+
+    pub fn statement_head_data(&self) -> Result<StatementHeadDataString> {
+        let message: serde_json::Value = serde_json::from_str(&self.message).map_err(|err| {
+            anyhow!(format!(
+                "{:?}, Failed to parse message: {}",
+                err, self.message
+            ))
+        })?;
+
+        let Some(statement) = message.get("statement") else {
+            return Err(anyhow!(
+                "Failed to get statement from message: {}",
+                self.message
+            ));
+        };
+
+        let Some(head) = statement.get("head") else {
+            return Err(anyhow!(
+                "Failed to get head from statement: {}",
+                self.message
+            ));
+        };
+
+        let data: StatementHeadDataString = serde_json::from_value(head.clone())
+            .map_err(|err| anyhow!(format!("{:?}, Failed to parse head: {}", err, head)))?;
+
+        Ok(data)
+    }
+}
 
 impl TryFrom<&Row> for ElectoralLogRow {
     type Error = anyhow::Error;

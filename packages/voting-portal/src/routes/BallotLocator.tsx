@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useEffect, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {
     BreadCrumbSteps,
@@ -26,6 +26,7 @@ import {updateBallotStyleAndSelection} from "../services/BallotStyles"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {selectFirstBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
 import useLanguage from "../hooks/useLanguage"
+import {SettingsContext} from "../providers/SettingsContextProvider"
 
 const StyledLink = styled(Link)`
     text-decoration: none;
@@ -91,6 +92,7 @@ const BallotLocator: React.FC = () => {
     const location = useLocation()
     const {t} = useTranslation()
     const [inputBallotId, setInputBallotId] = useState<string>("")
+    const {globalSettings} = useContext(SettingsContext)
 
     const hasBallotId = !!ballotId
     const {data: dataBallotStyles} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
@@ -105,6 +107,7 @@ const BallotLocator: React.FC = () => {
             electionId,
             ballotId,
         },
+        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
     })
 
     useEffect(() => {

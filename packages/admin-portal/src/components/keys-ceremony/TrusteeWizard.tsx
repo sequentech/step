@@ -25,8 +25,8 @@ export const isTrusteeParticipating = (
 ) => {
     const status: IExecutionStatus = ceremony.status
     return (
-        (ceremony.execution_status === EStatus.NOT_STARTED ||
-            ceremony.execution_status === EStatus.IN_PROCESS) &&
+        (ceremony.execution_status === EStatus.USER_CONFIGURATION ||
+            ceremony.execution_status === EStatus.IN_PROGRESS) &&
         !!status.trustees.find((trustee) => trustee.name === authContext.trustee)
     )
 }
@@ -71,7 +71,7 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
     const status: IExecutionStatus = currentCeremony.status
     const keysGenerated =
         status.public_key !== undefined &&
-        currentCeremony.execution_status === EStatus.IN_PROCESS &&
+        currentCeremony.execution_status === EStatus.IN_PROGRESS &&
         !status.trustees.find((trustee) => trustee.status === TStatus.WAITING)
 
     const calculateCurrentStep: () => WizardStep = () => {
@@ -79,7 +79,7 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
         if (!trusteeParticipating) {
             return WizardStep.Status
             // If trustee is participating but is not started, show status step
-        } else if (currentCeremony.execution_status === EStatus.NOT_STARTED) {
+        } else if (currentCeremony.execution_status === EStatus.USER_CONFIGURATION) {
             return WizardStep.Status
             // If trustee is participating but is not started, show status step
         } else if (
@@ -88,7 +88,10 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
         ) {
             return WizardStep.Success
             // if the trustee has not checked the key, then show the start screen
-        } else if (currentCeremony.execution_status === EStatus.IN_PROCESS && !trusteeCheckedKeys) {
+        } else if (
+            currentCeremony.execution_status === EStatus.IN_PROGRESS &&
+            !trusteeCheckedKeys
+        ) {
             return WizardStep.Start
             // In all other cases, just show the status
         } else {
@@ -105,7 +108,7 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
         } else {
             setCurrentStep(WizardStep.Status)
         }
-    }, [])
+    }, [trusteeCheckedKeys, trusteeParticipating, keysGenerated])
 
     const checkKeysGenerated = () => {
         return !trusteeCheckedKeys && trusteeParticipating && !keysGenerated

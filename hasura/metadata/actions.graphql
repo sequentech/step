@@ -14,6 +14,14 @@ type Mutation {
 }
 
 type Mutation {
+    create_election(
+        election_event_id: String!
+        name: String!
+        description: String
+    ): CreateElectionOutput
+}
+
+type Mutation {
     create_keys_ceremony(
         object: CreateKeysCeremonyInput!
     ): CreateKeysCeremonyOutput
@@ -132,7 +140,10 @@ type Mutation {
 }
 
 type Mutation {
-    export_election_event_logs(election_event_id: String): ExportLogsOutput
+    export_election_event_logs(
+        election_event_id: String!
+        format: String!
+    ): ExportLogsOutput
 }
 
 type Mutation {
@@ -334,6 +345,10 @@ type Query {
         order_by: PgAuditOrderBy
         audit_table: PgAuditTable
     ): DataListPgAudit
+}
+
+type Query {
+    list_keys_ceremony(election_event_id: String!): ListKeysCeremonyOutput
 }
 
 type Query {
@@ -557,6 +572,8 @@ input CreateKeysCeremonyInput {
     election_event_id: String!
     threshold: Int!
     trustee_names: [String!]
+    election_id: String
+    name: String
 }
 
 input ElectionEventStatsInput {
@@ -1193,6 +1210,32 @@ type CastVotesByIp {
     election_name: String
     election_id: String
     voters_id: [String]
+}
+
+type CreateElectionOutput {
+    id: String!
+}
+
+type ListKeysCeremonyOutput {
+    items: [KeysCeremony!]!
+    total: TotalAggregate!
+}
+
+type KeysCeremony {
+    id: String!
+    created_at: String
+    last_updated_at: String
+    tenant_id: String!
+    election_event_id: String!
+    trustee_ids: [String!]!
+    status: jsonb
+    execution_status: String
+    labels: jsonb
+    annotations: jsonb
+    threshold: Int!
+    name: String
+    settings: jsonb
+    is_default: Boolean
 }
 
 type generateReportOutput {

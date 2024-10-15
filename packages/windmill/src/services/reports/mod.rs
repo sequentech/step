@@ -4,6 +4,7 @@
 
 pub mod audit_logs;
 pub mod election_returns_for_national_positions;
+pub mod electoral_log;
 pub mod initialization;
 pub mod manual_verification;
 pub mod ov_users;

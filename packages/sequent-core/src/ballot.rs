@@ -528,6 +528,31 @@ pub enum CandidatesSelectionPolicy {
     CUMULATIVE, // default behaviour
 }
 
+#[allow(non_camel_case_types)]
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+    Default,
+)]
+pub enum KeysCeremonyPolicy {
+    #[strum(serialize = "ELECTION_EVENT")]
+    #[serde(rename = "ELECTION_EVENT")]
+    #[default]
+    ELECTION_EVENT,
+    #[strum(serialize = "ELECTION")]
+    #[serde(rename = "ELECTION")]
+    ELECTION,
+}
+
 #[derive(
     BorshSerialize,
     BorshDeserialize,
@@ -585,6 +610,7 @@ pub struct ElectionEventPresentation {
     pub elections_order: Option<ElectionsOrder>,
     pub voting_portal_countdown_policy: Option<VotingPortalCountdownPolicy>,
     pub custom_urls: Option<CustomUrls>,
+    pub keys_ceremony_policy: Option<KeysCeremonyPolicy>,
     pub locked_down: Option<LockedDown>,
     pub publish_policy: Option<Publish>,
     pub enrollment: Option<Enrollment>,
@@ -1127,9 +1153,6 @@ pub enum Publish {
     Clone,
 )]
 pub struct ElectionEventStatus {
-    pub config_created: Option<bool>,
-    pub keys_ceremony_finished: Option<bool>,
-    pub tally_ceremony_finished: Option<bool>,
     pub is_published: Option<bool>,
     pub voting_status: VotingStatus,
 }
@@ -1137,18 +1160,9 @@ pub struct ElectionEventStatus {
 impl Default for ElectionEventStatus {
     fn default() -> Self {
         ElectionEventStatus {
-            config_created: Some(false),
-            keys_ceremony_finished: Some(false),
-            tally_ceremony_finished: Some(false),
             is_published: Some(false),
             voting_status: VotingStatus::NOT_STARTED,
         }
-    }
-}
-
-impl ElectionEventStatus {
-    pub fn is_config_created(&self) -> bool {
-        self.config_created.unwrap_or(false)
     }
 }
 

@@ -102,8 +102,15 @@ export type CreateElectionEventOutput = {
   id: Scalars['String']['output'];
 };
 
+export type CreateElectionOutput = {
+  __typename?: 'CreateElectionOutput';
+  id: Scalars['String']['output'];
+};
+
 export type CreateKeysCeremonyInput = {
   election_event_id: Scalars['String']['input'];
+  election_id?: InputMaybe<Scalars['String']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
   threshold: Scalars['Int']['input'];
   trustee_names?: InputMaybe<Array<Scalars['String']['input']>>;
 };
@@ -507,9 +514,33 @@ export type KeycloakUserArea = {
   name?: Maybe<Scalars['String']['output']>;
 };
 
+export type KeysCeremony = {
+  __typename?: 'KeysCeremony';
+  annotations?: Maybe<Scalars['jsonb']['output']>;
+  created_at?: Maybe<Scalars['String']['output']>;
+  election_event_id: Scalars['String']['output'];
+  execution_status?: Maybe<Scalars['String']['output']>;
+  id: Scalars['String']['output'];
+  is_default?: Maybe<Scalars['Boolean']['output']>;
+  labels?: Maybe<Scalars['jsonb']['output']>;
+  last_updated_at?: Maybe<Scalars['String']['output']>;
+  name?: Maybe<Scalars['String']['output']>;
+  settings?: Maybe<Scalars['jsonb']['output']>;
+  status?: Maybe<Scalars['jsonb']['output']>;
+  tenant_id: Scalars['String']['output'];
+  threshold: Scalars['Int']['output'];
+  trustee_ids: Array<Scalars['String']['output']>;
+};
+
 export type LimitAccessByCountriesOutput = {
   __typename?: 'LimitAccessByCountriesOutput';
   success?: Maybe<Scalars['Boolean']['output']>;
+};
+
+export type ListKeysCeremonyOutput = {
+  __typename?: 'ListKeysCeremonyOutput';
+  items: Array<KeysCeremony>;
+  total: TotalAggregate;
 };
 
 export type LogEventOutput = {
@@ -784,6 +815,7 @@ export type Mutation_Root = {
   check_private_key?: Maybe<CheckPrivateKeyOutput>;
   /** create scheduled event */
   createScheduledEvent?: Maybe<ScheduledEventOutput3>;
+  create_election?: Maybe<CreateElectionOutput>;
   /** create keys ceremony */
   create_keys_ceremony?: Maybe<CreateKeysCeremonyOutput>;
   create_permission?: Maybe<KeycloakPermission>;
@@ -1324,6 +1356,14 @@ export type Mutation_RootCreateScheduledEventArgs = {
   event_payload: Scalars['jsonb']['input'];
   event_processor: Scalars['String']['input'];
   tenant_id: Scalars['String']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootCreate_ElectionArgs = {
+  description?: InputMaybe<Scalars['String']['input']>;
+  election_event_id: Scalars['String']['input'];
+  name: Scalars['String']['input'];
 };
 
 
@@ -3677,6 +3717,7 @@ export type Query_Root = {
   listElectoralLog?: Maybe<DataListElectoralLog>;
   /** List PostgreSQL audit logs */
   listPgaudit?: Maybe<DataListPgAudit>;
+  list_keys_ceremony?: Maybe<ListKeysCeremonyOutput>;
   list_user_roles: Array<KeycloakRole>;
   /** log an event in immudb */
   logEvent?: Maybe<LogEventOutput>;
@@ -3938,6 +3979,11 @@ export type Query_RootListPgauditArgs = {
   limit?: InputMaybe<Scalars['Int']['input']>;
   offset?: InputMaybe<Scalars['Int']['input']>;
   order_by?: InputMaybe<PgAuditOrderBy>;
+};
+
+
+export type Query_RootList_Keys_CeremonyArgs = {
+  election_event_id: Scalars['String']['input'];
 };
 
 
@@ -7813,6 +7859,7 @@ export type Sequent_Backend_Election = {
   initialization_report_generated?: Maybe<Scalars['Boolean']['output']>;
   is_consolidated_ballot_encoding?: Maybe<Scalars['Boolean']['output']>;
   is_kiosk?: Maybe<Scalars['Boolean']['output']>;
+  keys_ceremony_id?: Maybe<Scalars['uuid']['output']>;
   labels?: Maybe<Scalars['jsonb']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
   name: Scalars['String']['output'];
@@ -8008,6 +8055,7 @@ export type Sequent_Backend_Election_Bool_Exp = {
   initialization_report_generated?: InputMaybe<Boolean_Comparison_Exp>;
   is_consolidated_ballot_encoding?: InputMaybe<Boolean_Comparison_Exp>;
   is_kiosk?: InputMaybe<Boolean_Comparison_Exp>;
+  keys_ceremony_id?: InputMaybe<Uuid_Comparison_Exp>;
   labels?: InputMaybe<Jsonb_Comparison_Exp>;
   last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   name?: InputMaybe<String_Comparison_Exp>;
@@ -8547,6 +8595,7 @@ export type Sequent_Backend_Election_Insert_Input = {
   initialization_report_generated?: InputMaybe<Scalars['Boolean']['input']>;
   is_consolidated_ballot_encoding?: InputMaybe<Scalars['Boolean']['input']>;
   is_kiosk?: InputMaybe<Scalars['Boolean']['input']>;
+  keys_ceremony_id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
@@ -8571,6 +8620,7 @@ export type Sequent_Backend_Election_Max_Fields = {
   eml?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   image_document_id?: Maybe<Scalars['String']['output']>;
+  keys_ceremony_id?: Maybe<Scalars['uuid']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
   name?: Maybe<Scalars['String']['output']>;
   num_allowed_revotes?: Maybe<Scalars['Int']['output']>;
@@ -8587,6 +8637,7 @@ export type Sequent_Backend_Election_Max_Order_By = {
   eml?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   image_document_id?: InputMaybe<Order_By>;
+  keys_ceremony_id?: InputMaybe<Order_By>;
   last_updated_at?: InputMaybe<Order_By>;
   name?: InputMaybe<Order_By>;
   num_allowed_revotes?: InputMaybe<Order_By>;
@@ -8604,6 +8655,7 @@ export type Sequent_Backend_Election_Min_Fields = {
   eml?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   image_document_id?: Maybe<Scalars['String']['output']>;
+  keys_ceremony_id?: Maybe<Scalars['uuid']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
   name?: Maybe<Scalars['String']['output']>;
   num_allowed_revotes?: Maybe<Scalars['Int']['output']>;
@@ -8620,6 +8672,7 @@ export type Sequent_Backend_Election_Min_Order_By = {
   eml?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   image_document_id?: InputMaybe<Order_By>;
+  keys_ceremony_id?: InputMaybe<Order_By>;
   last_updated_at?: InputMaybe<Order_By>;
   name?: InputMaybe<Order_By>;
   num_allowed_revotes?: InputMaybe<Order_By>;
@@ -8657,6 +8710,7 @@ export type Sequent_Backend_Election_Order_By = {
   initialization_report_generated?: InputMaybe<Order_By>;
   is_consolidated_ballot_encoding?: InputMaybe<Order_By>;
   is_kiosk?: InputMaybe<Order_By>;
+  keys_ceremony_id?: InputMaybe<Order_By>;
   labels?: InputMaybe<Order_By>;
   last_updated_at?: InputMaybe<Order_By>;
   name?: InputMaybe<Order_By>;
@@ -9023,6 +9077,8 @@ export enum Sequent_Backend_Election_Select_Column {
   /** column name */
   IsKiosk = 'is_kiosk',
   /** column name */
+  KeysCeremonyId = 'keys_ceremony_id',
+  /** column name */
   Labels = 'labels',
   /** column name */
   LastUpdatedAt = 'last_updated_at',
@@ -9085,6 +9141,7 @@ export type Sequent_Backend_Election_Set_Input = {
   initialization_report_generated?: InputMaybe<Scalars['Boolean']['input']>;
   is_consolidated_ballot_encoding?: InputMaybe<Scalars['Boolean']['input']>;
   is_kiosk?: InputMaybe<Scalars['Boolean']['input']>;
+  keys_ceremony_id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
@@ -9153,6 +9210,7 @@ export type Sequent_Backend_Election_Stream_Cursor_Value_Input = {
   initialization_report_generated?: InputMaybe<Scalars['Boolean']['input']>;
   is_consolidated_ballot_encoding?: InputMaybe<Scalars['Boolean']['input']>;
   is_kiosk?: InputMaybe<Scalars['Boolean']['input']>;
+  keys_ceremony_id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
@@ -9445,6 +9503,8 @@ export enum Sequent_Backend_Election_Update_Column {
   IsConsolidatedBallotEncoding = 'is_consolidated_ballot_encoding',
   /** column name */
   IsKiosk = 'is_kiosk',
+  /** column name */
+  KeysCeremonyId = 'keys_ceremony_id',
   /** column name */
   Labels = 'labels',
   /** column name */
@@ -9839,12 +9899,15 @@ export type Sequent_Backend_Keys_Ceremony = {
   election_event_id: Scalars['uuid']['output'];
   execution_status?: Maybe<Scalars['String']['output']>;
   id: Scalars['uuid']['output'];
+  is_default?: Maybe<Scalars['Boolean']['output']>;
   /** An array relationship */
   keys_ceremony_trustee_ids: Array<Sequent_Backend_Trustee>;
   /** An aggregate relationship */
   keys_ceremony_trustee_ids_aggregate: Sequent_Backend_Trustee_Aggregate;
   labels?: Maybe<Scalars['jsonb']['output']>;
   last_updated_at: Scalars['timestamptz']['output'];
+  name?: Maybe<Scalars['String']['output']>;
+  settings?: Maybe<Scalars['jsonb']['output']>;
   status?: Maybe<Scalars['jsonb']['output']>;
   tenant_id: Scalars['uuid']['output'];
   threshold: Scalars['Int']['output'];
@@ -9880,6 +9943,12 @@ export type Sequent_Backend_Keys_CeremonyKeys_Ceremony_Trustee_Ids_AggregateArgs
 
 /** columns and relationships of "sequent_backend.keys_ceremony" */
 export type Sequent_Backend_Keys_CeremonyLabelsArgs = {
+  path?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+/** columns and relationships of "sequent_backend.keys_ceremony" */
+export type Sequent_Backend_Keys_CeremonySettingsArgs = {
   path?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -9923,6 +9992,7 @@ export type Sequent_Backend_Keys_Ceremony_Aggregate_FieldsCountArgs = {
 export type Sequent_Backend_Keys_Ceremony_Append_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
+  settings?: InputMaybe<Scalars['jsonb']['input']>;
   status?: InputMaybe<Scalars['jsonb']['input']>;
 };
 
@@ -9942,10 +10012,13 @@ export type Sequent_Backend_Keys_Ceremony_Bool_Exp = {
   election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
   execution_status?: InputMaybe<String_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
+  is_default?: InputMaybe<Boolean_Comparison_Exp>;
   keys_ceremony_trustee_ids?: InputMaybe<Sequent_Backend_Trustee_Bool_Exp>;
   keys_ceremony_trustee_ids_aggregate?: InputMaybe<Sequent_Backend_Trustee_Aggregate_Bool_Exp>;
   labels?: InputMaybe<Jsonb_Comparison_Exp>;
   last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  name?: InputMaybe<String_Comparison_Exp>;
+  settings?: InputMaybe<Jsonb_Comparison_Exp>;
   status?: InputMaybe<Jsonb_Comparison_Exp>;
   tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
   threshold?: InputMaybe<Int_Comparison_Exp>;
@@ -9962,6 +10035,7 @@ export enum Sequent_Backend_Keys_Ceremony_Constraint {
 export type Sequent_Backend_Keys_Ceremony_Delete_At_Path_Input = {
   annotations?: InputMaybe<Array<Scalars['String']['input']>>;
   labels?: InputMaybe<Array<Scalars['String']['input']>>;
+  settings?: InputMaybe<Array<Scalars['String']['input']>>;
   status?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
@@ -9969,6 +10043,7 @@ export type Sequent_Backend_Keys_Ceremony_Delete_At_Path_Input = {
 export type Sequent_Backend_Keys_Ceremony_Delete_Elem_Input = {
   annotations?: InputMaybe<Scalars['Int']['input']>;
   labels?: InputMaybe<Scalars['Int']['input']>;
+  settings?: InputMaybe<Scalars['Int']['input']>;
   status?: InputMaybe<Scalars['Int']['input']>;
 };
 
@@ -9976,6 +10051,7 @@ export type Sequent_Backend_Keys_Ceremony_Delete_Elem_Input = {
 export type Sequent_Backend_Keys_Ceremony_Delete_Key_Input = {
   annotations?: InputMaybe<Scalars['String']['input']>;
   labels?: InputMaybe<Scalars['String']['input']>;
+  settings?: InputMaybe<Scalars['String']['input']>;
   status?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -9991,9 +10067,12 @@ export type Sequent_Backend_Keys_Ceremony_Insert_Input = {
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   execution_status?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
+  is_default?: InputMaybe<Scalars['Boolean']['input']>;
   keys_ceremony_trustee_ids?: InputMaybe<Sequent_Backend_Trustee_Arr_Rel_Insert_Input>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  settings?: InputMaybe<Scalars['jsonb']['input']>;
   status?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   threshold?: InputMaybe<Scalars['Int']['input']>;
@@ -10008,6 +10087,7 @@ export type Sequent_Backend_Keys_Ceremony_Max_Fields = {
   execution_status?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
+  name?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
   threshold?: Maybe<Scalars['Int']['output']>;
   trustee_ids?: Maybe<Array<Scalars['uuid']['output']>>;
@@ -10021,6 +10101,7 @@ export type Sequent_Backend_Keys_Ceremony_Min_Fields = {
   execution_status?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
+  name?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
   threshold?: Maybe<Scalars['Int']['output']>;
   trustee_ids?: Maybe<Array<Scalars['uuid']['output']>>;
@@ -10049,9 +10130,12 @@ export type Sequent_Backend_Keys_Ceremony_Order_By = {
   election_event_id?: InputMaybe<Order_By>;
   execution_status?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
+  is_default?: InputMaybe<Order_By>;
   keys_ceremony_trustee_ids_aggregate?: InputMaybe<Sequent_Backend_Trustee_Aggregate_Order_By>;
   labels?: InputMaybe<Order_By>;
   last_updated_at?: InputMaybe<Order_By>;
+  name?: InputMaybe<Order_By>;
+  settings?: InputMaybe<Order_By>;
   status?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
   threshold?: InputMaybe<Order_By>;
@@ -10069,6 +10153,7 @@ export type Sequent_Backend_Keys_Ceremony_Pk_Columns_Input = {
 export type Sequent_Backend_Keys_Ceremony_Prepend_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
+  settings?: InputMaybe<Scalars['jsonb']['input']>;
   status?: InputMaybe<Scalars['jsonb']['input']>;
 };
 
@@ -10085,9 +10170,15 @@ export enum Sequent_Backend_Keys_Ceremony_Select_Column {
   /** column name */
   Id = 'id',
   /** column name */
+  IsDefault = 'is_default',
+  /** column name */
   Labels = 'labels',
   /** column name */
   LastUpdatedAt = 'last_updated_at',
+  /** column name */
+  Name = 'name',
+  /** column name */
+  Settings = 'settings',
   /** column name */
   Status = 'status',
   /** column name */
@@ -10105,8 +10196,11 @@ export type Sequent_Backend_Keys_Ceremony_Set_Input = {
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   execution_status?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
+  is_default?: InputMaybe<Scalars['Boolean']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  settings?: InputMaybe<Scalars['jsonb']['input']>;
   status?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   threshold?: InputMaybe<Scalars['Int']['input']>;
@@ -10146,8 +10240,11 @@ export type Sequent_Backend_Keys_Ceremony_Stream_Cursor_Value_Input = {
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   execution_status?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
+  is_default?: InputMaybe<Scalars['Boolean']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  settings?: InputMaybe<Scalars['jsonb']['input']>;
   status?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   threshold?: InputMaybe<Scalars['Int']['input']>;
@@ -10173,9 +10270,15 @@ export enum Sequent_Backend_Keys_Ceremony_Update_Column {
   /** column name */
   Id = 'id',
   /** column name */
+  IsDefault = 'is_default',
+  /** column name */
   Labels = 'labels',
   /** column name */
   LastUpdatedAt = 'last_updated_at',
+  /** column name */
+  Name = 'name',
+  /** column name */
+  Settings = 'settings',
   /** column name */
   Status = 'status',
   /** column name */

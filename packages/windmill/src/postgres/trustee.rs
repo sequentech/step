@@ -30,11 +30,16 @@ impl TryFrom<Row> for TrusteeWrapper {
 }
 
 #[instrument(err, skip(hasura_transaction))]
-pub async fn get_trustee_by_name(
+pub async fn get_trustees_by_id(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
-    name: &str,
-) -> Result<Trustee> {
+    trustee_ids: &Vec<String>,
+) -> Result<Vec<Trustee>> {
+    let trustee_uuids = trustee_ids
+        .clone()
+        .into_iter()
+        .map(|id| Uuid::parse_str(&id).map_err(|err| anyhow!("{:?}", err)))
+        .collect::<Result<Vec<Uuid>>>()?;
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -44,27 +49,65 @@ pub async fn get_trustee_by_name(
                     sequent_backend.trustee
                 WHERE
                     tenant_id = $1 AND
-                    name = $2;
+                    id = ANY($2);
             "#,
         )
         .await?;
 
     let rows: Vec<Row> = hasura_transaction
-        .query(
-            &statement,
-            &[&Uuid::parse_str(tenant_id)?, &name.to_string()],
-        )
+        .query(&statement, &[&Uuid::parse_str(tenant_id)?, &trustee_uuids])
         .await?;
 
-    let elements: Vec<Trustee> = rows
-        .into_iter()
+    rows.into_iter()
         .map(|row| -> Result<Trustee> {
             row.try_into()
                 .map(|res: TrusteeWrapper| -> Trustee { res.0 })
         })
-        .collect::<Result<Vec<Trustee>>>()?;
+        .collect::<Result<Vec<Trustee>>>()
+}
 
-    elements
+#[instrument(err, skip(hasura_transaction))]
+pub async fn get_trustees_by_name(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    names: &Vec<String>,
+) -> Result<Vec<Trustee>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    *
+                FROM
+                    sequent_backend.trustee
+                WHERE
+                    tenant_id = $1 AND
+                    name = ANY($2);
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(&statement, &[&Uuid::parse_str(tenant_id)?, &names])
+        .await?;
+
+    rows.into_iter()
+        .map(|row| -> Result<Trustee> {
+            row.try_into()
+                .map(|res: TrusteeWrapper| -> Trustee { res.0 })
+        })
+        .collect::<Result<Vec<Trustee>>>()
+}
+
+#[instrument(err, skip(hasura_transaction))]
+pub async fn get_trustee_by_name(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    name: &str,
+) -> Result<Trustee> {
+    let trustees =
+        get_trustees_by_name(hasura_transaction, tenant_id, &vec![name.to_string()]).await?;
+
+    trustees
         .get(0)
         .map(|tally_session: &Trustee| tally_session.clone())
         .ok_or(anyhow!("Trustee {name} not found"))

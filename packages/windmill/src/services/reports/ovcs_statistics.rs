@@ -15,9 +15,7 @@ use tracing::{info, instrument};
 
 // Struct to hold user data
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct UserData {
-
-}
+pub struct UserData {}
 
 // Struct to hold system data
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -94,9 +92,9 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
         }
     }
 
-     /// Prepare system metadata for the report
-     /// TODO: fetch the real data
-     async fn prepare_system_data(
+    /// Prepare system metadata for the report
+    /// TODO: fetch the real data
+    async fn prepare_system_data(
         &self,
         _rendered_user_template: String,
     ) -> Result<Self::SystemData> {
@@ -117,6 +115,14 @@ pub async fn generate_ovcs_statistics_report(
         election_event_id: election_event_id.to_string(),
     };
     template
-        .execute_report(document_id, tenant_id, election_event_id, false, None, mode)
+        .execute_report(
+            document_id,
+            tenant_id,
+            election_event_id,
+            false,
+            None,
+            None,
+            mode,
+        )
         .await
 }

@@ -4,7 +4,6 @@
 
 use crate::postgres::scheduled_event::*;
 use crate::services::database::get_hasura_pool;
-use crate::services::date::ISO8601;
 use crate::services::election_event_status::update_event_voting_status;
 use crate::services::pg_lock::PgLock;
 use crate::types::error::{Error, Result};
@@ -14,6 +13,7 @@ use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::{ElectionStatus, VotingStatus};
+use sequent_core::services::date::ISO8601;
 use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;

@@ -170,22 +170,18 @@ impl TemplateRenderer for OVUserTemplate {
                 status: "Voted".to_string(),
                 date_voted: "May 4, 2024".to_string(),
                 time_voted: "11:00".to_string(),
-            }
+            },
         ];
-    
+
         // Calculate statistics
         let total_voted = voters.iter().filter(|ov| ov.status == "Voted").count() as u32;
-        let total_not_voted = voters
-            .iter()
-            .filter(|ov| ov.status == "Not Voted")
-            .count() as u32;
+        let total_not_voted = voters.iter().filter(|ov| ov.status == "Not Voted").count() as u32;
         let not_pre_enrolled = voters
             .iter()
             .filter(|ov| ov.status == "Not Enrolled")
             .count() as u32;
         let voting_privilege_voted = 2; // Mocking this value
         let total = voters.len() as u32;
-    
         // Mock UserData
         let temp_val: &str = "test";
 
@@ -223,6 +219,14 @@ pub async fn generate_ov_users_report(
         election_event_id: election_event_id.to_string(),
     };
     template
-        .execute_report(document_id, tenant_id, election_event_id, false, None, mode)
+        .execute_report(
+            document_id,
+            tenant_id,
+            election_event_id,
+            false,
+            None,
+            None,
+            mode,
+        )
         .await
 }

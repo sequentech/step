@@ -217,6 +217,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             electionEventId: eventId,
             tenantId,
         },
+        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
         onError: (error) => {
             if (error.networkError) {
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NETWORK_ERROR}`))
@@ -259,7 +260,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
 
     const castBallotAction = async () => {
         const errorType = VotingPortalErrorType.UNABLE_TO_CAST_BALLOT
-        if (isDemo) {
+        if (isDemo || globalSettings.DISABLE_AUTH) {
             console.log("faking casting demo vote")
             const newCastVote = fakeCastVote()
             dispatch(addCastVotes([newCastVote]))

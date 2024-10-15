@@ -5,10 +5,10 @@
 use crate::postgres::reports::{get_all_active_reports, update_report_last_document_time, Report};
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::get_hasura_pool;
-use crate::services::date::ISO8601;
 use crate::services::reports::template_renderer::GenerateReportMode;
 use crate::tasks::generate_report::generate_report;
 use deadpool_postgres::Client as DbClient;
+use sequent_core::services::date::ISO8601;
 // use crate::tasks::process_report::process_report_task;
 use crate::types::error::Result;
 use anyhow::{anyhow, Context};
