@@ -5,7 +5,7 @@
 import React, {useContext, useEffect, useState} from "react"
 
 import {useTranslation} from "react-i18next"
-import {TabbedShowLayout, useRecordContext} from "react-admin"
+import {TabbedShowLayout, useGetOne, useRecordContext} from "react-admin"
 import {v4 as uuidv4} from "uuid"
 
 import {AuthContext} from "@/providers/AuthContextProvider"
@@ -27,28 +27,27 @@ export const ElectionTabs: React.FC = () => {
     const {t} = useTranslation()
     const [tabKey, setTabKey] = React.useState<string>(uuidv4())
     const authContext = useContext(AuthContext)
-    const showVoters = authContext.isAuthorized(true, authContext.tenantId, IPermissions.VOTER_READ)
+    let showVoters = authContext.isAuthorized(true, authContext.tenantId, IPermissions.VOTER_READ)
     const usersPermissionLabels = authContext.permissionLabels
     const [hasPermissionToViewElection, setHasPermissionToViewElection] = useState<boolean>(true)
+    const {data: electionEvent} = useGetOne("sequent_backend_election_event", {
+        id: record?.election_event_id ?? "",
+    })
 
     const isElectionEventLocked =
-        record?.presentation?.locked_down == EElectionEventLockedDown.LOCKED_DOWN
+        electionEvent?.presentation?.locked_down == EElectionEventLockedDown.LOCKED_DOWN
 
     const showDashboard = authContext.isAuthorized(
         true,
         authContext.tenantId,
         IPermissions.ADMIN_DASHBOARD_VIEW
     )
-    const showData = authContext.isAuthorized(
-        true,
-        authContext.tenantId,
-        IPermissions.ELECTION_EVENT_WRITE
-    )
-    const showPublish = authContext.isAuthorized(
-        true,
-        authContext.tenantId,
-        IPermissions.PUBLISH_READ
-    )
+    const showData =
+        !isElectionEventLocked &&
+        authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_WRITE)
+    const showPublish =
+        !isElectionEventLocked &&
+        authContext.isAuthorized(true, authContext.tenantId, IPermissions.PUBLISH_READ)
 
     useEffect(() => {
         if (
@@ -80,7 +79,7 @@ export const ElectionTabs: React.FC = () => {
                         <DashboardElection />
                     </TabbedShowLayout.Tab>
                 )}
-                {showDashboard && (
+                {showData && (
                     <TabbedShowLayout.Tab label={t("electionScreen.tabs.data")}>
                         <EditElectionData />
                     </TabbedShowLayout.Tab>

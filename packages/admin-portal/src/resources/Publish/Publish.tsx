@@ -355,6 +355,8 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                             setViewMode(ViewMode.View)
                             setBallotPublicationId(id)
                         }}
+                        publishPolicy={record?.presentation?.publish_policy}
+                        lockDownStatus={record?.presentation?.locked_down}
                     />
                 )}
                 {(viewMode === ViewMode.Edit || viewMode === ViewMode.View) && (

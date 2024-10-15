@@ -50,6 +50,7 @@ import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
 import {IPermissions} from "@/types/keycloak"
 import {useLocation, useNavigate} from "react-router"
 import {ResetFilters} from "@/components/ResetFilters"
+import {ElectionEventTallyPolicy} from "../Publish/EPublishStatus"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -97,10 +98,14 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         IPermissions.MIRU_DOWNLOAD,
         IPermissions.MIRU_SEND,
     ])
-
+    const allowWhenVotingPeriodEnds =
+        electionEventRecord.presentation.tally === ElectionEventTallyPolicy.AlwaysAllow && true
+    const alwaysAllow =
+        electionEventRecord.presentation.tally === ElectionEventTallyPolicy.AlwaysAllow
     const [openCancelTally, openCancelTallySet] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
 
+    console.log({electionEventRecord})
     const isKeyCeremonyFinished =
         electionEventRecord?.status && electionEventRecord.status.keys_ceremony_finished
     const isPublished = electionEventRecord?.status && electionEventRecord.status.is_published
@@ -144,7 +149,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     const CreateButton = () => (
         <Button
             onClick={() => setCreatingFlag(true)}
-            disabled={!isKeyCeremonyFinished || !isPublished}
+            disabled={!isKeyCeremonyFinished || !isPublished || !alwaysAllow}
         >
             <IconButton icon={faPlus} fontSize="24px" />
             {t("electionEventScreen.tally.create.createButton")}

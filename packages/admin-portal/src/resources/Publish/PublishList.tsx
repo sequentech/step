@@ -27,6 +27,7 @@ import {HeaderTitle} from "@/components/HeaderTitle"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {Action, ActionsColumn} from "@/components/ActionButons"
 import {ResetFilters} from "@/components/ResetFilters"
+import {EElectionEventLockedDown, EElectionEventPublishPolicy} from "@sequentech/ui-core"
 
 const OMIT_FIELDS: string[] = []
 
@@ -45,6 +46,8 @@ type TPublishList = {
     onGenerate: () => void
     onChangeStatus: (status: ElectionEventStatus) => void
     setBallotPublicationId: (id: string | Identifier) => void
+    publishPolicy?: EElectionEventPublishPolicy
+    lockDownStatus?: EElectionEventLockedDown
 }
 
 export const PublishList: React.FC<TPublishList> = ({
@@ -57,6 +60,8 @@ export const PublishList: React.FC<TPublishList> = ({
     onGenerate = () => null,
     onChangeStatus = () => null,
     setBallotPublicationId = () => null,
+    publishPolicy,
+    lockDownStatus,
 }) => {
     const {t} = useTranslation()
 
@@ -67,7 +72,14 @@ export const PublishList: React.FC<TPublishList> = ({
             </Typography>
             {canWrite && (
                 <>
-                    <Button onClick={onGenerate} className="publish-add-button">
+                    <Button
+                        onClick={onGenerate}
+                        className="publish-add-button"
+                        disabled={
+                            publishPolicy === EElectionEventPublishPolicy.AFTER_LOCKDOWN ||
+                            lockDownStatus !== EElectionEventLockedDown.NOT_LOCKED_DOWN
+                        }
+                    >
                         <IconButton icon={faPlus} fontSize="24px" />
                         {t("publish.empty.action")}
                     </Button>

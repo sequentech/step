@@ -29,6 +29,15 @@ export enum ElectionEventStatus {
     NotStarted = "NOT_STARTED",
 }
 
+export enum ElectionEventTallyPolicy {
+    AlwaysAllow = "always-allow",
+    AllowWhenVotingPeriodEnds = "allow-when-voting-period-ends",
+}
+
+export enum ElectionManualStartPolicy {
+    Always = "always",
+}
+
 export const MAP_ELECTION_EVENT_STATUS_PUBLISH = {
     [ElectionEventStatus.NotStarted]: PublishStatus.Void,
     [ElectionEventStatus.Open]: PublishStatus.Started,

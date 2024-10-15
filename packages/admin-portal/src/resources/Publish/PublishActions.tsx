@@ -20,7 +20,12 @@ import {
 } from "react-admin"
 
 import {EPublishActionsType} from "./EPublishType"
-import {PublishStatus, ElectionEventStatus, nextStatus} from "./EPublishStatus"
+import {
+    PublishStatus,
+    ElectionEventStatus,
+    nextStatus,
+    ElectionManualStartPolicy,
+} from "./EPublishStatus"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
@@ -34,6 +39,7 @@ import {ExportBallotPublicationMutation} from "@/gql/graphql"
 import {WidgetProps} from "@/components/Widget"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
+import {EElectionEventLockedDown} from "@sequentech/ui-core"
 
 type SvgIconComponent = typeof SvgIcon
 
@@ -212,6 +218,10 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                         PublishStatus.Stopped,
                                         PublishStatus.Started,
                                         PublishStatus.GeneratedLoading,
+                                        ...(record.presentation.manual_start_voting_period !==
+                                        ElectionManualStartPolicy.Always
+                                            ? [status]
+                                            : []),
                                     ]}
                                 />
                             )}
@@ -263,7 +273,13 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                     onClick={onGenerate}
                                     st={PublishStatus.Generated}
                                     label={t("publish.action.publish")}
-                                    disabledStatus={[PublishStatus.Stopped]}
+                                    disabledStatus={[
+                                        PublishStatus.Stopped,
+                                        ...(record.presentation.locked_down !==
+                                        EElectionEventLockedDown.NOT_LOCKED_DOWN
+                                            ? [status]
+                                            : []),
+                                    ]}
                                 />
                             )}
                         </>
