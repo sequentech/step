@@ -137,7 +137,6 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
             }
 
             const documentId = data?.sequent_backend_document[0]?.id
-            console.log({documentId})
             if (documentId) {
                 const openSuccess = openPreview(documentId)
                 if (openSuccess) {
@@ -230,7 +229,6 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
 
         const handleDocumentProcess = async () => {
             const documentOpened = await fetchDocumentId(`${id}.json`)
-            console.log({documentOpened})
             if (!documentOpened) {
                 await startUpload()
             }
