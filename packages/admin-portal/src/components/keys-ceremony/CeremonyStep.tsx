@@ -15,8 +15,8 @@ import {
 import {WizardStyles} from "@/components/styles/WizardStyles"
 
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
-import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos"
+import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty"
 import {Accordion, AccordionSummary, Typography} from "@mui/material"
 import Table from "@mui/material/Table"
