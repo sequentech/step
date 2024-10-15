@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
-import {SxProps} from "@mui/material"
-import {AutocompleteInput, Identifier, isRequired, ReferenceInput} from "react-admin"
-import {EReportType} from "@/types/reports"
-import {ITemplateType} from "@/types/templates"
+import { SxProps } from "@mui/material"
+import { AutocompleteInput, Identifier, isRequired, ReferenceInput, useDataProvider } from "react-admin"
+import { EReportType } from "@/types/reports"
+import { ITemplateType } from "@/types/templates"
 
 interface SelectTemplateProps {
     tenantId: string | null
@@ -18,6 +18,7 @@ interface SelectTemplateProps {
     disabled?: boolean
     value?: string | null
     isRequired?: boolean
+    isAlias?: boolean
 }
 
 const SelectTemplate = ({
@@ -30,13 +31,40 @@ const SelectTemplate = ({
     disabled,
     value,
     isRequired,
+    isAlias
 }: SelectTemplateProps) => {
+    const dataProvider = useDataProvider();
+
+
     const templateFilterToQuery = (searchText: string) => {
         if (!searchText || searchText.length === 0) {
-            return {"template.name": ""}
+            return { "template.name": "" }
         }
-        return {"template.name": searchText.trim()}
+        return { "template.name": searchText.trim() }
     }
+
+
+    const handleTemplateChange = async (id: string) => {
+        
+        console.log('handleTemplateChange id', id)
+        try {
+            // use template alias as ID 
+            if (onSelectTemplate && isAlias) {
+                const { data } = await dataProvider.getOne('sequent_backend_template', { id });
+                console.log("data isAlias", data)
+                console.log('data.template.alias', data.template.alias)
+                onSelectTemplate(data.template.alias);
+            }
+            else {
+                // Use the template id as ID
+                return
+            }
+        } catch (error) {
+            console.error("Failed to fetch template:", error);
+        }
+    };
+
+
 
     return (
         <ReferenceInput
@@ -60,7 +88,7 @@ const SelectTemplate = ({
                 fullWidth={true}
                 optionText={(record) => record.template.name}
                 filterToQuery={templateFilterToQuery}
-                onChange={onSelectTemplate}
+                onChange={handleTemplateChange}
                 debounce={100}
                 sx={customStyle}
                 disabled={disabled}

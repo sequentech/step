@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import SelectElection from "@/components/election/SelectElection"
-import {EReportElectionPolicy, EReportType, ReportActions, reportTypeConfig} from "@/types/reports"
-import {Typography} from "@mui/material"
-import React, {useEffect, useMemo, useState} from "react"
+import { EReportElectionPolicy, EReportType, ReportActions, reportTypeConfig } from "@/types/reports"
+import { Typography } from "@mui/material"
+import React, { useEffect, useMemo, useState } from "react"
 import {
     BooleanInput,
     Create,
@@ -20,11 +20,11 @@ import {
     useNotify,
 } from "react-admin"
 import SelectTemplate from "../Template/SelectTemplate"
-import {useTranslation} from "react-i18next"
-import {Sequent_Backend_Report} from "@/gql/graphql"
-import {useMutation} from "@apollo/client"
-import {CREATE_REPORT} from "@/queries/CreateReport"
-import {UPDATE_REPORT} from "@/queries/UpdateReport"
+import { useTranslation } from "react-i18next"
+import { Sequent_Backend_Report } from "@/gql/graphql"
+import { useMutation } from "@apollo/client"
+import { CREATE_REPORT } from "@/queries/CreateReport"
+import { UPDATE_REPORT } from "@/queries/UpdateReport"
 
 interface CronConfig {
     isActive?: boolean
@@ -57,7 +57,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
     const handleReportTypeChange = (event: any) => {
         setReportType(event.target.value)
     }
-    const {t} = useTranslation()
+    const { t } = useTranslation()
     const notify = useNotify()
     useEffect(() => {
         console.log("isCronActive", isCronActive)
@@ -68,8 +68,8 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
         error,
     } = useGetOne<Sequent_Backend_Report>(
         "sequent_backend_report",
-        {id: reportId},
-        {enabled: isEditReport}
+        { id: reportId },
+        { enabled: isEditReport }
     )
     const reportTypeChoices = Object.values(EReportType).map((reportType) => ({
         id: reportType,
@@ -118,21 +118,21 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                         set: formData,
                     },
                 })
-                notify(t(`reportsScreen.messages.updateSuccess`), {type: "success"})
+                notify(t(`reportsScreen.messages.updateSuccess`), { type: "success" })
             } else {
                 await createReport({
                     variables: {
                         object: formData,
                     },
                 })
-                notify(t(`reportsScreen.messages.createSuccess`), {type: "success"})
+                notify(t(`reportsScreen.messages.createSuccess`), { type: "success" })
             }
 
             if (close) {
                 close()
             }
         } catch (error) {
-            notify(t(`reportsScreen.messages.submitError`), {type: "error"})
+            notify(t(`reportsScreen.messages.submitError`), { type: "error" })
         }
     }
 
@@ -233,6 +233,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                         onSelectTemplate={(templateId) => setTemplateId(templateId)}
                         value={templateId}
                         isRequired={isTemplateRequired}
+                        isAlias={true}
                     />
 
                     {canGenerateReportSchedulued && (
