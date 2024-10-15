@@ -3,14 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useContext, useEffect, useMemo, useState} from "react"
-import {Outlet, useLocation, useMatch, useNavigate, useParams} from "react-router-dom"
+import {useLocation,useNavigate, useParams} from "react-router-dom"
 import {SettingsContext} from "../providers/SettingsContextProvider"
-import {PageLimit} from "@sequentech/ui-essentials"
 import {Box, CircularProgress} from "@mui/material"
 import {PreviewPublicationEventType} from ".."
 import {
-    GetBallotPublicationChangesOutput,
-    Sequent_Backend_Ballot_Style,
     Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
 } from "../gql/graphql"
@@ -19,7 +16,6 @@ import {cloneDeep} from "lodash"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {
     IBallotStyle,
-    selectBallotStyleByElectionId,
     selectFirstBallotStyle,
     setBallotStyle,
 } from "../store/ballotStyles/ballotStylesSlice"
@@ -90,19 +86,18 @@ export const updateBallotStyleAndSelection = (
 export const PreviewPublicationEvent: React.FC = () => {
     const {globalSettings, setDisableAuth} = useContext(SettingsContext)
     const navigate = useNavigate()
-    const {tenantId, documentId, areaId} = useParams<PreviewPublicationEventType>()
-    const [ballotStyleJson, setballotStyleJson] = useState<PreviewDocument>() // State to store the JSON data
+    const {tenantId, documentId, areaId, publicationId} = useParams<PreviewPublicationEventType>()
     const dispatch = useAppDispatch()
     const ballotStyle = useAppSelector(selectFirstBallotStyle)
     const location = useLocation()
 
     const previewUrl = useMemo(() => {
-        return `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${documentId}/preview.json`
+        return `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${documentId}/${publicationId}.json`
     }, [tenantId, documentId, globalSettings.PUBLIC_BUCKET_URL])
 
     useEffect(() => {
         const fetchPreviewData = async () => {
-            if (!tenantId || !areaId || !documentId || ballotStyle) {
+            if (!tenantId || !areaId || !documentId || !publicationId || ballotStyle) {
                 return
             }
             try {

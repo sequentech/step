@@ -16,15 +16,17 @@ import {Preview} from "@mui/icons-material"
 import {useTranslation} from "react-i18next"
 import {
     GetBallotPublicationChangesOutput,
+    GetDocumentByNameQuery,
     GetUploadUrlMutation,
     Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
 } from "@/gql/graphql"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {useMutation, useQuery} from "@apollo/client"
+import {useLazyQuery, useMutation, useQuery} from "@apollo/client"
 import {GET_AREAS} from "@/queries/GetAreas"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {TenantContext} from "@/providers/TenantContextProvider"
+import { GET_DOCUMENT_BY_NAME } from "@/queries/GetDocumentByName"
 
 interface EditPreviewProps {
     id?: string | Identifier | null
@@ -43,6 +45,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
     const [isUploading, setIsUploading] = React.useState<boolean>(false)
     const {tenantId} = useContext(TenantContext)
     const [areaId, setAreaId] = useState<string | null>(null)
+    const [getDocumentByName] = useLazyQuery<GetDocumentByNameQuery>(GET_DOCUMENT_BY_NAME)
 
     const {data: areas} = useQuery(GET_AREAS, {
         variables: {
@@ -79,6 +82,36 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
             refetchOnMount: false,
         }
     )
+
+    const fetchDocumentId = async (documentName: string) => {
+        try {
+            const { data, error } = await getDocumentByName({
+                variables: {
+                    name: documentName,
+                    tenantId,
+                },
+                fetchPolicy: "network-only",
+            });
+            
+            if (error) {
+                console.error("Error fetching document:", error);
+                return false;
+            }
+            
+            const documentId = data?.sequent_backend_document[0]?.id;
+            if (documentId) {
+                const openSuccess = openPreview(documentId);
+                if (openSuccess) {
+                    return true;
+                }
+            }
+    
+            return false; 
+        } catch (err) {
+            console.error("Exception in fetchDocumentId:", err);
+            return false;
+        }
+    };
 
     const uploadFile = async (url: string, file: File) => {
         await fetch(url, {
@@ -142,21 +175,39 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
                 elections: elections,
             }
             const dataStr = JSON.stringify(fileData, null, 2)
-            const file = new File([dataStr], `preview.json`, {type: "application/json"})
+            const file = new File([dataStr], `${id}.json`, {type: "application/json"})
             const documentId = await uploadFileToS3(file)
+            openPreview(documentId);
 
-            const previewUrl: string = `${previewUrlTemplate}/${documentId}/${areaId}`
-            window.open(previewUrl, "_blank")
-
-            notify(t("publish.preview.success"), {type: "success"})
             if (close) {
                 close()
             }
         }
+
+        const handleDocumentProcess = async () => {
+            const documentOpened = await fetchDocumentId(`${id}.json`);
+            
+            if (!documentOpened) {
+                await startUpload();
+            }
+        };
+
         if (isUploading && electionEvent && elections && areaId) {
-            startUpload()
+            handleDocumentProcess();
         }
     }, [isUploading, electionEvent, elections, areaId])
+
+    const openPreview = (documentId: string | undefined | null) => {
+        if (documentId) {
+            const previewUrl: string = `${previewUrlTemplate}/${documentId}/${areaId}/${id}`
+            window.open(previewUrl, "_blank")
+            notify(t("publish.preview.success"), {type: "success"})
+            return true
+        } else {
+            notify(t("publish.dialog.error_preview"), {type: "error"})
+            return false
+        }
+    }
 
     const onPreviewClick = async (res: any) => {
         setAreaId(res.area_id)
