@@ -1245,6 +1245,11 @@ const englishTranslation = {
             },
         },
         publish: {
+            preview: {
+                publicationAreas: "Select Area for Preview",
+                action: "Preview",
+                success: "Success opening preview",
+            },
             header: {
                 change: "Changes to be Published",
                 viewChange: "View Publication",

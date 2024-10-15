@@ -1255,6 +1255,11 @@ const frenchTranslation: TranslationType = {
             },
         },
         publish: {
+            preview: {
+                publicationAreas: "Sélectionnez la zone pour l'aperçu",
+                action: "Aperçu",
+                success: "Succès lors de l'ouverture de l'aperçu",
+            },
             header: {
                 change: "Changements à Publier",
                 viewChange: "Voir Publication",

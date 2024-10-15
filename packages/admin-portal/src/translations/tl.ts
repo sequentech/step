@@ -1250,6 +1250,11 @@ const tagalogTranslation: TranslationType = {
             },
         },
         publish: {
+            preview: {
+                publicationAreas: "Piliin ang Lugar para sa Preview",
+                action: "Preview",
+                success: "Matagumpay na pagbukas ng preview",
+            },
             header: {
                 change: "Mga Pagbabago na Ilalathala",
                 viewChange: "Tingnan ang Paglalathala",

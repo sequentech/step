@@ -144,7 +144,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
             const previewUrl: string = `${previewUrlTemplate}/${documentId}/${areaId}`
             window.open(previewUrl, "_blank")
 
-            notify(t("publish.previewSuccess"), {type: "success"})
+            notify(t("publish.preview.success"), {type: "success"})
             if (close) {
                 close()
             }
@@ -169,7 +169,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
             toolbar={
                 <SaveButton
                     icon={<Preview />}
-                    label={t("publish.preview")}
+                    label={t("publish.preview.action")}
                     sx={{marginInline: "1rem"}}
                 />
             }
@@ -178,7 +178,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
                 source="area_id"
                 choices={sourceAreas}
                 optionText={(area) => area.name}
-                label={t("publis.publicationAreas")}
+                label={t("publish.preview.publicationAreas")}
                 fullWidth={true}
                 debounce={100}
             ></AutocompleteInput>
