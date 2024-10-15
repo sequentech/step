@@ -1,0 +1,76 @@
+{
+  "file_qrcode_lib": "https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js",
+  "date_printed": "October 9, 2024",
+  "time_printed": "14:30",
+  "copy_number": "001",
+  "election_date": "May 10, 2024",
+  "election_title": "National Elections",
+  "voting_period": "April 10 - May 10, 2024",
+  "date": "May 10, 2024",
+  "time": "17:00",
+  "geographical_region": "North America",
+  "post": "Philippine Embassy, Washington DC",
+  "country": "United States",
+  "voting_center": "Washington DC Voting Center",
+  "precinct_code": "P12345",
+  "registered_voters": 5000,
+  "ballots_counted": 3500,
+  "voters_turnout": "70%",
+  "contests": [
+    {
+      "contest_name": "Presidential Election",
+      "position_name": "President",
+      "candidates": [
+        {
+          "acronym": "ABC",
+          "name_in_ballot": "",
+          "votes_garnered": 123
+        },
+        {
+          "acronym": "DEF",
+          "name_in_ballot": "",
+          "votes_garnered": 123
+        },
+        {
+          "acronym": "XYZ",
+          "name_in_ballot": "",
+          "votes_garnered": 123
+        }
+      ]
+    },
+    {
+      "contest_name": "Vice Presidential Election",
+      "position_name": "Vice President",
+      "candidates": [
+        {
+          "acronym": "",
+          "name_in_ballot": "Jane Smith",
+          "votes_garnered": 123
+        },
+        {
+          "acronym": "",
+          "name_in_ballot": "John Doe",
+          "votes_garnered": 123
+        },
+        {
+          "acronym": "",
+          "name_in_ballot": "Alex Johnson",
+          "votes_garnered": 123
+        }
+      ]
+    }
+  ],
+  "chairperson_name": "Juan Dela Cruz",
+  "chairperson_digital_signature": "DigitalSignatureABC",
+  "poll_clerk_name": "Maria Clara",
+  "poll_clerk_digital_signature": "DigitalSignatureDEF",
+  "third_member_name": "Jose Rizal",
+  "third_member_digital_signature": "DigitalSignatureGHI",
+  "report_hash": "a1b2c3d4e5",
+  "software_version": "1.0.0",
+  "ovcs_version": "2.3.4",
+  "system_hash": "z9y8x7w6v5",
+  "qr_codes": ["code1", "code2", "code3"],
+  "goverment_time": "18:00",
+  "local_time": "08:00"
+}

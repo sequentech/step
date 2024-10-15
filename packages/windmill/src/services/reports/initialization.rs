@@ -4,6 +4,7 @@ use super::report_variables::{
 use super::template_renderer::*;
 use crate::postgres::candidate::get_candidates_by_contest_id;
 use crate::postgres::contest::get_contest_by_election_id;
+use crate::postgres::results_area_contest_candidate::get_results_area_contest_candidates;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
@@ -58,7 +59,7 @@ pub struct ContestData {
 pub struct CandidateData {
     pub name_in_ballot: String,
     pub acronym: String,
-    pub votes_garnered: u32,
+    pub votes_garnered: i64,
 }
 
 /// Struct for System Data
@@ -192,13 +193,7 @@ impl TemplateRenderer for InitializationTemplate {
             }
         };
 
-        // Parse the full start date from voting period into a NaiveDate
-        let parsed_date_time = NaiveDateTime::parse_from_str(&voting_period_start_date, "%Y-%m-%dT%H:%M:%S%.fZ")
-            .expect("Failed to parse date");
-        // Extract only the date part (YYYY-MM-DD)
-        let parsed_date: NaiveDate = parsed_date_time.date();
-        // Format the date to the desired format
-        let election_date = parsed_date.format("%B %d, %Y").to_string();
+        let election_date = voting_period_start_date.to_string();
 
         // fetch total of registerd voters
         let registered_voters = get_total_number_of_registered_voters_for_country(
@@ -247,7 +242,7 @@ impl TemplateRenderer for InitializationTemplate {
             precinct_code: election_general_data.clustered_precinct_id,
             registered_voters,
             ballots_counted,
-            contests: generate_contests_data(hasura_transaction, &self.tenant_id, &self.election_event_id, contests).await?,
+            contests: generate_contests_data(hasura_transaction, &self.tenant_id, &self.election_event_id, &self.election_id, contests).await?,
             chairperson_name,
             chairperson_digital_signature,
             poll_clerk_name,
@@ -271,7 +266,7 @@ impl TemplateRenderer for InitializationTemplate {
     }
 }
 
-async fn generate_contests_data(hasura_transaction: Transaction<'_>, tenant_id: &str, election_event_id: &str, contests: Vec<Contest>) -> Result<Vec<ContestData>> {
+async fn generate_contests_data(hasura_transaction: Transaction<'_>, tenant_id: &str, election_event_id: &str, election_id: &str, contests: Vec<Contest>) -> Result<Vec<ContestData>> {
     let mut contests_data: Vec<ContestData> = Vec::new();
     for contest in contests {
         let contest_name = contest.clone().name.unwrap_or_default();
@@ -289,9 +284,21 @@ async fn generate_contests_data(hasura_transaction: Transaction<'_>, tenant_id: 
         .await
         .with_context(|| "Error obtaining contests")?;
 
-        let candidate_data: Vec<CandidateData> = contest_candidates
-            .into_iter()
-            .map(|candidate| CandidateData {
+        let mut candidate_data: Vec<CandidateData> = Vec::new();
+        for candidate in contest_candidates {
+            let votes_garnered = if let Some(contest_id) = candidate.clone().contest_id {
+                if let Some(results) = get_results_area_contest_candidates(
+                    &hasura_transaction, tenant_id, election_event_id, election_id, &contest_id, &candidate.clone().id
+                ).await.unwrap_or(None) {
+                    results.cast_votes.unwrap_or(0)
+                } else {
+                    0
+                }
+            } else {
+                0
+            }; 
+            
+            candidate_data.push(CandidateData {
                 name_in_ballot: candidate.clone().name.unwrap_or_default(),
                 acronym: candidate
                     .clone()
@@ -300,9 +307,9 @@ async fn generate_contests_data(hasura_transaction: Transaction<'_>, tenant_id: 
                     .get("acronym")
                     .unwrap_or(&serde_json::Value::Null)
                     .to_string(),
-                votes_garnered: 0, //TODO: Get votes from the database
-            })
-            .collect();
+                votes_garnered,
+            });
+        }
 
         contests_data.push(ContestData {
             contest_name,
