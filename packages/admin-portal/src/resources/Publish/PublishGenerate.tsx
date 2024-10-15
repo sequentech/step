@@ -7,9 +7,10 @@ import React from "react"
 import styled from "@emotion/styled"
 
 import {Box} from "@mui/material"
-import {Button, Identifier} from "react-admin"
+import {Button, Identifier, useNotify} from "react-admin"
 import {useTranslation} from "react-i18next"
 import {ArrowBackIosNew, Publish} from "@mui/icons-material"
+import {Preview} from "@mui/icons-material"
 
 import {DiffView} from "@/components/DiffView"
 import {PublishActions} from "./PublishActions"
@@ -58,6 +59,7 @@ export type TPublishGenerate = {
     onGenerate: () => void
     electionEventId: string
     fetchAllPublishChanges: () => Promise<void>
+    onPreview: (id: string | Identifier) => void
 }
 
 export const PublishGenerate: React.FC<TPublishGenerate> = ({
@@ -70,8 +72,20 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
     onPublish = () => null,
     onGenerate = () => null,
     fetchAllPublishChanges,
+    onPreview = () => null,
 }): React.JSX.Element => {
     const {t} = useTranslation()
+    const notify = useNotify()
+
+    const onPreviewClick = () => {
+        if (ballotPublicationId) {
+            onPreview(ballotPublicationId);
+        } else {
+            notify(t("publish.dialog.error_preview"), {
+                type: "error",
+            })
+        }
+    }
 
     return (
         <Box sx={{flexGrow: 2, flexShrink: 0}}>
@@ -113,6 +127,13 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
                         }}
                     >
                         <ArrowBackIosNew />
+                    </Button>
+                    <Button
+                        onClick={onPreviewClick}
+                        label={t("publish.preview.action")}
+                        className="publish-preview-button"
+                    >
+                        <Preview />
                     </Button>
 
                     {!readOnly && (

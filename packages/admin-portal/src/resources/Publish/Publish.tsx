@@ -389,6 +389,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         }}
                         electionEventId={electionEventId}
                         fetchAllPublishChanges={fetchAllPublishChanges}
+                        onPreview={onPreview}
                     />
                 )}
                 <FormDialog
