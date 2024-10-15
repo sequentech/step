@@ -16,7 +16,7 @@ export const ResetFilters: React.FC = ({}) => {
         }
         resetFilters()
 
-        return resetFilters
+        // return resetFilters
     }, [])
 
     return <></>
