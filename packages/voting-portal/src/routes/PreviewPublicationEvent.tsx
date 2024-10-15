@@ -3,14 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useContext, useEffect, useMemo, useState} from "react"
-import {useLocation,useNavigate, useParams} from "react-router-dom"
+import {useLocation, useNavigate, useParams} from "react-router-dom"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {Box, CircularProgress} from "@mui/material"
 import {PreviewPublicationEventType} from ".."
-import {
-    Sequent_Backend_Election,
-    Sequent_Backend_Election_Event,
-} from "../gql/graphql"
+import {Sequent_Backend_Election, Sequent_Backend_Election_Event} from "../gql/graphql"
 import {IBallotStyle as IElectionDTO} from "@sequentech/ui-core"
 import {cloneDeep} from "lodash"
 import {useAppDispatch, useAppSelector} from "../store/hooks"

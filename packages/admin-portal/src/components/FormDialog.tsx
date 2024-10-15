@@ -1,7 +1,7 @@
-import React, {ReactNode} from 'react'
-import {Dialog, DialogTitle, DialogContent, Box, InputLabel} from '@mui/material'
-import {faTimesCircle} from '@fortawesome/free-solid-svg-icons'
-import {styled} from '@mui/system'
+import React, {ReactNode} from "react"
+import {Dialog, DialogTitle, DialogContent, Box, InputLabel} from "@mui/material"
+import {faTimesCircle} from "@fortawesome/free-solid-svg-icons"
+import {styled} from "@mui/system"
 import {IconButton} from "@sequentech/ui-essentials"
 
 interface GenericDialogProps {
@@ -26,12 +26,7 @@ const DialogStyle = styled(Dialog)`
     }
 `
 
-const FormDialog: React.FC<GenericDialogProps> = ({
-    open,
-    onClose,
-    title,
-    children,
-}) => {
+const FormDialog: React.FC<GenericDialogProps> = ({open, onClose, title, children}) => {
     return (
         <DialogStyle open={open} onClose={onClose} className="dialog">
             <DialogTitle className="dialog-title">
@@ -51,9 +46,7 @@ const FormDialog: React.FC<GenericDialogProps> = ({
                     className="dialog-icon-close"
                 />
             </DialogTitle>
-            <DialogContent className="dialog-content">
-                {children}
-            </DialogContent>
+            <DialogContent className="dialog-content">{children}</DialogContent>
         </DialogStyle>
     )
 }

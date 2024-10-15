@@ -26,7 +26,7 @@ import {useLazyQuery, useMutation, useQuery} from "@apollo/client"
 import {GET_AREAS} from "@/queries/GetAreas"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {TenantContext} from "@/providers/TenantContextProvider"
-import { GET_DOCUMENT_BY_NAME } from "@/queries/GetDocumentByName"
+import {GET_DOCUMENT_BY_NAME} from "@/queries/GetDocumentByName"
 
 interface EditPreviewProps {
     id?: string | Identifier | null
@@ -85,33 +85,33 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
 
     const fetchDocumentId = async (documentName: string) => {
         try {
-            const { data, error } = await getDocumentByName({
+            const {data, error} = await getDocumentByName({
                 variables: {
                     name: documentName,
                     tenantId,
                 },
                 fetchPolicy: "network-only",
-            });
-            
+            })
+
             if (error) {
-                console.error("Error fetching document:", error);
-                return false;
+                console.error("Error fetching document:", error)
+                return false
             }
-            
-            const documentId = data?.sequent_backend_document[0]?.id;
+
+            const documentId = data?.sequent_backend_document[0]?.id
             if (documentId) {
-                const openSuccess = openPreview(documentId);
+                const openSuccess = openPreview(documentId)
                 if (openSuccess) {
-                    return true;
+                    return true
                 }
             }
-    
-            return false; 
+
+            return false
         } catch (err) {
-            console.error("Exception in fetchDocumentId:", err);
-            return false;
+            console.error("Exception in fetchDocumentId:", err)
+            return false
         }
-    };
+    }
 
     const uploadFile = async (url: string, file: File) => {
         await fetch(url, {
@@ -177,7 +177,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
             const dataStr = JSON.stringify(fileData, null, 2)
             const file = new File([dataStr], `${id}.json`, {type: "application/json"})
             const documentId = await uploadFileToS3(file)
-            openPreview(documentId);
+            openPreview(documentId)
 
             if (close) {
                 close()
@@ -185,15 +185,15 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
         }
 
         const handleDocumentProcess = async () => {
-            const documentOpened = await fetchDocumentId(`${id}.json`);
-            
+            const documentOpened = await fetchDocumentId(`${id}.json`)
+
             if (!documentOpened) {
-                await startUpload();
+                await startUpload()
             }
-        };
+        }
 
         if (isUploading && electionEvent && elections && areaId) {
-            handleDocumentProcess();
+            handleDocumentProcess()
         }
     }, [isUploading, electionEvent, elections, areaId])
 

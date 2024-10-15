@@ -79,7 +79,7 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
 
     const onPreviewClick = () => {
         if (ballotPublicationId) {
-            onPreview(ballotPublicationId);
+            onPreview(ballotPublicationId)
         } else {
             notify(t("publish.dialog.error_preview"), {
                 type: "error",
