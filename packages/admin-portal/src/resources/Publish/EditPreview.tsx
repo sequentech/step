@@ -27,6 +27,7 @@ import {GET_AREAS} from "@/queries/GetAreas"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {TenantContext} from "@/providers/TenantContextProvider"
 import {GET_DOCUMENT_BY_NAME} from "@/queries/GetDocumentByName"
+import { ElectionEventStatus } from "./EPublishStatus"
 
 interface EditPreviewProps {
     id?: string | Identifier | null
@@ -99,6 +100,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
             }
 
             const documentId = data?.sequent_backend_document[0]?.id
+            console.log({documentId})
             if (documentId) {
                 const openSuccess = openPreview(documentId)
                 if (openSuccess) {
@@ -169,10 +171,11 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
 
     useEffect(() => {
         const startUpload = async () => {
+            const openElections = elections?.filter(election => election.status?.voting_status === ElectionEventStatus.Open);
             const fileData = {
                 ballot_styles: ballotData?.current?.ballot_styles,
                 election_event: electionEvent,
-                elections: elections,
+                elections: openElections,
             }
             const dataStr = JSON.stringify(fileData, null, 2)
             const file = new File([dataStr], `${id}.json`, {type: "application/json"})
@@ -186,7 +189,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
 
         const handleDocumentProcess = async () => {
             const documentOpened = await fetchDocumentId(`${id}.json`)
-
+            console.log({documentOpened})
             if (!documentOpened) {
                 await startUpload()
             }
