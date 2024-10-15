@@ -9,7 +9,8 @@ import styled from "@emotion/styled"
 import {Box} from "@mui/material"
 import {Button, Identifier} from "react-admin"
 import {useTranslation} from "react-i18next"
-import {ArrowBackIosNew, Publish} from "@mui/icons-material"
+import {Publish} from "@mui/icons-material"
+import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 
 import {DiffView} from "@/components/DiffView"
 import {PublishActions} from "./PublishActions"
@@ -36,7 +37,6 @@ const PublishGenerateStyled = {
         box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
     `,
     StyledFooter: styled.div`
-        max-width: 1280px;
         margin: 0 auto;
         display: flex;
         justify-content: space-between;
@@ -130,13 +130,9 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
 
             <PublishGenerateStyled.FooterContainer>
                 <PublishGenerateStyled.StyledFooter>
-                    <CancelButton
-                        onClick={onBack}
-                        // label={t("publish.action.back")}
-                        className="list-actions"
-                    >
-                        {t("tally.common.cancel")}
-                        {/* <ArrowBackIosNew /> */}
+                    <CancelButton onClick={onBack} className="list-actions">
+                        <ArrowBackIosIcon />
+                        {t("common.label.back")}
                     </CancelButton>
 
                     {!readOnly && (

@@ -10,10 +10,12 @@ import Button from "@mui/material/Button"
 export const TallyStyles = {
     WizardContainer: styled.div`
         display: flex;
+        align-items: center;
         flex-direction: column;
         min-height: 100%;
     `,
     ContentWrapper: styled.div`
+        width: 100%;
         flex-grow: 1;
         overflow-y: auto;
         padding-bottom: 1rem; // Add some padding at the bottom to prevent content from being hidden behind the footer
@@ -29,6 +31,7 @@ export const TallyStyles = {
     `,
     FooterContainer: styled.div`
         width: 100%;
+        max-width: 1280px;
         position: sticky;
         bottom: 0;
         background-color: ${({theme}) => theme.palette.background.default};

@@ -29,6 +29,7 @@ import Paper from "@mui/material/Paper"
 import {useGetOne} from "react-admin"
 import {Logs} from "../Logs"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {CancelButton} from "@/resources/Tally/styles"
 
 export const statusColor: (status: EStatus) => string = (status) => {
     if (status === EStatus.USER_CONFIGURATION) {
@@ -86,8 +87,8 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
     const status: IExecutionStatus = ceremony?.status
 
     return (
-        <>
-            <WizardStyles.ContentBox>
+        <WizardStyles.WizardContainer>
+            <WizardStyles.ContentWrapper>
                 {!status?.public_key && message}
                 <Accordion
                     sx={{width: "100%"}}
@@ -180,29 +181,32 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                 </Accordion>
 
                 <Logs logs={status?.logs} />
-            </WizardStyles.ContentBox>
-            <WizardStyles.Toolbar>
-                <WizardStyles.BackButton color="info" onClick={goBack}>
-                    <ArrowBackIosIcon />
-                    {t("common.label.back")}
-                </WizardStyles.BackButton>
-                {!!goNext && (
-                    <WizardStyles.NextButton
-                        color="info"
-                        onClick={goNext}
-                        disabled={isNextDisabled && !status.public_key}
-                    >
-                        <ArrowForwardIosIcon />
-                        {t("common.label.next")}
-                    </WizardStyles.NextButton>
-                )}
-                {/*cancellable() ? (
+            </WizardStyles.ContentWrapper>
+
+            <WizardStyles.FooterContainer>
+                <WizardStyles.StyledFooter>
+                    <CancelButton onClick={goBack} className="list-actions">
+                        <ArrowBackIosIcon />
+                        {t("common.label.back")}
+                    </CancelButton>
+                    {!!goNext && (
+                        <WizardStyles.NextButton
+                            color="info"
+                            onClick={goNext}
+                            disabled={isNextDisabled && !status.public_key}
+                        >
+                            <ArrowForwardIosIcon />
+                            {t("common.label.next")}
+                        </WizardStyles.NextButton>
+                    )}
+                    {/*cancellable() ? (
                     <CancelButton onClick={() => setOpenConfirmationModal(true)}>
                         <CloseIcon />
                         {t("keysGeneration.ceremonyStep.cancel")}
                     </CancelButton>
                 ) : null*/}
-            </WizardStyles.Toolbar>
+                </WizardStyles.StyledFooter>
+            </WizardStyles.FooterContainer>
             <Dialog
                 variant="warning"
                 open={openConfirmationModal}
@@ -218,6 +222,6 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
             >
                 {t("keysGeneration.ceremonyStep.confirmdDialog.description")}
             </Dialog>
-        </>
+        </WizardStyles.WizardContainer>
     )
 }

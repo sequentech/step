@@ -25,6 +25,7 @@ import {
     CircularProgress,
 } from "@mui/material"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
+import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 import CellTowerIcon from "@mui/icons-material/CellTower"
 import {ListActions} from "@/components/ListActions"
 import {TallyElectionsList} from "./TallyElectionsList"
@@ -839,7 +840,8 @@ export const TallyCeremony: React.FC = () => {
                             setCreatingFlag(false)
                         }}
                     >
-                        {t("tally.common.cancel")}
+                        <ArrowBackIosIcon />
+                        {t("common.label.back")}
                     </CancelButton>
                     {page < WizardSteps.Results &&
                         tally?.execution_status !== ITallyExecutionStatus.CANCELLED && (
