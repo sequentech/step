@@ -29,7 +29,7 @@ import {GET_AREAS} from "@/queries/GetAreas"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {TenantContext} from "@/providers/TenantContextProvider"
 import {GET_DOCUMENT_BY_NAME} from "@/queries/GetDocumentByName"
-import { ElectionEventStatus } from "./EPublishStatus"
+import {ElectionEventStatus} from "./EPublishStatus"
 
 interface EditPreviewProps {
     id?: string | Identifier | null
@@ -208,7 +208,9 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
 
     useEffect(() => {
         const startUpload = async () => {
-            const openElections = elections?.filter(election => election.status?.voting_status === ElectionEventStatus.Open);
+            const openElections = elections?.filter(
+                (election) => election.status?.voting_status === ElectionEventStatus.Open
+            )
             const fileData = {
                 ballot_styles: ballotData?.current?.ballot_styles,
                 election_event: electionEvent,
