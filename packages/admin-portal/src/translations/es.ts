@@ -1266,6 +1266,11 @@ const spanishTranslation: TranslationType = {
             },
         },
         publish: {
+            preview: {
+                publicationAreas: "Selecciona el área para la vista previa",
+                action: "Vista previa",
+                success: "Éxito al abrir la vista previa",
+            },
             header: {
                 change: "Cambios a Publicar",
                 viewChange: "Ver Publicación",

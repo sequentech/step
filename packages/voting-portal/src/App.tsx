@@ -88,14 +88,8 @@ const App = () => {
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionIds[0])))
 
     useEffect(() => {
-        if (globalSettings.DISABLE_AUTH) {
-            navigate(
-                `/tenant/${globalSettings.DEFAULT_TENANT_ID}/event/${globalSettings.DEFAULT_EVENT_ID}/election-chooser${location.search}`
-            )
-        } else {
-            if (location.pathname === "/") {
-                throw new VotingPortalError(VotingPortalErrorType.NO_ELECTION_EVENT)
-            }
+        if (location.pathname === "/") {
+            throw new VotingPortalError(VotingPortalErrorType.NO_ELECTION_EVENT)
         }
     }, [
         globalSettings.DEFAULT_TENANT_ID,
@@ -122,7 +116,7 @@ const App = () => {
         >
             <ScrollRestoration />
             <ApolloWrapper>
-                {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
+                {globalSettings.DISABLE_AUTH ? <Header /> : <Header />}
                 <PageBanner
                     marginBottom="auto"
                     sx={{display: "flex", position: "relative", flex: 1}}

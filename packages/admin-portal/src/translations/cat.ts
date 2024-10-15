@@ -1267,6 +1267,11 @@ const catalanTranslation: TranslationType = {
             },
         },
         publish: {
+            preview: {
+                publicationAreas: "Selecciona l'àrea per a la vista prèvia",
+                action: "Vista prèvia",
+                success: "Previsualització oberta amb èxit",
+            },
             header: {
                 change: "Canvis a Publicar",
                 viewChange: "Veure Publicació",
