@@ -17,26 +17,21 @@ use tracing::instrument;
 use uuid::Uuid;
 use windmill::{
     postgres::reports::get_report_by_id,
-    services::{celery_app::get_celery_app, database::get_hasura_pool},
+    services::{
+        celery_app::get_celery_app, database::get_hasura_pool,
+        reports::template_renderer::GenerateReportMode,
+    },
 };
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GenerateReportBody {
     pub report_id: String,
     pub tenant_id: String,
-    pub report_mode: String,
+    pub report_mode: GenerateReportMode,
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GenerateReportResponse {
     pub document_id: String,
-}
-#[allow(non_camel_case_types)]
-#[derive(
-    Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
-)]
-pub enum ReportMode {
-    REAL,
-    PREVIEW,
 }
 
 #[instrument(skip(claims))]
@@ -79,6 +74,7 @@ pub async fn generate_report(
         .send_task(windmill::tasks::generate_report::generate_report::new(
             report,
             document_id.clone(),
+            input.report_mode.clone(),
         ))
         .await
         .map_err(|e| {

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
 use crate::postgres::reports::ReportType;
-use crate::services::database::{get_hasura_pool, PgConfig};
+use crate::services::database::{self, get_hasura_pool, PgConfig};
 use crate::services::documents::upload_and_return_document_postgres;
 use crate::services::electoral_log::{
     list_electoral_log, ElectoralLogRow, GetElectoralLogBody, StatementHeadDataString,
@@ -102,7 +102,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
         }
     }
 
-    async fn prepare_user_data(&self) -> Result<Self::UserData> {
+    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>> {
         let mut act_log: Vec<ActivityLogRow> = vec![];
         let mut offset = 0;
         let limit = PgConfig::from_env()
@@ -168,10 +168,10 @@ impl TemplateRenderer for ActivityLogsTemplate {
             offset += limit;
         }
 
-        Ok(UserData {
+        Ok(Some(UserData {
             act_log,
             logo: LOGO_TEMPLATE.to_string(),
-        })
+        }))
     }
 
     async fn prepare_system_data(
@@ -270,11 +270,10 @@ pub async fn generate_csv_report(
     template: &ActivityLogsTemplate,
 ) -> Result<()> {
     // Prepare user data
-    let act_log = template
+    let user_data = template
         .prepare_user_data()
         .await
-        .map_err(|e| anyhow!("Error preparing activity logs data into csv: {e:?}"))?
-        .act_log;
+        .map_err(|e| anyhow!("Error preparing activity logs data into csv: {e:?}"))?;
 
     provide_hasura_transaction(|hasura_transaction| {
         let document_id = document_id.to_string();
@@ -287,9 +286,11 @@ pub async fn generate_csv_report(
             let mut temp_file = generate_temp_file(&name, ".csv")
                 .with_context(|| "Error creating named temp file")?;
             let mut csv_writer = WriterBuilder::new().from_writer(temp_file.as_file_mut());
-            for item in &act_log {
-                csv_writer.serialize(item)?; // Serialize each item to CSV
-            }
+            if let Some(data) = user_data {
+                for item in &data.act_log {
+                    csv_writer.serialize(item)?; // Serialize each item to CSV
+                }
+            };
             // Flush and finish writing to the temporary file
             csv_writer.flush()?;
             drop(csv_writer);
@@ -352,6 +353,7 @@ pub async fn generate_report(
                     /* is_scheduled_task */ false,
                     /* receiver */ None,
                     /* pdf_options */ Some(pdf_options),
+                    GenerateReportMode::REAL,
                 )
                 .await
         }

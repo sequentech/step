@@ -2,13 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {ReactElement, useEffect} from "react"
-
+import React, {ReactElement, useState, useContext, useEffect, useCallback} from "react"
 import {useTranslation} from "react-i18next"
 import {Visibility, Preview} from "@mui/icons-material"
-import {IconButton} from "@sequentech/ui-essentials"
-import {Box, Typography, Button, Drawer} from "@mui/material"
+import {IconButton, Dialog} from "@sequentech/ui-essentials"
+import {Box, Typography, Button, DialogContent, DialogActions} from "@mui/material"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
+import {EPublishActions} from "@/types/publishActions"
 
 import {
     List,
@@ -27,6 +27,7 @@ import {HeaderTitle} from "@/components/HeaderTitle"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {Action, ActionsColumn} from "@/components/ActionButons"
 import {ResetFilters} from "@/components/ResetFilters"
+import {AuthContext} from "@/providers/AuthContextProvider"
 
 const OMIT_FIELDS: string[] = []
 
@@ -61,6 +62,43 @@ export const PublishList: React.FC<TPublishList> = ({
     onPreview = () => null,
 }) => {
     const {t} = useTranslation()
+    const authContext = useContext(AuthContext)
+    const {isGoldUser, reauthWithGold} = authContext
+
+    const handleGenerateClick = async () => {
+        if (isGoldUser()) {
+            onGenerate()
+        } else {
+            try {
+                const baseUrl = new URL(window.location.href)
+                baseUrl.searchParams.set("tabIndex", "7")
+
+                sessionStorage.setItem(EPublishActions.PENDING_PUBLISH_ACTION, "true")
+                await reauthWithGold(baseUrl.toString())
+
+                console.log("Re-authentication successful. Proceeding to generate.")
+                onGenerate()
+            } catch (error) {
+                console.error("Re-authentication failed:", error)
+            }
+        }
+    }
+
+    /**
+     * Checks for any pending actions after the component mounts.
+     * If a pending action is found, it executes the action and removes the flag.
+     */
+    useEffect(() => {
+        const executePendingActions = async () => {
+            const pendingPublish = sessionStorage.getItem(EPublishActions.PENDING_PUBLISH_ACTION)
+            if (pendingPublish) {
+                sessionStorage.removeItem(EPublishActions.PENDING_PUBLISH_ACTION)
+                onGenerate()
+            }
+        }
+
+        executePendingActions()
+    }, [onGenerate])
 
     const Empty = () => (
         <ResourceListStyles.EmptyBox>
@@ -69,7 +107,7 @@ export const PublishList: React.FC<TPublishList> = ({
             </Typography>
             {canWrite && (
                 <>
-                    <Button onClick={onGenerate} className="publish-add-button">
+                    <Button onClick={handleGenerateClick} className="publish-add-button">
                         <IconButton icon={faPlus} fontSize="24px" />
                         {t("publish.empty.action")}
                     </Button>
@@ -98,49 +136,42 @@ export const PublishList: React.FC<TPublishList> = ({
 
     return (
         <Box>
-            {
-                <List
-                    actions={
-                        <PublishActions
-                            status={status}
-                            changingStatus={changingStatus}
-                            onGenerate={onGenerate}
-                            onChangeStatus={onChangeStatus}
-                            type={EPublishActionsType.List}
-                        />
-                    }
-                    resource="sequent_backend_ballot_publication"
-                    filter={
-                        electionId
-                            ? {
-                                  election_event_id: electionEventId,
-                                  election_id: electionId,
-                              }
-                            : {
-                                  election_event_id: electionEventId,
-                              }
-                    }
-                    sort={{
-                        field: "created_at",
-                        order: "DESC",
-                    }}
-                    filters={filters}
-                    sx={{flexGrow: 2}}
-                    empty={<Empty />}
-                >
-                    <ResetFilters />
-                    <HeaderTitle title={"publish.header.history"} subtitle="" />
-
-                    <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
-                        <TextField source="id" />
-                        <BooleanField source="is_generated" />
-                        <TextField source="published_at" />
-                        <TextField source="created_at" />
-
-                        <ActionsColumn actions={actions} />
-                    </DatagridConfigurable>
-                </List>
-            }
+            <List
+                actions={
+                    <PublishActions
+                        status={status}
+                        changingStatus={changingStatus}
+                        onGenerate={onGenerate}
+                        onChangeStatus={onChangeStatus}
+                        type={EPublishActionsType.List}
+                    />
+                }
+                resource="sequent_backend_ballot_publication"
+                filter={
+                    electionId
+                        ? {
+                              election_event_id: electionEventId,
+                              election_id: electionId,
+                          }
+                        : {
+                              election_event_id: electionEventId,
+                          }
+                }
+                sort={{field: "created_at", order: "DESC"}}
+                filters={filters}
+                sx={{flexGrow: 2}}
+                empty={<Empty />}
+            >
+                <ResetFilters />
+                <HeaderTitle title={"publish.header.history"} subtitle="" />
+                <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
+                    <TextField source="id" />
+                    <BooleanField source="is_generated" />
+                    <TextField source="published_at" />
+                    <TextField source="created_at" />
+                    <ActionsColumn actions={actions} />
+                </DatagridConfigurable>
+            </List>
         </Box>
     )
 }
