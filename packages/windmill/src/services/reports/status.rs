@@ -97,6 +97,12 @@ impl TemplateRenderer for StatusTemplate {
         }
     }
 
+    #[instrument]
+    async fn prepare_user_data(&self) -> Result<Self::UserData> {
+        Ok(UserData {})
+    }
+
+    #[instrument]
     async fn prepare_system_data(
         &self,
         _rendered_user_template: String,
@@ -219,7 +225,8 @@ impl TemplateRenderer for StatusTemplate {
             .expect("Failed to parse date");
         // Format the date to the desired format
         let election_date = parsed_date.format("%B %d, %Y").to_string();
-        let ovcs_status = status.voting_status.as_str().to_string();
+        let status_str: &'static str = status.voting_status.into();
+        let ovcs_status = status_str.to_string();
         let temp_val: &str = "test";
 
         Ok(SystemData {

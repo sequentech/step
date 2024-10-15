@@ -13,10 +13,7 @@ use tracing::{info, instrument};
 
 /// Struct for User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct UserData {}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct SystemData {
+pub struct UserData {
     pub date_printed: String,
     pub time_printed: String,
     pub election_date: String,
@@ -36,16 +33,22 @@ pub struct SystemData {
     pub qr_code: String,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SystemData {
+    pub rendered_user_template: String,
+    pub file_qrcode_lib: String
+}
+
 /// Struct for each voter
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Voter {
-    pub number: u32,         // Voter number
-    pub last_name: String,   // Last name
-    pub first_name: String,  // First name
-    pub middle_name: String, // Middle name
-    pub suffix: String,      // Suffix (if any)
-    pub id: String,          // Voter ID
-    pub date_voted: String,  // Date the voter voted
+    pub number: u32,         
+    pub last_name: String,   
+    pub first_name: String,  
+    pub middle_name: String, 
+    pub suffix: String,      
+    pub id: String,          
+    pub date_voted: String,  
 }
 
 /// Struct for OVUsersWhoVotedTemplate
@@ -87,11 +90,8 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
             html_body: None,
         }
     }
-    // Prepare system data
-    async fn prepare_system_data(
-        &self,
-        _rendered_user_template: String,
-    ) -> Result<Self::SystemData> {
+    #[instrument]
+    async fn prepare_user_data(&self) -> Result<Self::UserData> {
         // Placeholder system data, adjust based on your actual environment
         // Fetch the Hasura database client from the pool
         let mut hasura_db_client: DbClient = get_hasura_pool()
@@ -123,8 +123,7 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
         ];
 
         let temp_val: &str = "test";
-
-        Ok(SystemData {
+        Ok(UserData {
             election_date: "2024-05-01".to_string(),
             election_title: "2024 National Elections".to_string(),
             post: "Metro Manila".to_string(),
@@ -142,6 +141,19 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
             time_printed: "2024-10-09 14:00:00".to_string(),
             software_version: String::new(),
             qr_code: "code1".to_string(),
+        })
+    }
+
+    // Prepare system data
+    #[instrument]
+    async fn prepare_system_data(
+        &self,
+        rendered_user_template: String,
+    ) -> Result<Self::SystemData> {
+        let file_qrcode_lib: &str = "test";
+        Ok(SystemData {
+            rendered_user_template,
+            file_qrcode_lib: file_qrcode_lib.to_string()
         })
     }
 }

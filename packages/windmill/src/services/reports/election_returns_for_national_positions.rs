@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
 use crate::postgres::reports::ReportType;
-use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id_and_event_processor;
 use crate::services::database::get_hasura_pool;
 use crate::services::temp_path::*;
 use crate::{postgres::election_event::get_election_event_by_id, services::s3::get_minio_url};
@@ -18,19 +17,7 @@ use std::env;
 use tracing::{info, instrument};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct UserData {}
-
-/// Struct for each candidate's data
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Candidate {
-    pub position: String,
-    pub position_name: String,
-    pub name_in_ballot: String,
-    pub votes_garnered: i64,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct SystemData {
+pub struct UserData {
     pub date_printed: String,
     pub time_printed: String,
     pub election_date: String,
@@ -57,6 +44,20 @@ pub struct SystemData {
     pub system_hash: String,
     pub qr_codes: Vec<String>,
     pub goverment_time: String,
+}
+
+/// Struct for each candidate's data
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Candidate {
+    pub position: String,
+    pub position_name: String,
+    pub name_in_ballot: String,
+    pub votes_garnered: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SystemData {
+    pub rendered_user_template: String
 }
 
 #[derive(Debug)]
@@ -101,11 +102,9 @@ impl TemplateRenderer for ElectionReturnsForNationalPostionTemplate {
         }
     }
 
-    async fn prepare_system_data(&self, _: String) -> Result<Self::SystemData> {
-        let date_time_printed = Local::now()
-            .with_timezone(&chrono::FixedOffset::east(8 * 3600))
-            .format("%Y-%m-%d %H:%M:%S")
-            .to_string();
+    #[instrument]
+    async fn prepare_user_data(&self) -> Result<Self::UserData> {
+        let date_time_printed = Local::now().to_string();
         let printing_code = "XYZ123".to_string(); // Example placeholder for a real printing code
 
         let mut hasura_db_client: DbClient = get_hasura_pool()
@@ -138,20 +137,18 @@ impl TemplateRenderer for ElectionReturnsForNationalPostionTemplate {
         // TODO: replace mock data with actual data
         // Extract candidate names and acronyms
         let candidates: Vec<Candidate> = Vec::new(); // Assuming the structure has candidates array
-                                                     // let mut candidate_data: Vec<CandidateData> = Vec::new();
-                                                     // for candidate in candidates {
-                                                     //     candidate_data.push(CandidateData {
-                                                     //         name_appearing_on_ballot: candidate.name_appearing_on_ballot.clone(),
-                                                     //         acronym: candidate.acronym.clone(), // Assuming acronym is part of the candidate structure
-                                                     //         votes_garnered: 0, // Default value since no votes have been cast yet
-                                                     //     });
-                                                     // }
+        // let mut candidate_data: Vec<CandidateData> = Vec::new();
+        // for candidate in candidates {
+        //     candidate_data.push(CandidateData {
+        //         name_appearing_on_ballot: candidate.name_appearing_on_ballot.clone(),
+        //         acronym: candidate.acronym.clone(), // Assuming acronym is part of the candidate structure
+        //         votes_garnered: 0, // Default value since no votes have been cast yet
+        //     });
+        // }
 
         let election_title = election_event.name.clone();
-
         let temp_val: &str = "test";
-
-        Ok(SystemData {
+        Ok(UserData {
             election_date: temp_val.to_string(),
             election_title,
             registered_voters,
@@ -183,6 +180,16 @@ impl TemplateRenderer for ElectionReturnsForNationalPostionTemplate {
                 "String 4".to_string(),
             ],
             goverment_time: "18:00".to_string(),
+        })
+    }
+
+    #[instrument]
+    async fn prepare_system_data(
+        &self,
+        rendered_user_template: String,
+    ) -> Result<Self::SystemData> {
+        Ok(SystemData {
+            rendered_user_template
         })
     }
 }
