@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import React, {ReactNode} from "react"
 import {Dialog, DialogTitle, DialogContent, Box, InputLabel} from "@mui/material"
 import {faTimesCircle} from "@fortawesome/free-solid-svg-icons"
