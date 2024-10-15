@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {Box, Button, Typography} from "@mui/material"
-import React, {useEffect, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {PageLimit, theme} from "@sequentech/ui-essentials"
 import {stringToHtml, translate, translateElection} from "@sequentech/ui-core"
@@ -32,6 +32,7 @@ import {
     setElectionEvent,
 } from "../store/electionEvents/electionEventsSlice"
 import Stepper from "../components/Stepper"
+import {SettingsContext} from "../providers/SettingsContextProvider"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -79,6 +80,7 @@ const SupportMaterialsScreen: React.FC = () => {
     const dispatch = useAppDispatch()
     const materials = useAppSelector(getSupportMaterialsList())
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
+    const {globalSettings} = useContext(SettingsContext)
 
     const [materialsList, setMaterialsList] = useState<Array<ISupportMaterial> | undefined>([])
 
@@ -92,6 +94,7 @@ const SupportMaterialsScreen: React.FC = () => {
             electionEventId: eventId || "",
             tenantId: tenantId || "",
         },
+        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
     })
 
     useEffect(() => {
@@ -120,6 +123,7 @@ const SupportMaterialsScreen: React.FC = () => {
             electionEventId: eventId,
             tenantId,
         },
+        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
     })
 
     useEffect(() => {

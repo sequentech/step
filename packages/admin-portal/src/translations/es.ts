@@ -726,6 +726,20 @@ const spanishTranslation: TranslationType = {
                 ELECTORAL_RESULTS: "Resultados Electorales",
                 MANUAL_VERIFICATION: "Verificación Manual",
                 STATISTICAL_REPORT: "Informe Estadístico",
+                OVCS_EVENTS: "Monitoreo de Votación en el Extranjero - Eventos OVCS",
+                AUDIT_LOGS: "Registros de Auditoría",
+                STATUS: "Estado",
+                OVCS_INFORMATION: "Información de OVCS",
+                OVERSEAS_VOTERS: "Lista de Votantes en el Extranjero",
+                ELECTION_RETURNS_FOR_NATIONAL_POSITIONS:
+                    "Resultados Electorales de los Cargos Nacionales",
+                OV_USERS_WHO_VOTED: "Lista de Votantes en el Extranjero que Votaron",
+                OV_USERS: "Lista de Votantes en el Extranjero con Estado de Votación",
+                OVCS_STATISTICS: "Monitoreo de Votación en el Extranjero - Estadísticas OVCS",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED:
+                    "Lista de Votantes en el Extranjero que se Preinscribieron pero Fueron Rechazados",
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
+                    "Lista de Votantes en el Extranjero que se Preinscribieron pero Requieren Validación Manual",
             },
             empty: {
                 header: "No hay informes todavía.",
@@ -980,6 +994,8 @@ const spanishTranslation: TranslationType = {
         keysGeneration: {
             configureStep: {
                 create: "Crear Ceremonia de Claves",
+                name: "Nombre de la Ceremonia de Claves",
+                allElections: "Todas las Elecciones",
                 title: "Crear Ceremonia de Claves del Evento Electoral",
                 subtitle:
                     "En esta ceremonia cada autoridad generará y descargará su parte de las claves privadas para el Evento Electoral. Para continuar, elija los autoridades que participarán en la ceremonia y el umbral, que es el número mínimo de autoridades necesarios para contar.",
@@ -1156,6 +1172,8 @@ const spanishTranslation: TranslationType = {
             exportElectionArea: "Enviar paquete de transmisión para el área '{{name}}'",
             templateTitle: "Plantilla de Resultados",
             templateSubTitle: "Opcionalmente sobrescribir la plantilla de resultados.",
+            keysCeremonyTitle: "Ceremonia de Llaves",
+            keysCeremonySubTitle: "Selecciona la Ceremonia de Llaves para este recuento",
             ceremonyTitle: "Elecciones para el Recuento",
             ceremonySubTitle: "Seleccione las elecciones para el recuento",
             tallyTitle: "Progreso del Recuento de Elecciones",
@@ -1248,6 +1266,11 @@ const spanishTranslation: TranslationType = {
             },
         },
         publish: {
+            preview: {
+                publicationAreas: "Selecciona el área para la vista previa",
+                action: "Vista previa",
+                success: "Éxito al abrir la vista previa",
+            },
             header: {
                 change: "Cambios a Publicar",
                 viewChange: "Ver Publicación",

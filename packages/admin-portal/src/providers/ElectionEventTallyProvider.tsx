@@ -57,7 +57,6 @@ export const ElectionEventTallyContextProvider = (
         useState<IMiruTransmissionPackageData | null>(null)
 
     const setTallyId = (tallyId: string | null, isTrustee?: boolean | undefined): void => {
-        sessionStorage.setItem("selected-election-event-tally-id", tallyId?.toString() || "")
         setTally(tallyId)
         setIsTrustee(isTrustee || false)
     }

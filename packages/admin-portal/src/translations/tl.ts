@@ -727,6 +727,20 @@ const tagalogTranslation: TranslationType = {
                 ELECTORAL_RESULTS: "Mga Resulta ng Eleksyon",
                 MANUAL_VERIFICATION: "Manwal na Pag-verify",
                 STATISTICAL_REPORT: "Ulat ng Istatistika",
+                OVCS_EVENTS: "Pagsubaybay ng Botohan sa Ibang Bansa - Mga Kaganapan ng OVCS",
+                AUDIT_LOGS: "Mga Talaan ng Awdit",
+                STATUS: "Katayuan",
+                OVCS_INFORMATION: "Impormasyon ng OVCS",
+                OVERSEAS_VOTERS: "Listahan ng mga botanteng nasa ibang bansa",
+                ELECTION_RETURNS_FOR_NATIONAL_POSITIONS:
+                    "Mga Resulta ng Halalan para sa Pambansang Posisyon",
+                OV_USERS_WHO_VOTED: "Listahan ng mga Botanteng Nasa Ibang Bansa na Bumoto",
+                OV_USERS: "Listahan ng mga Botanteng Nasa Ibang Bansa na may Katayuan sa Pagboto",
+                OVCS_STATISTICS: "Pagsubaybay ng Botohan sa Ibang Bansa - Estadistika ng OVCS",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED:
+                    "Listahan ng mga Botanteng Nasa Ibang Bansa na Naka-pre-enroll pero Hindi Naaprubahan",
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
+                    "Listahan ng mga Botanteng Nasa Ibang Bansa na Naka-pre-enroll pero Kailangan ng Manwal na Pagpapatunay",
             },
             empty: {
                 header: "Wala pang mga ulat.",
@@ -983,6 +997,8 @@ const tagalogTranslation: TranslationType = {
         keysGeneration: {
             configureStep: {
                 create: "Lumikha ng Seremonya ng Mga Susi",
+                name: "Pangalan ng Seremonya ng mga Susi",
+                allElections: "Lahat ng Halalan",
                 title: "Lumikha ng Seremonya ng Mga Susi para sa Kaganapan sa Halalan",
                 subtitle:
                     "Sa Seremonya ng Mga Susi, bawat trustee ay lilikha at magda-download ng kanilang piraso ng pribadong susi para sa Kaganapan sa Halalan. Upang magpatuloy, mangyaring pumili ng mga trustee na lalahok sa seremonya at ang threshold, na siyang minimum na bilang ng mga trustee na kinakailangan upang magbilang.",
@@ -1158,6 +1174,8 @@ const tagalogTranslation: TranslationType = {
             exportElectionArea: "Ipadala ang pakete ng transmisyon para sa lugar '{{name}}'",
             templateTitle: "Template ng Resulta",
             templateSubTitle: "Opsyonal na palitan ang template ng mga resulta.",
+            keysCeremonyTitle: "Seremonya ng mga Susi",
+            keysCeremonySubTitle: "Piliin ang Seremonya ng mga Susi para sa pagbilang na ito",
             ceremonyTitle: "Halalan para sa Pagbibilang",
             ceremonySubTitle: "Piliin ang halalan para sa pagbibilang",
             tallyTitle: "Progreso ng Pagbibilang ng Halalan",
@@ -1250,6 +1268,11 @@ const tagalogTranslation: TranslationType = {
             },
         },
         publish: {
+            preview: {
+                publicationAreas: "Piliin ang Lugar para sa Preview",
+                action: "Preview",
+                success: "Matagumpay na pagbukas ng preview",
+            },
             header: {
                 change: "Mga Pagbabago na Ilalathala",
                 viewChange: "Tingnan ang Paglalathala",

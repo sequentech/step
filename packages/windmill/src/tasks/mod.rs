@@ -5,7 +5,6 @@
 
 pub mod activity_logs_report;
 pub mod create_keys;
-pub mod create_statistical_report;
 pub mod create_vote_receipt;
 pub mod delete_election_event;
 pub mod execute_tally_session;

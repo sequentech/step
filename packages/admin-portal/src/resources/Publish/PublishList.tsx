@@ -4,7 +4,7 @@
 
 import React, {ReactElement, useState, useContext, useEffect, useCallback} from "react"
 import {useTranslation} from "react-i18next"
-import {Visibility} from "@mui/icons-material"
+import {Visibility, Preview} from "@mui/icons-material"
 import {IconButton, Dialog} from "@sequentech/ui-essentials"
 import {Box, Typography, Button, DialogContent, DialogActions} from "@mui/material"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
@@ -46,6 +46,7 @@ type TPublishList = {
     onGenerate: () => void
     onChangeStatus: (status: ElectionEventStatus) => void
     setBallotPublicationId: (id: string | Identifier) => void
+    onPreview: (id: string | Identifier) => void
 }
 
 export const PublishList: React.FC<TPublishList> = ({
@@ -58,6 +59,7 @@ export const PublishList: React.FC<TPublishList> = ({
     onGenerate = () => null,
     onChangeStatus = () => null,
     setBallotPublicationId = () => null,
+    onPreview = () => null,
 }) => {
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
@@ -121,6 +123,10 @@ export const PublishList: React.FC<TPublishList> = ({
         {
             icon: <Visibility className="publish-visibility-icon" />,
             action: setBallotPublicationId,
+        },
+        {
+            icon: <Preview className="publish-preview-icon" />,
+            action: onPreview,
         },
     ]
 

@@ -4,7 +4,7 @@
 
 import React, {ComponentType, useCallback, useContext, useEffect, useState} from "react"
 
-import {Box} from "@mui/material"
+import {Box, Drawer} from "@mui/material"
 import {useMutation} from "@apollo/client"
 import {useTranslation} from "react-i18next"
 import {useGetOne, useNotify, useRecordContext, Identifier, useRefresh} from "react-admin"
@@ -41,6 +41,7 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {IElectionEventStatus} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {convertToNumber} from "@/lib/helpers"
+import {EditPreview} from "./EditPreview"
 
 enum ViewMode {
     Edit,
@@ -63,6 +64,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.List)
         const [changingStatus, setChangingStatus] = useState<boolean>(false)
         const [publishStatus, setPublishStatus] = useState<PublishStatus>(PublishStatus.Void)
+        const [open, setOpen] = React.useState(false)
         const [ballotPublicationId, setBallotPublicationId] = useState<string | Identifier | null>(
             null
         )
@@ -279,6 +281,15 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             [publishStatus]
         )
 
+        const onPreview = (id: string | Identifier) => {
+            setBallotPublicationId(id)
+            setOpen(true)
+        }
+
+        const handleCloseEditDrawer = () => {
+            setOpen(false)
+        }
+
         useEffect(() => {
             if (electionEventId && ballotPublicationId && ballotPublication?.is_generated) {
                 getPublishChanges()
@@ -357,6 +368,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                             setViewMode(ViewMode.View)
                             setBallotPublicationId(id)
                         }}
+                        onPreview={onPreview}
                     />
                 )}
                 {(viewMode === ViewMode.Edit || viewMode === ViewMode.View) && (
@@ -379,6 +391,21 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         fetchAllPublishChanges={fetchAllPublishChanges}
                     />
                 )}
+                <Drawer
+                    anchor="right"
+                    open={open}
+                    onClose={handleCloseEditDrawer}
+                    PaperProps={{
+                        sx: {width: "30%"},
+                    }}
+                >
+                    <EditPreview
+                        id={ballotPublicationId}
+                        electionEventId={electionEventId}
+                        close={handleCloseEditDrawer}
+                        ballotData={generateData}
+                    />
+                </Drawer>
             </Box>
         )
     }

@@ -545,13 +545,13 @@ impl GetElectoralLogBody {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ElectoralLogRow {
-    id: i64,
-    created: i64,
-    statement_timestamp: i64,
-    statement_kind: String,
-    message: String,
-    data: String,
-    user_id: Option<String>,
+    pub id: i64,
+    pub created: i64,
+    pub statement_timestamp: i64,
+    pub statement_kind: String,
+    pub message: String,
+    pub data: String,
+    pub user_id: Option<String>,
 }
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct StatementHeadDataString {
