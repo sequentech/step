@@ -13,13 +13,13 @@ import {
     Sequent_Backend_Ballot_Style,
     Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
+    Sequent_Backend_Support_Material,
 } from "../gql/graphql"
 import {IBallotStyle as IElectionDTO} from "@sequentech/ui-core"
 import {cloneDeep} from "lodash"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {
     IBallotStyle,
-    selectBallotStyleByElectionId,
     selectFirstBallotStyle,
     setBallotStyle,
 } from "../store/ballotStyles/ballotStylesSlice"
@@ -27,11 +27,13 @@ import {AppDispatch} from "../store/store"
 import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
 import {setElection} from "../store/elections/electionsSlice"
 import {setElectionEvent} from "../store/electionEvents/electionEventsSlice"
+import {setSupportMaterial} from "../store/supportMaterials/supportMaterialsSlice"
 
 interface PreviewDocument {
     ballot_styles: Array<IElectionDTO>
     elections: Array<Sequent_Backend_Election>
     election_event: Sequent_Backend_Election_Event
+    support_materials: Array<Sequent_Backend_Support_Material>
 }
 
 export const updateBallotStyleAndSelection = (
@@ -51,6 +53,9 @@ export const updateBallotStyleAndSelection = (
                 alias: election.alias ?? undefined,
             })
         )
+    }
+    for (let material of ballotStyleJson.support_materials) {
+        dispatch(setSupportMaterial(material))
     }
     for (let ballotStyle of ballotStyleJson.ballot_styles) {
         if (ballotStyle.area_id !== areaId) {

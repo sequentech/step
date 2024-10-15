@@ -11,26 +11,14 @@ import {styled} from "@mui/material/styles"
 import {TenantEventType} from ".."
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {useLocation, useNavigate, useParams} from "react-router-dom"
-import {useQuery} from "@apollo/client"
-import {
-    GetElectionEventQuery,
-    GetSupportMaterialsQuery,
-    Sequent_Backend_Support_Material,
-} from "../gql/graphql"
+import {Sequent_Backend_Support_Material} from "../gql/graphql"
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft"
-import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
-import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
 import {SupportMaterial} from "../components/SupportMaterial/SupportMaterial"
 import {
     ISupportMaterial,
     getSupportMaterialsList,
-    setSupportMaterial,
 } from "../store/supportMaterials/supportMaterialsSlice"
-import {
-    IElectionEvent,
-    selectElectionEventById,
-    setElectionEvent,
-} from "../store/electionEvents/electionEventsSlice"
+import {IElectionEvent, selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
 import Stepper from "../components/Stepper"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 
@@ -77,33 +65,11 @@ const SupportMaterialsScreen: React.FC = () => {
     const navigate = useNavigate()
     const location = useLocation()
     const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
-    const dispatch = useAppDispatch()
     const materials = useAppSelector(getSupportMaterialsList())
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const {globalSettings} = useContext(SettingsContext)
 
     const [materialsList, setMaterialsList] = useState<Array<ISupportMaterial> | undefined>([])
-
-    // Materials
-    const {
-        data: dataMaterials,
-        error: errorMaterials,
-        loading: loadingMaterials,
-    } = useQuery<GetSupportMaterialsQuery>(GET_SUPPORT_MATERIALS, {
-        variables: {
-            electionEventId: eventId || "",
-            tenantId: tenantId || "",
-        },
-        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
-    })
-
-    useEffect(() => {
-        if (!loadingMaterials && !errorMaterials && dataMaterials) {
-            for (let material of dataMaterials.sequent_backend_support_material) {
-                dispatch(setSupportMaterial(material))
-            }
-        }
-    }, [loadingMaterials, errorMaterials, dataMaterials, dispatch])
 
     useEffect(() => {
         const materialsList: Array<ISupportMaterial> = []
@@ -112,27 +78,6 @@ const SupportMaterialsScreen: React.FC = () => {
         }
         setMaterialsList(materialsList)
     }, [materials])
-
-    // Election Event
-    const {
-        data: dataElectionEvent,
-        error: errorElectionEvent,
-        loading: loadingElectionEvent,
-    } = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
-        variables: {
-            electionEventId: eventId,
-            tenantId,
-        },
-        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
-    })
-
-    useEffect(() => {
-        if (!loadingElectionEvent && !errorElectionEvent && dataElectionEvent) {
-            for (let material of dataElectionEvent.sequent_backend_election_event) {
-                dispatch(setElectionEvent(material))
-            }
-        }
-    }, [loadingElectionEvent, errorElectionEvent, dataElectionEvent, dispatch])
 
     const [materialsTitles, setMaterialsTitles] = useState<IElectionEvent | undefined>()
 

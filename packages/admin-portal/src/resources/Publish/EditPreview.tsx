@@ -19,6 +19,7 @@ import {
     GetUploadUrlMutation,
     Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
+    Sequent_Backend_Support_Material,
 } from "@/gql/graphql"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useMutation, useQuery} from "@apollo/client"
@@ -69,6 +70,24 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
             pagination: {page: 1, perPage: 9999},
             sort: {field: "created_at", order: "DESC"},
             filter: {
+                election_event_id: electionEventId,
+                tenant_id: tenantId,
+            },
+        },
+        {
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
+        }
+    )
+
+    const {data: supportMaterials} = useGetList<Sequent_Backend_Support_Material>(
+        "sequent_backend_support_material",
+        {
+            pagination: {page: 1, perPage: 9999},
+            sort: {field: "created_at", order: "DESC"},
+            filter: {
+                is_hidden: false,
                 election_event_id: electionEventId,
                 tenant_id: tenantId,
             },
@@ -140,6 +159,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
                 ballot_styles: ballotData?.current?.ballot_styles,
                 election_event: electionEvent,
                 elections: elections,
+                support_materials: supportMaterials,
             }
             const dataStr = JSON.stringify(fileData, null, 2)
             const file = new File([dataStr], `preview.json`, {type: "application/json"})
@@ -153,10 +173,10 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
                 close()
             }
         }
-        if (isUploading && electionEvent && elections && areaId) {
+        if (isUploading && electionEvent && elections && areaId && undefined !== supportMaterials) {
             startUpload()
         }
-    }, [isUploading, electionEvent, elections, areaId])
+    }, [isUploading, electionEvent, elections, areaId, supportMaterials])
 
     const onPreviewClick = async (res: any) => {
         setAreaId(res.area_id)
