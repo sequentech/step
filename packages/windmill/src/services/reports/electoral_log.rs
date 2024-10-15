@@ -15,7 +15,6 @@ use crate::services::temp_path::{generate_temp_file, get_file_size};
 use crate::types::resources::DataList;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use chrono::NaiveDateTime;
 use chrono::{DateTime, Utc};
 use csv::WriterBuilder;
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -130,16 +129,15 @@ impl TemplateRenderer for ActivityLogsTemplate {
                 };
 
                 let timestamp = electoral_log.statement_timestamp();
-                let dt =
-                    DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(timestamp, 0), Utc);
+                let dt = DateTime::<Utc>::from_timestamp(timestamp, 0)
+                    .with_context(|| "Error parsing timestamp")?;
                 let statement_timestamp = dt.to_rfc2822();
 
                 let creation_timestamp = electoral_log.created();
-                let dt = DateTime::<Utc>::from_utc(
-                    NaiveDateTime::from_timestamp(creation_timestamp, 0),
-                    Utc,
-                );
+                let dt = DateTime::<Utc>::from_timestamp(creation_timestamp, 0)
+                    .with_context(|| "Error parsing creation timestamp")?;
                 let created = dt.format("%Y-%m-%d").to_string();
+
                 let head_data = electoral_log
                     .statement_head_data()
                     .with_context(|| "Error to get head data.")?;
