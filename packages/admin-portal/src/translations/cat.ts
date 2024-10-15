@@ -995,6 +995,8 @@ const catalanTranslation: TranslationType = {
         keysGeneration: {
             configureStep: {
                 create: "Crear Cerimònia de Claus",
+                name: "Nom de la Cerimònia de Claus",
+                allElections: "Totes les Eleccions",
                 title: "Crear Cerimònia de Claus de l'Esdeveniment Electoral",
                 subtitle:
                     "En aquesta cerimònia cada autoritat generarà i descarregarà la seva part de les claus privades per a l'Esdeveniment Electoral. Per continuar, trieu les autoritats que participaran en la cerimònia i el llindar, que és el nombre mínim d'autoritats necessaris per comptar.",
@@ -1171,6 +1173,8 @@ const catalanTranslation: TranslationType = {
             exportElectionArea: "Envia paquet de transmissió per a l'àrea '{{name}}'",
             templateTitle: "Plantilla de Resultats",
             templateSubTitle: "Opcionalment sobreescriure la plantilla de resultats.",
+            keysCeremonyTitle: "Cerimònia de Claus",
+            keysCeremonySubTitle: "Selecciona la Cerimònia de Claus per a aquest recompte",
             ceremonyTitle: "Eleccions per al Recompte",
             ceremonySubTitle: "Seleccioneu les eleccions per al recompte",
             tallyTitle: "Progrés del Recompte d'Eleccions",

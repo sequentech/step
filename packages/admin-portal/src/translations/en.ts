@@ -991,6 +991,8 @@ const englishTranslation = {
         keysGeneration: {
             configureStep: {
                 create: "Create Keys Ceremony",
+                name: "Keys Ceremony Name",
+                allElections: "All Elections",
                 title: "Create Election Event Keys Ceremony",
                 subtitle:
                     "In the Keys Ceremony each trustee will generate and download their fragment of the private key for the Election Event. To proceed, please choose the trustees that will participate in the ceremony and the threshold, which is the minimum number of trustees required to tally.",
@@ -1165,6 +1167,8 @@ const englishTranslation = {
             exportElectionArea: "Send Transmission Package for Area '{{name}}'",
             templateTitle: "Results Template",
             templateSubTitle: "Optionally overwrite the results template.",
+            keysCeremonyTitle: "Keys Ceremony",
+            keysCeremonySubTitle: "Select the Keys Ceremony for this tally",
             ceremonyTitle: "Elections to Tally",
             ceremonySubTitle: "Choose the elections you want to tally",
             tallyTitle: "Elections Tally Progress",

@@ -75,7 +75,11 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
 
                 {withFilter ? <FilterButton /> : null}
 
-                {withAction ? <Button onClick={doAction} label={t(actionLabel)} /> : null}
+                {withAction ? (
+                    <Button onClick={doAction} label={t(actionLabel)}>
+                        <Add />
+                    </Button>
+                ) : null}
 
                 {Component && (
                     <>
