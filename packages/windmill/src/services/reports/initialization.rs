@@ -20,27 +20,7 @@ use serde::{Deserialize, Serialize};
 
 /// Struct for the initialization report data
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct UserData { }
-
-/// Struct for each contest's data
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ContestData {
-    pub contest_name: String,
-    pub position_name: String,
-    pub candidates: Vec<CandidateData>,
-}
-
-/// Struct for each candidate's data
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct CandidateData {
-    pub name_in_ballot: String,
-    pub acronym: String,
-    pub votes_garnered: u32,
-}
-
-/// Struct for System Data
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct SystemData {
+pub struct UserData {
     pub file_qrcode_lib: String,
     pub election_date: String,
     pub election_title: String,
@@ -63,9 +43,28 @@ pub struct SystemData {
     pub software_version: String,
     pub ovcs_version: String,
     pub system_hash: String,
-    // pub file_logo: String,
-    // pub date_time_printed: String,
-    // pub printing_code: String,
+ }
+
+/// Struct for each contest's data
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ContestData {
+    pub contest_name: String,
+    pub position_name: String,
+    pub candidates: Vec<CandidateData>,
+}
+
+/// Struct for each candidate's data
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct CandidateData {
+    pub name_in_ballot: String,
+    pub acronym: String,
+    pub votes_garnered: u32,
+}
+
+/// Struct for System Data
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SystemData {
+    pub rendered_user_template: String,
 }
 
 #[derive(Debug)]
@@ -108,10 +107,7 @@ impl TemplateRenderer for InitializationTemplate {
         }
     }
 
-    async fn prepare_system_data(
-        &self,
-        rendered_user_template: String,
-    ) -> Result<Self::SystemData> {
+    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>> {
         // Fetch the database client from the pool
         let mut db_client: DbClient = get_hasura_pool()
             .await
@@ -212,7 +208,6 @@ impl TemplateRenderer for InitializationTemplate {
         )
         .await?;
 
-        // TODO: fix: fetch contests only ince in the report
         let (ballots_counted, results_area_contests, contests) =
             get_election_contests_area_results_and_total_ballot_counted(
                 &hasura_transaction,
@@ -240,7 +235,7 @@ impl TemplateRenderer for InitializationTemplate {
         let ovcs_version = "1.0".to_string();
         let system_hash = "dummy_system_hash".to_string();
 
-        Ok(SystemData {
+        Ok(Some(UserData {
             file_qrcode_lib,
             election_date,
             election_title: election.name,
@@ -252,7 +247,7 @@ impl TemplateRenderer for InitializationTemplate {
             precinct_code: election_general_data.clustered_precinct_id,
             registered_voters,
             ballots_counted,
-            contests: generate_contests_data(hasura_transaction, &self.tenant_id, &self.election_event_id, &self.election_id).await?,
+            contests: generate_contests_data(hasura_transaction, &self.tenant_id, &self.election_event_id, contests).await?,
             chairperson_name,
             chairperson_digital_signature,
             poll_clerk_name,
@@ -263,20 +258,20 @@ impl TemplateRenderer for InitializationTemplate {
             software_version,
             ovcs_version,
             system_hash,
+        }))
+    }
+
+    async fn prepare_system_data(
+        &self,
+        rendered_user_template: String,
+    ) -> Result<Self::SystemData> {
+        Ok(SystemData {
+            rendered_user_template
         })
     }
 }
 
-async fn generate_contests_data(hasura_transaction: Transaction<'_>, tenant_id: &str, election_event_id: &str, election_id: &str) -> Result<Vec<ContestData>> {
-    let contests = get_contest_by_election_id(
-        &hasura_transaction,
-        tenant_id,
-        election_event_id,
-        election_id,
-    )
-    .await
-    .with_context(|| "Error obtaining contests")?;
-
+async fn generate_contests_data(hasura_transaction: Transaction<'_>, tenant_id: &str, election_event_id: &str, contests: Vec<Contest>) -> Result<Vec<ContestData>> {
     let mut contests_data: Vec<ContestData> = Vec::new();
     for contest in contests {
         let contest_name = contest.clone().name.unwrap_or_default();

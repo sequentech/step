@@ -1919,7 +1919,7 @@ export type Mutation_RootExport_Election_EventArgs = {
 
 /** mutation root */
 export type Mutation_RootExport_Election_Event_LogsArgs = {
-    election_event_id?: InputMaybe<Scalars["String"]["input"]>
+    election_event_id: Scalars["String"]["input"]
 }
 
 /** mutation root */
