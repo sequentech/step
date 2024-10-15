@@ -157,6 +157,18 @@ pub async fn get_board_public_key<C: Ctx>(board_name: &str) -> Result<C::E> {
     Ok(dkgpk.pk)
 }
 
+pub async fn check_configuration_exists(board_name: &str) -> Result<bool> {
+    let board = get_b3_pgsql_client().await?;
+
+    let b3 = board.get_messages(board_name, -1).await?;
+    let messages = convert_b3(&b3)?;
+
+    let found_config = messages
+        .into_iter()
+        .find(|message| StatementType::Configuration == message.statement.get_kind());
+    Ok(found_config.is_some())
+}
+
 #[instrument(err)]
 pub async fn get_board_public_key_messages(board_name: &str) -> Result<Vec<Message>> {
     let board = get_b3_pgsql_client().await?;
@@ -424,7 +436,26 @@ pub fn create_named_param(name: String, value: Value) -> NamedParam {
 }
 
 pub fn get_event_board(tenant_id: &str, election_event_id: &str) -> String {
-    format!("tenant{}event{}", tenant_id, election_event_id)
+    let tenant: String = tenant_id
+        .to_string()
+        .chars()
+        .filter(|&c| c != '-')
+        .take(17)
+        .collect();
+    format!("tenant{}event{}", tenant, election_event_id)
+        .chars()
+        .filter(|&c| c != '-')
+        .collect()
+}
+
+pub fn get_election_board(tenant_id: &str, election_id: &str) -> String {
+    let tenant: String = tenant_id
+        .to_string()
+        .chars()
+        .filter(|&c| c != '-')
+        .take(17)
+        .collect();
+    format!("tenant{}election{}", tenant, election_id)
         .chars()
         .filter(|&c| c != '-')
         .collect()

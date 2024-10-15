@@ -11,15 +11,15 @@ pub struct ISO8601;
 
 impl ISO8601 {
     pub fn to_date_utc(date_string: &str) -> Result<DateTime<Utc>> {
-        let date_time_utc =
-            DateTime::parse_from_rfc3339(date_string).map_err(|err| anyhow!("{:?}", err))?;
+        let date_time_utc = DateTime::parse_from_rfc3339(date_string)
+            .map_err(|err| anyhow!("{:?}", err))?;
         Ok(date_time_utc.with_timezone(&Utc))
     }
 
     // parse something like 2023-08-10T22:05:22.214163+00:00
     pub fn to_date(date_string: &str) -> Result<DateTime<Local>> {
-        let date_time_utc =
-            DateTime::parse_from_rfc3339(date_string).map_err(|err| anyhow!("{:?}", err))?;
+        let date_time_utc = DateTime::parse_from_rfc3339(date_string)
+            .map_err(|err| anyhow!("{:?}", err))?;
         Ok(date_time_utc.with_timezone(&Local))
     }
 
@@ -39,7 +39,9 @@ impl ISO8601 {
         date_time_utc.with_timezone(&Local)
     }
 
-    pub fn timestamp_ms_utc_to_date_opt(millis: i64) -> Result<DateTime<Local>> {
+    pub fn timestamp_ms_utc_to_date_opt(
+        millis: i64,
+    ) -> Result<DateTime<Local>> {
         // Convert Unix timestamp in milliseconds to DateTime<Utc>
         let date_time_utc = match Utc.timestamp_millis_opt(millis) {
             LocalResult::Single(data) => data,

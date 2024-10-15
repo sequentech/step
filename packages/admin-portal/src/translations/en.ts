@@ -11,6 +11,10 @@ const englishTranslation = {
             noPermissions: "You don't have permission to access logs.",
             title: "Logs",
             subtitle: "General logs of the main and IAM databases",
+            actions: {
+                csv: "Export in CSV",
+                pdf: "Export in PDF",
+            },
             column: {
                 id: "Id",
                 statement: "Statement",
@@ -720,6 +724,18 @@ const englishTranslation = {
                 ELECTORAL_RESULTS: "Electoral Results",
                 MANUAL_VERIFICATION: "Manual Verification",
                 STATISTICAL_REPORT: "Statistical Report",
+                OVCS_EVENTS: "Overseas Voting Monitoring - OVCS Events",
+                AUDIT_LOGS: "Audit Logs",
+                STATUS: "Status",
+                OVCS_INFORMATION: "OVCS Information",
+                OVERSEAS_VOTERS: "List of overseas voters",
+                ELECTION_RETURNS_FOR_NATIONAL_POSITIONS: "Election Returns of National Positions",
+                OV_USERS_WHO_VOTED: "List of Overseas Voters who Voted",
+                OV_USERS: "List of Overseas Voters with Voting Status",
+                OVCS_STATISTICS: "Overseas Voting Monitoring - OVCS Statistics",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED: "List of OV who Pre-enrolled but Disapproved",
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
+                    "List of OV who Pre-enrolled but subject for Manual Validation",
             },
             empty: {
                 header: "No Reports yet.",
@@ -975,6 +991,8 @@ const englishTranslation = {
         keysGeneration: {
             configureStep: {
                 create: "Create Keys Ceremony",
+                name: "Keys Ceremony Name",
+                allElections: "All Elections",
                 title: "Create Election Event Keys Ceremony",
                 subtitle:
                     "In the Keys Ceremony each trustee will generate and download their fragment of the private key for the Election Event. To proceed, please choose the trustees that will participate in the ceremony and the threshold, which is the minimum number of trustees required to tally.",
@@ -1149,6 +1167,8 @@ const englishTranslation = {
             exportElectionArea: "Send Transmission Package for Area '{{name}}'",
             templateTitle: "Results Template",
             templateSubTitle: "Optionally overwrite the results template.",
+            keysCeremonyTitle: "Keys Ceremony",
+            keysCeremonySubTitle: "Select the Keys Ceremony for this tally",
             ceremonyTitle: "Elections to Tally",
             ceremonySubTitle: "Choose the elections you want to tally",
             tallyTitle: "Elections Tally Progress",
@@ -1241,6 +1261,11 @@ const englishTranslation = {
             },
         },
         publish: {
+            preview: {
+                publicationAreas: "Select Area for Preview",
+                action: "Preview",
+                success: "Success opening preview",
+            },
             header: {
                 change: "Changes to be Published",
                 viewChange: "View Publication",
@@ -1275,12 +1300,16 @@ const englishTranslation = {
                 stopInfo: "You are about to stop voting period. Are you sure you want to continue?",
                 pauseInfo:
                     "You are about to pause voting period. Are you sure you want to continue?",
+                publishInfo:
+                    "You are about to generate a publication. Are you sure you want to continue?",
                 ok: "Confirm",
                 ko: "Cancel",
                 error: "Error loading ballot publication",
                 error_publish: "Error publishing ballot publication",
                 error_status: "Error change ballot publication status",
                 diff: "Rendering all changes might make the page unresponsive. Are you sure you want to continue?",
+                confirmation:
+                    "The action you are about to perform is sensitive and requires confirmation. Please enter your password to proceed with {{action}}.",
             },
             notifications: {
                 generated: "Ballot generated",

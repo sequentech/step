@@ -4,7 +4,7 @@
 
 import {GET_TRUSTEES_NAMES} from "@/queries/GetTrusteesNames"
 import {useQuery} from "@apollo/client"
-import {InputLabel, MenuItem, Select, SxProps} from "@mui/material"
+import {InputLabel, MenuItem, Select} from "@mui/material"
 import React, {useCallback} from "react"
 import {Trustee} from "./EditUserForm"
 interface SelectActedTrusteeProps {
@@ -30,11 +30,11 @@ const SelectActedTrustee: React.FC<SelectActedTrusteeProps> = ({
         const value = defaultValue instanceof Array ? defaultValue[0] : defaultValue
         if (value) {
             const trustee = trustees?.sequent_backend_trustee.find(
-                (trustee: {id: string; name: string}) => trustee.name == defaultValue
+                (trustee: {id: string; name: string}) => trustee.name === defaultValue
             )
             return trustee?.name
         }
-    }, [trustees])
+    }, [trustees, defaultValue])
 
     return (
         <>

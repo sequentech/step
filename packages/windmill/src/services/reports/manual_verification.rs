@@ -78,17 +78,17 @@ impl TemplateRenderer for ManualVerificationTemplate {
         }
     }
 
-    async fn prepare_user_data(&self) -> Result<Self::UserData> {
+    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>> {
         let manual_verification_url =
             get_manual_verification_url(&self.tenant_id, &self.election_event_id, &self.voter_id)
                 .await
                 .with_context(|| "Error getting manual verification URL")?;
 
-        Ok(UserData {
+        Ok(Some(UserData {
             manual_verification_url,
             qrcode: QR_CODE_TEMPLATE.to_string(),
             logo: LOGO_TEMPLATE.to_string(),
-        })
+        }))
     }
 
     async fn prepare_system_data(
@@ -133,7 +133,15 @@ pub async fn generate_manual_verification_report(
         voter_id: voter_id.to_string(),
     };
     template
-        .execute_report(document_id, tenant_id, election_event_id, false, None)
+        .execute_report(
+            document_id,
+            tenant_id,
+            election_event_id,
+            false,
+            None,
+            None,
+            GenerateReportMode::REAL,
+        )
         .await
 }
 

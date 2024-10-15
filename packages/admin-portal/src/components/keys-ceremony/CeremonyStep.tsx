@@ -31,9 +31,9 @@ import {Logs} from "../Logs"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 export const statusColor: (status: EStatus) => string = (status) => {
-    if (status === EStatus.NOT_STARTED) {
+    if (status === EStatus.USER_CONFIGURATION) {
         return theme.palette.warning.light
-    } else if (status === EStatus.IN_PROCESS) {
+    } else if (status === EStatus.IN_PROGRESS) {
         return theme.palette.info.main
     } else if (status === EStatus.SUCCESS) {
         return theme.palette.brandSuccess
@@ -101,13 +101,14 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                         <WizardStyles.CeremonyStatus
                             sx={{
                                 backgroundColor: statusColor(
-                                    (ceremony?.execution_status as EStatus) ?? EStatus.NOT_STARTED
+                                    (ceremony?.execution_status as EStatus) ??
+                                        EStatus.USER_CONFIGURATION
                                 ),
                                 color: theme.palette.background.default,
                             }}
                             className="keys-ceremony-status"
                             label={t("keysGeneration.ceremonyStep.executionStatus", {
-                                status: ceremony?.execution_status ?? EStatus.IN_PROCESS,
+                                status: ceremony?.execution_status ?? EStatus.IN_PROGRESS,
                             })}
                         />
                     </AccordionSummary>
