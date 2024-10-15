@@ -53,10 +53,11 @@ type TPublish = {
     electionId?: string
     electionEventId: string
     type: EPublishType.Election | EPublishType.Event
+    showList?: string
 }
 
 const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.memo(
-    ({electionEventId, electionId, type}: TPublish): React.JSX.Element => {
+    ({electionEventId, electionId, type, showList}: TPublish): React.JSX.Element => {
         const MAX_DIFF_LINES = convertToNumber(process.env.MAX_DIFF_LINES) ?? 500
         const notify = useNotify()
         const {t} = useTranslation()
@@ -289,6 +290,9 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         const handleCloseEditDrawer = () => {
             setOpen(false)
         }
+        useEffect(() => {
+            setViewMode(ViewMode.List)
+        }, [showList])
 
         useEffect(() => {
             if (electionEventId && ballotPublicationId && ballotPublication?.is_generated) {

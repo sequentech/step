@@ -820,17 +820,17 @@ export const TallyCeremony: React.FC = () => {
                 )}
 
                 <TallyStyles.StyledFooter>
-                    {page < WizardSteps.Results && (
-                        <CancelButton
-                            className="list-actions"
-                            onClick={() => {
-                                setTallyId(null)
-                                setCreatingFlag(false)
-                            }}
-                        >
-                            {t("tally.common.cancel")}
-                        </CancelButton>
-                    )}
+                    {/* {page < WizardSteps.Results && ( */}
+                    <CancelButton
+                        className="list-actions"
+                        onClick={() => {
+                            setTallyId(null)
+                            setCreatingFlag(false)
+                        }}
+                    >
+                        {t("tally.common.cancel")}
+                    </CancelButton>
+                    {/* )} */}
                     {page < WizardSteps.Results &&
                         tally?.execution_status !== ITallyExecutionStatus.CANCELLED && (
                             <NextButton
