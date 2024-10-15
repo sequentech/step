@@ -9,7 +9,6 @@ use crate::postgres::{
 use crate::services::{
     celery_app::get_celery_app,
     database::{get_hasura_pool, get_keycloak_pool},
-    date::ISO8601,
     tasks_execution::update_fail,
 };
 use crate::tasks::{
@@ -28,6 +27,7 @@ use chrono::Duration;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::ballot::{ElectionPresentation, InitReport, VotingPeriodEnd};
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
+use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm, KeycloakAdminClient};
 use sequent_core::types::scheduled_event::*;
 use std::sync::Arc;

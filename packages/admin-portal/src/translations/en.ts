@@ -724,6 +724,18 @@ const englishTranslation = {
                 ELECTORAL_RESULTS: "Electoral Results",
                 MANUAL_VERIFICATION: "Manual Verification",
                 STATISTICAL_REPORT: "Statistical Report",
+                OVCS_EVENTS: "Overseas Voting Monitoring - OVCS Events",
+                AUDIT_LOGS: "Audit Logs",
+                STATUS: "Status",
+                OVCS_INFORMATION: "OVCS Information",
+                OVERSEAS_VOTERS: "List of overseas voters",
+                ELECTION_RETURNS_FOR_NATIONAL_POSITIONS: "Election Returns of National Positions",
+                OV_USERS_WHO_VOTED: "List of Overseas Voters who Voted",
+                OV_USERS: "List of Overseas Voters with Voting Status",
+                OVCS_STATISTICS: "Overseas Voting Monitoring - OVCS Statistics",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED: "List of OV who Pre-enrolled but Disapproved",
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
+                    "List of OV who Pre-enrolled but subject for Manual Validation",
             },
             empty: {
                 header: "No Reports yet.",
@@ -1283,12 +1295,16 @@ const englishTranslation = {
                 stopInfo: "You are about to stop voting period. Are you sure you want to continue?",
                 pauseInfo:
                     "You are about to pause voting period. Are you sure you want to continue?",
+                publishInfo:
+                    "You are about to generate a publication. Are you sure you want to continue?",
                 ok: "Confirm",
                 ko: "Cancel",
                 error: "Error loading ballot publication",
                 error_publish: "Error publishing ballot publication",
                 error_status: "Error change ballot publication status",
                 diff: "Rendering all changes might make the page unresponsive. Are you sure you want to continue?",
+                confirmation:
+                    "The action you are about to perform is sensitive and requires confirmation. Please enter your password to proceed with {{action}}.",
             },
             notifications: {
                 generated: "Ballot generated",

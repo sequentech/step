@@ -8,6 +8,8 @@ use b3::messages::message::Message;
 use b3::messages::statement::StatementType;
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction};
+use sequent_core::services::date::{get_now_utc_unix_ms, ISO8601};
+use sequent_core::services::keycloak;
 use sequent_core::types::ceremonies::{
     KeysCeremonyExecutionStatus, KeysCeremonyStatus, Trustee as BasicTrustee, TrusteeStatus,
 };
@@ -22,7 +24,7 @@ use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_board;
 use crate::services::ceremonies::serialize_logs::generate_logs;
 use crate::services::ceremonies::serialize_logs::sort_logs;
 use crate::services::database::get_hasura_pool;
-use crate::services::date::{get_now_utc_unix_ms, ISO8601};
+use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager;
 use crate::services::public_keys;
 use crate::tasks::set_public_key::get_trustees_by_name::GetTrusteesByNameSequentBackendTrustee;

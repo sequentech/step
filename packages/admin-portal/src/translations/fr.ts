@@ -729,6 +729,20 @@ const frenchTranslation: TranslationType = {
                 ELECTORAL_RESULTS: "Résultats Électoraux",
                 MANUAL_VERIFICATION: "Vérification Manuelle",
                 STATISTICAL_REPORT: "Rapport Statistique",
+                OVCS_EVENTS: "Suivi du Vote à l'Étranger - Événements OVCS",
+                AUDIT_LOGS: "Journaux d'Audit",
+                STATUS: "Statut",
+                OVCS_INFORMATION: "Informations OVCS",
+                OVERSEAS_VOTERS: "Liste des Électeurs Résidant à l'Étranger",
+                ELECTION_RETURNS_FOR_NATIONAL_POSITIONS:
+                    "Résultats des Élections pour les Postes Nationaux",
+                OV_USERS_WHO_VOTED: "Liste des Électeurs Résidant à l'Étranger ayant Voté",
+                OV_USERS: "Liste des Électeurs Résidant à l'Étranger avec Statut de Vote",
+                OVCS_STATISTICS: "Suivi du Vote à l'Étranger - Statistiques OVCS",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED:
+                    "Liste des Électeurs Résidant à l'Étranger Pré-inscrits mais Refusés",
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
+                    "Liste des Électeurs Résidant à l'Étranger Pré-inscrits mais Soumis à Validation Manuelle",
             },
             empty: {
                 header: "Pas encore de rapports.",
@@ -1288,12 +1302,16 @@ const frenchTranslation: TranslationType = {
                     "Vous êtes sur le point d'arrêter la période de vote. Êtes-vous sûr de vouloir continuer?",
                 pauseInfo:
                     "Vous êtes sur le point de mettre en pause la période de vote. Êtes-vous sûr de vouloir continuer?",
+                publishInfo:
+                    "Vous êtes sur le point de générer une publication. Êtes-vous sûr de vouloir continuer ?",
                 ok: "Confirmer",
                 ko: "Annuler",
                 error: "Erreur lors du chargement des bulletins publiés",
                 error_publish: "Erreur lors de la publication du bulletin",
                 error_status: "Erreur lors du changement d'état de la publication",
                 diff: "Afficher tous les changements pourrait rendre la page non réactive. Êtes-vous sûr de vouloir continuer ?",
+                confirmation:
+                    "L'action que vous êtes sur le point d'effectuer est sensible et nécessite une confirmation. Veuillez entrer votre mot de passe pour continuer avec {{action}}.",
             },
             label: {
                 current: "Actuel",

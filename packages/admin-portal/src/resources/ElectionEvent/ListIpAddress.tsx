@@ -24,7 +24,7 @@ const ListStyle = styled(List)`
 
 export interface ListIpAddressProps {
     aside?: ReactElement
-    electionEventId?: string
+    electionEventId: string
 }
 
 export const ListIpAddress: React.FC<ListIpAddressProps> = ({aside, electionEventId}) => {

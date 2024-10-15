@@ -727,6 +727,20 @@ const catalanTranslation: TranslationType = {
                 ELECTORAL_RESULTS: "Resultats Electorals",
                 MANUAL_VERIFICATION: "Verificació Manual",
                 STATISTICAL_REPORT: "Informe Estadístic",
+                OVCS_EVENTS: "Seguiment del Vot a l'Estranger - Esdeveniments OVCS",
+                AUDIT_LOGS: "Registres d'Auditoria",
+                STATUS: "Estat",
+                OVCS_INFORMATION: "Informació de l'OVCS",
+                OVERSEAS_VOTERS: "Llista de Votants a l'Estranger",
+                ELECTION_RETURNS_FOR_NATIONAL_POSITIONS:
+                    "Resultats Electorals de Càrrecs Nacionals",
+                OV_USERS_WHO_VOTED: "Llista de Votants a l'Estranger que han Votat",
+                OV_USERS: "Llista de Votants a l'Estranger amb Estat de Votació",
+                OVCS_STATISTICS: "Seguiment del Vot a l'Estranger - Estadístiques de l'OVCS",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED:
+                    "Llista de Votants a l'Estranger Preinscrits però Desaprovats",
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
+                    "Llista de Votants a l'Estranger Preinscrits però Sotmesos a Validació Manual",
             },
             empty: {
                 header: "Encara no hi ha informes.",
@@ -1282,12 +1296,16 @@ const catalanTranslation: TranslationType = {
                     "Està a punt de detenir el període de votació. Està segur que vol continuar?",
                 pauseInfo:
                     "Està a punt de pausar el període de votació. Està segur que vol continuar?",
+                publishInfo:
+                    "You are about to generate a publication. Are you sure you want to continue?",
                 ok: "Confirmar",
                 ko: "Cancel·lar",
                 error: "Error carregant les paperetes publicades",
                 error_publish: "Error publicant la papereta",
                 error_status: "Error canviant l'estat de la publicació",
                 diff: "Renderitzar tots els canvis podria fer que la pàgina no respongui. Esteu segur que voleu continuar?",
+                confirmation:
+                    "L'acció que esteu a punt de realitzar és sensible i requereix confirmació. Introduïu la vostra contrasenya per continuar amb {{action}}.",
             },
             label: {
                 current: "Actual",

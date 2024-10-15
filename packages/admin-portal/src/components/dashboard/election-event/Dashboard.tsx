@@ -239,7 +239,7 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
                             height={cardHeight}
                         />
                     </Container>
-                    <ListIpAddress electionEventId={record?.id ?? ""} />
+                    {record?.id && <ListIpAddress electionEventId={record.id} />}
                 </Box>
                 <Box
                     sx={{
