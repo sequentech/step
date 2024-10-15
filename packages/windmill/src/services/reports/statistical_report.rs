@@ -32,13 +32,8 @@ pub struct StatisticalReportOutput {
 
 /// Struct for User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct UserData {}
-
-/// Struct for System Data
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct SystemData {
+pub struct UserData {
     pub file_logo: String,
-    pub file_qrcode_lib: String,
     pub qrcode: String,
     pub logo: String,
     pub date_printed: String,
@@ -53,6 +48,13 @@ pub struct SystemData {
     pub ballots_counted: i64,
     pub voters_turnout: i64,
     pub elective_positions: Vec<ReportContestData>,
+}
+
+/// Struct for System Data
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SystemData {
+    pub rendered_user_template: String,
+    pub file_qrcode_lib: String,
 }
 
 /// Struct for System Data
@@ -110,10 +112,9 @@ impl TemplateRenderer for StatisticalReportTemplate {
         }
     }
 
-    async fn prepare_system_data(
-        &self,
-        rendered_user_template: String,
-    ) -> Result<Self::SystemData> {
+
+    #[instrument]
+    async fn prepare_user_data(&self) -> Result<Self::UserData> {
         let public_asset_path = get_public_assets_path_env_var()?;
         let minio_endpoint_base =
             get_minio_url().with_context(|| "Error getting minio endpoint")?;
@@ -211,16 +212,12 @@ impl TemplateRenderer for StatisticalReportTemplate {
             elective_positions.push(contest_result_data);
         }
 
-        Ok(SystemData {
+        Ok(UserData {
             qrcode: QR_CODE_TEMPLATE.to_string(),
             logo: LOGO_TEMPLATE.to_string(),
             file_logo: format!(
                 "{}/{}/{}",
                 minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_LOGO_IMG
-            ),
-            file_qrcode_lib: format!(
-                "{}/{}/{}",
-                minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
             ),
             date_printed,
             time_printed,
@@ -234,6 +231,18 @@ impl TemplateRenderer for StatisticalReportTemplate {
             ballots_counted,
             voters_turnout,
             elective_positions,
+        })
+    }
+
+    #[instrument]
+    async fn prepare_system_data(
+        &self,
+        rendered_user_template: String,
+    ) -> Result<Self::SystemData> {
+        let temp_val: &str = "test";
+        Ok(SystemData {
+            rendered_user_template,
+            file_qrcode_lib: temp_val.to_string()
         })
     }
 }

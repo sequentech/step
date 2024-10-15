@@ -36,11 +36,6 @@ pub struct UserData {
     pub chairperson_name: String,
     pub poll_clerk_name: String,
     pub third_member_name: String,
-}
-
-/// Struct for System Data
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct SystemData {
     pub report_hash: String,
     pub ovsc_version: String,
     pub system_hash: String,
@@ -48,6 +43,12 @@ pub struct SystemData {
     pub file_qrcode_lib: String,
     pub date_time_printed: String,
     pub printing_code: String,
+}
+
+/// Struct for System Data
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SystemData {
+    pub rendered_user_template: String,
 }
 
 #[derive(Debug)]
@@ -90,7 +91,7 @@ impl TemplateRenderer for TransmissionReport {
     }
 
     /// Prepare user data by fetching the relevant details
-    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>> {
+    async fn prepare_user_data(&self) -> Result<Self::UserData> {
         let mut hasura_db_client: DbClient = get_hasura_pool()
             .await
             .get()
@@ -146,7 +147,7 @@ impl TemplateRenderer for TransmissionReport {
         let received_datetime = Some("2024-10-09T12:05:00Z".to_string());
 
         let temp_val: &str = "test";
-        Ok(Some(UserData {
+        Ok(UserData {
             num_of_registered_voters: total_registered_voters,
             num_of_ballots_counted: total_ballots_counted,
             voter_turnout,
@@ -164,18 +165,6 @@ impl TemplateRenderer for TransmissionReport {
             chairperson_name: temp_val.to_string(),
             poll_clerk_name: temp_val.to_string(),
             third_member_name: temp_val.to_string(),
-        }))
-    }
-
-    async fn prepare_system_data(
-        &self,
-        rendered_user_template: String,
-    ) -> Result<Self::SystemData> {
-        let public_asset_path = get_public_assets_path_env_var()?;
-        let minio_endpoint_base =
-            get_minio_url().with_context(|| "Error getting minio endpoint")?;
-
-        Ok(SystemData {
             report_hash: String::new(),
             ovsc_version: String::new(),
             system_hash: String::new(),
@@ -185,4 +174,40 @@ impl TemplateRenderer for TransmissionReport {
             printing_code: String::new(),
         })
     }
+
+    #[instrument]
+    async fn prepare_system_data(
+        &self,
+        rendered_user_template: String,
+    ) -> Result<Self::SystemData> {
+        Ok(SystemData {
+            rendered_user_template,
+        })
+    }
 }
+
+#[instrument]
+pub async fn generate_transmission_report(
+    document_id: &str,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    mode: GenerateReportMode,
+) -> Result<()> {
+    let template = TransmissionReport {
+        tenant_id: tenant_id.to_string(),
+        election_event_id: election_event_id.to_string(),
+    };
+    template
+        .execute_report(
+            document_id,
+            tenant_id,
+            election_event_id,
+            false,
+            None,
+            None,
+            mode,
+        )
+        .await
+}
+

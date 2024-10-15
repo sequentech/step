@@ -28,10 +28,7 @@ use serde_json::value::Value;
 use tracing::{info, instrument};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct UserData {}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct SystemData {
+pub struct UserData {
     pub election_date: String,
     pub election_title: String,
     pub voting_period: String,
@@ -51,6 +48,12 @@ pub struct SystemData {
     pub system_hash: String,
     pub date_printed: String,
     pub time_printed: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SystemData {
+    pub rendered_user_template: String,
+    pub file_qrcode_lib: String,
 }
 
 #[derive(Debug)]
@@ -99,14 +102,6 @@ impl TemplateRenderer for StatusTemplate {
 
     #[instrument]
     async fn prepare_user_data(&self) -> Result<Self::UserData> {
-        Ok(UserData {})
-    }
-
-    #[instrument]
-    async fn prepare_system_data(
-        &self,
-        _rendered_user_template: String,
-    ) -> Result<Self::SystemData> {
         let mut hasura_db_client: DbClient = get_hasura_pool()
             .await
             .get()
@@ -221,16 +216,14 @@ impl TemplateRenderer for StatusTemplate {
 
         let (date_printed, time_printed) = get_date_and_time();
         // Parse the date start date from voting period into a NaiveDate
-        let parsed_date = NaiveDate::parse_from_str(&voting_period_start_date, "%Y-%m-%d")
-            .expect("Failed to parse date");
+        let election_date = &voting_period_start_date.to_string();
         // Format the date to the desired format
-        let election_date = parsed_date.format("%B %d, %Y").to_string();
         let status_str: &'static str = status.voting_status.into();
         let ovcs_status = status_str.to_string();
         let temp_val: &str = "test";
 
-        Ok(SystemData {
-            election_date: election_date,
+        Ok(UserData {
+            election_date: election_date.to_string(),
             election_title: election_event.name.clone(),
             voting_period: format!("{} - {}", voting_period_start_date, voting_period_end_date),
             geographical_region: election_general_data.geographical_region,
@@ -249,6 +242,18 @@ impl TemplateRenderer for StatusTemplate {
             system_hash: "sys_hash123".to_string(),
             date_printed: date_printed,
             time_printed: time_printed,
+        })
+    }
+
+    #[instrument]
+    async fn prepare_system_data(
+        &self,
+        rendered_user_template: String,
+    ) -> Result<Self::SystemData> {
+        let temp_val: &str = "test";
+        Ok(SystemData {
+            rendered_user_template,
+            file_qrcode_lib: temp_val.to_string()
         })
     }
 }

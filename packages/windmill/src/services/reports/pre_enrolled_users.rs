@@ -45,11 +45,6 @@ pub struct UserData {
     pub chairperson_name: String,
     pub poll_clerk_name: String,
     pub third_member_name: String,
-}
-
-// Struct to hold system data
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct SystemData {
     pub report_hash: String,
     pub ovcs_version: String,
     pub system_hash: String,
@@ -57,6 +52,13 @@ pub struct SystemData {
     pub file_qrcode_lib: String,
     pub date_time_printed: String,
     pub printing_code: String,
+}
+
+// Struct to hold system data
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SystemData {
+    pub rendered_user_template: String,
+    pub file_qrcode_lib: String,
 }
 
 /// Implement the `TemplateRenderer` trait for PreEnrolledUserTemplate
@@ -102,7 +104,7 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
 
     // TODO: replace mock data with actual data
     // Fetch and prepare user data
-    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>> {
+    async fn prepare_user_data(&self) -> Result<Self::UserData> {
         // Mock data for pre_enrolled_users
         let pre_enrolled_users = vec![
             PreEnrolledUserData {
@@ -158,7 +160,7 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
         let number_of_ovs_approved_by = "OFOV".to_string();
         let temp_val: &str = "test";
 
-        Ok(Some(UserData {
+        Ok(UserData {
             election_start_date: "2024-01-01".to_string(),
             election_title: "National Election 2024".to_string(),
             geograpic_region: "Region 1".to_string(),
@@ -173,18 +175,6 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
             chairperson_name: temp_val.to_string(),
             poll_clerk_name: temp_val.to_string(),
             third_member_name: temp_val.to_string(),
-        }))
-    }
-
-    // Fetch and prepare SystemData with mock data
-    async fn prepare_system_data(
-        &self,
-        rendered_user_template: String,
-    ) -> Result<Self::SystemData> {
-        let minio_endpoint_base =
-            get_minio_url().with_context(|| "Error getting minio endpoint")?;
-
-        Ok(SystemData {
             report_hash: String::new(),
             ovcs_version: String::new(),
             system_hash: String::new(),
@@ -192,6 +182,19 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
             file_qrcode_lib: String::new(),
             date_time_printed: String::new(),
             printing_code: String::new(),
+        })
+    }
+
+    /// Prepare system metadata for the report
+    #[instrument]
+    async fn prepare_system_data(
+        &self,
+        rendered_user_template: String,
+    ) -> Result<Self::SystemData> {
+        let file_qrcode_lib: &str = "test";
+        Ok(SystemData {
+            rendered_user_template,
+            file_qrcode_lib: file_qrcode_lib.to_string()
         })
     }
 }

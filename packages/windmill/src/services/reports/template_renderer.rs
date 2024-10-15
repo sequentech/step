@@ -33,7 +33,7 @@ pub enum GenerateReportMode {
 /// Trait that defines the behavior for rendering templates
 #[async_trait]
 pub trait TemplateRenderer: Debug {
-    type UserData: Serialize + ToMap + Send;
+    type UserData: Serialize + ToMap + Send + for<'de> Deserialize<'de>;
     type SystemData: Serialize + ToMap + for<'de> Deserialize<'de>;
 
     fn base_name() -> String;
@@ -56,9 +56,9 @@ pub trait TemplateRenderer: Debug {
         None // Default implementation, can be overridden in specific reports that have voterId
     }
 
-    async fn prepare_preview_data(&self) -> Result<Self::SystemData> {
+    async fn prepare_preview_data(&self) -> Result<Self::UserData> {
         let json_data = self.get_preview_data_file().await?;
-        let data: Self::SystemData = serde_json::from_str(&json_data)?;
+        let data: Self::UserData = serde_json::from_str(&json_data)?;
 
         Ok(data)
     }

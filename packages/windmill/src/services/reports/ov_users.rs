@@ -11,38 +11,27 @@ use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 
-/// Struct to represent each OV (Overseas Voter) user
-// #[derive(Serialize, Deserialize, Debug, Clone)]
-// pub struct OVUserData {
-//     pub no: i32, // Table index
-//     pub first_name: String,
-//     pub last_name: String,
-//     pub middle_name: Option<String>,
-//     pub suffix: Option<String>,
-//     pub id: String,
-//     pub status: String,             // Voted/Not Voted/Not Enrolled
-//     pub date_voted: Option<String>, // Date when voted (Philippines time)
-//     pub time_voted: Option<String>, // Time when voted (Philippines time)
-// }
 
 /// Struct for User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
-    // pub election_start_date: String,
-    // pub election_title: String,
-    // pub geograpic_region: String,
-    // pub area: String,
-    // pub country: String,
-    // pub voting_center: String,
-    // pub total_voted: u32,
-    // pub total_not_voted: u32,
-    // pub total_not_enrolled: u32,
-    // pub total_eb_with_privilege: u32,
-    // pub total_ov: u32,
-    // pub ov_users_who_voted: Vec<OVUserData>,
-    // pub chairperson_name: String,
-    // pub poll_clerk_name: String,
-    // pub third_member_name: String,
+    pub report_hash: String,
+    pub system_hash: String,
+    pub date_printed: String,
+    pub time_printed: String,
+    pub election_date: String,
+    pub election_title: String,
+    pub voting_period: String,
+    pub post: String,
+    pub country: String,
+    pub voters: Vec<Voter>,
+    pub voted: u32,
+    pub not_voted: u32,
+    pub not_pre_enrolled: u32,
+    pub voting_privilege_voted: u32,
+    pub total: u32,
+    pub ovcs_version: String,
+    pub qr_code: String,
 }
 
 /// Struct for System Data
@@ -61,23 +50,8 @@ pub struct Voter {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SystemData {
-    pub report_hash: String,
-    pub system_hash: String,
-    pub date_printed: String,
-    pub time_printed: String,
-    pub election_date: String,
-    pub election_title: String,
-    pub voting_period: String,
-    pub post: String,
-    pub country: String,
-    pub voters: Vec<Voter>,
-    pub voted: u32,
-    pub not_voted: u32,
-    pub not_pre_enrolled: u32,
-    pub voting_privilege_voted: u32,
-    pub total: u32,
-    pub ovcs_version: String,
-    pub qr_code: String,
+    pub rendered_user_template: String,
+    pub file_qrcode_lib: String
 }
 
 #[derive(Debug)]
@@ -119,12 +93,9 @@ impl TemplateRenderer for OVUserTemplate {
         }
     }
 
-    // Prepare system data
-    async fn prepare_system_data(
-        &self,
-        _rendered_user_template: String,
-    ) -> Result<Self::SystemData> {
-        // Placeholder system data, adjust based on your actual environment
+    #[instrument]
+    async fn prepare_user_data(&self) -> Result<Self::UserData> {
+        // Placeholder User data, adjust based on your actual environment
         // Mock OV user data
         let voters = vec![
             Voter {
@@ -185,8 +156,7 @@ impl TemplateRenderer for OVUserTemplate {
 
         // Mock UserData
         let temp_val: &str = "test";
-
-        Ok(SystemData {
+        Ok(UserData {
             election_date: "2024-10-01".to_string(),
             election_title: "National Elections 2024".to_string(),
             post: "Southeast Asia".to_string(),
@@ -204,6 +174,19 @@ impl TemplateRenderer for OVUserTemplate {
             time_printed: "2024-10-09 14:00:00".to_string(),
             ovcs_version: String::new(),
             qr_code: String::new(),
+        })
+    }
+
+    // Prepare system data
+    #[instrument]
+    async fn prepare_system_data(
+        &self,
+        rendered_user_template: String,
+    ) -> Result<Self::SystemData> {
+        let temp_val: &str = "test";
+        Ok(SystemData {
+            rendered_user_template,
+            file_qrcode_lib: temp_val.to_string()
         })
     }
 }
