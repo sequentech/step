@@ -832,7 +832,6 @@ export const TallyCeremony: React.FC = () => {
 
             <TallyStyles.FooterContainer>
                 <TallyStyles.StyledFooter>
-                    {/* {page < WizardSteps.Results && ( */}
                     <CancelButton
                         className="list-actions"
                         onClick={() => {
@@ -842,7 +841,6 @@ export const TallyCeremony: React.FC = () => {
                     >
                         {t("tally.common.cancel")}
                     </CancelButton>
-                    {/* )} */}
                     {page < WizardSteps.Results &&
                         tally?.execution_status !== ITallyExecutionStatus.CANCELLED && (
                             <NextButton

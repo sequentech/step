@@ -11,7 +11,7 @@ export const TallyStyles = {
     WizardContainer: styled.div`
         display: flex;
         flex-direction: column;
-        min-height: 70vh;
+        min-height: 100%;
     `,
     ContentWrapper: styled.div`
         flex-grow: 1;
