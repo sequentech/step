@@ -391,6 +391,9 @@ export const sequent_backend_keys_ceremony: Sequent_Backend_Keys_Ceremony = {
     tenant_id: "",
     threshold: 1,
     trustee_ids: [],
+    name: "",
+    settings: {},
+    is_default: true,
 }
 
 export const sequent_backend_lock: Sequent_Backend_Lock = {

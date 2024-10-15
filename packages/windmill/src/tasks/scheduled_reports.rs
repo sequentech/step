@@ -5,6 +5,7 @@
 use crate::postgres::reports::{get_all_active_reports, update_report_last_document_time, Report};
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::get_hasura_pool;
+use crate::services::reports::template_renderer::GenerateReportMode;
 use crate::tasks::generate_report::generate_report;
 use deadpool_postgres::Client as DbClient;
 use sequent_core::services::date::ISO8601;
@@ -132,9 +133,13 @@ pub async fn scheduled_reports() -> Result<()> {
         let document_id = Uuid::new_v4().to_string();
         let task = celery_app
             .send_task(
-                generate_report::new(report.clone(), document_id.clone())
-                    .with_eta(datetime.with_timezone(&Utc))
-                    .with_expires_in(120),
+                generate_report::new(
+                    report.clone(),
+                    document_id.clone(),
+                    GenerateReportMode::REAL,
+                )
+                .with_eta(datetime.with_timezone(&Utc))
+                .with_expires_in(120),
             )
             .await?;
 

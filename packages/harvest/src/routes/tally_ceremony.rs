@@ -7,6 +7,7 @@ use anyhow::{anyhow, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use sequent_core::services::jwt::decode_permission_labels;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::permissions::Permissions;
 use sequent_core::{
@@ -45,7 +46,8 @@ pub async fn create_tally_ceremony(
     )?;
     let input = body.into_inner();
     let tenant_id: String = claims.hasura_claims.tenant_id.clone();
-    let user_id = claims.hasura_claims.user_id;
+    let user_id = claims.clone().hasura_claims.user_id;
+    let permission_labels = decode_permission_labels(&claims);
 
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|err| {
@@ -70,6 +72,7 @@ pub async fn create_tally_ceremony(
         input.election_event_id.clone(),
         input.election_ids,
         input.configuration,
+        &permission_labels,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
@@ -154,7 +157,25 @@ pub async fn restore_private_key(
     )?;
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
+
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|err| {
+            (
+                Status::InternalServerError,
+                format!("Error getting hasura db pool: {err}"),
+            )
+        })?;
+
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|err| {
+            (
+                Status::InternalServerError,
+                format!("Error starting hasura transaction: {err}"),
+            )
+        })?;
+
     let is_valid = tally_ceremony::set_private_key(
+        &hasura_transaction,
         &claims,
         &tenant_id,
         &input.election_event_id,
@@ -171,5 +192,9 @@ pub async fn restore_private_key(
         input.tally_session_id,
         is_valid,
     );
+
+    let _commit = hasura_transaction.commit().await.map_err(|err| {
+        (Status::InternalServerError, format!("Commit failed: {err}"))
+    })?;
     Ok(Json(SetPrivateKeyOutput { is_valid }))
 }

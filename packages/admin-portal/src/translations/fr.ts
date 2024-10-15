@@ -729,6 +729,20 @@ const frenchTranslation: TranslationType = {
                 ELECTORAL_RESULTS: "Résultats Électoraux",
                 MANUAL_VERIFICATION: "Vérification Manuelle",
                 STATISTICAL_REPORT: "Rapport Statistique",
+                OVCS_EVENTS: "Suivi du Vote à l'Étranger - Événements OVCS",
+                AUDIT_LOGS: "Journaux d'Audit",
+                STATUS: "Statut",
+                OVCS_INFORMATION: "Informations OVCS",
+                OVERSEAS_VOTERS: "Liste des Électeurs Résidant à l'Étranger",
+                ELECTION_RETURNS_FOR_NATIONAL_POSITIONS:
+                    "Résultats des Élections pour les Postes Nationaux",
+                OV_USERS_WHO_VOTED: "Liste des Électeurs Résidant à l'Étranger ayant Voté",
+                OV_USERS: "Liste des Électeurs Résidant à l'Étranger avec Statut de Vote",
+                OVCS_STATISTICS: "Suivi du Vote à l'Étranger - Statistiques OVCS",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED:
+                    "Liste des Électeurs Résidant à l'Étranger Pré-inscrits mais Refusés",
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
+                    "Liste des Électeurs Résidant à l'Étranger Pré-inscrits mais Soumis à Validation Manuelle",
             },
             empty: {
                 header: "Pas encore de rapports.",
@@ -985,6 +999,8 @@ const frenchTranslation: TranslationType = {
         keysGeneration: {
             configureStep: {
                 create: "Créer une Cérémonie de Clés",
+                name: "Nom de la Cérémonie des Clés",
+                allElections: "Toutes les Élections",
                 title: "Créer une Cérémonie de Clés de l'Événement Électoral",
                 subtitle:
                     "Dans cette cérémonie, chaque autorité générera et téléchargera sa part des clés privées pour l'Événement Électoral. Pour continuer, choisissez les autorités qui participeront à la cérémonie et le seuil, qui est le nombre minimum d'autorités nécessaires pour compter.",
@@ -1163,6 +1179,8 @@ const frenchTranslation: TranslationType = {
             exportElectionArea: "Envoyer le paquet de transmission pour la zone '{{name}}'",
             templateTitle: "Modèle de Résultats",
             templateSubTitle: "Éventuellement écraser le modèle de résultats.",
+            keysCeremonyTitle: "Cérémonie des Clés",
+            keysCeremonySubTitle: "Sélectionnez la Cérémonie des Clés pour ce dépouillement",
             ceremonyTitle: "Élections pour le Comptage",
             ceremonySubTitle: "Sélectionnez les élections pour le comptage",
             tallyTitle: "Progrès du Comptage des Élections",
@@ -1255,6 +1273,11 @@ const frenchTranslation: TranslationType = {
             },
         },
         publish: {
+            preview: {
+                publicationAreas: "Sélectionnez la zone pour l'aperçu",
+                action: "Aperçu",
+                success: "Succès lors de l'ouverture de l'aperçu",
+            },
             header: {
                 change: "Changements à Publier",
                 viewChange: "Voir Publication",

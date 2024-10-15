@@ -39,7 +39,7 @@ import {useGetList, useGetOne, useNotify, useRecordContext} from "react-admin"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
 import {CREATE_TALLY_CEREMONY} from "@/queries/CreateTallyCeremony"
-import {useMutation} from "@apollo/client"
+import {useMutation, useQuery} from "@apollo/client"
 import {ITallyExecutionStatus} from "@/types/ceremonies"
 
 import {
@@ -54,6 +54,7 @@ import {
     Sequent_Backend_Tally_Session,
     Sequent_Backend_Tally_Session_Execution,
     UpdateTallyCeremonyMutation,
+    ListKeysCeremonyQuery,
 } from "@/gql/graphql"
 import {CancelButton, NextButton} from "./styles"
 import {statusColor} from "./constants"
@@ -75,6 +76,7 @@ import {tallyQueryData} from "@/atoms/tally-candidates"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
+import {LIST_KEYS_CEREMONY} from "@/queries/ListKeysCeremonies"
 
 const WizardSteps = {
     Start: 0,
@@ -110,6 +112,7 @@ export const TallyCeremony: React.FC = () => {
     const [openCeremonyModal, setOpenCeremonyModal] = useState(false)
     const [transmissionLoading, setTransmissionLoading] = useState<boolean>(false)
     const [page, setPage] = useState<number>(WizardSteps.Start)
+    const [pristine, setPristine] = useState<boolean>(true)
     const [tally, setTally] = useState<Sequent_Backend_Tally_Session>()
     const [isButtonDisabled, setIsButtonDisabled] = useState<boolean>(true)
     const [templateId, setTemplateId] = useState<string | undefined>(undefined)
@@ -120,6 +123,7 @@ export const TallyCeremony: React.FC = () => {
     const isTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_CEREMONY)
     const [selectedElections, setSelectedElections] = useState<string[]>([])
     const [selectedTrustees, setSelectedTrustees] = useState<boolean>(false)
+    const [keysCeremonyId, setKeysCeremonyId] = useState<string | null>(null)
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
 
     const [CreateTallyCeremonyMutation] =
@@ -171,20 +175,19 @@ export const TallyCeremony: React.FC = () => {
             refetchOnMount: false,
         }
     )
-
-    const {data: keyCeremony} = useGetList<Sequent_Backend_Keys_Ceremony>(
-        "sequent_backend_keys_ceremony",
-        {
-            pagination: {page: 1, perPage: 9999},
-            filter: {election_event_id: record?.id, tenant_id: tenantId},
+    const {data: keysCeremonies} = useQuery<ListKeysCeremonyQuery>(LIST_KEYS_CEREMONY, {
+        variables: {
+            tenantId: tenantId,
+            electionEventId: record?.id,
         },
-        {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
-    )
+        context: {
+            headers: {
+                "x-hasura-role": isTrustee
+                    ? IPermissions.TRUSTEE_CEREMONY
+                    : IPermissions.ADMIN_CEREMONY,
+            },
+        },
+    })
 
     const {data: tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
         "sequent_backend_tally_session_execution",
@@ -310,6 +313,14 @@ export const TallyCeremony: React.FC = () => {
         }
     }, [tally])
 
+    useEffect(() => {
+        let singleKeysCeremony = keysCeremonies?.list_keys_ceremony?.items?.[0]
+        if (!pristine || keysCeremonyId || !singleKeysCeremony) {
+            return
+        }
+        setKeysCeremonyId(singleKeysCeremony.id)
+    }, [pristine, keysCeremonies?.list_keys_ceremony?.items, keysCeremonyId])
+
     const handleNext = () => {
         if (page === WizardSteps.Start) {
             setOpenModal(true)
@@ -331,7 +342,7 @@ export const TallyCeremony: React.FC = () => {
                 variables: {
                     tenant_id: record?.tenant_id,
                     election_event_id: record?.id,
-                    keys_ceremony_id: keyCeremony?.[0]?.id,
+                    keys_ceremony_id: keysCeremonyId,
                     election_ids: selectedElections,
                 },
             })
@@ -540,8 +551,38 @@ export const TallyCeremony: React.FC = () => {
                             update={(elections) => setSelectedElections(elections)}
                             disabled={isTallyElectionListDisabled}
                             electionEventId={record?.id}
+                            keysCeremonyId={keysCeremonyId}
                         />
-                        {/* <FormControl fullWidth>
+                        <FormControl fullWidth>
+                            <ElectionHeader
+                                title={"tally.keysCeremonyTitle"}
+                                subtitle={"tally.keysCeremonySubTitle"}
+                            />
+
+                            <Select
+                                id="keys-ceremony-for-tally"
+                                value={keysCeremonyId}
+                                label={t("tally.keysCeremonyTitle")}
+                                placeholder={t("tally.keysCeremonyTitle")}
+                                onChange={(props) => {
+                                    if (!props?.target?.value) {
+                                        return
+                                    }
+                                    setPristine(false)
+                                    setKeysCeremonyId(props?.target?.value)
+                                }}
+                            >
+                                {(keysCeremonies?.list_keys_ceremony?.items ?? []).map(
+                                    (keysCeremony) => (
+                                        <MenuItem key={keysCeremony.id} value={keysCeremony.id}>
+                                            {keysCeremony?.name}
+                                        </MenuItem>
+                                    )
+                                )}
+                            </Select>
+                        </FormControl>
+                        {/* 
+                        <FormControl fullWidth>
                             <ElectionHeader
                                 title={"tally.templateTitle"}
                                 subtitle={"tally.templateSubTitle"}
@@ -570,6 +611,7 @@ export const TallyCeremony: React.FC = () => {
                             electionEventId={record?.id}
                             disabled={true}
                             update={(elections) => setSelectedElections(elections)}
+                            keysCeremonyId={keysCeremonyId}
                         />
 
                         <TallyTrusteesList

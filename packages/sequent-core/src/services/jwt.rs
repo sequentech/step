@@ -11,7 +11,7 @@ use serde;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::collections::HashMap;
-use tracing::{info, instrument, warn};
+use tracing::{debug, info, instrument, warn};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct JwtRolesAccess {
@@ -82,12 +82,35 @@ pub fn decode_jwt(token: &str) -> Result<JwtClaims> {
         .map_err(|err| anyhow!("Error decoding string: {:?}", err))?;
     let json = String::from_utf8(bytes)
         .map_err(|err| anyhow!("Error decoding bytes to utf8: {:?}", err))?;
-    info!("json: {:?}", json);
+    debug!("json: {:?}", json);
     let claims: JwtClaims = serde_json::from_str(&json).map_err(|err| {
         anyhow!("Error decoding string into formatted json: {:?}", err)
     })?;
 
     Ok(claims)
+}
+
+#[instrument]
+pub fn decode_permission_labels(claims: &JwtClaims) -> Vec<String> {
+    let Some(label_str) = claims.hasura_claims.permission_labels.clone() else {
+        return vec![];
+    };
+
+    let s = label_str.trim();
+    let s = if s.starts_with('{') && s.ends_with('}') {
+        &s[1..s.len() - 1]
+    } else {
+        s
+    };
+
+    // Split the string into items
+    let items = s.split(',');
+
+    // Process each item: trim whitespace and surrounding quotes
+    let keys: Vec<String> = items
+        .map(|item| item.trim().trim_matches('"').to_string())
+        .collect();
+    keys
 }
 
 /**
