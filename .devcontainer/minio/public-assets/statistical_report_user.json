@@ -12,7 +12,7 @@
   "precinct_code": "P12345",
   "registered_voters": 5000,
   "ballots_counted": 3500,
-  "voters_turnout": "70%",
+  "voters_turnout": 70,
   "elective_positions": [
     {
       "elective_position": "President",
@@ -20,7 +20,7 @@
       "total_overvotes": 20,
       "total_position": 3980,
       "total_undevotes": 100,
-      "fill_up_rate": "95%"
+      "fill_up_rate": 95
     }
   ],
   "goverment_time": "18:00",

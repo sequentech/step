@@ -50,7 +50,7 @@ pub struct UserData {
     pub precinct_code: String,
     pub registered_voters: i64,
     pub ballots_counted: i64,
-    pub voters_turnout: String,
+    pub voters_turnout: i64,
     pub elective_positions: Vec<ReportContestData>,
 }
 
@@ -61,7 +61,7 @@ pub struct ReportContestData {
     pub total_expected: i64,
     pub total_position: i64,
     pub total_undevotes: i64,
-    pub fill_up_rate: String,
+    pub fill_up_rate: i64,
 }
 
 /// Implementation of TemplateRenderer for Manual Verification
@@ -195,8 +195,6 @@ impl TemplateRenderer for StatisticalReportTemplate {
             .await
             .map_err(|err| anyhow!("Error generate voters turnout {err}"))?;
 
-        let voters_turnout = format!("{}%", voters_turnout);
-
         let mut elective_positions: Vec<ReportContestData> = vec![];
 
         for (contest) in contests.clone() {
@@ -313,7 +311,6 @@ pub async fn generate_contest_results_data(
                 &contest.id
             )
         })?;
-    let fill_up_rate = format!("{}%", fill_up_rate);
 
     Ok(ReportContestData {
         elective_position,
