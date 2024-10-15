@@ -17,6 +17,7 @@ import {useTranslation} from "react-i18next"
 import {
     GetBallotPublicationChangesOutput,
     GetUploadUrlMutation,
+    Sequent_Backend_Document,
     Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Support_Material,
@@ -99,6 +100,23 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
         }
     )
 
+    const {data: documents} = useGetList<Sequent_Backend_Document>(
+        "sequent_backend_document",
+        {
+            pagination: {page: 1, perPage: 9999},
+            sort: {field: "created_at", order: "DESC"},
+            filter: {
+                election_event_id: electionEventId,
+                tenant_id: tenantId,
+            },
+        },
+        {
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
+        }
+    )
+
     const uploadFile = async (url: string, file: File) => {
         await fetch(url, {
             method: "PUT",
@@ -160,6 +178,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
                 election_event: electionEvent,
                 elections: elections,
                 support_materials: supportMaterials,
+                documents: documents,
             }
             const dataStr = JSON.stringify(fileData, null, 2)
             const file = new File([dataStr], `preview.json`, {type: "application/json"})
@@ -173,10 +192,17 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
                 close()
             }
         }
-        if (isUploading && electionEvent && elections && areaId && undefined !== supportMaterials) {
+        if (
+            isUploading &&
+            electionEvent &&
+            elections &&
+            areaId &&
+            undefined !== supportMaterials &&
+            undefined !== documents
+        ) {
             startUpload()
         }
-    }, [isUploading, electionEvent, elections, areaId, supportMaterials])
+    }, [isUploading, electionEvent, elections, areaId, supportMaterials, documents])
 
     const onPreviewClick = async (res: any) => {
         setAreaId(res.area_id)

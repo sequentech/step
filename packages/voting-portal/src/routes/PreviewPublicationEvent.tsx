@@ -11,6 +11,7 @@ import {PreviewPublicationEventType} from ".."
 import {
     GetBallotPublicationChangesOutput,
     Sequent_Backend_Ballot_Style,
+    Sequent_Backend_Document,
     Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Support_Material,
@@ -28,12 +29,14 @@ import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSl
 import {setElection} from "../store/elections/electionsSlice"
 import {setElectionEvent} from "../store/electionEvents/electionEventsSlice"
 import {setSupportMaterial} from "../store/supportMaterials/supportMaterialsSlice"
+import {setDocument} from "../store/documents/documentsSlice"
 
 interface PreviewDocument {
     ballot_styles: Array<IElectionDTO>
     elections: Array<Sequent_Backend_Election>
     election_event: Sequent_Backend_Election_Event
     support_materials: Array<Sequent_Backend_Support_Material>
+    documents: Array<Sequent_Backend_Document>
 }
 
 export const updateBallotStyleAndSelection = (
@@ -43,6 +46,9 @@ export const updateBallotStyleAndSelection = (
     dispatch: AppDispatch
 ) => {
     dispatch(setElectionEvent(ballotStyleJson.election_event as any))
+    for (let document of ballotStyleJson.documents) {
+        dispatch(setDocument(document))
+    }
     for (let election of ballotStyleJson.elections) {
         dispatch(
             setElection({

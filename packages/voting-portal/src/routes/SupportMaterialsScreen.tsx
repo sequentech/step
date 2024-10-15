@@ -11,7 +11,7 @@ import {styled} from "@mui/material/styles"
 import {TenantEventType} from ".."
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {useLocation, useNavigate, useParams} from "react-router-dom"
-import {Sequent_Backend_Support_Material} from "../gql/graphql"
+import {GetDocumentQuery, Sequent_Backend_Support_Material} from "../gql/graphql"
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft"
 import {SupportMaterial} from "../components/SupportMaterial/SupportMaterial"
 import {
@@ -21,6 +21,9 @@ import {
 import {IElectionEvent, selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
 import Stepper from "../components/Stepper"
 import {SettingsContext} from "../providers/SettingsContextProvider"
+import {useQuery} from "@apollo/client"
+import {GET_DOCUMENT} from "../queries/GetDocument"
+import {setDocument} from "../store/documents/documentsSlice"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -68,8 +71,27 @@ const SupportMaterialsScreen: React.FC = () => {
     const materials = useAppSelector(getSupportMaterialsList())
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const {globalSettings} = useContext(SettingsContext)
+    const dispatch = useAppDispatch()
 
     const [materialsList, setMaterialsList] = useState<Array<ISupportMaterial> | undefined>([])
+
+    const {data: documents} = useQuery<GetDocumentQuery>(GET_DOCUMENT, {
+        variables: {
+            ids: materialsList?.map((material) => material.document_id ?? "") ?? [],
+            electionEventId: eventId,
+            tenantId: tenantId || "",
+        },
+        skip: globalSettings.DISABLE_AUTH,
+    })
+
+    useEffect(() => {
+        if (globalSettings.DISABLE_AUTH || !documents) {
+            return
+        }
+        for (let document of documents?.sequent_backend_document) {
+            dispatch(setDocument(document))
+        }
+    }, [documents?.sequent_backend_document, globalSettings.DISABLE_AUTH])
 
     useEffect(() => {
         const materialsList: Array<ISupportMaterial> = []
