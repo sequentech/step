@@ -159,8 +159,6 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                     throw "Publication Generation Error"
                 }
             } catch (e) {
-                console.log("publish error:")
-                console.log(e)
                 notify(t("publish.dialog.error"), {
                     type: "error",
                 })
@@ -291,7 +289,10 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             setOpen(false)
         }
         useEffect(() => {
-            setViewMode(ViewMode.List)
+            if (showList) {
+                setViewMode(ViewMode.List)
+                setBallotPublicationId(null)
+            }
         }, [showList])
 
         useEffect(() => {
@@ -390,6 +391,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                             setViewMode(ViewMode.List)
                             handleSetPublishStatus(PublishStatus.Generated)
                             setGenerateData(null)
+                            setBallotPublicationId(null)
                         }}
                         electionEventId={electionEventId}
                         fetchAllPublishChanges={fetchAllPublishChanges}

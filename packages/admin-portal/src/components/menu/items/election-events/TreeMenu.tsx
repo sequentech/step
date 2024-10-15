@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useContext, useEffect, useMemo, useRef, useState} from "react"
-import {NavLink} from "react-router-dom"
+import {NavLink, useLocation} from "react-router-dom"
 import {useGetOne, useSidebarState} from "react-admin"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import ChevronRightIcon from "@mui/icons-material/ChevronRight"
@@ -32,6 +32,7 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {Box} from "@mui/material"
 import {MenuStyles, TreeMenuItemContainer} from "@/components/styles/Menu"
 import {Sequent_Backend_Document} from "@/gql/graphql"
+import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 
 export const mapAddResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "createResource.electionEvent",
@@ -179,7 +180,15 @@ function TreeMenuItem({
     const [open, setOpen] = useState(false)
     // const [isFirstLoad, setIsFirstLoad] = useState(true)
 
+    const location = useLocation()
+    const {setTallyId} = useElectionEventTallyStore()
+
     const onClick = () => setOpen(!open)
+
+    useEffect(() => {
+        // set context tally to null to allow navigation to new election event tally
+        setTallyId(null)
+    }, [location.pathname])
 
     const subTreeResourceNames = treeResourceNames.slice(1)
     const nextResourceName = subTreeResourceNames[0] ?? null
