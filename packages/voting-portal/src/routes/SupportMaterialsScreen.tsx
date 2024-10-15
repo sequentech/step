@@ -85,10 +85,10 @@ const SupportMaterialsScreen: React.FC = () => {
     })
 
     useEffect(() => {
-        if (globalSettings.DISABLE_AUTH || !documents) {
+        if (globalSettings.DISABLE_AUTH || !documents?.sequent_backend_document) {
             return
         }
-        for (let document of documents?.sequent_backend_document) {
+        for (let document of documents.sequent_backend_document) {
             dispatch(setDocument(document))
         }
     }, [documents?.sequent_backend_document, globalSettings.DISABLE_AUTH])
