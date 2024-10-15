@@ -9,16 +9,14 @@ use super::report_variables::{
 use super::template_renderer::*;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::reports::ReportType;
-use crate::postgres::results_area_contest::get_results_area_contest;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::database::get_hasura_pool;
 use crate::services::database::{get_keycloak_pool, PgConfig};
 use crate::services::electoral_log::{list_electoral_log, GetElectoralLogBody};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use chrono::{Local, NaiveDate, TimeZone, Utc};
+use chrono::{TimeZone, Utc};
 use deadpool_postgres::Client as DbClient;
-use rocket::http::Status;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use sequent_core::types::templates::EmailConfig;
@@ -27,19 +25,7 @@ use tracing::instrument;
 
 /// Struct for Audit Logs User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct UserData {}
-
-/// Struct for each Audit Log Entry
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct AuditLogEntry {
-    pub number: i64,
-    pub datetime: String,
-    pub username: String,
-    pub activity: String,
-}
-/// Struct for System Data
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct SystemData {
+pub struct UserData {
     pub election_date: String,
     pub election_title: String,
     pub voting_period: String,
@@ -64,6 +50,20 @@ pub struct SystemData {
     pub system_hash: String,
     pub time_printed: String,
     pub date_printed: String,
+}
+
+/// Struct for each Audit Log Entry
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AuditLogEntry {
+    pub number: i64,
+    pub datetime: String,
+    pub username: String,
+    pub activity: String,
+}
+/// Struct for System Data
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SystemData {
+    pub rendered_user_template: String
 }
 #[derive(Debug)]
 pub struct AuditLogsTemplate {
@@ -110,35 +110,31 @@ impl TemplateRenderer for AuditLogsTemplate {
     }
 
     #[instrument]
-
-    async fn prepare_system_data(
-        &self,
-        rendered_user_template: String,
-    ) -> Result<Self::SystemData> {
-        // Fetch the database client from the pool
+    async fn prepare_user_data(&self) -> Result<Self::UserData> {
+            // Fetch the database client from the pool
         let mut db_client: DbClient = get_hasura_pool()
             .await
             .get()
             .await
             .with_context(|| "Error getting DB pool")?;
-
+    
         let hasura_transaction = db_client
             .transaction()
             .await
             .with_context(|| "Error starting transaction")?;
-
+    
         let realm_name = get_event_realm(self.tenant_id.as_str(), self.election_event_id.as_str());
         let mut keycloak_db_client = get_keycloak_pool()
             .await
             .get()
             .await
             .with_context(|| "Error acquiring Keycloak DB pool")?;
-
+    
         let keycloak_transaction = keycloak_db_client
             .transaction()
             .await
             .with_context(|| "Error starting Keycloak transaction")?;
-
+    
         // get election instace
         let election = match get_election_by_id(
             &hasura_transaction,
@@ -152,7 +148,7 @@ impl TemplateRenderer for AuditLogsTemplate {
             Some(election) => election,
             None => return Err(anyhow::anyhow!("Election not found")),
         };
-
+    
         // get election instace's general data (post, country, etc...)
         let election_general_data = match extract_eleciton_data(&election).await {
             Ok(data) => data, // Extracting the ElectionData struct out of Ok
@@ -163,15 +159,21 @@ impl TemplateRenderer for AuditLogsTemplate {
                 )));
             }
         };
-
+    
         // Fetch election event data
         let start_election_event = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
             &self.get_tenant_id(),
             &self.get_election_event_id(),
         )
-        .await?;
+        .await
+        .map_err(|e| 
+            anyhow::anyhow!(format!(
+                "Error getting scheduled event by election event_id {:?}", e
+            )
+        ))?;
 
+    
         // Fetch election's voting periods
         let voting_period_dates = generate_voting_period_dates(
             start_election_event,
@@ -179,7 +181,7 @@ impl TemplateRenderer for AuditLogsTemplate {
             &self.get_election_event_id(),
             Some(&self.get_election_id().unwrap()),
         )?;
-
+    
         // extract start date from voting period
         let voting_period_start_date = match voting_period_dates.start_date {
             Some(voting_period_start_date) => voting_period_start_date,
@@ -198,13 +200,8 @@ impl TemplateRenderer for AuditLogsTemplate {
                 )))
             }
         };
-
-        // Parse the date start date from voting period into a NaiveDate
-        let parsed_date = NaiveDate::parse_from_str(&voting_period_start_date, "%Y-%m-%d")
-            .expect("Failed to parse date");
-        // Format the date to the desired format
-        let election_date = parsed_date.format("%B %d, %Y").to_string();
-
+    
+        let election_date = &voting_period_start_date;
         // Fetch list of audit logs
         let mut sequences: Vec<AuditLogEntry> = Vec::new();
         let electoral_logs = list_electoral_log(GetElectoralLogBody {
@@ -215,8 +212,13 @@ impl TemplateRenderer for AuditLogsTemplate {
             filter: None,
             order_by: None,
         })
-        .await?;
-
+        .await
+        .map_err(|e| 
+            anyhow::anyhow!(format!(
+                "Error in fetching list of electoral logs {:?}", e
+            )
+        ))?;
+    
         // itarate on list of audit logs and create array
         for item in &electoral_logs.items {
             // Convert the `created` timestamp from Unix time to a formatted date-time string
@@ -224,14 +226,14 @@ impl TemplateRenderer for AuditLogsTemplate {
                 .timestamp_opt(item.created, 0)
                 .single() // Handle the Option, get Some(T) or None
                 .expect("Invalid timestamp");
-            let formatted_datetime: String = created_datetime.format("%Y-%m-%d %H:%M").to_string();
-
+            let formatted_datetime: String = created_datetime.to_string();
+    
             // Set default username if user_id is None
             let username = item
                 .user_id
                 .clone()
                 .unwrap_or_else(|| "Unknown User".to_string());
-
+    
             // Map fields from `ElectoralLogRow` to `AuditLogEntry`
             let audit_log_entry = AuditLogEntry {
                 number: item.id, // Increment number for each item
@@ -239,31 +241,48 @@ impl TemplateRenderer for AuditLogsTemplate {
                 username,
                 activity: item.statement_kind.clone(), // Assuming `statement_kind` is the activity
             };
-
+    
             // Push the constructed `AuditLogEntry` to the sequences array
             sequences.push(audit_log_entry);
         }
-
+    
         // fetch total of registerd voters
         let registered_voters = get_total_number_of_registered_voters_for_country(
             &keycloak_transaction,
             &realm_name,
             &election_general_data.country,
         )
-        .await?;
-
-        let (ballots_counted, results_area_contests, contests) =
-            get_election_contests_area_results_and_total_ballot_counted(
-                &hasura_transaction,
-                &self.get_tenant_id(),
-                &self.get_election_event_id(),
-                &self.get_election_id().unwrap(),
+        .await
+        .map_err(|e| 
+            anyhow::anyhow!(format!(
+                "Error in getting the number of registered voters {:?}", e
             )
-            .await?;
+        ))?;
+    
+        let (ballots_counted, results_area_contests, contests) =
+        get_election_contests_area_results_and_total_ballot_counted(
+            &hasura_transaction,
+            &self.get_tenant_id(),
+            &self.get_election_event_id(),
+            &self.get_election_id().unwrap(),
+        )
+        .await
+        .map_err(|e| 
+            anyhow::anyhow!(format!(
+                "Error in getting election contests area results {:?}", e
+            )
+        ))?;
+    
+        let voters_turnout = generate_voters_turnout(&ballots_counted, &registered_voters)
+        .await
+        .map_err(|e| 
+            anyhow::anyhow!(format!(
+                "Error in generating voters turnout {:?}", e
+            )
+        ))?;
 
-        let voters_turnout = generate_voters_turnout(&ballots_counted, &registered_voters).await?;
         let (date_printed, time_printed) = get_date_and_time();
-
+    
         // Fetch necessary data (dummy placeholders for now)
         let chairperson_name = "John Doe".to_string();
         let poll_clerk_name = "Jane Smith".to_string();
@@ -275,9 +294,8 @@ impl TemplateRenderer for AuditLogsTemplate {
         let report_hash = "dummy_report_hash".to_string();
         let ovcs_version = "1.0".to_string();
         let system_hash = "dummy_system_hash".to_string();
-
-        Ok(SystemData {
-            election_date,
+        Ok(UserData {
+            election_date: election_date.to_string(),
             election_title: election.name,
             voting_period: format!("{} - {}", voting_period_start_date, voting_period_end_date),
             geographical_region: election_general_data.geographical_region,
@@ -301,6 +319,16 @@ impl TemplateRenderer for AuditLogsTemplate {
             system_hash,
             date_printed,
             time_printed,
+        })
+    }
+
+    #[instrument]
+    async fn prepare_system_data(
+        &self,
+        rendered_user_template: String,
+    ) -> Result<Self::SystemData> {
+        Ok(SystemData {
+            rendered_user_template
         })
     }
 }
