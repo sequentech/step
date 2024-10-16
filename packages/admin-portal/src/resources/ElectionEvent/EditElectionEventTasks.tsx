@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useState} from "react"
+import React, {useEffect, useState} from "react"
 import ElectionHeader from "@/components/ElectionHeader"
 import {useTranslation} from "react-i18next"
 import {ListTasks} from "../Tasks/ListTasks"
@@ -15,7 +15,11 @@ enum ViewMode {
     List,
 }
 
-export const EditElectionEventTasks: React.FC = () => {
+type TTask = {
+    showList?: string
+}
+
+export const EditElectionEventTasks: React.FC<TTask> = ({showList}) => {
     const electionEventRecord = useRecordContext<Sequent_Backend_Election_Event>()
     const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.List)
     const [currTaskId, setCurrTaskId] = useState<string | Identifier | null>(null)
@@ -29,6 +33,13 @@ export const EditElectionEventTasks: React.FC = () => {
     const onViewList = () => {
         setViewMode(ViewMode.List)
     }
+
+    useEffect(() => {
+        if (showList) {
+            setViewMode(ViewMode.List)
+            setCurrTaskId(null)
+        }
+    }, [showList])
 
     return (
         <>
