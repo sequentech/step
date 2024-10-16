@@ -39,6 +39,8 @@ const PublishGenerateStyled = {
         align-items: center;
     `,
     Bottom: styled.div`
+        position: sticky;
+        bottom: 0;
         display: flex;
         padding: 8px 16px;
         width: 100%;
