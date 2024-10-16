@@ -199,12 +199,6 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                             {t("common.label.next")}
                         </WizardStyles.NextButton>
                     )}
-                    {/*cancellable() ? (
-                    <CancelButton onClick={() => setOpenConfirmationModal(true)}>
-                        <CloseIcon />
-                        {t("keysGeneration.ceremonyStep.cancel")}
-                    </CancelButton>
-                ) : null*/}
                 </WizardStyles.StyledFooter>
             </WizardStyles.FooterContainer>
             <Dialog
