@@ -383,6 +383,15 @@ KEYCLOAK_CLI_CLIENT_SECRET=wBy8rpuKQxPWikQ3rIFv9g42t0WK0Xiu
 CLOUDFLARE_ZONE=
 CLOUDFLARE_API_KEY=
 CUSTOM_URLS_IP_DNS_CONTENT=
+
+# B3 configuration
+B3_PG_HOST=postgres
+B3_PG_PORT=5432
+B3_PG_USER=postgres
+B3_PG_PASSWORD=postgrespassword
+B3_PG_DATABASE=b3
+B3_BIND=0.0.0.0:50051
+B3_URL=http://b3:50051
 EOF
 
     tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL .env
@@ -392,6 +401,33 @@ EOF
 add-janitor-to-tarball() {
     JANITOR_PARENT="${PROJECT_ROOT}/packages/windmill/external-bin/"
     tar --append -C $JANITOR_PARENT --file=$DELIVERABLE_TARBALL janitor
+}
+
+add-database-init-to-tarball() {
+    tmpdir=$(mktemp -d)
+    mkdir -p $tmpdir/initdb
+    cat <<'EOF' > $tmpdir/initdb/b3.sql
+SELECT 'CREATE DATABASE b3'
+    WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'b3')\gexec
+
+\c b3
+
+CREATE TABLE IF NOT EXISTS INDEX (
+            id SERIAL PRIMARY KEY,
+            board_name VARCHAR UNIQUE,
+            is_archived BOOLEAN,
+            cfg_id VARCHAR,
+            threshold_no INT,
+            trustees_no INT,
+            last_message_kind VARCHAR,
+            last_updated TIMESTAMP,
+            message_count INT,
+            batch_count INT DEFAULT 0,
+            UNIQUE(board_name)
+        );
+EOF
+
+    tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL initdb
 }
 
 add-readme-to-tarball() {
@@ -566,6 +602,7 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
       - db_logs:/logs
+      - ./initdb:/docker-entrypoint-initdb.d
     environment:
       POSTGRES_PASSWORD: ${HASURA_PG_PASSWORD}
     healthcheck:
@@ -918,8 +955,34 @@ services:
       CLOUDFLARE_ZONE: ${CLOUDFLARE_ZONE}
       CLOUDFLARE_API_KEY: ${CLOUDFLARE_API_KEY}
       CUSTOM_URLS_IP_DNS_CONTENT: ${CUSTOM_URLS_IP_DNS_CONTENT}
+      B3_PG_HOST: ${B3_PG_HOST}
+      B3_PG_PORT: ${B3_PG_PORT}
+      B3_PG_USER: ${B3_PG_USER}
+      B3_PG_PASSWORD: ${B3_PG_PASSWORD}
+      B3_PG_DATABASE: ${B3_PG_DATABASE}
     ports:
      - ${HARVEST_PORT}:${HARVEST_PORT}
+
+  b3:
+    profiles: ["full", "base"]
+    stdin_open: true
+    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/b3:STEP_VERSION
+    container_name: b3
+    restart: always
+    ports:
+      - "50051:50051"
+    command: ["--host", "${B3_PG_HOST}", "--port", "${B3_PG_PORT}", "--username", "${B3_PG_USER}", "--password", "${B3_PG_PASSWORD}", "--database", "${B3_PG_DATABASE}", "--bind", "0.0.0.0:50051"]
+    environment:
+      RUSTFLAGS: ${RUSTFLAGS}
+      RUST_BACKTRACE: ${RUST_BACKTRACE}
+      LOG_LEVEL: ${LOG_LEVEL}
+      CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
+      B3_PG_HOST: ${B3_PG_HOST}
+      B3_PG_PORT: ${B3_PG_PORT}
+      B3_PG_USER: ${B3_PG_USER}
+      B3_PG_PASSWORD: ${B3_PG_PASSWORD}
+      B3_PG_DATABASE: ${B3_PG_DATABASE}
+      B3_BIND: ${B3_BIND}
 
   trustee1:
     profiles: ["full"]
@@ -930,16 +993,13 @@ services:
     volumes:
       - ./trustees-data/trustee1/trustee1.toml:/opt/braid/trustee1.toml
     environment:
-        IMMUDB_USER: ${IMMUDB_USER}
-        IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-        IMMUDB_URL: ${IMMUDB_SERVER_URL}
-        IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
         TRUSTEE_NAME: trustee1
         TRUSTEE_CONFIG: ${TRUSTEE1_CONFIG}
         IGNORE_BOARDS: ${IGNORE_BOARDS}
         SECRETS_BACKEND: ${SECRETS_BACKEND}
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
         VAULT_TOKEN: ${VAULT_TOKEN}
+        B3_URL: ${B3_URL}
     depends_on:
       immudb:
         condition: service_healthy
@@ -956,16 +1016,13 @@ services:
       immudb:
         condition: service_healthy
     environment:
-        IMMUDB_USER: ${IMMUDB_USER}
-        IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-        IMMUDB_URL: ${IMMUDB_SERVER_URL}
-        IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
         TRUSTEE_NAME: trustee2
         TRUSTEE_CONFIG: ${TRUSTEE2_CONFIG}
         IGNORE_BOARDS: ${IGNORE_BOARDS}
         SECRETS_BACKEND: ${SECRETS_BACKEND}
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
         VAULT_TOKEN: ${VAULT_TOKEN}
+        B3_URL: ${B3_URL}
 
   # trustee3:
   #   profiles: ["full"]
@@ -979,16 +1036,13 @@ services:
   #     immudb:
   #       condition: service_healthy
   #   environment:
-  #       IMMUDB_USER: ${IMMUDB_USER}
-  #       IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-  #       IMMUDB_URL: ${IMMUDB_SERVER_URL}
-  #       IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
   #       TRUSTEE_NAME: trustee3
   #       TRUSTEE_CONFIG: ${TRUSTEE3_CONFIG}
   #       IGNORE_BOARDS: ${IGNORE_BOARDS}
   #       SECRETS_BACKEND: ${SECRETS_BACKEND}
   #       VAULT_SERVER_URL: ${VAULT_SERVER_URL}
   #       VAULT_TOKEN: ${VAULT_TOKEN}
+  #       B3_URL: ${B3_URL}
 
   # Create collection in immudb
   immudb-log-audit-init:
@@ -1192,6 +1246,11 @@ services:
       VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE: ${VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE}
        #Demo key
       DEMO_PUBLIC_KEY: ${DEMO_PUBLIC_KEY}
+      B3_PG_HOST: ${B3_PG_HOST}
+      B3_PG_PORT: ${B3_PG_PORT}
+      B3_PG_USER: ${B3_PG_USER}
+      B3_PG_PASSWORD: ${B3_PG_PASSWORD}
+      B3_PG_DATABASE: ${B3_PG_DATABASE}
 
   beat:
     profiles: ["full"]
@@ -1298,6 +1357,7 @@ add-keycloak-data-to-tarball
 add-trustees-data-to-tarball
 add-hasura-data-to-tarball
 add-up-script-to-tarball
+add-database-init-to-tarball
 add-readme-to-tarball
 add-janitor-to-tarball
 
