@@ -848,6 +848,7 @@ services:
     stdin_open: true
     image: sequentech.local/cargo-packages
     container_name: b3
+    restart: always
     ports:
       - "50051:50051"
     build:
@@ -873,6 +874,10 @@ services:
       "run --bin server -- --host $B3_PG_HOST --port $B3_PG_PORT --username $B3_PG_USER --password $B3_PG_PASSWORD --database $B3_PG_DATABASE --bind $B3_BIND",
     ]
     environment:
+      RUSTFLAGS: ${RUSTFLAGS}
+      RUST_BACKTRACE: ${RUST_BACKTRACE}
+      LOG_LEVEL: ${LOG_LEVEL}
+      CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
       B3_PG_HOST: ${B3_PG_HOST}
       B3_PG_PORT: ${B3_PG_PORT}
       B3_PG_USER: ${B3_PG_USER}
