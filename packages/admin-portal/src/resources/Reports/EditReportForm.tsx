@@ -62,6 +62,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
     useEffect(() => {
         console.log("isCronActive", isCronActive)
     }, [])
+
     const {
         data: report,
         isLoading,
@@ -71,6 +72,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
         { id: reportId },
         { enabled: isEditReport }
     )
+
     const reportTypeChoices = Object.values(EReportType).map((reportType) => ({
         id: reportType,
         name: t(`reportsScreen.reportType.${reportType}`),
@@ -101,6 +103,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
 
         const formData = {
             ...values,
+            template_id: templateId,
             tenant_id: tenantId,
             election_event_id: electionEventId,
             cron_config: {

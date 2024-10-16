@@ -31,7 +31,7 @@ const SelectTemplate = ({
     disabled,
     value,
     isRequired,
-    isAlias
+    isAlias = false
 }: SelectTemplateProps) => {
     const dataProvider = useDataProvider();
 
@@ -45,19 +45,14 @@ const SelectTemplate = ({
 
 
     const handleTemplateChange = async (id: string) => {
-        
-        console.log('handleTemplateChange id', id)
         try {
             // use template alias as ID 
             if (onSelectTemplate && isAlias) {
                 const { data } = await dataProvider.getOne('sequent_backend_template', { id });
-                console.log("data isAlias", data)
-                console.log('data.template.alias', data.template.alias)
                 onSelectTemplate(data.template.alias);
             }
             else {
-                // Use the template id as ID
-                return
+                onSelectTemplate && onSelectTemplate(id);
             }
         } catch (error) {
             console.error("Failed to fetch template:", error);
