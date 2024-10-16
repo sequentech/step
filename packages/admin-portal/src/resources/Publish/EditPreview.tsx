@@ -291,6 +291,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
             onSubmit={onPreviewClick}
             toolbar={
                 <SaveButton
+                    disabled={!areaId}
                     icon={<Preview />}
                     label={t("publish.preview.action")}
                     sx={{marginInline: "1rem"}}
