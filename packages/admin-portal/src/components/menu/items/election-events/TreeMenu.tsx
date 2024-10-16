@@ -192,7 +192,6 @@ function TreeMenuItem({
         // set context tally to null to allow navigation to new election event tally
         setTallyId(null)
         // set context task to null to allow navigation to new election event task
-        console.log("aa CAMBIO DE TERCIO")
         setTaskId(null)
     }, [location.pathname])
 
