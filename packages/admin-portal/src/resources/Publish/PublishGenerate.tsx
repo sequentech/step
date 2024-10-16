@@ -9,14 +9,39 @@ import styled from "@emotion/styled"
 import {Box} from "@mui/material"
 import {Button} from "react-admin"
 import {useTranslation} from "react-i18next"
-import {ArrowBackIosNew, Publish} from "@mui/icons-material"
+import {Publish} from "@mui/icons-material"
+import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 
 import {DiffView} from "@/components/DiffView"
 import {PublishActions} from "./PublishActions"
 import {EPublishActionsType} from "./EPublishType"
 import {PublishStatus} from "./EPublishStatus"
+import {CancelButton} from "../Tally/styles"
 
 const PublishGenerateStyled = {
+    WizardContainer: styled.div`
+        display: flex;
+        flex-direction: column;
+        min-height: 100%;
+    `,
+    ContentWrapper: styled.div`
+        flex-grow: 1;
+        overflow-y: auto;
+        padding-bottom: 1rem; // Add some padding at the bottom to prevent content from being hidden behind the footer
+    `,
+    FooterContainer: styled.div`
+        width: 100%;
+        position: sticky;
+        bottom: 0;
+        background-color: ${({theme}) => theme.palette.background.default};
+        box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
+    `,
+    StyledFooter: styled.div`
+        margin: 0 auto;
+        display: flex;
+        justify-content: space-between;
+        padding: 1rem;
+    `,
     Container: styled.div`
         display: flex;
         flex-direction: column;
@@ -72,18 +97,18 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
     const {t} = useTranslation()
 
     return (
-        <Box sx={{flexGrow: 2, flexShrink: 0}}>
-            {!readOnly && (
-                <PublishActions
-                    status={status}
-                    changingStatus={changingStatus}
-                    onPublish={onPublish}
-                    onGenerate={onGenerate}
-                    type={EPublishActionsType.Generate}
-                />
-            )}
+        <PublishGenerateStyled.WizardContainer>
+            <PublishGenerateStyled.ContentWrapper>
+                {!readOnly && (
+                    <PublishActions
+                        status={status}
+                        changingStatus={changingStatus}
+                        onPublish={onPublish}
+                        onGenerate={onGenerate}
+                        type={EPublishActionsType.Generate}
+                    />
+                )}
 
-            <PublishGenerateStyled.Container>
                 <PublishGenerateStyled.AccordionHeaderTitle>
                     {readOnly ? t("publish.header.viewChange") : t("publish.header.change")}
                 </PublishGenerateStyled.AccordionHeaderTitle>
@@ -97,19 +122,14 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
                     modify={data?.current || null}
                     fetchAllPublishChanges={fetchAllPublishChanges}
                 />
+            </PublishGenerateStyled.ContentWrapper>
 
-                <PublishGenerateStyled.Bottom>
-                    <Button
-                        onClick={onBack}
-                        label={t("publish.action.back")}
-                        className="publish-back-button"
-                        style={{
-                            backgroundColor: "#eee",
-                            color: "#0f054c",
-                        }}
-                    >
-                        <ArrowBackIosNew />
-                    </Button>
+            <PublishGenerateStyled.FooterContainer>
+                <PublishGenerateStyled.StyledFooter>
+                    <CancelButton onClick={onBack} className="list-actions">
+                        <ArrowBackIosIcon />
+                        {t("common.label.back")}
+                    </CancelButton>
 
                     {!readOnly && (
                         <Button
@@ -123,8 +143,8 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
                             <Publish />
                         </Button>
                     )}
-                </PublishGenerateStyled.Bottom>
-            </PublishGenerateStyled.Container>
-        </Box>
+                </PublishGenerateStyled.StyledFooter>
+            </PublishGenerateStyled.FooterContainer>
+        </PublishGenerateStyled.WizardContainer>
     )
 }
