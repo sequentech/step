@@ -116,7 +116,7 @@ const App = () => {
         >
             <ScrollRestoration />
             <ApolloWrapper>
-                {globalSettings.DISABLE_AUTH ? <Header /> : <Header />}
+                <HeaderWithContext />
                 <PageBanner
                     marginBottom="auto"
                     sx={{display: "flex", position: "relative", flex: 1}}

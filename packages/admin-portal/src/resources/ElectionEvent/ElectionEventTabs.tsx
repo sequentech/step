@@ -66,12 +66,13 @@ export const ElectionEventTabs: React.FC = () => {
     const authContext = useContext(AuthContext)
     const showVoters = authContext.isAuthorized(true, authContext.tenantId, IPermissions.VOTER_READ)
     const [showKeysList, setShowKeysList] = React.useState<string | null>(null)
+    const [showPublishList, setShowPublishList] = React.useState<string | undefined>()
     const [tabKey, setTabKey] = React.useState<string>(uuidv4())
     const location = useLocation()
     const navigate = useNavigate()
     const refreshRef = React.useRef<HTMLButtonElement>()
     const {t} = useTranslation()
-    const {setTallyId, setCreatingFlag, setSelectedTallySessionData} = useElectionEventTallyStore()
+    const {setTallyId} = useElectionEventTallyStore()
     const isElectionEventLocked =
         record?.presentation?.locked_down == EElectionEventLockedDown.LOCKED_DOWN
 
@@ -214,7 +215,11 @@ export const ElectionEventTabs: React.FC = () => {
             case 7:
                 return showPublish && record?.id ? (
                     <Suspense fallback={<div>Loading Publish...</div>}>
-                        <Publish electionEventId={record?.id} type={EPublishType.Event} />
+                        <Publish
+                            electionEventId={record?.id}
+                            type={EPublishType.Event}
+                            showList={showPublishList}
+                        />
                     </Suspense>
                 ) : null
             case 8:
@@ -277,12 +282,30 @@ export const ElectionEventTabs: React.FC = () => {
                     {showAreas ? (
                         <Tab label={t("electionEventScreen.tabs.areas")} value={4} />
                     ) : null}
-                    {showKeys ? <Tab label={t("electionEventScreen.tabs.keys")} value={5} /> : null}
+                    {showKeys ? (
+                        <Tab
+                            label={t("electionEventScreen.tabs.keys")}
+                            value={5}
+                            onClick={() => {
+                                setShowKeysList(uuidv4())
+                            }}
+                        />
+                    ) : null}
                     {showTally ? (
-                        <Tab label={t("electionEventScreen.tabs.tally")} value={6} />
+                        <Tab
+                            label={t("electionEventScreen.tabs.tally")}
+                            value={6}
+                            onClick={() => setTallyId(null)}
+                        />
                     ) : null}
                     {showPublish ? (
-                        <Tab label={t("electionEventScreen.tabs.publish")} value={7} />
+                        <Tab
+                            label={t("electionEventScreen.tabs.publish")}
+                            value={7}
+                            onClick={() => {
+                                setShowPublishList(uuidv4())
+                            }}
+                        />
                     ) : null}
                     {showTasksExecution ? (
                         <Tab label={t("electionEventScreen.tabs.tasks")} value={8} />

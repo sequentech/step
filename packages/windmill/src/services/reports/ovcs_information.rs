@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    extract_eleciton_data, get_date_and_time, get_total_number_of_registered_voters_for_country,
+    extract_election_data, get_date_and_time, get_total_number_of_registered_voters_for_country,
 };
 use super::template_renderer::*;
 use crate::postgres::election::get_election_by_id;
@@ -152,7 +152,7 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
         ))?;
 
         // get election instace's general data (post, country, etc...)
-        let election_general_data = extract_eleciton_data(&election)
+        let election_general_data = extract_election_data(&election)
             .await
             .map_err(|err| anyhow!("cant extract election data: {err}"))?;
 
