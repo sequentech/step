@@ -1,5 +1,5 @@
 use super::report_variables::{
-    extract_eleciton_data, get_election_contests_area_results_and_total_ballot_counted, get_total_number_of_ballots, get_total_number_of_registered_voters_for_country
+    extract_election_data, get_election_contests_area_results_and_total_ballot_counted, get_total_number_of_ballots, get_total_number_of_registered_voters_for_country
 };
 use super::template_renderer::*;
 use crate::postgres::candidate::get_candidates_by_contest_id;
@@ -148,7 +148,7 @@ impl TemplateRenderer for InitializationTemplate {
         };
 
         // get election instace's general data (post, country, etc...)
-        let election_general_data = match extract_eleciton_data(&election).await {
+        let election_general_data = match extract_election_data(&election).await {
             Ok(data) => data,
             Err(err) => {
                 return Err(anyhow::anyhow!(format!(
