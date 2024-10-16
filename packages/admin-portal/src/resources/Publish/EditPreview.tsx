@@ -242,11 +242,13 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
             const file = new File([dataStr], `${id}.json`, {type: "application/json"})
             const docId = await uploadFileToS3(file)
             setDocumentId(docId)
+            return docId
         }
 
         const handleDocumentProcess = async () => {
-            if (!documentId) await startUpload()
-            openPreview(documentId)
+            let docId = documentId;
+            if (!docId) docId = await startUpload()
+            openPreview(docId)
             if (close) close()
         }
 
