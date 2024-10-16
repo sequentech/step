@@ -8,6 +8,7 @@ use crate::{
 };
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
+use sequent_core::types::hasura::core::TasksExecution;
 use tracing::{event, instrument, Level};
 
 #[instrument(err)]
@@ -18,8 +19,16 @@ pub async fn generate_activity_logs_report(
     election_event_id: String,
     document_id: String,
     format: ReportFormat,
+    task_execution: TasksExecution,
 ) -> Result<()> {
-    let data = generate_report(&tenant_id, &election_event_id, &document_id, format).await?;
+    let _data = generate_report(
+        &tenant_id,
+        &election_event_id,
+        &document_id,
+        format,
+        task_execution.clone(),
+    )
+    .await?;
 
     Ok(())
 }

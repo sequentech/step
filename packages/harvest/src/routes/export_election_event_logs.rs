@@ -38,13 +38,14 @@ pub async fn export_election_event_logs_route(
 ) -> Result<Json<ExportElectionEventOutput>, (Status, String)> {
     let body = input.into_inner();
 
+    info!("Format: {}", &body.format);
     let report_fmt = ReportFormat::from_str(&body.format).map_err(|error| {
         (
             Status::InternalServerError,
             format!("Error sending export_election_event task: {error:?}"),
         )
     })?;
-
+    info!("{:?}", report_fmt);
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let election_event_id = body.election_event_id.clone();
 
@@ -72,7 +73,7 @@ pub async fn export_election_event_logs_route(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::LOGS_READ],
+        vec![Permissions::REPORT_WRITE],
     ) {
         let _ = update_fail(
             &task_execution,
@@ -92,11 +93,12 @@ pub async fn export_election_event_logs_route(
                 election_event_id,
                 document_id.clone(),
                 report_fmt,
+                task_execution.clone(),
             ),
         )
         .await;
 
-    let _ = match celery_task_result {
+    let celery_task = match celery_task_result {
         Ok(task) => task,
         Err(error) => {
             let _ = update_fail(

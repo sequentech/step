@@ -47,8 +47,9 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
     setOpenExport,
     exportFormat,
 }) => {
+    console.log(exportFormat)
     const [exportDocumentId, setExportDocumentId] = React.useState<string | undefined>()
-    const [exportElectionEvent] = useMutation(EXPORT_ELECTION_EVENT_LOGS, {
+    const [exportElectionEventActivityLogs] = useMutation(EXPORT_ELECTION_EVENT_LOGS, {
         context: {
             headers: {
                 "x-hasura-role": IPermissions.LOGS_READ,
@@ -62,8 +63,8 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
     const confirmExportAction = async () => {
         try {
             setOpenExport(false)
-            const currWidget = addWidget(ETasksExecution.EXPORT_ELECTION_EVENT)
-            const {data: exportElectionEventData, errors} = await exportElectionEvent({
+            const currWidget = addWidget(ETasksExecution.EXPORT_ACTIVITY_LOGS_REPORT)
+            const {data: exportElectionEventData, errors} = await exportElectionEventActivityLogs({
                 variables: {
                     electionEventId,
                     format: exportFormat,

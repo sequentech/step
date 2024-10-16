@@ -10,6 +10,7 @@ use crate::services::electoral_log::{
 };
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::s3::get_minio_url;
+use crate::services::tasks_execution::*;
 use crate::services::temp_path::*;
 use crate::services::temp_path::{generate_temp_file, get_file_size};
 use crate::types::resources::DataList;
@@ -21,6 +22,7 @@ use deadpool_postgres::{Client as DbClient, Transaction};
 use headless_chrome::types::PrintToPdfOptions;
 use sequent_core::services::reports::{format_datetime, timestamp_to_rfc2822};
 use sequent_core::types::hasura::core::Document;
+use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -310,15 +312,18 @@ pub async fn generate_report(
     election_event_id: &str,
     document_id: &str,
     format: ReportFormat,
+    task_execution: TasksExecution,
 ) -> Result<()> {
     let template = ActivityLogsTemplate {
         tenant_id: tenant_id.to_string(),
         election_event_id: election_event_id.to_string(),
     };
 
-    match format {
+    let res = match format {
         ReportFormat::CSV => {
-            generate_csv_report(tenant_id, election_event_id, document_id, &template).await
+            generate_csv_report(tenant_id, election_event_id, document_id, &template)
+                .await
+                .with_context(|| "Error generating CSV report")
         }
         ReportFormat::PDF => {
             // Set landscape to make more space for the columns
@@ -351,6 +356,21 @@ pub async fn generate_report(
                     GenerateReportMode::REAL,
                 )
                 .await
+                .with_context(|| "Error generating PDF report")
         }
+    };
+
+    // Check if the report generation was fail and update the task execution status
+    if res.is_err() {
+        update_fail(
+            &task_execution,
+            &format!("Error generating {:?} report.", format),
+        )
+        .await?;
     }
+
+    update_complete(&task_execution)
+        .await
+        .context("Failed to update task execution status to COMPLETED")?;
+    Ok(())
 }
