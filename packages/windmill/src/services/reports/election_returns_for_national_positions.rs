@@ -57,7 +57,7 @@ pub struct Candidate {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SystemData {
-    pub rendered_user_template: String
+    pub rendered_user_template: String,
 }
 
 #[derive(Debug)]
@@ -137,14 +137,14 @@ impl TemplateRenderer for ElectionReturnsForNationalPostionTemplate {
         // TODO: replace mock data with actual data
         // Extract candidate names and acronyms
         let candidates: Vec<Candidate> = Vec::new(); // Assuming the structure has candidates array
-        // let mut candidate_data: Vec<CandidateData> = Vec::new();
-        // for candidate in candidates {
-        //     candidate_data.push(CandidateData {
-        //         name_appearing_on_ballot: candidate.name_appearing_on_ballot.clone(),
-        //         acronym: candidate.acronym.clone(), // Assuming acronym is part of the candidate structure
-        //         votes_garnered: 0, // Default value since no votes have been cast yet
-        //     });
-        // }
+                                                     // let mut candidate_data: Vec<CandidateData> = Vec::new();
+                                                     // for candidate in candidates {
+                                                     //     candidate_data.push(CandidateData {
+                                                     //         name_appearing_on_ballot: candidate.name_appearing_on_ballot.clone(),
+                                                     //         acronym: candidate.acronym.clone(), // Assuming acronym is part of the candidate structure
+                                                     //         votes_garnered: 0, // Default value since no votes have been cast yet
+                                                     //     });
+                                                     // }
 
         let election_title = election_event.name.clone();
         let temp_val: &str = "test";
@@ -189,7 +189,7 @@ impl TemplateRenderer for ElectionReturnsForNationalPostionTemplate {
         rendered_user_template: String,
     ) -> Result<Self::SystemData> {
         Ok(SystemData {
-            rendered_user_template
+            rendered_user_template,
         })
     }
 }

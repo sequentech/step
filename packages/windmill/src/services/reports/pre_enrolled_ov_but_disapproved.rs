@@ -46,7 +46,7 @@ pub struct Voter {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SystemData {
     pub rendered_user_template: String,
-    pub file_qrcode_lib: String
+    pub file_qrcode_lib: String,
 }
 
 #[derive(Debug)]
@@ -91,12 +91,10 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
     /// TODO: fetch the real data
     #[instrument]
     async fn prepare_user_data(&self) -> Result<Self::UserData> {
-        let data: UserData = self.prepare_preview_data().await
-        .map_err(|e| 
-            anyhow::anyhow!(format!(
-                "Error preparing report preview {:?}", e
-            )
-        ))?;
+        let data: UserData = self
+            .prepare_preview_data()
+            .await
+            .map_err(|e| anyhow::anyhow!(format!("Error preparing report preview {:?}", e)))?;
         Ok(data)
     }
 
@@ -109,7 +107,7 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
         let file_qrcode_lib: &str = "test";
         Ok(SystemData {
             rendered_user_template,
-            file_qrcode_lib: file_qrcode_lib.to_string()
+            file_qrcode_lib: file_qrcode_lib.to_string(),
         })
     }
 }

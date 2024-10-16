@@ -145,11 +145,9 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
             &self.get_election_event_id(),
         )
         .await
-        .map_err(|e| 
-            anyhow::anyhow!(format!(
-                "Error getting event by election event id {:?}", e
-            )
-        ))?;
+        .map_err(|e| {
+            anyhow::anyhow!(format!("Error getting event by election event id {:?}", e))
+        })?;
 
         // get election instace's general data (post, country, etc...)
         let election_general_data = extract_election_data(&election)
@@ -199,11 +197,12 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
             &election_general_data.country,
         )
         .await
-        .map_err(|e| 
+        .map_err(|e| {
             anyhow::anyhow!(format!(
-                "Error getting total number of registered voters {:?}", e
-            )
-        ))?;
+                "Error getting total number of registered voters {:?}",
+                e
+            ))
+        })?;
 
         let (date_printed, time_printed) = get_date_and_time();
         let election_date = &voting_period_start_date;
@@ -238,7 +237,7 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
         let temp_val: &str = "test";
         Ok(SystemData {
             rendered_user_template,
-            file_qrcode_lib: temp_val.to_string()
+            file_qrcode_lib: temp_val.to_string(),
         })
     }
 }

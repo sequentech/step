@@ -32,7 +32,7 @@ pub struct UserData {
 // Struct to hold system data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SystemData {
-    pub rendered_user_template: String
+    pub rendered_user_template: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -96,12 +96,10 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
 
     #[instrument]
     async fn prepare_user_data(&self) -> Result<Self::UserData> {
-        let data: UserData = self.prepare_preview_data().await
-        .map_err(|e| 
-            anyhow::anyhow!(format!(
-                "Error preparing report preview {:?}", e
-            )
-        ))?;
+        let data: UserData = self
+            .prepare_preview_data()
+            .await
+            .map_err(|e| anyhow::anyhow!(format!("Error preparing report preview {:?}", e)))?;
         Ok(data)
     }
 
@@ -112,7 +110,7 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
         rendered_user_template: String,
     ) -> Result<Self::SystemData> {
         Ok(SystemData {
-            rendered_user_template
+            rendered_user_template,
         })
     }
 }

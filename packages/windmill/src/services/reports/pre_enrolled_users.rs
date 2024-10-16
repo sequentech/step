@@ -194,7 +194,7 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
         let file_qrcode_lib: &str = "test";
         Ok(SystemData {
             rendered_user_template,
-            file_qrcode_lib: file_qrcode_lib.to_string()
+            file_qrcode_lib: file_qrcode_lib.to_string(),
         })
     }
 }

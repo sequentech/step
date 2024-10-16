@@ -101,12 +101,10 @@ impl TemplateRenderer for OVCSEventsTemplate {
 
     #[instrument]
     async fn prepare_user_data(&self) -> Result<Self::UserData> {
-        let data: UserData = self.prepare_preview_data().await
-        .map_err(|e| 
-            anyhow::anyhow!(format!(
-                "Error preparing report preview {:?}", e
-            )
-        ))?;
+        let data: UserData = self
+            .prepare_preview_data()
+            .await
+            .map_err(|e| anyhow::anyhow!(format!("Error preparing report preview {:?}", e)))?;
         Ok(data)
     }
 
@@ -117,7 +115,7 @@ impl TemplateRenderer for OVCSEventsTemplate {
         rendered_user_template: String,
     ) -> Result<Self::SystemData> {
         Ok(SystemData {
-            rendered_user_template
+            rendered_user_template,
         })
     }
 }

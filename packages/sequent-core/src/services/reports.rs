@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use chrono::{DateTime, Local, ParseError, TimeZone};
 use handlebars::{
     Context, Handlebars, Helper, HelperResult, Output, RenderContext,
     RenderError, RenderErrorReason,
@@ -10,8 +11,6 @@ use num_format::{Locale, ToFormattedString};
 use serde_json::{json, Map, Value};
 use std::collections::{HashMap, HashSet};
 use tracing::instrument;
-use chrono::{DateTime, Local, TimeZone, ParseError};
-
 
 #[instrument(skip_all, err)]
 pub fn render_template_text(
@@ -128,36 +127,42 @@ pub fn format_date(
     // Extract the date string from the first parameter
     let date_str: &str = helper
         .param(0)
-        .ok_or(RenderErrorReason::ParamNotFoundForIndex(
-            "format_date",
-            0,
-        ))?
+        .ok_or(RenderErrorReason::ParamNotFoundForIndex("format_date", 0))?
         .value()
         .as_str()
-        .ok_or(RenderErrorReason::InvalidParamType("couldn't parse as &str"))?;
+        .ok_or(RenderErrorReason::InvalidParamType(
+            "couldn't parse as &str",
+        ))?;
 
     // Extract the dynamic format string from the second parameter
     let format_str: &str = helper
         .param(1)
-        .ok_or(RenderErrorReason::ParamNotFoundForIndex(
-            "format_date",
-            1,
-        ))?
+        .ok_or(RenderErrorReason::ParamNotFoundForIndex("format_date", 1))?
         .value()
         .as_str()
-        .ok_or(RenderErrorReason::InvalidParamType("couldn't parse as &str"))?;
+        .ok_or(RenderErrorReason::InvalidParamType(
+            "couldn't parse as &str",
+        ))?;
 
     // Detect the appropriate date parsing format dynamically
     let parsed_date = if date_str.contains(':') {
         // If the date string contains a time, assume "YYYY-MM-DD HH:MM:SS"
         DateTime::parse_from_str(date_str, "%Y-%m-%d %H:%M:%S")
-            .map_err(|err| RenderError::new(format!("Date parsing error: {}", err)))?
+            .map_err(|err| {
+                RenderError::new(format!("Date parsing error: {}", err))
+            })?
             .with_timezone(&Local) // Convert to local timezone
     } else {
-        // Otherwise, assume it's just a date "YYYY-MM-DD" and add a time placeholder
-        DateTime::parse_from_str(&format!("{} 00:00:00", date_str), "%Y-%m-%d %H:%M:%S")
-            .map_err(|err| RenderError::new(format!("Date parsing error: {}", err)))?
-            .with_timezone(&Local) // Convert to local timezone
+        // Otherwise, assume it's just a date "YYYY-MM-DD" and add a time
+        // placeholder
+        DateTime::parse_from_str(
+            &format!("{} 00:00:00", date_str),
+            "%Y-%m-%d %H:%M:%S",
+        )
+        .map_err(|err| {
+            RenderError::new(format!("Date parsing error: {}", err))
+        })?
+        .with_timezone(&Local) // Convert to local timezone
     };
 
     // Format the date using the provided format string

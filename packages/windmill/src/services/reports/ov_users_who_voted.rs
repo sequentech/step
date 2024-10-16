@@ -36,19 +36,19 @@ pub struct UserData {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SystemData {
     pub rendered_user_template: String,
-    pub file_qrcode_lib: String
+    pub file_qrcode_lib: String,
 }
 
 /// Struct for each voter
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Voter {
-    pub number: u32,         
-    pub last_name: String,   
-    pub first_name: String,  
-    pub middle_name: String, 
-    pub suffix: String,      
-    pub id: String,          
-    pub date_voted: String,  
+    pub number: u32,
+    pub last_name: String,
+    pub first_name: String,
+    pub middle_name: String,
+    pub suffix: String,
+    pub id: String,
+    pub date_voted: String,
 }
 
 /// Struct for OVUsersWhoVotedTemplate
@@ -153,7 +153,7 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
         let file_qrcode_lib: &str = "test";
         Ok(SystemData {
             rendered_user_template,
-            file_qrcode_lib: file_qrcode_lib.to_string()
+            file_qrcode_lib: file_qrcode_lib.to_string(),
         })
     }
 }

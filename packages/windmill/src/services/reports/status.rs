@@ -168,11 +168,12 @@ impl TemplateRenderer for StatusTemplate {
             &self.get_election_event_id(),
         )
         .await
-        .map_err(|e| 
+        .map_err(|e| {
             anyhow::anyhow!(format!(
-                "Error getting scheduled event by election_event_id {:?}", e
-            )
-        ))?;
+                "Error getting scheduled event by election_event_id {:?}",
+                e
+            ))
+        })?;
 
         // Fetch election's voting periods
         let voting_period_dates = generate_voting_period_dates(
@@ -208,11 +209,9 @@ impl TemplateRenderer for StatusTemplate {
             &election_general_data.country,
         )
         .await
-        .map_err(|e| 
-            anyhow::anyhow!(format!(
-                "Error getting number of registered voters {:?}", e
-            )
-        ))?;
+        .map_err(|e| {
+            anyhow::anyhow!(format!("Error getting number of registered voters {:?}", e))
+        })?;
 
         let (ballots_counted, results_area_contests, contests) =
             get_election_contests_area_results_and_total_ballot_counted(
@@ -222,11 +221,12 @@ impl TemplateRenderer for StatusTemplate {
                 &self.get_election_id().unwrap(),
             )
             .await
-        .map_err(|e| 
-            anyhow::anyhow!(format!(
-                "Error getting election contests area results {:?}", e
-            )
-        ))?;
+            .map_err(|e| {
+                anyhow::anyhow!(format!(
+                    "Error getting election contests area results {:?}",
+                    e
+                ))
+            })?;
 
         let (date_printed, time_printed) = get_date_and_time();
         let election_date = &voting_period_start_date.to_string();
@@ -266,7 +266,7 @@ impl TemplateRenderer for StatusTemplate {
         let temp_val: &str = "test";
         Ok(SystemData {
             rendered_user_template,
-            file_qrcode_lib: temp_val.to_string()
+            file_qrcode_lib: temp_val.to_string(),
         })
     }
 }

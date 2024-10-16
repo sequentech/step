@@ -11,7 +11,6 @@ use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 
-
 /// Struct for User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
@@ -51,7 +50,7 @@ pub struct Voter {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SystemData {
     pub rendered_user_template: String,
-    pub file_qrcode_lib: String
+    pub file_qrcode_lib: String,
 }
 
 #[derive(Debug)]
@@ -186,7 +185,7 @@ impl TemplateRenderer for OVUserTemplate {
         let temp_val: &str = "test";
         Ok(SystemData {
             rendered_user_template,
-            file_qrcode_lib: temp_val.to_string()
+            file_qrcode_lib: temp_val.to_string(),
         })
     }
 }

@@ -106,7 +106,6 @@ impl TemplateRenderer for StatisticalReportTemplate {
         }
     }
 
-
     #[instrument]
     async fn prepare_user_data(&self) -> Result<Self::UserData> {
         let mut keycloak_db_client: DbClient = get_keycloak_pool()
@@ -228,7 +227,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
         let temp_val: &str = "test";
         Ok(SystemData {
             rendered_user_template,
-            file_qrcode_lib: temp_val.to_string()
+            file_qrcode_lib: temp_val.to_string(),
         })
     }
 }

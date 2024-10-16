@@ -236,19 +236,11 @@ pub async fn get_election_contests_area_results_and_total_ballot_counted(
             &contest.id.clone(),
         )
         .await
-        .map_err(|e| 
-            anyhow::anyhow!(format!(
-                "Error getting results area contest {:?}", e
-            )
-        ))?;
+        .map_err(|e| anyhow::anyhow!(format!("Error getting results area contest {:?}", e)))?;
         // fetch the amount of ballot counted in the contest
         ballots_counted += get_total_number_of_ballots(&results_area_contest)
-        .await
-        .map_err(|e| 
-            anyhow::anyhow!(format!(
-                "Error getting number of ballots {:?}", e
-            )
-        ))?;
+            .await
+            .map_err(|e| anyhow::anyhow!(format!("Error getting number of ballots {:?}", e)))?;
         results_area_contests.push(results_area_contest.clone());
     }
     Ok((ballots_counted, results_area_contests, contests))

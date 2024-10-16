@@ -62,7 +62,7 @@ pub struct Voter {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SystemData {
     pub rendered_user_template: String,
-    pub file_qrcode_lib: String
+    pub file_qrcode_lib: String,
 }
 
 /// Main struct for generating Overseas Voters Report
@@ -106,12 +106,10 @@ impl TemplateRenderer for OverseasVotersReport {
     }
     #[instrument]
     async fn prepare_user_data(&self) -> Result<Self::UserData> {
-        let data: UserData = self.prepare_preview_data().await
-        .map_err(|e| 
-            anyhow::anyhow!(format!(
-                "Error preparing report preview {:?}", e
-            )
-        ))?;
+        let data: UserData = self
+            .prepare_preview_data()
+            .await
+            .map_err(|e| anyhow::anyhow!(format!("Error preparing report preview {:?}", e)))?;
         Ok(data)
     }
 
@@ -124,7 +122,7 @@ impl TemplateRenderer for OverseasVotersReport {
         let temp_val: &str = "test";
         Ok(SystemData {
             rendered_user_template,
-            file_qrcode_lib: temp_val.to_string()
+            file_qrcode_lib: temp_val.to_string(),
         })
     }
 }

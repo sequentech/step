@@ -57,18 +57,16 @@ pub trait TemplateRenderer: Debug {
     }
 
     async fn prepare_preview_data(&self) -> Result<Self::UserData> {
-        let json_data = self.get_preview_data_file().await
-        .map_err(|e| 
-            anyhow::anyhow!(format!(
-                "Error preparing report preview {:?}", e
-            )
-        ))?;
+        let json_data = self
+            .get_preview_data_file()
+            .await
+            .map_err(|e| anyhow::anyhow!(format!("Error preparing report preview {:?}", e)))?;
         let data: Self::UserData = serde_json::from_str(&json_data)?;
 
         Ok(data)
     }
     async fn prepare_user_data(&self) -> Result<Self::UserData>;
-    
+
     async fn prepare_system_data(&self, rendered_user_template: String)
         -> Result<Self::SystemData>;
 
@@ -181,14 +179,14 @@ pub trait TemplateRenderer: Debug {
             .map_err(|e| anyhow!("Error preparing user data: {e:?}"))?;
 
         let user_data_map = user_data
-        .to_map()
-        .map_err(|e| anyhow!("Error converting user data to map: {e:?}"))?;
+            .to_map()
+            .map_err(|e| anyhow!("Error converting user data to map: {e:?}"))?;
 
         info!("user data in template renderer: {:?}", user_data_map);
 
         let rendered_user_template =
-        reports::render_template_text(&user_template, user_data_map)
-            .map_err(|e| anyhow!("Error rendering user template: {e:?}"))?;
+            reports::render_template_text(&user_template, user_data_map)
+                .map_err(|e| anyhow!("Error rendering user template: {e:?}"))?;
 
         // Prepare system data
         let system_data = self
@@ -266,12 +264,9 @@ pub trait TemplateRenderer: Debug {
                 .get_email_receiver(receiver, tenant_id, election_event_id)
                 .await
                 .map_err(|err| anyhow!("Error getting email receiver: {err}"))?;
-            let email_sender = EmailSender::new().await
-            .map_err(|e| 
-                anyhow::anyhow!(format!(
-                    "Error getting email sender {:?}", e
-                )
-            ))?;
+            let email_sender = EmailSender::new()
+                .await
+                .map_err(|e| anyhow::anyhow!(format!("Error getting email sender {:?}", e)))?;
             email_sender
                 .send(
                     email_receiever,
@@ -305,12 +300,10 @@ pub trait TemplateRenderer: Debug {
                     .map_err(|err| anyhow!("Error initializing Keycloak client: {err}"))?;
 
                 let realm = get_event_realm(tenant_id, election_event_id);
-                let voter = client.get_user(&realm, &voter_id).await
-                .map_err(|e| 
-                    anyhow::anyhow!(format!(
-                        "Error getting user {:?}", e
-                    )
-                ))?;
+                let voter = client
+                    .get_user(&realm, &voter_id)
+                    .await
+                    .map_err(|e| anyhow::anyhow!(format!("Error getting user {:?}", e)))?;
                 voter
                     .email
                     .ok_or_else(|| anyhow!("Error sending email: no email provided"))

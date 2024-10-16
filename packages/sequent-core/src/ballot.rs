@@ -1155,7 +1155,6 @@ impl Default for ElectionEventStatus {
     EnumString,
     JsonSchema,
 )]
-
 #[derive(IntoStaticStr)]
 pub enum VotingStatus {
     NOT_STARTED,
