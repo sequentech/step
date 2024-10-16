@@ -40,6 +40,7 @@ import CreditScoreIcon from "@mui/icons-material/CreditScore"
 import PasswordIcon from "@mui/icons-material/Password"
 import DeleteIcon from "@mui/icons-material/Delete"
 import VisibilityIcon from "@mui/icons-material/Visibility"
+import FilterAlt from "@mui/icons-material/FilterAlt"
 import {EditUser} from "./EditUser"
 import {AudienceSelection, SendTemplate} from "./SendTemplate"
 import {CreateUser} from "./CreateUser"
@@ -62,7 +63,7 @@ import {MANUAL_VERIFICATION} from "@/queries/ManualVerification"
 import {useLazyQuery, useMutation, useQuery} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
-import {IRole, IUser} from "@sequentech/ui-core"
+import {IRole, IUser, translate} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {FormStyles} from "@/components/styles/FormStyles"
@@ -84,7 +85,6 @@ import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import SelectArea from "@/components/area/SelectArea"
 import {WidgetProps} from "@/components/Widget"
 import {ResetFilters} from "@/components/ResetFilters"
-import {AnyListenerPredicate} from "@reduxjs/toolkit"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -162,9 +162,8 @@ const CustomActionsMenu = ({
         </Menu>
     )
 }
-
 export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, electionId}) => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const [tenantId] = useTenantStore()
     const {globalSettings} = useContext(SettingsContext)
     const [isOpenSidebar] = useSidebarState()
@@ -752,9 +751,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     }
 
     const handleApplyCustomMenu = (filter: any) => {
-        console.log("aa filter", filter)
-        console.log("aa listContext.setFilters", ctx)
-
         if (ctx?.setFilters) {
             ctx?.setFilters({...ctx.filter, ...filter}, {})
         }
@@ -763,28 +759,39 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setOpenCustomMenu(false)
     }
 
-    useEffect(() => {
-        console.log("aa EFFECT CTX :: ", ctx)
-    }, [ctx])
-
     // effect
+
+    const resetCustomFilter = {
+        label: {
+            name: "Borrar filtro",
+            i18n: {
+                en: "Reset filter",
+            },
+        },
+        filter: {},
+    }
+
+    const testFilter = [
+        {
+            label: {
+                name: "Filtro a aplicar",
+                i18n: {
+                    en: "Filter by username and first name",
+                    es: "Filtrar por nombre de usuario y nombre",
+                },
+            },
+            filter: {
+                username: "en",
+                first_name: "En",
+            },
+        },
+    ]
+
     useEffect(() => {
         if (electionEvent && ctx) {
-            const customFilters = electionEvent?.presentation?.custom_filters || [
-                {
-                    label: {
-                        name: "filtro a aplicar",
-                        i18n: {
-                            "en": "filter to apply",
-                            "es": "filtrar para aplicar",
-                        }
-                    },
-                    filter: {
-                        username: "en",
-                    },
-                },
-            ]
+            let customFilters = electionEvent?.presentation?.custom_filters || [...testFilter]
             if (customFilters.length > 0) {
+                customFilters = [resetCustomFilter, ...customFilters]
                 setListActions((prev: ReactElement[]) => {
                     // prevent double adding the button
                     const customFilterExists = prev.some(
@@ -794,10 +801,17 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     if (!customFilterExists) {
                         // build the list of available filters
                         const customFiltersList = customFilters.map((item: any, index: number) => {
-                            const {name, filter} = item
+                            const {label, filter} = item
+                            console.log("aa customFiltersList :: ", label)
+                            console.log("aa i18n.language :: ", i18n.language.split("-")[0])
+
                             return (
                                 <MenuItem key={index} onClick={() => handleApplyCustomMenu(filter)}>
-                                    {t(name)}
+                                    {translate(
+                                        label.i18n,
+                                        i18n.language.split("-")[0],
+                                        i18n.language.split("-")[0]
+                                    ) || t(label.name)}
                                 </MenuItem>
                             )
                         })
@@ -812,6 +826,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                 variant="contained"
                                 onClick={handleClickCustomMenu}
                             >
+                                <FilterAlt />
                                 {t("common.label.filter")}
                             </Button>,
                         ]
@@ -1019,21 +1034,9 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         handleCloseCustomMenu={handleCloseCustomMenu}
                         customFiltersList={customFiltersList}
                         doContext={(ctx) => {
-                            console.log("aa *********", ctx)
                             setCtx(ctx)
                         }}
                     />
-                    {/* <Menu
-                        id="basic-menu"
-                        anchorEl={anchorEl}
-                        open={openCustomMenu}
-                        onClose={handleCloseCustomMenu}
-                        MenuListProps={{
-                            "aria-labelledby": "basic-button",
-                        }}
-                    >
-                        {customFiltersList}
-                    </Menu> */}
                     {/* Custom filters menu */}
                 </List>
             }
