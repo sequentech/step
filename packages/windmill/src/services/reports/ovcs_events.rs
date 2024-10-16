@@ -35,10 +35,7 @@ pub struct Region {
 }
 /// Struct for OVCSEvents Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct UserData {}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct SystemData {
+pub struct UserData {
     pub date_printed: String,
     pub time_printed: String,
     pub election_date: String,
@@ -56,6 +53,11 @@ pub struct SystemData {
     pub report_hash: String,
     pub ovcs_version: String,
     pub system_hash: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SystemData {
+    pub rendered_user_template: String,
 }
 
 #[derive(Debug)]
@@ -97,13 +99,24 @@ impl TemplateRenderer for OVCSEventsTemplate {
         }
     }
 
+    #[instrument]
+    async fn prepare_user_data(&self) -> Result<Self::UserData> {
+        let data: UserData = self
+            .prepare_preview_data()
+            .await
+            .map_err(|e| anyhow::anyhow!(format!("Error preparing report preview {:?}", e)))?;
+        Ok(data)
+    }
+
     /// Prepare system metadata for the report
+    #[instrument]
     async fn prepare_system_data(
         &self,
-        _rendered_user_template: String,
+        rendered_user_template: String,
     ) -> Result<Self::SystemData> {
-        let data: SystemData = self.prepare_preview_data().await?;
-        Ok(data)
+        Ok(SystemData {
+            rendered_user_template,
+        })
     }
 }
 
