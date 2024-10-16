@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    extract_eleciton_data, get_date_and_time,
+    extract_election_data, get_date_and_time,
     get_election_contests_area_results_and_total_ballot_counted,
     get_total_number_of_registered_voters_for_country,
 };
@@ -17,7 +17,6 @@ use crate::services::database::{get_keycloak_pool, PgConfig};
 use crate::services::s3::get_minio_url;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use chrono::{Local, NaiveDate, TimeZone, Utc};
 use deadpool_postgres::Client as DbClient;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::keycloak::get_event_realm;
@@ -28,10 +27,7 @@ use serde_json::value::Value;
 use tracing::{info, instrument};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct UserData {}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct SystemData {
+pub struct UserData {
     pub election_date: String,
     pub election_title: String,
     pub voting_period: String,
@@ -51,6 +47,12 @@ pub struct SystemData {
     pub system_hash: String,
     pub date_printed: String,
     pub time_printed: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SystemData {
+    pub rendered_user_template: String,
+    pub file_qrcode_lib: String,
 }
 
 #[derive(Debug)]
@@ -97,10 +99,8 @@ impl TemplateRenderer for StatusTemplate {
         }
     }
 
-    async fn prepare_system_data(
-        &self,
-        _rendered_user_template: String,
-    ) -> Result<Self::SystemData> {
+    #[instrument]
+    async fn prepare_user_data(&self) -> Result<Self::UserData> {
         let mut hasura_db_client: DbClient = get_hasura_pool()
             .await
             .get()
@@ -151,7 +151,7 @@ impl TemplateRenderer for StatusTemplate {
         });
 
         // get election instace's general data (post, country, etc...)
-        let election_general_data = match extract_eleciton_data(&election).await {
+        let election_general_data = match extract_election_data(&election).await {
             Ok(data) => data, // Extracting the ElectionData struct out of Ok
             Err(err) => {
                 return Err(anyhow::anyhow!(format!(
@@ -167,7 +167,13 @@ impl TemplateRenderer for StatusTemplate {
             &self.get_tenant_id(),
             &self.get_election_event_id(),
         )
-        .await?;
+        .await
+        .map_err(|e| {
+            anyhow::anyhow!(format!(
+                "Error getting scheduled event by election_event_id {:?}",
+                e
+            ))
+        })?;
 
         // Fetch election's voting periods
         let voting_period_dates = generate_voting_period_dates(
@@ -202,7 +208,10 @@ impl TemplateRenderer for StatusTemplate {
             &realm_name,
             &election_general_data.country,
         )
-        .await?;
+        .await
+        .map_err(|e| {
+            anyhow::anyhow!(format!("Error getting number of registered voters {:?}", e))
+        })?;
 
         let (ballots_counted, results_area_contests, contests) =
             get_election_contests_area_results_and_total_ballot_counted(
@@ -211,19 +220,23 @@ impl TemplateRenderer for StatusTemplate {
                 &self.get_election_event_id(),
                 &self.get_election_id().unwrap(),
             )
-            .await?;
+            .await
+            .map_err(|e| {
+                anyhow::anyhow!(format!(
+                    "Error getting election contests area results {:?}",
+                    e
+                ))
+            })?;
 
         let (date_printed, time_printed) = get_date_and_time();
-        // Parse the date start date from voting period into a NaiveDate
-        let parsed_date = NaiveDate::parse_from_str(&voting_period_start_date, "%Y-%m-%d")
-            .expect("Failed to parse date");
+        let election_date = &voting_period_start_date.to_string();
         // Format the date to the desired format
-        let election_date = parsed_date.format("%B %d, %Y").to_string();
-        let ovcs_status = status.voting_status.as_str().to_string();
+        let status_str: &'static str = status.voting_status.into();
+        let ovcs_status = status_str.to_string();
         let temp_val: &str = "test";
 
-        Ok(SystemData {
-            election_date: election_date,
+        Ok(UserData {
+            election_date: election_date.to_string(),
             election_title: election_event.name.clone(),
             voting_period: format!("{} - {}", voting_period_start_date, voting_period_end_date),
             geographical_region: election_general_data.geographical_region,
@@ -242,6 +255,18 @@ impl TemplateRenderer for StatusTemplate {
             system_hash: "sys_hash123".to_string(),
             date_printed: date_printed,
             time_printed: time_printed,
+        })
+    }
+
+    #[instrument]
+    async fn prepare_system_data(
+        &self,
+        rendered_user_template: String,
+    ) -> Result<Self::SystemData> {
+        let temp_val: &str = "test";
+        Ok(SystemData {
+            rendered_user_template,
+            file_qrcode_lib: temp_val.to_string(),
         })
     }
 }

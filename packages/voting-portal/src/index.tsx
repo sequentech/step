@@ -48,6 +48,7 @@ export type PreviewPublicationEventType = {
     tenantId: string
     documentId: string
     areaId: string
+    publicationId: string
 }
 
 export interface KeycloakProviderProps extends React.PropsWithChildren {
@@ -78,7 +79,7 @@ const router = createBrowserRouter(
             errorElement: <ErrorPage />,
             children: [
                 {
-                    path: "/preview/:tenantId/:documentId/:areaId",
+                    path: "/preview/:tenantId/:documentId/:areaId/:publicationId",
                     element: <PreviewPublicationEvent />,
                 },
                 {

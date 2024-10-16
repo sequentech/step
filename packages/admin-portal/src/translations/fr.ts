@@ -1276,6 +1276,9 @@ const frenchTranslation: TranslationType = {
             preview: {
                 publicationAreas: "Sélectionnez la zone pour l'aperçu",
                 action: "Aperçu",
+                copy: "Copier le lien",
+                copy_success: "Copie réussie du lien d'aperçu",
+                copy_error: "Échec de la copie du lien d'aperçu",
                 success: "Succès lors de l'ouverture de l'aperçu",
             },
             header: {
@@ -1314,6 +1317,7 @@ const frenchTranslation: TranslationType = {
                 error: "Erreur lors du chargement des bulletins publiés",
                 error_publish: "Erreur lors de la publication du bulletin",
                 error_status: "Erreur lors du changement d'état de la publication",
+                error_preview: "Erreur lors de l'aperçu de la publication",
                 diff: "Afficher tous les changements pourrait rendre la page non réactive. Êtes-vous sûr de vouloir continuer ?",
                 confirmation:
                     "L'action que vous êtes sur le point d'effectuer est sensible et nécessite une confirmation. Veuillez entrer votre mot de passe pour continuer avec {{action}}.",
