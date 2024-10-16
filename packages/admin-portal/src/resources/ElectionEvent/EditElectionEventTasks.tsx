@@ -9,6 +9,7 @@ import {ListTasks} from "../Tasks/ListTasks"
 import {Identifier, useRecordContext} from "react-admin"
 import {ViewTask} from "../Tasks/ViewTask"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
+import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 
 enum ViewMode {
     View,
@@ -24,10 +25,12 @@ export const EditElectionEventTasks: React.FC<TTask> = ({showList}) => {
     const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.List)
     const [currTaskId, setCurrTaskId] = useState<string | Identifier | null>(null)
     const {t} = useTranslation()
+    const {taskId, setTaskId} = useElectionEventTallyStore()
 
     const onViewTask = (id: Identifier) => {
         setViewMode(ViewMode.View)
         setCurrTaskId(id)
+        setTaskId(id)
     }
 
     const onViewList = () => {
@@ -40,6 +43,13 @@ export const EditElectionEventTasks: React.FC<TTask> = ({showList}) => {
             setCurrTaskId(null)
         }
     }, [showList])
+
+    useEffect(() => {
+        if (!taskId) {
+            setViewMode(ViewMode.List)
+            setCurrTaskId(null)
+        }
+    }, [taskId])
 
     return (
         <>
