@@ -246,7 +246,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
         }
 
         const handleDocumentProcess = async () => {
-            let docId = documentId;
+            let docId = documentId
             if (!docId) docId = await startUpload()
             openPreview(docId)
             if (close) close()
