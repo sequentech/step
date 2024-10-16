@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    extract_eleciton_data, generate_fill_up_rate,
+    extract_election_data, generate_fill_up_rate,
     generate_total_number_of_expected_votes_for_contest, generate_total_number_of_under_votes,
     generate_voters_turnout, get_date_and_time,
     get_election_contests_area_results_and_total_ballot_counted,
@@ -165,7 +165,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
         let election_title = election.name.clone();
         let election_date = election.created_at.clone().unwrap().to_string();
 
-        let election_data = extract_eleciton_data(&election)
+        let election_data = extract_election_data(&election)
             .await
             .map_err(|err| anyhow!("Error extract election data {err}"))?;
 
