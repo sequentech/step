@@ -57,7 +57,12 @@ pub trait TemplateRenderer: Debug {
     }
 
     async fn prepare_preview_data(&self) -> Result<Self::UserData> {
-        let json_data = self.get_preview_data_file().await?;
+        let json_data = self.get_preview_data_file().await
+        .map_err(|e| 
+            anyhow::anyhow!(format!(
+                "Error preparing report preview {:?}", e
+            )
+        ))?;
         let data: Self::UserData = serde_json::from_str(&json_data)?;
 
         Ok(data)
@@ -261,7 +266,12 @@ pub trait TemplateRenderer: Debug {
                 .get_email_receiver(receiver, tenant_id, election_event_id)
                 .await
                 .map_err(|err| anyhow!("Error getting email receiver: {err}"))?;
-            let email_sender = EmailSender::new().await?;
+            let email_sender = EmailSender::new().await
+            .map_err(|e| 
+                anyhow::anyhow!(format!(
+                    "Error getting email sender {:?}", e
+                )
+            ))?;
             email_sender
                 .send(
                     email_receiever,
@@ -295,7 +305,12 @@ pub trait TemplateRenderer: Debug {
                     .map_err(|err| anyhow!("Error initializing Keycloak client: {err}"))?;
 
                 let realm = get_event_realm(tenant_id, election_event_id);
-                let voter = client.get_user(&realm, &voter_id).await?;
+                let voter = client.get_user(&realm, &voter_id).await
+                .map_err(|e| 
+                    anyhow::anyhow!(format!(
+                        "Error getting user {:?}", e
+                    )
+                ))?;
                 voter
                     .email
                     .ok_or_else(|| anyhow!("Error sending email: no email provided"))

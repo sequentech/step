@@ -184,7 +184,13 @@ impl TemplateRenderer for StatisticalReportTemplate {
                 anyhow!("Error getting election contest, results and counted ballots {err}")
             })?;
 
-        let voters_turnout = generate_voters_turnout(&ballots_counted, &registered_voters).await?;
+        let voters_turnout = generate_voters_turnout(&ballots_counted, &registered_voters)
+        .await
+        .map_err(|e| 
+            anyhow::anyhow!(format!(
+                "Error generating voters turnout {:?}", e
+            )
+        ))?;
 
         let mut elective_positions: Vec<ReportContestData> = vec![];
 

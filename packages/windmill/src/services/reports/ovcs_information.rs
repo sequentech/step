@@ -14,7 +14,6 @@ use crate::services::database::{get_keycloak_pool, PgConfig};
 use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Ok, Result};
 use async_trait::async_trait;
-use chrono::NaiveDate;
 use deadpool_postgres::Client as DbClient;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
@@ -145,7 +144,12 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
             &self.get_tenant_id(),
             &self.get_election_event_id(),
         )
-        .await?;
+        .await
+        .map_err(|e| 
+            anyhow::anyhow!(format!(
+                "Error getting event by election event id {:?}", e
+            )
+        ))?;
 
         // get election instace's general data (post, country, etc...)
         let election_general_data = extract_eleciton_data(&election)
@@ -194,10 +198,14 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
             &realm_name,
             &election_general_data.country,
         )
-        .await?;
+        .await
+        .map_err(|e| 
+            anyhow::anyhow!(format!(
+                "Error getting total number of registered voters {:?}", e
+            )
+        ))?;
 
         let (date_printed, time_printed) = get_date_and_time();
-        // Parse the date start date from voting period into a NaiveDate
         let election_date = &voting_period_start_date;
 
         let temp_val: &str = "test";

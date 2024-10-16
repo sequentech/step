@@ -17,7 +17,6 @@ use crate::services::database::{get_keycloak_pool, PgConfig};
 use crate::services::s3::get_minio_url;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use chrono::{Local, NaiveDate, TimeZone, Utc};
 use deadpool_postgres::Client as DbClient;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::keycloak::get_event_realm;
@@ -168,7 +167,12 @@ impl TemplateRenderer for StatusTemplate {
             &self.get_tenant_id(),
             &self.get_election_event_id(),
         )
-        .await?;
+        .await
+        .map_err(|e| 
+            anyhow::anyhow!(format!(
+                "Error getting scheduled event by election_event_id {:?}", e
+            )
+        ))?;
 
         // Fetch election's voting periods
         let voting_period_dates = generate_voting_period_dates(
@@ -203,7 +207,12 @@ impl TemplateRenderer for StatusTemplate {
             &realm_name,
             &election_general_data.country,
         )
-        .await?;
+        .await
+        .map_err(|e| 
+            anyhow::anyhow!(format!(
+                "Error getting number of registered voters {:?}", e
+            )
+        ))?;
 
         let (ballots_counted, results_area_contests, contests) =
             get_election_contests_area_results_and_total_ballot_counted(
@@ -212,10 +221,14 @@ impl TemplateRenderer for StatusTemplate {
                 &self.get_election_event_id(),
                 &self.get_election_id().unwrap(),
             )
-            .await?;
+            .await
+        .map_err(|e| 
+            anyhow::anyhow!(format!(
+                "Error getting election contests area results {:?}", e
+            )
+        ))?;
 
         let (date_printed, time_printed) = get_date_and_time();
-        // Parse the date start date from voting period into a NaiveDate
         let election_date = &voting_period_start_date.to_string();
         // Format the date to the desired format
         let status_str: &'static str = status.voting_status.into();

@@ -13,13 +13,15 @@ use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::database::get_hasura_pool;
 use crate::services::database::{get_keycloak_pool, PgConfig};
 use crate::services::electoral_log::{list_electoral_log, GetElectoralLogBody};
+use crate::services::insert_cast_vote::CastVoteError;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use chrono::{TimeZone, Utc};
+use chrono::{DateTime, Local};
 use deadpool_postgres::Client as DbClient;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use sequent_core::types::templates::EmailConfig;
+use sequent_core::services::date::ISO8601;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
@@ -221,11 +223,13 @@ impl TemplateRenderer for AuditLogsTemplate {
     
         // itarate on list of audit logs and create array
         for item in &electoral_logs.items {
-            // Convert the `created` timestamp from Unix time to a formatted date-time string
-            let created_datetime = Utc
-                .timestamp_opt(item.created, 0)
-                .single() // Handle the Option, get Some(T) or None
-                .expect("Invalid timestamp");
+            let created_datetime: DateTime<Local> = if let Ok(created_datetime_parsed) = ISO8601::timestamp_ms_utc_to_date_opt(item.created) {
+                created_datetime_parsed
+            } else {
+                return Err(anyhow::anyhow!(format!(
+                    "Invalid item created timestamp: "
+                )));
+            };
             let formatted_datetime: String = created_datetime.to_string();
     
             // Set default username if user_id is None
