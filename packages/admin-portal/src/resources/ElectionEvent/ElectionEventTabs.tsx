@@ -60,6 +60,7 @@ export const ElectionEventTabs: React.FC = () => {
     const showVoters = authContext.isAuthorized(true, authContext.tenantId, IPermissions.VOTER_READ)
     const [showKeysList, setShowKeysList] = React.useState<string | null>(null)
     const [showPublishList, setShowPublishList] = React.useState<string | undefined>()
+    const [showTaskList, setShowTaskList] = React.useState<string | undefined>()
     const [tabKey, setTabKey] = React.useState<string>(uuidv4())
     const location = useLocation()
     const navigate = useNavigate()
@@ -199,7 +200,7 @@ export const ElectionEventTabs: React.FC = () => {
             case 8:
                 return showTasksExecution ? (
                     <Suspense fallback={<div>Loading Tasks...</div>}>
-                        <EditElectionEventTasks />
+                        <EditElectionEventTasks showList={showTaskList} />
                     </Suspense>
                 ) : null
             case 9:
@@ -276,7 +277,13 @@ export const ElectionEventTabs: React.FC = () => {
                         />
                     ) : null}
                     {showTasksExecution ? (
-                        <Tab label={t("electionEventScreen.tabs.tasks")} value={8} />
+                        <Tab
+                            label={t("electionEventScreen.tabs.tasks")}
+                            value={8}
+                            onClick={() => {
+                                setShowTaskList(uuidv4())
+                            }}
+                        />
                     ) : null}
                     {showLogs ? <Tab label={t("electionEventScreen.tabs.logs")} value={9} /> : null}
                     {showEvents ? (
