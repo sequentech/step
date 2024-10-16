@@ -135,16 +135,4 @@ export const WizardStyles = {
         justify-content: space-between;
         padding: 1rem;
     `,
-
-    // TODO: use this later when we support multiple ceremonies per election event
-    // CancelButton: styled(Button)`
-    //     margin-left: auto;
-    //     background-color: ${({theme}) => theme.palette.grey[100]};
-    //     color: ${({theme}) => theme.palette.errorColor};
-    //     border-color: ${({theme}) => theme.palette.errorColor};
-    //
-    //     &:hover {
-    //         background-color: ${({theme}) => theme.palette.errorColor};
-    //     }
-    // `,
 }
