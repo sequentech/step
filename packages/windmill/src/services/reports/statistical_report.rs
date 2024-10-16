@@ -13,8 +13,6 @@ use crate::postgres::election::get_election_by_id;
 use crate::postgres::reports::ReportType;
 use crate::postgres::results_area_contest::ResultsAreaContest;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
-use crate::services::s3::get_minio_url;
-use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -30,14 +28,14 @@ pub struct StatisticalReportOutput {
     pub link: String,
 }
 
-/// Struct for User Data
+/// Struct for System Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SystemData {
     rendered_user_template: String,
     pub file_qrcode_lib: String,
 }
 
-/// Struct for System Data
+/// Struct for User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
     pub date_printed: String,
@@ -54,7 +52,6 @@ pub struct UserData {
     pub elective_positions: Vec<ReportContestData>,
 }
 
-/// Struct for System Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ReportContestData {
     pub elective_position: String,
@@ -109,23 +106,8 @@ impl TemplateRenderer for StatisticalReportTemplate {
         }
     }
 
-    async fn prepare_system_data(
-        &self,
-        rendered_user_template: String,
-    ) -> Result<Self::SystemData> {
-        let public_asset_path = get_public_assets_path_env_var()?;
-        let minio_endpoint_base =
-            get_minio_url().with_context(|| "Error getting minio endpoint")?;
-
-        Ok(SystemData {
-            rendered_user_template,
-            file_qrcode_lib: format!(
-                "{}/{}/{}",
-                minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
-            ),
-        })
-    }
-    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>> {
+    #[instrument]
+    async fn prepare_user_data(&self) -> Result<Self::UserData> {
         let mut keycloak_db_client: DbClient = get_keycloak_pool()
             .await
             .get()
@@ -221,7 +203,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
             elective_positions.push(contest_result_data);
         }
 
-        Ok(Some(UserData {
+        Ok(UserData {
             date_printed,
             time_printed,
             election_title,
@@ -234,7 +216,19 @@ impl TemplateRenderer for StatisticalReportTemplate {
             ballots_counted,
             voters_turnout,
             elective_positions,
-        }))
+        })
+    }
+
+    #[instrument]
+    async fn prepare_system_data(
+        &self,
+        rendered_user_template: String,
+    ) -> Result<Self::SystemData> {
+        let temp_val: &str = "test";
+        Ok(SystemData {
+            rendered_user_template,
+            file_qrcode_lib: temp_val.to_string(),
+        })
     }
 }
 
