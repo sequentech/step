@@ -130,22 +130,9 @@ export const WizardStyles = {
         box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
     `,
     StyledFooter: styled.div`
-        max-width: 1280px;
         margin: 0 auto;
         display: flex;
         justify-content: space-between;
         padding: 1rem;
     `,
-
-    // TODO: use this later when we support multiple ceremonies per election event
-    // CancelButton: styled(Button)`
-    //     margin-left: auto;
-    //     background-color: ${({theme}) => theme.palette.grey[100]};
-    //     color: ${({theme}) => theme.palette.errorColor};
-    //     border-color: ${({theme}) => theme.palette.errorColor};
-    //
-    //     &:hover {
-    //         background-color: ${({theme}) => theme.palette.errorColor};
-    //     }
-    // `,
 }

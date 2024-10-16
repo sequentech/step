@@ -31,7 +31,10 @@ import {translateElection} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {Box} from "@mui/material"
 import {MenuStyles, TreeMenuItemContainer} from "@/components/styles/Menu"
-import {Sequent_Backend_Document} from "@/gql/graphql"
+import {
+    Sequent_Backend_Document,
+    Sequent_Backend_Tasks_Execution_Update_Column,
+} from "@/gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 
 export const mapAddResource: Record<ResourceName, string> = {
@@ -181,13 +184,15 @@ function TreeMenuItem({
     // const [isFirstLoad, setIsFirstLoad] = useState(true)
 
     const location = useLocation()
-    const {setTallyId} = useElectionEventTallyStore()
+    const {setTallyId, setTaskId} = useElectionEventTallyStore()
 
     const onClick = () => setOpen(!open)
 
     useEffect(() => {
         // set context tally to null to allow navigation to new election event tally
         setTallyId(null)
+        // set context task to null to allow navigation to new election event task
+        setTaskId(null)
     }, [location.pathname])
 
     const subTreeResourceNames = treeResourceNames.slice(1)
