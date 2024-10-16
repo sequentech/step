@@ -117,37 +117,44 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
                 />
 
                 <PublishGenerateStyled.Bottom>
-                    <Button
-                        onClick={onBack}
-                        label={t("publish.action.back")}
-                        className="publish-back-button"
-                        style={{
-                            backgroundColor: "#eee",
-                            color: "#0f054c",
-                        }}
-                    >
-                        <ArrowBackIosNew />
-                    </Button>
-                    <Button
-                        onClick={onPreviewClick}
-                        label={t("publish.preview.action")}
-                        className="publish-preview-button"
-                    >
-                        <Preview />
-                    </Button>
-
-                    {!readOnly && (
+                    {/* Left container for the back button */}
+                    <div>
                         <Button
-                            onClick={onPublish}
-                            label={t("publish.action.publish")}
-                            className="publish-publish-button"
+                            onClick={onBack}
+                            label={t("publish.action.back")}
+                            className="publish-back-button"
                             style={{
-                                color: "#fff",
+                                backgroundColor: "#eee",
+                                color: "#0f054c",
                             }}
                         >
-                            <Publish />
+                            <ArrowBackIosNew />
                         </Button>
-                    )}
+                    </div>
+
+                    {/* Right container for the preview and publish buttons */}
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <Button
+                            onClick={onPreviewClick}
+                            label={t("publish.preview.action")}
+                            className="publish-preview-button"
+                        >
+                            <Preview />
+                        </Button>
+
+                        {!readOnly && (
+                            <Button
+                                onClick={onPublish}
+                                label={t("publish.action.publish")}
+                                className="publish-publish-button"
+                                style={{
+                                    color: "#fff",
+                                }}
+                            >
+                                <Publish />
+                            </Button>
+                        )}
+                    </div>
                 </PublishGenerateStyled.Bottom>
             </PublishGenerateStyled.Container>
         </Box>
