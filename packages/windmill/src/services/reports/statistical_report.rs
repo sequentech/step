@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    extract_eleciton_data, generate_fill_up_rate,
+    extract_election_data, generate_fill_up_rate,
     generate_total_number_of_expected_votes_for_contest, generate_total_number_of_under_votes,
     generate_voters_turnout, get_date_and_time,
     get_election_contests_area_results_and_total_ballot_counted,
@@ -32,15 +32,14 @@ pub struct StatisticalReportOutput {
 
 /// Struct for User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct UserData {}
+pub struct SystemData {
+    rendered_user_template: String,
+    pub file_qrcode_lib: String,
+}
 
 /// Struct for System Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct SystemData {
-    pub file_logo: String,
-    pub file_qrcode_lib: String,
-    pub qrcode: String,
-    pub logo: String,
+pub struct UserData {
     pub date_printed: String,
     pub time_printed: String,
     pub election_title: String,
@@ -118,6 +117,15 @@ impl TemplateRenderer for StatisticalReportTemplate {
         let minio_endpoint_base =
             get_minio_url().with_context(|| "Error getting minio endpoint")?;
 
+        Ok(SystemData {
+            rendered_user_template,
+            file_qrcode_lib: format!(
+                "{}/{}/{}",
+                minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
+            ),
+        })
+    }
+    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>> {
         let mut keycloak_db_client: DbClient = get_keycloak_pool()
             .await
             .get()
@@ -157,7 +165,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
         let election_title = election.name.clone();
         let election_date = election.created_at.clone().unwrap().to_string();
 
-        let election_data = extract_eleciton_data(&election)
+        let election_data = extract_election_data(&election)
             .await
             .map_err(|err| anyhow!("Error extract election data {err}"))?;
 
@@ -183,7 +191,9 @@ impl TemplateRenderer for StatisticalReportTemplate {
                 anyhow!("Error getting election contest, results and counted ballots {err}")
             })?;
 
-        let voters_turnout = generate_voters_turnout(&ballots_counted, &registered_voters).await?;
+        let voters_turnout = generate_voters_turnout(&ballots_counted, &registered_voters)
+            .await
+            .map_err(|err| anyhow!("Error generate voters turnout {err}"))?;
 
         let mut elective_positions: Vec<ReportContestData> = vec![];
 
@@ -211,17 +221,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
             elective_positions.push(contest_result_data);
         }
 
-        Ok(SystemData {
-            qrcode: QR_CODE_TEMPLATE.to_string(),
-            logo: LOGO_TEMPLATE.to_string(),
-            file_logo: format!(
-                "{}/{}/{}",
-                minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_LOGO_IMG
-            ),
-            file_qrcode_lib: format!(
-                "{}/{}/{}",
-                minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
-            ),
+        Ok(Some(UserData {
             date_printed,
             time_printed,
             election_title,
@@ -234,7 +234,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
             ballots_counted,
             voters_turnout,
             elective_positions,
-        })
+        }))
     }
 }
 

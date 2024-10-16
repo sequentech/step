@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    extract_eleciton_data, generate_voters_turnout, get_date_and_time,
+    extract_election_data, generate_voters_turnout, get_date_and_time,
     get_election_contests_area_results_and_total_ballot_counted,
     get_total_number_of_registered_voters_for_country,
 };
@@ -154,7 +154,7 @@ impl TemplateRenderer for AuditLogsTemplate {
         };
 
         // get election instace's general data (post, country, etc...)
-        let election_general_data = match extract_eleciton_data(&election).await {
+        let election_general_data = match extract_election_data(&election).await {
             Ok(data) => data, // Extracting the ElectionData struct out of Ok
             Err(err) => {
                 return Err(anyhow::anyhow!(format!(
