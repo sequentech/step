@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {IMiruTransmissionPackageData} from "@/types/miru"
 import React, {createContext, useContext, useState} from "react"
-import { Identifier } from 'react-admin'
+import {Identifier} from "react-admin"
 
 interface ElectionEventTallyContextProps {
     tallyId: string | null
@@ -79,7 +79,6 @@ export const ElectionEventTallyContextProvider = (
         setTask(value)
     }
 
-
     return (
         <ElectionEventTallyContext.Provider
             value={{
@@ -97,7 +96,7 @@ export const ElectionEventTallyContextProvider = (
                 selectedTallySessionData,
                 setSelectedTallySessionData,
                 setTaskId,
-                taskId: task
+                taskId: task,
             }}
         >
             {props.children}
