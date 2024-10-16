@@ -8,8 +8,6 @@ import {SettingsContext} from "../providers/SettingsContextProvider"
 import {Box, CircularProgress} from "@mui/material"
 import {PreviewPublicationEventType} from ".."
 import {
-    GetBallotPublicationChangesOutput,
-    Sequent_Backend_Ballot_Style,
     Sequent_Backend_Document,
     Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
@@ -120,6 +118,7 @@ export const PreviewPublicationEvent: React.FC = () => {
                     throw new Error(`Error: ${response.statusText}`)
                 }
                 const ballotStyleJson = (await response.json()) as PreviewDocument
+                setSessionStorage()
                 updateBallotStyleAndSelection(ballotStyleJson, tenantId, areaId, dispatch)
             } catch (err) {
                 console.log(`Error loading preview: ${err}`)
@@ -136,6 +135,16 @@ export const PreviewPublicationEvent: React.FC = () => {
             )
         }
     }, [ballotStyle?.election_event_id, tenantId, location.search, globalSettings.DISABLE_AUTH])
+
+    const setSessionStorage = () => {
+        if (!areaId || !documentId || !publicationId) {
+            return
+        }
+        sessionStorage.setItem("isDemo", "true")
+        sessionStorage.setItem("areaId", areaId)
+        sessionStorage.setItem("documentId", documentId)
+        sessionStorage.setItem("publicationId", publicationId)
+    }
 
     return (
         <Box sx={{flex: 1, display: "flex", justifyContent: "center", alignItems: "center"}}>
