@@ -53,10 +53,11 @@ type TPublish = {
     electionId?: string
     electionEventId: string
     type: EPublishType.Election | EPublishType.Event
+    showList?: string
 }
 
 const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.memo(
-    ({electionEventId, electionId, type}: TPublish): React.JSX.Element => {
+    ({electionEventId, electionId, type, showList}: TPublish): React.JSX.Element => {
         const MAX_DIFF_LINES = convertToNumber(process.env.MAX_DIFF_LINES) ?? 500
         const notify = useNotify()
         const {t} = useTranslation()
@@ -158,8 +159,6 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                     throw "Publication Generation Error"
                 }
             } catch (e) {
-                console.log("publish error:")
-                console.log(e)
                 notify(t("publish.dialog.error"), {
                     type: "error",
                 })
@@ -289,6 +288,12 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         const handleCloseEditDrawer = () => {
             setOpen(false)
         }
+        useEffect(() => {
+            if (showList) {
+                setViewMode(ViewMode.List)
+                setBallotPublicationId(null)
+            }
+        }, [showList])
 
         useEffect(() => {
             if (electionEventId && ballotPublicationId && ballotPublication?.is_generated) {
@@ -386,6 +391,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                             setViewMode(ViewMode.List)
                             handleSetPublishStatus(PublishStatus.Generated)
                             setGenerateData(null)
+                            setBallotPublicationId(null)
                         }}
                         electionEventId={electionEventId}
                         fetchAllPublishChanges={fetchAllPublishChanges}

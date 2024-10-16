@@ -141,7 +141,7 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
     const {data: keysCeremonies} = useQuery<ListKeysCeremonyQuery>(LIST_KEYS_CEREMONY, {
         variables: {
             tenantId: tenantId,
-            electionEventId: electionEvent.id,
+            electionEventId: electionEvent?.id,
         },
         pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
         context: {
@@ -153,7 +153,7 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
         },
     })
     const keysCeremonyIds = useMemo(() => {
-        return keysCeremonies?.list_keys_ceremony?.items.map((key) => key.id) ?? []
+        return keysCeremonies?.list_keys_ceremony?.items.map((key) => key?.id) ?? []
     }, [keysCeremonies?.list_keys_ceremony?.items])
     let activeCeremony = getActiveCeremony(
         keysCeremonies?.list_keys_ceremony?.items as any,
@@ -205,7 +205,7 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
     const getCeremony = (id: Identifier): Sequent_Backend_Keys_Ceremony | undefined => {
         if (keysCeremonies) {
             return keysCeremonies?.list_keys_ceremony?.items.find(
-                (element) => element.id === id
+                (element) => element?.id === id
             ) as any
         }
     }
