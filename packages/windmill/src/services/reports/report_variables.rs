@@ -98,7 +98,7 @@ pub async fn generate_total_number_of_under_votes(
 pub async fn generate_fill_up_rate(
     results_area_contest: &ResultsAreaContest,
     nun_of_expected_voters: &i64,
-) -> Result<(i64)> {
+) -> Result<i64> {
     let total_votes = results_area_contest.total_votes.unwrap_or(-1);
     let fill_up_rate = (total_votes / nun_of_expected_voters) * 100;
     Ok(fill_up_rate)
@@ -108,9 +108,9 @@ pub async fn generate_fill_up_rate(
 pub async fn get_total_number_of_ballots(
     results_area_contest: &ResultsAreaContest,
 ) -> Result<(i64)> {
-    let annotitions = results_area_contest.annotations.clone();
-    match &annotitions {
-        Some(annotitions) => Ok(annotitions
+    let annotations = results_area_contest.annotations.clone();
+    match &annotations {
+        Some(annotations) => Ok(annotations
             .get("extended_metrics")
             .and_then(|extended_metric| extended_metric.get("ballots"))
             .and_then(|under_vote| under_vote.as_i64())
@@ -153,7 +153,7 @@ pub struct ElectionData {
 }
 
 #[instrument(err, skip_all)]
-pub async fn extract_eleciton_data(election: &Election) -> Result<ElectionData> {
+pub async fn extract_election_data(election: &Election) -> Result<ElectionData> {
     let annotitions: Option<Value> = election.annotations.clone();
     let mut geographical_region = "";
     let mut voting_center = "";

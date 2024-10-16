@@ -100,30 +100,32 @@ CREATE TABLE IF NOT EXISTS INDEX (
         );
 ```
 
-### Environment variables
+### CLI options and environment variables
 
-B3 has the following environment variables--they also correspond to
-`b3` binary CLI flags if they are preferred--:
+B3 has the following CLI options:
 
 #### B3 service
 
-```
-# B3 connection to PostgreSQL envvars
-B3_PG_HOST=postgres-b3
-B3_PG_PORT=5432
-B3_PG_USER=postgres
-B3_PG_PASSWORD=postgrespassword
-B3_PG_DATABASE=b3
-# Where B3 listens for GRPC connections
-B3_BIND=0.0.0.0:50051
-```
+PostgreSQL related options:
+
+- `--host`
+- `--port`
+- `--username`
+- `--password`
+- `--database`
+
+Generic options:
+
+- `--bind`: Where B3 listens for GRPC connections
+- `--blob-root`: optional
+- `--max-message-size-bytes`: defaulted
 
 #### Braid
 
-Braid has the following environment variables --they also correspond
+Braid reads the following environment variables --they also correspond
 to `braid` binary CLI flags if they are preferred--:
 
 ```
 # Braid connection to B3
-B3_URL=http://b3:50051
+B3_URL=http://b3:50051  # --b3-url CLI option
 ```
