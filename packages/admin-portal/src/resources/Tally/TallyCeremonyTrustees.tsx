@@ -212,11 +212,11 @@ export const TallyCeremonyTrustees: React.FC = () => {
                                 subtitle={"tally.ceremonySubTitle"}
                             />
 
-                        <TallyElectionsList
-                            electionEventId={record?.id}
-                            disabled={true}
-                            update={(elections) => setSelectedElections(elections)}
-                        />
+                            <TallyElectionsList
+                                electionEventId={record?.id}
+                                disabled={true}
+                                update={(elections) => setSelectedElections(elections)}
+                            />
 
                             <Box>
                                 <ElectionHeader
@@ -250,11 +250,11 @@ export const TallyCeremonyTrustees: React.FC = () => {
                                 subtitle={"tally.ceremonySubTitle"}
                             />
 
-                        <TallyElectionsList
-                            electionEventId={record?.id}
-                            disabled={true}
-                            update={(elections) => setSelectedElections(elections)}
-                        />
+                            <TallyElectionsList
+                                electionEventId={record?.id}
+                                disabled={true}
+                                update={(elections) => setSelectedElections(elections)}
+                            />
 
                             <TallyTrusteesList
                                 tally={tally}

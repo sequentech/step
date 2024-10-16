@@ -541,41 +541,41 @@ export const TallyCeremony: React.FC = () => {
                                 subtitle={"tally.ceremonySubTitle"}
                             />
 
-                        <TallyElectionsList
-                            update={(elections) => setSelectedElections(elections)}
-                            disabled={isTallyElectionListDisabled}
-                            electionEventId={record?.id}
-                        />
-                        <FormControl fullWidth>
-                            <ElectionHeader
-                                title={"tally.templateTitle"}
-                                subtitle={"tally.templateSubTitle"}
+                            <TallyElectionsList
+                                update={(elections) => setSelectedElections(elections)}
+                                disabled={isTallyElectionListDisabled}
+                                electionEventId={record?.id}
                             />
+                            <FormControl fullWidth>
+                                <ElectionHeader
+                                    title={"tally.templateTitle"}
+                                    subtitle={"tally.templateSubTitle"}
+                                />
 
-                            <Select
-                                id="tally-results-template"
-                                value={templateId}
-                                label={t("tally.templateTitle")}
-                                placeholder={t("tally.templateTitle")}
-                                onChange={handleSetTemplate}
-                            >
-                                {(tallyTemplates ?? []).map((tallyTemplate) => (
-                                    <MenuItem key={tallyTemplate.id} value={tallyTemplate.id}>
-                                        {tallyTemplate.template?.name}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-                    </>
-                )}
+                                <Select
+                                    id="tally-results-template"
+                                    value={templateId}
+                                    label={t("tally.templateTitle")}
+                                    placeholder={t("tally.templateTitle")}
+                                    onChange={handleSetTemplate}
+                                >
+                                    {(tallyTemplates ?? []).map((tallyTemplate) => (
+                                        <MenuItem key={tallyTemplate.id} value={tallyTemplate.id}>
+                                            {tallyTemplate.template?.name}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                        </>
+                    )}
 
-                {page === WizardSteps.Ceremony && (
-                    <>
-                        <TallyElectionsList
-                            electionEventId={record?.id}
-                            disabled={true}
-                            update={(elections) => setSelectedElections(elections)}
-                        />
+                    {page === WizardSteps.Ceremony && (
+                        <>
+                            <TallyElectionsList
+                                electionEventId={record?.id}
+                                disabled={true}
+                                update={(elections) => setSelectedElections(elections)}
+                            />
 
                             <TallyTrusteesList
                                 tally={tally}
