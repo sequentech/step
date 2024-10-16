@@ -36,6 +36,7 @@ import {
     GetCastVotesQuery,
     GetElectionEventQuery,
     GetElectionsQuery,
+    GetSupportMaterialsQuery,
 } from "../gql/graphql"
 import {GET_ELECTIONS} from "../queries/GetElections"
 import {ELECTIONS_LIST} from "../fixtures/election"
@@ -58,6 +59,8 @@ import Stepper from "../components/Stepper"
 import {clearIsVoted, selectBypassChooser, setBypassChooser} from "../store/extra/extraSlice"
 import {updateBallotStyleAndSelection} from "../services/BallotStyles"
 import useUpdateTranslation from "../hooks/useUpdateTranslation"
+import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
+import {setSupportMaterial} from "../store/supportMaterials/supportMaterialsSlice"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -269,7 +272,22 @@ const ElectionSelectionScreen: React.FC = () => {
         skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
     })
 
-    const {data: castVotes, error: errorCastVote} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES)
+    // Materials
+    const {
+        data: dataMaterials,
+        error: errorMaterials,
+        loading: loadingMaterials,
+    } = useQuery<GetSupportMaterialsQuery>(GET_SUPPORT_MATERIALS, {
+        variables: {
+            electionEventId: eventId || "",
+            tenantId: tenantId || "",
+        },
+        skip: globalSettings.DISABLE_AUTH || !isMaterialsActivated, // Skip query if in demo mode
+    })
+
+    const {data: castVotes, error: errorCastVote} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES, {
+        skip: globalSettings.DISABLE_AUTH,
+    })
 
     const handleNavigateMaterials = () => {
         navigate(`/tenant/${tenantId}/event/${eventId}/materials${location.search}`)
@@ -280,6 +298,16 @@ const ElectionSelectionScreen: React.FC = () => {
         () => !!dataElectionEvent?.sequent_backend_election_event[0].status?.is_published,
         [dataElectionEvent?.sequent_backend_election_event]
     )
+
+    useEffect(() => {
+        if (!dataMaterials || globalSettings.DISABLE_AUTH || !isMaterialsActivated) {
+            return
+        }
+
+        for (let material of dataMaterials.sequent_backend_support_material) {
+            dispatch(setSupportMaterial(material))
+        }
+    }, [dataMaterials, globalSettings.DISABLE_AUTH, isMaterialsActivated])
 
     // Errors handling
     useEffect(() => {

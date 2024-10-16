@@ -21,6 +21,7 @@ pub fn render_template_text(
     reg.register_helper("sanitize_html", Box::new(sanitize_html));
     reg.register_helper("format_u64", Box::new(format_u64));
     reg.register_helper("format_percentage", Box::new(format_percentage));
+    reg.register_helper("format_date", Box::new(format_date));
 
     // render handlebars template
     reg.render_template(template, &json!(variables_map))
