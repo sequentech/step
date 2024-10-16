@@ -967,6 +967,7 @@ services:
     profiles: ["full", "base"]
     stdin_open: true
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/b3:STEP_VERSION
+    pull_policy: never
     container_name: b3
     restart: always
     ports:
