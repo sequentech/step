@@ -12,7 +12,7 @@ use std::{collections::HashMap, default::Default};
 use strand::elgamal::Ciphertext;
 use strand::zkp::Schnorr;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
-use strum_macros::{Display, EnumString};
+use strum_macros::{Display, EnumString, IntoStaticStr};
 
 pub const TYPES_VERSION: u32 = 1;
 
@@ -1154,6 +1154,7 @@ impl Default for ElectionEventStatus {
     Clone,
     EnumString,
     JsonSchema,
+    IntoStaticStr,
 )]
 pub enum VotingStatus {
     NOT_STARTED,
@@ -1161,18 +1162,6 @@ pub enum VotingStatus {
     PAUSED,
     CLOSED,
 }
-
-impl VotingStatus {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            VotingStatus::NOT_STARTED => "NOT_STARTED",
-            VotingStatus::OPEN => "OPEN",
-            VotingStatus::PAUSED => "PAUSED",
-            VotingStatus::CLOSED => "CLOSED",
-        }
-    }
-}
-
 #[derive(
     BorshSerialize,
     BorshDeserialize,

@@ -33,7 +33,7 @@ pub enum GenerateReportMode {
 /// Trait that defines the behavior for rendering templates
 #[async_trait]
 pub trait TemplateRenderer: Debug {
-    type UserData: Serialize + ToMap + Send;
+    type UserData: Serialize + ToMap + Send + for<'de> Deserialize<'de>;
     type SystemData: Serialize + ToMap + for<'de> Deserialize<'de>;
 
     fn base_name() -> String;
@@ -56,15 +56,17 @@ pub trait TemplateRenderer: Debug {
         None // Default implementation, can be overridden in specific reports that have voterId
     }
 
-    async fn prepare_preview_data(&self) -> Result<Self::SystemData> {
-        let json_data = self.get_preview_data_file().await?;
-        let data: Self::SystemData = serde_json::from_str(&json_data)?;
+    async fn prepare_preview_data(&self) -> Result<Self::UserData> {
+        let json_data = self
+            .get_preview_data_file()
+            .await
+            .map_err(|e| anyhow::anyhow!(format!("Error preparing report preview {:?}", e)))?;
+        let data: Self::UserData = serde_json::from_str(&json_data)?;
 
         Ok(data)
     }
-    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>> {
-        Ok(None)
-    }
+    async fn prepare_user_data(&self) -> Result<Self::UserData>;
+
     async fn prepare_system_data(&self, rendered_user_template: String)
         -> Result<Self::SystemData>;
 
@@ -170,26 +172,21 @@ pub trait TemplateRenderer: Debug {
                 .map_err(|e| anyhow!("Error getting default user template: {e:?}"))?,
         };
 
-        let mut rendered_user_template = String::new();
-
         // Prepare user data if self.prepare_user_data() != None
         let user_data = self
             .prepare_user_data()
             .await
             .map_err(|e| anyhow!("Error preparing user data: {e:?}"))?;
 
-        if let Some(data) = user_data {
-            // Render the user template if user data is not None
-            let user_data_map = data
-                .to_map()
-                .map_err(|e| anyhow!("Error converting user data to map: {e:?}"))?;
+        let user_data_map = user_data
+            .to_map()
+            .map_err(|e| anyhow!("Error converting user data to map: {e:?}"))?;
 
-            info!("user data in template renderer: {:?}", user_data_map);
+        info!("user data in template renderer: {:?}", user_data_map);
 
-            rendered_user_template =
-                reports::render_template_text(&user_template, user_data_map)
-                    .map_err(|e| anyhow!("Error rendering user template: {e:?}"))?;
-        }
+        let rendered_user_template =
+            reports::render_template_text(&user_template, user_data_map)
+                .map_err(|e| anyhow!("Error rendering user template: {e:?}"))?;
 
         // Prepare system data
         let system_data = self
@@ -267,7 +264,9 @@ pub trait TemplateRenderer: Debug {
                 .get_email_receiver(receiver, tenant_id, election_event_id)
                 .await
                 .map_err(|err| anyhow!("Error getting email receiver: {err}"))?;
-            let email_sender = EmailSender::new().await?;
+            let email_sender = EmailSender::new()
+                .await
+                .map_err(|e| anyhow::anyhow!(format!("Error getting email sender {:?}", e)))?;
             email_sender
                 .send(
                     email_receiever,
@@ -301,7 +300,10 @@ pub trait TemplateRenderer: Debug {
                     .map_err(|err| anyhow!("Error initializing Keycloak client: {err}"))?;
 
                 let realm = get_event_realm(tenant_id, election_event_id);
-                let voter = client.get_user(&realm, &voter_id).await?;
+                let voter = client
+                    .get_user(&realm, &voter_id)
+                    .await
+                    .map_err(|e| anyhow::anyhow!(format!("Error getting user {:?}", e)))?;
                 voter
                     .email
                     .ok_or_else(|| anyhow!("Error sending email: no email provided"))
