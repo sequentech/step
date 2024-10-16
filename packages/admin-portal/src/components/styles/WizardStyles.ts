@@ -130,7 +130,6 @@ export const WizardStyles = {
         box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
     `,
     StyledFooter: styled.div`
-        max-width: 1280px;
         margin: 0 auto;
         display: flex;
         justify-content: space-between;
