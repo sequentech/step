@@ -22,6 +22,9 @@ rayon = "1.5"
 # only needed to use the postgresql COPY command (sqlcopy feature)
 futures = { version = "0.3", optional = true }
 
+# only needed for the server component
+config = { version = "0.13", optional = true }
+
 # logging
 log = "0.4.17"
 tracing = "0.1"
@@ -53,7 +56,7 @@ crate-type = ["cdylib", "rlib"]
 # monitor = ["dep:cursive"]
 sqlcopy = ["dep:futures"]
 client = []
-server = ["client"]
+server = ["client", "dep:config"]
 
 [build-dependencies]
 tonic-build = "0.12.1"
