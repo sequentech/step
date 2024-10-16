@@ -22,6 +22,7 @@ import {ETaskExecutionStatus} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useQuery} from "@apollo/client"
 import {GET_TASK_BY_ID} from "@/queries/GetTaskById"
+import {CancelButton} from "../Tally/styles"
 
 export const statusColor: (status: string) => string = (status) => {
     if (status === ETaskExecutionStatus.STARTED) {
@@ -150,14 +151,19 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
     }
 
     return (
-        <>
-            <WizardStyles.ContentBox>{Content}</WizardStyles.ContentBox>
-            <WizardStyles.Toolbar>
-                <WizardStyles.BackButton color="info" onClick={goBack}>
-                    <ArrowBackIosIcon />
-                    {t("common.label.back")}
-                </WizardStyles.BackButton>
-            </WizardStyles.Toolbar>
-        </>
+        <WizardStyles.WizardContainer>
+            <WizardStyles.ContentWrapper>
+                <WizardStyles.ContentBox>{Content}</WizardStyles.ContentBox>
+            </WizardStyles.ContentWrapper>
+
+            <WizardStyles.FooterContainer>
+                <WizardStyles.StyledFooter>
+                    <CancelButton className="list-actions" onClick={goBack}>
+                        <ArrowBackIosIcon />
+                        {t("common.label.back")}
+                    </CancelButton>
+                </WizardStyles.StyledFooter>
+            </WizardStyles.FooterContainer>
+        </WizardStyles.WizardContainer>
     )
 }
