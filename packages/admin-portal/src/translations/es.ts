@@ -809,6 +809,7 @@ const spanishTranslation: TranslationType = {
                 title: "Título",
                 subtitle: "Subtítulo",
                 kind: "Tipo de archivo",
+                filter: "Filtros Personalizados",
             },
             language: {
                 es: "Español",

@@ -810,6 +810,7 @@ const catalanTranslation: TranslationType = {
                 title: "Títol",
                 subtitle: "Subtítol",
                 kind: "Tipus d'arxiu",
+                filter: "Filtres Personalizats",
             },
             language: {
                 es: "Espanyol",

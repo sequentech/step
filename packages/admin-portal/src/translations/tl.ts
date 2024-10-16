@@ -810,6 +810,7 @@ const tagalogTranslation: TranslationType = {
                 title: "Pamagat",
                 subtitle: "Subtitle",
                 kind: "Uri ng file",
+                filter: "Pasadyang mga filter",
             },
             language: {
                 es: "Espanyol",

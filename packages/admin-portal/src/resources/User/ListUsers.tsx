@@ -23,12 +23,14 @@ import {
     useSidebarState,
     useUnselectAll,
     RaRecord,
+    useListContext,
+    ListControllerResult,
 } from "react-admin"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import UploadIcon from "@mui/icons-material/Upload"
 import {ListActions} from "@/components/ListActions"
-import {Button, Chip, Typography} from "@mui/material"
+import {Button, Chip, Menu, MenuItem, Typography} from "@mui/material"
 import {Dialog} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import {Action} from "@/components/ActionButons"
@@ -82,6 +84,7 @@ import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import SelectArea from "@/components/area/SelectArea"
 import {WidgetProps} from "@/components/Widget"
 import {ResetFilters} from "@/components/ResetFilters"
+import {AnyListenerPredicate} from "@reduxjs/toolkit"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -124,6 +127,40 @@ function useGetPublicDocumentUrl() {
     return {
         getDocumentUrl,
     }
+}
+
+const CustomActionsMenu = ({
+    anchorEl,
+    handleCloseCustomMenu,
+    customFiltersList,
+    open,
+    doContext,
+}: {
+    anchorEl: HTMLElement | null
+    handleCloseCustomMenu: () => void
+    customFiltersList: JSX.Element[]
+    open: boolean
+    doContext: (ctx: ListControllerResult) => void
+}) => {
+    const listContext = useListContext()
+
+    useEffect(() => {
+        doContext(listContext)
+    }, [])
+
+    return (
+        <Menu
+            id="basic-menu"
+            anchorEl={anchorEl}
+            open={open}
+            onClose={handleCloseCustomMenu}
+            MenuListProps={{
+                "aria-labelledby": "basic-button",
+            }}
+        >
+            {customFiltersList}
+        </Menu>
+    )
 }
 
 export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, electionId}) => {
@@ -682,6 +719,112 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const electionEvent = useRecordContext<Sequent_Backend_Election_Event>()
     const [importUsers] = useMutation<ImportUsersMutation>(IMPORT_USERS)
 
+    /**
+     * added custom filter actions menu
+     */
+
+    // state
+    const [listActions, setListActions] = useState<ReactElement[]>([
+        <Button
+            key="send-notification"
+            onClick={() => {
+                sendTemplateAction([], AudienceSelection.ALL_USERS)
+            }}
+        >
+            <ResourceListStyles.MailIcon />
+            {t("sendCommunication.send")}
+        </Button>,
+    ])
+    const [ctx, setCtx] = useState<null | ListControllerResult>(null)
+    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
+    const [openCustomMenu, setOpenCustomMenu] = useState(false)
+    const [customFiltersList, setCustomFiltersList] = useState<ReactElement[]>([])
+
+    // functions
+    const handleClickCustomMenu = (event: React.MouseEvent<HTMLElement>) => {
+        setAnchorEl(event.currentTarget)
+        setOpenCustomMenu(true)
+    }
+
+    const handleCloseCustomMenu = () => {
+        setAnchorEl(null)
+        setOpenCustomMenu(false)
+    }
+
+    const handleApplyCustomMenu = (filter: any) => {
+        console.log("aa filter", filter)
+        console.log("aa listContext.setFilters", ctx)
+
+        if (ctx?.setFilters) {
+            ctx?.setFilters({...ctx.filter, ...filter}, {})
+        }
+
+        setAnchorEl(null)
+        setOpenCustomMenu(false)
+    }
+
+    useEffect(() => {
+        console.log("aa EFFECT CTX :: ", ctx)
+    }, [ctx])
+
+    // effect
+    useEffect(() => {
+        if (electionEvent && ctx) {
+            const customFilters = electionEvent?.presentation?.custom_filters || [
+                {
+                    label: {
+                        name: "filtro a aplicar",
+                        i18n: {
+                            "en": "filter to apply",
+                            "es": "filtrar para aplicar",
+                        }
+                    },
+                    filter: {
+                        username: "en",
+                    },
+                },
+            ]
+            if (customFilters.length > 0) {
+                setListActions((prev: ReactElement[]) => {
+                    // prevent double adding the button
+                    const customFilterExists = prev.some(
+                        (action) => action.key === "custom-filters"
+                    )
+                    // if it's not in the list of actions, add it
+                    if (!customFilterExists) {
+                        // build the list of available filters
+                        const customFiltersList = customFilters.map((item: any, index: number) => {
+                            const {name, filter} = item
+                            return (
+                                <MenuItem key={index} onClick={() => handleApplyCustomMenu(filter)}>
+                                    {t(name)}
+                                </MenuItem>
+                            )
+                        })
+                        setCustomFiltersList(customFiltersList)
+                        return [
+                            ...prev,
+                            <Button
+                                key="custom-filters"
+                                aria-controls={openCustomMenu ? "basic-menu" : undefined}
+                                aria-haspopup="true"
+                                aria-expanded={openCustomMenu ? "true" : undefined}
+                                variant="contained"
+                                onClick={handleClickCustomMenu}
+                            >
+                                {t("common.label.filter")}
+                            </Button>,
+                        ]
+                    }
+                    return prev
+                })
+            }
+        }
+    }, [electionEvent, ctx])
+    /**
+     * END added custom filter actions menu
+     */
+
     const handleImportVoters = async (documentId: string, sha256: string) => {
         setOpenImportDrawer(false)
         const currWidget = addWidget(ETasksExecution.IMPORT_USERS)
@@ -813,17 +956,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                     }
                                 />
                             }
-                            extraActions={[
-                                <Button
-                                    key="send-notification"
-                                    onClick={() => {
-                                        sendTemplateAction([], AudienceSelection.ALL_USERS)
-                                    }}
-                                >
-                                    <ResourceListStyles.MailIcon />
-                                    {t("sendCommunication.send")}
-                                </Button>,
-                            ]}
+                            extraActions={[...listActions]}
                         />
                     }
                     filter={{
@@ -878,8 +1011,33 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                             </WrapperField>
                         </DataGridContainerStyle>
                     )}
+
+                    {/* Custom filters menu */}
+                    <CustomActionsMenu
+                        anchorEl={anchorEl}
+                        open={openCustomMenu}
+                        handleCloseCustomMenu={handleCloseCustomMenu}
+                        customFiltersList={customFiltersList}
+                        doContext={(ctx) => {
+                            console.log("aa *********", ctx)
+                            setCtx(ctx)
+                        }}
+                    />
+                    {/* <Menu
+                        id="basic-menu"
+                        anchorEl={anchorEl}
+                        open={openCustomMenu}
+                        onClose={handleCloseCustomMenu}
+                        MenuListProps={{
+                            "aria-labelledby": "basic-button",
+                        }}
+                    >
+                        {customFiltersList}
+                    </Menu> */}
+                    {/* Custom filters menu */}
                 </List>
             }
+
             <ResourceListStyles.Drawer anchor="right" open={open} onClose={handleClose}>
                 <EditUser
                     id={recordIds[0] as string}
