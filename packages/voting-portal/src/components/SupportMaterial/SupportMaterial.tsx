@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {Box, Button, Typography} from "@mui/material"
-import React from "react"
+import React, {useContext} from "react"
 import {styled} from "@mui/material/styles"
 import {useTranslation} from "react-i18next"
 import {Dialog, theme} from "@sequentech/ui-essentials"
@@ -15,8 +15,10 @@ import AudioFileIcon from "@mui/icons-material/AudioFile"
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf"
 import ImageIcon from "@mui/icons-material/Image"
 import DescriptionIcon from "@mui/icons-material/Description"
-import {GetDocumentQuery} from "../../gql/graphql"
 import {useGetPublicDocumentUrl} from "../../hooks/public-document-url"
+import {SettingsContext} from "../../providers/SettingsContextProvider"
+import {useAppSelector} from "../../store/hooks"
+import {selectDocumentById} from "../../store/documents/documentsSlice"
 
 const BorderBox = styled(Box)`
     display: flex;
@@ -93,19 +95,15 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
     const [openPreview, openPreviewSet] = React.useState<boolean>(false)
     const {getDocumentUrl} = useGetPublicDocumentUrl()
     const videoRef = React.useRef<HTMLIFrameElement>(null)
+    const {globalSettings} = useContext(SettingsContext)
 
-    const {data: imageData} = useQuery<GetDocumentQuery>(GET_DOCUMENT, {
-        variables: {
-            id: documentId || "",
-            tenantId: tenantId || "",
-        },
-    })
+    const imageData = useAppSelector(selectDocumentById(String(documentId)))
 
     const handleOpenDialog = async (type: string) => {
         openPreviewSet(true)
     }
 
-    let documentName = imageData?.sequent_backend_document?.[0]?.name
+    let documentName = imageData?.name
     const documentUrl = documentName ? getDocumentUrl(documentId, documentName) : ""
 
     return (
