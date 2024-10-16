@@ -19144,6 +19144,8 @@ export type GetDocumentQueryVariables = Exact<{
 
 export type GetDocumentQuery = { __typename?: 'query_root', sequent_backend_document: Array<{ __typename?: 'sequent_backend_document', name?: string | null }> };
 
+export type GetDocumentByNameQuery = { __typename?: 'query_root', sequent_backend_document: Array<{ __typename?: 'sequent_backend_document', id?: any }> };
+
 export type GetElectionEventStatsQueryVariables = Exact<{
   tenantId: Scalars['uuid']['input'];
   electionEventId: Scalars['uuid']['input'];
