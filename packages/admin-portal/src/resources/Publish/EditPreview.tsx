@@ -2,17 +2,19 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useEffect, useMemo, useState} from "react"
+import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
 import {
     AutocompleteInput,
+    Button,
     Identifier,
     SaveButton,
     SimpleForm,
+    Toolbar,
     useGetList,
     useGetOne,
     useNotify,
 } from "react-admin"
-import {Preview} from "@mui/icons-material"
+import {Preview, ContentCopy} from "@mui/icons-material"
 import {useTranslation} from "react-i18next"
 import {
     GetBallotPublicationChangesOutput,
@@ -48,6 +50,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
     const [isUploading, setIsUploading] = React.useState<boolean>(false)
     const {tenantId} = useContext(TenantContext)
     const [areaId, setAreaId] = useState<string | null>(null)
+    const [documentId, setDocumentId] = useState<string | null | undefined>(null)
     const [getDocumentByName] = useLazyQuery<GetDocumentByNameQuery>(GET_DOCUMENT_BY_NAME)
 
     const {data: areas} = useQuery(GET_AREAS, {
@@ -136,15 +139,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
                 return false
             }
 
-            const documentId = data?.sequent_backend_document[0]?.id
-            if (documentId) {
-                const openSuccess = openPreview(documentId)
-                if (openSuccess) {
-                    return true
-                }
-            }
-
-            return false
+            setDocumentId(data?.sequent_backend_document[0]?.id)
         } catch (err) {
             console.error("Exception in fetchDocumentId:", err)
             return false
@@ -197,6 +192,10 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
     }, [ballotData])
 
     useEffect(() => {
+        fetchDocumentId(`${id}.json`)
+    }, [])
+
+    useEffect(() => {
         if (areas) {
             const filtered = areas.sequent_backend_area.filter((area: any) =>
                 areaIds.some((areaId: any) => areaId.id === area.id)
@@ -241,15 +240,13 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
             const fileData = prepareFileData()
             const dataStr = JSON.stringify(fileData, null, 2)
             const file = new File([dataStr], `${id}.json`, {type: "application/json"})
-            const documentId = await uploadFileToS3(file)
-            openPreview(documentId)
+            const docId = await uploadFileToS3(file)
+            setDocumentId(docId)
         }
 
         const handleDocumentProcess = async () => {
-            const documentOpened = await fetchDocumentId(`${id}.json`)
-            if (!documentOpened) {
-                await startUpload()
-            }
+            if (!documentId) await startUpload()
+            openPreview(documentId)
             if (close) close()
         }
 
@@ -266,14 +263,12 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
     }, [isUploading, electionEvent, elections, areaId, supportMaterials, documents])
 
     const openPreview = (documentId: string | undefined | null) => {
-        if (documentId) {
-            const previewUrl: string = `${previewUrlTemplate}/${documentId}/${areaId}/${id}`
+        const previewUrl = getPreviewUrl(documentId)
+        if (documentId && previewUrl) {
             window.open(previewUrl, "_blank")
             notify(t("publish.preview.success"), {type: "success"})
-            return true
         } else {
             notify(t("publish.dialog.error_preview"), {type: "error"})
-            return false
         }
     }
 
@@ -286,17 +281,34 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
         return `${globalSettings.VOTING_PORTAL_URL}/preview/${tenantId}`
     }, [globalSettings.VOTING_PORTAL_URL, id])
 
-    return (
-        <SimpleForm
-            onSubmit={onPreviewClick}
-            toolbar={
-                <SaveButton
-                    icon={<Preview />}
-                    label={t("publish.preview.action")}
-                    sx={{marginInline: "1rem"}}
-                />
+    const getPreviewUrl = useCallback(
+        (documentId: string | undefined | null) => {
+            if (!documentId || !areaId || !id) {
+                return null
             }
-        >
+            return `${previewUrlTemplate}/${documentId}/${areaId}/${id}`
+        },
+        [previewUrlTemplate, areaId, id]
+    )
+
+    const copyPreviewToClipboard = async () => {
+        try {
+            const previewUrl = getPreviewUrl(documentId)
+
+            if (previewUrl) {
+                await navigator.clipboard.writeText(previewUrl)
+                notify(t("publish.preview.copy_success"), {type: "success"})
+            } else {
+                notify(t("publish.preview.copy_error"), {type: "error"})
+            }
+        } catch (error) {
+            console.error("Failed to copy URL to clipboard:", error)
+            notify(t("publish.dialog.error_copy"), {type: "error"})
+        }
+    }
+
+    return (
+        <SimpleForm toolbar={false} onSubmit={onPreviewClick}>
             <AutocompleteInput
                 source="area_id"
                 choices={sourceAreas}
@@ -304,7 +316,23 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
                 label={t("publish.preview.publicationAreas")}
                 fullWidth={true}
                 debounce={100}
+                onChange={(res) => setAreaId(res)}
             ></AutocompleteInput>
+            <Toolbar
+                sx={{display: "flex", background: "white", padding: "0 !important", gap: "1rem"}}
+            >
+                <SaveButton
+                    disabled={!areaId}
+                    icon={<Preview />}
+                    label={t("publish.preview.action")}
+                />
+                <Button
+                    disabled={!areaId}
+                    startIcon={<ContentCopy />}
+                    label={t("publish.preview.copy")}
+                    onClick={copyPreviewToClipboard}
+                />
+            </Toolbar>
         </SimpleForm>
     )
 }

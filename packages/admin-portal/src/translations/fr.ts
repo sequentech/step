@@ -1276,6 +1276,9 @@ const frenchTranslation: TranslationType = {
             preview: {
                 publicationAreas: "Sélectionnez la zone pour l'aperçu",
                 action: "Aperçu",
+                copy: "Copier le lien",
+                copy_success: "Copie réussie du lien d'aperçu",
+                copy_error: "Échec de la copie du lien d'aperçu",
                 success: "Succès lors de l'ouverture de l'aperçu",
             },
             header: {

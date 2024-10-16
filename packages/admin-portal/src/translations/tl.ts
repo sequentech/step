@@ -1271,6 +1271,9 @@ const tagalogTranslation: TranslationType = {
             preview: {
                 publicationAreas: "Piliin ang Lugar para sa Preview",
                 action: "Preview",
+                copy: "Kopyahin ang link",
+                copy_success: "Tagumpay sa pagkopya ng link ng preview",
+                copy_error: "Nabigong kopyahin ang link ng preview",
                 success: "Matagumpay na pagbukas ng preview",
             },
             header: {

@@ -1264,6 +1264,9 @@ const englishTranslation = {
             preview: {
                 publicationAreas: "Select Area for Preview",
                 action: "Preview",
+                copy: "Copy link",
+                copy_success: "Success copying preview link",
+                copy_error: "Failed to copy preview link",
                 success: "Success opening preview",
             },
             header: {

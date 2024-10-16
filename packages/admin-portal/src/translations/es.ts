@@ -1269,6 +1269,9 @@ const spanishTranslation: TranslationType = {
             preview: {
                 publicationAreas: "Selecciona el área para la vista previa",
                 action: "Vista previa",
+                copy: "Copiar enlace",
+                copy_success: "Se copió correctamente el enlace de vista previa",
+                copy_error: "No se pudo copiar el enlace de vista previa",
                 success: "Éxito al abrir la vista previa",
             },
             header: {

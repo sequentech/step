@@ -1270,6 +1270,9 @@ const catalanTranslation: TranslationType = {
             preview: {
                 publicationAreas: "Selecciona l'àrea per a la vista prèvia",
                 action: "Vista prèvia",
+                copy: "Copia l'enllaç",
+                copy_success: "Copia correctament l'enllaç de previsualització",
+                copy_error: "No s'ha pogut copiar l'enllaç de previsualització",
                 success: "Previsualització oberta amb èxit",
             },
             header: {
