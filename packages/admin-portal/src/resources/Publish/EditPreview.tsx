@@ -206,25 +206,43 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
     }, [areas, areaIds])
 
     useEffect(() => {
-        const startUpload = async () => {
-            const openElections = elections?.filter(
-                (election) => election.status?.voting_status === ElectionEventStatus.Open
-            )
-            const fileData = {
+        const updateElectionStatus = (elections: Array<Sequent_Backend_Election> | undefined) => {
+            return elections?.map((election) => {
+                if (election?.status) {
+                    return {
+                        ...election,
+                        status: {
+                            ...election.status,
+                            voting_status: ElectionEventStatus.Open,
+                        },
+                    }
+                }
+                return election
+            })
+        }
+
+        const prepareFileData = () => {
+            const openElections = updateElectionStatus(elections)
+
+            if (electionEvent?.status) {
+                electionEvent.status.voting_status = ElectionEventStatus.Open
+            }
+
+            return {
                 ballot_styles: ballotData?.current?.ballot_styles,
                 election_event: electionEvent,
                 elections: openElections,
                 support_materials: supportMaterials,
                 documents: documents,
             }
+        }
+
+        const startUpload = async () => {
+            const fileData = prepareFileData()
             const dataStr = JSON.stringify(fileData, null, 2)
             const file = new File([dataStr], `${id}.json`, {type: "application/json"})
             const documentId = await uploadFileToS3(file)
             openPreview(documentId)
-
-            if (close) {
-                close()
-            }
         }
 
         const handleDocumentProcess = async () => {
@@ -232,6 +250,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
             if (!documentOpened) {
                 await startUpload()
             }
+            if (close) close()
         }
 
         if (

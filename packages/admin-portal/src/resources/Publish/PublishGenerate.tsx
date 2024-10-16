@@ -133,7 +133,7 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
                     </div>
 
                     {/* Right container for the preview and publish buttons */}
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{display: "flex", gap: "8px"}}>
                         <Button
                             onClick={onPreviewClick}
                             label={t("publish.preview.action")}
