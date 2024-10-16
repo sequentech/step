@@ -7,41 +7,17 @@ import React from "react"
 import styled from "@emotion/styled"
 
 import {Box} from "@mui/material"
-import {Button, Identifier} from "react-admin"
+import {Button, Identifier, useNotify} from "react-admin"
 import {useTranslation} from "react-i18next"
-import {Publish} from "@mui/icons-material"
-import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
+import {ArrowBackIosNew, Publish} from "@mui/icons-material"
+import {Preview} from "@mui/icons-material"
 
 import {DiffView} from "@/components/DiffView"
 import {PublishActions} from "./PublishActions"
 import {EPublishActionsType} from "./EPublishType"
 import {PublishStatus} from "./EPublishStatus"
-import {CancelButton} from "../Tally/styles"
 
 const PublishGenerateStyled = {
-    WizardContainer: styled.div`
-        display: flex;
-        flex-direction: column;
-        min-height: 100%;
-    `,
-    ContentWrapper: styled.div`
-        flex-grow: 1;
-        overflow-y: auto;
-        padding-bottom: 1rem; // Add some padding at the bottom to prevent content from being hidden behind the footer
-    `,
-    FooterContainer: styled.div`
-        width: 100%;
-        position: sticky;
-        bottom: 0;
-        background-color: ${({theme}) => theme.palette.background.default};
-        box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
-    `,
-    StyledFooter: styled.div`
-        margin: 0 auto;
-        display: flex;
-        justify-content: space-between;
-        padding: 1rem;
-    `,
     Container: styled.div`
         display: flex;
         flex-direction: column;
@@ -63,6 +39,8 @@ const PublishGenerateStyled = {
         align-items: center;
     `,
     Bottom: styled.div`
+        position: sticky;
+        bottom: 0;
         display: flex;
         padding: 8px 16px;
         width: 100%;
@@ -83,6 +61,7 @@ export type TPublishGenerate = {
     onGenerate: () => void
     electionEventId: string
     fetchAllPublishChanges: () => Promise<void>
+    onPreview: (id: string | Identifier) => void
 }
 
 export const PublishGenerate: React.FC<TPublishGenerate> = ({
@@ -95,24 +74,36 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
     onPublish = () => null,
     onGenerate = () => null,
     fetchAllPublishChanges,
+    onPreview = () => null,
 }): React.JSX.Element => {
     const {t} = useTranslation()
+    const notify = useNotify()
+
+    const onPreviewClick = () => {
+        if (ballotPublicationId) {
+            onPreview(ballotPublicationId)
+        } else {
+            notify(t("publish.dialog.error_preview"), {
+                type: "error",
+            })
+        }
+    }
 
     return (
-        <PublishGenerateStyled.WizardContainer>
-            <PublishGenerateStyled.ContentWrapper>
-                {!readOnly && (
-                    <PublishActions
-                        ballotPublicationId={ballotPublicationId}
-                        status={status}
-                        changingStatus={changingStatus}
-                        onPublish={onPublish}
-                        onGenerate={onGenerate}
-                        data={data}
-                        type={EPublishActionsType.Generate}
-                    />
-                )}
+        <Box sx={{flexGrow: 2, flexShrink: 0}}>
+            {!readOnly && (
+                <PublishActions
+                    ballotPublicationId={ballotPublicationId}
+                    status={status}
+                    changingStatus={changingStatus}
+                    onPublish={onPublish}
+                    onGenerate={onGenerate}
+                    data={data}
+                    type={EPublishActionsType.Generate}
+                />
+            )}
 
+            <PublishGenerateStyled.Container>
                 <PublishGenerateStyled.AccordionHeaderTitle>
                     {readOnly ? t("publish.header.viewChange") : t("publish.header.change")}
                 </PublishGenerateStyled.AccordionHeaderTitle>
@@ -126,29 +117,48 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
                     modify={data?.current || null}
                     fetchAllPublishChanges={fetchAllPublishChanges}
                 />
-            </PublishGenerateStyled.ContentWrapper>
 
-            <PublishGenerateStyled.FooterContainer>
-                <PublishGenerateStyled.StyledFooter>
-                    <CancelButton onClick={onBack} className="list-actions">
-                        <ArrowBackIosIcon />
-                        {t("common.label.back")}
-                    </CancelButton>
-
-                    {!readOnly && (
+                <PublishGenerateStyled.Bottom>
+                    {/* Left container for the back button */}
+                    <div>
                         <Button
-                            onClick={onPublish}
-                            label={t("publish.action.publish")}
-                            className="publish-publish-button"
+                            onClick={onBack}
+                            label={t("publish.action.back")}
+                            className="publish-back-button"
                             style={{
-                                color: "#fff",
+                                backgroundColor: "#eee",
+                                color: "#0f054c",
                             }}
                         >
-                            <Publish />
+                            <ArrowBackIosNew />
                         </Button>
-                    )}
-                </PublishGenerateStyled.StyledFooter>
-            </PublishGenerateStyled.FooterContainer>
-        </PublishGenerateStyled.WizardContainer>
+                    </div>
+
+                    {/* Right container for the preview and publish buttons */}
+                    <div style={{display: "flex", gap: "8px"}}>
+                        <Button
+                            onClick={onPreviewClick}
+                            label={t("publish.preview.action")}
+                            className="publish-preview-button"
+                        >
+                            <Preview />
+                        </Button>
+
+                        {!readOnly && (
+                            <Button
+                                onClick={onPublish}
+                                label={t("publish.action.publish")}
+                                className="publish-publish-button"
+                                style={{
+                                    color: "#fff",
+                                }}
+                            >
+                                <Publish />
+                            </Button>
+                        )}
+                    </div>
+                </PublishGenerateStyled.Bottom>
+            </PublishGenerateStyled.Container>
+        </Box>
     )
 }

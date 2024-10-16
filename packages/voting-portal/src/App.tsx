@@ -100,14 +100,22 @@ const App = () => {
     ])
 
     useEffect(() => {
-        if (!isAuthenticated && !!tenantId && !!eventId) {
+        const isDemo = sessionStorage.getItem("isDemo")
+
+        if (!isAuthenticated && !globalSettings.DISABLE_AUTH && isDemo) {
+            const areaId = sessionStorage.getItem("areaId")
+            const documentId = sessionStorage.getItem("documentId")
+            const publicationId = sessionStorage.getItem("publicationId")
+            navigate(`/preview/${tenantId}/${documentId}/${areaId}/${publicationId}`)
+            window.location.reload()
+        } else if (!isAuthenticated && !!tenantId && !!eventId) {
             setTenantEvent(
                 tenantId,
                 eventId,
                 location.pathname.includes("/enroll") ? "register" : "login"
             )
         }
-    }, [tenantId, eventId, isAuthenticated, setTenantEvent])
+    }, [tenantId, eventId, isAuthenticated, setTenantEvent, globalSettings.DISABLE_AUTH])
 
     return (
         <StyledApp
