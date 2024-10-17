@@ -110,7 +110,6 @@ const ExportDialog: React.FC<ExportWrapperProps> = ({
             />
             {exportDocumentId && (
                 <>
-                    <FormStyles.ShowProgress sx={{alignSelf: "center"}} />
                     <DownloadDocument
                         documentId={exportDocumentId ?? ""}
                         electionEventId={electionEventId}
