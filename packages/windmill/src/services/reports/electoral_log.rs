@@ -114,7 +114,8 @@ impl TemplateRenderer for ActivityLogsTemplate {
                     filter: None,
                     order_by: None,
                 })
-                .await?;
+                .await
+                .map_err(|e| anyhow!("Error listing electoral logs: {e:?}"))?;
 
             let is_empty = electoral_logs.items.is_empty();
 
@@ -182,6 +183,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
     }
 }
 
+/// TODO: If this function needs to be used by other report types it should be moved to a share lib.
 pub async fn generate_export_data(
     tenant_id: &str,
     election_event_id: &str,
@@ -278,11 +280,16 @@ pub async fn generate_csv_report(
             let mut csv_writer = WriterBuilder::new().from_writer(temp_file.as_file_mut());
             if let Some(data) = user_data {
                 for item in &data.act_log {
-                    csv_writer.serialize(item)?; // Serialize each item to CSV
+                    // Serialize each item to CSV
+                    csv_writer
+                        .serialize(item)
+                        .map_err(|e| anyhow!("Error serializing to CSV : {e:?}"))?;
                 }
             };
             // Flush and finish writing to the temporary file
-            csv_writer.flush()?;
+            csv_writer
+                .flush()
+                .map_err(|e| anyhow!("Error flushing CSV writer: {e:?}"))?;
             drop(csv_writer);
 
             write_export_document(
@@ -293,7 +300,8 @@ pub async fn generate_csv_report(
                 &tenant_id,
                 &election_event_id,
             )
-            .await?;
+            .await
+            .map_err(|e| anyhow!("Error writing export document: {e:?}"))?;
             Ok(())
         })
     })
