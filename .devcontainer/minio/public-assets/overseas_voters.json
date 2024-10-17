@@ -1,9 +1,9 @@
 {
-  "date_printed": "October 9, 2024",
-  "time_printed": "14:30",
-  "election_date": "May 10, 2024",
+  "date_printed": "2024-10-09T14:30:00-04:00",
+  "election_date": "2024-05-10",
   "election_title": "National Elections",
-  "voting_period": "April 10 - May 10, 2024",
+  "voting_period_start": "2024-04-10T00:00:00-04:00",
+  "voting_period_end": "2024-05-10T23:59:59-04:00",
   "post": "Philippine Embassy, Washington DC",
   "country": "United States",
   "voters": [
@@ -14,8 +14,7 @@
       "middle_name": "A.",
       "suffix": "Jr.",
       "status": "voted",
-      "date_voted": "May 5, 2024",
-      "time_voted": "10:30"
+      "date_voted": "2024-05-05T10:30:00-04:00"
     },
     {
       "number": 2,
@@ -24,8 +23,7 @@
       "middle_name": "B.",
       "suffix": "",
       "status": "not voted",
-      "date_voted": "",
-      "time_voted": ""
+      "date_voted": null
     },
     {
       "number": 3,
@@ -34,8 +32,7 @@
       "middle_name": "C.",
       "suffix": "",
       "status": "voted",
-      "date_voted": "May 6, 2024",
-      "time_voted": "09:45"
+      "date_voted": "2024-05-06T09:45:00-04:00"
     },
     {
       "number": 4,
@@ -44,8 +41,7 @@
       "middle_name": "D.",
       "suffix": "",
       "status": "not_pre_enrolled",
-      "date_voted": "",
-      "time_voted": ""
+      "date_voted": null
     },
     {
       "number": 5,
@@ -54,8 +50,7 @@
       "middle_name": "E.",
       "suffix": "III",
       "status": "voted",
-      "date_voted": "May 7, 2024",
-      "time_voted": "12:15"
+      "date_voted": "2024-05-07T12:15:00-04:00"
     }
   ],
   "ov_voted": 3,
@@ -64,8 +59,6 @@
   "eb_voted": 1,
   "ov_total": 5,
   "precinct_code": "P12345",
-  "goverment_time": "18:00",
-  "local_time": "08:00",
   "chairperson_name": "Juan Dela Cruz",
   "chairperson_digital_signature": "DigitalSignatureABC",
   "poll_clerk_name": "Maria Clara",

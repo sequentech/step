@@ -104,12 +104,13 @@ impl TemplateRenderer for OverseasVotersReport {
             html_body: None,
         }
     }
+
     #[instrument]
     async fn prepare_user_data(&self) -> Result<Self::UserData> {
         let data: UserData = self
             .prepare_preview_data()
             .await
-            .map_err(|e| anyhow::anyhow!(format!("Error preparing report preview {:?}", e)))?;
+            .map_err(|e| anyhow::anyhow!(format!("Error preparing report preview {e:?}")))?;
         Ok(data)
     }
 

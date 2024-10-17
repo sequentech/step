@@ -5,24 +5,30 @@
 use chrono::{DateTime, Local, ParseError, TimeZone};
 use handlebars::{
     Context, Handlebars, Helper, HelperResult, Output, RenderContext,
-    RenderError, RenderErrorReason,
+    RenderError, RenderErrorReason
 };
+use handlebars_chrono::HandlebarsChronoDateTime;
 use num_format::{Locale, ToFormattedString};
 use serde_json::{json, Map, Value};
 use std::collections::{HashMap, HashSet};
-use tracing::instrument;
+use tracing::{instrument, warn};
+
+fn get_registry<'reg>() -> Handlebars<'reg> {
+    let mut reg = Handlebars::new();
+    reg.register_helper("sanitize_html", Box::new(sanitize_html));
+    reg.register_helper("format_u64", Box::new(format_u64));
+    reg.register_helper("format_percentage", Box::new(format_percentage));
+    reg.register_helper("format_date", Box::new(format_date));
+    reg.register_helper("datetime", Box::new(HandlebarsChronoDateTime));
+    reg
+}
 
 #[instrument(skip_all, err)]
 pub fn render_template_text(
     template: &str,
     variables_map: Map<String, Value>,
 ) -> Result<String, RenderError> {
-    let mut reg = Handlebars::new();
-
-    reg.register_helper("sanitize_html", Box::new(sanitize_html));
-    reg.register_helper("format_u64", Box::new(format_u64));
-    reg.register_helper("format_percentage", Box::new(format_percentage));
-    reg.register_helper("format_date", Box::new(format_percentage));
+    let reg = get_registry();
 
     // render handlebars template
     reg.render_template(template, &json!(variables_map))
@@ -34,11 +40,7 @@ pub fn render_template(
     template_map: HashMap<String, String>,
     variables_map: Map<String, Value>,
 ) -> Result<String, RenderError> {
-    let mut reg = Handlebars::new();
-
-    reg.register_helper("sanitize_html", Box::new(sanitize_html));
-    reg.register_helper("format_u64", Box::new(format_u64));
-    reg.register_helper("format_percentage", Box::new(format_percentage));
+    let mut reg = get_registry();
 
     for (name, file) in template_map {
         reg.register_template_string(&name, &file)?;
@@ -125,31 +127,39 @@ pub fn format_date(
     out: &mut dyn Output,
 ) -> HelperResult {
     // Extract the date string from the first parameter
-    let date_str: &str = helper
+    let date_json: &Value = helper
         .param(0)
         .ok_or(RenderErrorReason::ParamNotFoundForIndex("format_date", 0))?
-        .value()
+        .value();
+
+    let date_str: &str = date_json
         .as_str()
-        .ok_or(RenderErrorReason::InvalidParamType(
-            "couldn't parse as &str",
-        ))?;
+        .ok_or_else(|| {
+            warn!("couldn't parse as &str: date_json={date_json:?}");
+
+            RenderErrorReason::InvalidParamType("couldn't parse as &str")
+        })?;
 
     // Extract the dynamic format string from the second parameter
-    let format_str: &str = helper
+    let format_json: &Value = helper
         .param(1)
         .ok_or(RenderErrorReason::ParamNotFoundForIndex("format_date", 1))?
-        .value()
+        .value();
+
+    let format_str: &str = format_json
         .as_str()
-        .ok_or(RenderErrorReason::InvalidParamType(
-            "couldn't parse as &str",
-        ))?;
+        .ok_or_else(|| {
+            warn!("couldn't parse as &str: format_json={format_json:?}");
+
+            RenderErrorReason::InvalidParamType("couldn't parse as &str")
+        })?;
 
     // Detect the appropriate date parsing format dynamically
     let parsed_date = if date_str.contains(':') {
         // If the date string contains a time, assume "YYYY-MM-DD HH:MM:SS"
         DateTime::parse_from_str(date_str, "%Y-%m-%d %H:%M:%S")
             .map_err(|err| {
-                RenderError::new(format!("Date parsing error: {}", err))
+                RenderError::new(format!("Date parsing error: {err:?}, date_json={date_json:?}"))
             })?
             .with_timezone(&Local) // Convert to local timezone
     } else {
@@ -160,7 +170,7 @@ pub fn format_date(
             "%Y-%m-%d %H:%M:%S",
         )
         .map_err(|err| {
-            RenderError::new(format!("Date parsing error: {}", err))
+            RenderError::new(format!("Date parsing error: {err:?}, date_json={date_json:?}"))
         })?
         .with_timezone(&Local) // Convert to local timezone
     };
