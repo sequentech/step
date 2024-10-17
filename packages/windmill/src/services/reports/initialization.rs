@@ -91,7 +91,7 @@ impl TemplateRenderer for InitializationTemplate {
         }
     }
 
-    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>> {
+    async fn prepare_user_data(&self) -> Result<Self::UserData> {
         // Fetch the Hasura database client from the pool
         let mut hasura_db_client: DbClient = get_hasura_pool()
             .await
@@ -138,7 +138,7 @@ impl TemplateRenderer for InitializationTemplate {
         let total_ballots_counted = 0; // Replace with the correct value fetched from Felix
 
         let temp_val: &str = "test";
-        Ok(Some(UserData {
+        Ok(UserData {
             total_registered_voters,
             total_ballots_counted,
             elective_position_name,
@@ -152,7 +152,7 @@ impl TemplateRenderer for InitializationTemplate {
             chairperson_name: temp_val.to_string(),
             poll_clerk_name: temp_val.to_string(),
             third_member_name: temp_val.to_string(),
-        }))
+        })
     }
 
     async fn prepare_system_data(

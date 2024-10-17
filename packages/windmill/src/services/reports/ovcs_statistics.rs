@@ -15,11 +15,7 @@ use tracing::{info, instrument};
 
 // Struct to hold user data
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct UserData {}
-
-// Struct to hold system data
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct SystemData {
+pub struct UserData {
     pub report_hash: String,
     pub ovcs_version: String,
     pub system_hash: String,
@@ -31,6 +27,12 @@ pub struct SystemData {
     pub sbei_disapproved: u32,
     pub system_disapproved: u32,
     pub qr_codes: Vec<String>,
+}
+
+// Struct to hold system data
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SystemData {
+    pub rendered_user_template: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -92,14 +94,24 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
         }
     }
 
+    #[instrument]
+    async fn prepare_user_data(&self) -> Result<Self::UserData> {
+        let data: UserData = self
+            .prepare_preview_data()
+            .await
+            .map_err(|e| anyhow::anyhow!(format!("Error preparing report preview {:?}", e)))?;
+        Ok(data)
+    }
+
     /// Prepare system metadata for the report
-    /// TODO: fetch the real data
+    #[instrument]
     async fn prepare_system_data(
         &self,
-        _rendered_user_template: String,
+        rendered_user_template: String,
     ) -> Result<Self::SystemData> {
-        let data: SystemData = self.prepare_preview_data().await?;
-        Ok(data)
+        Ok(SystemData {
+            rendered_user_template,
+        })
     }
 }
 

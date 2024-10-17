@@ -3,8 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {ComponentType, useCallback, useContext, useEffect, useState} from "react"
-
-import {Box, Drawer} from "@mui/material"
+import {Box} from "@mui/material"
 import {useMutation} from "@apollo/client"
 import {useTranslation} from "react-i18next"
 import {useGetOne, useNotify, useRecordContext, Identifier, useRefresh} from "react-admin"
@@ -42,6 +41,7 @@ import {IElectionEventStatus} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {convertToNumber} from "@/lib/helpers"
 import {EditPreview} from "./EditPreview"
+import FormDialog from "@/components/FormDialog"
 
 enum ViewMode {
     Edit,
@@ -395,15 +395,13 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         }}
                         electionEventId={electionEventId}
                         fetchAllPublishChanges={fetchAllPublishChanges}
+                        onPreview={onPreview}
                     />
                 )}
-                <Drawer
-                    anchor="right"
+                <FormDialog
                     open={open}
                     onClose={handleCloseEditDrawer}
-                    PaperProps={{
-                        sx: {width: "30%"},
-                    }}
+                    title={t("publish.dialog.title")}
                 >
                     <EditPreview
                         id={ballotPublicationId}
@@ -411,7 +409,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         close={handleCloseEditDrawer}
                         ballotData={generateData}
                     />
-                </Drawer>
+                </FormDialog>
             </Box>
         )
     }

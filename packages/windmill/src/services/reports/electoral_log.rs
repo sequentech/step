@@ -97,7 +97,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
         }
     }
 
-    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>> {
+    async fn prepare_user_data(&self) -> Result<Self::UserData> {
         let mut act_log: Vec<ActivityLogRow> = vec![];
         let mut offset = 0;
         let limit = PgConfig::from_env()
@@ -159,10 +159,10 @@ impl TemplateRenderer for ActivityLogsTemplate {
             offset += limit;
         }
 
-        Ok(Some(UserData {
+        Ok(UserData {
             act_log,
             logo: LOGO_TEMPLATE.to_string(),
-        }))
+        })
     }
 
     async fn prepare_system_data(
@@ -278,14 +278,12 @@ pub async fn generate_csv_report(
             let mut temp_file = generate_temp_file(&name, ".csv")
                 .with_context(|| "Error creating named temp file")?;
             let mut csv_writer = WriterBuilder::new().from_writer(temp_file.as_file_mut());
-            if let Some(data) = user_data {
-                for item in &data.act_log {
-                    // Serialize each item to CSV
-                    csv_writer
-                        .serialize(item)
-                        .map_err(|e| anyhow!("Error serializing to CSV : {e:?}"))?;
-                }
-            };
+            for item in &user_data.act_log {
+                // Serialize each item to CSV
+                csv_writer
+                    .serialize(item)
+                    .map_err(|e| anyhow!("Error serializing to CSV : {e:?}"))?;
+            }
             // Flush and finish writing to the temporary file
             csv_writer
                 .flush()
