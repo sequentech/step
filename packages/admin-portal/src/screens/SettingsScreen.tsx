@@ -95,18 +95,6 @@ export const SettingsScreen: React.FC = () => {
                         ),
                     },
                     {
-                        label: t("electionTypeScreen.tabs.schedules"),
-                        component: () => (
-                            <Resource
-                                name="sequent_backend_tenant"
-                                list={SettingsSchedules}
-                                create={SettingsSchedulesCreate}
-                                edit={SettingsSchedulesCreate}
-                                show={SettingsSchedulesCreate}
-                            />
-                        ),
-                    },
-                    {
                         label: t("electionTypeScreen.tabs.trustees"),
                         component: () => (
                             <Resource name="sequent_backend_trustee" list={SettingsTrustees} />
