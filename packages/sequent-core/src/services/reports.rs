@@ -2,7 +2,8 @@
 // SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use chrono::{DateTime, Local, ParseError, TimeZone};
+use anyhow::{anyhow, Context as ContextAnyhow, Result};
+use chrono::{DateTime, Local, Utc};
 use handlebars::{
     Context, Handlebars, Helper, HelperResult, Output, RenderContext,
     RenderError, RenderErrorReason
@@ -182,4 +183,23 @@ pub fn format_date(
     out.write(&formatted_date)?;
 
     Ok(())
+}
+
+/// Convert unix time to RFC2822 date and time format, like: Tue, 1 Jul 2003
+/// 10:52:37 +0200.
+pub fn timestamp_to_rfc2822(timestamp: i64) -> Result<String> {
+    let dt = DateTime::<Utc>::from_timestamp(timestamp, 0)
+        .with_context(|| "Error parsing timestamp")?;
+    let statement_timestamp = std::panic::catch_unwind(|| dt.to_rfc2822())
+        .map_err(|_| anyhow!("Error converting timestamp to RFC2822 format"))?;
+
+    Ok(statement_timestamp)
+}
+
+/// Convert unix time to the given format
+pub fn format_datetime(unix_time: i64, fmt: &str) -> Result<String> {
+    let dt = DateTime::<Utc>::from_timestamp(unix_time, 0)
+        .with_context(|| "Error parsing creation timestamp")?;
+    let formatted_str = dt.format(fmt).to_string();
+    Ok(formatted_str)
 }

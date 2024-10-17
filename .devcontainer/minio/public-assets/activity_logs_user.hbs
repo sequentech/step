@@ -33,7 +33,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                   border: 1px solid black;
                 "
               >
-                <strong>User</strong>
+                <strong>User ID</strong>
               </td>
               <td
                 style="
@@ -98,6 +98,11 @@ SPDX-License-Identifier: AGPL-3.0-only
               >
                 <strong>Message</strong>
               </td>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each act_log}}
+            <tr>
               <td
                 style="
                   text-align: center;
@@ -105,21 +110,17 @@ SPDX-License-Identifier: AGPL-3.0-only
                   border: 1px solid black;
                 "
               >
-                <strong>User ID</strong>
+                {{id}}
               </td>
-            </tr>
-          </thead>
-          <tbody>
-            {{#each act_log}}
-            <tr>
-              <td style="text-align: center">{{id}}</td>
               <td
                 style="
                   text-align: center;
                   vertical-align: top;
                   border: 1px solid black;
                 "
-              ></td>
+              >
+                {{user_id}}
+              </td>
               <td
                 style="
                   text-align: center;
@@ -181,16 +182,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                   border: 1px solid black;
                 "
               >
-                <div style="font-size: 8px">{{message}}</div>
-              </td>
-              <td
-                style="
-                  text-align: center;
-                  vertical-align: top;
-                  border: 1px solid black;
-                "
-              >
-                {{user_id}}
+                <div style="font-size: 6px">{{message}}</div>
               </td>
             </tr>
             {{/each}}
