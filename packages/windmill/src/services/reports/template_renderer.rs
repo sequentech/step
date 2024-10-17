@@ -161,13 +161,11 @@ pub trait TemplateRenderer: Debug {
 
         // Prepare user data either preview or real
         let user_data = if generate_mode == GenerateReportMode::PREVIEW {
-            self
-                .prepare_preview_data()
+            self.prepare_preview_data()
                 .await
                 .map_err(|e| anyhow!("Error preparing preview user data: {e:?}"))?
         } else {
-            self
-                .prepare_user_data()
+            self.prepare_user_data()
                 .await
                 .map_err(|e| anyhow!("Error preparing user data: {e:?}"))?
         };
