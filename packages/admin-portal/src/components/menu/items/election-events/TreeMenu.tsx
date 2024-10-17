@@ -184,7 +184,7 @@ function TreeMenuItem({
     // const [isFirstLoad, setIsFirstLoad] = useState(true)
 
     const location = useLocation()
-    const {setTallyId, setTaskId} = useElectionEventTallyStore()
+    const {setTallyId, setTaskId, setCustomFilter} = useElectionEventTallyStore()
 
     const onClick = () => setOpen(!open)
 
@@ -193,6 +193,8 @@ function TreeMenuItem({
         setTallyId(null)
         // set context task to null to allow navigation to new election event task
         setTaskId(null)
+        // set context task to null to allow navigation to new election event task
+        setCustomFilter({})
     }, [location.pathname])
 
     const subTreeResourceNames = treeResourceNames.slice(1)
