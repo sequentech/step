@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
 use crate::postgres::reports::ReportType;
-use crate::services::database::{self, PgConfig};
+use crate::services::database::PgConfig;
 use crate::services::documents::upload_and_return_document_postgres;
 use crate::services::electoral_log::{list_electoral_log, ElectoralLogRow, GetElectoralLogBody};
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
@@ -13,9 +13,8 @@ use crate::services::temp_path::{generate_temp_file, get_file_size};
 use crate::types::resources::DataList;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use chrono::DateTime;
 use csv::WriterBuilder;
-use deadpool_postgres::{Client as DbClient, Transaction};
+use deadpool_postgres::Transaction;
 use headless_chrome::types::PrintToPdfOptions;
 use sequent_core::services::reports::{format_datetime, timestamp_to_rfc2822};
 use sequent_core::types::hasura::core::Document;
@@ -23,7 +22,6 @@ use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumString;
 use tempfile::NamedTempFile;
-use tracing::{info, instrument};
 
 #[derive(Serialize, Deserialize, Debug, Clone, EnumString)]
 pub enum ReportFormat {
@@ -141,6 +139,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
 
                 act_log.push(ActivityLogRow {
                     id: electoral_log.id(),
+                    user_id: user_id,
                     created,
                     statement_timestamp,
                     statement_kind: electoral_log.statement_kind().to_string(),
@@ -148,7 +147,6 @@ impl TemplateRenderer for ActivityLogsTemplate {
                     log_type,
                     description,
                     message: electoral_log.message().to_string(),
-                    user_id: user_id,
                 });
             }
 
