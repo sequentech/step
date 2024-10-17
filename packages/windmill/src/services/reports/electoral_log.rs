@@ -3,30 +3,25 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
 use crate::postgres::reports::ReportType;
-use crate::services::database::{self, get_hasura_pool, PgConfig};
+use crate::services::database::{self, PgConfig};
 use crate::services::documents::upload_and_return_document_postgres;
-use crate::services::electoral_log::{
-    list_electoral_log, ElectoralLogRow, GetElectoralLogBody, StatementHeadDataString,
-};
+use crate::services::electoral_log::{list_electoral_log, ElectoralLogRow, GetElectoralLogBody};
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::s3::get_minio_url;
-use crate::services::tasks_execution::*;
 use crate::services::temp_path::*;
 use crate::services::temp_path::{generate_temp_file, get_file_size};
 use crate::types::resources::DataList;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
+use chrono::DateTime;
 use csv::WriterBuilder;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use headless_chrome::types::PrintToPdfOptions;
 use sequent_core::services::reports::{format_datetime, timestamp_to_rfc2822};
 use sequent_core::types::hasura::core::Document;
-use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
-use std::env;
-use strum_macros::{Display, EnumString};
+use strum_macros::EnumString;
 use tempfile::NamedTempFile;
 use tracing::{info, instrument};
 
@@ -312,14 +307,13 @@ pub async fn generate_report(
     election_event_id: &str,
     document_id: &str,
     format: ReportFormat,
-    task_execution: TasksExecution,
 ) -> Result<()> {
     let template = ActivityLogsTemplate {
         tenant_id: tenant_id.to_string(),
         election_event_id: election_event_id.to_string(),
     };
 
-    let res = match format {
+    match format {
         ReportFormat::CSV => {
             generate_csv_report(tenant_id, election_event_id, document_id, &template)
                 .await
@@ -358,19 +352,5 @@ pub async fn generate_report(
                 .await
                 .with_context(|| "Error generating PDF report")
         }
-    };
-
-    // Check if the report generation was fail and update the task execution status
-    if res.is_err() {
-        update_fail(
-            &task_execution,
-            &format!("Error generating {:?} report.", format),
-        )
-        .await?;
     }
-
-    update_complete(&task_execution)
-        .await
-        .context("Failed to update task execution status to COMPLETED")?;
-    Ok(())
 }

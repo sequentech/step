@@ -93,12 +93,11 @@ pub async fn export_election_event_logs_route(
                 election_event_id,
                 document_id.clone(),
                 report_fmt,
-                task_execution.clone(),
             ),
         )
         .await;
 
-    let celery_task = match celery_task_result {
+    let _celery_task = match celery_task_result {
         Ok(task) => task,
         Err(error) => {
             let _ = update_fail(
@@ -117,12 +116,14 @@ pub async fn export_election_event_logs_route(
         }
     };
 
+    info!("Sent EXPORT_ELECTION_EVENT_LOGS task {task_execution:?}");
+    let _res = update_complete(&task_execution).await;
+
+    info!("Updated task execution status to COMPLETED");
     let output = ExportElectionEventOutput {
         document_id: document_id,
         task_execution: task_execution.clone(),
     };
-
-    info!("Sent EXPORT_ELECTION_EVENT_LOGS task {task_execution:?}");
 
     Ok(Json(output))
 }
