@@ -98,7 +98,7 @@ pub trait TemplateRenderer: Debug {
         )
         .await
         .with_context(|| "Error getting template id for report")?;
-
+        // Get the template by ID and return its value:
         let template_id = match report_template_id {
             Some(id) => id,
             None => {
@@ -107,7 +107,6 @@ pub trait TemplateRenderer: Debug {
             }
         };
 
-        // Get the template by ID and return its value:
         let template_data_opt =
             template::get_template_by_id(&transaction, &self.get_tenant_id(), &template_id)
                 .await
