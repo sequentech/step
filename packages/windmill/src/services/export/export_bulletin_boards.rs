@@ -13,7 +13,9 @@ use base64::Engine;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use std::collections::HashMap;
 use tempfile::{NamedTempFile, TempPath};
+use tracing::{event, info, instrument, Level};
 
+#[instrument]
 fn get_board_record(board_name: &str, row: B3MessageRow) -> Vec<String> {
     let message_b64 = general_purpose::STANDARD_NO_PAD.encode(row.message.clone());
     vec![
@@ -30,6 +32,7 @@ fn get_board_record(board_name: &str, row: B3MessageRow) -> Vec<String> {
     ]
 }
 
+#[instrument(err)]
 async fn create_boards_csv(boards_map: HashMap<String, Vec<B3MessageRow>>) -> Result<TempPath> {
     let mut writer = csv::WriterBuilder::new().delimiter(b',').from_writer(
         generate_temp_file("export-boards-", ".csv")
@@ -73,6 +76,7 @@ async fn create_boards_csv(boards_map: HashMap<String, Vec<B3MessageRow>>) -> Re
     Ok(temp_path)
 }
 
+#[instrument(err, skip(transaction))]
 pub async fn read_election_event_boards(
     transaction: &Transaction<'_>,
     tenant_id: &str,

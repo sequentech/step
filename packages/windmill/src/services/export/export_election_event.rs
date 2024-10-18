@@ -25,17 +25,19 @@ use std::env;
 use std::fs::File;
 use std::io::Write;
 use tempfile::NamedTempFile;
+use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 use zip::write::FileOptions;
 
-use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
-use crate::services::documents::upload_and_return_document_postgres;
 use super::export_bulletin_boards;
 use super::export_schedule_events;
 use super::export_users::export_users_file;
 use super::export_users::ExportBody;
+use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
+use crate::services::documents::upload_and_return_document_postgres;
 use crate::services::password;
 
+#[instrument(err, skip(transaction))]
 pub async fn read_export_data(
     transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -79,6 +81,7 @@ pub async fn read_export_data(
     })
 }
 
+#[instrument(err)]
 async fn generate_encrypted_zip(
     temp_path_string: String,
     encrypted_temp_file_string: String,
@@ -102,6 +105,7 @@ pub async fn write_export_document(data: ImportElectionEventSchema) -> Result<Na
     Ok(tmp_file)
 }
 
+#[instrument(err)]
 pub async fn process_export_zip(
     tenant_id: &str,
     election_event_id: &str,

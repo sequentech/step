@@ -39,14 +39,7 @@ use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 use zip::read::ZipArchive;
 
-use crate::services::consolidation::aes_256_cbc_encrypt::decrypt_file_aes_256_cbc;
-use crate::services::documents;
-use crate::services::documents::upload_and_return_document_postgres;
-use crate::services::election_event_board::get_election_event_board;
-use crate::services::electoral_log::ElectoralLog;
 use super::import_users::import_users_file;
-use crate::services::protocol_manager::get_election_board;
-use crate::services::temp_path::get_file_size;
 use crate::hasura::election_event::get_election_event;
 use crate::hasura::election_event::insert_election_event as insert_election_event_hasura;
 use crate::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
@@ -58,12 +51,19 @@ use crate::postgres::contest::insert_contest;
 use crate::postgres::election::insert_election;
 use crate::postgres::election_event::insert_election_event;
 use crate::postgres::scheduled_event::insert_scheduled_event;
+use crate::services::consolidation::aes_256_cbc_encrypt::decrypt_file_aes_256_cbc;
+use crate::services::documents;
+use crate::services::documents::upload_and_return_document_postgres;
+use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_board::BoardSerializable;
+use crate::services::electoral_log::ElectoralLog;
 use crate::services::jwks::upsert_realm_jwks;
+use crate::services::protocol_manager::get_election_board;
 use crate::services::protocol_manager::{
     create_protocol_manager_keys, get_b3_pgsql_client, get_board_client,
 };
 use crate::services::temp_path::generate_temp_file;
+use crate::services::temp_path::get_file_size;
 use crate::tasks::import_election_event::ImportElectionEventBody;
 use crate::types::documents::EDocuments;
 use sequent_core::types::hasura::core::{Area, Candidate, Contest, Election, ElectionEvent};
