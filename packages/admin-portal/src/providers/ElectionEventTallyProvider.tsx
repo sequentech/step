@@ -42,7 +42,7 @@ const defaultElectionEventTallyContext: ElectionEventTallyContextProps = {
     taskId: null,
     setTaskId: () => undefined,
     customFilter: {},
-    setCustomFilter: () => undefined,   
+    setCustomFilter: () => undefined,
 }
 
 export const ElectionEventTallyContext = createContext<ElectionEventTallyContextProps>(

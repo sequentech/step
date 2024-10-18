@@ -806,7 +806,7 @@ const englishTranslation = {
                 title: "Title",
                 subtitle: "Subtitle",
                 kind: "File type",
-                filter:"Custom Filters",
+                filter: "Custom Filters",
             },
             language: {
                 es: "Spanish",

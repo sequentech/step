@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react'
-import { ListControllerResult, useListContext, Menu } from 'react-admin'
+import React, {useEffect} from "react"
+import {ListControllerResult, useListContext, Menu} from "react-admin"
 
 export const CustomActionsMenu = ({
     anchorEl,
