@@ -31,7 +31,7 @@ export const CustomCssReader: React.FC = () => {
     return <></>
 }
 
-const   SequentSidebar = (props: any) => {
+const SequentSidebar = (props: any) => {
     return (
         <>
             <CustomCssReader />
