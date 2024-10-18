@@ -87,7 +87,7 @@ import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import SelectArea from "@/components/area/SelectArea"
 import {WidgetProps} from "@/components/Widget"
 import {ResetFilters} from "@/components/ResetFilters"
-import { useElectionEventTallyStore } from '@/providers/ElectionEventTallyProvider'
+import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -707,6 +707,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
     const [openCustomMenu, setOpenCustomMenu] = useState(false)
     const {customFilter} = useElectionEventTallyStore()
+    const [myFilters, setMyFilters] = useState({})
+    const [hasCustomFilter, setHasCustomFilter] = useState<boolean>(false)
 
     // functions
     const handleClickCustomMenu = (event: React.MouseEvent<HTMLElement>) => {
@@ -719,14 +721,17 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setOpenCustomMenu(false)
     }
 
-    const [myFilters, setMyFilters] = useState({})
 
-    const handleApplyCustomMenu = (ctx: any, filter: any) => {
+    const handleApplyCustomMenu = (ctx: any, filter: object | null | undefined) => {
         console.log("aa 1 - ctx", ctx)
         if (filter) {
-            setMyFilters((prev: any) => ({...filter}))
+            // ctx.setFilters({...filter}, [], false)
+            setMyFilters((prev: any) => ({ ...filter }))
+            setHasCustomFilter(true)
         } else {
+            // ctx.setFilters({}, [], false)
             setMyFilters({})
+            setHasCustomFilter(false)
         }
         console.log("aa 2 - ctx", ctx)
 
@@ -737,6 +742,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     // effect
     useEffect(() => {
         setMyFilters(customFilter)
+        setHasCustomFilter(false)
     }, [customFilter])
 
     const permanentFilters = {
@@ -778,7 +784,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 },
             },
             filter: {
-                email: "seq ",
+                email: "abc",
             },
         },
     ]
@@ -795,23 +801,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     )
                     // if it's not in the list of actions, add it
                     if (!customFilterExists) {
-                        // build the list of available filters
-                        // const customFiltersList = customFilters.map((item: any, index: number) => {
-                        //     const {label, filter} = item
-                        //     console.log("aa customFiltersList :: ", label)
-                        //     console.log("aa i18n.language :: ", i18n.language.split("-")[0])
-
-                        //     return (
-                        //         <MenuItem key={index} onClick={() => handleApplyCustomMenu(filter)}>
-                        //             {translate(
-                        //                 label.i18n,
-                        //                 i18n.language.split("-")[0],
-                        //                 i18n.language.split("-")[0]
-                        //             ) || t(label.name)}
-                        //         </MenuItem>
-                        //     )
-                        // })
-                        // setCustomFiltersList(customFiltersList)
                         return [
                             ...prev,
                             <Button
@@ -844,9 +833,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             // build the list of available filters
             customFiltersList = customFilters.map((item: any, index: number) => {
                 const {label, filter} = item
-                console.log("aa customFiltersList :: ", label)
-                console.log("aa i18n.language :: ", i18n.language.split("-")[0])
-
                 return (
                     <MenuItem key={index} onClick={() => handleApplyCustomMenu(ctx, filter)}>
                         {translate(
@@ -972,7 +958,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     queryOptions={{
                         refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
                     }}
-                    empty={<Empty />}
+                    empty={hasCustomFilter ? false : <Empty />}
                     actions={
                         <ListActions
                             withImport
