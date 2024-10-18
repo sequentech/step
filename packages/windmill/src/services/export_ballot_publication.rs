@@ -9,6 +9,7 @@ use crate::services::database::get_hasura_pool;
 use anyhow::{anyhow, Result};
 use csv::Writer;
 use deadpool_postgres::{Client as DbClient, Transaction};
+use sequent_core::serialization::deserialize_with_path;
 use sequent_core::types::hasura::core::Template;
 use sequent_core::{services::keycloak::get_event_realm, types::hasura::core::Document};
 use serde::{Deserialize, Serialize};
@@ -21,7 +22,7 @@ pub async fn read_export_data(
     tenant_id: &str,
     ballot_design: &str,
 ) -> Result<String> {
-    let ballot_design_json: Value = serde_json::from_str(ballot_design)?;
+    let ballot_design_json: Value = deserialize_with_path::deserialize_str(ballot_design)?;
     let mut csv_data = vec![];
 
     fn flatten_json(prefix: String, value: &Value, csv_data: &mut Vec<(String, String)>) {

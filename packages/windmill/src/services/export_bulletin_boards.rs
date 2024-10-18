@@ -1,0 +1,92 @@
+// SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+use super::{
+    ceremonies::keys_ceremony::get_keys_ceremony_board, protocol_manager::get_b3_pgsql_client,
+    temp_path::generate_temp_file,
+};
+use crate::{postgres::keys_ceremony::get_keys_ceremonies, util::aws::get_max_upload_size};
+use anyhow::{anyhow, Context, Result};
+use b3::client::pgsql::B3MessageRow;
+use base64::engine::general_purpose;
+use base64::Engine;
+use deadpool_postgres::{Client as DbClient, Transaction};
+use std::collections::HashMap;
+use tempfile::{NamedTempFile, TempPath};
+
+fn get_board_record(board_name: &str, row: B3MessageRow) -> Vec<String> {
+    let message_b64 = general_purpose::STANDARD_NO_PAD.encode(row.message.clone());
+    vec![
+        board_name.to_string(),
+        row.id.to_string(),
+        row.created.to_string(),
+        row.sender_pk.to_string(),
+        row.statement_timestamp.to_string(),
+        row.statement_kind.clone(),
+        row.batch.to_string(),
+        row.mix_number.to_string(),
+        message_b64,
+        row.version.clone(),
+    ]
+}
+
+async fn create_boards_csv(boards_map: HashMap<String, Vec<B3MessageRow>>) -> Result<TempPath> {
+    let mut writer = csv::WriterBuilder::new().delimiter(b',').from_writer(
+        generate_temp_file("export-boards-", ".csv")
+            .with_context(|| "Error creating temporary file")?,
+    );
+    let headers = vec![
+        "board".to_string(),
+        "id".to_string(),
+        "created".to_string(),
+        "sender_pk".to_string(),
+        "statement_timestamp".to_string(),
+        "statement_kind".to_string(),
+        "batch".to_string(),
+        "mix_number".to_string(),
+        "message".to_string(),
+        "version".to_string(),
+    ];
+    writer.write_record(&headers)?;
+    for (board_name, board_rows) in boards_map {
+        for board_row in board_rows {
+            let record = get_board_record(&board_name, board_row);
+            writer
+                .write_record(&record)
+                .with_context(|| "Error writing record")?;
+        }
+    }
+    writer
+        .flush()
+        .with_context(|| "Error flushing CSV writer")?;
+
+    let temp_path = writer
+        .into_inner()
+        .with_context(|| "Error getting inner writer")?
+        .into_temp_path();
+
+    let size = temp_path.metadata()?.len();
+    if size > get_max_upload_size()? as u64 {
+        return Err(anyhow!("File too large: {} > {}", size, get_max_upload_size()?).into());
+    }
+
+    Ok(temp_path)
+}
+
+pub async fn read_election_event_boards(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<TempPath> {
+    let keys_ceremonies = get_keys_ceremonies(transaction, tenant_id, election_event_id).await?;
+    let b3_client = get_b3_pgsql_client().await?;
+    let mut boards_map: HashMap<String, Vec<B3MessageRow>> = HashMap::new();
+    for keys_ceremony in keys_ceremonies {
+        let board_name =
+            get_keys_ceremony_board(transaction, tenant_id, election_event_id, &keys_ceremony)
+                .await?;
+        let b3_messages = b3_client.get_messages(&board_name, -1).await?;
+        boards_map.insert(board_name, b3_messages);
+    }
+    create_boards_csv(boards_map).await
+}

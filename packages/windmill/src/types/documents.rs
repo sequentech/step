@@ -11,6 +11,7 @@ pub enum EDocuments {
     ACTIVITY_LOGS,
     SCHEDULED_EVENTS,
     S3_FILES,
+    BULLETIN_BOARDS,
 }
 
 impl EDocuments {
@@ -21,6 +22,7 @@ impl EDocuments {
             EDocuments::ACTIVITY_LOGS => "export_activity_logs",
             EDocuments::SCHEDULED_EVENTS => "export_scheduled_events",
             EDocuments::S3_FILES => "export_S3_files",
+            EDocuments::BULLETIN_BOARDS => "export_bulletin_boards",
         }
     }
 }

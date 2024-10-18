@@ -30,6 +30,7 @@ use zip::write::FileOptions;
 
 use super::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
 use super::documents::upload_and_return_document_postgres;
+use super::export_bulletin_boards;
 use super::export_schedule_events;
 use super::export_users::export_users_file;
 use super::export_users::ExportBody;
@@ -229,6 +230,27 @@ pub async fn process_export_zip(
 
         let mut schedule_events_file = File::open(temp_schedule_events_file)?;
         std::io::copy(&mut schedule_events_file, &mut zip_writer)?;
+    }
+
+    // Add boards info
+    if export_config.bulletin_board {
+        let bulletin_boards_filename = format!(
+            "{}-{}.csv",
+            EDocuments::BULLETIN_BOARDS.to_file_name(),
+            election_event_id
+        );
+
+        let temp_bulletin_boards_file = export_bulletin_boards::read_election_event_boards(
+            &hasura_transaction,
+            tenant_id,
+            election_event_id,
+        )
+        .await
+        .map_err(|e| anyhow!("Error reading bulletin boards data: {e:?}"))?;
+        zip_writer.start_file(&bulletin_boards_filename, options)?;
+
+        let mut bulletin_boards_file = File::open(temp_bulletin_boards_file)?;
+        std::io::copy(&mut bulletin_boards_file, &mut zip_writer)?;
     }
 
     // Finalize the ZIP file
