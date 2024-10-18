@@ -752,49 +752,9 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         filter: null,
     }
 
-    const testFilter = [
-        {
-            label: {
-                name: "Filtro a aplicar",
-                i18n: {
-                    en: "Filter by username and first name",
-                    es: "Filtrar por nombre de usuario y nombre",
-                },
-            },
-            filter: {
-                username: "er",
-                first_name: "er",
-            },
-        },
-        {
-            label: {
-                name: "No hay registro",
-                i18n: {
-                    en: "No register found",
-                    es: "No hay registro",
-                },
-            },
-            filter: {
-                email: "abc",
-            },
-        },
-        {
-            label: {
-                name: "No Tiene email",
-                i18n: {
-                    en: "Do Not Has email",
-                    es: "No Tiene email",
-                },
-            },
-            filter: {
-                email: {_eq: null},
-            },
-        },
-    ]
-
     useEffect(() => {
         if (electionEvent) {
-            let customFilters = electionEvent?.presentation?.custom_filters || [...testFilter]
+            let customFilters = electionEvent?.presentation?.custom_filters || []
             if (customFilters.length > 0) {
                 customFilters = [resetCustomFilter, ...customFilters]
                 setListActions((prev: ReactElement[]) => {
@@ -830,7 +790,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
 
     const renderMenuItems = () => {
         let customFiltersList = []
-        let customFilters = electionEvent?.presentation?.custom_filters || [...testFilter]
+        let customFilters = electionEvent?.presentation?.custom_filters || []
         if (customFilters.length > 0) {
             customFilters = [resetCustomFilter, ...customFilters]
             // build the list of available filters
