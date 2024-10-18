@@ -783,7 +783,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 },
             },
             filter: {
-                email: "abc",
+                email: {_eq: null},
             },
         },
     ]
