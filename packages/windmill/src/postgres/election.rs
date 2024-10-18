@@ -9,7 +9,7 @@ use tokio_postgres::row::Row;
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 
-use crate::services::import_election_event::ImportElectionEventSchema;
+use crate::services::import::import_election_event::ImportElectionEventSchema;
 
 pub struct ElectionWrapper(pub Election);
 

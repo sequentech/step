@@ -10,7 +10,7 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::reports::get_reports_by_election_event_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::database::get_hasura_pool;
-use crate::services::import_election_event::ImportElectionEventSchema;
+use crate::services::import::import_election_event::ImportElectionEventSchema;
 use crate::services::reports::electoral_log;
 use crate::services::s3;
 use crate::tasks::export_election_event::ExportOptions;
