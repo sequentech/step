@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::database::get_hasura_pool;
-use super::providers::transactions_provider::provide_hasura_transaction;
-use super::temp_path::{generate_temp_file, get_file_size};
-use super::{
+use crate::services::database::get_hasura_pool;
+use crate::services::providers::transactions_provider::provide_hasura_transaction;
+use crate::services::temp_path::{generate_temp_file, get_file_size};
+use crate::services::{
     documents::upload_and_return_document_postgres, temp_path::write_into_named_temp_file,
 };
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;

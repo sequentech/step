@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::{
+use crate::services::{
     documents::upload_and_return_document_postgres, temp_path::write_into_named_temp_file,
 };
 use crate::postgres::template::get_templates_by_tenant_id;

@@ -11,7 +11,7 @@ use sequent_core::{services::keycloak::get_event_realm, types::hasura::core::Doc
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 
-use super::{
+use crate::services::{
     documents::upload_and_return_document_postgres, temp_path::write_into_named_temp_file,
 };
 
