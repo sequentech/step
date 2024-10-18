@@ -23,10 +23,6 @@ import {
     useSidebarState,
     useUnselectAll,
     RaRecord,
-    useListContext,
-    ListControllerResult,
-    useListController,
-    WithListContext,
 } from "react-admin"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
