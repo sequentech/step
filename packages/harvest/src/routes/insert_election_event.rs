@@ -130,7 +130,7 @@ pub async fn import_election_event_f(
             }
         };
 
-    let document_result =
+    let document_result=
         services::import::import_election_event::get_election_event_schema(
             &document_type,
             &temp_file_path,
@@ -140,16 +140,18 @@ pub async fn import_election_event_f(
         )
         .await;
 
-    if let Err(err) = document_result {
-        return Ok(Json(ImportElectionEventOutput {
-            id: None,
-            message: None,
-            error: Some(format!("Error checking import: {:?}", err)),
-            task_execution: None,
-        }));
-    }
+   let (election_event_schema, replacement_map) = match document_result {
+        Ok((election_event_schema, replacement_map)) => (election_event_schema, replacement_map),
+        Err(err) => {
+            return Ok(Json(ImportElectionEventOutput {
+                id: None,
+                message: None,
+                error: Some(format!("Error checking import: {:?}", err)),
+                task_execution: None,
+            }));
+        }
+    };
 
-    let election_event_schema = document_result.unwrap();
     let id = election_event_schema.election_event.id.clone();
 
     let check_only = input.check_only.unwrap_or(false);

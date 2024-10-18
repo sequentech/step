@@ -26,6 +26,7 @@ use sequent_core::types::hasura::core::Template;
 use sequent_core::util::mime::get_mime_type;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
+use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::fs::File;
@@ -211,7 +212,7 @@ pub fn replace_ids(
     original_data: &ImportElectionEventSchema,
     id_opt: Option<String>,
     tenant_id: String,
-) -> Result<ImportElectionEventSchema> {
+) -> Result<(ImportElectionEventSchema, HashMap<String, String>)> {
     let mut keep: Vec<String> = vec![];
     keep.push(original_data.tenant_id.clone().to_string());
     if id_opt.is_some() {
@@ -233,7 +234,7 @@ pub fn replace_ids(
         }
     }
 
-    let mut new_data = replace_uuids(data_str, keep);
+    let (mut new_data, replacement_map) = replace_uuids(data_str, keep);
 
     if let Some(id) = id_opt {
         new_data = new_data.replace(&original_data.election_event.id, &id);
@@ -243,7 +244,7 @@ pub fn replace_ids(
     }
 
     let data: ImportElectionEventSchema = deserialize_str(&new_data)?;
-    Ok(data.clone())
+    Ok((data, replacement_map))
 }
 
 #[instrument(err, skip_all)]
@@ -317,7 +318,7 @@ pub async fn get_election_event_schema(
     object: ImportElectionEventBody,
     id: Option<String>,
     tenant_id: String,
-) -> Result<ImportElectionEventSchema> {
+) -> Result<(ImportElectionEventSchema, HashMap<String, String>)> {
     if document_type == "application/ezip" || document_type == get_mime_type("zip") {
         // Handle the ZIP file case
         let file = temp_file_path.reopen()?;
@@ -366,8 +367,8 @@ pub async fn process_election_event_file(
     object: ImportElectionEventBody,
     election_event_id: String,
     tenant_id: String,
-) -> Result<ImportElectionEventSchema> {
-    let mut data = get_election_event_schema(
+) -> Result<(ImportElectionEventSchema, HashMap<String, String>)> {
+    let (mut data, replacement_map) = get_election_event_schema(
         document_type,
         temp_file_path,
         object,
@@ -474,7 +475,7 @@ pub async fn process_election_event_file(
     .await
     .with_context(|| "Error inserting reports")?;
 
-    Ok(data)
+    Ok((data, replacement_map))
 }
 
 async fn process_voters_file(
@@ -567,7 +568,7 @@ pub async fn process_document(
     .await
     .map_err(|err| anyhow!("Failed to get document: {err}"))?;
 
-    let election_event_schema = process_election_event_file(
+    let (election_event_schema, replacement_map) = process_election_event_file(
         hasura_transaction,
         &document_type,
         &temp_file_path,
@@ -657,6 +658,15 @@ pub async fn process_document(
                     election_event_schema.tenant_id.to_string(),
                 )
                 .await?;
+            }
+            if file_name.contains(&format!("{}", EDocuments::BULLETIN_BOARDS.to_file_name())) {
+                let mut temp_file = NamedTempFile::new()
+                    .context("Failed to create bulletin boards temporary file")?;
+
+                io::copy(&mut cursor, &mut temp_file)
+                    .context("Failed to copy contents of bulletin boards file to temporary file")?;
+                temp_file.as_file_mut().rewind()?;
+                //import_bulletin_boards(temp_file, replacement_map).await?;
             }
         }
     };

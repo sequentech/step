@@ -262,6 +262,7 @@ pub async fn process_export_zip(
 
     // Encrypt ZIP file if required
     let encryption_password = export_config.password.unwrap_or("".to_string());
+    if 0 == encryption_password.len() && export_config
     let encrypted_zip_path = zip_path.with_extension("ezip");
     if encryption_password.len() > 0 {
         generate_encrypted_zip(

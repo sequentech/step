@@ -16,10 +16,10 @@ use tempfile::{NamedTempFile, TempPath};
 use tracing::{event, info, instrument, Level};
 
 #[instrument]
-fn get_board_record(board_name: &str, row: B3MessageRow) -> Vec<String> {
+fn get_board_record(election_id: &str, row: B3MessageRow) -> Vec<String> {
     let message_b64 = general_purpose::STANDARD_NO_PAD.encode(row.message.clone());
     vec![
-        board_name.to_string(),
+        election_id.to_string(),
         row.id.to_string(),
         row.created.to_string(),
         row.sender_pk.to_string(),
@@ -39,7 +39,7 @@ async fn create_boards_csv(boards_map: HashMap<String, Vec<B3MessageRow>>) -> Re
             .with_context(|| "Error creating temporary file")?,
     );
     let headers = vec![
-        "board".to_string(),
+        "election_id".to_string(),
         "id".to_string(),
         "created".to_string(),
         "sender_pk".to_string(),
@@ -86,11 +86,12 @@ pub async fn read_election_event_boards(
     let b3_client = get_b3_pgsql_client().await?;
     let mut boards_map: HashMap<String, Vec<B3MessageRow>> = HashMap::new();
     for keys_ceremony in keys_ceremonies {
-        let board_name =
+        let (board_name, election_id) =
             get_keys_ceremony_board(transaction, tenant_id, election_event_id, &keys_ceremony)
                 .await?;
+        let election_id = election_id.unwrap_or("".to_string());
         let b3_messages = b3_client.get_messages(&board_name, -1).await?;
-        boards_map.insert(board_name, b3_messages);
+        boards_map.insert(election_id, b3_messages);
     }
     create_boards_csv(boards_map).await
 }
