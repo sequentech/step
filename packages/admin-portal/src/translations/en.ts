@@ -58,7 +58,7 @@ const englishTranslation = {
         },
         areas: {
             common: {
-                title: "Areas",
+                title: "Posts",
                 subTitle: "Area configuration.",
                 deleteError: "Error deleting area",
             },
@@ -66,7 +66,7 @@ const englishTranslation = {
             createAreaError: "Could not create Area",
             sequent_backend_area_contest: "Contests",
             empty: {
-                header: "No Areas yet.",
+                header: "No Posts yet.",
                 action: "Create Area",
             },
         },
@@ -229,7 +229,7 @@ const englishTranslation = {
                 voters: "Actual Voters",
                 elections: "Elections",
                 contests: "Contests",
-                areas: "Areas",
+                areas: "Posts",
                 sentEmails: "Emails sent",
                 sentSMS: "SMS sent",
                 calendar: {
@@ -263,7 +263,7 @@ const englishTranslation = {
                 data: "Data",
                 localization: "Localization",
                 voters: "Voters",
-                areas: "Areas",
+                areas: "Posts",
                 keys: "Keys",
                 tally: "Tally",
                 publish: "Publish",
@@ -301,13 +301,13 @@ const englishTranslation = {
                 },
             },
             importAreas: {
-                title: "Import Areas",
+                title: "Import Posts",
                 subtitle: "Import areas data",
                 areaParagraph:
                     "Import areas using a spreadsheet file in Comma Separated Values (CSV) format.",
-                importSuccess: "Areas Imported Successfully",
-                importError: "Error importing Areas",
-                upsert: "Upsert Areas",
+                importSuccess: "Posts Imported Successfully",
+                importError: "Error importing Posts",
+                upsert: "Upsert Posts",
             },
             import: {
                 eetitle: "Import Election Event",
@@ -319,7 +319,7 @@ const englishTranslation = {
                     "Import voters using a spreadsheet file in Comma Separated Values (CSV) format. Download an example import CSV file here.",
                 electionEventParagraph: "Import Election Events using a JSON file.",
                 elections: "Elections",
-                areas: "Areas",
+                areas: "Posts",
                 sha: "Integrity Check (SHA-256)",
                 cancel: "Cancel",
                 import: "Import",
