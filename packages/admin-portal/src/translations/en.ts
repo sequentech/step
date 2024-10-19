@@ -59,15 +59,15 @@ const englishTranslation = {
         areas: {
             common: {
                 title: "Posts",
-                subTitle: "Area configuration.",
+                subTitle: "Post configuration.",
                 deleteError: "Error deleting area",
             },
-            createAreaSuccess: "Area created",
-            createAreaError: "Could not create Area",
+            createAreaSuccess: "Post created",
+            createAreaError: "Could not create Post",
             sequent_backend_area_contest: "Contests",
             empty: {
                 header: "No Posts yet.",
-                action: "Create Area",
+                action: "Create Post",
             },
         },
         electionTypeScreen: {
@@ -440,7 +440,7 @@ const englishTranslation = {
                     "emailVerified": "Email Verified",
                     "groups": "Groups",
                     "attributes": "Attributes",
-                    "area": "Area",
+                    "area": "Post",
                     "password": "Password",
                     "repeatPassword": "Repeat Password",
                     "passwordMismatch": "Passwords must match",
@@ -560,8 +560,8 @@ const englishTranslation = {
                 "notification-read": "Read Notification",
                 "notification-write": "Edit Notification",
                 "notification-send": "Send Notification",
-                "area-read": "Read Area",
-                "area-write": "Edit Area",
+                "area-read": "Read Post",
+                "area-write": "Edit Post",
                 "election-state-write": "Edit Election State",
                 "election-type-create": "Create Election Type",
                 "election-type-read": "Read Election Type",
@@ -959,7 +959,7 @@ const englishTranslation = {
             errorUploadingSignature: "There was an error uploading signature",
             downloadTransmissionPackage: "Download Transmission Package",
             transmissionPackage: {
-                title: "Transmission Package for Area '{{name}}' and Election '{{eventName}}'",
+                title: "Transmission Package for Post '{{name}}' and Election '{{eventName}}'",
                 description:
                     "Allows you to export a Transmission Package to Destination Servers or download it.",
                 actions: {
@@ -968,7 +968,7 @@ const englishTranslation = {
                         dialog: {
                             title: "Do you want to Send the Transmission Package?",
                             description:
-                                "Please confirm you want to Send the Transmission Package for Area `{{name}}` to the Destination Servers.",
+                                "Please confirm you want to Send the Transmission Package for Post `{{name}}` to the Destination Servers.",
                             confirm: "Send Transmission Package",
                             cancel: "Close",
                         },
@@ -978,7 +978,7 @@ const englishTranslation = {
                         dialog: {
                             title: "Do you want to regenerate the Transmission Package?",
                             description:
-                                "Please confirm you want to regenerate the Transmission Package for Area `{{name}}`",
+                                "Please confirm you want to regenerate the Transmission Package for Post `{{name}}`",
                             confirm: "Regenerate Transmission Package",
                             cancel: "Close",
                         },
@@ -988,7 +988,7 @@ const englishTranslation = {
                         dialog: {
                             title: "Do you want to sign the Transmission Package?",
                             description:
-                                "Please confirm you want to regenerate the Transmission Package for Area `{{name}}`",
+                                "Please confirm you want to regenerate the Transmission Package for Post `{{name}}`",
                             confirm: "Sign Transmission Package",
                             cancel: "Close",
                             input: {
@@ -1003,7 +1003,7 @@ const englishTranslation = {
                         dialog: {
                             title: "Do you want to Download the Transmission Package?",
                             description:
-                                "Please confirm you want to Download the Transmission Package for Area `{{name}}.`",
+                                "Please confirm you want to Download the Transmission Package for Post `{{name}}.`",
                             confirm: "Download Transmission Package",
                             cancel: "Close",
                         },
@@ -1030,11 +1030,11 @@ const englishTranslation = {
                     },
                 },
             },
-            sendToTransmissionPackageServers: "Send Transmission Package for Area '{{name}}'",
+            sendToTransmissionPackageServers: "Send Transmission Package for Post '{{name}}'",
             uploadTransmissionPackage: "Sign Transmission Package",
             uploadTransmissionPackageDesc:
                 "Upload your Signature to sign the Transmission Package. This is an optional operation.",
-            exportElectionArea: "Send Transmission Package for Area '{{name}}'",
+            exportElectionArea: "Send Transmission Package for Post '{{name}}'",
             templateTitle: "Results Template",
             templateSubTitle: "Optionally overwrite the results template.",
             ceremonyTitle: "Elections to Tally",
@@ -1242,7 +1242,7 @@ const englishTranslation = {
                 back: "Back",
             },
             label: {
-                area: "Area",
+                area: "Post",
                 channel: "Channel",
                 total_votes: "Total Votes",
                 total_valid_votes: "Total Valid Votes",
@@ -1286,7 +1286,7 @@ const englishTranslation = {
                 view: "View",
             },
             table: {
-                area: "Area",
+                area: "Post",
                 contest: "Contest",
                 published: "Published",
             },
