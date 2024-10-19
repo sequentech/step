@@ -255,6 +255,24 @@ pub async fn process_export_zip(
 
         let mut bulletin_boards_file = File::open(temp_bulletin_boards_file)?;
         std::io::copy(&mut bulletin_boards_file, &mut zip_writer)?;
+
+        let protocol_manager_keys_filename = format!(
+            "{}-{}.csv",
+            EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name(),
+            election_event_id
+        );
+
+        let temp_protocol_manager_keys_file = export_bulletin_boards::read_protocol_manager_keys(
+            &hasura_transaction,
+            tenant_id,
+            election_event_id,
+        )
+        .await
+        .map_err(|e| anyhow!("Error reading protocol manager keys data: {e:?}"))?;
+        zip_writer.start_file(&protocol_manager_keys_filename, options)?;
+
+        let mut rotocol_manager_keys_file = File::open(temp_protocol_manager_keys_file)?;
+        std::io::copy(&mut rotocol_manager_keys_file, &mut zip_writer)?;
     }
 
     // Finalize the ZIP file
@@ -262,7 +280,9 @@ pub async fn process_export_zip(
 
     // Encrypt ZIP file if required
     let encryption_password = export_config.password.unwrap_or("".to_string());
-    if 0 == encryption_password.len() && export_config
+    if 0 == encryption_password.len() && export_config.bulletin_board {
+        return Err(anyhow!("Bulletin Board requires password"));
+    }
     let encrypted_zip_path = zip_path.with_extension("ezip");
     if encryption_password.len() > 0 {
         generate_encrypted_zip(
