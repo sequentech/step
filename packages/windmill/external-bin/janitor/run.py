@@ -397,7 +397,7 @@ def get_data():
 FROM 
     pop 
 JOIN 
-    allbgy ON (pop.PROV_CODE || pop.MUN_CODE || pop.BRGY_CODE) = allbgy.ID_BARANGAY 
+    allbgy ON pop.CLUSTERPOLLCENTER = allbgy.ID_BARANGAY 
 LEFT JOIN 
     allmun ON (pop.PROV_CODE || pop.MUN_CODE) = allmun.ID_CITY
 LEFT JOIN 
