@@ -11,6 +11,7 @@ use super::{
     zip::compress_folder_to_zip,
 };
 use crate::services::consolidation::eml_types::ACMTrustee;
+use crate::services::temp_path::PUBLIC_ASSETS_EML_BASE_TEMPLATE;
 use crate::services::{
     password::generate_random_string_with_charset,
     s3::{download_s3_file_to_string, get_public_asset_file_path},
@@ -78,8 +79,7 @@ pub async fn generate_base_compressed_xml(
     )?;
     let mut variables_map: Map<String, Value> = Map::new();
     variables_map.insert("data".to_string(), serde_json::to_value(eml_data)?);
-    let template_path = env::var("PUBLIC_ASSETS_EML_BASE_TEMPLATE")
-        .with_context(|| "Missing env var PUBLIC_ASSETS_EML_BASE_TEMPLATE")?;
+    let template_path = PUBLIC_ASSETS_EML_BASE_TEMPLATE;
     let s3_template_url = get_public_asset_file_path(&template_path)
         .with_context(|| "Error fetching get_minio_url")?;
     let template_string = download_s3_file_to_string(&s3_template_url).await?;
