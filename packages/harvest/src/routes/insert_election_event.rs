@@ -130,7 +130,7 @@ pub async fn import_election_event_f(
             }
         };
 
-    let document_result=
+    let document_result =
         services::import::import_election_event::get_election_event_schema(
             &document_type,
             &temp_file_path,
@@ -140,8 +140,10 @@ pub async fn import_election_event_f(
         )
         .await;
 
-   let (election_event_schema, replacement_map) = match document_result {
-        Ok((election_event_schema, replacement_map)) => (election_event_schema, replacement_map),
+    let (election_event_schema, replacement_map) = match document_result {
+        Ok((election_event_schema, replacement_map)) => {
+            (election_event_schema, replacement_map)
+        }
         Err(err) => {
             return Ok(Json(ImportElectionEventOutput {
                 id: None,

@@ -103,6 +103,5 @@ pub async fn read_protocol_manager_keys(
     election_event_id: &str,
 ) -> Result<TempPath> {
     let keys_ceremonies = get_keys_ceremonies(transaction, tenant_id, election_event_id).await?;
-    for keys_ceremony in keys_ceremonies {
-    }
+    for keys_ceremony in keys_ceremonies {}
 }

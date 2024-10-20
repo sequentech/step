@@ -271,8 +271,8 @@ pub async fn process_export_zip(
         .map_err(|e| anyhow!("Error reading protocol manager keys data: {e:?}"))?;
         zip_writer.start_file(&protocol_manager_keys_filename, options)?;
 
-        let mut rotocol_manager_keys_file = File::open(temp_protocol_manager_keys_file)?;
-        std::io::copy(&mut rotocol_manager_keys_file, &mut zip_writer)?;
+        let mut protocol_manager_keys_file = File::open(temp_protocol_manager_keys_file)?;
+        std::io::copy(&mut protocol_manager_keys_file, &mut zip_writer)?;
     }
 
     // Finalize the ZIP file
