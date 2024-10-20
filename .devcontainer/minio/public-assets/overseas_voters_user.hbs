@@ -212,7 +212,8 @@
                                 border: 1px solid black;
                               "
                             >
-                              {{format_date date_voted "%B %d, %Y"}}
+                              {{datetime from_rfc3339=date_voted output_format="%B %d, %Y"}}
+
                             </td>
                             <td
                               style="
@@ -221,7 +222,7 @@
                                 border: 1px solid black;
                               "
                             >
-                              {{time_voted}}
+                              {{datetime from_rfc3339=date_voted output_format="%H:%M"}}
                             </td>
                           </tr>
                           {{/each}}
