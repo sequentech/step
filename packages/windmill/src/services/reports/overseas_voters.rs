@@ -19,10 +19,10 @@ use tracing::{info, instrument};
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
     pub date_printed: String,
-    pub time_printed: String,
     pub election_date: String,
     pub election_title: String,
-    pub voting_period: String,
+    pub voting_period_start: String,
+    pub voting_period_end: String,
     pub post: String,
     pub country: String,
     pub voters: Vec<Voter>,       // Voter list field
@@ -32,8 +32,6 @@ pub struct UserData {
     pub eb_voted: u32,            // Election board voted count
     pub ov_total: u32,            // Total overseas voters
     pub precinct_code: String,
-    pub goverment_time: String,
-    pub local_time: String,
     pub chairperson_name: String,
     pub chairperson_digital_signature: String,
     pub poll_clerk_name: String,
@@ -56,7 +54,6 @@ pub struct Voter {
     pub suffix: String,
     pub status: String,
     pub date_voted: String,
-    pub time_voted: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -104,12 +101,14 @@ impl TemplateRenderer for OverseasVotersReport {
             html_body: None,
         }
     }
+
     #[instrument]
     async fn prepare_user_data(&self) -> Result<Self::UserData> {
         let data: UserData = self
             .prepare_preview_data()
             .await
-            .map_err(|e| anyhow::anyhow!(format!("Error preparing report preview {:?}", e)))?;
+            .map_err(|e| anyhow::anyhow!(format!("Error preparing report preview {e:?}")))?;
+        // TODO: Prepare the actual data intead of the preview.
         Ok(data)
     }
 
