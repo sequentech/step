@@ -5,8 +5,8 @@
 use anyhow::{anyhow, Context as ContextAnyhow, Result};
 use chrono::{DateTime, Local, Utc};
 use handlebars::{
-    Context, Handlebars, Helper, HelperResult, Output, RenderContext,
-    RenderError, RenderErrorReason,
+    Context, Handlebars, Helper, HelperDef, HelperResult, Output, 
+    RenderContext, RenderError, RenderErrorReason,
 };
 use handlebars_chrono::HandlebarsChronoDateTime;
 use num_format::{Locale, ToFormattedString};
@@ -20,7 +20,7 @@ fn get_registry<'reg>() -> Handlebars<'reg> {
     reg.register_helper("format_u64", Box::new(format_u64));
     reg.register_helper("format_percentage", Box::new(format_percentage));
     reg.register_helper("format_date", Box::new(format_date));
-    reg.register_helper("datetime", Box::new(HandlebarsChronoDateTime));
+    reg.register_helper("datetime", helper_wrapper(Box::new(HandlebarsChronoDateTime)));
     reg
 }
 
@@ -49,6 +49,43 @@ pub fn render_template(
 
     // render handlebars template
     reg.render(template_name, &json!(variables_map))
+}
+
+
+pub fn helper_wrapper<'a>(
+    func: Box<dyn HelperDef + Send + Sync + 'a>,
+) -> Box<dyn HelperDef + Send + Sync + 'a> {
+    struct WrapperHelper<'a> {
+        func: Box<dyn HelperDef + Send + Sync + 'a>,
+    }
+
+    impl<'a> HelperDef for WrapperHelper<'a> {
+        fn call<'reg: 'rc, 'rc>(
+            &self,
+            helper: &Helper<'rc>,
+            handlebars: &'reg Handlebars<'reg>,
+            context: &'rc Context,
+            render_context: &mut RenderContext<'reg, 'rc>,
+            out: &mut dyn Output,
+        ) -> HelperResult {
+            match self
+                .func
+                .call(helper, handlebars, context, render_context, out)
+            {
+                Ok(val) => Ok(val),
+                Err(err) => {
+                    warn!(
+                        "Error calling helper name={name:?} with params={params:?}: {err:?}",
+                        name=helper.name(),
+                        params=helper.params()
+                    );
+                    Err(err)
+                }
+            }
+        }
+    }
+
+    Box::new(WrapperHelper { func })
 }
 
 pub fn sanitize_html(
