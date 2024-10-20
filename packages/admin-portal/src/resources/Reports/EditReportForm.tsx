@@ -4,10 +4,11 @@
 
 import SelectElection from "@/components/election/SelectElection"
 import {EReportElectionPolicy, EReportType, ReportActions, reportTypeConfig} from "@/types/reports"
-import {Typography} from "@mui/material"
+import {Box, IconButton, TextField, Tooltip, Typography} from "@mui/material"
 import React, {useEffect, useMemo, useState} from "react"
 import {
     BooleanInput,
+    Button,
     Create,
     Identifier,
     SaveButton,
@@ -25,6 +26,7 @@ import {Sequent_Backend_Report} from "@/gql/graphql"
 import {useMutation} from "@apollo/client"
 import {CREATE_REPORT} from "@/queries/CreateReport"
 import {UPDATE_REPORT} from "@/queries/UpdateReport"
+import {Dialog} from "@sequentech/ui-essentials"
 
 interface CronConfig {
     isActive?: boolean
@@ -52,6 +54,8 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
     const [templateId, setTemplateId] = useState<string | null | undefined>(undefined)
     const [createReport] = useMutation(CREATE_REPORT)
     const [updateReport] = useMutation(UPDATE_REPORT)
+    const [handlePasswordDialogOpen, setHandlePasswordDialogOpen] = useState<boolean>(false)
+    const [filePassord, setFilePassword] = useState({password: "", confirmPassword: ""})
     const [isCronActive, setIsCronActive] = useState<boolean>(false)
     const dataProvider = useDataProvider()
     const handleReportTypeChange = (event: any) => {
@@ -180,6 +184,54 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
         return reportTypeConfig[reportType].electionPolicy ?? EReportElectionPolicy.ELECTION_ALLOWED
     }, [reportType])
 
+    const PasswordDialog: React.FC<{password: string; onClose: () => void}> = ({
+        password,
+        onClose,
+    }) => {
+        const {t} = useTranslation()
+        const notify = useNotify()
+
+        return (
+            <Dialog
+                variant="info" 
+                open={true}
+                handleClose={onClose}
+                aria-labelledby="password-dialog-title"
+                title={t("electionEventScreen.export.passwordTitle")}
+                ok={"Ok"}
+            >
+                <Box component={"form"}>
+                    {"Password"}
+                    <TextField
+                        fullWidth
+                        margin="normal"
+                        type="password"
+                        value={filePassord.password}
+                        onChange={(e) =>
+                            setFilePassword({
+                                password: e.target.value,
+                                confirmPassword: filePassord.confirmPassword,
+                            })
+                        }
+                    />
+                    {"Confirm password"}
+                    <TextField
+                        fullWidth
+                        margin="normal"
+                        type="password"
+                        value={filePassord.confirmPassword}
+                        onChange={(e) =>
+                            setFilePassword({
+                                password: filePassord.password,
+                                confirmPassword: e.target.value,
+                            })
+                        }
+                    />
+                </Box>
+            </Dialog>
+        )
+    }
+
     return (
         <>
             <Create hasEdit={isEditReport}>
@@ -235,6 +287,11 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                         isRequired={isTemplateRequired}
                     />
 
+                    <Button
+                        label={"Encrypt"}
+                        onClick={() => setHandlePasswordDialogOpen(!handlePasswordDialogOpen)}
+                    />
+
                     {canGenerateReportSchedulued && (
                         <BooleanInput
                             source="cron_config.is_active"
@@ -262,6 +319,9 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                     )}
                 </SimpleForm>
             </Create>
+            {handlePasswordDialogOpen && (
+                <PasswordDialog onClose={() => setHandlePasswordDialogOpen(false)} password="" />
+            )}
         </>
     )
 }
