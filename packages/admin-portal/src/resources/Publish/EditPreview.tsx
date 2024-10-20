@@ -280,6 +280,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
         const openPreview = (previewUrl: string) => {
             try {
                 window.open(previewUrl, "_blank")
+                if (close) close()
                 notify(t("publish.preview.success"), {type: "success"})
             } catch {
                 notify(t("publish.dialog.error_preview"), {type: "error"})
@@ -289,6 +290,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
         const copyPreviewLink = async (previewUrl: string) => {
             try {
                 await navigator.clipboard.writeText(previewUrl)
+                if (close) close()
                 notify(t("publish.preview.copy_success"), {type: "success"})
             } catch {
                 notify(t("publish.preview.copy_error"), {type: "error"})
@@ -302,7 +304,6 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
             } else if (previewUrl && action === ActionType.Open) {
                 openPreview(previewUrl)
             }
-            if (close) close()
         }
     }, [documentId, action])
 
