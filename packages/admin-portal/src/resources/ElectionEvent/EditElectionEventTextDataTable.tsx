@@ -167,7 +167,7 @@ const EditElectionEventTextDataTable = () => {
                     presentation: {
                         ...record.presentation,
                         i18n: {
-                            ...record.presentation.i18n,
+                            ...record.presentation?.i18n,
                             [selectedLanguage]: updatedI18nForLanguage,
                         },
                     },
@@ -306,7 +306,7 @@ const EditElectionEventTextDataTable = () => {
                 }}
             >
                 <SimpleForm
-                    record={record.presentation.i18n[selectedLanguage]}
+                    record={record?.presentation?.i18n[selectedLanguage]}
                     toolbar={<SaveButton sx={{marginInline: "1rem"}} />}
                     onSubmit={handleEditText}
                 >
@@ -329,7 +329,7 @@ const EditElectionEventTextDataTable = () => {
                             label={t("electionEventScreen.localization.labels.value")}
                             defaultValue={
                                 recordId
-                                    ? record.presentation.i18n[selectedLanguage][recordId]
+                                    ? record?.presentation?.i18n[selectedLanguage][recordId]
                                     : undefined
                             }
                             multiline
