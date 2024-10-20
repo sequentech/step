@@ -5,7 +5,7 @@
 use anyhow::{anyhow, Context as ContextAnyhow, Result};
 use chrono::{DateTime, Local, Utc};
 use handlebars::{
-    Context, Handlebars, Helper, HelperDef, HelperResult, Output, 
+    Context, Handlebars, Helper, HelperDef, HelperResult, Output,
     RenderContext, RenderError, RenderErrorReason,
 };
 use handlebars_chrono::HandlebarsChronoDateTime;
@@ -19,8 +19,11 @@ fn get_registry<'reg>() -> Handlebars<'reg> {
     reg.register_helper("sanitize_html", Box::new(sanitize_html));
     reg.register_helper("format_u64", Box::new(format_u64));
     reg.register_helper("format_percentage", Box::new(format_percentage));
-    reg.register_helper("format_date", Box::new(format_date));
-    reg.register_helper("datetime", helper_wrapper(Box::new(HandlebarsChronoDateTime)));
+    reg.register_helper("format_date", helper_wrapper(Box::new(format_date)));
+    reg.register_helper(
+        "datetime",
+        helper_wrapper(Box::new(HandlebarsChronoDateTime)),
+    );
     reg
 }
 
@@ -51,7 +54,6 @@ pub fn render_template(
     reg.render(template_name, &json!(variables_map))
 }
 
-
 pub fn helper_wrapper<'a>(
     func: Box<dyn HelperDef + Send + Sync + 'a>,
 ) -> Box<dyn HelperDef + Send + Sync + 'a> {
@@ -68,16 +70,20 @@ pub fn helper_wrapper<'a>(
             render_context: &mut RenderContext<'reg, 'rc>,
             out: &mut dyn Output,
         ) -> HelperResult {
-            match self
-                .func
-                .call(helper, handlebars, context, render_context, out)
-            {
+            match self.func.call(
+                helper,
+                handlebars,
+                context,
+                render_context,
+                out,
+            ) {
                 Ok(val) => Ok(val),
                 Err(err) => {
                     warn!(
-                        "Error calling helper name={name:?} with params={params:?}: {err:?}",
+                        "Error calling helper name={name:?} with params={params:?}, hash={hash:?}: {err:?}",
                         name=helper.name(),
-                        params=helper.params()
+                        params=helper.params(),
+                        hash=helper.hash()
                     );
                     Err(err)
                 }
