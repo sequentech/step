@@ -17,7 +17,6 @@ pub struct UserData {
     pub report_hash: String,
     pub system_hash: String,
     pub date_printed: String,
-    pub time_printed: String,
     pub election_date: String,
     pub election_title: String,
     pub voting_period: String,
@@ -44,7 +43,6 @@ pub struct Voter {
     pub id: String,
     pub status: String,
     pub date_voted: String,
-    pub time_voted: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -105,8 +103,7 @@ impl TemplateRenderer for OVUserTemplate {
                 suffix: "".to_string(),
                 id: "NYC12345".to_string(),
                 status: "Voted".to_string(),
-                date_voted: "May 2, 2024".to_string(),
-                time_voted: "08:45".to_string(),
+                date_voted: "2024-05-03T09:30:00-04:00".to_string(),
             },
             Voter {
                 number: 2,
@@ -116,8 +113,7 @@ impl TemplateRenderer for OVUserTemplate {
                 suffix: "".to_string(),
                 id: "NYC12346".to_string(),
                 status: "Voted".to_string(),
-                date_voted: "May 3, 2024".to_string(),
-                time_voted: "09:30".to_string(),
+                date_voted: "2024-05-03T09:30:00-04:00".to_string(),
             },
             Voter {
                 number: 3,
@@ -127,8 +123,7 @@ impl TemplateRenderer for OVUserTemplate {
                 suffix: "".to_string(),
                 id: "NYC12347".to_string(),
                 status: "Voted".to_string(),
-                date_voted: "May 4, 2024".to_string(),
-                time_voted: "10:15".to_string(),
+                date_voted: "2024-05-03T09:30:00-04:00".to_string(),
             },
             Voter {
                 number: 4,
@@ -138,8 +133,7 @@ impl TemplateRenderer for OVUserTemplate {
                 suffix: "".to_string(),
                 id: "NYC12348".to_string(),
                 status: "Voted".to_string(),
-                date_voted: "May 4, 2024".to_string(),
-                time_voted: "11:00".to_string(),
+                date_voted: "2024-05-03T09:30:00-04:00".to_string(),
             },
         ];
 
@@ -156,7 +150,7 @@ impl TemplateRenderer for OVUserTemplate {
         // Mock UserData
         let temp_val: &str = "test";
         Ok(UserData {
-            election_date: "2024-10-01".to_string(),
+            election_date: "2024-10-09T14:30:00-04:00".to_string(),
             election_title: "National Elections 2024".to_string(),
             post: "Southeast Asia".to_string(),
             country: "Philippines".to_string(),
@@ -170,7 +164,6 @@ impl TemplateRenderer for OVUserTemplate {
             report_hash: "abc123".to_string(),
             system_hash: "def456".to_string(),
             date_printed: "2024-10-09 14:00:00".to_string(),
-            time_printed: "2024-10-09 14:00:00".to_string(),
             ovcs_version: String::new(),
             qr_code: String::new(),
         })

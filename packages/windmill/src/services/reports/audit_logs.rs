@@ -50,7 +50,6 @@ pub struct UserData {
     pub report_hash: String,
     pub ovcs_version: String,
     pub system_hash: String,
-    pub time_printed: String,
     pub date_printed: String,
 }
 
@@ -125,7 +124,6 @@ impl TemplateRenderer for AuditLogsTemplate {
             .await
             .with_context(|| "Error starting transaction")?;
 
-        let realm_name = get_event_realm(self.tenant_id.as_str(), self.election_event_id.as_str());
         let mut keycloak_db_client = get_keycloak_pool()
             .await
             .get()
@@ -137,6 +135,7 @@ impl TemplateRenderer for AuditLogsTemplate {
             .await
             .with_context(|| "Error starting Keycloak transaction")?;
 
+        let realm_name = get_event_realm(self.tenant_id.as_str(), self.election_event_id.as_str());
         // get election instace
         let election = match get_election_by_id(
             &hasura_transaction,
@@ -281,7 +280,7 @@ impl TemplateRenderer for AuditLogsTemplate {
             .await
             .map_err(|e| anyhow::anyhow!(format!("Error in generating voters turnout {:?}", e)))?;
 
-        let (date_printed, time_printed) = get_date_and_time();
+        let datetime_printed = get_date_and_time();
 
         // Fetch necessary data (dummy placeholders for now)
         let chairperson_name = "John Doe".to_string();
@@ -317,8 +316,7 @@ impl TemplateRenderer for AuditLogsTemplate {
             report_hash,
             ovcs_version,
             system_hash,
-            date_printed,
-            time_printed,
+            date_printed: datetime_printed
         })
     }
 

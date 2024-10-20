@@ -15,6 +15,7 @@ use tracing::{info, instrument};
 /// Struct for User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
+    pub date_printed: String,
     pub report_hash: String,
     pub system_hash: String,
     pub election_title: String,

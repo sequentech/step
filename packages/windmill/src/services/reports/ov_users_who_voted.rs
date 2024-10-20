@@ -15,7 +15,6 @@ use tracing::{info, instrument};
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
     pub date_printed: String,
-    pub time_printed: String,
     pub election_date: String,
     pub election_title: String,
     pub voting_period: String,
@@ -109,7 +108,7 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
                 middle_name: "Garcia".to_string(),
                 suffix: "".to_string(),
                 id: "OV12345".to_string(),
-                date_voted: "2024-05-09".to_string(),
+                date_voted: "2024-05-09T14:30:00-04:00".to_string(),
             },
             Voter {
                 number: 2,
@@ -118,13 +117,13 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
                 middle_name: "Reyes".to_string(),
                 suffix: "Jr.".to_string(),
                 id: "OV67890".to_string(),
-                date_voted: "2024-05-09".to_string(),
+                date_voted: "2024-05-09T14:30:00-04:00".to_string(),
             },
         ];
 
         let temp_val: &str = "test";
         Ok(UserData {
-            election_date: "2024-05-01".to_string(),
+            election_date: "2024-05-10T14:30:00-04:00".to_string(),
             election_title: "2024 National Elections".to_string(),
             post: "Metro Manila".to_string(),
             country: "Philippines".to_string(),
@@ -138,7 +137,6 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
             ovcs_version: "1.0".to_string(),
             system_hash: "def456".to_string(),
             date_printed: "2024-10-09 14:00:00".to_string(),
-            time_printed: "2024-10-09 14:00:00".to_string(),
             software_version: String::new(),
             qr_code: "code1".to_string(),
         })

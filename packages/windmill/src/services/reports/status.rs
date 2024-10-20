@@ -46,7 +46,6 @@ pub struct UserData {
     pub ovcs_version: String,
     pub system_hash: String,
     pub date_printed: String,
-    pub time_printed: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -228,7 +227,7 @@ impl TemplateRenderer for StatusTemplate {
                 ))
             })?;
 
-        let (date_printed, time_printed) = get_date_and_time();
+        let date_printed = get_date_and_time();
         let election_date = &voting_period_start_date.to_string();
         // Format the date to the desired format
         let status_str: &'static str = status.voting_status.into();
@@ -254,7 +253,6 @@ impl TemplateRenderer for StatusTemplate {
             ovcs_version: "1.0".to_string(),
             system_hash: "sys_hash123".to_string(),
             date_printed: date_printed,
-            time_printed: time_printed,
         })
     }
 

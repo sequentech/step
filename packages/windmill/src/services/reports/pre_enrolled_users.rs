@@ -23,20 +23,17 @@ pub struct PreEnrolledUserData {
     pub suffix: Option<String>,
     pub id: String,
     pub status: String,            // Either "voted" or "not voted"
-    pub date_pre_enrolled: String, // Assuming this is a string, format: YYYY-MM-DD
-    pub time_pre_enrolled: String, // Assuming this is a string, format: HH:MM:SS
+    pub date_pre_enrolled: String, 
     pub approved_by: String,       // OFOV/SBEI/SYSTEM
 }
 
 /// Struct for OV Count Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
-    pub election_start_date: String,
+    pub election_date: String,
     pub election_title: String,
-    pub geograpic_region: String,
-    pub area: String,
+    pub post: String,
     pub country: String,
-    pub voting_center: String,
     pub number_of_ovs_voted: u32,
     pub number_of_ovs_not_voted: u32,
     pub number_of_ovs_total: u32,
@@ -50,7 +47,7 @@ pub struct UserData {
     pub system_hash: String,
     pub file_logo: String,
     pub file_qrcode_lib: String,
-    pub date_time_printed: String,
+    pub date_printed: String,
     pub printing_code: String,
 }
 
@@ -115,8 +112,7 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
                 suffix: None,
                 id: "123456".to_string(),
                 status: "voted".to_string(),
-                date_pre_enrolled: "2024-01-01".to_string(),
-                time_pre_enrolled: "08:00:00".to_string(),
+                date_pre_enrolled: "2024-01-01T08:30:00-04:00".to_string(),
                 approved_by: "OFOV".to_string(),
             },
             PreEnrolledUserData {
@@ -127,8 +123,7 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
                 suffix: Some("Jr".to_string()),
                 id: "7891011".to_string(),
                 status: "not voted".to_string(),
-                date_pre_enrolled: "2024-01-02".to_string(),
-                time_pre_enrolled: "09:00:00".to_string(),
+                date_pre_enrolled: "2024-01-02T08:30:00-04:00".to_string(),
                 approved_by: "SBEI".to_string(),
             },
             PreEnrolledUserData {
@@ -139,8 +134,7 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
                 suffix: None,
                 id: "987654".to_string(),
                 status: "voted".to_string(),
-                date_pre_enrolled: "2024-01-03".to_string(),
-                time_pre_enrolled: "10:30:00".to_string(),
+                date_pre_enrolled: "2024-01-03T08:30:00-04:00".to_string(),
                 approved_by: "SYSTEM".to_string(),
             },
         ];
@@ -161,12 +155,10 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
         let temp_val: &str = "test";
 
         Ok(UserData {
-            election_start_date: "2024-01-01".to_string(),
+            election_date: "2024-05-10T14:30:00-04:00".to_string(),
             election_title: "National Election 2024".to_string(),
-            geograpic_region: "Region 1".to_string(),
-            area: "Metro Area".to_string(),
+            post: "Metro Area".to_string(),
             country: "Philippines".to_string(),
-            voting_center: "Voting Center 1".to_string(),
             number_of_ovs_voted,
             number_of_ovs_not_voted,
             number_of_ovs_total,
@@ -180,7 +172,7 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
             system_hash: String::new(),
             file_logo: String::new(),
             file_qrcode_lib: String::new(),
-            date_time_printed: String::new(),
+            date_printed: "2024-10-09 14:00:00".to_string(),
             printing_code: String::new(),
         })
     }

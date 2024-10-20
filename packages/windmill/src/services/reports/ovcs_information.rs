@@ -25,7 +25,6 @@ use tracing::{info, instrument};
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
     pub date_printed: String,
-    pub time_printed: String,
     pub copy_number: String,
     pub election_date: String,
     pub election_title: String,
@@ -204,7 +203,7 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
             ))
         })?;
 
-        let (date_printed, time_printed) = get_date_and_time();
+        let date_printed = get_date_and_time();
         let election_date = &voting_period_start_date;
 
         let temp_val: &str = "test";
@@ -225,7 +224,6 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
             ovcs_version: "1.0".to_string(),
             system_hash: "sys_hash123".to_string(),
             date_printed: date_printed,
-            time_printed: time_printed,
         })
     }
 

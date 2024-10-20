@@ -39,7 +39,6 @@ pub struct SystemData {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
     pub date_printed: String,
-    pub time_printed: String,
     pub election_title: String,
     pub election_date: String,
     pub post: String,
@@ -132,7 +131,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
         let election_id = self.get_election_id().unwrap();
 
         let realm = get_event_realm(&tenant_id, &election_event_id);
-        let (date_printed, time_printed) = get_date_and_time();
+        let date_printed = get_date_and_time();
 
         let election = get_election_by_id(
             &hasura_transaction,
@@ -205,7 +204,6 @@ impl TemplateRenderer for StatisticalReportTemplate {
 
         Ok(UserData {
             date_printed,
-            time_printed,
             election_title,
             election_date,
             post: election_data.post.clone(),

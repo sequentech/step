@@ -20,7 +20,6 @@ pub struct UserData {
     pub report_hash: String,
     pub system_hash: String,
     pub date_printed: String,
-    pub time_printed: String,
     pub election_date: String,
     pub election_title: String,
     pub voting_period: String,

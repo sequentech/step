@@ -2,8 +2,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
+use crate::postgres::election::get_election_by_id;
 use crate::postgres::reports::ReportType;
-use crate::services::database::get_hasura_pool;
+use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
+use super::report_variables::{
+    extract_election_data, generate_voters_turnout, get_date_and_time,
+    get_election_contests_area_results_and_total_ballot_counted,
+    get_total_number_of_registered_voters_for_country,
+};
+use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::types::scheduled_event::generate_voting_period_dates;
+use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::temp_path::*;
 use crate::{postgres::election_event::get_election_event_by_id, services::s3::get_minio_url};
 use anyhow::{Context, Result};
@@ -19,7 +28,7 @@ use tracing::{info, instrument};
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
     pub date_printed: String,
-    pub time_printed: String,
+    pub closing_election_datetime: String,
     pub election_date: String,
     pub election_title: String,
     pub voting_period: String,
@@ -118,6 +127,18 @@ impl TemplateRenderer for ElectionReturnsForNationalPostionTemplate {
             .await
             .with_context(|| "Error starting Hasura transaction")?;
 
+        let realm_name = get_event_realm(self.tenant_id.as_str(), self.election_event_id.as_str());
+        let mut keycloak_db_client = get_keycloak_pool()
+            .await
+            .get()
+            .await
+            .with_context(|| "Error acquiring Keycloak DB pool")?;
+    
+        let keycloak_transaction = keycloak_db_client
+            .transaction()
+            .await
+            .with_context(|| "Error starting Keycloak transaction")?;
+
         // Fetch election event data
         let election_event = get_election_event_by_id(
             &hasura_transaction,
@@ -127,40 +148,136 @@ impl TemplateRenderer for ElectionReturnsForNationalPostionTemplate {
         .await
         .with_context(|| "Error obtaining election event")?;
 
+        // get election instace
+        let election = match get_election_by_id(
+            &hasura_transaction,
+            &self.get_tenant_id(),
+            &self.get_election_event_id(),
+            &self.get_election_id().unwrap(),
+        )
+        .await
+        .with_context(|| "Error getting election by id")?
+        {
+            Some(election) => election,
+            None => return Err(anyhow::anyhow!("Election not found")),
+        };
+
+        // get election instace's general data (post, country, etc...)
+        let election_general_data = match extract_election_data(&election).await {
+            Ok(data) => data, // Extracting the ElectionData struct out of Ok
+            Err(err) => {
+                return Err(anyhow::anyhow!(format!(
+                    "Error fetching election data: {}",
+                    err
+                )));
+            }
+        };
+
+
         // Fetch total registered voters and ballots counted
-        let registered_voters: i64 = 10000; // Replace with DB query
-        let ballots_counted: i64 = 8000; // Replace with DB query
+        let registered_voters = get_total_number_of_registered_voters_for_country(
+            &keycloak_transaction,
+            &realm_name,
+            &election_general_data.country,
+        )
+        .await
+        .map_err(|e| {
+            anyhow::anyhow!(format!(
+                "Error in getting the number of registered voters {:?}",
+                e
+            ))
+        })?;
+
+        let (ballots_counted, results_area_contests, contests) =
+            get_election_contests_area_results_and_total_ballot_counted(
+                &hasura_transaction,
+                &self.get_tenant_id(),
+                &self.get_election_event_id(),
+                &self.get_election_id().unwrap(),
+            )
+            .await
+            .map_err(|e| {
+                anyhow::anyhow!(format!(
+                    "Error in getting election contests area results {:?}",
+                    e
+                ))
+            })?;
 
         // Calculate voter turnout percentage
-        let voters_turnout = (ballots_counted as f64 / registered_voters as f64) * 100.0;
+        let voters_turnout = generate_voters_turnout(&ballots_counted, &registered_voters)
+            .await
+            .map_err(|e| anyhow::anyhow!(format!("Error in generating voters turnout {:?}", e)))?;
 
-        // TODO: replace mock data with actual data
+        // Fetch election event data
+        let start_election_event = find_scheduled_event_by_election_event_id(
+            &hasura_transaction,
+            &self.get_tenant_id(),
+            &self.get_election_event_id(),
+        )
+        .await
+        .map_err(|e| {
+            anyhow::anyhow!(format!(
+                "Error getting scheduled event by election event_id {:?}",
+                e
+            ))
+        })?;
+
+        let date_printed = get_date_and_time();
+        // Fetch election's voting periods
+        let voting_period_dates = generate_voting_period_dates(
+            start_election_event,
+            &self.get_tenant_id(),
+            &self.get_election_event_id(),
+            Some(&self.get_election_id().unwrap()),
+        )?;
+
+        // extract start date from voting period
+        let voting_period_start_date = match voting_period_dates.start_date {
+            Some(voting_period_start_date) => voting_period_start_date,
+            None => {
+                return Err(anyhow::anyhow!(format!(
+                    "Error fetching election start date: "
+                )))
+            }
+        };
+         // extract end date from voting period
+         let voting_period_end_date = match voting_period_dates.end_date {
+            Some(voting_period_end_date) => voting_period_end_date,
+            None => {
+                return Err(anyhow::anyhow!(format!(
+                    "Error fetching election end date: "
+                )))
+            }
+        };
+        let election_date = &voting_period_start_date;
+        let closing_election_datetime = "2024-10-09T12:05:00Z".to_string();
         // Extract candidate names and acronyms
         let candidates: Vec<Candidate> = Vec::new(); // Assuming the structure has candidates array
-                                                     // let mut candidate_data: Vec<CandidateData> = Vec::new();
-                                                     // for candidate in candidates {
-                                                     //     candidate_data.push(CandidateData {
-                                                     //         name_appearing_on_ballot: candidate.name_appearing_on_ballot.clone(),
-                                                     //         acronym: candidate.acronym.clone(), // Assuming acronym is part of the candidate structure
-                                                     //         votes_garnered: 0, // Default value since no votes have been cast yet
-                                                     //     });
-                                                     // }
+        // let mut candidate_data: Vec<CandidateData> = Vec::new();
+        // for candidate in candidates {
+        //     candidate_data.push(CandidateData {
+        //         name_appearing_on_ballot: candidate.name_appearing_on_ballot.clone(),
+        //         acronym: candidate.acronym.clone(), // Assuming acronym is part of the candidate structure
+        //         votes_garnered: 0, // Default value since no votes have been cast yet
+        //     });
+        // }
 
         let election_title = election_event.name.clone();
         let temp_val: &str = "test";
         Ok(UserData {
-            election_date: temp_val.to_string(),
+            election_date: election_date.to_string(),
+            closing_election_datetime,
             election_title,
             registered_voters,
             ballots_counted,
             voters_turnout: voters_turnout.to_string(),
             candidates,
-            geographical_region: temp_val.to_string(),
-            post: temp_val.to_string(),
-            country: temp_val.to_string(),
-            voting_center: temp_val.to_string(),
-            voting_period: temp_val.to_string(),
-            precinct_code: temp_val.to_string(),
+            geographical_region: election_general_data.geographical_region,
+            post: election_general_data.post,
+            country: election_general_data.country,
+            voting_center: election_general_data.voting_center,
+            voting_period: format!("{} - {}", voting_period_start_date, voting_period_end_date),
+            precinct_code: election_general_data.clustered_precinct_id,
             software_version: temp_val.to_string(),
             chairperson_name: temp_val.to_string(),
             chairperson_digital_signature: temp_val.to_string(),
@@ -171,8 +288,7 @@ impl TemplateRenderer for ElectionReturnsForNationalPostionTemplate {
             report_hash: String::new(),
             ovcs_version: String::new(),
             system_hash: String::new(),
-            date_printed: String::new(),
-            time_printed: String::new(),
+            date_printed,
             qr_codes: vec![
                 "String 1".to_string(),
                 "String 2".to_string(),

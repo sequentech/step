@@ -17,13 +17,9 @@ struct Event {
     country: String,
     testing_date: String,
     initialization_date: String,
-    initialization_time: String,
     opening_date: String,
-    opening_time: String,
     closing_date: String,
-    closing_time: String,
     transmission_date: String,
-    transmission_time: String,
     transmission_status: String,
     remarks: Option<String>,
 }
@@ -37,7 +33,6 @@ pub struct Region {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
     pub date_printed: String,
-    pub time_printed: String,
     pub election_date: String,
     pub election_title: String,
     pub voting_period: String,
