@@ -586,6 +586,7 @@ def gen_tree(excel_data, results):
     for election in test_elections:
         election["name"] = "Test Voting"
         election["alias"] = "Test Voting"
+        election["num_allowed_revotes"] = 99999
 
     elections_object["elections"].extend(test_elections)
 
