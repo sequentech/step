@@ -32,7 +32,7 @@ import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {TenantContext} from "@/providers/TenantContextProvider"
 import {GET_DOCUMENT_BY_NAME} from "@/queries/GetDocumentByName"
 import {ElectionEventStatus} from "./EPublishStatus"
-import { CircularProgress } from "@mui/material"
+import {CircularProgress} from "@mui/material"
 
 enum ActionType {
     Copy,
@@ -160,12 +160,12 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
                     },
                     fetchPolicy: "network-only",
                 })
-    
+
                 if (error) {
                     console.error("Error fetching document:", error)
                     return false
                 }
-    
+
                 return data?.sequent_backend_document[0]?.id
             } catch (err) {
                 console.error("Exception in fetchDocumentId:", err)
@@ -177,7 +177,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
             const docId = await fetchDocumentId(`${id}.json`)
             setDocumentId(docId)
         }
-        
+
         if (!documentId) {
             getDocumentId()
         }
@@ -278,7 +278,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
     // This useEffect handles logic for action (open or copy)
     useEffect(() => {
         const openPreview = (previewUrl: string) => {
-            try  {
+            try {
                 window.open(previewUrl, "_blank")
                 notify(t("publish.preview.success"), {type: "success"})
             } catch {
@@ -287,7 +287,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
         }
 
         const copyPreviewLink = async (previewUrl: string) => {
-            try  {
+            try {
                 await navigator.clipboard.writeText(previewUrl)
                 notify(t("publish.preview.copy_success"), {type: "success"})
             } catch {
@@ -347,8 +347,9 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
             <Toolbar
                 sx={{display: "flex", background: "white", padding: "0 !important", gap: "1rem"}}
             >
-                {
-                    isUploading ? <CircularProgress /> :
+                {isUploading ? (
+                    <CircularProgress />
+                ) : (
                     <>
                         <SaveButton
                             disabled={!areaId}
@@ -362,7 +363,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
                             onClick={onCopyPreviewLinkClick}
                         />
                     </>
-                }
+                )}
             </Toolbar>
         </SimpleForm>
     )
