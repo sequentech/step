@@ -216,7 +216,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
             ballots_counted,
             voters_turnout,
             elective_positions,
-        }))
+        })
     }
 
     #[instrument]
