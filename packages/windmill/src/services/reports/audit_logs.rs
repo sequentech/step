@@ -202,7 +202,7 @@ impl TemplateRenderer for AuditLogsTemplate {
             }
         };
 
-        let election_date = &voting_period_start_date;
+        let election_date: &String = &voting_period_start_date;
         // Fetch list of audit logs
         let mut sequences: Vec<AuditLogEntry> = Vec::new();
         let electoral_logs = list_electoral_log(GetElectoralLogBody {
@@ -280,7 +280,7 @@ impl TemplateRenderer for AuditLogsTemplate {
             .await
             .map_err(|e| anyhow::anyhow!(format!("Error in generating voters turnout {:?}", e)))?;
 
-        let datetime_printed = get_date_and_time();
+        let datetime_printed: String = get_date_and_time();
 
         // Fetch necessary data (dummy placeholders for now)
         let chairperson_name = "John Doe".to_string();
@@ -295,7 +295,7 @@ impl TemplateRenderer for AuditLogsTemplate {
         let system_hash = "dummy_system_hash".to_string();
         Ok(UserData {
             election_date: election_date.to_string(),
-            election_title: election.name,
+            election_title: election.name.clone(),
             voting_period: format!("{} - {}", voting_period_start_date, voting_period_end_date),
             geographical_region: election_general_data.geographical_region,
             post: election_general_data.post,

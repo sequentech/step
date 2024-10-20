@@ -1,13 +1,13 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::template_renderer::*;
-use crate::postgres::reports::ReportType;
-use anyhow::{anyhow, Context, Ok, Result};
+use super::{report_variables::{extract_election_data, get_date_and_time}, template_renderer::*};
+use crate::{postgres::{election::get_election_by_id, reports::ReportType, scheduled_event::find_scheduled_event_by_election_event_id}, services::database::get_hasura_pool};
+use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Client as DbClient;
-use sequent_core::types::templates::EmailConfig;
+use sequent_core::types::{scheduled_event::generate_voting_period_dates, templates::EmailConfig};
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 
@@ -100,7 +100,154 @@ impl TemplateRenderer for OVCSEventsTemplate {
             .prepare_preview_data()
             .await
             .map_err(|e| anyhow::anyhow!(format!("Error preparing report preview {:?}", e)))?;
-        Ok(data)
+
+        let mut hasura_db_client: DbClient = get_hasura_pool()
+            .await
+            .get()
+            .await
+            .with_context(|| "Error getting hasura db pool")?;
+
+        let hasura_transaction = hasura_db_client
+            .transaction()
+            .await
+            .with_context(|| "Error starting transaction")?;
+
+        let election = match get_election_by_id(
+            &hasura_transaction,
+            &self.get_tenant_id(),
+            &self.get_election_event_id(),
+            &self.get_election_id().unwrap(),
+        )
+        .await
+        .with_context(|| "Error getting election by id")?
+        {
+            Some(election) => election,
+            None => return Err(anyhow::anyhow!("Election not found")),
+        };
+
+        // get election instace's general data (post, country, etc...)
+        let election_general_data = match extract_election_data(&election).await {
+            Ok(data) => data, // Extracting the ElectionData struct out of Ok
+            Err(err) => {
+                return Err(anyhow::anyhow!(format!(
+                    "Error fetching election data: {}",
+                    err
+                )));
+            }
+        };
+
+         // Fetch election event data
+         let start_election_event = find_scheduled_event_by_election_event_id(
+            &hasura_transaction,
+            &self.get_tenant_id(),
+            &self.get_election_event_id(),
+        )
+        .await
+        .map_err(|e| {
+            anyhow::anyhow!(format!(
+                "Error getting scheduled event by election event_id {:?}",
+                e
+            ))
+        })?;
+
+        // Fetch election's voting periods
+        let voting_period_dates = generate_voting_period_dates(
+            start_election_event,
+            &self.get_tenant_id(),
+            &self.get_election_event_id(),
+            Some(&self.get_election_id().unwrap()),
+        )?;
+
+        // extract start date from voting period
+        let voting_period_start_date = match voting_period_dates.start_date {
+            Some(voting_period_start_date) => voting_period_start_date,
+            None => {
+                return Err(anyhow::anyhow!(format!(
+                    "Error fetching election start date: "
+                )))
+            }
+        };
+        // extract end date from voting period
+        let voting_period_end_date = match voting_period_dates.end_date {
+            Some(voting_period_end_date) => voting_period_end_date,
+            None => {
+                return Err(anyhow::anyhow!(format!(
+                    "Error fetching election end date: "
+                )))
+            }
+        };
+        let election_date: &String = &voting_period_start_date;
+
+        let datetime_printed: String = get_date_and_time();
+
+
+        let regions = vec![
+            Region {
+                name: "Region A".to_string(),
+                events: vec![
+                    Event {
+                        post: "Post 1".to_string(),
+                        country: "Country A".to_string(),
+                        testing_date: "2024-10-01".to_string(),
+                        initialization_date: "2024-10-03".to_string(),
+                        opening_date: "2024-11-05T06:00:00Z".to_string(),
+                        closing_date: "2024-11-05T20:00:00Z".to_string(),
+                        transmission_date: "2024-11-05T21:00:00Z".to_string(),
+                        transmission_status: "Success".to_string(),
+                        remarks: Some("Smooth process".to_string()),
+                    },
+                    Event {
+                        post: "Post 2".to_string(),
+                        country: "Country B".to_string(),
+                        testing_date: "2024-10-02".to_string(),
+                        initialization_date: "2024-10-04".to_string(),
+                        opening_date: "2024-11-05T07:00:00Z".to_string(),
+                        closing_date: "2024-11-05T19:00:00Z".to_string(),
+                        transmission_date: "2024-11-05T20:30:00Z".to_string(),
+                        transmission_status: "Pending".to_string(),
+                        remarks: None,
+                    }
+                ]
+            },
+            Region {
+                name: "Region B".to_string(),
+                events: vec![
+                    Event {
+                        post: "Post 3".to_string(),
+                        country: "Country C".to_string(),
+                        testing_date: "2024-10-05".to_string(),
+                        initialization_date: "2024-10-07".to_string(),
+                        opening_date: "2024-11-05T08:00:00Z".to_string(),
+                        closing_date: "2024-11-05T18:00:00Z".to_string(),
+                        transmission_date: "2024-11-05T19:30:00Z".to_string(),
+                        transmission_status: "Success".to_string(),
+                        remarks: Some("Minor delays".to_string()),
+                    }
+                ]
+            }
+        ];
+
+        Ok(UserData {
+            date_printed: datetime_printed,
+            election_date: election_date.to_string(),
+            election_title: election.name.clone(),
+            voting_period: format!("{} - {}", voting_period_start_date, voting_period_end_date),
+            regions: regions,
+            precinct_id: election_general_data.clustered_precinct_id,
+            goverment_date: "May 10, 2024".to_string(),
+            goverment_time: "18:00".to_string(),
+            local_date: "May 11, 2024".to_string(),
+            local_time: "08:00".to_string(),
+            ovcs_downtime: 0,
+            software_version: "v1.2.3".to_string(),
+            qr_codes: vec![
+                "QR12345".to_string(),
+                "QR67890".to_string(),
+            ],
+            report_hash: "abc123hash".to_string(),
+            ovcs_version: "v2.0.1".to_string(),
+            system_hash: "sys456hash".to_string(),
+        })
     }
 
     /// Prepare system metadata for the report
