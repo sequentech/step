@@ -222,7 +222,7 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
     }
 
     const [create] = useCreate("sequent_backend_tally_sheet")
-    const [update] = useUpdate("sequent_backend_tally_sheet")
+    const [update] = useUpdate("sequent_backend_tally_sheet") 
 
     const onSubmit: SubmitHandler<FieldValues> = async (result) => {
         const resultsTemp = {...results}

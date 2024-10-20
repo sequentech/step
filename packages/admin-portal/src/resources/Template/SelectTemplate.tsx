@@ -37,7 +37,13 @@ const SelectTemplate = ({
         }
         return {"template.name": searchText.trim()}
     }
-
+    console.log("source", source)
+    const handleTemplateChange = (templateAlias: string) => {
+        console.log("tempalteAlias", templateAlias)
+        if (onSelectTemplate) {
+            onSelectTemplate(templateAlias) // Pass the template_alias
+        }
+    }
     return (
         <ReferenceInput
             required
@@ -60,10 +66,11 @@ const SelectTemplate = ({
                 fullWidth={true}
                 optionText={(record) => record.template.name}
                 filterToQuery={templateFilterToQuery}
-                onChange={onSelectTemplate}
+                onChange={handleTemplateChange}
                 debounce={100}
                 sx={customStyle}
                 disabled={disabled}
+                // optionValue="template_alias"
             />
         </ReferenceInput>
     )
