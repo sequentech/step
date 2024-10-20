@@ -3,17 +3,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
-import {SxProps} from "@mui/material"
-import {AutocompleteInput, Identifier, isRequired, ReferenceInput} from "react-admin"
-import {EReportType} from "@/types/reports"
-import {ITemplateType} from "@/types/templates"
+import { SxProps } from "@mui/material"
+import { AutocompleteInput, Identifier, isRequired, ReferenceInput, useDataProvider } from "react-admin"
+import { EReportType } from "@/types/reports"
+import { ITemplateType } from "@/types/templates"
 
 interface SelectTemplateProps {
     tenantId: string | null
     templateType: ITemplateType | undefined
     source: string
     label?: string
-    onSelectTemplate?: (templateId: string) => void
+    onSelectTemplate?: (template: { id: string; alias: string }) => void;
     customStyle?: SxProps
     disabled?: boolean
     value?: string | null
@@ -31,19 +31,23 @@ const SelectTemplate = ({
     value,
     isRequired,
 }: SelectTemplateProps) => {
+
+    const dataProvider = useDataProvider()
+
+
     const templateFilterToQuery = (searchText: string) => {
         if (!searchText || searchText.length === 0) {
-            return {"template.name": ""}
+            return { "template.name": "" }
         }
-        return {"template.name": searchText.trim()}
+        return { "template.name": searchText.trim() }
     }
-    console.log("source", source)
-    const handleTemplateChange = (templateAlias: string) => {
-        console.log("tempalteAlias", templateAlias)
-        if (onSelectTemplate) {
-            onSelectTemplate(templateAlias) // Pass the template_alias
+    const handleTemplateChange = async (id: string) => {
+        const { data } = await dataProvider.getOne('sequent_backend_template', { id });
+        if (onSelectTemplate && data?.template?.alias) {
+            onSelectTemplate({ id, alias: data.template.alias });
         }
-    }
+    };
+
     return (
         <ReferenceInput
             required
@@ -70,7 +74,6 @@ const SelectTemplate = ({
                 debounce={100}
                 sx={customStyle}
                 disabled={disabled}
-                // optionValue="template_alias"
             />
         </ReferenceInput>
     )
