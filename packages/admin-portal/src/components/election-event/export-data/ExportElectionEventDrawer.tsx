@@ -229,7 +229,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
     )
 }
 
-export const PasswordDialog: React.FC<{password: string; onClose: () => void}> = ({password, onClose}) => {
+const PasswordDialog: React.FC<{password: string; onClose: () => void}> = ({password, onClose}) => {
     const {t} = useTranslation()
     const notify = useNotify()
 
