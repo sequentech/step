@@ -1,0 +1,80 @@
+{
+  "date_printed": "October 9, 2024",
+  "time_printed": "14:30",
+  "election_date": "May 10, 2024",
+  "election_title": "National Elections",
+  "voting_period": "April 10 - May 10, 2024",
+  "post": "Philippine Embassy, Washington DC",
+  "country": "United States",
+  "voters": [
+    {
+      "number": 1,
+      "last_name": "Smith",
+      "first_name": "John",
+      "middle_name": "A.",
+      "suffix": "Jr.",
+      "status": "voted",
+      "date_voted": "May 5, 2024",
+      "time_voted": "10:30"
+    },
+    {
+      "number": 2,
+      "last_name": "Doe",
+      "first_name": "Jane",
+      "middle_name": "B.",
+      "suffix": "",
+      "status": "not voted",
+      "date_voted": "",
+      "time_voted": ""
+    },
+    {
+      "number": 3,
+      "last_name": "Johnson",
+      "first_name": "Michael",
+      "middle_name": "C.",
+      "suffix": "",
+      "status": "voted",
+      "date_voted": "May 6, 2024",
+      "time_voted": "09:45"
+    },
+    {
+      "number": 4,
+      "last_name": "Garcia",
+      "first_name": "Maria",
+      "middle_name": "D.",
+      "suffix": "",
+      "status": "not_pre_enrolled",
+      "date_voted": "",
+      "time_voted": ""
+    },
+    {
+      "number": 5,
+      "last_name": "Brown",
+      "first_name": "James",
+      "middle_name": "E.",
+      "suffix": "III",
+      "status": "voted",
+      "date_voted": "May 7, 2024",
+      "time_voted": "12:15"
+    }
+  ],
+  "ov_voted": 3,
+  "ov_not_voted": 1,
+  "ov_not_pre_enrolled": 1,
+  "eb_voted": 1,
+  "ov_total": 5,
+  "precinct_code": "P12345",
+  "goverment_time": "18:00",
+  "local_time": "08:00",
+  "chairperson_name": "Juan Dela Cruz",
+  "chairperson_digital_signature": "DigitalSignatureABC",
+  "poll_clerk_name": "Maria Clara",
+  "poll_clerk_digital_signature": "DigitalSignatureDEF",
+  "third_member_name": "Jose Rizal",
+  "third_member_digital_signature": "DigitalSignatureGHI",
+  "report_hash": "a1b2c3d4e5",
+  "software_version": "1.0.0",
+  "ovcs_version": "2.3.4",
+  "system_hash": "z9y8x7w6v5",
+  "qr_code": "code1"
+}

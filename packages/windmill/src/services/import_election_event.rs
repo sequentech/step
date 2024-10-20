@@ -45,6 +45,7 @@ use super::documents::upload_and_return_document_postgres;
 use super::election_event_board::get_election_event_board;
 use super::electoral_log::ElectoralLog;
 use super::import_users::import_users_file;
+use super::protocol_manager::get_election_board;
 use super::temp_path::get_file_size;
 use crate::hasura::election_event::get_election_event;
 use crate::hasura::election_event::insert_election_event as insert_election_event_hasura;
@@ -83,7 +84,11 @@ pub struct ImportElectionEventSchema {
 }
 
 #[instrument(err)]
-pub async fn upsert_b3_and_elog(tenant_id: &str, election_event_id: &str) -> Result<Value> {
+pub async fn upsert_b3_and_elog(
+    tenant_id: &str,
+    election_event_id: &str,
+    election_ids: &Vec<String>,
+) -> Result<Value> {
     let board_name = get_event_board(tenant_id, election_event_id);
     // FIXME must also create the electoral log board here
     let mut immudb_client = get_board_client().await?;
@@ -99,6 +104,11 @@ pub async fn upsert_b3_and_elog(tenant_id: &str, election_event_id: &str) -> Res
             "creating protocol manager keys for Election event {}",
             election_event_id
         );
+        create_protocol_manager_keys(&board_name).await?;
+    }
+    for election_id in election_ids.clone() {
+        let board_name = get_election_board(tenant_id, &election_id);
+        board_client.create_board_ine(board_name.as_str()).await?;
         create_protocol_manager_keys(&board_name).await?;
     }
     let board = board_client.get_board(board_name.as_str()).await?;
@@ -367,8 +377,14 @@ pub async fn process_election_event_file(
     .await
     .with_context(|| format!("Error getting document for election event ID {election_event_id} and tenant ID {tenant_id}"))?;
 
+    let election_ids = data
+        .elections
+        .clone()
+        .into_iter()
+        .map(|election| election.id.clone())
+        .collect();
     // Upsert immutable board
-    let board = upsert_b3_and_elog(tenant_id.as_str(), &election_event_id)
+    let board = upsert_b3_and_elog(tenant_id.as_str(), &election_event_id, &election_ids)
         .await
         .with_context(|| format!("Error upserting b3 board for tenant ID {tenant_id} and election event ID {election_event_id}"))?;
 

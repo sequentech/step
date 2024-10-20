@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {IMiruTransmissionPackageData} from "@/types/miru"
 import React, {createContext, useContext, useState} from "react"
+import {Identifier} from "react-admin"
 
 interface ElectionEventTallyContextProps {
     tallyId: string | null
@@ -18,6 +19,8 @@ interface ElectionEventTallyContextProps {
     setMiruAreaId: (electionEventId: string) => void
     selectedTallySessionData: IMiruTransmissionPackageData | null
     setSelectedTallySessionData: (tallySessionDate: IMiruTransmissionPackageData | null) => void
+    taskId: string | Identifier | null
+    setTaskId: (tallyId: string | Identifier | null) => void
 }
 
 const defaultElectionEventTallyContext: ElectionEventTallyContextProps = {
@@ -34,6 +37,8 @@ const defaultElectionEventTallyContext: ElectionEventTallyContextProps = {
     setMiruAreaId: () => undefined,
     selectedTallySessionData: null,
     setSelectedTallySessionData: () => undefined,
+    taskId: null,
+    setTaskId: () => undefined,
 }
 
 export const ElectionEventTallyContext = createContext<ElectionEventTallyContextProps>(
@@ -52,12 +57,12 @@ export const ElectionEventTallyContextProvider = (
     const [isCreating, setIsCreating] = useState<boolean>(false)
     const [isCreated, setIsCreated] = useState<boolean>(false)
     const [electionEventId, setElectionEventId] = useState<string | null>(null)
+    const [task, setTask] = useState<string | Identifier | null>(null)
     const [miruAreaId, setMiruAreaId] = useState<string | null>(null)
     const [selectedTallySessionData, setSelectedTallySessionData] =
         useState<IMiruTransmissionPackageData | null>(null)
 
     const setTallyId = (tallyId: string | null, isTrustee?: boolean | undefined): void => {
-        sessionStorage.setItem("selected-election-event-tally-id", tallyId?.toString() || "")
         setTally(tallyId)
         setIsTrustee(isTrustee || false)
     }
@@ -68,6 +73,10 @@ export const ElectionEventTallyContextProvider = (
 
     const setCreatedFlag = (isCreated: boolean): void => {
         setIsCreated(isCreating)
+    }
+
+    const setTaskId = (value: string | Identifier | null): void => {
+        setTask(value)
     }
 
     return (
@@ -86,6 +95,8 @@ export const ElectionEventTallyContextProvider = (
                 setMiruAreaId,
                 selectedTallySessionData,
                 setSelectedTallySessionData,
+                setTaskId,
+                taskId: task,
             }}
         >
             {props.children}
@@ -107,6 +118,8 @@ export const useElectionEventTallyStore: () => {
     selectedTallySessionData: IMiruTransmissionPackageData | null
     miruAreaId: string | null
     setMiruAreaId: (electionEventId: string) => void
+    taskId: string | Identifier | null
+    setTaskId: (tallyId: string | Identifier | null) => void
 } = () => {
     const {
         tallyId,
@@ -122,6 +135,8 @@ export const useElectionEventTallyStore: () => {
         setMiruAreaId,
         selectedTallySessionData,
         setSelectedTallySessionData,
+        taskId,
+        setTaskId,
     } = useContext(ElectionEventTallyContext)
     return {
         tallyId,
@@ -137,5 +152,7 @@ export const useElectionEventTallyStore: () => {
         setMiruAreaId,
         selectedTallySessionData,
         setSelectedTallySessionData,
+        taskId,
+        setTaskId,
     }
 }

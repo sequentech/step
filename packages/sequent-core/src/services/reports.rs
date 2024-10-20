@@ -2,6 +2,8 @@
 // SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use anyhow::{anyhow, Context as ContextAnyhow, Result};
+use chrono::{DateTime, Local, Utc};
 use handlebars::{
     Context, Handlebars, Helper, HelperResult, Output, RenderContext,
     RenderError, RenderErrorReason,
@@ -21,6 +23,7 @@ pub fn render_template_text(
     reg.register_helper("sanitize_html", Box::new(sanitize_html));
     reg.register_helper("format_u64", Box::new(format_u64));
     reg.register_helper("format_percentage", Box::new(format_percentage));
+    reg.register_helper("format_date", Box::new(format_percentage));
 
     // render handlebars template
     reg.render_template(template, &json!(variables_map))
@@ -113,4 +116,80 @@ pub fn format_percentage(
     out.write(&formatted_number)?;
 
     Ok(())
+}
+
+pub fn format_date(
+    helper: &Helper,
+    _: &Handlebars,
+    _: &Context,
+    _: &mut RenderContext,
+    out: &mut dyn Output,
+) -> HelperResult {
+    // Extract the date string from the first parameter
+    let date_str: &str = helper
+        .param(0)
+        .ok_or(RenderErrorReason::ParamNotFoundForIndex("format_date", 0))?
+        .value()
+        .as_str()
+        .ok_or(RenderErrorReason::InvalidParamType(
+            "couldn't parse as &str",
+        ))?;
+
+    // Extract the dynamic format string from the second parameter
+    let format_str: &str = helper
+        .param(1)
+        .ok_or(RenderErrorReason::ParamNotFoundForIndex("format_date", 1))?
+        .value()
+        .as_str()
+        .ok_or(RenderErrorReason::InvalidParamType(
+            "couldn't parse as &str",
+        ))?;
+
+    // Detect the appropriate date parsing format dynamically
+    let parsed_date = if date_str.contains(':') {
+        // If the date string contains a time, assume "YYYY-MM-DD HH:MM:SS"
+        DateTime::parse_from_str(date_str, "%Y-%m-%d %H:%M:%S")
+            .map_err(|err| {
+                RenderError::new(format!("Date parsing error: {}", err))
+            })?
+            .with_timezone(&Local) // Convert to local timezone
+    } else {
+        // Otherwise, assume it's just a date "YYYY-MM-DD" and add a time
+        // placeholder
+        DateTime::parse_from_str(
+            &format!("{} 00:00:00", date_str),
+            "%Y-%m-%d %H:%M:%S",
+        )
+        .map_err(|err| {
+            RenderError::new(format!("Date parsing error: {}", err))
+        })?
+        .with_timezone(&Local) // Convert to local timezone
+    };
+
+    // Format the date using the provided format string
+    let formatted_date = parsed_date.format(format_str).to_string();
+
+    // Write the formatted date to the output
+    out.write(&formatted_date)?;
+
+    Ok(())
+}
+
+/// Convert unix time to RFC2822 date and time format, like: Tue, 1 Jul 2003
+/// 10:52:37 +0200.
+pub fn timestamp_to_rfc2822(timestamp: i64) -> Result<String> {
+    let dt = DateTime::<Utc>::from_timestamp(timestamp, 0)
+        .with_context(|| "Error parsing timestamp")?;
+    let statement_timestamp = std::panic::catch_unwind(|| dt.to_rfc2822())
+        .map_err(|_| anyhow!("Error converting timestamp to RFC2822 format"))?;
+
+    Ok(statement_timestamp)
+}
+
+/// Convert unix time to the given format
+pub fn format_datetime(unix_time: i64, fmt: &str) -> Result<String> {
+    let dt = DateTime::<Utc>::from_timestamp(unix_time, 0)
+        .with_context(|| "Error parsing creation timestamp")?;
+    let formatted_str = dt.format(fmt).to_string();
+    Ok(formatted_str)
 }

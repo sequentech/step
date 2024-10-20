@@ -5,3 +5,94 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 # Release NEXT
+
+## ✨ Ask for Admin password for sensitive actions
+
+This feature changes the behavior of some sensitive actions like starting an
+election voting period or publishing a new publication of the ballot styles.
+
+The way it works is by requiring gold level of authentication and for that the
+user needs to re-authenticate.
+
+### Keycloak: Migration to add `gold` level of authentication support
+
+In the Admin Portal Realm:
+1. Click `Realm Settings` in the sidebar
+2. In the `General` tab, click `Add ACR to LoA Mapping`
+3. Add two key-values pairs:
+    - key: `silver`
+      value: `1`
+    - key: `gold`
+      value: `2`
+4. Click `Authentication` in the sidebar
+5. Click `sequent browser blow` and ensure that:
+   1. All the normal authentication flow is under a `normal / silver`
+      connditional subflow with a required condition of type
+   `Condition - Level of Authentication` and value `1`.
+   2. it has a new conditional subflow
+   called `advanced / gold condition` with a required condition of type
+   `Condition - Level of Authentication` and value `2` and a Required
+   `Password Form` step.
+
+## ✨ Admin Portal: Reports: Prepare templates from Annex A
+
+We have added new reports to be generated:
+
+SBEI:
+- Initializaton Report
+- Status Report
+- Vote Receipt
+- Election Returns of National Positions
+- Transmission Reports
+- Audit Logs
+- OVCS Information
+- Overseas Voters' Turnout
+- List of Overseas Voters
+
+OFOV:
+- Overseas Voting Monitoring - OVCS Events
+- Overseas Voting Monitoring - OVCS Statistics
+- Overseas Voters’ Turnout - per Aboard Status and Sex
+- Overseas Voters’ Turnout - per Aboard Status, Sex and with Percentage
+- List of OV who Pre-enrolled (Approved)
+- List of OV who Pre-enrolled but subject for Manual Validation
+- List of OV who Pre-enrolled but Disapproved
+- List of OV who have not yet Pre-enrolled
+- List of Overseas Voters who Voted
+- List of Overseas Voters with Voting Status
+- No. of OV who have not yet Pre-enrolled
+
+### S3: New files to be uploaded
+
+For existing environments the following files need to be uploaded to S3:
+
+- .devcontainer/minio/public-assets/audit_logs.json
+- .devcontainer/minio/public-assets/audit_logs_system.hbs
+- .devcontainer/minio/public-assets/election_returns_for_national_positions.json
+- .devcontainer/minio/public-assets/election_returns_for_national_positions_system.hbs
+- .devcontainer/minio/public-assets/initialization.json
+- .devcontainer/minio/public-assets/initialization_system.hbs
+- .devcontainer/minio/public-assets/ov_users.json
+- .devcontainer/minio/public-assets/ov_users_system.hbs
+- .devcontainer/minio/public-assets/ov_users_who_voted.json
+- .devcontainer/minio/public-assets/ov_users_who_voted_system.hbs
+- .devcontainer/minio/public-assets/ovcs_events.json
+- .devcontainer/minio/public-assets/ovcs_events_system.hbs
+- .devcontainer/minio/public-assets/ovcs_information.json
+- .devcontainer/minio/public-assets/ovcs_information_system.hbs
+- .devcontainer/minio/public-assets/ovcs_statistics.json
+- .devcontainer/minio/public-assets/ovcs_statistics_system.hbs
+- .devcontainer/minio/public-assets/overseas_voters.json
+- .devcontainer/minio/public-assets/overseas_voters_system.hbs
+- .devcontainer/minio/public-assets/pre_enrolled_ov_but_disapproved.json
+- .devcontainer/minio/public-assets/pre_enrolled_ov_but_disapproved_system.hbs
+- .devcontainer/minio/public-assets/pre_enrolled_ov_subject_to_manual_validation.json
+- .devcontainer/minio/public-assets/pre_enrolled_ov_subject_to_manual_validation_system.hbs
+- .devcontainer/minio/public-assets/pre_enrolled_users.json
+- .devcontainer/minio/public-assets/pre_enrolled_users_system.hbs
+- .devcontainer/minio/public-assets/statistical_report.json
+- .devcontainer/minio/public-assets/statistical_report_system.hbs
+- .devcontainer/minio/public-assets/status.json
+- .devcontainer/minio/public-assets/status_system.hbs
+- .devcontainer/minio/public-assets/transmission.json
+- .devcontainer/minio/public-assets/transmission_system.hbs

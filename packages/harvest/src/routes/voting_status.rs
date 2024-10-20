@@ -8,7 +8,7 @@ use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::ballot::VotingStatus;
-use sequent_core::services::jwt::JwtClaims;
+use sequent_core::services::jwt::{has_gold_permission, JwtClaims};
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -32,12 +32,19 @@ pub async fn update_event_status(
     body: Json<UpdateEventVotingStatusInput>,
     claims: JwtClaims,
 ) -> Result<Json<UpdateEventVotingStatusOutput>, (Status, String)> {
+    if body.voting_status == VotingStatus::OPEN {
+        // Check if the user has the required "Gold" role
+        if !has_gold_permission(&claims) {
+            return Err((Status::Forbidden, "Insufficient privileges".into()));
+        }
+    }
     authorize(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::ELECTION_STATE_WRITE],
     )?;
+
     let input = body.into_inner();
     let tenant_id = &claims.hasura_claims.tenant_id;
     let user_id = claims.hasura_claims.user_id;

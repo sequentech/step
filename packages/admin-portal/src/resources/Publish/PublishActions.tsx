@@ -2,14 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 
 import styled from "@emotion/styled"
 
-import {useTranslation} from "react-i18next"
-import {Dialog} from "@sequentech/ui-essentials"
 import {CircularProgress, Typography} from "@mui/material"
 import {Publish, RotateLeft, PlayCircle, PauseCircle, StopCircle} from "@mui/icons-material"
+import {useTranslation} from "react-i18next"
+import {Dialog} from "@sequentech/ui-essentials"
 import {
     Button,
     FilterButton,
@@ -25,6 +25,7 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import SvgIcon from "@mui/material/SvgIcon"
+import {EPublishActions} from "@/types/publishActions"
 import DownloadIcon from "@mui/icons-material/Download"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {DownloadDocument} from "../User/DownloadDocument"
@@ -70,6 +71,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
+    const {isGoldUser, reauthWithGold} = authContext
     const record = useRecordContext()
     const canWrite = authContext.isAuthorized(true, tenantId, IPermissions.PUBLISH_WRITE)
     const canRead = authContext.isAuthorized(true, tenantId, IPermissions.PUBLISH_READ)
@@ -139,11 +141,96 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         </Button>
     )
 
+    /**
+     * General Handler for Events:
+     * Shows a confirmation dialog without involving re-authentication.
+     * Used by buttons that don't require Gold-level permissions.
+     */
     const handleEvent = (callback: (status?: number) => void, dialogText: string) => {
         setDialogText(dialogText)
         setShowDialog(true)
         setCurrentCallback(() => callback)
     }
+
+    /**
+     * Specific Handler for "Start Voting" Button:
+     * Incorporates re-authentication logic for actions that require Gold-level permissions.
+     */
+    const handleStartVotingPeriod = () => {
+        const actionText = t(`publish.action.startVotingPeriod`)
+        const dialogMessage = isGoldUser()
+            ? t("publish.dialog.startInfo", {action: actionText})
+            : t("publish.dialog.confirmation", {action: actionText})
+
+        setDialogText(dialogMessage)
+        setShowDialog(true)
+        setCurrentCallback(() => async () => {
+            try {
+                if (!isGoldUser()) {
+                    const baseUrl = new URL(window.location.href)
+                    baseUrl.searchParams.set("tabIndex", "7")
+                    sessionStorage.setItem(EPublishActions.PENDING_START_VOTING, "true")
+                    await reauthWithGold(baseUrl.toString())
+                } else {
+                    onChangeStatus(ElectionEventStatus.Open)
+                }
+            } catch (error) {
+                console.error("Re-authentication failed:", error)
+            }
+        })
+    }
+
+    /**
+     * Specific Handler for "Publish Changes" Button: Incorporates
+     * re-authentication logic for actions that require Gold-level permissions.
+     */
+    const handlePublish = () => {
+        const dialogMessage = isGoldUser()
+            ? t("publish.dialog.publishInfo", {action: t("publish.action.publish")})
+            : t("publish.dialog.confirmation", {action: t("publish.action.publish")})
+        setDialogText(dialogMessage)
+        setShowDialog(true)
+
+        setCurrentCallback(() => async () => {
+            try {
+                if (!isGoldUser()) {
+                    const baseUrl = new URL(window.location.href)
+                    baseUrl.searchParams.set("tabIndex", "7")
+                    sessionStorage.setItem(EPublishActions.PENDING_PUBLISH_ACTION, "true")
+
+                    await reauthWithGold(baseUrl.toString())
+                } else {
+                    onGenerate()
+                }
+            } catch (error) {
+                console.error("Re-authentication failed:", error)
+                setDialogText(t("publish.dialog.errorReauth"))
+                setShowDialog(true)
+            }
+        })
+    }
+
+    /**
+     * Checks for any pending actions after the component mounts.
+     * If a pending action is found, it executes the action and removes the flag.
+     */
+    useEffect(() => {
+        const executePendingActions = async () => {
+            const pendingStart = sessionStorage.getItem(EPublishActions.PENDING_START_VOTING)
+            if (pendingStart) {
+                sessionStorage.removeItem(EPublishActions.PENDING_START_VOTING)
+                onChangeStatus(ElectionEventStatus.Open)
+            }
+
+            const pendingPublish = sessionStorage.getItem(EPublishActions.PENDING_PUBLISH_ACTION)
+            if (pendingPublish) {
+                sessionStorage.removeItem(EPublishActions.PENDING_PUBLISH_ACTION)
+                onGenerate()
+            }
+        }
+
+        executePendingActions()
+    }, [onChangeStatus, onGenerate])
 
     const handleOnChange = (status: ElectionEventStatus) => () => onChangeStatus(status)
 
@@ -199,12 +286,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                             <FilterButton />
                             {canChangeStatus && (
                                 <ButtonDisabledOrNot
-                                    onClick={() =>
-                                        handleEvent(
-                                            handleOnChange(ElectionEventStatus.Open),
-                                            t("publish.dialog.startInfo")
-                                        )
-                                    }
+                                    onClick={handleStartVotingPeriod}
                                     label={t("publish.action.startVotingPeriod")}
                                     st={PublishStatus.Started}
                                     Icon={PlayCircle}
@@ -260,7 +342,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                             {canWrite && (
                                 <ButtonDisabledOrNot
                                     Icon={Publish}
-                                    onClick={onGenerate}
+                                    onClick={handlePublish}
                                     st={PublishStatus.Generated}
                                     label={t("publish.action.publish")}
                                     disabledStatus={[PublishStatus.Stopped]}
@@ -296,12 +378,11 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
 
             <Dialog
                 handleClose={(flag) => {
-                    if (flag) {
-                        currentCallback()
+                    if (flag && currentCallback) {
+                        currentCallback() // Execute the saved callback
                     }
-
-                    setShowDialog(false)
-                    setCurrentCallback(null)
+                    setShowDialog(false) // Close the dialog
+                    setCurrentCallback(null) // Reset the callback
                 }}
                 open={showDialog}
                 title={t("publish.dialog.title")}

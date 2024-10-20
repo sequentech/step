@@ -223,9 +223,9 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 // If the authentication was not successfull the user is send back to the Keycloak login form
                 if (!isAuthenticatedResponse && authType) {
                     if (authType === "register") {
-                        return await keycloak.register()
+                        return await keycloak.register(keycloakInitOptions)
                     } else {
-                        return await keycloak.login()
+                        return await keycloak.login(keycloakInitOptions)
                     }
                 }
 

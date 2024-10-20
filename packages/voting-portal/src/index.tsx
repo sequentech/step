@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {Suspense, lazy, useContext} from "react"
+import React, {Suspense, lazy, useContext, useEffect} from "react"
 import ReactDOM from "react-dom/client"
 import {Provider} from "react-redux"
 import {store} from "./store/store"
@@ -16,13 +16,14 @@ import {theme} from "@sequentech/ui-essentials"
 import {initCore} from "@sequentech/ui-core"
 import AuthContextProvider from "./providers/AuthContextProvider"
 import {SettingsContext, SettingsWrapper} from "./providers/SettingsContextProvider"
-import {createBrowserRouter, RouterProvider} from "react-router-dom"
+import {createBrowserRouter, RouterProvider, useLocation, useMatch} from "react-router-dom"
 import {ErrorPage} from "./routes/ErrorPage"
 import {action as votingAction} from "./routes/VotingScreen"
 import {action as castBallotAction} from "./routes/ReviewScreen"
 import Loader from "./components/Loader"
 
 const TenantEvent = lazy(() => import("./routes/TenantEvent"))
+const PreviewPublicationEvent = lazy(() => import("./routes/PreviewPublicationEvent"))
 const ElectionSelectionScreen = lazy(() => import("./routes/ElectionSelectionScreen"))
 const LoginScreen = lazy(() => import("./routes/LoginScreen"))
 const RegisterScreen = lazy(() => import("./routes/RegisterScreen"))
@@ -43,6 +44,13 @@ export type TenantEventType = {
     eventId: string
 }
 
+export type PreviewPublicationEventType = {
+    tenantId: string
+    documentId: string
+    areaId: string
+    publicationId: string
+}
+
 export interface KeycloakProviderProps extends React.PropsWithChildren {
     disable: boolean
 }
@@ -58,7 +66,7 @@ const KeycloakProvider: React.FC<KeycloakProviderProps> = ({disable, children}) 
 }
 
 export const KeycloakProviderContainer: React.FC<React.PropsWithChildren> = ({children}) => {
-    const {globalSettings} = useContext(SettingsContext)
+    const {globalSettings, setDisableAuth} = useContext(SettingsContext)
 
     return <KeycloakProvider disable={globalSettings.DISABLE_AUTH}>{children}</KeycloakProvider>
 }
@@ -70,6 +78,10 @@ const router = createBrowserRouter(
             element: <App />,
             errorElement: <ErrorPage />,
             children: [
+                {
+                    path: "/preview/:tenantId/:documentId/:areaId/:publicationId",
+                    element: <PreviewPublicationEvent />,
+                },
                 {
                     path: "/tenant/:tenantId/event/:eventId",
                     element: (
