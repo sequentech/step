@@ -1,6 +1,8 @@
+use crate::services::protocol_manager::get_protocol_manager_secret_path;
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::vault;
 use crate::services::{
     ceremonies::keys_ceremony::get_keys_ceremony_board, protocol_manager::get_b3_pgsql_client,
     temp_path::generate_temp_file,
@@ -103,5 +105,39 @@ pub async fn read_protocol_manager_keys(
     election_event_id: &str,
 ) -> Result<TempPath> {
     let keys_ceremonies = get_keys_ceremonies(transaction, tenant_id, election_event_id).await?;
-    for keys_ceremony in keys_ceremonies {}
+
+    let mut writer = csv::WriterBuilder::new().delimiter(b',').from_writer(
+        generate_temp_file("export-protocol-keys-", ".csv")
+            .with_context(|| "Error creating temporary file")?,
+    );
+    let headers = vec!["election_id".to_string(), "key".to_string()];
+    writer.write_record(&headers)?;
+    for keys_ceremony in keys_ceremonies {
+        let (board_name, election_id) =
+            get_keys_ceremony_board(transaction, tenant_id, election_event_id, &keys_ceremony)
+                .await?;
+        let protocol_manager_key = get_protocol_manager_secret_path(&board_name);
+        let protocol_manager_data = vault::read_secret(protocol_manager_key)
+            .await?
+            .ok_or(anyhow!("protocol manager secret not found"))?;
+        let record = vec![election_id.unwrap_or("".into()), protocol_manager_data];
+        writer
+            .write_record(&record)
+            .with_context(|| "Error writing record")?;
+    }
+    writer
+        .flush()
+        .with_context(|| "Error flushing CSV writer")?;
+
+    let temp_path = writer
+        .into_inner()
+        .with_context(|| "Error getting inner writer")?
+        .into_temp_path();
+
+    let size = temp_path.metadata()?.len();
+    if size > get_max_upload_size()? as u64 {
+        return Err(anyhow!("File too large: {} > {}", size, get_max_upload_size()?).into());
+    }
+
+    Ok(temp_path)
 }
