@@ -128,7 +128,7 @@ pub async fn get_results_area_contest(
     election_event_id: &str,
     election_id: &str,
     contest_id: &str,
-) -> Result<Option<ResultsAreaContest>> {
+) -> Result<ResultsAreaContest> {
     let tenant_uuid: uuid::Uuid = Uuid::parse_str(&tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
     let election_event_uuid: uuid::Uuid = Uuid::parse_str(&election_event_id)
@@ -141,18 +141,19 @@ pub async fn get_results_area_contest(
         .prepare(
             r#"
                 SELECT
-                    id
+                    *
                 FROM
                     sequent_backend.results_area_contest
                 WHERE
                     tenant_id = $1 AND
                     election_event_id = $2 AND
                     election_id = $3 AND
-                    contest_id = $4;
+                    contest_id = $4
+                RETURNING
+                    id;
             "#,
         )
-        .await.map_err(|err| anyhow!("Error preparing the query: {}", err))?;
-
+        .await?;
     let row: Option<Row> = hasura_transaction
         .query_opt(
             &statement,
@@ -170,8 +171,10 @@ pub async fn get_results_area_contest(
         let results_contest: ResultsAreaContest = row
             .try_into()
             .map(|res: ResultsAreaContestWrapper| -> ResultsAreaContest { res.0 })?;
-        Ok(Some(results_contest))
+        Ok(results_contest)
     } else {
-        Ok(None)
+        Err(anyhow::anyhow!(
+            "No results area contest found with the provided data"
+        ))
     }
 }

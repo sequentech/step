@@ -1049,8 +1049,8 @@ type ManageElectionDatesOutput {
 }
 
 type ExportLogsOutput {
-  task_id : String!
-  document_id : String!
+    document_id: String!
+    task_execution: tasks_execution_type
 }
 
 type ExportAllUsersOutput {

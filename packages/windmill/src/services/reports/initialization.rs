@@ -108,15 +108,15 @@ impl TemplateRenderer for InitializationTemplate {
         }
     }
 
-    async fn prepare_user_data(&self) -> Result<Option<Self::UserData>> {
-        // Fetch the database client from the pool
-        let mut db_client: DbClient = get_hasura_pool()
+    async fn prepare_user_data(&self) -> Result<Self::UserData> {
+        // Fetch the Hasura database client from the pool
+        let mut hasura_db_client: DbClient = get_hasura_pool()
             .await
             .get()
             .await
             .with_context(|| "Error getting DB pool")?;
 
-        let hasura_transaction = db_client
+        let hasura_transaction = hasura_db_client
             .transaction()
             .await
             .with_context(|| "Error starting transaction")?;
@@ -230,7 +230,7 @@ impl TemplateRenderer for InitializationTemplate {
         let ovcs_version = "1.0".to_string();
         let system_hash = "dummy_system_hash".to_string();
 
-        Ok(Some(UserData {
+        Ok(UserData {
             file_qrcode_lib,
             election_date,
             election_title: election.name,
@@ -253,7 +253,7 @@ impl TemplateRenderer for InitializationTemplate {
             software_version,
             ovcs_version,
             system_hash,
-        }))
+        })
     }
 
     async fn prepare_system_data(

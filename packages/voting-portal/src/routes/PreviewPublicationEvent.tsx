@@ -3,14 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useContext, useEffect, useMemo, useState} from "react"
-import {Outlet, useLocation, useMatch, useNavigate, useParams} from "react-router-dom"
+import {useLocation, useNavigate, useParams} from "react-router-dom"
 import {SettingsContext} from "../providers/SettingsContextProvider"
-import {PageLimit} from "@sequentech/ui-essentials"
 import {Box, CircularProgress} from "@mui/material"
 import {PreviewPublicationEventType} from ".."
 import {
-    GetBallotPublicationChangesOutput,
-    Sequent_Backend_Ballot_Style,
     Sequent_Backend_Document,
     Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
@@ -101,19 +98,18 @@ export const updateBallotStyleAndSelection = (
 export const PreviewPublicationEvent: React.FC = () => {
     const {globalSettings, setDisableAuth} = useContext(SettingsContext)
     const navigate = useNavigate()
-    const {tenantId, documentId, areaId} = useParams<PreviewPublicationEventType>()
-    const [ballotStyleJson, setballotStyleJson] = useState<PreviewDocument>() // State to store the JSON data
+    const {tenantId, documentId, areaId, publicationId} = useParams<PreviewPublicationEventType>()
     const dispatch = useAppDispatch()
     const ballotStyle = useAppSelector(selectFirstBallotStyle)
     const location = useLocation()
 
     const previewUrl = useMemo(() => {
-        return `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${documentId}/preview.json`
+        return `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${documentId}/${publicationId}.json`
     }, [tenantId, documentId, globalSettings.PUBLIC_BUCKET_URL])
 
     useEffect(() => {
         const fetchPreviewData = async () => {
-            if (!tenantId || !areaId || !documentId || ballotStyle) {
+            if (!tenantId || !areaId || !documentId || !publicationId || ballotStyle) {
                 return
             }
             try {
@@ -122,6 +118,7 @@ export const PreviewPublicationEvent: React.FC = () => {
                     throw new Error(`Error: ${response.statusText}`)
                 }
                 const ballotStyleJson = (await response.json()) as PreviewDocument
+                setSessionStorage()
                 updateBallotStyleAndSelection(ballotStyleJson, tenantId, areaId, dispatch)
             } catch (err) {
                 console.log(`Error loading preview: ${err}`)
@@ -138,6 +135,16 @@ export const PreviewPublicationEvent: React.FC = () => {
             )
         }
     }, [ballotStyle?.election_event_id, tenantId, location.search, globalSettings.DISABLE_AUTH])
+
+    const setSessionStorage = () => {
+        if (!areaId || !documentId || !publicationId) {
+            return
+        }
+        sessionStorage.setItem("isDemo", "true")
+        sessionStorage.setItem("areaId", areaId)
+        sessionStorage.setItem("documentId", documentId)
+        sessionStorage.setItem("publicationId", publicationId)
+    }
 
     return (
         <Box sx={{flex: 1, display: "flex", justifyContent: "center", alignItems: "center"}}>
