@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    extract_eleciton_data, get_date_and_time, get_total_number_of_registered_voters_for_country,
+    extract_election_data, get_date_and_time, get_total_number_of_registered_voters_for_country,
 };
 use super::template_renderer::*;
 use crate::postgres::election::get_election_by_id;
@@ -14,7 +14,6 @@ use crate::services::database::{get_keycloak_pool, PgConfig};
 use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Ok, Result};
 use async_trait::async_trait;
-use chrono::NaiveDate;
 use deadpool_postgres::Client as DbClient;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
@@ -24,11 +23,7 @@ use tracing::{info, instrument};
 
 /// Struct for User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct UserData {}
-
-/// Struct for System Data
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct SystemData {
+pub struct UserData {
     pub date_printed: String,
     pub time_printed: String,
     pub copy_number: String,
@@ -46,6 +41,13 @@ pub struct SystemData {
     pub ovcs_version: String,
     pub system_hash: String,
     pub qr_codes: Vec<String>,
+}
+
+/// Struct for System Data
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SystemData {
+    pub rendered_user_template: String,
+    pub file_qrcode_lib: String,
 }
 
 #[derive(Debug)]
@@ -88,10 +90,8 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
         }
     }
 
-    async fn prepare_system_data(
-        &self,
-        rendered_user_template: String,
-    ) -> Result<Self::SystemData> {
+    #[instrument]
+    async fn prepare_user_data(&self) -> Result<Self::UserData> {
         // Fetch the Hasura database client from the pool
         let mut hasura_db_client: DbClient = get_hasura_pool()
             .await
@@ -144,10 +144,13 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
             &self.get_tenant_id(),
             &self.get_election_event_id(),
         )
-        .await?;
+        .await
+        .map_err(|e| {
+            anyhow::anyhow!(format!("Error getting event by election event id {:?}", e))
+        })?;
 
         // get election instace's general data (post, country, etc...)
-        let election_general_data = extract_eleciton_data(&election)
+        let election_general_data = extract_election_data(&election)
             .await
             .map_err(|err| anyhow!("cant extract election data: {err}"))?;
 
@@ -193,18 +196,20 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
             &realm_name,
             &election_general_data.country,
         )
-        .await?;
+        .await
+        .map_err(|e| {
+            anyhow::anyhow!(format!(
+                "Error getting total number of registered voters {:?}",
+                e
+            ))
+        })?;
 
         let (date_printed, time_printed) = get_date_and_time();
-        // Parse the date start date from voting period into a NaiveDate
-        let parsed_date = NaiveDate::parse_from_str(&voting_period_start_date, "%Y-%m-%d")
-            .expect("Failed to parse date");
-        // Format the date to the desired format
-        let election_date = parsed_date.format("%B %d, %Y").to_string();
+        let election_date = &voting_period_start_date;
 
         let temp_val: &str = "test";
-        Ok(SystemData {
-            election_date: election_date,
+        Ok(UserData {
+            election_date: election_date.to_string(),
             election_title: election_event.name.clone(),
             voting_period: format!("{} - {}", voting_period_start_date, voting_period_end_date),
             geographical_region: election_general_data.geographical_region,
@@ -221,6 +226,18 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
             system_hash: "sys_hash123".to_string(),
             date_printed: date_printed,
             time_printed: time_printed,
+        })
+    }
+
+    #[instrument]
+    async fn prepare_system_data(
+        &self,
+        rendered_user_template: String,
+    ) -> Result<Self::SystemData> {
+        let temp_val: &str = "test";
+        Ok(SystemData {
+            rendered_user_template,
+            file_qrcode_lib: temp_val.to_string(),
         })
     }
 }

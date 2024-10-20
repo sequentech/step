@@ -12,24 +12,20 @@
                 <table style="width: 100%">
                   <tr>
                     <td align="left">
-                      <div
-                        style="
+                      <div style="
                           text-align: left;
                           margin: 16px 0;
                           font-size: 10px;
-                        "
-                      >
-                        <p>{{date_format date_printed "%B %d, %Y"}}{{time_printed}}</p>
+                        ">
+                        <p>{{format_date date_printed "%B %d, %Y"}}{{time_printed}}</p>
                       </div>
                     </td>
                     <td align="right">
-                      <div
-                        style="
+                      <div style="
                           text-align: right;
                           margin: 16px 0;
                           font-size: 10px;
-                        "
-                      >
+                        ">
                         <p>Copy: {{copy_number}}</p>
                       </div>
                     </td>
@@ -43,16 +39,12 @@
               <td>
                 <table style="width: 100%">
                   <td width="25%">
-                    <img
-                      style="display: inline-block"
-                      src=""
-                      style="max-width: 80px"
-                    />
+                    <img style="display: inline-block" src="" style="max-width: 80px" />
                   </td>
                   <td width="50%" align="center" style="font-family: serif">
                     REPUBLIC OF PHILIPPINES
                     <br /><strong>COMMISSION ON ELECTIONS</strong>
-                    <br />{{date_format election_date "%B %d, %Y"}} <br />{{election_title}}
+                    <br />{{format_date election_date "%B %d, %Y"}} <br />{{election_title}}
                   </td>
                   <td width="25%">
                     <img src="" style="max-width: 80px" />
@@ -63,17 +55,12 @@
             <!-- Document header block -->
             <!-- Subtitle header block -->
             <tr>
-              <td
-                align="center"
-                style="font-family: serif; font-size: 12px"
-              >
-                <div
-                  style="
+              <td align="center" style="font-family: serif; font-size: 12px">
+                <div style="
                     margin-top: 12px;
                     margin-bottom: 12px;
                     text-align: center;
-                  "
-                >
+                  ">
                   <strong>ONLINE VOTING AND COUNTING SYSTEM</strong>
                   <br />Overseas Voting Period: {{voting_period}}
                 </div>
@@ -82,10 +69,7 @@
             <!-- Subtitle header block -->
             <!-- Main itle -->
             <tr>
-              <td
-                align="center"
-                style="font-family: serif; font-size: 18px"
-              >
+              <td align="center" style="font-family: serif; font-size: 18px">
                 <p>
                   <strong>ELECTION RETURNS FOR NATIONAL POSITIONS</strong>
                 </p>
@@ -101,7 +85,7 @@
                       <td style="text-align: left; vertical-align: top">
                         <strong>Date and Time of Closing Elections:</strong>
                       </td>
-                      <td style="text-align: left">{{date_format date "%B %d, %Y"}}{{time}}</td>
+                      <td style="text-align: left">{{format_date date "%B %d, %Y"}}{{time}}</td>
                     </tr>
                     <tr>
                       <td style="text-align: left; vertical-align: top">
@@ -163,10 +147,7 @@
             <!-- Table section -->
             <tr>
               <td>
-                <table
-                  border="1"
-                  style="width: 100%; margin-top: 16px; margin-bottom: 16px"
-                >
+                <table border="1" style="width: 100%; margin-top: 16px; margin-bottom: 16px">
                   <thead>
                     <tr>
                       <td style="text-align: center">
@@ -178,10 +159,7 @@
                   <tbody>
                     {{#each candidates}}
                     <tr>
-                      <td
-                        style="text-align: left; vertical-align: top"
-                        colspan="2"
-                      >
+                      <td style="text-align: left; vertical-align: top" colspan="2">
                         {{position}}{{position_name}}
                       </td>
                     </tr>
@@ -195,10 +173,7 @@
                     </tr>
                     {{/each}}
                     <tr>
-                      <td
-                        style="text-align: left; vertical-align: top"
-                        colspan="2"
-                      >
+                      <td style="text-align: left; vertical-align: top" colspan="2">
                         {{position}}{{position_name}}
                       </td>
                     </tr>
@@ -218,17 +193,13 @@
             <!-- Paragraph section -->
             <tr>
               <td align="left">
-                <div
-                  style="
+                <div style="
                     margin-top: 12px;
                     margin-bottom: 12px;
                     text-align: left;
-                  "
-                >
-                  <strong
-                    >WE, THE UNDERSIGNED MEMBERS OF THE SPECIAL BOARD OF
-                    ELECTION INSPECTORS</strong
-                  >
+                  ">
+                  <strong>WE, THE UNDERSIGNED MEMBERS OF THE SPECIAL BOARD OF
+                    ELECTION INSPECTORS</strong>
                   of {{post}}, do hereby certify under oath that we
                   witnessed the voting of the Clustered Precinct ID
                   {{precinct_code}}, and that the votes obtained by each
@@ -245,9 +216,7 @@
               <td align="center" style="padding: 15px">
                 <div style="text-align: center; padding: 15px">
                   <p style="font-family: serif; font-size: 12pt">
-                    <strong
-                      >THE SPECIAL BOARD OF ELECTION INSPECTORS</strong
-                    >
+                    <strong>THE SPECIAL BOARD OF ELECTION INSPECTORS</strong>
                   </p>
                 </div>
               </td>
@@ -257,9 +226,7 @@
             <tr>
               <td align="center" style="margin-top: 24px">
                 <div style="margin-top: 24px">
-                  <hr
-                    style="margin: 0 120px; border-top: 1px solid #000000"
-                  />
+                  <hr style="margin: 0 120px; border-top: 1px solid #000000" />
                   <p style="margin: 0">{{chairperson_name}}</p>
                   <p style="margin: 0"><strong>CHAIRPERSON</strong></p>
                   <p style="margin: 0">
@@ -274,9 +241,7 @@
             <tr>
               <td align="center" style="margin-top: 24px">
                 <div style="margin-top: 24px">
-                  <hr
-                    style="margin: 0 120px; border-top: 1px solid #000000"
-                  />
+                  <hr style="margin: 0 120px; border-top: 1px solid #000000" />
                   <p style="margin: 0">{{poll_clerk_name}}</p>
                   <p style="margin: 0"><strong>POLL CLERK</strong></p>
                   <p style="margin: 0">
@@ -291,9 +256,7 @@
             <tr>
               <td align="center" style="margin-top: 24px">
                 <div style="margin-top: 24px">
-                  <hr
-                    style="margin: 0 120px; border-top: 1px solid #000000"
-                  />
+                  <hr style="margin: 0 120px; border-top: 1px solid #000000" />
                   <p style="margin: 0">{{third_member_name}}</p>
                   <p style="margin: 0"><strong>THIRD MEMEBER</strong></p>
                   <p style="margin: 0">
@@ -310,9 +273,7 @@
             <tr>
               <td align="center" style="margin-top: 24px">
                 <div style="margin-top: 24px">
-                  <hr
-                    style="margin: 0 120px; border-top: 1px solid #000000"
-                  />
+                  <hr style="margin: 0 120px; border-top: 1px solid #000000" />
                   <p style="margin-top: 0">
                     (Signature above printed full name)
                   </p>
@@ -335,9 +296,7 @@
             <tr>
               <td align="center" style="margin-top: 24px">
                 <div style="margin-top: 24px">
-                  <hr
-                    style="margin: 0 120px; border-top: 1px solid #000000"
-                  />
+                  <hr style="margin: 0 120px; border-top: 1px solid #000000" />
                   <p style="margin-top: 0">
                     (Signature above printed full name)
                   </p>
@@ -349,9 +308,7 @@
             <tr>
               <td align="center" style="margin-top: 24px">
                 <div style="margin-top: 24px">
-                  <hr
-                    style="margin: 0 120px; border-top: 1px solid #000000"
-                  />
+                  <hr style="margin: 0 120px; border-top: 1px solid #000000" />
                   <p style="margin-top: 0">
                     (Signature above printed full name)
                   </p>
@@ -363,9 +320,7 @@
             <tr>
               <td align="center" style="margin-top: 24px">
                 <div style="margin-top: 24px">
-                  <hr
-                    style="margin: 0 120px; border-top: 1px solid #000000"
-                  />
+                  <hr style="margin: 0 120px; border-top: 1px solid #000000" />
                   <p style="margin-top: 0">
                     (Signature above printed full name)
                   </p>
@@ -400,9 +355,7 @@
             <tr>
               <td align="center">
                 <div style="text-align:center; margin: 16px; 0">
-                  <hr
-                    style="margin: 0 24px; border-top: 3px solid #000000"
-                  />
+                  <hr style="margin: 0 24px; border-top: 3px solid #000000" />
                   <p>END OF REPORT</p>
                 </div>
               </td>
@@ -416,5 +369,3 @@
   </table>
   <!-- MAIN section -->
 </div>
-
-

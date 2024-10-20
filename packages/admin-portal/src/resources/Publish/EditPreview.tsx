@@ -2,29 +2,36 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useEffect, useMemo, useState} from "react"
+import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
 import {
     AutocompleteInput,
+    Button,
     Identifier,
     SaveButton,
     SimpleForm,
+    Toolbar,
     useGetList,
     useGetOne,
     useNotify,
 } from "react-admin"
-import {Preview} from "@mui/icons-material"
+import {Preview, ContentCopy} from "@mui/icons-material"
 import {useTranslation} from "react-i18next"
 import {
     GetBallotPublicationChangesOutput,
+    GetDocumentByNameQuery,
     GetUploadUrlMutation,
+    Sequent_Backend_Document,
     Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
+    Sequent_Backend_Support_Material,
 } from "@/gql/graphql"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {useMutation, useQuery} from "@apollo/client"
+import {useLazyQuery, useMutation, useQuery} from "@apollo/client"
 import {GET_AREAS} from "@/queries/GetAreas"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {TenantContext} from "@/providers/TenantContextProvider"
+import {GET_DOCUMENT_BY_NAME} from "@/queries/GetDocumentByName"
+import {ElectionEventStatus} from "./EPublishStatus"
 
 interface EditPreviewProps {
     id?: string | Identifier | null
@@ -43,6 +50,8 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
     const [isUploading, setIsUploading] = React.useState<boolean>(false)
     const {tenantId} = useContext(TenantContext)
     const [areaId, setAreaId] = useState<string | null>(null)
+    const [documentId, setDocumentId] = useState<string | null | undefined>(null)
+    const [getDocumentByName] = useLazyQuery<GetDocumentByNameQuery>(GET_DOCUMENT_BY_NAME)
 
     const {data: areas} = useQuery(GET_AREAS, {
         variables: {
@@ -79,6 +88,63 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
             refetchOnMount: false,
         }
     )
+
+    const {data: supportMaterials} = useGetList<Sequent_Backend_Support_Material>(
+        "sequent_backend_support_material",
+        {
+            pagination: {page: 1, perPage: 9999},
+            sort: {field: "created_at", order: "DESC"},
+            filter: {
+                is_hidden: false,
+                election_event_id: electionEventId,
+                tenant_id: tenantId,
+            },
+        },
+        {
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
+        }
+    )
+
+    const {data: documents} = useGetList<Sequent_Backend_Document>(
+        "sequent_backend_document",
+        {
+            pagination: {page: 1, perPage: 9999},
+            sort: {field: "created_at", order: "DESC"},
+            filter: {
+                election_event_id: electionEventId,
+                tenant_id: tenantId,
+            },
+        },
+        {
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
+        }
+    )
+
+    const fetchDocumentId = async (documentName: string) => {
+        try {
+            const {data, error} = await getDocumentByName({
+                variables: {
+                    name: documentName,
+                    tenantId,
+                },
+                fetchPolicy: "network-only",
+            })
+
+            if (error) {
+                console.error("Error fetching document:", error)
+                return false
+            }
+
+            setDocumentId(data?.sequent_backend_document[0]?.id)
+        } catch (err) {
+            console.error("Exception in fetchDocumentId:", err)
+            return false
+        }
+    }
 
     const uploadFile = async (url: string, file: File) => {
         await fetch(url, {
@@ -126,6 +192,10 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
     }, [ballotData])
 
     useEffect(() => {
+        fetchDocumentId(`${id}.json`)
+    }, [])
+
+    useEffect(() => {
         if (areas) {
             const filtered = areas.sequent_backend_area.filter((area: any) =>
                 areaIds.some((areaId: any) => areaId.id === area.id)
@@ -135,28 +205,74 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
     }, [areas, areaIds])
 
     useEffect(() => {
-        const startUpload = async () => {
-            const fileData = {
+        const updateElectionStatus = (elections: Array<Sequent_Backend_Election> | undefined) => {
+            return elections?.map((election) => {
+                if (election?.status) {
+                    return {
+                        ...election,
+                        status: {
+                            ...election.status,
+                            voting_status: ElectionEventStatus.Open,
+                        },
+                    }
+                }
+                return election
+            })
+        }
+
+        const prepareFileData = () => {
+            const openElections = updateElectionStatus(elections)
+
+            if (electionEvent?.status) {
+                electionEvent.status.voting_status = ElectionEventStatus.Open
+            }
+
+            return {
                 ballot_styles: ballotData?.current?.ballot_styles,
                 election_event: electionEvent,
-                elections: elections,
+                elections: openElections,
+                support_materials: supportMaterials,
+                documents: documents,
             }
+        }
+
+        const startUpload = async () => {
+            const fileData = prepareFileData()
             const dataStr = JSON.stringify(fileData, null, 2)
-            const file = new File([dataStr], `preview.json`, {type: "application/json"})
-            const documentId = await uploadFileToS3(file)
+            const file = new File([dataStr], `${id}.json`, {type: "application/json"})
+            const docId = await uploadFileToS3(file)
+            setDocumentId(docId)
+            return docId
+        }
 
-            const previewUrl: string = `${previewUrlTemplate}/${documentId}/${areaId}`
+        const handleDocumentProcess = async () => {
+            let docId = documentId
+            if (!docId) docId = await startUpload()
+            openPreview(docId)
+            if (close) close()
+        }
+
+        if (
+            isUploading &&
+            electionEvent &&
+            elections &&
+            areaId &&
+            undefined !== supportMaterials &&
+            undefined !== documents
+        ) {
+            handleDocumentProcess()
+        }
+    }, [isUploading, electionEvent, elections, areaId, supportMaterials, documents])
+
+    const openPreview = (documentId: string | undefined | null) => {
+        const previewUrl = getPreviewUrl(documentId)
+        if (documentId && previewUrl) {
             window.open(previewUrl, "_blank")
-
             notify(t("publish.preview.success"), {type: "success"})
-            if (close) {
-                close()
-            }
+        } else {
+            notify(t("publish.dialog.error_preview"), {type: "error"})
         }
-        if (isUploading && electionEvent && elections && areaId) {
-            startUpload()
-        }
-    }, [isUploading, electionEvent, elections, areaId])
+    }
 
     const onPreviewClick = async (res: any) => {
         setAreaId(res.area_id)
@@ -167,17 +283,34 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
         return `${globalSettings.VOTING_PORTAL_URL}/preview/${tenantId}`
     }, [globalSettings.VOTING_PORTAL_URL, id])
 
-    return (
-        <SimpleForm
-            onSubmit={onPreviewClick}
-            toolbar={
-                <SaveButton
-                    icon={<Preview />}
-                    label={t("publish.preview.action")}
-                    sx={{marginInline: "1rem"}}
-                />
+    const getPreviewUrl = useCallback(
+        (documentId: string | undefined | null) => {
+            if (!documentId || !areaId || !id) {
+                return null
             }
-        >
+            return `${previewUrlTemplate}/${documentId}/${areaId}/${id}`
+        },
+        [previewUrlTemplate, areaId, id]
+    )
+
+    const copyPreviewToClipboard = async () => {
+        try {
+            const previewUrl = getPreviewUrl(documentId)
+
+            if (previewUrl) {
+                await navigator.clipboard.writeText(previewUrl)
+                notify(t("publish.preview.copy_success"), {type: "success"})
+            } else {
+                notify(t("publish.preview.copy_error"), {type: "error"})
+            }
+        } catch (error) {
+            console.error("Failed to copy URL to clipboard:", error)
+            notify(t("publish.dialog.error_copy"), {type: "error"})
+        }
+    }
+
+    return (
+        <SimpleForm toolbar={false} onSubmit={onPreviewClick}>
             <AutocompleteInput
                 source="area_id"
                 choices={sourceAreas}
@@ -185,7 +318,23 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
                 label={t("publish.preview.publicationAreas")}
                 fullWidth={true}
                 debounce={100}
+                onChange={(res) => setAreaId(res)}
             ></AutocompleteInput>
+            <Toolbar
+                sx={{display: "flex", background: "white", padding: "0 !important", gap: "1rem"}}
+            >
+                <SaveButton
+                    disabled={!areaId}
+                    icon={<Preview />}
+                    label={t("publish.preview.action")}
+                />
+                <Button
+                    disabled={!areaId}
+                    startIcon={<ContentCopy />}
+                    label={t("publish.preview.copy")}
+                    onClick={copyPreviewToClipboard}
+                />
+            </Toolbar>
         </SimpleForm>
     )
 }

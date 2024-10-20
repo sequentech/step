@@ -6,9 +6,8 @@ use crate::{
     services::reports::electoral_log::{generate_report, ReportFormat},
     types::error::Result,
 };
-use anyhow::{anyhow, Context};
 use celery::error::TaskError;
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
@@ -19,7 +18,7 @@ pub async fn generate_activity_logs_report(
     document_id: String,
     format: ReportFormat,
 ) -> Result<()> {
-    let data = generate_report(&tenant_id, &election_event_id, &document_id, format).await?;
+    let _data = generate_report(&tenant_id, &election_event_id, &document_id, format).await?;
 
     Ok(())
 }

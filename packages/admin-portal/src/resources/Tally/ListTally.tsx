@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement, useContext, useEffect, useMemo} from "react"
+import React, {ReactElement, useContext, useMemo} from "react"
 import {styled as MUIStiled} from "@mui/material/styles"
 import {
     DatagridConfigurable,
@@ -115,7 +115,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     const {data: keysCeremonies} = useQuery<ListKeysCeremonyQuery>(LIST_KEYS_CEREMONY, {
         variables: {
             tenantId: tenantId,
-            electionEventId: electionEventRecord.id,
+            electionEventId: electionEventRecord?.id,
         },
         pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
         context: {
@@ -170,7 +170,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     )
 
     const keysCeremonyIds = useMemo(
-        () => keysCeremonies?.list_keys_ceremony?.items?.map((ceremony) => ceremony.id) ?? [],
+        () => keysCeremonies?.list_keys_ceremony?.items?.map((ceremony) => ceremony?.id) ?? [],
         [keysCeremonies?.list_keys_ceremony?.items]
     )
 
