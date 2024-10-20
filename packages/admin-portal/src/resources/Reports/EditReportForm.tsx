@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import SelectElection from "@/components/election/SelectElection"
-import { EReportElectionPolicy, EReportType, ReportActions, reportTypeConfig } from "@/types/reports"
-import { Typography } from "@mui/material"
-import React, { useEffect, useMemo, useState } from "react"
+import {EReportElectionPolicy, EReportType, ReportActions, reportTypeConfig} from "@/types/reports"
+import {Typography} from "@mui/material"
+import React, {useEffect, useMemo, useState} from "react"
 import {
     BooleanInput,
     Create,
@@ -20,11 +20,11 @@ import {
     useNotify,
 } from "react-admin"
 import SelectTemplate from "../Template/SelectTemplate"
-import { useTranslation } from "react-i18next"
-import { Sequent_Backend_Report } from "@/gql/graphql"
-import { useMutation } from "@apollo/client"
-import { CREATE_REPORT } from "@/queries/CreateReport"
-import { UPDATE_REPORT } from "@/queries/UpdateReport"
+import {useTranslation} from "react-i18next"
+import {Sequent_Backend_Report} from "@/gql/graphql"
+import {useMutation} from "@apollo/client"
+import {CREATE_REPORT} from "@/queries/CreateReport"
+import {UPDATE_REPORT} from "@/queries/UpdateReport"
 
 interface CronConfig {
     isActive?: boolean
@@ -57,11 +57,12 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
     const handleReportTypeChange = (event: any) => {
         setReportType(event.target.value)
     }
-    const { t } = useTranslation()
+    const {t} = useTranslation()
     const notify = useNotify()
     useEffect(() => {
         console.log("isCronActive", isCronActive)
     }, [])
+    console.log("isEditReport", isEditReport)
 
     const {
         data: report,
@@ -69,17 +70,23 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
         error,
     } = useGetOne<Sequent_Backend_Report>(
         "sequent_backend_report",
-        { id: reportId },
-        { enabled: isEditReport }
+        {id: reportId},
+        {enabled: isEditReport}
     )
+    console.log("Loading:", isLoading, "Error:", error, "Report:", report)
 
     const reportTypeChoices = Object.values(EReportType).map((reportType) => ({
         id: reportType,
         name: t(`reportsScreen.reportType.${reportType}`),
     }))
+
     useEffect(() => {
-        setIsCronActive(report?.cron_config?.is_active || false)
-        setReportType(report?.report_type ? (report.report_type as EReportType) : undefined)
+        console.log("!@!@ ", {report, dataProvider, electionId})
+        if (report) {
+            setIsCronActive(report?.cron_config?.is_active || false)
+            setReportType(report?.report_type ? (report.report_type as EReportType) : undefined)
+            setTemplateId(report?.template_id || undefined)
+        }
     }, [report])
 
     useEffect(() => {
@@ -100,10 +107,9 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                 }
             }
         }
-
         const formData = {
             ...values,
-            template_id: templateId,
+            // template_id: templateId || null,
             tenant_id: tenantId,
             election_event_id: electionEventId,
             cron_config: {
@@ -112,6 +118,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                 email_recipients: cron_conig_js.emailRecipient,
             },
         }
+        console.log("handleSubmit ", formData)
 
         try {
             if (isEditReport && reportId) {
@@ -121,21 +128,21 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                         set: formData,
                     },
                 })
-                notify(t(`reportsScreen.messages.updateSuccess`), { type: "success" })
+                notify(t(`reportsScreen.messages.updateSuccess`), {type: "success"})
             } else {
                 await createReport({
                     variables: {
                         object: formData,
                     },
                 })
-                notify(t(`reportsScreen.messages.createSuccess`), { type: "success" })
+                notify(t(`reportsScreen.messages.createSuccess`), {type: "success"})
             }
 
             if (close) {
                 close()
             }
         } catch (error) {
-            notify(t(`reportsScreen.messages.submitError`), { type: "error" })
+            notify(t(`reportsScreen.messages.submitError`), {type: "error"})
         }
     }
 
@@ -231,12 +238,11 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                                 ? reportTypeConfig[reportType]?.associatedTemplateType
                                 : undefined
                         }
-                        source={"template_id"}
+                        source="template_id"
                         label={t("reportsScreen.fields.template")}
-                        onSelectTemplate={(templateId) => setTemplateId(templateId)}
-                        value={templateId}
                         isRequired={isTemplateRequired}
                         isAlias={true}
+                        disabled={!report} // Corrected logic
                     />
 
                     {canGenerateReportSchedulued && (

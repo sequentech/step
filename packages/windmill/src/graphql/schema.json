@@ -10401,9 +10401,27 @@
                 "name": "election_event_id",
                 "description": null,
                 "type": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "format",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
                 },
                 "defaultValue": null
               }
@@ -67885,6 +67903,18 @@
             "deprecationReason": null
           },
           {
+            "name": "template_alias",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "template_id",
             "description": null,
             "args": [],
@@ -68179,6 +68209,16 @@
             "defaultValue": null
           },
           {
+            "name": "template_alias",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "String_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "template_id",
             "description": null,
             "type": {
@@ -68358,6 +68398,16 @@
             "defaultValue": null
           },
           {
+            "name": "template_alias",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "template_id",
             "description": null,
             "type": {
@@ -68437,6 +68487,18 @@
           },
           {
             "name": "report_type",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "template_alias",
             "description": null,
             "args": [],
             "type": {
@@ -68532,6 +68594,18 @@
           },
           {
             "name": "report_type",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "template_alias",
             "description": null,
             "args": [],
             "type": {
@@ -68747,6 +68821,16 @@
             "defaultValue": null
           },
           {
+            "name": "template_alias",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "template_id",
             "description": null,
             "type": {
@@ -68862,6 +68946,12 @@
             "deprecationReason": null
           },
           {
+            "name": "template_alias",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "template_id",
             "description": "column name",
             "isDeprecated": false,
@@ -68934,6 +69024,16 @@
           },
           {
             "name": "report_type",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "template_alias",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -69069,6 +69169,16 @@
             "defaultValue": null
           },
           {
+            "name": "template_alias",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "template_id",
             "description": null,
             "type": {
@@ -69133,6 +69243,12 @@
           },
           {
             "name": "report_type",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "template_alias",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null

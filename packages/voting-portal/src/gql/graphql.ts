@@ -1942,7 +1942,8 @@ export type Mutation_RootExport_Election_EventArgs = {
 
 /** mutation root */
 export type Mutation_RootExport_Election_Event_LogsArgs = {
-  election_event_id?: InputMaybe<Scalars['String']['input']>;
+  election_event_id: Scalars['String']['input'];
+  format: Scalars['String']['input'];
 };
 
 
@@ -10793,6 +10794,7 @@ export type Sequent_Backend_Report = {
   election_id?: Maybe<Scalars['uuid']['output']>;
   id: Scalars['uuid']['output'];
   report_type: Scalars['String']['output'];
+  template_alias?: Maybe<Scalars['String']['output']>;
   template_id?: Maybe<Scalars['String']['output']>;
   tenant_id: Scalars['uuid']['output'];
 };
@@ -10841,6 +10843,7 @@ export type Sequent_Backend_Report_Bool_Exp = {
   election_id?: InputMaybe<Uuid_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
   report_type?: InputMaybe<String_Comparison_Exp>;
+  template_alias?: InputMaybe<String_Comparison_Exp>;
   template_id?: InputMaybe<String_Comparison_Exp>;
   tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
 };
@@ -10874,6 +10877,7 @@ export type Sequent_Backend_Report_Insert_Input = {
   election_id?: InputMaybe<Scalars['uuid']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   report_type?: InputMaybe<Scalars['String']['input']>;
+  template_alias?: InputMaybe<Scalars['String']['input']>;
   template_id?: InputMaybe<Scalars['String']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
 };
@@ -10886,6 +10890,7 @@ export type Sequent_Backend_Report_Max_Fields = {
   election_id?: Maybe<Scalars['uuid']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   report_type?: Maybe<Scalars['String']['output']>;
+  template_alias?: Maybe<Scalars['String']['output']>;
   template_id?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
 };
@@ -10898,6 +10903,7 @@ export type Sequent_Backend_Report_Min_Fields = {
   election_id?: Maybe<Scalars['uuid']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   report_type?: Maybe<Scalars['String']['output']>;
+  template_alias?: Maybe<Scalars['String']['output']>;
   template_id?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
 };
@@ -10926,6 +10932,7 @@ export type Sequent_Backend_Report_Order_By = {
   election_id?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   report_type?: InputMaybe<Order_By>;
+  template_alias?: InputMaybe<Order_By>;
   template_id?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
 };
@@ -10955,6 +10962,8 @@ export enum Sequent_Backend_Report_Select_Column {
   /** column name */
   ReportType = 'report_type',
   /** column name */
+  TemplateAlias = 'template_alias',
+  /** column name */
   TemplateId = 'template_id',
   /** column name */
   TenantId = 'tenant_id'
@@ -10968,6 +10977,7 @@ export type Sequent_Backend_Report_Set_Input = {
   election_id?: InputMaybe<Scalars['uuid']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   report_type?: InputMaybe<Scalars['String']['input']>;
+  template_alias?: InputMaybe<Scalars['String']['input']>;
   template_id?: InputMaybe<Scalars['String']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
 };
@@ -10988,6 +10998,7 @@ export type Sequent_Backend_Report_Stream_Cursor_Value_Input = {
   election_id?: InputMaybe<Scalars['uuid']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   report_type?: InputMaybe<Scalars['String']['input']>;
+  template_alias?: InputMaybe<Scalars['String']['input']>;
   template_id?: InputMaybe<Scalars['String']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
 };
@@ -11006,6 +11017,8 @@ export enum Sequent_Backend_Report_Update_Column {
   Id = 'id',
   /** column name */
   ReportType = 'report_type',
+  /** column name */
+  TemplateAlias = 'template_alias',
   /** column name */
   TemplateId = 'template_id',
   /** column name */
