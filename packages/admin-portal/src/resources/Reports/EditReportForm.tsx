@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import SelectElection from "@/components/election/SelectElection"
-import { EReportElectionPolicy, EReportType, ReportActions, reportTypeConfig } from "@/types/reports"
-import { Typography } from "@mui/material"
-import React, { useEffect, useMemo, useState } from "react"
+import {EReportElectionPolicy, EReportType, ReportActions, reportTypeConfig} from "@/types/reports"
+import {Typography} from "@mui/material"
+import React, {useEffect, useMemo, useState} from "react"
 import {
     BooleanInput,
     Create,
@@ -22,11 +22,11 @@ import {
     useUpdate,
 } from "react-admin"
 import SelectTemplate from "../Template/SelectTemplate"
-import { useTranslation } from "react-i18next"
-import { Sequent_Backend_Report } from "@/gql/graphql"
-import { useMutation } from "@apollo/client"
-import { CREATE_REPORT } from "@/queries/CreateReport"
-import { UPDATE_REPORT } from "@/queries/UpdateReport"
+import {useTranslation} from "react-i18next"
+import {Sequent_Backend_Report} from "@/gql/graphql"
+import {useMutation} from "@apollo/client"
+import {CREATE_REPORT} from "@/queries/CreateReport"
+import {UPDATE_REPORT} from "@/queries/UpdateReport"
 
 interface CronConfig {
     isActive?: boolean
@@ -54,7 +54,6 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
     const [templateId, setTemplateId] = useState<string | null | undefined>(undefined)
     const [templateAlias, setTemplateAlias] = useState<string | null | undefined>(undefined)
 
-
     // const [createReport] = useMutation(CREATE_REPORT)
     // const [updateReport] = useMutation(UPDATE_REPORT)
 
@@ -66,7 +65,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
     const handleReportTypeChange = (event: any) => {
         setReportType(event.target.value)
     }
-    const { t } = useTranslation()
+    const {t} = useTranslation()
     const notify = useNotify()
     useEffect(() => {
         console.log("isCronActive", isCronActive)
@@ -77,8 +76,8 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
         error,
     } = useGetOne<Sequent_Backend_Report>(
         "sequent_backend_report",
-        { id: reportId },
-        { enabled: isEditReport }
+        {id: reportId},
+        {enabled: isEditReport}
     )
     const reportTypeChoices = Object.values(EReportType).map((reportType) => ({
         id: reportType,
@@ -96,18 +95,17 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
         }
     }, [reportType])
 
-
     const handleSubmit = async (values: any) => {
-        console.log("values", values);
+        console.log("values", values)
 
-        let cron_config_js: CronConfig = {};
+        let cron_config_js: CronConfig = {}
         if (values.cron_config && isCronActive) {
             if (values.cron_config.is_active) {
                 cron_config_js = {
                     isActive: values.cron_config.is_active,
                     cronExpression: values.cron_config.cron_expression,
                     emailRecipient: values.cron_config.email_recipients,
-                };
+                }
             }
         }
 
@@ -121,49 +119,51 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                 cron_expression: cron_config_js.cronExpression,
                 email_recipients: cron_config_js.emailRecipient,
             },
-        };
+        }
 
-        console.log("formData: ", formData);
+        console.log("formData: ", formData)
 
         try {
             if (isEditReport && reportId) {
                 update(
                     "sequent_backend_report", // Resource name
-                    { id: reportId, data: formData },
+                    {id: reportId, data: formData},
                     {
                         onSuccess: () => {
-                            notify(t("reportsScreen.messages.updateSuccess"), { type: "success" });
+                            notify(t("reportsScreen.messages.updateSuccess"), {type: "success"})
                         },
                         onError: (error) => {
-                            console.error("Update Error: ", error);
-                            notify(t("reportsScreen.messages.submitError"), { type: "error" });
+                            console.error("Update Error: ", error)
+                            notify(t("reportsScreen.messages.submitError"), {type: "error"})
                         },
                     }
-                );
+                )
             } else {
+                console.log("testtttttttt")
+
                 create(
                     "sequent_backend_report", // Resource name
-                    { data: formData },
+                    {data: formData},
                     {
                         onSuccess: () => {
-                            notify(t("reportsScreen.messages.createSuccess"), { type: "success" });
+                            notify(t("reportsScreen.messages.createSuccess"), {type: "success"})
                         },
                         onError: (error) => {
-                            console.error("Create Error: ", error);
-                            notify(t("reportsScreen.messages.submitError"), { type: "error" });
+                            console.error("Create Error: ", error)
+                            notify(t("reportsScreen.messages.submitError"), {type: "error"})
                         },
                     }
-                );
+                )
             }
 
             if (close) {
-                close();
+                close()
             }
         } catch (error) {
-            console.error("Submit Error: ", error);
-            notify(t("reportsScreen.messages.submitError"), { type: "error" });
+            console.error("Submit Error: ", error)
+            notify(t("reportsScreen.messages.submitError"), {type: "error"})
         }
-    };
+    }
     const handleCronToggle = (event: any) => {
         setIsCronActive(event.target.checked)
     }
