@@ -149,9 +149,6 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
 }) => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const {t} = useTranslation()
-    const location = useLocation()
-    const params = new URLSearchParams(location.search)
-    const user_id = params.get("user_id")
     const filters: Array<ReactElement> = []
 
     const getHeadField = (record: any, field: string) => {
