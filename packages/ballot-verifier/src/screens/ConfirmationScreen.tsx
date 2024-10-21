@@ -203,8 +203,13 @@ const PlaintextVoteQuestion: React.FC<PlaintextVoteQuestionProps> = ({
     )
 }
 
+enum VariantType {
+    Info = "info",
+    Error = "error",
+}
+
 interface BallotIdContainerProps extends PaperProps {
-    variant: "info" | "error"
+    variant: VariantType
 }
 
 const BallotIdContainer: React.FC<PropsWithChildren<BallotIdContainerProps>> = ({
@@ -222,6 +227,22 @@ interface BallotIdSectionProps {
     ballotId: string
 }
 
+const isMatchingBallotIds = (
+    confirmationBallotId: String | undefined,
+    ballotId: String
+): boolean => {
+    return confirmationBallotId === ballotId
+}
+
+const ballotMatchVariantType = (
+    confirmationBallotId: String | undefined,
+    ballotId: String
+): VariantType => {
+    return isMatchingBallotIds(confirmationBallotId, ballotId)
+        ? VariantType.Info
+        : VariantType.Error
+}
+
 const BallotIdSection: React.FC<BallotIdSectionProps> = ({confirmationBallot, ballotId}) => {
     const {t} = useTranslation()
     const [decodedBallotIdHelp, setDecodedBallotIdHelp] = useState(false)
@@ -237,7 +258,7 @@ const BallotIdSection: React.FC<BallotIdSectionProps> = ({confirmationBallot, ba
                 <Typography variant="h5" fontSize="16px" width="106px">
                     {t("confirmationScreen.decodedBallotId")}
                 </Typography>
-                <BallotIdContainer variant="info">
+                <BallotIdContainer variant={VariantType.Info}>
                     <OneLine variant="info">{confirmationBallot?.ballot_hash}</OneLine>
                     <IconButton
                         icon={faCircleQuestion}
@@ -268,13 +289,17 @@ const BallotIdSection: React.FC<BallotIdSectionProps> = ({confirmationBallot, ba
                 </Typography>
                 <Box sx={{overflow: "auto"}}>
                     <BallotIdContainer
-                        variant={confirmationBallot?.ballot_hash === ballotId ? "info" : "error"}
+                        variant={ballotMatchVariantType(confirmationBallot?.ballot_hash, ballotId)}
                         sx={{
-                            marginTop:
-                                confirmationBallot?.ballot_hash === ballotId ? undefined : "14px",
+                            marginTop: isMatchingBallotIds(
+                                confirmationBallot?.ballot_hash,
+                                ballotId
+                            )
+                                ? undefined
+                                : "14px",
                         }}
                     >
-                        {confirmationBallot?.ballot_hash === ballotId ? null : (
+                        {isMatchingBallotIds(confirmationBallot?.ballot_hash, ballotId) ? null : (
                             <IconButton
                                 icon={faTimesCircle}
                                 sx={{
@@ -287,9 +312,10 @@ const BallotIdSection: React.FC<BallotIdSectionProps> = ({confirmationBallot, ba
                             />
                         )}
                         <OneLine
-                            variant={
-                                confirmationBallot?.ballot_hash === ballotId ? "info" : "error"
-                            }
+                            variant={ballotMatchVariantType(
+                                confirmationBallot?.ballot_hash,
+                                ballotId
+                            )}
                         >
                             {ballotId}
                         </OneLine>
@@ -315,7 +341,7 @@ const BallotIdSection: React.FC<BallotIdSectionProps> = ({confirmationBallot, ba
                             <p>{t("confirmationScreen.userBallotIdHelpDialog.content")}</p>
                         </Dialog>
                     </BallotIdContainer>
-                    {confirmationBallot?.ballot_hash === ballotId ? null : (
+                    {isMatchingBallotIds(confirmationBallot?.ballot_hash, ballotId) ? null : (
                         <Typography fontSize="12px" color={theme.palette.red.dark} marginTop="2px">
                             {t("confirmationScreen.ballotIdError")}
                         </Typography>
@@ -475,11 +501,13 @@ export const ConfirmationScreen: React.FC<IProps> = ({
                 />
             </Box>
             <BallotIdSection confirmationBallot={confirmationBallot} ballotId={ballotId} />
-            <VerifySelectionsSection
-                confirmationBallot={confirmationBallot}
-                isLoading={isLoading}
-                ballotService={ballotService}
-            />
+            {isMatchingBallotIds(confirmationBallot?.ballot_hash, ballotId) ? (
+                <VerifySelectionsSection
+                    confirmationBallot={confirmationBallot}
+                    isLoading={isLoading}
+                    ballotService={ballotService}
+                />
+            ) : null}
             <ActionButtons />
         </PageLimit>
     )
