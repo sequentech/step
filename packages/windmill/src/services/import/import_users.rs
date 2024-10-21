@@ -27,7 +27,7 @@ use tracing::{debug, info, instrument};
 use uuid::Uuid;
 
 lazy_static! {
-    static ref HEADER_RE: Regex = Regex::new(r"^[a-zA-Z0-9._-]+$").unwrap();
+    pub static ref HEADER_RE: Regex = Regex::new(r"^[a-zA-Z0-9._-]+$").unwrap();
     static ref PBKDF2_ITERATIONS: NonZeroU32 = NonZeroU32::new(27_500).unwrap();
     static ref SALT_COL_NAME: String = String::from("password_salt");
     static ref HASHED_PASSWORD_COL_NAME: String = String::from("hashed_password");

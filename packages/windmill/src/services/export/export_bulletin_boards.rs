@@ -1,7 +1,7 @@
-use crate::services::protocol_manager::get_protocol_manager_secret_path;
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::protocol_manager::get_protocol_manager_secret_path;
 use crate::services::vault;
 use crate::services::{
     ceremonies::keys_ceremony::get_keys_ceremony_board, protocol_manager::get_b3_pgsql_client,
@@ -13,9 +13,26 @@ use b3::client::pgsql::B3MessageRow;
 use base64::engine::general_purpose;
 use base64::Engine;
 use deadpool_postgres::{Client as DbClient, Transaction};
+use futures::pin_mut;
+use regex::Regex;
 use std::collections::HashMap;
 use tempfile::{NamedTempFile, TempPath};
 use tracing::{event, info, instrument, Level};
+
+lazy_static! {
+    //static ref HEADER_RE: Regex = Regex::new(r"^[a-zA-Z0-9._-]+$").unwrap();
+
+    /*static ref ELECTION_ID_COL_NAME = String::from("election_id");
+    static ref ID_COL_NAME = String::from("id");
+    static ref CREATED_COL_NAME = "created".to_string();
+    static ref SENDER_PK_COL_NAME = "sender_pk".to_string();
+    static ref STATEMENT_TIMESTAMP_COL_NAME = "statement_timestamp".to_string();
+    static ref STATEMENT_COL_NAME = "statement_kind".to_string();
+    static ref BATCH_COL_NAME = "batch".to_string();
+    static ref MIX_NUMBER_COL_NAME = "mix_number".to_string();
+    static ref MESSAGE_COL_NAME = "message".to_string();
+    static ref VERSION_COL_NAME = "version".to_string();*/
+}
 
 #[instrument]
 fn get_board_record(election_id: &str, row: B3MessageRow) -> Vec<String> {
@@ -40,17 +57,17 @@ async fn create_boards_csv(boards_map: HashMap<String, Vec<B3MessageRow>>) -> Re
         generate_temp_file("export-boards-", ".csv")
             .with_context(|| "Error creating temporary file")?,
     );
-    let headers = vec![
-        "election_id".to_string(),
-        "id".to_string(),
-        "created".to_string(),
-        "sender_pk".to_string(),
-        "statement_timestamp".to_string(),
-        "statement_kind".to_string(),
-        "batch".to_string(),
-        "mix_number".to_string(),
-        "message".to_string(),
-        "version".to_string(),
+    let headers: Vec<String> = vec![
+        /*ELECTION_ID_COL_NAME,
+        ID_COL_NAME,
+        CREATED_COL_NAME,
+        SENDER_PK_COL_NAME,
+        STATEMENT_TIMESTAMP_COL_NAME,
+        STATEMENT_COL_NAME,
+        BATCH_COL_NAME,
+        MIX_NUMBER_COL_NAME,
+        MESSAGE_COL_NAME,
+        VERSION_COL_NAME,*/
     ];
     writer.write_record(&headers)?;
     for (board_name, board_rows) in boards_map {

@@ -58,8 +58,10 @@ use crate::services::documents::upload_and_return_document_postgres;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_board::BoardSerializable;
 use crate::services::electoral_log::ElectoralLog;
+use crate::services::import::import_bulletin_boards::import_bulletin_boards;
 use crate::services::jwks::upsert_realm_jwks;
 use crate::services::protocol_manager::get_election_board;
+use crate::services::protocol_manager::get_protocol_manager_secret_path;
 use crate::services::protocol_manager::{
     create_protocol_manager_keys, get_b3_pgsql_client, get_board_client,
 };
@@ -69,7 +71,6 @@ use crate::tasks::import_election_event::ImportElectionEventBody;
 use crate::types::documents::EDocuments;
 use sequent_core::types::hasura::core::{Area, Candidate, Contest, Election, ElectionEvent};
 use sequent_core::types::scheduled_event::*;
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ImportElectionEventSchema {
     pub tenant_id: Uuid,
@@ -659,6 +660,7 @@ pub async fn process_document(
                 )
                 .await?;
             }
+
             if file_name.contains(&format!("{}", EDocuments::BULLETIN_BOARDS.to_file_name())) {
                 let mut temp_file = NamedTempFile::new()
                     .context("Failed to create bulletin boards temporary file")?;
@@ -666,7 +668,7 @@ pub async fn process_document(
                 io::copy(&mut cursor, &mut temp_file)
                     .context("Failed to copy contents of bulletin boards file to temporary file")?;
                 temp_file.as_file_mut().rewind()?;
-                //import_bulletin_boards(temp_file, replacement_map).await?;
+                import_bulletin_boards(temp_file, replacement_map.clone())?;
             }
         }
     };
