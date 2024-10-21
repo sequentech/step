@@ -89,7 +89,6 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
         }
     }, [reportType])
 
-    console.log(report, "reportreportreportreport")
 
     const handleSubmit = async (values: any) => {
 
@@ -120,7 +119,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
         try {
             if (isEditReport && reportId && formData) {
                 update(
-                    "sequent_backend_report", // Resource name
+                    "sequent_backend_report",
                     { id: reportId, data: formData },
                     {
                         onSuccess: () => {
@@ -134,7 +133,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                 )
             } else {
                 create(
-                    "sequent_backend_report", // Resource name
+                    "sequent_backend_report",
                     { data: formData },
                     {
                         onSuccess: () => {
