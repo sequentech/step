@@ -51,7 +51,6 @@ const SelectTemplate = ({
             onSelectTemplate({alias: data.template.alias})
         }
     }
-
     return (
         <ReferenceInput
             required
