@@ -18,13 +18,7 @@ import {
     Sequent_Backend_Election_Event,
 } from "@/gql/graphql"
 import {v4} from "uuid"
-import {
-    useGetOne,
-    useNotify,
-    useRefresh,
-    RaRecord,
-    useGetList,
-} from "react-admin"
+import {useGetOne, useNotify, useRefresh, RaRecord, useGetList} from "react-admin"
 import {useTranslation} from "react-i18next"
 import {IElectionEventPresentation, ITenantSettings, isNull} from "@sequentech/ui-core"
 import {useNavigate} from "react-router"
@@ -93,10 +87,10 @@ const CreateElectionEventContext = createContext<{
     handleImportElectionEvent: any
     handleSubmit: any
     closeImportDrawer: any
-    errors: any,
-    isLoading: boolean,
-	newId: any
-	tenantId: any
+    errors: any
+    isLoading: boolean
+    newId: any
+    tenantId: any
 }>({
     createDrawer: false,
     importDrawer: false,
@@ -107,9 +101,9 @@ const CreateElectionEventContext = createContext<{
     handleSubmit: console.log,
     closeImportDrawer: console.log,
     errors: console.log,
-	isLoading: false,
-	newId: false,
-	tenantId: "",
+    isLoading: false,
+    newId: false,
+    tenantId: "",
 })
 
 export const CreateElectionEventProvider = ({children}: any) => {
@@ -298,9 +292,9 @@ export const CreateElectionEventProvider = ({children}: any) => {
                 handleSubmit,
                 closeImportDrawer,
                 errors,
-				isLoading,
-				newId,
-				tenantId
+                isLoading,
+                newId,
+                tenantId,
             }}
         >
             {children}
@@ -314,7 +308,6 @@ export const useCreateElectionEventStore = () => useContext(CreateElectionEventC
 //hoc
 export const withCreateElectionEventProvider = (Component: React.FC<any>) => {
     const HasCreateElectionEventProvider = () => {
-
         return (
             <CreateElectionEventProvider>
                 <Component />

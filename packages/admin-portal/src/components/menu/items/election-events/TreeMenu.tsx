@@ -18,7 +18,7 @@ import {
     ElectionType,
     ContestType,
     CandidateType,
-	TREE_RESOURCE_NAMES,
+    TREE_RESOURCE_NAMES,
 } from "../ElectionEvents"
 
 import {useTranslation} from "react-i18next"
@@ -128,13 +128,13 @@ function TreeLeaves({
 
     const handleOpenCreateElectionEventForm = (e: React.MouseEvent<HTMLElement>) => {
         console.log({e})
-		setAnchorEl(null)
+        setAnchorEl(null)
         toggleCreateDrawer?.((prev) => !prev)
     }
-    
-	const handleOpenImportElectionEventForm = (e: React.MouseEvent<HTMLElement>) => {
+
+    const handleOpenImportElectionEventForm = (e: React.MouseEvent<HTMLElement>) => {
         console.log({e})
-		setAnchorEl(null)
+        setAnchorEl(null)
         toggleImportDrawer?.((prev) => !prev)
     }
 
@@ -174,21 +174,27 @@ function TreeLeaves({
                                 display: i18n.dir(i18n.language) === "rtl" ? "none" : "start",
                             }}
                         />
-                        {
-							treeResourceNames[0] === TREE_RESOURCE_NAMES[0] ? <MenuStyles.StyledNavLinkButton
-								className={treeResourceNames[0]}
-								style={{ textAlign: i18n.dir(i18n.language) === "rtl" ? "end" : "start" }}
-								onClick={handleOpenCreateElectionEventMenu}
-							>
-								{t(mapAddResource[treeResourceNames[0] as ResourceName])}
-							</MenuStyles.StyledNavLinkButton> : <MenuStyles.StyledNavLink
-								className={treeResourceNames[0]}
-								to={getNavLinkCreate(parentData, treeResourceNames[0])}
-								style={{ textAlign: i18n.dir(i18n.language) === "rtl" ? "end" : "start" }}
-							>
-								{t(mapAddResource[treeResourceNames[0] as ResourceName])}
-							</MenuStyles.StyledNavLink>
-						}
+                        {treeResourceNames[0] === TREE_RESOURCE_NAMES[0] ? (
+                            <MenuStyles.StyledNavLinkButton
+                                className={treeResourceNames[0]}
+                                style={{
+                                    textAlign: i18n.dir(i18n.language) === "rtl" ? "end" : "start",
+                                }}
+                                onClick={handleOpenCreateElectionEventMenu}
+                            >
+                                {t(mapAddResource[treeResourceNames[0] as ResourceName])}
+                            </MenuStyles.StyledNavLinkButton>
+                        ) : (
+                            <MenuStyles.StyledNavLink
+                                className={treeResourceNames[0]}
+                                to={getNavLinkCreate(parentData, treeResourceNames[0])}
+                                style={{
+                                    textAlign: i18n.dir(i18n.language) === "rtl" ? "end" : "start",
+                                }}
+                            >
+                                {t(mapAddResource[treeResourceNames[0] as ResourceName])}
+                            </MenuStyles.StyledNavLink>
+                        )}
                         <MenuStyles.StyledAddIcon
                             style={{
                                 display: i18n.dir(i18n.language) === "rtl" ? "block" : "none",
@@ -213,10 +219,7 @@ function TreeLeaves({
                 open={Boolean(anchorEl)}
                 onClose={() => setAnchorEl(null)}
             >
-                <MenuItem
-                    className="menu-sidebar-item"
-					onClick={handleOpenCreateElectionEventForm}
-                >
+                <MenuItem className="menu-sidebar-item" onClick={handleOpenCreateElectionEventForm}>
                     <Box
                         sx={{
                             textOverflow: "ellipsis",
@@ -225,14 +228,11 @@ function TreeLeaves({
                         }}
                     >
                         <span className="help-menu-item" title={"Create Election Event"}>
-							{t('createResource.electionEvent')}
+                            {t("createResource.electionEvent")}
                         </span>
                     </Box>
                 </MenuItem>
-                <MenuItem
-                    className="menu-sidebar-item"
-                    onClick={handleOpenImportElectionEventForm}
-                >
+                <MenuItem className="menu-sidebar-item" onClick={handleOpenImportElectionEventForm}>
                     <Box
                         sx={{
                             textOverflow: "ellipsis",
@@ -241,7 +241,7 @@ function TreeLeaves({
                         }}
                     >
                         <span className="help-menu-item" title={"Import Election Event"}>
-							{t('electionEventScreen.import.eetitle')}
+                            {t("electionEventScreen.import.eetitle")}
                         </span>
                     </Box>
                 </MenuItem>

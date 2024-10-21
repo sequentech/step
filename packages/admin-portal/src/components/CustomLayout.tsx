@@ -15,9 +15,9 @@ import {ITenantTheme} from "@sequentech/ui-core"
 import {ImportDataDrawer} from "./election-event/import-data/ImportDataDrawer"
 import {
     useCreateElectionEventStore,
-	withCreateElectionEventProvider,
+    withCreateElectionEventProvider,
 } from "@/providers/CreateElectionEventContextProvider"
-import { CreateDataDrawer } from "./election-event/create/CreateElectionEventDrawer"
+import {CreateDataDrawer} from "./election-event/create/CreateElectionEventDrawer"
 
 export const CustomCssReader: React.FC = () => {
     const {tenantId} = useContext(TenantContext)
@@ -49,18 +49,18 @@ const SequentSidebar = (props: any) => {
         toggleImportDrawer,
         postDefaultValues,
         handleElectionCreated,
-        handleSubmit
+        handleSubmit,
     } = useCreateElectionEventStore()
 
     return (
         <>
             <CustomCssReader />
             <CustomSidebar {...props}>
-            <CustomMenu {...props} classes={SidebarClasses} />
+                <CustomMenu {...props} classes={SidebarClasses} />
             </CustomSidebar>
-			<CreateDataDrawer
+            <CreateDataDrawer
                 open={createDrawer}
-                closeDrawer={()=>toggleCreateDrawer?.(prev=>!prev)}
+                closeDrawer={() => toggleCreateDrawer?.((prev) => !prev)}
             />
             <ImportDataDrawer
                 open={importDrawer}
