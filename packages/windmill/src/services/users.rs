@@ -555,7 +555,7 @@ pub async fn count_keycloak_enabled_users_by_attr(
         )
         .await?;
 
-    let mut params: Vec<&(dyn ToSql + Sync)> = vec![&realm];
+    let params: Vec<&(dyn ToSql + Sync)> = vec![&realm];
 
     let row = keycloak_transaction
         .query_one(&statement, &params)

@@ -9,13 +9,35 @@ use crate::{
     services::users::count_keycloak_enabled_users_by_areas_id,
 };
 use anyhow::{anyhow, Context, Result};
-use chrono::Local;
+use chrono::{DateTime, Local, Utc};
 use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::{Contest, Election};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashMap;
+use strand::hash::hash_sha256;
+use tokio_postgres::types::ToSql;
+use tokio_postgres::Row;
 use tracing::instrument;
+use uuid::Uuid;
 
 pub const COUNTRY_ATTR_NAME: &str = "country";
+pub const VALIDATE_ID_ATTR_NAME: &str = "sequent.read-only.id-card-number-validated";
+pub const VALIDATE_ID_PRE_ENROLLED_VALUE: &str = "VERIFIED";
+
+enum VoterStatus {
+    Voted,
+    NotVoted,
+}
+
+impl VoterStatus {
+    pub fn to_string(&self) -> String {
+        match self {
+            VoterStatus::Voted => "Voted".to_string(),
+            VoterStatus::NotVoted => "Did Not Voted".to_string(),
+        }
+    }
+}
 
 #[instrument(err, skip_all)]
 pub async fn generate_total_number_of_registered_voters_by_contest(
@@ -154,26 +176,26 @@ pub struct ElectionData {
 
 #[instrument(err, skip_all)]
 pub async fn extract_election_data(election: &Election) -> Result<ElectionData> {
-    let annotitions: Option<Value> = election.annotations.clone();
+    let annotations: Option<Value> = election.annotations.clone();
     let mut geographical_region = "";
     let mut voting_center = "";
     let mut clustered_precinct_id = "";
     let mut country = "";
-    match &annotitions {
-        Some(annotitions) => {
-            geographical_region = annotitions
+    match &annotations {
+        Some(annotations) => {
+            geographical_region = annotations
                 .get("geographical_region")
                 .and_then(|geographical_region| geographical_region.as_str())
                 .unwrap_or("");
-            voting_center = annotitions
+            voting_center = annotations
                 .get("voting_center")
                 .and_then(|voting_center| voting_center.as_str())
                 .unwrap_or("");
-            clustered_precinct_id = annotitions
+            clustered_precinct_id = annotations
                 .get("clustered_precinct_id")
                 .and_then(|clustered_precinct_id| clustered_precinct_id.as_str())
                 .unwrap_or("");
-            country = annotitions
+            country = annotations // == area name.
                 .get("country")
                 .and_then(|country| country.as_str())
                 .unwrap_or("");
@@ -244,4 +266,332 @@ pub async fn get_election_contests_area_results_and_total_ballot_counted(
         results_area_contests.push(results_area_contest.clone());
     }
     Ok((ballots_counted, results_area_contests, contests))
+}
+
+#[derive(Debug)]
+pub struct ReportData {
+    pub report_hash: String,
+    pub ovcs_version: String,
+    pub system_hash: String,
+}
+
+#[instrument(err, skip_all)]
+pub async fn get_report_system_vals(report_type: String) -> Result<ReportData> {
+    let ovcs_version = std::env::var("APP_VERSION")
+        .map_err(|e| anyhow::anyhow!(format!("Missing APP_VERSION env variable {:?}", e)))?;
+
+    let system_hash = std::env::var("APP_HASH")
+        .map_err(|e| anyhow::anyhow!(format!("Missing APP_HASH env variable {:?}", e)))?;
+
+    //TODO: needed?
+    let datetime_str = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+    let report_datetime = format!("{}{}", report_type, datetime_str);
+    let report_hash = hash_sha256(report_datetime.as_bytes())
+        .with_context(|| "Error hashing report type XML")?
+        .iter()
+        .map(|byte| format!("{:02X}", byte))
+        .collect();
+
+    Ok(ReportData {
+        report_hash,
+        system_hash,
+        ovcs_version,
+    })
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct Voter {
+    pub id: Option<String>,
+    pub middle_name: Option<String>,
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
+    pub suffix: Option<String>,
+    pub status: Option<String>,
+    pub date_voted: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct VoteInfo {
+    pub date_voted: Option<String>,
+    pub status: Option<String>,
+}
+
+pub async fn get_voters_by_user_attributes(
+    keycloak_transaction: &Transaction<'_>,
+    attributes: HashMap<String, String>,
+    realm: &str,
+) -> Result<(Vec<Voter>, i32)> {
+    let mut params: Vec<&(dyn ToSql + Sync)> = vec![&realm];
+    let mut dynamic_attr_conditions: Vec<String> = Vec::new();
+    let mut dynamic_attr_params: Vec<Option<String>> = vec![];
+
+    let mut attr_placeholder_count = 2;
+
+    for (key, value) in attributes.clone() {
+        dynamic_attr_conditions.push(format!(
+                "EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value ILIKE ${})",
+                attr_placeholder_count,
+                attr_placeholder_count + 1
+            ));
+        let val = Some(format!("%{value}%"));
+        let formatted_keyy = key.trim_matches('\'').to_string();
+        dynamic_attr_params.push(Some(formatted_keyy.clone()));
+        dynamic_attr_params.push(val.clone());
+        attr_placeholder_count += 2;
+    }
+
+    let dynamic_attr_clause = if !dynamic_attr_conditions.is_empty() {
+        dynamic_attr_conditions.join(" AND ")
+    } else {
+        "1=1".to_string() // Always true if no dynamic attributes are specified
+    };
+
+    let statement = keycloak_transaction
+    .prepare(
+        format!(
+            r#"
+            SELECT 
+                u.id, 
+                u.first_name,
+                u.last_name,
+                COALESCE(attr_json.attributes ->> 'middleName', '') AS middle_name,
+                COALESCE(attr_json.attributes ->> 'suffix', '') AS suffix,
+                COUNT(u.id) OVER() AS total_count
+            FROM 
+                user_entity u
+            INNER JOIN
+                realm AS ra ON ra.id = u.realm_id
+            LEFT JOIN LATERAL (
+                SELECT
+                    json_object_agg(ua.name, ua.value) AS attributes
+                FROM user_attribute ua
+                WHERE ua.user_id = u.id
+                GROUP BY ua.user_id -- Grouping by user_id ensures we aggregate attributes for the specific user
+            ) attr_json ON true
+            WHERE
+                ra.name = $1
+            AND ({dynamic_attr_clause})
+            "#
+        )
+        .as_str(),
+    )
+    .await?;
+
+    for value in &dynamic_attr_params {
+        params.push(value);
+    }
+
+    let rows: Vec<Row> = keycloak_transaction
+        .query(&statement, &params.as_slice())
+        .await
+        .map_err(|err| anyhow!("{}", err))?;
+
+    let count: i32 = if rows.is_empty() {
+        0
+    } else {
+        rows[0].try_get::<&str, i64>("total_count")?.try_into()?
+    };
+
+    let users = rows
+        .into_iter()
+        .map(|row| {
+            let user = Voter {
+                id: row.get("id"),
+                middle_name: row.get("middle_name"),
+                first_name: row.get("first_name"),
+                last_name: row.get("last_name"),
+                suffix: row.get("suffix"),
+                status: None,
+                date_voted: None,
+            };
+            user
+        })
+        .collect::<Vec<Voter>>();
+
+    Ok((users, count))
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_voters_with_vote_info(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    users: Vec<Voter>,
+    filter_by_has_voted: Option<bool>,
+) -> Result<(Vec<Voter>, i32)> {
+    let tenant_uuid =
+        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid = Uuid::parse_str(election_event_id)
+        .with_context(|| "Error parsing election_event_id as UUID")?;
+
+    // Prepare the list of user IDs for the query
+    let user_ids: Vec<String> = users
+        .iter()
+        .map(|user| {
+            user.id
+                .clone()
+                .ok_or_else(|| anyhow!("Encountered a user without an ID"))
+        })
+        .collect::<Result<Vec<String>>>()
+        .with_context(|| "Error extracting user IDs")?;
+
+    let vote_info_statement = hasura_transaction
+        .prepare(
+            r#"
+            SELECT 
+                v.voter_id_string AS voter_id_string, 
+                MAX(v.last_updated_at) AS last_voted_at,
+                COUNT(v.voter_id_string) OVER() AS total_count
+            FROM 
+                sequent_backend.cast_vote v
+            WHERE 
+                v.tenant_id = $1 AND
+                v.election_event_id = $2 AND
+                v.voter_id_string = ANY($3)
+            GROUP BY 
+                v.voter_id_string, v.election_id;
+            "#,
+        )
+        .await
+        .with_context(|| "Error preparing the vote info statement")?;
+
+    let rows = hasura_transaction
+        .query(
+            &vote_info_statement,
+            &[&tenant_uuid, &election_event_uuid, &user_ids],
+        )
+        .await
+        .with_context(|| "Error executing the vote info query")?;
+
+    let mut user_votes_map: HashMap<String, VoteInfo> = users
+        .iter()
+        .map(|user| {
+            let user_id = user
+                .id
+                .clone()
+                .ok_or_else(|| anyhow!("Encountered a user without an ID"))?;
+            Ok((
+                user_id,
+                VoteInfo {
+                    date_voted: None,
+                    status: None,
+                },
+            ))
+        })
+        .collect::<Result<_>>()
+        .with_context(|| "Error processing users for user_votes_map")?;
+
+    let count: i32 = if rows.is_empty() {
+        0
+    } else {
+        rows[0].try_get::<&str, i64>("total_count")?.try_into()?
+    };
+
+    for row in rows {
+        let voter_id_string: String = row
+            .try_get("voter_id_string")
+            .with_context(|| "Error getting voter_id_string from row")?;
+        let last_voted_at: DateTime<Utc> = row
+            .try_get("last_voted_at")
+            .with_context(|| "Error getting last_voted_at from row")?;
+
+        if let Some(user_votes_info) = user_votes_map.get_mut(&voter_id_string) {
+            VoteInfo {
+                date_voted: Some(last_voted_at.to_string()),
+                status: Some(VoterStatus::Voted.to_string()),
+            };
+        } else {
+            return Err(anyhow!("Not found user for voter-id={voter_id_string}"));
+        }
+    }
+
+    // Construct the final Vec<Voter> in the same order as the input users
+    let mut filtered_users: Vec<Voter> = Vec::new();
+    for user in users.iter() {
+        let user_id = user
+            .id
+            .clone()
+            .ok_or_else(|| anyhow!("Encountered a user without an ID"))?;
+
+        let votes_info = user_votes_map
+            .get(&user_id)
+            .cloned()
+            .ok_or_else(|| anyhow!("Missing vote info for user ID {}", user_id))?;
+
+        match filter_by_has_voted {
+            Some(has_voted) => match votes_info.status.clone() {
+                Some(status) => {
+                    if has_voted {
+                        filtered_users.push(Voter {
+                            status: Some(status),
+                            date_voted: votes_info.date_voted,
+                            ..user.clone()
+                        })
+                    }
+                }
+                None => {
+                    if !has_voted {
+                        filtered_users.push(Voter {
+                            status: Some(VoterStatus::NotVoted.to_string()),
+                            date_voted: None,
+                            ..user.clone()
+                        })
+                    }
+                }
+            },
+            None => filtered_users.push(Voter {
+                status: Some(
+                    votes_info
+                        .status
+                        .unwrap_or(VoterStatus::NotVoted.to_string())
+                        .to_string(),
+                ),
+                date_voted: votes_info.date_voted,
+                ..user.clone()
+            }),
+        }
+    }
+
+    Ok((filtered_users, count))
+}
+
+#[derive(Debug)]
+pub struct VotersData {
+    pub total_ov: i32,
+    pub total_ov_voted: i32,
+    pub total_ov_not_voted: i32,
+    pub voters: Vec<Voter>,
+}
+#[instrument(err, skip_all)]
+pub async fn get_voters_data(
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    tenant_id: &str,
+    election_event_id: &str,
+    country: &str,
+) -> Result<VotersData> {
+    let mut attributes: HashMap<String, String> = HashMap::new();
+    attributes.insert(COUNTRY_ATTR_NAME.to_string(), country.to_string());
+
+    let (voters, voters_count) =
+        get_voters_by_user_attributes(&keycloak_transaction, attributes.clone(), &realm).await?;
+
+    let (voters, voter_who_voted_count) = get_voters_with_vote_info(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        voters.clone(),
+        None,
+    )
+    .await?;
+
+    let total_ov_not_voted = voters_count - &voter_who_voted_count;
+
+    Ok(VotersData {
+        total_ov: voters_count,
+        total_ov_voted: voter_who_voted_count,
+        total_ov_not_voted,
+        voters,
+    })
 }

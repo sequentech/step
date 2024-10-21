@@ -179,7 +179,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
 
         let mut elective_positions: Vec<ReportContestData> = vec![];
 
-        for (contest) in contests.clone() {
+        for contest in contests.clone() {
             let results_area_contest = results_area_contests
                 .iter()
                 .find(|rac| rac.contest_id == contest.id)
