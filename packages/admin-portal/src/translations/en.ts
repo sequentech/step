@@ -1492,16 +1492,24 @@ const englishTranslation = {
                 ovcs_information: "OVCS Information",
                 overseas_voters_turnout: "Overseas Voters Turnout",
                 overseas_voting_monitoring_ovcs_events: "Overseas Voting Monitoring - OVCS Events",
-                overseas_voting_monitoring_ovcs_statistics: "Overseas Voting Monitoring - OVCS Statistics",
-                overseas_voters_turnout_per_aboard_status_and_sex: "Overseas Voters’ Turnout - per Aboard Status and Sex",
-                overseas_voters_turnout_per_aboard_status_sex_and_with_percentage: "Overseas Voters’ Turnout - per Aboard Status, Sex and with Percentage",
+                overseas_voting_monitoring_ovcs_statistics:
+                    "Overseas Voting Monitoring - OVCS Statistics",
+                overseas_voters_turnout_per_aboard_status_and_sex:
+                    "Overseas Voters’ Turnout - per Aboard Status and Sex",
+                overseas_voters_turnout_per_aboard_status_sex_and_with_percentage:
+                    "Overseas Voters’ Turnout - per Aboard Status, Sex and with Percentage",
                 list_of_ov_who_pre_enrolled_approved: "List of OV who Pre-enrolled (Approved)",
-                list_of_ov_who_pre_enrolled_but_subject_for_manual_validation: "List of OV who Pre-enrolled but subject for Manual Validation",
-                list_of_ov_who_pre_enrolled_but_disapproved: "List of OV who Pre-enrolled but Disapproved",
-                list_of_ov_who_have_not_yet_pre_enrolled: "List of OV who have not yet Pre-enrolled",
+                list_of_ov_who_pre_enrolled_but_subject_for_manual_validation:
+                    "List of OV who Pre-enrolled but subject for Manual Validation",
+                list_of_ov_who_pre_enrolled_but_disapproved:
+                    "List of OV who Pre-enrolled but Disapproved",
+                list_of_ov_who_have_not_yet_pre_enrolled:
+                    "List of OV who have not yet Pre-enrolled",
                 list_of_overseas_voters_who_voted: "List of Overseas Voters who Voted",
-                list_of_overseas_voters_with_voting_status: "List of Overseas Voters with Voting Status",
-                number_of_ov_who_have_not_yet_pre_enrolled: "No. of OV who have not yet Pre-enrolled",
+                list_of_overseas_voters_with_voting_status:
+                    "List of Overseas Voters with Voting Status",
+                number_of_ov_who_have_not_yet_pre_enrolled:
+                    "No. of OV who have not yet Pre-enrolled",
             },
             method: {
                 email: "Email",

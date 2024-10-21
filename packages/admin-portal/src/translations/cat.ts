@@ -1494,22 +1494,33 @@ const catalanTranslation: TranslationType = {
                 manually_verify_voter: "Verificar manualment el votant",
                 initialization_report: "Informe d'Inicialització",
                 status_report: "Informe d'Estat",
-                election_returns_for_national_positions: "Resultats Electorals per a Posicions Nacionals",
+                election_returns_for_national_positions:
+                    "Resultats Electorals per a Posicions Nacionals",
                 transmission_reports: "Informes de Transmissió",
                 audit_logs: "Registres d'Auditoria",
                 ovcs_information: "Informació d'OVCS",
                 overseas_voters_turnout: "Participació d'Electors a l'Estranger",
-                overseas_voting_monitoring_ovcs_events: "Monitoratge de Votació a l'Estranger - Esdeveniments OVCS",
-                overseas_voting_monitoring_ovcs_statistics: "Monitoratge de Votació a l'Estranger - Estadístiques OVCS",
-                overseas_voters_turnout_per_aboard_status_and_sex: "Participació de Votants a l'Estranger - per Estat d'Embarcament i Sexe",
-                overseas_voters_turnout_per_aboard_status_sex_and_with_percentage: "Participació de Votants a l'Estranger - per Estat d'Embarcament, Sexe i amb Percentatge",
-                list_of_ov_who_pre_enrolled_approved: "Llista d'OV que es van Preinscriure (Aprovat)",
-                list_of_ov_who_pre_enrolled_but_subject_for_manual_validation: "Llista d'OV que es van Preinscriure però Necessiten Validació Manual",
-                list_of_ov_who_pre_enrolled_but_disapproved: "Llista d'OV que es van Preinscriure però van ser Rebutjats",
-                list_of_ov_who_have_not_yet_pre_enrolled: "Llista d'OV que Encara No s'han Preinscrit",
+                overseas_voting_monitoring_ovcs_events:
+                    "Monitoratge de Votació a l'Estranger - Esdeveniments OVCS",
+                overseas_voting_monitoring_ovcs_statistics:
+                    "Monitoratge de Votació a l'Estranger - Estadístiques OVCS",
+                overseas_voters_turnout_per_aboard_status_and_sex:
+                    "Participació de Votants a l'Estranger - per Estat d'Embarcament i Sexe",
+                overseas_voters_turnout_per_aboard_status_sex_and_with_percentage:
+                    "Participació de Votants a l'Estranger - per Estat d'Embarcament, Sexe i amb Percentatge",
+                list_of_ov_who_pre_enrolled_approved:
+                    "Llista d'OV que es van Preinscriure (Aprovat)",
+                list_of_ov_who_pre_enrolled_but_subject_for_manual_validation:
+                    "Llista d'OV que es van Preinscriure però Necessiten Validació Manual",
+                list_of_ov_who_pre_enrolled_but_disapproved:
+                    "Llista d'OV que es van Preinscriure però van ser Rebutjats",
+                list_of_ov_who_have_not_yet_pre_enrolled:
+                    "Llista d'OV que Encara No s'han Preinscrit",
                 list_of_overseas_voters_who_voted: "Llista de Votants a l'Estranger que han Votat",
-                list_of_overseas_voters_with_voting_status: "Llista de Votants a l'Estranger amb Estat de Votació",
-                number_of_ov_who_have_not_yet_pre_enrolled: "Nombre d'OV que Encara No s'han Preinscrit",
+                list_of_overseas_voters_with_voting_status:
+                    "Llista de Votants a l'Estranger amb Estat de Votació",
+                number_of_ov_who_have_not_yet_pre_enrolled:
+                    "Nombre d'OV que Encara No s'han Preinscrit",
             },
             method: {
                 email: "Email",

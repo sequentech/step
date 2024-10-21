@@ -1493,22 +1493,33 @@ const spanishTranslation: TranslationType = {
                 manually_verify_voter: "Verificar votante manualmente",
                 initialization_report: "Informe de Inicialización",
                 status_report: "Informe de Estado",
-                election_returns_for_national_positions: "Resultados de Elecciones para Cargos Nacionales",
+                election_returns_for_national_positions:
+                    "Resultados de Elecciones para Cargos Nacionales",
                 transmission_reports: "Informes de Transmisión",
                 audit_logs: "Registros de Auditoría",
                 ovcs_information: "Información de OVCS",
                 overseas_voters_turnout: "Participación de Votantes en el Extranjero",
-                overseas_voting_monitoring_ovcs_events: "Monitoreo de Votación en el Extranjero - Eventos OVCS",
-                overseas_voting_monitoring_ovcs_statistics: "Monitoreo de Votación en el Extranjero - Estadísticas OVCS",
-                overseas_voters_turnout_per_aboard_status_and_sex: "Participación de Votantes en el Extranjero - por Estado de Embarque y Sexo",
-                overseas_voters_turnout_per_aboard_status_sex_and_with_percentage: "Participación de Votantes en el Extranjero - por Estado de Embarque, Sexo y con Porcentaje",
-                list_of_ov_who_pre_enrolled_approved: "Lista de OV que se Preinscribieron (Aprobados)",
-                list_of_ov_who_pre_enrolled_but_subject_for_manual_validation: "Lista de OV que se Preinscribieron pero Requieren Validación Manual",
-                list_of_ov_who_pre_enrolled_but_disapproved: "Lista de OV que se Preinscribieron pero fueron Rechazados",
-                list_of_ov_who_have_not_yet_pre_enrolled: "Lista de OV que Aún No se han Preinscrito",
+                overseas_voting_monitoring_ovcs_events:
+                    "Monitoreo de Votación en el Extranjero - Eventos OVCS",
+                overseas_voting_monitoring_ovcs_statistics:
+                    "Monitoreo de Votación en el Extranjero - Estadísticas OVCS",
+                overseas_voters_turnout_per_aboard_status_and_sex:
+                    "Participación de Votantes en el Extranjero - por Estado de Embarque y Sexo",
+                overseas_voters_turnout_per_aboard_status_sex_and_with_percentage:
+                    "Participación de Votantes en el Extranjero - por Estado de Embarque, Sexo y con Porcentaje",
+                list_of_ov_who_pre_enrolled_approved:
+                    "Lista de OV que se Preinscribieron (Aprobados)",
+                list_of_ov_who_pre_enrolled_but_subject_for_manual_validation:
+                    "Lista de OV que se Preinscribieron pero Requieren Validación Manual",
+                list_of_ov_who_pre_enrolled_but_disapproved:
+                    "Lista de OV que se Preinscribieron pero fueron Rechazados",
+                list_of_ov_who_have_not_yet_pre_enrolled:
+                    "Lista de OV que Aún No se han Preinscrito",
                 list_of_overseas_voters_who_voted: "Lista de Votantes en el Extranjero que Votaron",
-                list_of_overseas_voters_with_voting_status: "Lista de Votantes en el Extranjero con Estado de Votación",
-                number_of_ov_who_have_not_yet_pre_enrolled: "Número de OV que Aún No se han Preinscrito",
+                list_of_overseas_voters_with_voting_status:
+                    "Lista de Votantes en el Extranjero con Estado de Votación",
+                number_of_ov_who_have_not_yet_pre_enrolled:
+                    "Número de OV que Aún No se han Preinscrito",
             },
             method: {
                 email: "Email",

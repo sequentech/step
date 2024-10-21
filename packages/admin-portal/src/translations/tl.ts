@@ -1494,21 +1494,31 @@ const tagalogTranslation: TranslationType = {
                 manually_verify_voter: "Manual na beripikaron an botante",
                 initialization_report: "Ulat ng Inisyalisasyon",
                 status_report: "Ulat ng Kalagayan",
-                election_returns_for_national_positions: "Mga Resulta ng Eleksyon para sa mga Pambansang Posisyon",
+                election_returns_for_national_positions:
+                    "Mga Resulta ng Eleksyon para sa mga Pambansang Posisyon",
                 transmission_reports: "Mga Ulat ng Pagpapadala",
                 audit_logs: "Mga Tala ng Audit",
                 ovcs_information: "Impormasyon ng OVCS",
                 overseas_voters_turnout: "Dumalo ng mga Botante sa Ibayong Dagat",
-                overseas_voting_monitoring_ovcs_events: "Pagsubaybay sa Pagboto sa Ibayong Dagat - Mga Kaganapan ng OVCS",
-                overseas_voting_monitoring_ovcs_statistics: "Pagsubaybay sa Pagboto sa Ibayong Dagat - Estadistika ng OVCS",
-                overseas_voters_turnout_per_aboard_status_and_sex: "Dumalo ng Mga Botante sa Ibayong Dagat - batay sa Katayuan at Kasarian",
-                overseas_voters_turnout_per_aboard_status_sex_and_with_percentage: "Dumalo ng Mga Botante sa Ibayong Dagat - batay sa Katayuan, Kasarian, at may Porsyento",
-                list_of_ov_who_pre_enrolled_approved: "Listahan ng OV na Naunang Nagpatala (Inaprubahan)",
-                list_of_ov_who_pre_enrolled_but_subject_for_manual_validation: "Listahan ng OV na Naunang Nagpatala pero Kailangang Suriin nang Mano-mano",
-                list_of_ov_who_pre_enrolled_but_disapproved: "Listahan ng OV na Naunang Nagpatala pero Tinanggihan",
+                overseas_voting_monitoring_ovcs_events:
+                    "Pagsubaybay sa Pagboto sa Ibayong Dagat - Mga Kaganapan ng OVCS",
+                overseas_voting_monitoring_ovcs_statistics:
+                    "Pagsubaybay sa Pagboto sa Ibayong Dagat - Estadistika ng OVCS",
+                overseas_voters_turnout_per_aboard_status_and_sex:
+                    "Dumalo ng Mga Botante sa Ibayong Dagat - batay sa Katayuan at Kasarian",
+                overseas_voters_turnout_per_aboard_status_sex_and_with_percentage:
+                    "Dumalo ng Mga Botante sa Ibayong Dagat - batay sa Katayuan, Kasarian, at may Porsyento",
+                list_of_ov_who_pre_enrolled_approved:
+                    "Listahan ng OV na Naunang Nagpatala (Inaprubahan)",
+                list_of_ov_who_pre_enrolled_but_subject_for_manual_validation:
+                    "Listahan ng OV na Naunang Nagpatala pero Kailangang Suriin nang Mano-mano",
+                list_of_ov_who_pre_enrolled_but_disapproved:
+                    "Listahan ng OV na Naunang Nagpatala pero Tinanggihan",
                 list_of_ov_who_have_not_yet_pre_enrolled: "Listahan ng OV na Hindi Pa Nagpatala",
-                list_of_overseas_voters_who_voted: "Listahan ng Mga Botante sa Ibayong Dagat na Bumoto",
-                list_of_overseas_voters_with_voting_status: "Listahan ng Mga Botante sa Ibayong Dagat na may Kalagayan ng Pagboto",
+                list_of_overseas_voters_who_voted:
+                    "Listahan ng Mga Botante sa Ibayong Dagat na Bumoto",
+                list_of_overseas_voters_with_voting_status:
+                    "Listahan ng Mga Botante sa Ibayong Dagat na may Kalagayan ng Pagboto",
                 number_of_ov_who_have_not_yet_pre_enrolled: "Bilang ng OV na Hindi Pa Nagpatala",
             },
             method: {

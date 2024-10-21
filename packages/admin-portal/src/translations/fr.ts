@@ -1500,21 +1500,29 @@ const frenchTranslation: TranslationType = {
                 manually_verify_voter: "Vérifier manuellement l'électeur",
                 initialization_report: "Rapport d'Initialisation",
                 status_report: "Rapport de Statut",
-                election_returns_for_national_positions: "Résultats des Élections pour les Postes Nationaux",
+                election_returns_for_national_positions:
+                    "Résultats des Élections pour les Postes Nationaux",
                 transmission_reports: "Rapports de Transmission",
                 audit_logs: "Journaux d'Audit",
                 ovcs_information: "Informations OVCS",
                 overseas_voters_turnout: "Participation des Électeurs à l'Étranger",
-                overseas_voting_monitoring_ovcs_events: "Suivi du Vote à l'Étranger - Événements OVCS",
-                overseas_voting_monitoring_ovcs_statistics: "Suivi du Vote à l'Étranger - Statistiques OVCS",
-                overseas_voters_turnout_per_aboard_status_and_sex: "Participation des Électeurs à l'Étranger - par Statut à Bord et Sexe",
-                overseas_voters_turnout_per_aboard_status_sex_and_with_percentage: "Participation des Électeurs à l'Étranger - par Statut à Bord, Sexe et avec Pourcentage",
+                overseas_voting_monitoring_ovcs_events:
+                    "Suivi du Vote à l'Étranger - Événements OVCS",
+                overseas_voting_monitoring_ovcs_statistics:
+                    "Suivi du Vote à l'Étranger - Statistiques OVCS",
+                overseas_voters_turnout_per_aboard_status_and_sex:
+                    "Participation des Électeurs à l'Étranger - par Statut à Bord et Sexe",
+                overseas_voters_turnout_per_aboard_status_sex_and_with_percentage:
+                    "Participation des Électeurs à l'Étranger - par Statut à Bord, Sexe et avec Pourcentage",
                 list_of_ov_who_pre_enrolled_approved: "Liste des OV pré-inscrits (Approuvés)",
-                list_of_ov_who_pre_enrolled_but_subject_for_manual_validation: "Liste des OV pré-inscrits mais nécessitant une Validation Manuelle",
-                list_of_ov_who_pre_enrolled_but_disapproved: "Liste des OV pré-inscrits mais Refusés",
+                list_of_ov_who_pre_enrolled_but_subject_for_manual_validation:
+                    "Liste des OV pré-inscrits mais nécessitant une Validation Manuelle",
+                list_of_ov_who_pre_enrolled_but_disapproved:
+                    "Liste des OV pré-inscrits mais Refusés",
                 list_of_ov_who_have_not_yet_pre_enrolled: "Liste des OV non encore pré-inscrits",
                 list_of_overseas_voters_who_voted: "Liste des Électeurs à l'Étranger qui ont Voté",
-                list_of_overseas_voters_with_voting_status: "Liste des Électeurs à l'Étranger avec leur Statut de Vote",
+                list_of_overseas_voters_with_voting_status:
+                    "Liste des Électeurs à l'Étranger avec leur Statut de Vote",
                 number_of_ov_who_have_not_yet_pre_enrolled: "Nombre d'OV non encore pré-inscrits",
             },
             method: {

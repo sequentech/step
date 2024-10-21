@@ -39,6 +39,7 @@ import {INSERT_TEMPLATE} from "@/queries/InsertTemplate"
 import {Sequent_Backend_Template} from "@/gql/graphql"
 import EmailEditEditor from "@/components/EmailEditEditor"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {GET_USER_TEMPLATE} from "@/queries/GetUserTemplate"
 
 type TTemplateCreate = {
     close?: () => void
@@ -49,6 +50,7 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
     const [tenantId] = useTenantStore()
     const notify = useNotify()
     const [createTemplate] = useMutation(INSERT_TEMPLATE)
+    const [GetUserTemplate] = useMutation(GET_USER_TEMPLATE)
     const {globalSettings} = useContext(SettingsContext)
     const [expandedGeneral, setExpandedGeneral] = useState<boolean>(true)
     const [expandedEmail, setExpandedEmail] = useState<boolean>(false)
@@ -72,30 +74,30 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
         }))
     }
 
-    const communicationMethodChoices = () => {
-        let res = (Object.values(ITemplateMethod) as ITemplateMethod[]).map((value) => ({
-            id: value,
-            name: t(`template.method.${value.toLowerCase()}`),
-        }))
+    // const communicationMethodChoices = () => {
+    //     let res = (Object.values(ITemplateMethod) as ITemplateMethod[]).map((value) => ({
+    //         id: value,
+    //         name: t(`template.method.${value.toLowerCase()}`),
+    //     }))
 
-        if (
-            selectedTemplateType?.value &&
-            ![
-                ITemplateType.BALLOT_RECEIPT,
-                ITemplateType.TALLY_REPORT,
-                ITemplateType.MANUALLY_VERIFY_VOTER,
-            ].includes(selectedTemplateType.value)
-        ) {
-            res = res.filter((cm) => cm.id !== ITemplateMethod.DOCUMENT)
-        }
-        if (ITemplateType.TALLY_REPORT === selectedTemplateType?.value) {
-            res = res.filter((cm) => cm.id === ITemplateMethod.DOCUMENT)
-        }
-        if (ITemplateType.MANUALLY_VERIFY_VOTER === selectedTemplateType?.value) {
-            res = res.filter((cm) => cm.id === ITemplateMethod.DOCUMENT)
-        }
-        return res
-    }
+    //     if (
+    //         selectedTemplateType?.value &&
+    //         ![
+    //             ITemplateType.BALLOT_RECEIPT,
+    //             ITemplateType.TALLY_REPORT,
+    //             ITemplateType.MANUALLY_VERIFY_VOTER,
+    //         ].includes(selectedTemplateType.value)
+    //     ) {
+    //         res = res.filter((cm) => cm.id !== ITemplateMethod.DOCUMENT)
+    //     }
+    //     if (ITemplateType.TALLY_REPORT === selectedTemplateType?.value) {
+    //         res = res.filter((cm) => cm.id === ITemplateMethod.DOCUMENT)
+    //     }
+    //     if (ITemplateType.MANUALLY_VERIFY_VOTER === selectedTemplateType?.value) {
+    //         res = res.filter((cm) => cm.id === ITemplateMethod.DOCUMENT)
+    //     }
+    //     return res
+    // }
 
     const onSubmit: SubmitHandler<FieldValues> = async (data) => {
         const {data: created, errors} = await createTemplate({
@@ -122,11 +124,22 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
         close?.()
     }
 
-    const parseValues = (incoming: RaRecord<Identifier> | Omit<RaRecord<Identifier>, "id">) => {
+    const parseValues = async (
+        incoming: RaRecord<Identifier> | Omit<RaRecord<Identifier>, "id">
+    ) => {
         const temp = {...(incoming as Sequent_Backend_Template)}
+        const currType = (selectedTemplateType?.value as ITemplateType) || ITemplateType.CREDENTIALS
+        const {data: templateHbsData, errors} = await GetUserTemplate({
+            variables: {
+                template_name: "manual_verification",
+            },
+        })
+        console.log({temp, currType, templateHbsData}) //TODO: remove
 
         if (!incoming?.template) {
-            temp.type = ITemplateType.CREDENTIALS
+            // TODO: Get the document according to the relevant type
+            // Maybe create a route harvest to read the document from the relevant type and return it
+            temp.type = (selectedTemplateType?.value as ITemplateType) || ITemplateType.CREDENTIALS
             temp.communication_method = ITemplateMethod.EMAIL
             let template: ISendTemplateBody = {
                 audience_selection: undefined,

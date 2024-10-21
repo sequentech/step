@@ -32,6 +32,17 @@ export enum EReportType {
     STATUS_REPORT = "STATUS_REPORT",
     TRANSMISSION_REPORTS = "TRANSMISSION_REPORTS",
     OVERSEAS_VOTERS_TURNOUT = "OVERSEAS_VOTERS_TURNOUT",
+    OVERSEAS_VOTING_MONITORING_OVCS_EVENTS = "OVERSEAS_VOTING_MONITORING_OVCS_EVENTS",
+    OVERSEAS_VOTING_MONITORING_OVCS_STATISTICS = "OVERSEAS_VOTING_MONITORING_OVCS_STATISTICS",
+    OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX = "OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX",
+    OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE = "OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE",
+    LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED = "LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED",
+    LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION = "LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION",
+    LIST_OF_OV_WHO_PRE_ENROLLED_BUT_DISAPPROVED = "LIST_OF_OV_WHO_PRE_ENROLLED_BUT_DISAPPROVED",
+    LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED = "LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED",
+    LIST_OF_OVERSEAS_VOTERS_WHO_VOTED = "LIST_OF_OVERSEAS_VOTERS_WHO_VOTED",
+    LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS = "LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS",
+    NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED = "NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED",
 }
 
 export enum EReportElectionPolicy {
@@ -131,7 +142,7 @@ export const reportTypeConfig: {
         templateRequired: false,
         electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
     },
-    [EReportType.STATUS_REPORT] :{
+    [EReportType.STATUS_REPORT]: {
         actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
         templateRequired: false,
         electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
@@ -142,6 +153,61 @@ export const reportTypeConfig: {
         electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
     },
     [EReportType.OVERSEAS_VOTERS_TURNOUT]: {
+        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
+        templateRequired: false,
+        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
+    },
+    [EReportType.OVERSEAS_VOTING_MONITORING_OVCS_EVENTS]: {
+        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
+        templateRequired: false,
+        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
+    },
+    [EReportType.OVERSEAS_VOTING_MONITORING_OVCS_STATISTICS]: {
+        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
+        templateRequired: false,
+        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
+    },
+    [EReportType.OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX]: {
+        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
+        templateRequired: false,
+        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
+    },
+    [EReportType.OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE]: {
+        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
+        templateRequired: false,
+        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
+    },
+    [EReportType.LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED]: {
+        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
+        templateRequired: false,
+        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
+    },
+    [EReportType.LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION]: {
+        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
+        templateRequired: false,
+        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
+    },
+    [EReportType.LIST_OF_OV_WHO_PRE_ENROLLED_BUT_DISAPPROVED]: {
+        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
+        templateRequired: false,
+        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
+    },
+    [EReportType.LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED]: {
+        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
+        templateRequired: false,
+        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
+    },
+    [EReportType.LIST_OF_OVERSEAS_VOTERS_WHO_VOTED]: {
+        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
+        templateRequired: false,
+        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
+    },
+    [EReportType.LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS]: {
+        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
+        templateRequired: false,
+        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
+    },
+    [EReportType.NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED]: {
         actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
         templateRequired: false,
         electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
