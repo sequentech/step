@@ -28,6 +28,10 @@ export enum EReportType {
     OVCS_STATISTICS = "OVCS_STATISTICS",
     PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION = "PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION",
     PRE_ENROLLED_OV_BUT_DISAPPROVED = "PRE_ENROLLED_OV_BUT_DISAPPROVED",
+    INITIALIZATION_REPORT = "INITIALIZATION_REPORT",
+    STATUS_REPORT = "STATUS_REPORT",
+    TRANSMISSION_REPORTS = "TRANSMISSION_REPORTS",
+    OVERSEAS_VOTERS_TURNOUT = "OVERSEAS_VOTERS_TURNOUT",
 }
 
 export enum EReportElectionPolicy {
@@ -121,6 +125,26 @@ export const reportTypeConfig: {
         actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
         templateRequired: false,
         electionPolicy: EReportElectionPolicy.ELECTION_ALLOWED,
+    },
+    [EReportType.INITIALIZATION_REPORT]: {
+        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
+        templateRequired: false,
+        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
+    },
+    [EReportType.STATUS_REPORT] :{
+        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
+        templateRequired: false,
+        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
+    },
+    [EReportType.TRANSMISSION_REPORTS]: {
+        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
+        templateRequired: false,
+        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
+    },
+    [EReportType.OVERSEAS_VOTERS_TURNOUT]: {
+        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
+        templateRequired: false,
+        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
     },
     default: {
         actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
