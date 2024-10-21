@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import SelectElection from "@/components/election/SelectElection"
-import { EReportElectionPolicy, EReportType, ReportActions, reportTypeConfig } from "@/types/reports"
-import { Typography } from "@mui/material"
-import React, { useEffect, useMemo, useState } from "react"
+import {EReportElectionPolicy, EReportType, ReportActions, reportTypeConfig} from "@/types/reports"
+import {Typography} from "@mui/material"
+import React, {useEffect, useMemo, useState} from "react"
 import {
     BooleanInput,
     Create,
@@ -16,17 +16,13 @@ import {
     TextInput,
     Toolbar,
     useCreate,
-    useDataProvider,
     useGetOne,
     useNotify,
     useUpdate,
 } from "react-admin"
 import SelectTemplate from "../Template/SelectTemplate"
-import { useTranslation } from "react-i18next"
-import { Sequent_Backend_Report, Sequent_Backend_Report_Insert_Input } from "@/gql/graphql"
-import { useMutation } from "@apollo/client"
-import { CREATE_REPORT } from "@/queries/CreateReport"
-import { UPDATE_REPORT } from "@/queries/UpdateReport"
+import {useTranslation} from "react-i18next"
+import {Sequent_Backend_Report, Sequent_Backend_Report_Insert_Input} from "@/gql/graphql"
 
 interface CronConfig {
     isActive?: boolean
@@ -51,7 +47,6 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
 }) => {
     const [reportType, setReportType] = useState<EReportType | undefined>(undefined)
     const [electionId, setElectionId] = useState<string | null | undefined>(undefined)
-    const [templateId, setTemplateId] = useState<string | null | undefined>(undefined)
     const [templateAlias, setTemplateAlias] = useState<string | null | undefined>(undefined)
 
     const [create] = useCreate<Sequent_Backend_Report>("sequent_backend_report")
@@ -61,17 +56,13 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
     const handleReportTypeChange = (event: any) => {
         setReportType(event.target.value)
     }
-    const { t } = useTranslation()
+    const {t} = useTranslation()
     const notify = useNotify()
 
-    const {
-        data: report,
-        isLoading,
-        error,
-    } = useGetOne<Sequent_Backend_Report>(
+    const {data: report} = useGetOne<Sequent_Backend_Report>(
         "sequent_backend_report",
-        { id: reportId },
-        { enabled: isEditReport }
+        {id: reportId},
+        {enabled: isEditReport}
     )
     const reportTypeChoices = Object.values(EReportType).map((reportType) => ({
         id: reportType,
@@ -89,9 +80,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
         }
     }, [reportType])
 
-
     const handleSubmit = async (values: any) => {
-
         let cron_config_js: CronConfig = {}
         if (values.cron_config && isCronActive) {
             if (values.cron_config.is_active) {
@@ -115,33 +104,31 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
             },
         }
 
-
         try {
             if (isEditReport && reportId && formData) {
                 update(
                     "sequent_backend_report",
-                    { id: reportId, data: formData },
+                    {id: reportId, data: formData},
                     {
                         onSuccess: () => {
-                            notify(t("reportsScreen.messages.updateSuccess"), { type: "success" })
+                            notify(t("reportsScreen.messages.updateSuccess"), {type: "success"})
                         },
                         onError: (error) => {
-                            console.error("Update Error: ", error)
-                            notify(t("reportsScreen.messages.submitError"), { type: "error" })
+                            notify(t("reportsScreen.messages.submitError"), {type: "error"})
                         },
                     }
                 )
             } else {
                 create(
                     "sequent_backend_report",
-                    { data: formData },
+                    {data: formData},
                     {
                         onSuccess: () => {
-                            notify(t("reportsScreen.messages.createSuccess"), { type: "success" })
+                            notify(t("reportsScreen.messages.createSuccess"), {type: "success"})
                         },
                         onError: (error) => {
                             console.error("Create Error: ", error)
-                            notify(t("reportsScreen.messages.submitError"), { type: "error" })
+                            notify(t("reportsScreen.messages.submitError"), {type: "error"})
                         },
                     }
                 )
@@ -152,7 +139,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
             }
         } catch (error) {
             console.error("Submit Error: ", error)
-            notify(t("reportsScreen.messages.submitError"), { type: "error" })
+            notify(t("reportsScreen.messages.submitError"), {type: "error"})
         }
     }
     const handleCronToggle = (event: any) => {
@@ -186,7 +173,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
 
     const isButtonDisabled = (): boolean => {
         return (
-            (isTemplateRequired && !templateId) ||
+            (isTemplateRequired && !templateAlias) ||
             (electionPolicy === EReportElectionPolicy.ELECTION_REQUIRED && !electionId) ||
             (electionPolicy === EReportElectionPolicy.ELECTION_NOT_ALLOWED && !!electionId)
         )
@@ -247,12 +234,12 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                                 ? reportTypeConfig[reportType]?.associatedTemplateType
                                 : undefined
                         }
-                        source={"template_id"}
+                        source={"template_alias"}
                         label={t("reportsScreen.fields.template")}
-                        onSelectTemplate={({ id, alias }) => {
-                            setTemplateId(id);
-                            setTemplateAlias(alias);
-                        }} value={templateId}
+                        onSelectTemplate={({alias}) => {
+                            setTemplateAlias(alias)
+                        }}
+                        value={templateAlias}
                         isRequired={isTemplateRequired}
                     />
 
