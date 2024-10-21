@@ -2,15 +2,19 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
+use crate::postgres::election::get_election_by_id;
 use crate::postgres::reports::ReportType;
-use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id_and_event_processor;
-use crate::services::database::get_hasura_pool;
+use super::report_variables::{extract_election_data, generate_voters_turnout, get_election_contests_area_results_and_total_ballot_counted, get_total_number_of_registered_voters_for_country};
+use crate::postgres::scheduled_event::{find_scheduled_event_by_election_event_id};
+use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::temp_path::*;
 use crate::{postgres::election_event::get_election_event_by_id, services::s3::get_minio_url};
-use anyhow::{anyhow, Context, Ok, Result};
+use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
+use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -75,35 +79,6 @@ pub struct UserData {
     pub qr_codes: Vec<String>
 }
 
-// pub struct UserData {
-//     pub registered_voters: u32,
-//     pub ballots_counted: u32,
-//     pub voter_turnout: f32,
-//     pub server_code: String,
-//     pub transmitted: bool,
-//     pub transmitted_datetime: Option<String>,
-//     pub received: bool,
-//     pub received_datetime: Option<String>,
-//     pub election_date: String,
-//     pub election_title: String,
-//     pub voting_period: String,
-//     pub precinct_code: String,
-//     pub geographical_region: String,
-//     pub post: String,
-//     pub country: String,
-//     pub voting_center: String,
-//     pub chairperson_name: String,
-//     pub poll_clerk_name: String,
-//     pub third_member_name: String,
-//     pub report_hash: String,
-//     pub ovsc_version: String,
-//     pub system_hash: String,
-//     pub file_logo: String,
-//     pub file_qrcode_lib: String,
-//     pub date_printed: String,
-//     pub printing_code: String,
-// }
-
 /// Struct for System Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SystemData {
@@ -161,6 +136,19 @@ impl TemplateRenderer for TransmissionReport {
             .transaction()
             .await
             .with_context(|| "Error starting hasura transaction")?;
+        
+        let mut keycloak_db_client = get_keycloak_pool()
+            .await
+            .get()
+            .await
+            .with_context(|| "Error acquiring Keycloak DB pool")?;
+
+        let keycloak_transaction = keycloak_db_client
+            .transaction()
+            .await
+            .with_context(|| "Error starting Keycloak transaction")?;
+
+        let realm_name: String = get_event_realm(self.tenant_id.as_str(), self.election_event_id.as_str());
 
         // Fetch election event data
         let election_event = get_election_event_by_id(
@@ -172,51 +160,131 @@ impl TemplateRenderer for TransmissionReport {
         .with_context(|| "Error obtaining election event")?;
 
         // Fetch election event data
-        let start_election_event = find_scheduled_event_by_election_event_id_and_event_processor(
+        let start_election_event = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
-            "START_VOTING_PERIOD",
+            &self.get_tenant_id(),
+            &self.get_election_event_id(),
         )
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)));
+        .map_err(|e| {
+            anyhow::anyhow!(format!(
+                "Error getting scheduled event by election event_id {:?}",
+                e
+            ))
+        })?;
 
-        // TODO: replace mock data with actual data
-        let mut election_start_date: String;
-        // if let Some(cron_config) = start_election_event.get(0).and_then(|event| event.cron_config.clone()) {
-        //     // Now cron_config is a CronConfig, not an Option
-        //     if let Some(scheduled_date) = cron_config.scheduled_date {
-        //         election_start_date = scheduled_date;
-        //     }
+        // Fetch election's voting periods
+        let voting_period_dates = generate_voting_period_dates(
+            start_election_event,
+            &self.get_tenant_id(),
+            &self.get_election_event_id(),
+            Some(&self.get_election_id().unwrap()),
+        )?;
 
-        // }
+        // extract start date from voting period
+        let voting_period_start_date = match voting_period_dates.start_date {
+            Some(voting_period_start_date) => voting_period_start_date,
+            None => {
+                return Err(anyhow::anyhow!(format!(
+                    "Error fetching election start date: "
+                )))
+            }
+        };
+        // extract end date from voting period
+        let voting_period_end_date = match voting_period_dates.end_date {
+            Some(voting_period_end_date) => voting_period_end_date,
+            None => {
+                return Err(anyhow::anyhow!(format!(
+                    "Error fetching election end date: "
+                )))
+            }
+        };
 
-        // Placeholder values for fetching external data (e.g., total ballots)
-        let total_registered_voters = 1000; // Replace with actual query
-        let total_ballots_counted = 800; // Replace with actual query
+        // get election instace
+        let election = match get_election_by_id(
+            &hasura_transaction,
+            &self.get_tenant_id(),
+            &self.get_election_event_id(),
+            &self.get_election_id().unwrap(),
+        )
+        .await
+        .with_context(|| "Error getting election by id")?
+        {
+            Some(election) => election,
+            None => return Err(anyhow::anyhow!("Election not found")),
+        };
+
+        // get election instace's general data (post, country, etc...)
+        let election_general_data = match extract_election_data(&election).await {
+            Ok(data) => data, // Extracting the ElectionData struct out of Ok
+            Err(err) => {
+                return Err(anyhow::anyhow!(format!(
+                    "Error fetching election data: {}",
+                    err
+                )));
+            }
+        };
+
+        // fetch total of registerd voters
+        let registered_voters = get_total_number_of_registered_voters_for_country(
+            &keycloak_transaction,
+            &realm_name,
+            &election_general_data.country,
+        )
+        .await
+        .map_err(|e| {
+            anyhow::anyhow!(format!(
+                "Error in getting the number of registered voters {:?}",
+                e
+            ))
+        })?;
+
+        let (ballots_counted, results_area_contests, contests) =
+            get_election_contests_area_results_and_total_ballot_counted(
+                &hasura_transaction,
+                &self.get_tenant_id(),
+                &self.get_election_event_id(),
+                &self.get_election_id().unwrap(),
+            )
+            .await
+            .map_err(|e| {
+                anyhow::anyhow!(format!(
+                    "Error in getting election contests area results {:?}",
+                    e
+                ))
+            })?;
 
         // Calculate voter turnout
-        let voters_turnout = ((total_ballots_counted as f32 / total_registered_voters as f32) * 100.0).to_string();
+        let voters_turnout = generate_voters_turnout(&ballots_counted, &registered_voters)
+        .await
+        .map_err(|e| anyhow::anyhow!(format!("Error in generating voters turnout {:?}", e)))?;
 
-        // Placeholder values for server data
+        // Fetch necessary data (dummy placeholders for now)
+        let chairperson_name = "John Doe".to_string();
+        let poll_clerk_name = "Jane Smith".to_string();
+        let third_member_name = "Alice Johnson".to_string();
+        let chairperson_digital_signature = "DigitalSignatureABC".to_string();
+        let poll_clerk_digital_signature = "DigitalSignatureDEF".to_string();
+        let third_member_digital_signature = "DigitalSignatureGHI".to_string();
         let server_code = "123456".to_string();
-        let transmitted = true;
-        let transmitted_datetime = Some("2024-10-09T12:00:00Z".to_string());
-        let received = true;
-        let received_datetime = Some("2024-10-09T12:05:00Z".to_string());
+        let report_hash = "dummy_report_hash".to_string();
+        let ovcs_version = "1.0".to_string();
+        let software_version = "1.0".to_string();
+        let system_hash = "dummy_system_hash".to_string();
 
-        let temp_val: &str = "test";
         Ok(UserData {
             date_printed: "2024-10-09T14:30:00-04:00".to_string(),
             election_date: "2024-05-10T14:30:00-04:00".to_string(),
             election_title: election_event.name.clone(),
-            geographical_region: "North America".to_string(),
-            post: temp_val.to_string(),
-            country: temp_val.to_string(),
-            registered_voters: total_registered_voters,
-            ballots_counted: total_ballots_counted,
-            voters_turnout,
-            voting_period: "April 10 - May 10, 2024".to_string(),
+            voting_period: format!("{} - {}", voting_period_start_date, voting_period_end_date),
+            geographical_region: election_general_data.geographical_region,
+            post: election_general_data.post,
+            country: election_general_data.country,
+            voting_center: election_general_data.voting_center,
+            precinct_code: election_general_data.clustered_precinct_id,
+            registered_voters,
+            ballots_counted,
+            voters_turnout: voters_turnout.to_string(),
             central_server_code: server_code,
             sboc_code: "SB123".to_string(),
             sboc_transmitted: "Transmitted".to_string(),
@@ -248,24 +316,22 @@ impl TemplateRenderer for TransmissionReport {
             media_date_transmitted: "2024-05-10T00:00:00".to_string(),
             media_received: "Received".to_string(),
             media_server_date_received: "2024-05-11T00:00:00".to_string(),
-            voting_center: temp_val.to_string(),
-            precinct_code: "P12345".to_string(),
-            chairperson_name: temp_val.to_string(),
-            chairperson_digital_signature: temp_val.to_string(),
-            poll_clerk_name: temp_val.to_string(),
-            poll_clerk_digital_signature: temp_val.to_string(),
-            third_member_name: temp_val.to_string(),
-            third_member_digital_signature: temp_val.to_string(),
-            report_hash: String::new(),
-            ovcs_version: String::new(),
-            system_hash: String::new(),
+            chairperson_name,
+            chairperson_digital_signature,
+            poll_clerk_name,
+            poll_clerk_digital_signature,
+            third_member_name,
+            third_member_digital_signature,
+            report_hash,
+            ovcs_version,
+            system_hash,
+            software_version,
             qr_codes: vec![
                 "String 1".to_string(),
                 "String 2".to_string(),
                 "String 3".to_string(),
                 "String 4".to_string(),
             ],
-            software_version: "1.0".to_string(),
         })
     }
 

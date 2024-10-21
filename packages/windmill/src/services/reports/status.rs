@@ -232,7 +232,12 @@ impl TemplateRenderer for StatusTemplate {
         // Format the date to the desired format
         let status_str: &'static str = status.voting_status.into();
         let ovcs_status = status_str.to_string();
-        let temp_val: &str = "test";
+        let chairperson_name = "John Doe".to_string();
+        let poll_clerk_name = "Jane Smith".to_string();
+        let third_member_name = "Alice Johnson".to_string();
+        let report_hash = "dummy_report_hash".to_string();
+        let ovcs_version = "1.0".to_string();
+        let system_hash = "dummy_system_hash".to_string();
 
         Ok(UserData {
             election_date: election_date.to_string(),
@@ -246,13 +251,13 @@ impl TemplateRenderer for StatusTemplate {
             registered_voters: registered_voters,
             ballots_counted: ballots_counted,
             ovcs_status: ovcs_status,
-            chairperson_name: temp_val.to_string(),
-            poll_clerk_name: temp_val.to_string(),
-            third_member_name: temp_val.to_string(),
-            report_hash: "hash123".to_string(),
-            ovcs_version: "1.0".to_string(),
-            system_hash: "sys_hash123".to_string(),
             date_printed: date_printed,
+            chairperson_name,
+            poll_clerk_name,
+            third_member_name,
+            report_hash,
+            ovcs_version,
+            system_hash
         })
     }
 

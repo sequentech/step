@@ -227,8 +227,7 @@ impl TemplateRenderer for OVUserTemplate {
         let voting_privilege_voted = 2; // Mocking this value
         let total = voters.len() as u32;
 
-        // Mock UserData
-        let temp_val: &str = "test";
+        // partial Mock UserData
         Ok(UserData {
             election_date: election_date.to_string(),
             election_title: election.name.clone(),

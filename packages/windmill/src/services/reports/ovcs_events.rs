@@ -96,11 +96,6 @@ impl TemplateRenderer for OVCSEventsTemplate {
 
     #[instrument]
     async fn prepare_user_data(&self) -> Result<Self::UserData> {
-        let data: UserData = self
-            .prepare_preview_data()
-            .await
-            .map_err(|e| anyhow::anyhow!(format!("Error preparing report preview {:?}", e)))?;
-
         let mut hasura_db_client: DbClient = get_hasura_pool()
             .await
             .get()

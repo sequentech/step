@@ -115,14 +115,6 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
             .await
             .with_context(|| "Error starting Keycloak transaction")?;
 
-        // Fetch election event data
-        let election_event = get_election_event_by_id(
-            &hasura_transaction,
-            &self.get_tenant_id(),
-            &self.get_election_event_id(),
-        )
-        .await
-        .with_context(|| "Error obtaining election event")?;
 
         let election = match get_election_by_id(
             &hasura_transaction,
@@ -216,6 +208,7 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
             country: election_general_data.country,
             voting_center: election_general_data.voting_center,
             precinct_code: election_general_data.clustered_precinct_id,
+            date_printed: date_printed,
             registered_voters: registered_voters,
             copy_number: temp_val.to_string(),
             qr_codes: vec![],
@@ -223,7 +216,6 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
             report_hash: "hash123".to_string(),
             ovcs_version: "1.0".to_string(),
             system_hash: "sys_hash123".to_string(),
-            date_printed: date_printed,
         })
     }
 

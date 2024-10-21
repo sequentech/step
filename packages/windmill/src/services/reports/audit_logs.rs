@@ -135,7 +135,7 @@ impl TemplateRenderer for AuditLogsTemplate {
             .await
             .with_context(|| "Error starting Keycloak transaction")?;
 
-        let realm_name = get_event_realm(self.tenant_id.as_str(), self.election_event_id.as_str());
+        let realm_name: String = get_event_realm(self.tenant_id.as_str(), self.election_event_id.as_str());
         // get election instace
         let election = match get_election_by_id(
             &hasura_transaction,
@@ -203,6 +203,8 @@ impl TemplateRenderer for AuditLogsTemplate {
         };
 
         let election_date: &String = &voting_period_start_date;
+        let datetime_printed: String = get_date_and_time();
+
         // Fetch list of audit logs
         let mut sequences: Vec<AuditLogEntry> = Vec::new();
         let electoral_logs = list_electoral_log(GetElectoralLogBody {
@@ -280,7 +282,6 @@ impl TemplateRenderer for AuditLogsTemplate {
             .await
             .map_err(|e| anyhow::anyhow!(format!("Error in generating voters turnout {:?}", e)))?;
 
-        let datetime_printed: String = get_date_and_time();
 
         // Fetch necessary data (dummy placeholders for now)
         let chairperson_name = "John Doe".to_string();
@@ -296,6 +297,7 @@ impl TemplateRenderer for AuditLogsTemplate {
         Ok(UserData {
             election_date: election_date.to_string(),
             election_title: election.name.clone(),
+            date_printed: datetime_printed,
             voting_period: format!("{} - {}", voting_period_start_date, voting_period_end_date),
             geographical_region: election_general_data.geographical_region,
             post: election_general_data.post,
@@ -316,7 +318,6 @@ impl TemplateRenderer for AuditLogsTemplate {
             report_hash,
             ovcs_version,
             system_hash,
-            date_printed: datetime_printed
         })
     }
 
