@@ -13,7 +13,7 @@ use anyhow::{Context, Result};
 use async_trait::async_trait;
 use chrono::offset::TimeZone;
 use chrono::{DateTime, Utc};
-use deadpool_postgres::Client as DbClient;
+use deadpool_postgres::{Client as DbClient, Transaction};
 use rocket::http::Status;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
@@ -107,37 +107,22 @@ impl TemplateRenderer for OverseasVotersReport {
     }
 
     #[instrument]
-    async fn prepare_user_data(&self) -> Result<Self::UserData> {
-        // Fetch the database client from the pool
-        let mut db_client: DbClient = get_hasura_pool()
-            .await
-            .get()
-            .await
-            .with_context(|| "Error getting DB pool")?;
-
-        let hasura_transaction = db_client
-            .transaction()
-            .await
-            .with_context(|| "Error starting transaction")?;
-
-        let mut keycloak_db_client = get_keycloak_pool()
-            .await
-            .get()
-            .await
-            .with_context(|| "Error acquiring Keycloak DB pool")?;
-
+    async fn prepare_user_data(&self, hasura_transaction: Option<&Transaction<'_>>, keycloak_transaction: Option<&Transaction<'_>>) -> Result<Self::UserData> {
         // get election instace
-        let election = match get_election_by_id(
-            &hasura_transaction,
-            &self.get_tenant_id(),
-            &self.get_election_event_id(),
-            &self.get_election_id().unwrap(),
-        )
-        .await
-        .with_context(|| "Error getting election by id")?
-        {
-            Some(election) => election,
-            None => return Err(anyhow::anyhow!("Election not found")),
+        let election = if let Some(transaction) = hasura_transaction {
+            match get_election_by_id(
+                &transaction, // Use the unwrapped transaction reference
+                &self.get_tenant_id(),
+                &self.get_election_event_id(),
+                &self.get_election_id().unwrap(),
+            )
+            .await
+            .with_context(|| "Error getting election by id")? {
+                Some(election) => election,
+                None => return Err(anyhow::anyhow!("Election not found")),
+            }
+        } else {
+            return Err(anyhow::anyhow!("Transaction is missing"));
         };
 
         // get election instace's general data (post, country, etc...)
@@ -152,18 +137,21 @@ impl TemplateRenderer for OverseasVotersReport {
         };
 
         // Fetch election event data
-        let start_election_event = find_scheduled_event_by_election_event_id(
-            &hasura_transaction,
-            &self.get_tenant_id(),
-            &self.get_election_event_id(),
-        )
-        .await
-        .map_err(|e| {
-            anyhow::anyhow!(format!(
-                "Error getting scheduled event by election event_id {:?}",
-                e
-            ))
-        })?;
+        let start_election_event = if let Some(transaction) = hasura_transaction {
+            find_scheduled_event_by_election_event_id(
+                &transaction,  
+                &self.get_tenant_id(),
+                &self.get_election_event_id(),
+            )
+            .await
+            .map_err(|e| {
+                anyhow::anyhow!(
+                    "Error getting scheduled event by election event_id: {}", e
+                )
+            })?
+        } else {
+            return Err(anyhow::anyhow!("Transaction is missing"));
+        }; 
 
         // Fetch election's voting periods
         let voting_period_dates = generate_voting_period_dates(
@@ -304,6 +292,8 @@ pub async fn generate_overseas_voters_report(
     tenant_id: &str,
     election_event_id: &str,
     mode: GenerateReportMode,
+    hasura_transaction: Option<&Transaction<'_>>,
+    keycloak_transaction: Option<&Transaction<'_>>
 ) -> Result<()> {
     let template = OverseasVotersReport {
         tenant_id: tenant_id.to_string(),
@@ -318,6 +308,8 @@ pub async fn generate_overseas_voters_report(
             None,
             None,
             mode,
+            hasura_transaction,
+            keycloak_transaction
         )
         .await
 }

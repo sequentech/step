@@ -17,7 +17,7 @@ use crate::services::insert_cast_vote::CastVoteError;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use chrono::{DateTime, Local};
-use deadpool_postgres::Client as DbClient;
+use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
@@ -111,43 +111,23 @@ impl TemplateRenderer for AuditLogsTemplate {
     }
 
     #[instrument]
-    async fn prepare_user_data(&self) -> Result<Self::UserData> {
-        // Fetch the database client from the pool
-        let mut db_client: DbClient = get_hasura_pool()
-            .await
-            .get()
-            .await
-            .with_context(|| "Error getting DB pool")?;
-
-        let hasura_transaction = db_client
-            .transaction()
-            .await
-            .with_context(|| "Error starting transaction")?;
-
-        let mut keycloak_db_client = get_keycloak_pool()
-            .await
-            .get()
-            .await
-            .with_context(|| "Error acquiring Keycloak DB pool")?;
-
-        let keycloak_transaction = keycloak_db_client
-            .transaction()
-            .await
-            .with_context(|| "Error starting Keycloak transaction")?;
-
+    async fn prepare_user_data(&self, hasura_transaction: Option<&Transaction<'_>>, keycloak_transaction: Option<&Transaction<'_>>) -> Result<Self::UserData> {
         let realm_name: String = get_event_realm(self.tenant_id.as_str(), self.election_event_id.as_str());
         // get election instace
-        let election = match get_election_by_id(
-            &hasura_transaction,
-            &self.get_tenant_id(),
-            &self.get_election_event_id(),
-            &self.get_election_id().unwrap(),
-        )
-        .await
-        .with_context(|| "Error getting election by id")?
-        {
-            Some(election) => election,
-            None => return Err(anyhow::anyhow!("Election not found")),
+        let election = if let Some(transaction) = hasura_transaction {
+            match get_election_by_id(
+                &transaction, // Use the unwrapped transaction reference
+                &self.get_tenant_id(),
+                &self.get_election_event_id(),
+                &self.get_election_id().unwrap(),
+            )
+            .await
+            .with_context(|| "Error getting election by id")? {
+                Some(election) => election,
+                None => return Err(anyhow::anyhow!("Election not found")),
+            }
+        } else {
+            return Err(anyhow::anyhow!("Transaction is missing"));
         };
 
         // get election instace's general data (post, country, etc...)
@@ -162,18 +142,21 @@ impl TemplateRenderer for AuditLogsTemplate {
         };
 
         // Fetch election event data
-        let start_election_event = find_scheduled_event_by_election_event_id(
-            &hasura_transaction,
-            &self.get_tenant_id(),
-            &self.get_election_event_id(),
-        )
-        .await
-        .map_err(|e| {
-            anyhow::anyhow!(format!(
-                "Error getting scheduled event by election event_id {:?}",
-                e
-            ))
-        })?;
+        let start_election_event = if let Some(transaction) = hasura_transaction {
+            find_scheduled_event_by_election_event_id(
+                &transaction,  
+                &self.get_tenant_id(),
+                &self.get_election_event_id(),
+            )
+            .await
+            .map_err(|e| {
+                anyhow::anyhow!(
+                    "Error getting scheduled event by election event_id: {}", e
+                )
+            })?
+        } else {
+            return Err(anyhow::anyhow!("Transaction is missing"));
+        };        
 
         // Fetch election's voting periods
         let voting_period_dates = generate_voting_period_dates(
@@ -249,34 +232,42 @@ impl TemplateRenderer for AuditLogsTemplate {
             sequences.push(audit_log_entry);
         }
 
-        // fetch total of registerd voters
-        let registered_voters = get_total_number_of_registered_voters_for_country(
-            &keycloak_transaction,
-            &realm_name,
-            &election_general_data.country,
-        )
-        .await
-        .map_err(|e| {
-            anyhow::anyhow!(format!(
-                "Error in getting the number of registered voters {:?}",
-                e
-            ))
-        })?;
+        // Fetch total of registered voters
+        let registered_voters = if let Some(transaction) = keycloak_transaction {
+            get_total_number_of_registered_voters_for_country(
+                &transaction, // Pass the actual reference to the transaction
+                &realm_name,
+                &election_general_data.country,
+            )
+            .await
+            .map_err(|e| {
+                anyhow::anyhow!(
+                    "Error fetching the number of registered voters for country '{}': {}", 
+                    &election_general_data.country, 
+                    e
+                )
+            })?
+        } else {
+            return Err(anyhow::anyhow!("Keycloak Transaction is missing"));
+        };
 
-        let (ballots_counted, results_area_contests, contests) =
+        let (ballots_counted, results_area_contests, contests) = if let Some(transaction) = hasura_transaction {
             get_election_contests_area_results_and_total_ballot_counted(
-                &hasura_transaction,
+                &transaction,
                 &self.get_tenant_id(),
                 &self.get_election_event_id(),
                 &self.get_election_id().unwrap(),
             )
             .await
             .map_err(|e| {
-                anyhow::anyhow!(format!(
-                    "Error in getting election contests area results {:?}",
-                    e
-                ))
-            })?;
+                anyhow::anyhow!(
+                    "Error getting election contests area results: {}", e
+                )
+            })?
+        } else {
+            return Err(anyhow::anyhow!("Transaction is missing"));
+        };
+        
 
         let voters_turnout = generate_voters_turnout(&ballots_counted, &registered_voters)
             .await
@@ -339,6 +330,8 @@ pub async fn generate_audit_logs_report(
     election_event_id: &str,
     election_id: &str,
     mode: GenerateReportMode,
+    hasura_transaction: Option<&Transaction<'_>>,
+    keycloak_transaction: Option<&Transaction<'_>>
 ) -> Result<()> {
     let template = AuditLogsTemplate {
         tenant_id: tenant_id.to_string(),
@@ -354,6 +347,8 @@ pub async fn generate_audit_logs_report(
             None,
             None,
             mode,
+            hasura_transaction,
+            keycloak_transaction
         )
         .await
 }

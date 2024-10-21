@@ -9,7 +9,7 @@ use crate::{postgres::reports::ReportType, services::database::get_keycloak_pool
 use crate::services::database::get_hasura_pool;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use deadpool_postgres::Client as DbClient;
+use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use sequent_core::types::templates::EmailConfig;
@@ -95,31 +95,21 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
         }
     }
     #[instrument]
-    async fn prepare_user_data(&self) -> Result<Self::UserData> {
-        // Placeholder system data, adjust based on your actual environment
-        // Fetch the Hasura database client from the pool
-        let mut hasura_db_client: DbClient = get_hasura_pool()
+    async fn prepare_user_data(&self, hasura_transaction: Option<&Transaction<'_>>, keycloak_transaction: Option<&Transaction<'_>>) -> Result<Self::UserData> {
+        let election = if let Some(transaction) = hasura_transaction {
+            match get_election_by_id(
+                &transaction, // Use the unwrapped transaction reference
+                &self.get_tenant_id(),
+                &self.get_election_event_id(),
+                &self.get_election_id().unwrap(),
+            )
             .await
-            .get()
-            .await
-            .with_context(|| "Error getting hasura db pool")?;
-
-        let hasura_transaction = hasura_db_client
-            .transaction()
-            .await
-            .with_context(|| "Error starting transaction")?;
-
-        let election = match get_election_by_id(
-            &hasura_transaction,
-            &self.get_tenant_id(),
-            &self.get_election_event_id(),
-            &self.get_election_id().unwrap(),
-        )
-        .await
-        .with_context(|| "Error getting election by id")?
-        {
-            Some(election) => election,
-            None => return Err(anyhow::anyhow!("Election not found")),
+            .with_context(|| "Error getting election by id")? {
+                Some(election) => election,
+                None => return Err(anyhow::anyhow!("Election not found")),
+            }
+        } else {
+            return Err(anyhow::anyhow!("Transaction is missing"));
         };
 
         // get election instace's general data (post, country, etc...)
@@ -134,18 +124,21 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
         };
 
         // Fetch election event data
-        let start_election_event = find_scheduled_event_by_election_event_id(
-            &hasura_transaction,
-            &self.get_tenant_id(),
-            &self.get_election_event_id(),
-        )
-        .await
-        .map_err(|e| {
-            anyhow::anyhow!(format!(
-                "Error getting scheduled event by election event_id {:?}",
-                e
-            ))
-        })?;
+        let start_election_event = if let Some(transaction) = hasura_transaction {
+            find_scheduled_event_by_election_event_id(
+                &transaction,  
+                &self.get_tenant_id(),
+                &self.get_election_event_id(),
+            )
+            .await
+            .map_err(|e| {
+                anyhow::anyhow!(
+                    "Error getting scheduled event by election event_id: {}", e
+                )
+            })?
+        } else {
+            return Err(anyhow::anyhow!("Transaction is missing"));
+        }; 
 
         // Fetch election's voting periods
         let voting_period_dates = generate_voting_period_dates(
@@ -237,6 +230,8 @@ pub async fn generate_ov_users_who_voted_report(
     tenant_id: &str,
     election_event_id: &str,
     mode: GenerateReportMode,
+    hasura_transaction: Option<&Transaction<'_>>,
+    keycloak_transaction: Option<&Transaction<'_>>
 ) -> Result<()> {
     let template = OVUsersWhoVotedTemplate {
         tenant_id: tenant_id.to_string(),
@@ -251,6 +246,8 @@ pub async fn generate_ov_users_who_voted_report(
             None,
             None,
             mode,
+            hasura_transaction,
+            keycloak_transaction
         )
         .await
 }
