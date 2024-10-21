@@ -52,14 +52,14 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
         if (!error && data?.fetchDocument?.url && !downloaded && (fileName || document)) {
             onSucess && onSucess()
             setDownloaded(true)
-            const newWindow = window.open(data.fetchDocument.url, '_blank');
-        
+            const newWindow = window.open(data.fetchDocument.url, "_blank")
+
             if (newWindow) {
-                newWindow.focus();
-                newWindow.onload = () => newWindow.print();
+                newWindow.focus()
+                newWindow.onload = () => newWindow.print()
             }
-    
-            onDownload && onDownload();
+
+            onDownload && onDownload()
         }
     }, [
         data,
