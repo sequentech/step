@@ -226,7 +226,6 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                         value={electionId}
                         disabled={electionPolicy == EReportElectionPolicy.ELECTION_NOT_ALLOWED}
                     />
-
                     <SelectTemplate
                         tenantId={tenantId}
                         templateType={
@@ -234,7 +233,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                                 ? reportTypeConfig[reportType]?.associatedTemplateType
                                 : undefined
                         }
-                        source={"template_alias"}
+                        source={"template_id"}
                         label={t("reportsScreen.fields.template")}
                         onSelectTemplate={({alias}) => {
                             setTemplateAlias(alias)
