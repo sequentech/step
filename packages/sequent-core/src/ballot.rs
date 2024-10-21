@@ -679,6 +679,12 @@ pub enum EInitializeReportPolicy {
     NOT_REQUIRED,
 }
 
+impl Default for EInitializeReportPolicy {
+    fn default() -> Self {
+        EInitializeReportPolicy::NOT_REQUIRED
+    }
+}
+
 #[derive(
     BorshSerialize,
     BorshDeserialize,

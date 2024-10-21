@@ -1287,6 +1287,7 @@ const tagalogTranslation: TranslationType = {
                 history: "Kasaysayan ng Paglalathala",
             },
             action: {
+                geneateInitializationReport: "Gumawa ng Ulat sa Inisyal na Pagsisimula",
                 startVotingPeriod: "Simulan ang Pagboto",
                 stopVotingPeriod: "Itigil ang Pagboto",
                 pauseVotingPeriod: "I-pause ang Pagboto",
@@ -1310,6 +1311,8 @@ const tagalogTranslation: TranslationType = {
             dialog: {
                 title: "Kumpirmahin ang Aksyon",
                 info: "Ikaw ay nag-click sa isang sensitibong aksyon, kaya't kailangan namin ng iyong kumpirmasyon upang magpatuloy",
+                initializationInfo:
+                    "Malapit ka nang bumuo ng ulat ng inisyalisasyon. Sigurado ka bang gusto mong magpatuloy?",
                 startInfo:
                     "Malapit mo nang simulan ang panahon ng pagboto. Sigurado ka bang nais mong magpatuloy?",
                 stopInfo:

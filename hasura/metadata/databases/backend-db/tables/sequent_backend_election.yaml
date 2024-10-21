@@ -25,29 +25,30 @@ insert_permissions:
         - permission_label:
             _in: X-Hasura-Permission-Labels
     columns:
+    - alias
+    - annotations
+    - created_at
+    - description
+    - election_event_id
+    - eml
+    - id
+    - image_document_id
+    - initialization_report_generated
     - is_consolidated_ballot_encoding
     - is_kiosk
-    - spoil_ballot_option
+    - keys_ceremony_id
+    - labels
+    - last_updated_at
     - name
     - num_allowed_revotes
-    - annotations
-    - labels
+    - permission_label
     - presentation
     - receipts
+    - spoil_ballot_option
     - statistics
     - status
-    - voting_channels
-    - alias
-    - description
-    - eml
-    - image_document_id
-    - permission_label
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - id
-    - keys_ceremony_id
     - tenant_id
+    - voting_channels
   role: admin-user
 - comment: ""
   permission:
@@ -339,29 +340,30 @@ update_permissions:
       tenant_id:
         _eq: X-Hasura-Tenant-Id
     columns:
+    - alias
+    - annotations
+    - created_at
+    - description
+    - election_event_id
+    - eml
+    - id
+    - image_document_id
+    - initialization_report_generated
     - is_consolidated_ballot_encoding
     - is_kiosk
-    - spoil_ballot_option
+    - keys_ceremony_id
+    - labels
+    - last_updated_at
     - name
     - num_allowed_revotes
-    - annotations
-    - labels
+    - permission_label
     - presentation
     - receipts
+    - spoil_ballot_option
     - statistics
     - status
-    - voting_channels
-    - alias
-    - description
-    - eml
-    - image_document_id
-    - permission_label
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - id
-    - keys_ceremony_id
     - tenant_id
+    - voting_channels
     filter:
       tenant_id:
         _eq: X-Hasura-Tenant-Id

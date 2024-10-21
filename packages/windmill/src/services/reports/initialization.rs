@@ -1,14 +1,15 @@
 use super::report_variables::{
-    extract_election_data, get_election_contests_area_results_and_total_ballot_counted, get_total_number_of_ballots, get_total_number_of_registered_voters_for_country
+    extract_election_data, get_election_contests_area_results_and_total_ballot_counted,
+    get_total_number_of_ballots, get_total_number_of_registered_voters_for_country,
 };
 use super::template_renderer::*;
 use crate::postgres::candidate::get_candidates_by_contest_id;
 use crate::postgres::contest::get_contest_by_election_id;
-use crate::postgres::results_area_contest_candidate::get_results_area_contest_candidates;
 use crate::postgres::election::get_election_by_id;
+use crate::postgres::reports::ReportType;
+use crate::postgres::results_area_contest_candidate::get_results_area_contest_candidates;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
-use crate::postgres::reports::ReportType;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use chrono::{Local, NaiveDate, NaiveDateTime};
@@ -44,7 +45,7 @@ pub struct UserData {
     pub software_version: String,
     pub ovcs_version: String,
     pub system_hash: String,
- }
+}
 
 /// Struct for each contest's data
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -242,7 +243,14 @@ impl TemplateRenderer for InitializationTemplate {
             precinct_code: election_general_data.clustered_precinct_id,
             registered_voters,
             ballots_counted,
-            contests: generate_contests_data(hasura_transaction, &self.tenant_id, &self.election_event_id, &self.election_id, contests).await?,
+            contests: generate_contests_data(
+                hasura_transaction,
+                &self.tenant_id,
+                &self.election_event_id,
+                &self.election_id,
+                contests,
+            )
+            .await?,
             chairperson_name,
             chairperson_digital_signature,
             poll_clerk_name,
@@ -261,12 +269,18 @@ impl TemplateRenderer for InitializationTemplate {
         rendered_user_template: String,
     ) -> Result<Self::SystemData> {
         Ok(SystemData {
-            rendered_user_template
+            rendered_user_template,
         })
     }
 }
 
-async fn generate_contests_data(hasura_transaction: Transaction<'_>, tenant_id: &str, election_event_id: &str, election_id: &str, contests: Vec<Contest>) -> Result<Vec<ContestData>> {
+async fn generate_contests_data(
+    hasura_transaction: Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    contests: Vec<Contest>,
+) -> Result<Vec<ContestData>> {
     let mut contests_data: Vec<ContestData> = Vec::new();
     for contest in contests {
         let contest_name = contest.clone().name.unwrap_or_default();
@@ -288,16 +302,24 @@ async fn generate_contests_data(hasura_transaction: Transaction<'_>, tenant_id: 
         for candidate in contest_candidates {
             let votes_garnered = if let Some(contest_id) = candidate.clone().contest_id {
                 if let Some(results) = get_results_area_contest_candidates(
-                    &hasura_transaction, tenant_id, election_event_id, election_id, &contest_id, &candidate.clone().id
-                ).await.unwrap_or(None) {
+                    &hasura_transaction,
+                    tenant_id,
+                    election_event_id,
+                    election_id,
+                    &contest_id,
+                    &candidate.clone().id,
+                )
+                .await
+                .unwrap_or(None)
+                {
                     results.cast_votes.unwrap_or(0)
                 } else {
                     0
                 }
             } else {
                 0
-            }; 
-            
+            };
+
             candidate_data.push(CandidateData {
                 name_in_ballot: candidate.clone().name.unwrap_or_default(),
                 acronym: candidate

@@ -1286,6 +1286,7 @@ const catalanTranslation: TranslationType = {
                 history: "Històric de Canvis",
             },
             action: {
+                geneateInitializationReport: "Genera l'Informe d'Inicialització",
                 startVotingPeriod: "Començar el període de votació",
                 stopVotingPeriod: "Detenir el període de votació",
                 pauseVotingPeriod: "Pausar el període de votació",
@@ -1303,6 +1304,8 @@ const catalanTranslation: TranslationType = {
             dialog: {
                 title: "Confirmar Acció",
                 info: "Has fet clic en una acció sensible, per la qual cosa necessitem que la confirmis per poder continuar.",
+                initializationInfo:
+                    "Esteu a punt de generar l'informe d'inicialització. Esteu segur que voleu continuar?",
                 startInfo:
                     "Està a punt de començar el període de votació. Està segur que vol continuar?",
                 stopInfo:

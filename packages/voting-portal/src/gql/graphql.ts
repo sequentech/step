@@ -241,7 +241,7 @@ export type ExportBallotPublicationOutput = {
 export type ExportLogsOutput = {
   __typename?: 'ExportLogsOutput';
   document_id: Scalars['String']['output'];
-  task_id: Scalars['String']['output'];
+  task_execution?: Maybe<Tasks_Execution_Type>;
 };
 
 export type ExportOptions = {
