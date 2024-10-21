@@ -282,9 +282,10 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     }
 
     const getTemplateName = (report: Sequent_Backend_Report) => {
-        let templateId = report.template_id
-        const template = templates?.find((template) => template.id === templateId)
-        return template?.template.alias
+        const templateAlias = report.template_alias
+        if (!templateAlias) return ""
+        const template = templates?.find((template) => template.template?.alias === templateAlias)
+        return template ? template.template.name || template.template.alias : ""
     }
 
     const getElectionName = (report: Sequent_Backend_Report) => {
@@ -391,7 +392,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                     <TextField source="report_type" label={t("reportsScreen.fields.reportType")} />
                     <FunctionField
                         label={t("reportsScreen.fields.template")}
-                        source="template_id"
+                        source="template_alias"
                         render={getTemplateName}
                     />
 
