@@ -57,7 +57,7 @@ export function mapDataChildren(key: ResourceName): EntityFieldName {
     return map[key]
 }
 
-const TREE_RESOURCE_NAMES: Array<ResourceName> = [
+export const TREE_RESOURCE_NAMES: Array<ResourceName> = [
     "sequent_backend_election_event",
     "sequent_backend_election",
     "sequent_backend_contest",

@@ -12,6 +12,12 @@ import {useGetOne} from "react-admin"
 import cssInputLookAndFeel from "@/atoms/css-input-look-and-feel"
 import {useAtomValue, useSetAtom} from "jotai"
 import {ITenantTheme} from "@sequentech/ui-core"
+import {ImportDataDrawer} from "./election-event/import-data/ImportDataDrawer"
+import {
+    useCreateElectionEventStore,
+	withCreateElectionEventProvider,
+} from "@/providers/CreateElectionEventContextProvider"
+import { CreateDataDrawer } from "./election-event/create/CreateElectionEventDrawer"
 
 export const CustomCssReader: React.FC = () => {
     const {tenantId} = useContext(TenantContext)
@@ -32,12 +38,41 @@ export const CustomCssReader: React.FC = () => {
 }
 
 const SequentSidebar = (props: any) => {
+    const {
+        importDrawer,
+        uploadCallback,
+        handleImportElectionEvent,
+        closeImportDrawer,
+        errors,
+        createDrawer,
+        toggleCreateDrawer,
+        toggleImportDrawer,
+        postDefaultValues,
+        handleElectionCreated,
+        handleSubmit
+    } = useCreateElectionEventStore()
+
     return (
         <>
             <CustomCssReader />
             <CustomSidebar {...props}>
-                <CustomMenu {...props} classes={SidebarClasses} />
+            <CustomMenu {...props} classes={SidebarClasses} />
             </CustomSidebar>
+			<CreateDataDrawer
+                open={createDrawer}
+                closeDrawer={()=>toggleCreateDrawer?.(prev=>!prev)}
+            />
+            <ImportDataDrawer
+                open={importDrawer}
+                title="electionEventScreen.import.eetitle"
+                subtitle="electionEventScreen.import.eesubtitle"
+                paragraph={"electionEventScreen.import.electionEventParagraph"}
+                closeDrawer={closeImportDrawer}
+                doImport={handleImportElectionEvent}
+                disableImport={!!errors}
+                uploadCallback={uploadCallback}
+                errors={errors}
+            />
         </>
     )
 }
@@ -59,6 +94,6 @@ export const CustomLayout: React.FC<LayoutProps> = (props) => (
             },
         }}
         appBar={CustomAppBar}
-        sidebar={SequentSidebar}
+        sidebar={withCreateElectionEventProvider(SequentSidebar)}
     />
 )
