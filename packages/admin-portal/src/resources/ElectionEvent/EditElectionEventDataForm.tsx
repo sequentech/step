@@ -276,7 +276,6 @@ export const EditElectionEventDataForm: React.FC = () => {
             temp.presentation.custom_urls = {}
         }
         if (!customFilters && temp?.presentation?.custom_filters) {
-            console.log("aa INIT :>> ", temp.presentation.custom_filters)
             setCustomFilters(temp.presentation.custom_filters)
         }
 
@@ -1072,7 +1071,19 @@ export const EditElectionEventDataForm: React.FC = () => {
                                         />
                                     </Box>
                                     <Box>
-                                        {/* <pre>{JSON.stringify(customFilters, null, 2)}</pre> */}
+                                        <Typography
+                                            variant="body1"
+                                            component="span"
+                                            sx={{
+                                                padding: "1rem 0rem",
+                                                fontWeight: "bold",
+                                                margin: 0,
+                                                display: {xs: "none", sm: "block"},
+                                            }}
+                                        >
+                                            {t("electionEventScreen.edit.custom_filters")}
+                                        </Typography>
+
                                         <JsonEditor
                                             data={customFilters ?? []}
                                             onUpdate={(data) =>
