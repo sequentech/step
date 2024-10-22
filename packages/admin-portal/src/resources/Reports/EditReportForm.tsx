@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import SelectElection from "@/components/election/SelectElection"
-import {EReportElectionPolicy, EReportType, ReportActions, reportTypeConfig} from "@/types/reports"
-import {Typography} from "@mui/material"
-import React, {useEffect, useMemo, useState} from "react"
+import { EReportElectionPolicy, EReportType, ReportActions, reportTypeConfig } from "@/types/reports"
+import { Typography } from "@mui/material"
+import React, { useEffect, useMemo, useState } from "react"
 import {
     BooleanInput,
     Create,
@@ -20,11 +20,11 @@ import {
     useNotify,
 } from "react-admin"
 import SelectTemplate from "../Template/SelectTemplate"
-import {useTranslation} from "react-i18next"
-import {Sequent_Backend_Report} from "@/gql/graphql"
-import {useMutation} from "@apollo/client"
-import {CREATE_REPORT} from "@/queries/CreateReport"
-import {UPDATE_REPORT} from "@/queries/UpdateReport"
+import { useTranslation } from "react-i18next"
+import { Sequent_Backend_Report } from "@/gql/graphql"
+import { useMutation } from "@apollo/client"
+import { CREATE_REPORT } from "@/queries/CreateReport"
+import { UPDATE_REPORT } from "@/queries/UpdateReport"
 
 interface CronConfig {
     isActive?: boolean
@@ -59,7 +59,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
     const handleReportTypeChange = (event: any) => {
         setReportType(event.target.value)
     }
-    const {t} = useTranslation()
+    const { t } = useTranslation()
     const notify = useNotify()
     useEffect(() => {
         console.log("isCronActive", isCronActive)
@@ -70,9 +70,11 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
         error,
     } = useGetOne<Sequent_Backend_Report>(
         "sequent_backend_report",
-        {id: reportId},
-        {enabled: isEditReport}
+        { id: reportId },
+        { enabled: isEditReport }
     )
+
+    console.log("report", report)
     const reportTypeChoices = Object.values(EReportType).map((reportType) => ({
         id: reportType,
         name: t(`reportsScreen.reportType.${reportType}`),
@@ -83,6 +85,12 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
     }, [report])
 
     useEffect(() => {
+        if (report) {
+            setTemplateAlias(report.template_alias) // Ensure template_alias from report is set
+        }
+    }, [report])
+
+    useEffect(() => {
         //Reset the isCronActive state when the report type changes
         if (!canGenerateReportSchedulued) {
             setIsCronActive(false)
@@ -90,6 +98,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
     }, [reportType])
 
     const handleSubmit = async (values: any) => {
+        console.log('values#', values)
         let cron_conig_js: CronConfig = {}
         if (values.cron_config && isCronActive) {
             if (values.cron_config.is_active) {
@@ -101,9 +110,10 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
             }
         }
 
+        console.log("templateAlias", templateAlias)
         const formData: Partial<Sequent_Backend_Report> = {
             ...values,
-            template_alias: templateAlias,
+            template_alias: templateAlias as string,
             tenant_id: tenantId,
             election_event_id: electionEventId,
             cron_config: {
@@ -115,27 +125,28 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
 
         try {
             if (isEditReport && reportId && formData) {
+                console.log('formData', formData)
                 await updateReport({
                     variables: {
                         id: reportId,
                         set: formData,
                     },
                 })
-                notify(t(`reportsScreen.messages.updateSuccess`), {type: "success"})
+                notify(t(`reportsScreen.messages.updateSuccess`), { type: "success" })
             } else {
                 await createReport({
                     variables: {
                         object: formData,
                     },
                 })
-                notify(t(`reportsScreen.messages.createSuccess`), {type: "success"})
+                notify(t(`reportsScreen.messages.createSuccess`), { type: "success" })
             }
 
             if (close) {
                 close()
             }
         } catch (error) {
-            notify(t(`reportsScreen.messages.submitError`), {type: "error"})
+            notify(t(`reportsScreen.messages.submitError`), { type: "error" })
         }
     }
 
@@ -231,15 +242,14 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                                 ? reportTypeConfig[reportType]?.associatedTemplateType
                                 : undefined
                         }
-                        source={"template_alias"}
+                        source="template_alias" // Field on the report where the template alias will be stored
                         label={t("reportsScreen.fields.template")}
-                        onSelectTemplate={({alias}) => {
-                            setTemplateAlias(alias)
+                        onSelectTemplate={({ alias }) => {
+                            setTemplateAlias(alias);
                         }}
                         value={templateAlias}
                         isRequired={isTemplateRequired}
                     />
-
                     {canGenerateReportSchedulued && (
                         <BooleanInput
                             source="cron_config.is_active"
