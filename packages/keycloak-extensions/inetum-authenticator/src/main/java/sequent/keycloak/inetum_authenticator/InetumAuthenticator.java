@@ -382,7 +382,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       return;
     }
 
-    List<Map<String, String>> storedAttributes;
+    List<HashMap<String, String>> storedAttributes;
     try {
       storedAttributes = storeAttributes(context, result);
     } catch (InetumException exception) {
@@ -407,7 +407,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       return;
     }
     if (!storedAttributes.isEmpty()) {
-      log.infov("action(): SHOW CONFIRM!!!!", action);
+      log.infov("action(): SHOW CONFIRM!!!! {0}", action);
       // Manually construct the action URL for the form
       String actionUrl = context.getActionUrl(context.generateAccessCode()).toString();
 
@@ -429,11 +429,11 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     context.success();
   }
 
-  private List<Map<String, String>> storeAttributes(
+  private List<HashMap<String, String>> storeAttributes(
       AuthenticationFlowContext context, SimpleHttp.Response response) throws InetumException {
     log.info("storeAttributes: start");
 
-    List<Map<String, String>> storedAttributes = new ArrayList<>();
+    List<HashMap<String, String>> storedAttributes = new ArrayList<>();
 
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
     Map<String, String> configMap = config.getConfig();
@@ -459,7 +459,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       if (attributesToCheck != null) {
         for (JsonNode attributeToStore : attributesToCheck) {
           String storedValue;
-          HashMap<String,String> attributeMap = new HashMap<>();
+          HashMap<String, String> attributeMap = new HashMap<>();
 
           // Get inetum path from config
           String inetumField = attributeToStore.get(INETUM_ATTRIBUTE_PATH).asText();
@@ -1104,6 +1104,11 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
                         {
                             "UserAttribute": "lastName",
                             "inetumAttributePath": "/response/mrz/surname",
+                            "type": "text"
+                        },
+                        {
+                            "UserAttribute": "sequent.read-only.id-card-number",
+                            "inetumAttributePath": "/response/mrz/personal_number",
                             "type": "text"
                         },
                         {
