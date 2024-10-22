@@ -23,10 +23,11 @@ import {DownloadDocument} from "@/resources/User/DownloadDocument"
 import {EXPORT_ELECTION_EVENT_LOGS} from "@/queries/ExportElectionEventLogs"
 import {useMutation} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
-import {ElectionStyles} from "./styles/ElectionStyles"
 import {useLocation, useNavigate} from "react-router"
 import {ResetFilters} from "./ResetFilters"
 import {MenuItem, Menu} from "@mui/material"
+import {useWidgetStore} from "@/providers/WidgetsContextProvider"
+import {ETasksExecution} from "@/types/tasksExecution"
 
 enum ExportFormat {
     CSV = "CSV",
@@ -39,83 +40,91 @@ interface ExportWrapperProps {
     setOpenExport: (val: boolean) => void
     exportFormat: string
 }
-const ExportWrapper: React.FC<ExportWrapperProps> = ({
+const ExportDialog: React.FC<ExportWrapperProps> = ({
     electionEventId,
     openExport,
     setOpenExport,
     exportFormat,
 }) => {
-    const [exportDocumentId, setExportDocumentId] = React.useState<string | undefined>()
-    const [exportElectionEvent] = useMutation(EXPORT_ELECTION_EVENT_LOGS, {
+    const {t} = useTranslation()
+    const [exportDocumentId, setExportDocumentId] = React.useState<string | undefined>(undefined)
+    const [exportElectionEventActivityLogs] = useMutation(EXPORT_ELECTION_EVENT_LOGS, {
         context: {
             headers: {
                 "x-hasura-role": IPermissions.LOGS_READ,
             },
         },
     })
-    const notify = useNotify()
-    const {t} = useTranslation()
-
-    const confirmExportAction = async () => {
+    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
+    const download = async () => {
+        const currWidget = addWidget(ETasksExecution.EXPORT_ACTIVITY_LOGS_REPORT)
         try {
-            const {data: exportElectionEventData, errors} = await exportElectionEvent({
+            const {data: exportElectionEventData, errors} = await exportElectionEventActivityLogs({
                 variables: {
                     electionEventId,
                     format: exportFormat,
                 },
             })
-            let documentId = exportElectionEventData?.export_election_event_logs?.document_id
-            if (errors || !documentId) {
-                setOpenExport(false)
-                notify(t(`electionEventScreen.export.exportError`), {type: "error"})
+            if (errors) {
+                updateWidgetFail(currWidget.identifier)
                 console.log(`Error exporting: ${errors}`)
                 return
             }
+            let documentId = exportElectionEventData?.export_election_event_logs?.document_id
             setExportDocumentId(documentId)
+            console.log(documentId)
+            const task_id = exportElectionEventData?.export_election_event_logs?.task_execution.id
+            console.log(task_id)
+            setWidgetTaskId(currWidget.identifier, task_id)
         } catch (error) {
-            notify(t(`electionEventScreen.export.exportError`), {type: "error"})
-            setOpenExport(false)
+            updateWidgetFail(currWidget.identifier)
+            setExportDocumentId(undefined)
+            console.log(`Catched error exporting: ${error}`)
         }
+    }
+    const confirmExportAction = () => {
+        setOpenExport(false)
+        console.log(exportFormat)
+        console.log(electionEventId)
+        download()
     }
 
     return (
-        <Dialog
-            variant="info"
-            open={openExport}
-            ok={t("common.label.export")}
-            cancel={t("common.label.cancel")}
-            title={t("common.label.exportFormat", {
-                item: t("logsScreen.title"),
-                format: exportFormat,
-            })}
-            handleClose={(result: boolean) => {
-                if (result) {
-                    confirmExportAction()
-                } else {
-                    setOpenExport(false)
-                    setExportDocumentId(undefined)
-                }
-            }}
-        >
-            <ElectionStyles.Container>
-                {t("common.export")}
-                {exportDocumentId ? (
-                    <>
-                        <FormStyles.ShowProgress sx={{alignSelf: "center"}} />
-                        <DownloadDocument
-                            documentId={exportDocumentId}
-                            electionEventId={electionEventId ?? ""}
-                            fileName={`election-event-logs-${electionEventId}-export.${exportFormat.toLowerCase()}`}
-                            onDownload={() => {
-                                console.log("onDownload called")
-                                setExportDocumentId(undefined)
-                                setOpenExport(false)
-                            }}
-                        />
-                    </>
-                ) : null}
-            </ElectionStyles.Container>
-        </Dialog>
+        <>
+            <Dialog
+                variant="info"
+                open={openExport}
+                ok={t("common.label.export")}
+                cancel={t("common.label.cancel")}
+                title={t("common.label.exportFormat", {
+                    item: t("logsScreen.title"),
+                    format: exportFormat,
+                })}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        confirmExportAction()
+                    } else {
+                        setOpenExport(false)
+                    }
+                }}
+            />
+            {exportDocumentId && (
+                <>
+                    <DownloadDocument
+                        documentId={exportDocumentId ?? ""}
+                        electionEventId={electionEventId}
+                        fileName={`election-event-logs-${electionEventId}-export.${exportFormat.toLowerCase()}`}
+                        onDownload={() => {
+                            console.log("onDownload called")
+                            setExportDocumentId(undefined)
+                        }}
+                        onSucess={() => {
+                            console.log("onDownloadSuccess")
+                        }}
+                    />
+                </>
+            )}
+        </>
     )
 }
 
@@ -138,12 +147,8 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
     filterValue,
     showActions = true,
 }) => {
-    const [tenantId] = useTenantStore()
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const {t} = useTranslation()
-    const location = useLocation()
-    const params = new URLSearchParams(location.search)
-    const user_id = params.get("user_id")
     const filters: Array<ReactElement> = []
 
     const getHeadField = (record: any, field: string) => {
@@ -165,6 +170,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
     const handleExportWithOptions = (format: ExportFormat) => {
         setExportFormat(format)
         setOpenExport(true)
+        setAnchorEl(null)
     }
 
     const filterObject: {[key: string]: any} = {
@@ -239,8 +245,8 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                     <TextField source="message" sx={{wordBreak: "break-word"}} />
                 </DatagridConfigurable>
             </List>
-            <ExportWrapper
-                electionEventId={record.id}
+            <ExportDialog
+                electionEventId={record.id ?? ""}
                 openExport={openExport}
                 setOpenExport={setOpenExport}
                 exportFormat={exportFormat}
