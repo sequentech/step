@@ -42,7 +42,7 @@ import {
     Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Tenant,
-	ManageElectionDatesMutation,
+    ManageElectionDatesMutation,
 } from "../../gql/graphql"
 
 import React, {useCallback, useContext, useEffect, useState} from "react"
@@ -71,9 +71,9 @@ import styled from "@emotion/styled"
 import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
-import { ManagedSelectInput } from "@/components/managed-inputs/ManagedSelectInput"
-import { ManagedNumberInput } from "@/components/managed-inputs/ManagedNumberInput"
-import { MANAGE_ELECTION_DATES } from "@/queries/ManageElectionDates"
+import {ManagedSelectInput} from "@/components/managed-inputs/ManagedSelectInput"
+import {ManagedNumberInput} from "@/components/managed-inputs/ManagedNumberInput"
+import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 
 const LangsWrapper = styled(Box)`
     margin-top: 46px;
@@ -110,10 +110,7 @@ export const ElectionDataForm: React.FC = () => {
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("election-data-general")
     const [languageSettings, setLanguageSettings] = useState<Array<string>>(["en"])
-	const [startDateValue, setStartDateValue] = useState<string | undefined>(undefined)
-	const [endDateValue, setEndDateValue] = useState<string | undefined>(undefined)
 
-	const [manageElectionDates] = useMutation<ManageElectionDatesMutation>(MANAGE_ELECTION_DATES)
     const {globalSettings} = useContext(SettingsContext)
 
     const {data} = useGetOne<Sequent_Backend_Election_Event>("sequent_backend_election_event", {
@@ -277,10 +274,6 @@ export const ElectionDataForm: React.FC = () => {
                 temp.presentation.grace_period_policy || EGracePeriodPolicy.NO_GRACE_PERIOD
             temp.presentation.grace_period_secs = temp.presentation.grace_period_secs || 0
 
-            if (!temp.dates?.end_date) {
-                temp.presentation.grace_period_policy = EGracePeriodPolicy.NO_GRACE_PERIOD
-                temp.presentation.grace_period_secs = 0
-            }
             return temp
         },
         [data, tenantData?.voting_channels]
@@ -478,16 +471,7 @@ export const ElectionDataForm: React.FC = () => {
                     languageSettings
                 )
 
-				const onSave = async () => {
-					// await manageElectionDates({
-					// 	variables: {
-					// 		electionEventId: parsedValue.election_event_id,
-					// 		electionId: parsedValue.id,
-					// 		start_date: startDateValue,
-					// 		end_date: endDateValue,
-					// 	},
-					// })
-				}
+                const onSave = async () => {}
 
                 return (
                     <SimpleForm
@@ -646,69 +630,6 @@ export const ElectionDataForm: React.FC = () => {
                             </AccordionDetails>
                         </Accordion>
 
-						<Accordion
-							sx={{ width: "100%" }}
-							expanded={expanded === "election-data-dates"}
-							onChange={() =>
-								setExpanded((prev) =>
-									prev === "election-data-dates" ? "" : "election-data-dates"
-								)
-							}
-						>
-							<AccordionSummary
-								expandIcon={<ExpandMoreIcon id="election-data-dates" />}
-							>
-								<ElectionStyles.Wrapper>
-									<ElectionStyles.Title>
-										{t("electionScreen.edit.dates")}
-									</ElectionStyles.Title>
-								</ElectionStyles.Wrapper>
-							</AccordionSummary>
-							<AccordionDetails>
-								<Typography
-									variant="body1"
-									component="span"
-									sx={{
-										fontWeight: "bold",
-										margin: 0,
-										display: { xs: "none", sm: "block" },
-									}}
-								>
-									{t("electionScreen.edit.votingPeriod")}
-								</Typography>
-								<Typography
-									variant="body1"
-									component="span"
-									sx={{
-										padding: "0.5rem 1rem",
-										fontWeight: "bold",
-										margin: 0,
-										display: { xs: "none", sm: "block" },
-									}}
-								>
-									{t("electionScreen.edit.gracePeriodPolicy")}
-								</Typography>
-								<ManagedSelectInput
-									source={`presentation.grace_period_policy`}
-									choices={gracePeriodPolicyChoices()}
-									label={t(`electionScreen.gracePeriodPolicy.label`)}
-									defaultValue={EGracePeriodPolicy.NO_GRACE_PERIOD}
-									sourceToWatch={"dates.end_date"}
-									isDisabled={(sourceToWatchStatus) => !sourceToWatchStatus}
-								/>
-								<ManagedNumberInput
-									source={"presentation.grace_period_secs"}
-									label={t("electionScreen.gracePeriodPolicy.gracePeriodSecs")}
-									defaultValue={0}
-									sourceToWatch="presentation.grace_period_policy"
-									isDisabled={(selectedPolicy: any) =>
-										selectedPolicy === EGracePeriodPolicy.NO_GRACE_PERIOD ||
-										endDateValue === undefined
-									}
-								/>
-							</AccordionDetails>
-						</Accordion>
-
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "election-data-image"}
@@ -790,6 +711,21 @@ export const ElectionDataForm: React.FC = () => {
                                     fileSource="configuration"
                                     jsonSource="presentation"
                                 />
+								<ManagedSelectInput
+									source={`presentation.grace_period_policy`}
+									choices={gracePeriodPolicyChoices()}
+									label={t(`electionScreen.gracePeriodPolicy.label`)}
+									defaultValue={EGracePeriodPolicy.NO_GRACE_PERIOD}
+								/>
+								<ManagedNumberInput
+									source={"presentation.grace_period_secs"}
+									label={t("electionScreen.gracePeriodPolicy.gracePeriodSecs")}
+									defaultValue={0}
+									sourceToWatch="presentation.grace_period_policy"
+									isDisabled={(selectedPolicy: any) =>
+										selectedPolicy === EGracePeriodPolicy.NO_GRACE_PERIOD
+									}
+								/>
                             </AccordionDetails>
                         </Accordion>
                     </SimpleForm>
