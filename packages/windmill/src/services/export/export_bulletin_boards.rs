@@ -22,8 +22,8 @@ use tracing::{event, info, instrument, Level};
 lazy_static! {
     //static ref HEADER_RE: Regex = Regex::new(r"^[a-zA-Z0-9._-]+$").unwrap();
 
-    /*static ref ELECTION_ID_COL_NAME = String::from("election_id");
-    static ref ID_COL_NAME = String::from("id");
+    pub static ref ELECTION_ID_COL_NAME = String::from("election_id");
+    /*static ref ID_COL_NAME = String::from("id");
     static ref CREATED_COL_NAME = "created".to_string();
     static ref SENDER_PK_COL_NAME = "sender_pk".to_string();
     static ref STATEMENT_TIMESTAMP_COL_NAME = "statement_timestamp".to_string();
