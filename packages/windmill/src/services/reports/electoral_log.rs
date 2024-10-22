@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
-use crate::postgres::reports::ReportType;
+use crate::postgres::reports::{Report, ReportType};
 use crate::services::database::PgConfig;
 use crate::services::documents::upload_and_return_document_postgres;
 use crate::services::electoral_log::{list_electoral_log, ElectoralLogRow, GetElectoralLogBody};
@@ -311,6 +311,7 @@ pub async fn generate_report(
     election_event_id: &str,
     document_id: &str,
     format: ReportFormat,
+    report: Option<Report>,
 ) -> Result<()> {
     let template = ActivityLogsTemplate {
         tenant_id: tenant_id.to_string(),
@@ -352,6 +353,7 @@ pub async fn generate_report(
                     /* receiver */ None,
                     /* pdf_options */ Some(pdf_options),
                     GenerateReportMode::REAL,
+                    report
                 )
                 .await
                 .with_context(|| "Error generating PDF report")

@@ -7,7 +7,7 @@ use super::report_variables::{
 use super::template_renderer::*;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::postgres::reports::ReportType;
+use crate::postgres::reports::{Report, ReportType};
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::database::get_hasura_pool;
 use crate::services::database::{get_keycloak_pool, PgConfig};
@@ -249,6 +249,7 @@ pub async fn generate_ovcs_informations_report(
     election_event_id: &str,
     election_id: &str,
     mode: GenerateReportMode,
+    report: Report,
 ) -> Result<()> {
     let template = OVCSInformaitionTemplate {
         tenant_id: tenant_id.to_string(),
@@ -264,6 +265,7 @@ pub async fn generate_ovcs_informations_report(
             None,
             None,
             mode,
+            Some(report),
         )
         .await
 }

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::postgres::reports::ReportType;
+use crate::postgres::reports::{Report, ReportType};
 use crate::services::database::get_hasura_pool;
 use crate::services::temp_path::*;
 use anyhow::{Context, Result};
@@ -133,6 +133,7 @@ pub async fn generate_overseas_voters_report(
     tenant_id: &str,
     election_event_id: &str,
     mode: GenerateReportMode,
+    report: Report,
 ) -> Result<()> {
     let template = OverseasVotersReport {
         tenant_id: tenant_id.to_string(),
@@ -147,6 +148,7 @@ pub async fn generate_overseas_voters_report(
             None,
             None,
             mode,
+            Some(report),
         )
         .await
 }

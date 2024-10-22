@@ -41,6 +41,7 @@ pub async fn generate_report(
     let tenant_id = report.tenant_id.clone();
     let election_event_id = report.election_event_id.clone();
     let report_type_str = report.report_type.clone();
+    let report_clone = report.clone();
     // Clone the election id if it exists
     let election_id = report.election_id.as_deref().unwrap_or("");
     // Create the template renderer based on the report type
@@ -51,6 +52,7 @@ pub async fn generate_report(
                 &tenant_id,
                 &election_event_id,
                 report_mode,
+                report_clone
             )
             .await
             .map_err(|err| anyhow!("{}", err))
@@ -62,6 +64,7 @@ pub async fn generate_report(
                 &election_event_id,
                 &election_id,
                 report_mode,
+                report_clone
             )
             .await
             .map_err(|err| anyhow!("{}", err))
@@ -73,6 +76,7 @@ pub async fn generate_report(
                 &election_event_id,
                 &election_id,
                 report_mode,
+                report_clone
             )
             .await
             .map_err(|err| anyhow!("{}", err))
@@ -84,6 +88,7 @@ pub async fn generate_report(
                 &election_event_id,
                 &election_id,
                 report_mode,
+                report_clone
             )
             .await
             .map_err(|err| anyhow!("{}", err))
@@ -94,6 +99,7 @@ pub async fn generate_report(
                 &tenant_id,
                 &election_event_id,
                 report_mode,
+                report_clone
             )
             .await
             .map_err(|err| anyhow!("{}", err))
@@ -104,6 +110,7 @@ pub async fn generate_report(
                 &tenant_id,
                 &election_event_id,
                 report_mode,
+                report_clone
             )
             .await
             .map_err(|err| anyhow!("{}", err))
@@ -114,6 +121,7 @@ pub async fn generate_report(
                 &tenant_id,
                 &election_event_id,
                 report_mode,
+                report_clone
             )
             .await
             .map_err(|err| anyhow!("{}", err))
@@ -124,6 +132,7 @@ pub async fn generate_report(
                 &tenant_id,
                 &election_event_id,
                 report_mode,
+                report_clone
             )
             .await
             .map_err(|err| anyhow!("{}", err))
@@ -134,6 +143,7 @@ pub async fn generate_report(
                 &tenant_id,
                 &election_event_id,
                 report_mode,
+                report_clone
             )
             .await
             .map_err(|err| anyhow!("{}", err))
@@ -144,6 +154,7 @@ pub async fn generate_report(
                 &tenant_id,
                 &election_event_id,
                 report_mode,
+                report_clone
             )
             .await
             .map_err(|err| anyhow!("{}", err))
@@ -154,6 +165,7 @@ pub async fn generate_report(
                 &tenant_id,
                 &election_event_id,
                 report_mode,
+                report_clone
             )
             .await
             .map_err(|err| anyhow!("{}", err))

@@ -93,6 +93,7 @@ pub async fn export_election_event_logs_route(
                 election_event_id,
                 document_id.clone(),
                 report_fmt,
+                None,
             ),
         )
         .await;

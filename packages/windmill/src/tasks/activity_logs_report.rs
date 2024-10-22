@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::{
+    postgres::reports::Report,
     services::reports::electoral_log::{generate_report, ReportFormat},
     types::error::Result,
 };
@@ -17,8 +18,10 @@ pub async fn generate_activity_logs_report(
     election_event_id: String,
     document_id: String,
     format: ReportFormat,
+    report: Option<Report>,
 ) -> Result<()> {
-    let _data = generate_report(&tenant_id, &election_event_id, &document_id, format).await?;
+    let _data =
+        generate_report(&tenant_id, &election_event_id, &document_id, format, report).await?;
 
     Ok(())
 }

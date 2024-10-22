@@ -3,17 +3,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::utils::{get_public_asset_template, ToMap};
-use crate::postgres::reports::{get_template_id_for_report, ReportType};
+use crate::postgres::reports::{get_template_id_for_report, Report, ReportType};
 use crate::postgres::{election_event, template};
+use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document;
 use crate::services::s3::get_minio_url;
 use crate::services::temp_path::write_into_named_temp_file;
+use crate::services::vault;
 use crate::tasks::send_template::{send_template_email, EmailSender};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Client as DbClient;
 use headless_chrome::types::PrintToPdfOptions;
+use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
 use sequent_core::services::{pdf, reports};
 use sequent_core::types::templates::EmailConfig;
@@ -28,6 +31,14 @@ use tracing::{info, instrument, warn};
 pub enum GenerateReportMode {
     PREVIEW,
     REAL,
+}
+
+#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
+pub enum EReportEncryption {
+    #[strum(serialize = "Unencrypted")]
+    UNENCRYPTED,
+    #[strum(serialize = "Configured Password")]
+    CONFIGURED_PASSWORD,
 }
 
 /// Trait that defines the behavior for rendering templates
@@ -207,6 +218,7 @@ pub trait TemplateRenderer: Debug {
         receiver: Option<String>,
         pdf_options: Option<PrintToPdfOptions>,
         generate_mode: GenerateReportMode,
+        report: Option<Report>,
     ) -> Result<()> {
         // Generate report in html
         let rendered_system_template = self
@@ -232,11 +244,30 @@ pub trait TemplateRenderer: Debug {
         )
         .map_err(|err| anyhow!("Error writing to file: {err:?}"))?;
 
+        let secret_key = format!(
+            "tenant-{}-event-{}-report_id-{}",
+            tenant_id,
+            election_event_id,
+            report.unwrap().id
+        );
+
+        let encryption_password = vault::read_secret(secret_key.clone()).await?;
+        deserialize_str(&secret_key).map_err(|err| anyhow::Error::new(err))?;
+
+        // Encrypt the file
+        let encrypted_temp_path = format!("{}.epdf", temp_path_string);
+        let encryption_password = encryption_password
+            .as_deref()
+            .ok_or_else(|| anyhow!("Encryption password not found"))?;
+
+        encrypt_file_aes_256_cbc(&temp_path_string, &encrypted_temp_path, encryption_password)
+            .map_err(|err| anyhow!("Error encrypting file: {err:?}"))?;
+
         let auth_headers = keycloak::get_client_credentials()
             .await
             .map_err(|err| anyhow!("Error getting client credentials: {err:?}"))?;
         let _document = upload_and_return_document(
-            temp_path_string,
+            encrypted_temp_path,
             file_size,
             format!("application/{}", extension_suffix),
             auth_headers.clone(),

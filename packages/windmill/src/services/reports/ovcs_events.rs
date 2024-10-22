@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
-use crate::postgres::reports::ReportType;
+use crate::postgres::reports::{Report, ReportType};
 use anyhow::{anyhow, Context, Ok, Result};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -126,6 +126,7 @@ pub async fn generate_ovcs_report(
     tenant_id: &str,
     election_event_id: &str,
     mode: GenerateReportMode,
+    report: Report,
 ) -> Result<()> {
     let template = OVCSEventsTemplate {
         tenant_id: tenant_id.to_string(),
@@ -140,6 +141,7 @@ pub async fn generate_ovcs_report(
             None,
             None,
             mode,
+            Some(report),
         )
         .await
 }

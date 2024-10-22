@@ -232,6 +232,12 @@ export type ElectoralLogRow = {
   user_id: Scalars['String']['output'];
 };
 
+export type EncryptReportOutput = {
+  __typename?: 'EncryptReportOutput';
+  document_id?: Maybe<Scalars['String']['output']>;
+  error_msg?: Maybe<Scalars['String']['output']>;
+};
+
 export type ExportBallotPublicationOutput = {
   __typename?: 'ExportBallotPublicationOutput';
   document_id: Scalars['String']['output'];
@@ -241,7 +247,7 @@ export type ExportBallotPublicationOutput = {
 export type ExportLogsOutput = {
   __typename?: 'ExportLogsOutput';
   document_id: Scalars['String']['output'];
-  task_id: Scalars['String']['output'];
+  task_execution?: Maybe<Tasks_Execution_Type>;
 };
 
 export type ExportOptions = {
@@ -966,6 +972,7 @@ export type Mutation_Root = {
   /** delete users */
   delete_users?: Maybe<DeleteUsersOutput>;
   edit_user: KeycloakUser;
+  encrypt_report?: Maybe<EncryptReportOutput>;
   export_ballot_publication?: Maybe<ExportBallotPublicationOutput>;
   export_election_event?: Maybe<DocumentTaskOutput>;
   export_election_event_logs?: Maybe<ExportLogsOutput>;
@@ -1921,6 +1928,14 @@ export type Mutation_RootDelete_UsersArgs = {
 /** mutation root */
 export type Mutation_RootEdit_UserArgs = {
   body: EditUsersInput;
+};
+
+
+/** mutation root */
+export type Mutation_RootEncrypt_ReportArgs = {
+  election_event_id: Scalars['String']['input'];
+  password: Scalars['String']['input'];
+  report_id?: InputMaybe<Scalars['String']['input']>;
 };
 
 
@@ -10792,6 +10807,7 @@ export type Sequent_Backend_Report = {
   cron_config?: Maybe<Scalars['jsonb']['output']>;
   election_event_id: Scalars['uuid']['output'];
   election_id?: Maybe<Scalars['uuid']['output']>;
+  encryption_policy: Scalars['String']['output'];
   id: Scalars['uuid']['output'];
   report_type: Scalars['String']['output'];
   template_id?: Maybe<Scalars['String']['output']>;
@@ -10840,6 +10856,7 @@ export type Sequent_Backend_Report_Bool_Exp = {
   cron_config?: InputMaybe<Jsonb_Comparison_Exp>;
   election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
   election_id?: InputMaybe<Uuid_Comparison_Exp>;
+  encryption_policy?: InputMaybe<String_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
   report_type?: InputMaybe<String_Comparison_Exp>;
   template_id?: InputMaybe<String_Comparison_Exp>;
@@ -10873,6 +10890,7 @@ export type Sequent_Backend_Report_Insert_Input = {
   cron_config?: InputMaybe<Scalars['jsonb']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   election_id?: InputMaybe<Scalars['uuid']['input']>;
+  encryption_policy?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   report_type?: InputMaybe<Scalars['String']['input']>;
   template_id?: InputMaybe<Scalars['String']['input']>;
@@ -10885,6 +10903,7 @@ export type Sequent_Backend_Report_Max_Fields = {
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   election_event_id?: Maybe<Scalars['uuid']['output']>;
   election_id?: Maybe<Scalars['uuid']['output']>;
+  encryption_policy?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   report_type?: Maybe<Scalars['String']['output']>;
   template_id?: Maybe<Scalars['String']['output']>;
@@ -10897,6 +10916,7 @@ export type Sequent_Backend_Report_Min_Fields = {
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   election_event_id?: Maybe<Scalars['uuid']['output']>;
   election_id?: Maybe<Scalars['uuid']['output']>;
+  encryption_policy?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   report_type?: Maybe<Scalars['String']['output']>;
   template_id?: Maybe<Scalars['String']['output']>;
@@ -10925,6 +10945,7 @@ export type Sequent_Backend_Report_Order_By = {
   cron_config?: InputMaybe<Order_By>;
   election_event_id?: InputMaybe<Order_By>;
   election_id?: InputMaybe<Order_By>;
+  encryption_policy?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   report_type?: InputMaybe<Order_By>;
   template_id?: InputMaybe<Order_By>;
@@ -10952,6 +10973,8 @@ export enum Sequent_Backend_Report_Select_Column {
   /** column name */
   ElectionId = 'election_id',
   /** column name */
+  EncryptionPolicy = 'encryption_policy',
+  /** column name */
   Id = 'id',
   /** column name */
   ReportType = 'report_type',
@@ -10967,6 +10990,7 @@ export type Sequent_Backend_Report_Set_Input = {
   cron_config?: InputMaybe<Scalars['jsonb']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   election_id?: InputMaybe<Scalars['uuid']['input']>;
+  encryption_policy?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   report_type?: InputMaybe<Scalars['String']['input']>;
   template_id?: InputMaybe<Scalars['String']['input']>;
@@ -10987,6 +11011,7 @@ export type Sequent_Backend_Report_Stream_Cursor_Value_Input = {
   cron_config?: InputMaybe<Scalars['jsonb']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   election_id?: InputMaybe<Scalars['uuid']['input']>;
+  encryption_policy?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   report_type?: InputMaybe<Scalars['String']['input']>;
   template_id?: InputMaybe<Scalars['String']['input']>;
@@ -11003,6 +11028,8 @@ export enum Sequent_Backend_Report_Update_Column {
   ElectionEventId = 'election_event_id',
   /** column name */
   ElectionId = 'election_id',
+  /** column name */
+  EncryptionPolicy = 'encryption_policy',
   /** column name */
   Id = 'id',
   /** column name */

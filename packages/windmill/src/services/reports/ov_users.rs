@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
-use crate::postgres::reports::ReportType;
+use crate::postgres::reports::{Report, ReportType};
 use crate::services::database::get_hasura_pool;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
@@ -196,6 +196,7 @@ pub async fn generate_ov_users_report(
     tenant_id: &str,
     election_event_id: &str,
     mode: GenerateReportMode,
+    report: Report,
 ) -> Result<()> {
     let template = OVUserTemplate {
         tenant_id: tenant_id.to_string(),
@@ -210,6 +211,7 @@ pub async fn generate_ov_users_report(
             None,
             None,
             mode,
+            Some(report),
         )
         .await
 }

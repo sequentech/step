@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::postgres::reports::Report;
 use crate::services::reports::manual_verification;
 use crate::types::error::Error;
 use crate::types::error::Result;
@@ -17,6 +18,7 @@ pub async fn generate_manual_verification_report(
     tenant_id: String,
     election_event_id: String,
     voter_id: String,
+    report: Option<Report>,
 ) -> Result<()> {
     // Spawn the task using an async block
     let handle = tokio::task::spawn_blocking({
@@ -27,6 +29,7 @@ pub async fn generate_manual_verification_report(
                     &tenant_id,
                     &election_event_id,
                     &voter_id,
+                    report.ok_or_else(|| anyhow!("Report is required"))?,
                 )
                 .await
                 .map_err(|err| anyhow!("{}", err))

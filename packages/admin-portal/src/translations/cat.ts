@@ -721,6 +721,8 @@ const catalanTranslation: TranslationType = {
                 createError: "Error en crear l'informe",
                 submitError: "Error en enviar l'Informe",
                 updateSuccess: "Informe actualitzat amb èxit",
+                passwordMismatch:
+                    "La contrasenya i la confirmació no coincideixen. Assegura't que tots dos camps continguin la mateixa contrasenya.",
             },
             reportType: {
                 BALLOT_RECEIPT: "Rebut de la Papereta",
@@ -741,6 +743,11 @@ const catalanTranslation: TranslationType = {
                     "Llista de Votants a l'Estranger Preinscrits però Desaprovats",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Llista de Votants a l'Estranger Preinscrits però Sotmesos a Validació Manual",
+            },
+            reportEncryptionPolicy: {
+                title: "Política de xifrat",
+                UNENCRYPTED: "Sense xifrar",
+                CONFIGURED_PASSWORD: "Contrasenya configurada",
             },
             empty: {
                 header: "Encara no hi ha informes.",

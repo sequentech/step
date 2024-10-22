@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
 use crate::services::temp_path::*;
-use crate::{postgres::reports::ReportType, services::s3::get_minio_url};
+use crate::{postgres::reports::{Report, ReportType}, services::s3::get_minio_url};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use sequent_core::types::templates::EmailConfig;
@@ -126,6 +126,7 @@ pub async fn generate_manual_verification_report(
     tenant_id: &str,
     election_event_id: &str,
     voter_id: &str,
+    report: Report,
 ) -> Result<()> {
     let template = ManualVerificationTemplate {
         tenant_id: tenant_id.to_string(),
@@ -141,6 +142,7 @@ pub async fn generate_manual_verification_report(
             None,
             None,
             GenerateReportMode::REAL,
+            Some(report),
         )
         .await
 }

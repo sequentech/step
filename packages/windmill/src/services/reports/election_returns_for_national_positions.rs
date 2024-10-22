@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
-use crate::postgres::reports::ReportType;
+use crate::postgres::reports::{Report, ReportType};
 use crate::services::database::get_hasura_pool;
 use crate::services::temp_path::*;
 use crate::{postgres::election_event::get_election_event_by_id, services::s3::get_minio_url};
@@ -200,6 +200,7 @@ pub async fn generate_election_returns_for_national_positions_report(
     tenant_id: &str,
     election_event_id: &str,
     mode: GenerateReportMode,
+    report: Report,
 ) -> Result<()> {
     let template = ElectionReturnsForNationalPostionTemplate {
         tenant_id: tenant_id.to_string(),
@@ -214,6 +215,7 @@ pub async fn generate_election_returns_for_national_positions_report(
             None,
             None,
             mode,
+            Some(report),
         )
         .await
 }

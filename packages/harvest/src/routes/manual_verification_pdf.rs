@@ -53,6 +53,7 @@ pub async fn get_manual_verification_pdf(
                 input.tenant_id,
                 input.election_event_id,
                 input.voter_id,
+                None,
             ),
         )
         .await

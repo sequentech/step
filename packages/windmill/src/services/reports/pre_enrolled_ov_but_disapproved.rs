@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
-use crate::postgres::reports::ReportType;
+use crate::postgres::reports::{Report, ReportType};
 use crate::services::database::get_hasura_pool;
 use crate::services::s3::get_minio_url;
 use crate::services::temp_path::*;
@@ -118,6 +118,7 @@ pub async fn generate_pre_enrolled_ov_but_disapproved_report(
     tenant_id: &str,
     election_event_id: &str,
     mode: GenerateReportMode,
+    report: Report,
 ) -> Result<()> {
     let template = PreEnrolledDisapprovedTemplate {
         tenant_id: tenant_id.to_string(),
@@ -132,6 +133,7 @@ pub async fn generate_pre_enrolled_ov_but_disapproved_report(
             None,
             None,
             mode,
+            Some(report)
         )
         .await
 }

@@ -723,6 +723,8 @@ const frenchTranslation: TranslationType = {
                 createError: "Erreur lors de la création du rapport",
                 submitError: "Erreur lors de la soumission du Rapport",
                 updateSuccess: "Rapport mis à jour avec succès",
+                passwordMismatch:
+                    "Le mot de passe et la confirmation ne correspondent pas. Veuillez vous assurer que les deux champs contiennent le même mot de passe.",
             },
             reportType: {
                 BALLOT_RECEIPT: "Reçu de Bulletin",
@@ -743,6 +745,11 @@ const frenchTranslation: TranslationType = {
                     "Liste des Électeurs Résidant à l'Étranger Pré-inscrits mais Refusés",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Liste des Électeurs Résidant à l'Étranger Pré-inscrits mais Soumis à Validation Manuelle",
+            },
+            reportEncryptionPolicy: {
+                title: "Politique de chiffrement",
+                UNENCRYPTED: "Non chiffré",
+                CONFIGURED_PASSWORD: "Mot de passe configuré",
             },
             empty: {
                 header: "Pas encore de rapports.",

@@ -720,6 +720,8 @@ const spanishTranslation: TranslationType = {
                 createError: "Error al crear el informe",
                 submitError: "Error al enviar el Informe",
                 updateSuccess: "Informe actualizado con éxito",
+                passwordMismatch:
+                    "Las contraseñas no coinciden. Asegúrate de que ambos campos contengan la misma contraseña.",
             },
             reportType: {
                 BALLOT_RECEIPT: "Recibo de Voto",
@@ -740,6 +742,11 @@ const spanishTranslation: TranslationType = {
                     "Lista de Votantes en el Extranjero que se Preinscribieron pero Fueron Rechazados",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Lista de Votantes en el Extranjero que se Preinscribieron pero Requieren Validación Manual",
+            },
+            reportEncryptionPolicy: {
+                title: "Política de cifrado",
+                UNENCRYPTED: "Sin cifrar",
+                CONFIGURED_PASSWORD: "Contraseña configurada",
             },
             empty: {
                 header: "No hay informes todavía.",

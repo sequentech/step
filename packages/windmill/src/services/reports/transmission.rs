@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
-use crate::postgres::reports::ReportType;
+use crate::postgres::reports::{Report, ReportType};
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id_and_event_processor;
 use crate::services::database::get_hasura_pool;
 use crate::services::temp_path::*;
@@ -193,6 +193,7 @@ pub async fn generate_transmission_report(
     election_event_id: &str,
     election_id: &str,
     mode: GenerateReportMode,
+    report: Report,
 ) -> Result<()> {
     let template = TransmissionReport {
         tenant_id: tenant_id.to_string(),
@@ -207,6 +208,7 @@ pub async fn generate_transmission_report(
             None,
             None,
             mode,
+            Some(report),
         )
         .await
 }

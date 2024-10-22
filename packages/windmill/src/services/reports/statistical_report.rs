@@ -10,7 +10,7 @@ use super::report_variables::{
 };
 use super::template_renderer::*;
 use crate::postgres::election::get_election_by_id;
-use crate::postgres::reports::ReportType;
+use crate::postgres::reports::{Report, ReportType};
 use crate::postgres::results_area_contest::ResultsAreaContest;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use anyhow::{anyhow, Context, Result};
@@ -239,6 +239,7 @@ pub async fn generate_statistical_report(
     tenant_id: &str,
     election_event_id: &str,
     election_id: &str,
+    report: Report,
 ) -> Result<()> {
     let template = StatisticalReportTemplate {
         tenant_id: tenant_id.to_string(),
@@ -254,6 +255,7 @@ pub async fn generate_statistical_report(
             None,
             None,
             GenerateReportMode::REAL,
+            Some(report),
         )
         .await
 }
