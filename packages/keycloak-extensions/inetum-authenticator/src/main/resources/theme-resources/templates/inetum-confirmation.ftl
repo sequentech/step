@@ -6,13 +6,13 @@
         <@layout.registrationLayout displayMessage=false; section>
             <#if section="form">
                 <h3>${msg("ConfirmationTitle")}</h3>
-                <#list storedAttributes as key, value>
+                <#list storedAttributes as attribute>
                     <div class="${properties.kcFormGroupClass!}">
-                        <label for="${key}" class="${properties.kcLabelClass!}">
+                        <label for="${attribute.key}" class="${properties.kcLabelClass!}">
                             ${msg(key)}
                         </label>
-                        <input tabindex="1" id="${key}" class="${properties.kcInputClass!}" name="${key}" type="text" autofocus autocomplete="off"
-                            value="${value}" disabled />
+                        <input tabindex="1" id="${attribute.key}" class="${properties.kcInputClass!}" name="${attribute.key}" type="${attribute.type}" autofocus autocomplete="off"
+                            value="${attribute.value}" disabled />
                     </div>
                 </#list>
                 <form action="${actionUrl}" method="post">

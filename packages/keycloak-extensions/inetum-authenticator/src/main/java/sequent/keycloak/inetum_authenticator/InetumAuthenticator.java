@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.text.Collator;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +48,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
   private static final String EQUAL_VALUE = "equalValue";
   private static final String EQUAL_DATE = "equalDateAuthnoteAttributeId";
   private static final String VALUE_DATE_FORMAT = "valueDateFormat";
+  private static final String STORE_DATE_FORMAT = "storeDateFormat";
   private static final String INETUM_DATE_FORMAT = "inetumDateFormat";
   private static final String EXPIRED_DATE = "isBeforeDateValue";
   private static final String NOW = "now";
@@ -380,7 +382,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       return;
     }
 
-    Map<String, String> storedAttributes;
+    List<Map<String, String>> storedAttributes;
     try {
       storedAttributes = storeAttributes(context, result);
     } catch (InetumException exception) {
@@ -427,11 +429,11 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     context.success();
   }
 
-  private Map<String, String> storeAttributes(
+  private List<Map<String, String>> storeAttributes(
       AuthenticationFlowContext context, SimpleHttp.Response response) throws InetumException {
     log.info("storeAttributes: start");
 
-    Map<String, String> storedAttributes = new HashMap<>();
+    List<Map<String, String>> storedAttributes = new ArrayList<>();
 
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
     Map<String, String> configMap = config.getConfig();
@@ -456,9 +458,23 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
       if (attributesToCheck != null) {
         for (JsonNode attributeToStore : attributesToCheck) {
+          String storedValue;
+          HashMap<String,String> attributeMap = new HashMap<>();
+
           // Get inetum path from config
           String inetumField = attributeToStore.get(INETUM_ATTRIBUTE_PATH).asText();
           log.infov("storeAttributes: inetumField {0}", inetumField);
+
+          String attribute = attributeToStore.get(USER_ATTRIBUTE).asText();
+          log.infov("storeAttributes: attribute {0}", attribute);
+
+          String type = attributeToStore.get(VALIDATION_ATTRIBUTE_TYPE).asText();
+          log.infov("storeAttributes: type {0}", type);
+
+          if (type == null || type.isBlank()) {
+            log.errorv("storeAttributes: could not find attribute type {0}", attributeToStore);
+            throw new InetumException(Utils.FTL_ERROR_AUTH_INVALID);
+          }
 
           // Get OCR value from response
           String inetumValue = getValueFromInetumResponse(response, inetumField);
@@ -469,12 +485,33 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
             throw new InetumException(Utils.FTL_ERROR_AUTH_INVALID);
           }
 
-          String attribute = attributeToStore.get(USER_ATTRIBUTE).asText();
-          log.infov("storeAttributes: attribute {0}", attribute);
+          switch (type) {
+            case "text":
+              storedValue = inetumValue;
+              break;
 
-          sessionModel.setAuthNote(attribute, inetumValue);
+            case "date":
+              LocalDate inetumDate = getDate(attributeToStore, INETUM_DATE_FORMAT, inetumValue);
+              log.infov("storeAttributes: inetumDate {0}", inetumDate);
 
-          storedAttributes.put(attribute, inetumValue);
+              String storeDateFormat = attributeToStore.get(STORE_DATE_FORMAT).asText();
+              log.infov("storeAttributes: storeDateFormat {0}", type);
+
+              DateTimeFormatter valueFormat = DateTimeFormatter.ofPattern(storeDateFormat);
+              storedValue = inetumDate.format(valueFormat);
+              break;
+
+            default:
+              storedValue = inetumValue;
+              break;
+          }
+
+          sessionModel.setAuthNote(attribute, storedValue);
+          attributeMap.put("key", attribute);
+          attributeMap.put("value", storedValue);
+          attributeMap.put("type", type);
+
+          storedAttributes.add(attributeMap);
         }
       } else {
         log.info("storeAttributes: Empty configuration provided. No attributes checked.");
@@ -832,13 +869,13 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
   private LocalDate getDate(JsonNode attributeToCheck, String format, String dateValue) {
     String valuePattern = attributeToCheck.get(format).asText();
-    log.infov("equalDate: valuePattern {0}", valuePattern);
+    log.infov("getDate: valuePattern {0}", valuePattern);
     if (valuePattern == null || valuePattern.isBlank()) {
       valuePattern = Utils.FTL_ERROR_AUTH_INVALID;
     }
     DateTimeFormatter valueFormat = DateTimeFormatter.ofPattern(valuePattern);
     LocalDate valueDate = LocalDate.parse(dateValue, valueFormat);
-    log.infov("equalDate: valueDate {0}", valueDate);
+    log.infov("getDate: valueDate {0}", valueDate);
 
     return valueDate;
   }
@@ -1061,23 +1098,34 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
                     "PhilSys ID": [
                         {
                             "UserAttribute": "firstName",
-                            "inetumAttributePath": "/response/mrz/given_names"
+                            "inetumAttributePath": "/response/mrz/given_names",
+                            "type": "text"
                         },
                         {
                             "UserAttribute": "lastName",
-                            "inetumAttributePath": "/response/mrz/surname"
+                            "inetumAttributePath": "/response/mrz/surname",
+                            "type": "text"
+                        },
+                        {
+                            "UserAttribute": "dateOfBirth",
+                            "inetumAttributePath": "/response/mrz/date_of_birth",
+                            "type": "date",
+                            "storeDateFormat": "yyyy-MM-dd",
+                            "inetumDateFormat": "dd/MM/yyyy"
                         }
                     ],
                     "Seaman Book": [
                         {
                             "UserAttribute": "sequent.read-only.id-card-number",
-                            "inetumAttributePath": "/response/mrz/personal_number"
+                            "inetumAttributePath": "/response/mrz/personal_number",
+                            "type": "text"
                         }
                     ],
                     "Philippine Passport": [
                         {
                             "UserAttribute": "sequent.read-only.id-card-number",
-                            "inetumAttributePath": "/response/mrz/personal_number"
+                            "inetumAttributePath": "/response/mrz/personal_number",
+                            "type": "text"
                         }
                     ]
                 }
