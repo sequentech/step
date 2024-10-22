@@ -1270,6 +1270,9 @@ const spanishTranslation: TranslationType = {
             preview: {
                 publicationAreas: "Selecciona el área para la vista previa",
                 action: "Vista previa",
+                copy: "Copiar enlace",
+                copy_success: "Se copió correctamente el enlace de vista previa",
+                copy_error: "No se pudo copiar el enlace de vista previa",
                 success: "Éxito al abrir la vista previa",
             },
             header: {
@@ -1308,6 +1311,7 @@ const spanishTranslation: TranslationType = {
                 error: "Error al cargar las papeletas publicadas",
                 error_publish: "Error al publicar la papeleta",
                 error_status: "Error al cambiar el estado de la publicación",
+                error_preview: "Error al obtener la vista previa de la publicación",
                 diff: "Renderizar todos los cambios podría hacer que la página no responda. ¿Estás seguro de que quieres continuar?",
                 confirmation:
                     "La acción que estás a punto de realizar es sensible y requiere confirmación. Por favor, introduce tu contraseña para continuar con {{action}}.",

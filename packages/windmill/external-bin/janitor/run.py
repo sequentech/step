@@ -397,7 +397,7 @@ def get_data():
 FROM 
     pop 
 JOIN 
-    allbgy ON (pop.PROV_CODE || pop.MUN_CODE || pop.BRGY_CODE) = allbgy.ID_BARANGAY 
+    allbgy ON pop.CLUSTERPOLLCENTER = allbgy.ID_BARANGAY 
 LEFT JOIN 
     allmun ON (pop.PROV_CODE || pop.MUN_CODE) = allmun.ID_CITY
 LEFT JOIN 
@@ -565,7 +565,16 @@ def gen_tree(excel_data, results):
                 "miru_candidate_affiliation_registered_name": row["DB_CANDIDATE_NOMINATEDBY"] if row["DB_CANDIDATE_NOMINATEDBY"] else "NULL",
             }
         }
-        contest["candidates"].append(candidate)
+        found_candidate = next((
+            c for c in contest["candidates"]
+            if c["code"] == candidate["code"] and
+            c["name_on_ballot"] == candidate["name_on_ballot"] and
+            c["nominated_by"] == candidate["nominated_by"] and
+            c["party_name"] == candidate["party_name"]),
+        None)
+
+        if found_candidate is None:
+            contest["candidates"].append(candidate)
 
         # Add the area to the contest if it hasn't been added already
         area_name = row["DB_ALLMUN_AREA_NAME"]

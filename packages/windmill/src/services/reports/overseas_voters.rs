@@ -17,27 +17,12 @@ use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct UserData {}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Voter {
-    pub number: u32,
-    pub last_name: String,
-    pub first_name: String,
-    pub middle_name: String,
-    pub suffix: String,
-    pub status: String,
-    pub date_voted: String,
-    pub time_voted: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct SystemData {
+pub struct UserData {
     pub date_printed: String,
-    pub time_printed: String,
     pub election_date: String,
     pub election_title: String,
-    pub voting_period: String,
+    pub voting_period_start: String,
+    pub voting_period_end: String,
     pub post: String,
     pub country: String,
     pub voters: Vec<Voter>,       // Voter list field
@@ -47,8 +32,6 @@ pub struct SystemData {
     pub eb_voted: u32,            // Election board voted count
     pub ov_total: u32,            // Total overseas voters
     pub precinct_code: String,
-    pub goverment_time: String,
-    pub local_time: String,
     pub chairperson_name: String,
     pub chairperson_digital_signature: String,
     pub poll_clerk_name: String,
@@ -60,6 +43,23 @@ pub struct SystemData {
     pub ovcs_version: String,
     pub system_hash: String,
     pub qr_code: String, // Single QR code field
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Voter {
+    pub number: u32,
+    pub last_name: String,
+    pub first_name: String,
+    pub middle_name: String,
+    pub suffix: String,
+    pub status: String,
+    pub date_voted: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SystemData {
+    pub rendered_user_template: String,
+    pub file_qrcode_lib: String,
 }
 
 /// Main struct for generating Overseas Voters Report
@@ -102,13 +102,27 @@ impl TemplateRenderer for OverseasVotersReport {
         }
     }
 
+    #[instrument]
+    async fn prepare_user_data(&self) -> Result<Self::UserData> {
+        let data: UserData = self
+            .prepare_preview_data()
+            .await
+            .map_err(|e| anyhow::anyhow!(format!("Error preparing report preview {e:?}")))?;
+        // TODO: Prepare the actual data intead of the preview.
+        Ok(data)
+    }
+
     /// Prepare system metadata for the report
+    #[instrument]
     async fn prepare_system_data(
         &self,
-        _rendered_user_template: String,
+        rendered_user_template: String,
     ) -> Result<Self::SystemData> {
-        let data: SystemData = self.prepare_preview_data().await?;
-        Ok(data)
+        let temp_val: &str = "test";
+        Ok(SystemData {
+            rendered_user_template,
+            file_qrcode_lib: temp_val.to_string(),
+        })
     }
 }
 
