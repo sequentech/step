@@ -14,7 +14,7 @@
       "suffix": "",
       "id": "LA123456",
       "reason": "ID verification needed",
-      "date_pre_enrolled": "2024-04-12T00:00:00"
+      "date_pre_enrolled": "2024-04-12T00:00:00-04:00"
     },
     {
       "number": 2,
@@ -24,7 +24,7 @@
       "suffix": "",
       "id": "LA123457",
       "reason": "Address mismatch",
-      "date_pre_enrolled": "2024-04-13T00:00:00"
+      "date_pre_enrolled": "2024-04-13T00:00:00-04:00"
     },
     {
       "number": 3,
@@ -34,7 +34,7 @@
       "suffix": "",
       "id": "LA123458",
       "reason": "Incomplete documents",
-      "date_pre_enrolled": "2024-04-14T00:00:00"
+      "date_pre_enrolled": "2024-04-14T00:00:00-04:00"
     },
     {
       "number": 4,
@@ -44,7 +44,7 @@
       "suffix": "",
       "id": "LA123459",
       "reason": "Pending background check",
-      "date_pre_enrolled": "2024-04-15T00:00:00"
+      "date_pre_enrolled": "2024-04-15T00:00:00-04:00"
     },
     {
       "number": 5,
@@ -54,7 +54,7 @@
       "suffix": "",
       "id": "LA123460",
       "reason": "Double registration",
-      "date_pre_enrolled": "2024-04-16T00:00:00"
+      "date_pre_enrolled": "2024-04-16T00:00:00-04:00"
     }
   ],
   "report_hash": "x1y2z3a4",

@@ -66,6 +66,9 @@ pub struct AuditLogEntry {
 pub struct SystemData {
     pub rendered_user_template: String,
 }
+
+// TODO: this is per election but the logs are actually at the election event
+// level
 #[derive(Debug)]
 pub struct AuditLogsTemplate {
     tenant_id: String,
@@ -163,6 +166,8 @@ impl TemplateRenderer for AuditLogsTemplate {
         };
 
         // Fetch election's voting periods
+        // TODO: we should decide if this is the actual start time, or the 
+        // scheduled time
         let voting_period_dates = generate_voting_period_dates(
             start_election_event,
             &self.get_tenant_id(),
