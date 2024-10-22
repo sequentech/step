@@ -43,7 +43,7 @@ pub struct Report {
     pub tenant_id: String,
     pub election_id: Option<String>,
     pub report_type: String,
-    pub template_id: Option<String>,
+    pub template_alias: Option<String>,
     pub cron_config: Option<ReportCronConfig>,
     pub created_at: DateTime<Utc>,
 }
@@ -93,7 +93,7 @@ impl TryFrom<Row> for ReportWrapper {
                 .try_get::<_, Option<Uuid>>("election_id")?
                 .map(|val| val.to_string()),
             report_type: item.get("report_type"),
-            template_id: item.get("template_id"),
+            template_alias: item.get("template_alias"),
             cron_config: cron_config,
             created_at: item.get("created_at"),
         }))
@@ -223,7 +223,7 @@ pub async fn get_template_id_for_report(
     let statement = hasura_transaction
         .prepare(
             r#"
-            SELECT template_id
+            SELECT template_alias
             FROM "sequent_backend".report
             WHERE tenant_id = $1
               AND election_event_id = $2
@@ -248,8 +248,8 @@ pub async fn get_template_id_for_report(
         .map_err(|err| anyhow!("Error executing query: {err}"))?;
 
     if let Some(row) = rows.get(0) {
-        let template_id: Option<String> = row.get("template_id");
-        Ok(template_id)
+        let template_alias: Option<String> = row.get("template_alias");
+        Ok(template_alias)
     } else {
         Ok(None)
     }
@@ -310,7 +310,7 @@ pub async fn insert_reports(
         .prepare(
             r#"
             INSERT INTO "sequent_backend".report (
-                id, election_event_id, tenant_id, election_id, report_type, template_id, cron_config, created_at
+                id, election_event_id, tenant_id, election_id, report_type, template_alias, cron_config, created_at
             ) VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8
             )
@@ -332,7 +332,7 @@ pub async fn insert_reports(
                         .map(|id| Uuid::parse_str(id))
                         .transpose()?,
                     &report.report_type,
-                    &report.template_id,
+                    &report.template_alias,
                     &serde_json::to_value(&report.cron_config)?,
                     &report.created_at,
                 ],

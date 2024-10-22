@@ -15,7 +15,6 @@ import {
     SimpleForm,
     TextInput,
     Toolbar,
-    useDataProvider,
     useGetOne,
     useNotify,
 } from "react-admin"
@@ -49,13 +48,11 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
 }) => {
     const [reportType, setReportType] = useState<EReportType | undefined>(undefined)
     const [electionId, setElectionId] = useState<string | null | undefined>(undefined)
-    const [templateId, setTemplateId] = useState<string | null | undefined>(undefined)
     const [templateAlias, setTemplateAlias] = useState<string | null | undefined>(undefined)
 
     const [createReport] = useMutation(CREATE_REPORT)
     const [updateReport] = useMutation(UPDATE_REPORT)
     const [isCronActive, setIsCronActive] = useState<boolean>(false)
-    const dataProvider = useDataProvider()
     const handleReportTypeChange = (event: any) => {
         setReportType(event.target.value)
     }
@@ -86,7 +83,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
 
     useEffect(() => {
         if (report) {
-            setTemplateAlias(report.template_alias) // Ensure template_alias from report is set
+            setTemplateAlias(report.template_alias) 
         }
     }, [report])
 
@@ -110,7 +107,6 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
             }
         }
 
-        console.log("templateAlias", templateAlias)
         const formData: Partial<Sequent_Backend_Report> = {
             ...values,
             template_alias: templateAlias as string,
@@ -125,7 +121,6 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
 
         try {
             if (isEditReport && reportId && formData) {
-                console.log('formData', formData)
                 await updateReport({
                     variables: {
                         id: reportId,
@@ -155,11 +150,9 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
     }
 
     const isValidCron = (cron: string) => {
-        console.log("cron", cron)
         const cronRegex =
             /^(\*|([0-5]?\d)|\*\/([0-5]?\d)) (\*|([0-5]?\d)|\*\/([0-5]?\d)) (\*|([01]?\d|2[0-3])|\*\/([01]?\d|2[0-3])) (\*|([1-9]|[12]\d|3[01])|\*\/([1-9]|[12]\d|3[01])) (\*|(0?[1-9]|1[0-2])|\*\/(0?[1-9]|1[0-2])) (\*|([0-6])|\*\/([0-6]))$/
         const isValid = cronRegex.test(cron)
-        console.log("isValid", isValid)
         return isValid
     }
 
