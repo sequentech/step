@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2024 Félix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 import React, { useEffect } from "react";
 import { SxProps } from "@mui/material";
 import { AutocompleteInput, useDataProvider, useGetList, required } from "react-admin";
