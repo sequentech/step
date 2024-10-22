@@ -19,7 +19,7 @@
                               font-size: 10px;
                             "
                           >
-                            <p>{{format_date date_printed "%B %d, %Y"}}{{time_printed}}</p>
+                            <p>{{datetime from_rfc3339=date_printed output_format="%B %d, %Y %H:%M"}}</p>
                           </div>
                         </td>
                         <td align="right">
