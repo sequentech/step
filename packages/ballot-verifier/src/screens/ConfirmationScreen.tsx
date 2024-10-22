@@ -235,8 +235,8 @@ const isMatchingBallotIds = (
 }
 
 const ballotMatchVariantType = (
-    confirmationBallotId: String | undefined,
-    ballotId: String
+    confirmationBallotId: string | undefined,
+    ballotId: string
 ): VariantType => {
     return isMatchingBallotIds(confirmationBallotId, ballotId)
         ? VariantType.Info
@@ -477,7 +477,6 @@ export const ConfirmationScreen: React.FC<IProps> = ({
     ballotService,
     ballotId,
 }) => {
-    const {t} = useTranslation()
     const navigate = useNavigate()
     const [isLoading, setIsLoading] = useState(confirmationBallot === null)
 
