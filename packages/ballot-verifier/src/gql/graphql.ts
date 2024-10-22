@@ -2008,7 +2008,7 @@ export type Mutation_RootGet_UserArgs = {
 
 /** mutation root */
 export type Mutation_RootGet_User_TemplateArgs = {
-    template_name: Scalars["String"]["input"]
+    template_type: Scalars["String"]["input"]
 }
 
 /** mutation root */

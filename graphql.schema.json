@@ -10988,7 +10988,7 @@
             "description": null,
             "args": [
               {
-                "name": "template_name",
+                "name": "template_type",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",

@@ -1,225 +1,225 @@
 table:
-  name: document
-  schema: sequent_backend
+    name: document
+    schema: sequent_backend
 insert_permissions:
-- comment: ""
-  permission:
-    check:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-    columns:
-    - annotations
-    - created_at
-    - election_event_id
-    - id
-    - is_public
-    - labels
-    - last_updated_at
-    - media_type
-    - name
-    - size
-    - tenant_id
-  role: admin-user
-- comment: ""
-  permission:
-    check:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-    columns:
-    - is_public
-    - media_type
-    - name
-    - size
-    - annotations
-    - labels
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - id
-    - tenant_id
-  role: document-write
-- comment: ""
-  permission:
-    check: {}
-    columns:
-    - annotations
-    - created_at
-    - election_event_id
-    - id
-    - is_public
-    - labels
-    - last_updated_at
-    - media_type
-    - name
-    - size
-    - tenant_id
-  role: service-account
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - annotations
+              - created_at
+              - election_event_id
+              - id
+              - is_public
+              - labels
+              - last_updated_at
+              - media_type
+              - name
+              - size
+              - tenant_id
+      role: admin-user
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - is_public
+              - media_type
+              - name
+              - size
+              - annotations
+              - labels
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - id
+              - tenant_id
+      role: document-write
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - annotations
+              - created_at
+              - election_event_id
+              - id
+              - is_public
+              - labels
+              - last_updated_at
+              - media_type
+              - name
+              - size
+              - tenant_id
+      role: service-account
 select_permissions:
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - annotations
-    - created_at
-    - election_event_id
-    - id
-    - is_public
-    - labels
-    - last_updated_at
-    - media_type
-    - name
-    - size
-    - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: admin-user
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - is_public
-    - media_type
-    - name
-    - size
-    - annotations
-    - labels
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - id
-    - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: document-read
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - is_public
-    - media_type
-    - name
-    - size
-    - annotations
-    - labels
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - id
-    - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: document-write
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - annotations
-    - created_at
-    - election_event_id
-    - id
-    - is_public
-    - labels
-    - last_updated_at
-    - media_type
-    - name
-    - size
-    - tenant_id
-    filter: {}
-  role: service-account
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - is_public
-    - media_type
-    - name
-    - size
-    - annotations
-    - labels
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - id
-    - tenant_id
-    filter: {}
-  role: user
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - annotations
+              - created_at
+              - election_event_id
+              - id
+              - is_public
+              - labels
+              - last_updated_at
+              - media_type
+              - name
+              - size
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - is_public
+              - media_type
+              - name
+              - size
+              - annotations
+              - labels
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: document-read
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - is_public
+              - media_type
+              - name
+              - size
+              - annotations
+              - labels
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: document-write
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - annotations
+              - created_at
+              - election_event_id
+              - id
+              - is_public
+              - labels
+              - last_updated_at
+              - media_type
+              - name
+              - size
+              - tenant_id
+          filter: {}
+      role: service-account
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - is_public
+              - media_type
+              - name
+              - size
+              - annotations
+              - labels
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - id
+              - tenant_id
+          filter: {}
+      role: user
 update_permissions:
-- comment: ""
-  permission:
-    check:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-    columns:
-    - annotations
-    - created_at
-    - election_event_id
-    - id
-    - is_public
-    - labels
-    - last_updated_at
-    - media_type
-    - name
-    - size
-    - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: admin-user
-- comment: ""
-  permission:
-    check:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-    columns:
-    - is_public
-    - media_type
-    - name
-    - size
-    - annotations
-    - labels
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - id
-    - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: document-write
-- comment: ""
-  permission:
-    check: {}
-    columns:
-    - annotations
-    - created_at
-    - election_event_id
-    - id
-    - is_public
-    - labels
-    - last_updated_at
-    - media_type
-    - name
-    - size
-    - tenant_id
-    filter: {}
-  role: service-account
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - annotations
+              - created_at
+              - election_event_id
+              - id
+              - is_public
+              - labels
+              - last_updated_at
+              - media_type
+              - name
+              - size
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - is_public
+              - media_type
+              - name
+              - size
+              - annotations
+              - labels
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: document-write
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - annotations
+              - created_at
+              - election_event_id
+              - id
+              - is_public
+              - labels
+              - last_updated_at
+              - media_type
+              - name
+              - size
+              - tenant_id
+          filter: {}
+      role: service-account
 delete_permissions:
-- comment: ""
-  permission:
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: admin-user
-- comment: ""
-  permission:
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: document-write
-- comment: ""
-  permission:
-    filter: {}
-  role: service-account
+    - comment: ""
+      permission:
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: document-write
+    - comment: ""
+      permission:
+          filter: {}
+      role: service-account
