@@ -1,0 +1,37 @@
+# SPDX-FileCopyrightText: 2024 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+[package]
+name = "orare"
+version = "0.1.0"
+edition = "2021"
+authors = [
+  "Eduardo Robles <edu@sequentech.io>"
+]
+license = "AGPL-3.0-only"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+# serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# for easy conditional feature flagging
+cfg-if = "1.0"
+
+# used in the proc macro for generating the lambda functions
+syn = {version = "2.0", features = ['full'] }
+quote = "1.0"
+
+# Dependencies for AWS Lambda
+lambda_runtime = { version = "0.13", optional = true }
+tokio = { version = "1.38", features = ["full"], optional = true }
+
+# Feature flags to control the target platform
+[features]
+default = []
+aws_lambda = ["lambda_runtime", "tokio"]
+openwhisk = []

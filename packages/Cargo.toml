@@ -17,5 +17,7 @@ members = [
     "velvet",
     "windmill",
     "wrap-map-err",
-    "step-cli"
+    "step-cli",
+    "orare",
+    "orare/doc_renderer",
 ]

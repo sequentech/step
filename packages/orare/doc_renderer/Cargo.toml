@@ -1,0 +1,24 @@
+# SPDX-FileCopyrightText: 2024 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+[package]
+name = "doc_renderer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# common library for sequent lambdas
+orare = { path = ".." }
+
+# dependencies required by the procedural macro in orare
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+cfg-if = "1.0"
+
+# Pass the feature to orare depending on the build flag selected
+[features]
+default = ["openwhisk"]
+aws_lambda = ["orare/aws_lambda"]
+openwhisk = ["orare/openwhisk"]
+
