@@ -166,7 +166,7 @@ impl TemplateRenderer for AuditLogsTemplate {
         };
 
         // Fetch election's voting periods
-        // TODO: we should decide if this is the actual start time, or the 
+        // TODO: we should decide if this is the actual start time, or the
         // scheduled time
         let voting_period_dates = generate_voting_period_dates(
             start_election_event,

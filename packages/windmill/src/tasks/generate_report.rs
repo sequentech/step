@@ -18,7 +18,7 @@ use crate::services::reports::utils::ToMap;
 use crate::services::reports::{
     election_returns_for_national_positions, ov_users, ov_users_who_voted, ovcs_information,
     ovcs_statistics, overseas_voters, pre_enrolled_ov_but_disapproved,
-    pre_enrolled_ov_subject_to_manual_validation, status, statistical_report
+    pre_enrolled_ov_subject_to_manual_validation, statistical_report, status,
 };
 use crate::types::error::Error;
 use crate::types::error::Result;
