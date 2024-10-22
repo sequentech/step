@@ -238,6 +238,7 @@ pub async fn generate_statistical_report(
     tenant_id: &str,
     election_event_id: &str,
     election_id: &str,
+    mode: GenerateReportMode,
     hasura_transaction: Option<&Transaction<'_>>,
     keycloak_transaction: Option<&Transaction<'_>>,
 ) -> Result<()> {
@@ -254,7 +255,7 @@ pub async fn generate_statistical_report(
             false,
             None,
             None,
-            GenerateReportMode::REAL,
+            mode,
             hasura_transaction,
             keycloak_transaction,
         )

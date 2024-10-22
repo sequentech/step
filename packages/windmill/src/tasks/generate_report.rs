@@ -18,7 +18,7 @@ use crate::services::reports::utils::ToMap;
 use crate::services::reports::{
     election_returns_for_national_positions, ov_users, ov_users_who_voted, ovcs_information,
     ovcs_statistics, overseas_voters, pre_enrolled_ov_but_disapproved,
-    pre_enrolled_ov_subject_to_manual_validation, status,
+    pre_enrolled_ov_subject_to_manual_validation, status, statistical_report
 };
 use crate::types::error::Error;
 use crate::types::error::Result;
@@ -197,6 +197,19 @@ pub async fn generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
+                report_mode,
+                Some(&hasura_transaction),
+                None
+            )
+            .await
+            .map_err(|err| anyhow!("{}", err))
+        }
+        Ok(ReportType::STATISTICAL_REPORT) => {
+            return statistical_report::generate_statistical_report(
+                &document_id,
+                &tenant_id,
+                &election_event_id,
+                &election_id,
                 report_mode,
                 Some(&hasura_transaction),
                 None
