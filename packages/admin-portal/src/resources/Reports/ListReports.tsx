@@ -39,7 +39,7 @@ import DeleteIcon from "@mui/icons-material/Delete"
 import DescriptionIcon from "@mui/icons-material/Description"
 import PreviewIcon from "@mui/icons-material/Preview"
 import {Dialog} from "@sequentech/ui-essentials"
-import {EGenerateReportMode, EReportType, ReportActions, reportTypeConfig} from "@/types/reports"
+import {EGenerateReportMode, ReportActions, reportTypeConfig} from "@/types/reports"
 import {GENERATE_REPORT} from "@/queries/GenerateReport"
 import {useMutation} from "@apollo/client"
 import {DownloadDocument} from "../User/DownloadDocument"
@@ -301,21 +301,19 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             return null
         }
 
+        const isShowAction = (action: Action) => {
+            return (
+                !action.key ||
+                !reportConfig.actions.includes(action.key as ReportActions) ||
+                ((action.key === ReportActions.EDIT || action.key === ReportActions.DELETE) &&
+                    !canWriteReport)
+            )
+        }
+
         return (
             <Box>
                 {actions.map((action, index) => {
-                    if (!action.key) {
-                        return null
-                    }
-                    if (!reportConfig.actions.includes(action.key as ReportActions)) {
-                        return null
-                    }
-
-                    if (
-                        (action.key === ReportActions.EDIT ||
-                            action.key === ReportActions.DELETE) &&
-                        !canWriteReport
-                    ) {
+                    if (isShowAction(action)) {
                         return null
                     }
 
@@ -427,7 +425,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                         close={handleClose}
                         electionEventId={electionEventId}
                         tenantId={tenantId}
-                        isEditReport={selectedReportId ? true : false}
+                        isEditReport={!!selectedReportId}
                         reportId={selectedReportId}
                     />
                 </CustomApolloContextProvider>
