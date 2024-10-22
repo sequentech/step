@@ -6,6 +6,7 @@ use crate::postgres::reports::Report;
 use crate::postgres::reports::ReportType;
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::get_hasura_pool;
+use crate::services::database::get_keycloak_pool;
 use crate::services::pg_lock::PgLock;
 use crate::services::reports::audit_logs;
 use crate::services::reports::manual_verification::ManualVerificationTemplate;
@@ -17,7 +18,7 @@ use crate::services::reports::utils::ToMap;
 use crate::services::reports::{
     election_returns_for_national_positions, ov_users, ov_users_who_voted, ovcs_information,
     ovcs_statistics, overseas_voters, pre_enrolled_ov_but_disapproved,
-    pre_enrolled_ov_subject_to_manual_validation, status,
+    pre_enrolled_ov_subject_to_manual_validation, statistical_report, status,
 };
 use crate::types::error::Error;
 use crate::types::error::Result;
@@ -43,6 +44,29 @@ pub async fn generate_report(
     let report_type_str = report.report_type.clone();
     // Clone the election id if it exists
     let election_id = report.election_id.as_deref().unwrap_or("");
+
+    let mut db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .with_context(|| "Error getting DB pool")?;
+
+    let hasura_transaction = db_client
+        .transaction()
+        .await
+        .with_context(|| "Error starting transaction")?;
+
+    let mut keycloak_db_client = get_keycloak_pool()
+        .await
+        .get()
+        .await
+        .with_context(|| "Error acquiring Keycloak DB pool")?;
+
+    let keycloak_transaction = keycloak_db_client
+        .transaction()
+        .await
+        .with_context(|| "Error starting Keycloak transaction")?;
+
     // Create the template renderer based on the report type
     match ReportType::from_str(&report_type_str) {
         Ok(ReportType::OVCS_EVENTS) => {
@@ -51,6 +75,8 @@ pub async fn generate_report(
                 &tenant_id,
                 &election_event_id,
                 report_mode,
+                Some(&hasura_transaction),
+                None
             )
             .await
             .map_err(|err| anyhow!("{}", err))
@@ -62,6 +88,8 @@ pub async fn generate_report(
                 &election_event_id,
                 &election_id,
                 report_mode,
+                Some(&hasura_transaction),
+                Some(&keycloak_transaction)
             )
             .await
             .map_err(|err| anyhow!("{}", err))
@@ -73,6 +101,8 @@ pub async fn generate_report(
                 &election_event_id,
                 &election_id,
                 report_mode,
+                Some(&hasura_transaction),
+                Some(&keycloak_transaction)
             )
             .await
             .map_err(|err| anyhow!("{}", err))
@@ -84,6 +114,8 @@ pub async fn generate_report(
                 &election_event_id,
                 &election_id,
                 report_mode,
+                Some(&hasura_transaction),
+                Some(&keycloak_transaction)
             )
             .await
             .map_err(|err| anyhow!("{}", err))
@@ -94,6 +126,8 @@ pub async fn generate_report(
                 &tenant_id,
                 &election_event_id,
                 report_mode,
+                Some(&hasura_transaction),
+                None
             )
             .await
             .map_err(|err| anyhow!("{}", err))
@@ -104,6 +138,8 @@ pub async fn generate_report(
                 &tenant_id,
                 &election_event_id,
                 report_mode,
+                Some(&hasura_transaction),
+                Some(&keycloak_transaction)
             )
             .await
             .map_err(|err| anyhow!("{}", err))
@@ -114,6 +150,8 @@ pub async fn generate_report(
                 &tenant_id,
                 &election_event_id,
                 report_mode,
+                Some(&hasura_transaction),
+                None
             )
             .await
             .map_err(|err| anyhow!("{}", err))
@@ -124,6 +162,8 @@ pub async fn generate_report(
                 &tenant_id,
                 &election_event_id,
                 report_mode,
+                Some(&hasura_transaction),
+                None
             )
             .await
             .map_err(|err| anyhow!("{}", err))
@@ -134,6 +174,8 @@ pub async fn generate_report(
                 &tenant_id,
                 &election_event_id,
                 report_mode,
+                Some(&hasura_transaction),
+                None
             )
             .await
             .map_err(|err| anyhow!("{}", err))
@@ -144,6 +186,8 @@ pub async fn generate_report(
                 &tenant_id,
                 &election_event_id,
                 report_mode,
+                Some(&hasura_transaction),
+                None
             )
             .await
             .map_err(|err| anyhow!("{}", err))
@@ -154,11 +198,25 @@ pub async fn generate_report(
                 &tenant_id,
                 &election_event_id,
                 report_mode,
+                Some(&hasura_transaction),
+                None
             )
             .await
             .map_err(|err| anyhow!("{}", err))
         }
-
+        Ok(ReportType::STATISTICAL_REPORT) => {
+            return statistical_report::generate_statistical_report(
+                &document_id,
+                &tenant_id,
+                &election_event_id,
+                &election_id,
+                report_mode,
+                Some(&hasura_transaction),
+                None
+            )
+            .await
+            .map_err(|err| anyhow!("{}", err))
+        }
         _ => {
             panic!("Invalid report type");
         }
