@@ -44,6 +44,9 @@ export const EditElectionEventData: React.FC = () => {
         //update elections
         updateElectionsOrder(data)
 
+        console.log("aa TRANSFORM ELECTION :: ", data);
+        
+
         delete data.electionsOrder
 
         const enabled_language_codes = []
