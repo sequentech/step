@@ -22,11 +22,13 @@ use std::collections::HashMap;
 use std::env;
 use tracing::instrument;
 use uuid::Uuid;
+use windmill::postgres::area::get_areas_by_election;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::services::export_users::{
     ExportBody, ExportTenantUsersBody, ExportUsersBody,
 };
+use windmill::services::keycloak_events::list_keycloak_events_by_type;
 use windmill::services::tasks_execution::*;
 use windmill::services::users::ListUsersFilter;
 use windmill::services::users::{list_users, list_users_with_vote_info};

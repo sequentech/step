@@ -442,3 +442,64 @@ pub async fn get_event_areas(
 
     Ok(election_events)
 }
+
+/**
+ * Returns a vec of the areas id and name of the election.
+ * vec[i].0 = area id
+ * vec[i].1 = area name
+ */
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_areas_by_election(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+) -> Result<Vec<(String, String)>> {
+    let statement: tokio_postgres::Statement = hasura_transaction
+        .prepare(
+            r#"
+            SELECT DISTINCT
+                a.name AS area_name,
+                a.id AS area_id
+            FROM
+                sequent_backend.area a
+            JOIN
+                sequent_backend.area_contest ac ON
+                    a.id = ac.area_id AND
+                    a.election_event_id = ac.election_event_id AND
+                    a.tenant_id = ac.tenant_id
+            JOIN
+                sequent_backend.contest c ON
+                    ac.contest_id = c.id AND
+                    ac.election_event_id = c.election_event_id AND
+                    ac.tenant_id = c.tenant_id
+            WHERE
+                c.tenant_id = $1 AND
+                c.election_event_id = $2 AND
+                c.election_id = $3;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+                &Uuid::parse_str(election_id)?,
+            ],
+        )
+        .await?;
+
+    let mut areas: Vec<(String, String)> = vec![];
+
+    for row in rows {
+        let area_id: String = row.try_get::<_, Uuid>("area_id")?.to_string();
+        let area_name = row.try_get("area_name")?;
+
+        areas.push((area_id, area_name))
+    }
+
+    Ok(areas)
+}

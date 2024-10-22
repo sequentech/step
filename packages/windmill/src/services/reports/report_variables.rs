@@ -24,6 +24,7 @@ use uuid::Uuid;
 pub const COUNTRY_ATTR_NAME: &str = "country";
 pub const VALIDATE_ID_ATTR_NAME: &str = "sequent.read-only.id-card-number-validated";
 pub const VALIDATE_ID_PRE_ENROLLED_VALUE: &str = "VERIFIED";
+pub const APPROVE_BY_SYSTEM_EVENT_ACTION: &str = "InetumAuthenticator: User validated successfully";
 
 enum VoterStatus {
     Voted,
@@ -150,6 +151,7 @@ pub async fn generate_voters_turnout(
     Ok(voters_turnout)
 }
 
+////TODO:Change
 #[instrument(err, skip_all)]
 pub async fn get_total_number_of_registered_voters_for_country(
     keycloak_transaction: &Transaction<'_>,
@@ -174,6 +176,7 @@ pub struct ElectionData {
     pub post: String,
 }
 
+////TODO:Change
 #[instrument(err, skip_all)]
 pub async fn extract_election_data(election: &Election) -> Result<ElectionData> {
     let annotations: Option<Value> = election.annotations.clone();
@@ -230,6 +233,7 @@ pub fn get_date_and_time() -> (String, String) {
     (date, time)
 }
 
+////TODO:Change?
 #[instrument(err, skip_all)]
 pub async fn get_election_contests_area_results_and_total_ballot_counted(
     hasura_transaction: &Transaction<'_>,
@@ -316,6 +320,7 @@ pub struct VoteInfo {
     pub status: Option<String>,
 }
 
+////TODO:Change
 pub async fn get_voters_by_user_attributes(
     keycloak_transaction: &Transaction<'_>,
     attributes: HashMap<String, String>,
@@ -411,6 +416,7 @@ pub async fn get_voters_by_user_attributes(
     Ok((users, count))
 }
 
+////TODO:Change
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_voters_with_vote_info(
     hasura_transaction: &Transaction<'_>,

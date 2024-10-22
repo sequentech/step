@@ -9,7 +9,7 @@ use tokio_postgres::types::ToSql;
 use tracing::instrument;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
-struct Event {
+pub struct Event {
     id: String,
     event_time: i64,
     event_type: String,
@@ -42,13 +42,17 @@ impl TryFrom<Row> for Event {
     }
 }
 
-/*TODO: parse details_json_long_value to find action value for the approved by the system voters list */
 #[instrument(skip(keycloak_transaction), err)]
 pub async fn list_keycloak_events_by_type(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
     events_type: &str,
+    event_action: Option<&str>,
 ) -> Result<Vec<Event>> {
+    let event_action_clause = match event_action {
+        Some(_) => "AND (e.details_json_long_value::json ->> 'action' IS NOT NULL AND e.details_json_long_value::json ->> 'action' = $3)".to_string(),
+        None => "".to_string(),
+    };
     let statement = keycloak_transaction
         .prepare(
             format!(
@@ -61,13 +65,18 @@ pub async fn list_keycloak_events_by_type(
         WHERE
         ra.name = $1
         AND e.type = $2
+        {event_action_clause}
     "#
             )
             .as_str(),
         )
         .await?;
 
-    let params: Vec<&(dyn ToSql + Sync)> = vec![&realm, &events_type];
+    let mut params: Vec<&(dyn ToSql + Sync)> = vec![&realm, &events_type];
+
+    if event_action.is_some() {
+        params.push(&event_action);
+    }
 
     let rows: Vec<Row> = keycloak_transaction
         .query(&statement, &params.as_slice())
